@@ -175,6 +175,21 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                 )
             `);
             await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS my_map_personal_places (
+                    id SERIAL PRIMARY KEY,
+                    map_id INTEGER NOT NULL REFERENCES my_maps(id) ON DELETE CASCADE,
+                    name VARCHAR(255) NOT NULL,
+                    category_label VARCHAR(120),
+                    address TEXT,
+                    postal_code VARCHAR(20),
+                    lat NUMERIC(10, 7) NOT NULL,
+                    lng NUMERIC(10, 7) NOT NULL,
+                    note TEXT,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_map_share_snapshots (
                     id SERIAL PRIMARY KEY,
                     map_id INTEGER NOT NULL REFERENCES my_maps(id) ON DELETE CASCADE,
@@ -792,6 +807,8 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_map_assets_map_resource_unique ON my_map_assets (map_id, resource_type, resource_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_asset_notes_map_asset_idx ON my_map_asset_notes (map_asset_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_asset_notes_map_asset_sort_idx ON my_map_asset_notes (map_asset_id, sort_order)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_personal_places_map_idx ON my_map_personal_places (map_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_personal_places_map_name_idx ON my_map_personal_places (map_id, name)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_assets_calendar_enabled_idx ON soft_assets (calendar_enabled, calendar_starts_at)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS user_calendar_items_user_starts_idx ON user_calendar_items (user_id, starts_at)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS user_calendar_items_source_idx ON user_calendar_items (soft_asset_id, source_starts_at)`);

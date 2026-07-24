@@ -80,7 +80,7 @@ function buildPlaceQueryText(place, row) {
         row.bucket,
         row.descriptor,
         row.status === 'list_only' ? 'list only not shown on map' : '',
-        row.resourceType === 'hard' ? 'place' : 'offering',
+        row.resourceType === 'personal_place' ? 'personal place' : (row.resourceType === 'hard' ? 'place' : 'offering'),
     ]
         .map(normalizeText)
         .join(' ');
@@ -95,7 +95,7 @@ function buildUnmappedRowQueryText(row) {
         row.contextLabel,
         row.locationLabel,
         row.status === 'list_only' ? 'list only not shown on map' : '',
-        row.resourceType === 'hard' ? 'place' : 'offering',
+        row.resourceType === 'personal_place' ? 'personal place' : (row.resourceType === 'hard' ? 'place' : 'offering'),
     ]
         .map(normalizeText)
         .join(' ');
@@ -114,10 +114,10 @@ function hasMapCategory(row = {}) {
 
 function getRowCategoryLabel(row = {}, { preferMapCategory = false } = {}) {
     if (preferMapCategory && hasMapCategory(row)) {
-        return row.mapSubCategory || row.mapCategoryLabel || row.subCategory || row.bucket || (row.resourceType === 'soft' ? 'Programme/service' : 'Place');
+        return row.mapSubCategory || row.mapCategoryLabel || row.subCategory || row.bucket || (row.resourceType === 'personal_place' ? 'Personal place' : (row.resourceType === 'soft' ? 'Programme/service' : 'Place'));
     }
 
-    return row.subCategory || row.bucket || (row.resourceType === 'soft' ? 'Programme/service' : 'Place');
+    return row.subCategory || row.bucket || (row.resourceType === 'personal_place' ? 'Personal place' : (row.resourceType === 'soft' ? 'Programme/service' : 'Place'));
 }
 
 function getGroupCategoryLabel(group = {}, options = {}) {

@@ -2126,6 +2126,34 @@ function DirectoryMapViewStateSync({ value = null, onChange = null, onSettled = 
     return null;
 }
 
+function DirectoryMapClickHandler({ enabled = false, onMapClick = null }) {
+    const map = useMap();
+
+    useEffect(() => {
+        if (!enabled || typeof onMapClick !== 'function') {
+            return undefined;
+        }
+
+        function handleClick(event) {
+            const target = event?.originalEvent?.target;
+            if (target?.closest?.('.leaflet-marker-icon,.leaflet-control,.leaflet-popup')) {
+                return;
+            }
+            const lat = Number(event?.latlng?.lat);
+            const lng = Number(event?.latlng?.lng);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                return;
+            }
+            onMapClick({ lat, lng, originalEvent: event?.originalEvent || null });
+        }
+
+        map.on('click', handleClick);
+        return () => map.off('click', handleClick);
+    }, [enabled, map, onMapClick]);
+
+    return null;
+}
+
 function DirectoryMapController({
     activeAnchor,
     pins,
@@ -2327,6 +2355,7 @@ export default function DirectoryMap({
     onMapViewStateChange = null,
     captureReadyKey = '',
     mobileControlPortalTarget = null,
+    onMapClick = null,
 }) {
     const { mapStyle } = useMapStyle();
     const hasReportedReadyRef = useRef(false);
@@ -2862,7 +2891,7 @@ export default function DirectoryMap({
         });
     }, [shouldCluster, showPins, displayPins, markerMode, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
-    if (!pins.length && !anchorPoint) {
+    if (!pins.length && !anchorPoint && !onMapClick) {
         return (
             <div className={`rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500 ${className}`}>
                 {emptyLabel}
@@ -2883,6 +2912,7 @@ export default function DirectoryMap({
     const resolvedContainerClassName = showZoomControl
         ? `${containerClassName} carearound-map-control-rail carearound-map-control-rail--${mapControlRailDepth}`
         : containerClassName;
+    const mapClickEnabled = interactive && typeof onMapClick === 'function';
 
     return (
         <div
@@ -3025,6 +3055,10 @@ export default function DirectoryMap({
                     value={mapViewState}
                     onChange={onMapViewStateChange}
                     onSettled={onMapReadyForCapture ? handleCaptureMapSettled : null}
+                />
+                <DirectoryMapClickHandler
+                    enabled={mapClickEnabled}
+                    onMapClick={onMapClick}
                 />
                 <DirectoryMapRecenterControl
                     activeAnchor={anchorPoint}

@@ -3,16 +3,19 @@ import assert from 'node:assert/strict';
 
 import {
     addAssetToMyMap,
+    createMyMapPersonalPlace,
     createMyMap,
+    deleteMyMapPersonalPlace,
     deleteMyMapRecord,
     getMyMapDetail,
     listMyMaps,
     publishMyMap,
     renameMyMap,
+    updateMyMapPersonalPlace,
     updateMyMapAssetNotes,
     unpublishMyMap,
 } from '../src/controllers/myMapsController.js';
-import { myMapAssetNotes, myMapAssets, myMapShareSnapshots, myMaps } from '../src/db/schema.js';
+import { myMapAssetNotes, myMapAssets, myMapPersonalPlaces, myMapShareSnapshots, myMaps } from '../src/db/schema.js';
 
 const DEFAULT_USER = { id: 7, role: 'standard', postalCode: '680153' };
 const PARTNER_USER = { ...DEFAULT_USER, role: 'partner' };
@@ -71,6 +74,23 @@ function createMapAsset(overrides = {}) {
     };
 }
 
+function createPersonalPlace(overrides = {}) {
+    return {
+        id: 5,
+        mapId: 3,
+        name: 'Useful coffee shop',
+        categoryLabel: 'Shop',
+        address: '21 Choa Chu Kang Avenue 4 Singapore 689812',
+        postalCode: '689812',
+        lat: '1.3851000',
+        lng: '103.7449000',
+        note: 'Good rest stop after appointments.',
+        createdAt: new Date('2026-03-14T10:10:00.000Z'),
+        updatedAt: new Date('2026-03-14T10:10:00.000Z'),
+        ...overrides,
+    };
+}
+
 function createHardAsset(overrides = {}) {
     return {
         id: 29,
@@ -100,6 +120,9 @@ function attachAssets(state, map) {
                     .filter((note) => note.mapAssetId === asset.id)
                     .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id),
             })),
+        personalPlaces: state.personalPlaces
+            .filter((place) => place.mapId === map.id)
+            .sort((a, b) => a.createdAt - b.createdAt || a.id - b.id),
     };
 }
 
@@ -108,19 +131,23 @@ function createFakeDb({
     maps = [],
     mapAssets = [],
     mapAssetNotes = [],
+    personalPlaces = [],
     shareSnapshots = [],
     hardAsset = null,
+    denyOwnedMaps = false,
 } = {}) {
     const state = {
         favorites: favorites.map((item) => ({ ...item })),
         maps: maps.map((item) => ({ ...item })),
         mapAssets: mapAssets.map((item) => ({ ...item })),
         mapAssetNotes: mapAssetNotes.map((item) => ({ ...item })),
+        personalPlaces: personalPlaces.map((item) => ({ ...item })),
         shareSnapshots: shareSnapshots.map((item) => ({ ...item })),
         hardAsset,
         nextMapId: maps.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextMapAssetId: mapAssets.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextMapAssetNoteId: mapAssetNotes.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
+        nextPersonalPlaceId: personalPlaces.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextShareSnapshotId: shareSnapshots.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
     };
 
@@ -129,7 +156,7 @@ function createFakeDb({
         query: {
             myMaps: {
                 findMany: async () => state.maps.map((map) => attachAssets(state, map)),
-                findFirst: async () => attachAssets(state, state.maps[0] || null),
+                findFirst: async () => (denyOwnedMaps ? null : attachAssets(state, state.maps[0] || null)),
             },
             myMapAssets: {
                 findFirst: async () => {
@@ -145,6 +172,9 @@ function createFakeDb({
             },
             myMapShareSnapshots: {
                 findFirst: async () => state.shareSnapshots[0] || null,
+            },
+            myMapPersonalPlaces: {
+                findFirst: async () => state.personalPlaces[0] || null,
             },
             userFavorites: {
                 findFirst: async () => state.favorites[0] || null,
@@ -209,6 +239,23 @@ function createFakeDb({
                 };
             }
 
+            if (table === myMapPersonalPlaces) {
+                return {
+                    values(value) {
+                        const row = {
+                            id: state.nextPersonalPlaceId++,
+                            createdAt: new Date('2026-03-14T11:07:00.000Z'),
+                            updatedAt: new Date('2026-03-14T11:07:00.000Z'),
+                            ...value,
+                        };
+                        state.personalPlaces.push(row);
+                        return {
+                            returning: async () => [row],
+                        };
+                    },
+                };
+            }
+
             if (table === myMapShareSnapshots) {
                 return {
                     values(value) {
@@ -263,6 +310,23 @@ function createFakeDb({
                 };
             }
 
+            if (table === myMapPersonalPlaces) {
+                return {
+                    set(values) {
+                        return {
+                            where: async () => {
+                                if (!state.personalPlaces[0]) return [];
+                                state.personalPlaces[0] = {
+                                    ...state.personalPlaces[0],
+                                    ...values,
+                                };
+                                return [state.personalPlaces[0]];
+                            },
+                        };
+                    },
+                };
+            }
+
             if (table === myMapShareSnapshots) {
                 return {
                     set(values) {
@@ -288,6 +352,7 @@ function createFakeDb({
                     where: async () => {
                         state.maps = [];
                         state.mapAssets = [];
+                        state.personalPlaces = [];
                     },
                 };
             }
@@ -305,6 +370,14 @@ function createFakeDb({
                 return {
                     where: async () => {
                         state.mapAssetNotes = [];
+                    },
+                };
+            }
+
+            if (table === myMapPersonalPlaces) {
+                return {
+                    where: async () => {
+                        state.personalPlaces = [];
                     },
                 };
             }
@@ -377,6 +450,90 @@ test('getMyMapDetail falls back to snapshot data for unavailable assets', async 
     assert.equal(detail.summary.resourceCount, 1);
     assert.equal(detail.assets[0].status, 'unavailable');
     assert.equal(detail.places[0].rows[0].name, 'Saved centre snapshot');
+});
+
+test('personal places can be created and appear only in owner directory shape', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset()],
+        hardAsset: null,
+    });
+
+    const created = await createMyMapPersonalPlace(db, DEFAULT_USER, 3, {
+        name: 'Useful coffee shop',
+        categoryLabel: 'Shop',
+        address: '21 Choa Chu Kang Avenue 4 Singapore 689812',
+        postalCode: '689812',
+        lat: 1.3851,
+        lng: 103.7449,
+        note: 'Good rest stop after appointments.',
+    });
+    const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+    const personalRow = detail.places.flatMap((place) => place.rows).find((row) => row.resourceType === 'personal_place');
+
+    assert.equal(created.mapId, 3);
+    assert.equal(created.name, 'Useful coffee shop');
+    assert.equal(detail.summary.resourceCount, 2);
+    assert.equal(detail.summary.savedResourceCount, 1);
+    assert.equal(detail.summary.personalPlaceCount, 1);
+    assert.equal(detail.assets.length, 1);
+    assert.equal(detail.personalPlaces.length, 1);
+    assert.equal(personalRow.name, 'Useful coffee shop');
+    assert.equal(personalRow.saveEligible, false);
+    assert.equal(detail.pins.some((pin) => pin.placeKey === 'personal-place-1'), true);
+});
+
+test('personal places can be updated and deleted on owned maps', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        personalPlaces: [createPersonalPlace()],
+    });
+
+    const updated = await updateMyMapPersonalPlace(db, DEFAULT_USER, 3, 5, {
+        name: 'Updated pickup point',
+        categoryLabel: 'Pickup point',
+        address: '10 Choa Chu Kang Avenue 4 Singapore 689810',
+        postalCode: '689810',
+        lat: 1.3862,
+        lng: 103.7452,
+        note: 'Better shelter.',
+    });
+    const deleted = await deleteMyMapPersonalPlace(db, DEFAULT_USER, 3, 5);
+
+    assert.equal(updated.name, 'Updated pickup point');
+    assert.equal(updated.categoryLabel, 'Pickup point');
+    assert.equal(deleted.success, true);
+    assert.equal(db.state.personalPlaces.length, 0);
+});
+
+test('personal place mutations reject guests and maps not owned by the user', async () => {
+    const guestDb = createFakeDb({
+        maps: [createMap()],
+    });
+    const foreignDb = createFakeDb({
+        maps: [createMap()],
+        denyOwnedMaps: true,
+    });
+    const body = {
+        name: 'Useful shop',
+        lat: 1.3851,
+        lng: 103.7449,
+    };
+
+    await assert.rejects(
+        () => createMyMapPersonalPlace(guestDb, { id: 11, role: 'guest' }, 3, body),
+        (err) => {
+            assert.equal(err.status, 403);
+            return true;
+        }
+    );
+    await assert.rejects(
+        () => createMyMapPersonalPlace(foreignDb, { id: 99, role: 'standard' }, 3, body),
+        (err) => {
+            assert.equal(err.status, 404);
+            return true;
+        }
+    );
 });
 
 test('updateMyMapAssetNotes stores multiple simple notes with per-note sharing', async () => {
@@ -469,6 +626,26 @@ test('publishMyMap snapshots only notes marked for sharing', async () => {
     assert.deepEqual(
         db.state.shareSnapshots[0].snapshot.assets[0].notes.items.map((note) => note.text),
         ['Bring referral letter.'],
+    );
+});
+
+test('publishMyMap excludes owner personal places from shared snapshots', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset()],
+        personalPlaces: [createPersonalPlace()],
+        hardAsset: createHardAsset(),
+    });
+
+    await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+
+    assert.equal(db.state.shareSnapshots.length, 1);
+    const snapshot = db.state.shareSnapshots[0].snapshot;
+    assert.equal(snapshot.summary.personalPlaceCount, 0);
+    assert.equal(snapshot.personalPlaces.length, 0);
+    assert.equal(
+        snapshot.places.flatMap((place) => place.rows).some((row) => row.resourceType === 'personal_place'),
+        false,
     );
 });
 
@@ -569,6 +746,7 @@ test('deleteMyMapRecord removes the map and all of its asset associations', asyn
     const db = createFakeDb({
         maps: [createMap()],
         mapAssets: [createMapAsset()],
+        personalPlaces: [createPersonalPlace()],
     });
 
     const result = await deleteMyMapRecord(db, DEFAULT_USER, 3);
@@ -576,4 +754,5 @@ test('deleteMyMapRecord removes the map and all of its asset associations', asyn
     assert.equal(result.success, true);
     assert.equal(db.state.maps.length, 0);
     assert.equal(db.state.mapAssets.length, 0);
+    assert.equal(db.state.personalPlaces.length, 0);
 });

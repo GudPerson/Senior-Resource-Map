@@ -15,6 +15,41 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-23 Personal Places on My Map V1
+
+- Current behavior: signed-in non-guest map owners can add, edit, and remove
+  private personal places directly from the owner My Map surface. The owner
+  enters add mode, clicks or taps the map, optionally uses OneMap lookup, and
+  saves a compact local place record with name, category label, address,
+  postal code, coordinates, and a private note. Personal places render as
+  `personal_place` rows, cards, pins, search results, distance-sorted entries,
+  and owner Print/PDF/PNG export content.
+- Known-good reference: local branch `codex/personal-places-my-map-v1`, based
+  on `5374844820ccd020ba3a8bfcdbb375894bbccae6`. No deployment has happened
+  for this implementation.
+- Reproduction steps: sign in as a standard, caregiver, partner, or admin
+  non-guest user; open an owned My Map; choose `Add personal place`; click or
+  tap the map; fill or OneMap-lookup the form; save; confirm the new row
+  appears in owner cards, pins, search, map focus, distance sorting, and owner
+  print/export previews. Edit and remove the row. Publish or open a shared map
+  link and confirm the personal place is absent.
+- Acceptance criteria: guests and non-owners cannot create, update, delete, or
+  fetch personal places through someone else's map; personal places are scoped
+  to a single map and cascade with map deletion; the managed-resource
+  `hard`/`soft` asset APIs, Discover, dashboard Resources, imports, AI
+  enrichment, governance, shared-map snapshots, and guest views never receive
+  `personal_place` rows; user-facing copy says `personal place`, not `asset`.
+- Verification result: focused server My Maps/schema coverage passed 31/31;
+  focused client presentation/source/i18n coverage passed 19/19; full server
+  coverage passed 455/455; map lockdown coverage passed 77/77; the exact
+  production-style `npm run build:client` passed with native-scale Default,
+  native-scale Gray, print-master Default, and print-master Gray asset roots.
+  `git diff --check` passed.
+- Rollback: revert the Personal Places V1 source changes on this branch to
+  remove the `my_map_personal_places` table bootstrap, API routes, owner UI,
+  and directory merge. Existing deployed maps and shared snapshots are
+  unaffected until this branch is deployed.
+
 ## 2026-07-23 map work stable baseline lock
 
 - Current behavior: the July 2026 owner map work is locked at commit

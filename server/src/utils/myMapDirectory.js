@@ -45,6 +45,10 @@ function buildAssetKey(resourceType, resourceId) {
     return `${resourceType}-${resourceId}`;
 }
 
+function buildPersonalPlaceKey(personalPlaceId) {
+    return `personal-place-${personalPlaceId}`;
+}
+
 function buildDetailPath(resourceType, resourceId) {
     return `/resource/${resourceType}/${resourceId}`;
 }
@@ -600,6 +604,7 @@ function addRowToPlace(placeMap, place, row) {
         placeId: place.placeId ?? null,
         name: place.name || 'Location unavailable',
         address: place.address || null,
+        postalCode: place.postalCode || null,
         lat: place.lat ?? null,
         lng: place.lng ?? null,
         hasCoordinates: Boolean(place.hasCoordinates),
@@ -656,6 +661,7 @@ function buildPins(places) {
                 placeId: place.placeId,
                 title: place.name,
                 address: place.address,
+                postalCode: place.postalCode || null,
                 lat: place.lat,
                 lng: place.lng,
                 curatedCount: place.curatedCount,
@@ -710,6 +716,62 @@ function createViewerSummary(viewerUser, ownerUserId, mapName) {
     };
 }
 
+function buildPersonalPlaceDirectoryEntry(personalPlace, categoryLookup) {
+    const id = Number.parseInt(String(personalPlace?.id ?? ''), 10);
+    const lat = parseCoordinate(personalPlace?.lat);
+    const lng = parseCoordinate(personalPlace?.lng);
+    if (!Number.isInteger(id) || id <= 0 || lat === null || lng === null) {
+        return null;
+    }
+
+    const categoryLabel = normalizeText(personalPlace?.categoryLabel) || 'Personal place';
+    const categoryKey = normalizeCategoryKey(categoryLabel);
+    const categoryMeta = categoryKey ? categoryLookup.get(categoryKey) || null : null;
+    const placeKey = buildPersonalPlaceKey(id);
+    const row = {
+        rowKey: placeKey,
+        resourceType: 'personal_place',
+        resourceId: id,
+        personalPlaceId: id,
+        name: normalizeText(personalPlace?.name) || 'Personal place',
+        bucket: 'Personal places',
+        subCategory: categoryLabel,
+        iconKey: categoryKey || 'personal place',
+        categoryIconUrl: categoryMeta?.iconUrl || null,
+        categoryColor: categoryMeta?.color || '#64748b',
+        descriptor: normalizeText(personalPlace?.note),
+        address: normalizeText(personalPlace?.address),
+        postalCode: normalizeText(personalPlace?.postalCode),
+        lat,
+        lng,
+        logoUrl: null,
+        availabilityEnabled: false,
+        availabilityCount: 0,
+        availabilityUnit: null,
+        detailPath: null,
+        status: 'available',
+        saveEligible: false,
+        access: null,
+        missingProfileFields: [],
+        assetKey: placeKey,
+        addedAt: personalPlace?.createdAt ?? null,
+        updatedAt: personalPlace?.updatedAt ?? null,
+        isPersonalPlace: true,
+    };
+    const place = {
+        placeId: null,
+        placeKey,
+        name: row.name,
+        address: row.address,
+        postalCode: row.postalCode,
+        lat,
+        lng,
+        hasCoordinates: true,
+    };
+
+    return { place, row };
+}
+
 export async function buildMyMapDirectory(db, {
     map,
     viewerUser = null,
@@ -720,6 +782,7 @@ export async function buildMyMapDirectory(db, {
     const placeMap = new Map();
     const snapshotUpdates = [];
     const assetSummaries = [];
+    const personalPlaceSummaries = [];
     const categoryLookup = await loadCategoryLookup(db);
     const effectiveVisibilityUser = visibilityUser || viewerUser || { role: 'guest' };
     const effectiveEligibilityViewer = viewerUser || { role: 'guest' };
@@ -845,8 +908,34 @@ export async function buildMyMapDirectory(db, {
         }
     }
 
+    if (mode === 'owner') {
+        for (const personalPlace of map?.personalPlaces || []) {
+            const entry = buildPersonalPlaceDirectoryEntry(personalPlace, categoryLookup);
+            if (!entry) continue;
+
+            personalPlaceSummaries.push({
+                assetKey: entry.row.assetKey,
+                resourceType: entry.row.resourceType,
+                resourceId: entry.row.resourceId,
+                personalPlaceId: entry.row.personalPlaceId,
+                status: entry.row.status,
+                name: entry.row.name,
+                categoryLabel: entry.row.subCategory,
+                address: entry.row.address,
+                postalCode: entry.row.postalCode,
+                lat: entry.place.lat,
+                lng: entry.place.lng,
+                note: entry.row.descriptor,
+                addedAt: entry.row.addedAt,
+                updatedAt: entry.row.updatedAt,
+            });
+            addRowToPlace(placeMap, entry.place, entry.row);
+        }
+    }
+
     const places = sortDirectoryPlaces(placeMap);
     const pins = buildPins(places);
+    const totalResourceCount = (map.assets || []).length + personalPlaceSummaries.length;
 
     return {
         directory: {
@@ -856,7 +945,9 @@ export async function buildMyMapDirectory(db, {
             createdAt: map.createdAt || null,
             updatedAt: map.updatedAt || null,
             summary: {
-                resourceCount: (map.assets || []).length,
+                resourceCount: totalResourceCount,
+                savedResourceCount: (map.assets || []).length,
+                personalPlaceCount: personalPlaceSummaries.length,
                 placeCount: places.length,
                 mappablePlaceCount: pins.length,
             },
@@ -868,6 +959,7 @@ export async function buildMyMapDirectory(db, {
                 shareUpdatedAt: map.shareUpdatedAt || null,
             },
             assets: assetSummaries,
+            personalPlaces: personalPlaceSummaries,
             places,
             pins,
             viewer: createViewerSummary(viewerUser, map.userId, map.name),

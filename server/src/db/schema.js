@@ -691,6 +691,23 @@ export const myMapAssetNotes = pgTable('my_map_asset_notes', {
   mapAssetSortIdx: index('my_map_asset_notes_map_asset_sort_idx').on(table.mapAssetId, table.sortOrder),
 }));
 
+export const myMapPersonalPlaces = pgTable('my_map_personal_places', {
+  id: serial('id').primaryKey(),
+  mapId: integer('map_id').references(() => myMaps.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  categoryLabel: varchar('category_label', { length: 120 }),
+  address: text('address'),
+  postalCode: varchar('postal_code', { length: 20 }),
+  lat: decimal('lat', { precision: 10, scale: 7 }).notNull(),
+  lng: decimal('lng', { precision: 10, scale: 7 }).notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  mapIdx: index('my_map_personal_places_map_idx').on(table.mapId),
+  mapNameIdx: index('my_map_personal_places_map_name_idx').on(table.mapId, table.name),
+}));
+
 export const userCalendarItems = pgTable('user_calendar_items', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
@@ -1335,6 +1352,7 @@ export const myMapsRelations = relations(myMaps, ({ one, many }) => ({
     references: [users.id],
   }),
   assets: many(myMapAssets),
+  personalPlaces: many(myMapPersonalPlaces),
   shareSnapshot: one(myMapShareSnapshots, {
     fields: [myMaps.id],
     references: [myMapShareSnapshots.mapId],
@@ -1353,6 +1371,13 @@ export const myMapAssetNotesRelations = relations(myMapAssetNotes, ({ one }) => 
   mapAsset: one(myMapAssets, {
     fields: [myMapAssetNotes.mapAssetId],
     references: [myMapAssets.id],
+  }),
+}));
+
+export const myMapPersonalPlacesRelations = relations(myMapPersonalPlaces, ({ one }) => ({
+  map: one(myMaps, {
+    fields: [myMapPersonalPlaces.mapId],
+    references: [myMaps.id],
   }),
 }));
 

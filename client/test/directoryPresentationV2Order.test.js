@@ -128,6 +128,52 @@ test('v2 card presentation orders by mapped status, category, and resource name'
     ]);
 });
 
+test('personal place rows participate in search, cards, and pins', () => {
+    const personalDirectory = {
+        places: [
+            {
+                placeKey: 'personal-place-5',
+                placeId: null,
+                name: 'Useful coffee shop',
+                address: '21 Choa Chu Kang Avenue 4 Singapore 689812',
+                postalCode: '689812',
+                lat: 1.3851,
+                lng: 103.7449,
+                hasCoordinates: true,
+                curatedCount: 1,
+                rows: [
+                    {
+                        rowKey: 'personal-place-5',
+                        assetKey: 'personal-place-5',
+                        resourceType: 'personal_place',
+                        resourceId: 5,
+                        personalPlaceId: 5,
+                        name: 'Useful coffee shop',
+                        subCategory: 'Shop',
+                        descriptor: 'Good rest stop after appointments.',
+                        address: '21 Choa Chu Kang Avenue 4 Singapore 689812',
+                        postalCode: '689812',
+                        lat: 1.3851,
+                        lng: 103.7449,
+                        status: 'available',
+                        saveEligible: false,
+                    },
+                ],
+            },
+        ],
+    };
+
+    const presentation = buildDirectoryPresentation(personalDirectory, { presentationMode: 'v2-cards' });
+    const filtered = buildDirectoryPresentation(personalDirectory, { query: 'coffee', presentationMode: 'v2-cards' });
+    const missed = buildDirectoryPresentation(personalDirectory, { query: 'clinic', presentationMode: 'v2-cards' });
+
+    assert.equal(presentation.pins.length, 1);
+    assert.equal(presentation.displayGroups[0].rows[0].resourceType, 'personal_place');
+    assert.equal(presentation.displayGroups[0].categoryLabel, 'Shop');
+    assert.equal(filtered.pins.length, 1);
+    assert.equal(missed.pins.length, 0);
+});
+
 test('v2 card presentation keeps same-postal hard assets as separate cards with shared hover peers', () => {
     const presentation = buildDirectoryPresentation(directory, { presentationMode: 'v2-cards' });
     const postalPin = presentation.pins.find((pin) => pin.isPostalGroup);

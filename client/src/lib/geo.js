@@ -28,10 +28,13 @@ export async function searchOneMap(postalCode) {
 
         if (data.results && data.results.length > 0) {
             const first = data.results[0];
+            const building = String(first.BUILDING || '').trim();
             return {
                 lat: parseFloat(first.LATITUDE),
                 lng: parseFloat(first.LONGITUDE),
-                address: first.ADDRESS
+                address: first.ADDRESS,
+                postalCode: first.POSTAL || '',
+                name: building && building.toUpperCase() !== 'NIL' ? building : ''
             };
         }
         return null;

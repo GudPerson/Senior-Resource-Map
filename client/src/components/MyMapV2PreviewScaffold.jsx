@@ -24,6 +24,7 @@ export default function MyMapV2PreviewScaffold({
     onViewOnMap,
     onViewSection,
     onRemoveResource,
+    onEditPersonalPlace,
     onUpdateResourceNotes,
     onHoverPlaceStart,
     onHoverPlaceEnd,
@@ -32,6 +33,7 @@ export default function MyMapV2PreviewScaffold({
     onClusterSelect,
     onFocusHandled,
     onResetView,
+    onMapClick,
     toolbar = null,
     useDesktopBodyLayout = useDesktopLayout,
     emptyLabel,
@@ -76,6 +78,7 @@ export default function MyMapV2PreviewScaffold({
             onClusterSelect={onClusterSelect}
             onFocusHandled={onFocusHandled}
             onResetView={onResetView}
+            onMapClick={onMapClick}
             interactive={!suspendMapInteraction}
             markerMode="category-bubble"
             pinBadgeMode="none"
@@ -134,7 +137,12 @@ export default function MyMapV2PreviewScaffold({
                     />
                 ) : null}
 
-                {resourceCount === 0 ? emptyState : (
+                {resourceCount === 0 ? (
+                    <div className="space-y-4">
+                        {onMapClick ? renderMap(useDesktopLayout ? V2_DESKTOP_MAP_HEIGHT_CLASS : V2_MOBILE_MAP_HEIGHT_CLASS) : null}
+                        {emptyState}
+                    </div>
+                ) : (
                     <SharedMapDirectoryList
                         presentation={presentation}
                         mode="owner"
@@ -143,6 +151,7 @@ export default function MyMapV2PreviewScaffold({
                         onHoverPlaceStart={onHoverPlaceStart}
                         onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
+                        onEditPersonalPlace={onEditPersonalPlace}
                         onUpdateResourceNotes={onUpdateResourceNotes}
                         highlightPlaceKey={activePlaceKey}
                         highlightPlaceKeys={activePlaceKeys}

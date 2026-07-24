@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { flushSync } from 'react-dom';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
-import { ArrowLeft, LayoutTemplate, Link2, Menu, Pencil, Plus, Printer, RotateCcw, X } from 'lucide-react';
+import { ArrowLeft, LayoutTemplate, Link2, MapPin, Menu, Pencil, Plus, Printer, RotateCcw, Search, X } from 'lucide-react';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
@@ -22,6 +22,7 @@ import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useMapStyle } from '../contexts/MapStyleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
+import { searchOneMap } from '../lib/geo.js';
 import {
     getGroupFocusFallbackResourceIds,
     mergeGroupFocusDetailsIntoDirectory,
@@ -103,6 +104,8 @@ function OwnerHeader({
     anchorState,
     actionError,
     onAddAssets,
+    onAddPersonalPlace,
+    personalPlacePickerActive = false,
     onEditDetails,
     onOpenPrintView,
     onOpenShare,
@@ -131,6 +134,10 @@ function OwnerHeader({
                         <button type="button" onClick={onAddAssets} className={`btn-primary min-w-[172px] ${compactActionClassName}`}>
                             <Plus size={16} />
                             {t('manageResources')}
+                        </button>
+                        <button type="button" onClick={onAddPersonalPlace} className={`btn-ghost min-w-[172px] ${compactActionClassName} border border-slate-200 text-slate-700`}>
+                            <MapPin size={16} />
+                            {personalPlacePickerActive ? t('cancelAddPersonalPlace') : t('addPersonalPlace')}
                         </button>
                         <button type="button" onClick={onEditDetails} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                             <Pencil size={16} />
@@ -173,6 +180,9 @@ function OwnerHeader({
                 {actionError ? (
                     <p className="text-sm font-medium text-red-600">{actionError}</p>
                 ) : null}
+                {personalPlacePickerActive ? (
+                    <p className="text-sm font-semibold text-brand-700">{t('personalPlaceMapHint')}</p>
+                ) : null}
             </div>
         </div>
     );
@@ -184,6 +194,8 @@ function MyMapMobileControls({
     onQueryChange,
     anchorState,
     onAddAssets,
+    onAddPersonalPlace,
+    personalPlacePickerActive = false,
     onEditDetails,
     onOpenPrintView,
     onOpenShare,
@@ -270,6 +282,10 @@ function MyMapMobileControls({
                                     <Plus size={16} />
                                     {t('manageResources')}
                                 </button>
+                                <button type="button" onClick={() => runDrawerAction(onAddPersonalPlace)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
+                                    <MapPin size={16} />
+                                    {personalPlacePickerActive ? t('cancelAddPersonalPlace') : t('addPersonalPlace')}
+                                </button>
                                 <button type="button" onClick={() => runDrawerAction(onEditDetails)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Pencil size={16} />
                                     {t('editDetails')}
@@ -308,7 +324,7 @@ function MyMapMobileControls({
     );
 }
 
-function EmptyOwnerDirectory({ onAddAssets }) {
+function EmptyOwnerDirectory({ onAddAssets, onAddPersonalPlace }) {
     const { t } = useLocale();
     return (
         <div className="rounded-[32px] border border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center">
@@ -316,10 +332,293 @@ function EmptyOwnerDirectory({ onAddAssets }) {
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
                 {t('mapNoResourcesDescription')}
             </p>
-            <button type="button" onClick={onAddAssets} className="btn-primary mt-6 inline-flex justify-center">
-                <Plus size={16} />
-                {t('addFromMyDirectory')}
-            </button>
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <button type="button" onClick={onAddAssets} className="btn-primary inline-flex justify-center">
+                    <Plus size={16} />
+                    {t('addFromMyDirectory')}
+                </button>
+                <button type="button" onClick={onAddPersonalPlace} className="btn-ghost inline-flex justify-center border border-slate-200 text-slate-700">
+                    <MapPin size={16} />
+                    {t('addPersonalPlace')}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function formatPersonalPlaceCoordinate(value) {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed.toFixed(7) : '';
+}
+
+function extractPostalCodeFromText(value) {
+    const match = String(value || '').match(/\b(\d{6})\b/);
+    return match?.[1] || '';
+}
+
+function PersonalPlaceModal({
+    open,
+    draft,
+    submitting = false,
+    error = '',
+    onClose,
+    onSubmit,
+}) {
+    const { t } = useLocale();
+    const [form, setForm] = useState({
+        name: '',
+        categoryLabel: '',
+        address: '',
+        postalCode: '',
+        lat: '',
+        lng: '',
+        note: '',
+    });
+    const [lookupQuery, setLookupQuery] = useState('');
+    const [lookupBusy, setLookupBusy] = useState(false);
+    const [lookupError, setLookupError] = useState('');
+
+    useEffect(() => {
+        if (!open) return;
+        setForm({
+            name: draft?.name || '',
+            categoryLabel: draft?.categoryLabel || '',
+            address: draft?.address || '',
+            postalCode: draft?.postalCode || '',
+            lat: formatPersonalPlaceCoordinate(draft?.lat),
+            lng: formatPersonalPlaceCoordinate(draft?.lng),
+            note: draft?.note || '',
+        });
+        setLookupQuery(draft?.postalCode || draft?.address || '');
+        setLookupError('');
+    }, [draft, open]);
+
+    if (!open) return null;
+
+    const isEditing = Boolean(draft?.id);
+    const parsedLat = Number.parseFloat(form.lat);
+    const parsedLng = Number.parseFloat(form.lng);
+    const canSubmit = Boolean(form.name.trim())
+        && Number.isFinite(parsedLat)
+        && Number.isFinite(parsedLng)
+        && !submitting;
+
+    function updateField(field, value) {
+        setForm((current) => ({ ...current, [field]: value }));
+    }
+
+    async function handleLookup() {
+        const query = String(lookupQuery || form.postalCode || form.address || '').trim();
+        if (!query) return;
+        setLookupBusy(true);
+        setLookupError('');
+        try {
+            const result = await searchOneMap(query);
+            if (!result) {
+                setLookupError(t('personalPlaceLookupFailed'));
+                return;
+            }
+            const nextAddress = result.address || form.address;
+            const nextPostalCode = result.postalCode || extractPostalCodeFromText(nextAddress) || form.postalCode;
+            setForm((current) => ({
+                ...current,
+                address: nextAddress,
+                postalCode: nextPostalCode,
+                lat: formatPersonalPlaceCoordinate(result.lat),
+                lng: formatPersonalPlaceCoordinate(result.lng),
+                name: current.name || result.name || '',
+            }));
+        } catch (err) {
+            console.error(err);
+            setLookupError(t('personalPlaceLookupFailed'));
+        } finally {
+            setLookupBusy(false);
+        }
+    }
+
+    function handleSubmit(event) {
+        event.preventDefault();
+        if (!canSubmit) return;
+        onSubmit?.({
+            id: draft?.id || null,
+            name: form.name.trim(),
+            categoryLabel: form.categoryLabel.trim(),
+            address: form.address.trim(),
+            postalCode: form.postalCode.trim(),
+            lat: parsedLat,
+            lng: parsedLng,
+            note: form.note.trim(),
+        });
+    }
+
+    return (
+        <div
+            className="fixed inset-0 z-[1400] flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-6"
+            role="presentation"
+            onClick={() => {
+                if (!submitting) onClose?.();
+            }}
+        >
+            <section
+                className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-w-2xl sm:rounded-[28px]"
+                role="dialog"
+                aria-modal="true"
+                aria-label={isEditing ? t('editPersonalPlace') : t('addPersonalPlace')}
+                onClick={(event) => event.stopPropagation()}
+            >
+                <header className="flex flex-shrink-0 items-center gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
+                    <span className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
+                        <MapPin size={19} strokeWidth={2.2} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-base font-black leading-tight text-slate-900">
+                            {isEditing ? t('editPersonalPlace') : t('addPersonalPlace')}
+                        </p>
+                        <p className="mt-0.5 text-xs font-semibold leading-5 text-slate-500">{t('personalPlacePrivateHelp')}</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        disabled={submitting}
+                        className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:cursor-wait disabled:opacity-60"
+                        aria-label={t('close')}
+                    >
+                        <X size={19} />
+                    </button>
+                </header>
+
+                <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+                    <div className="space-y-4">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <label htmlFor="personal-place-lookup" className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                                {t('personalPlaceLookupLabel')}
+                            </label>
+                            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                                <input
+                                    id="personal-place-lookup"
+                                    type="text"
+                                    value={lookupQuery}
+                                    onChange={(event) => setLookupQuery(event.target.value)}
+                                    placeholder={t('personalPlaceLookupPlaceholder')}
+                                    className="input-field min-h-11 flex-1"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleLookup}
+                                    disabled={lookupBusy}
+                                    className="btn-ghost min-h-11 justify-center border border-slate-200 px-4 text-sm text-slate-700 disabled:cursor-wait disabled:opacity-60"
+                                >
+                                    <Search size={16} />
+                                    {lookupBusy ? t('loadingPage') : t('findLocation')}
+                                </button>
+                            </div>
+                            {lookupError ? <p className="mt-2 text-xs font-semibold text-red-600">{lookupError}</p> : null}
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <label className="space-y-1.5 sm:col-span-2">
+                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlaceName')}</span>
+                                <input
+                                    type="text"
+                                    value={form.name}
+                                    onChange={(event) => updateField('name', event.target.value)}
+                                    maxLength={160}
+                                    required
+                                    className="input-field min-h-11"
+                                    placeholder={t('personalPlaceNamePlaceholder')}
+                                />
+                            </label>
+                            <label className="space-y-1.5">
+                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlaceCategory')}</span>
+                                <input
+                                    type="text"
+                                    value={form.categoryLabel}
+                                    onChange={(event) => updateField('categoryLabel', event.target.value)}
+                                    maxLength={120}
+                                    className="input-field min-h-11"
+                                    placeholder={t('personalPlaceCategoryPlaceholder')}
+                                />
+                            </label>
+                            <label className="space-y-1.5">
+                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlacePostalCode')}</span>
+                                <input
+                                    type="text"
+                                    value={form.postalCode}
+                                    onChange={(event) => updateField('postalCode', event.target.value)}
+                                    maxLength={20}
+                                    inputMode="numeric"
+                                    className="input-field min-h-11"
+                                    placeholder="680153"
+                                />
+                            </label>
+                            <label className="space-y-1.5 sm:col-span-2">
+                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlaceAddress')}</span>
+                                <input
+                                    type="text"
+                                    value={form.address}
+                                    onChange={(event) => updateField('address', event.target.value)}
+                                    maxLength={500}
+                                    className="input-field min-h-11"
+                                    placeholder={t('personalPlaceAddressPlaceholder')}
+                                />
+                            </label>
+                            <label className="space-y-1.5">
+                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('latitude')}</span>
+                                <input
+                                    type="number"
+                                    step="0.0000001"
+                                    value={form.lat}
+                                    onChange={(event) => updateField('lat', event.target.value)}
+                                    required
+                                    className="input-field min-h-11"
+                                />
+                            </label>
+                            <label className="space-y-1.5">
+                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('longitude')}</span>
+                                <input
+                                    type="number"
+                                    step="0.0000001"
+                                    value={form.lng}
+                                    onChange={(event) => updateField('lng', event.target.value)}
+                                    required
+                                    className="input-field min-h-11"
+                                />
+                            </label>
+                            <label className="space-y-1.5 sm:col-span-2">
+                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlaceNote')}</span>
+                                <textarea
+                                    value={form.note}
+                                    onChange={(event) => updateField('note', event.target.value)}
+                                    maxLength={3000}
+                                    rows={4}
+                                    className="input-field min-h-[110px] resize-y"
+                                    placeholder={t('personalPlaceNotePlaceholder')}
+                                />
+                            </label>
+                        </div>
+
+                        {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}
+
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                disabled={submitting}
+                                className="btn-ghost min-h-11 justify-center border border-slate-200 px-4 text-sm text-slate-700 disabled:cursor-wait disabled:opacity-60"
+                            >
+                                {t('cancel')}
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={!canSubmit}
+                                className="btn-primary min-h-11 justify-center px-4 text-sm disabled:cursor-wait disabled:opacity-60"
+                            >
+                                {submitting ? t('saving') : t('save')}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
         </div>
     );
 }
@@ -558,6 +857,11 @@ export default function MyMapDetailPage() {
     const [addOpen, setAddOpen] = useState(false);
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
+    const [personalPlacePickerActive, setPersonalPlacePickerActive] = useState(false);
+    const [personalPlaceModalOpen, setPersonalPlaceModalOpen] = useState(false);
+    const [personalPlaceDraft, setPersonalPlaceDraft] = useState(null);
+    const [personalPlaceSubmitting, setPersonalPlaceSubmitting] = useState(false);
+    const [personalPlaceError, setPersonalPlaceError] = useState('');
     const [basemapMode, setBasemapMode] = useState(() => (TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live'));
     const [printMapState, setPrintMapState] = useState(() => (
         createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS)
@@ -582,7 +886,7 @@ export default function MyMapDetailPage() {
     const townMapSelectionKeyRef = useRef({});
     const useDesktopOwnerLayout = useMediaQuery('(min-width: 1024px)');
     const useDesktopDirectoryBodyLayout = useMediaQuery('(min-width: 1024px)');
-    const suspendMapInteraction = shareOpen || editOpen || addOpen;
+    const suspendMapInteraction = shareOpen || editOpen || addOpen || personalPlaceModalOpen;
     const isPrintView = searchParams.get('view') === 'print';
     const previousPrintViewRef = useRef(isPrintView);
     const myMapUiMode = getMyMapUiMode(searchParams);
@@ -1300,15 +1604,102 @@ export default function MyMapDetailPage() {
         }
     }
 
+    function openManageAssets() {
+        setPersonalPlacePickerActive(false);
+        setAddOpen(true);
+    }
+
+    function openPersonalPlacePicker() {
+        if (personalPlacePickerActive) {
+            setPersonalPlacePickerActive(false);
+            setPersonalPlaceError('');
+            return;
+        }
+        setAddOpen(false);
+        setEditOpen(false);
+        setShareOpen(false);
+        setPersonalPlaceModalOpen(false);
+        setPersonalPlaceDraft(null);
+        setPersonalPlaceError('');
+        clearMapSelection();
+        setPersonalPlacePickerActive(true);
+    }
+
+    function closePersonalPlaceModal() {
+        if (personalPlaceSubmitting) return;
+        setPersonalPlaceModalOpen(false);
+        setPersonalPlaceDraft(null);
+        setPersonalPlaceError('');
+    }
+
+    function handlePersonalPlaceMapClick({ lat, lng } = {}) {
+        if (!personalPlacePickerActive) return;
+        setPersonalPlaceDraft({
+            id: null,
+            name: '',
+            categoryLabel: '',
+            address: '',
+            postalCode: '',
+            lat,
+            lng,
+            note: '',
+        });
+        setPersonalPlaceError('');
+        setPersonalPlacePickerActive(false);
+        setPersonalPlaceModalOpen(true);
+    }
+
+    function handleEditPersonalPlace(row) {
+        if (!row) return;
+        setPersonalPlacePickerActive(false);
+        setPersonalPlaceError('');
+        setPersonalPlaceDraft({
+            id: row.personalPlaceId || row.resourceId,
+            name: row.name || '',
+            categoryLabel: row.subCategory || row.categoryLabel || '',
+            address: row.address || '',
+            postalCode: row.postalCode || '',
+            lat: row.lat ?? row.placeLat ?? null,
+            lng: row.lng ?? row.placeLng ?? null,
+            note: row.descriptor || row.note || '',
+        });
+        setPersonalPlaceModalOpen(true);
+    }
+
+    async function handleSavePersonalPlace(values) {
+        if (!directory) return;
+        setPersonalPlaceSubmitting(true);
+        setPersonalPlaceError('');
+        try {
+            if (values?.id) {
+                await api.updateMyMapPersonalPlace(directory.id, values.id, values);
+            } else {
+                await api.createMyMapPersonalPlace(directory.id, values);
+            }
+            setPersonalPlaceModalOpen(false);
+            setPersonalPlaceDraft(null);
+            await loadMap();
+        } catch (err) {
+            console.error(err);
+            setPersonalPlaceError(err.message || t('personalPlaceSaveFailed'));
+        } finally {
+            setPersonalPlaceSubmitting(false);
+        }
+    }
+
     async function handleRemoveResource(row) {
         if (!directory) return;
         setActionError('');
         try {
-            await api.removeMyMapAsset(directory.id, row.resourceType, row.resourceId);
+            if (row?.resourceType === 'personal_place') {
+                await api.deleteMyMapPersonalPlace(directory.id, row.personalPlaceId || row.resourceId);
+            } else {
+                await api.removeMyMapAsset(directory.id, row.resourceType, row.resourceId);
+            }
             await loadMap();
         } catch (err) {
             console.error(err);
-            setActionError(err.message || t('failedRemoveMapResource'));
+            setActionError(err.message || (row?.resourceType === 'personal_place' ? t('personalPlaceDeleteFailed') : t('failedRemoveMapResource')));
         }
     }
 
@@ -1329,6 +1720,7 @@ export default function MyMapDetailPage() {
     }
 
     async function handleUpdateResourceNotes(row, notes, options = {}) {
+        if (row?.resourceType === 'personal_place') return null;
         if (!directory || !row?.resourceType || !row?.resourceId) return null;
         setActionError('');
         const updated = await api.updateMyMapAssetNotes(directory.id, row.resourceType, row.resourceId, notes, options);
@@ -1629,7 +2021,9 @@ export default function MyMapDetailPage() {
                     onViewOnMap={handleViewOnMap}
                     onViewSection={handleViewSection}
                     onRemoveResource={handleRemoveResource}
+                    onEditPersonalPlace={handleEditPersonalPlace}
                     onUpdateResourceNotes={handleUpdateResourceNotes}
+                    onMapClick={personalPlacePickerActive ? handlePersonalPlaceMapClick : null}
                     onHoverPlaceStart={handleMapHoverStart}
                     onHoverPlaceEnd={handleMapHoverEnd}
                     onHoverClusterStart={handleMapClusterHoverStart}
@@ -1644,7 +2038,9 @@ export default function MyMapDetailPage() {
                             onQueryChange={setQuery}
                             anchorState={anchorState}
                             actionError={actionError}
-                            onAddAssets={() => setAddOpen(true)}
+                            onAddAssets={openManageAssets}
+                            onAddPersonalPlace={openPersonalPlacePicker}
+                            personalPlacePickerActive={personalPlacePickerActive}
                             onEditDetails={() => {
                                 setEditError('');
                                 setEditOpen(true);
@@ -1662,7 +2058,9 @@ export default function MyMapDetailPage() {
                             query={query}
                             onQueryChange={setQuery}
                             anchorState={anchorState}
-                            onAddAssets={() => setAddOpen(true)}
+                            onAddAssets={openManageAssets}
+                            onAddPersonalPlace={openPersonalPlacePicker}
+                            personalPlacePickerActive={personalPlacePickerActive}
                             onEditDetails={() => {
                                 setEditError('');
                                 setEditOpen(true);
@@ -1677,7 +2075,12 @@ export default function MyMapDetailPage() {
                         />
                     )}
                     emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
-                    emptyState={<EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />}
+                    emptyState={(
+                        <EmptyOwnerDirectory
+                            onAddAssets={openManageAssets}
+                            onAddPersonalPlace={openPersonalPlacePicker}
+                        />
+                    )}
                     mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
                     showZoomLevelCounter={TOWN_MAP_PROOF_ENABLED}
                     minimumZoomCenter={TOWN_MAP_PROOF_ENABLED ? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null}
@@ -1740,6 +2143,15 @@ export default function MyMapDetailPage() {
                     onPublish={handlePublishShare}
                     onUnpublish={handleUnpublishShare}
                 />
+
+                <PersonalPlaceModal
+                    open={personalPlaceModalOpen}
+                    draft={personalPlaceDraft}
+                    submitting={personalPlaceSubmitting}
+                    error={personalPlaceError}
+                    onClose={closePersonalPlaceModal}
+                    onSubmit={handleSavePersonalPlace}
+                />
             </>
         );
     }
@@ -1748,13 +2160,15 @@ export default function MyMapDetailPage() {
         <>
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
                 {!useDesktopOwnerLayout ? (
-                    <MyMapMobileControls
-                        directory={directory}
-                        query={query}
-                        onQueryChange={setQuery}
-                        anchorState={anchorState}
-                        onAddAssets={() => setAddOpen(true)}
-                        onEditDetails={() => {
+                        <MyMapMobileControls
+                            directory={directory}
+                            query={query}
+                            onQueryChange={setQuery}
+                            anchorState={anchorState}
+                            onAddAssets={openManageAssets}
+                            onAddPersonalPlace={openPersonalPlacePicker}
+                            personalPlacePickerActive={personalPlacePickerActive}
+                            onEditDetails={() => {
                             setEditError('');
                             setEditOpen(true);
                         }}
@@ -1776,7 +2190,9 @@ export default function MyMapDetailPage() {
                                 onQueryChange={setQuery}
                                 anchorState={anchorState}
                                 actionError={actionError}
-                                onAddAssets={() => setAddOpen(true)}
+                                onAddAssets={openManageAssets}
+                                onAddPersonalPlace={openPersonalPlacePicker}
+                                personalPlacePickerActive={personalPlacePickerActive}
                                 onEditDetails={() => {
                                     setEditError('');
                                     setEditOpen(true);
@@ -1800,7 +2216,52 @@ export default function MyMapDetailPage() {
                     ) : null}
 
                     {directory.summary.resourceCount === 0 ? (
-                        <EmptyOwnerDirectory onAddAssets={() => setAddOpen(true)} />
+                        <div className="space-y-4">
+                            {personalPlacePickerActive ? (
+                                <DirectoryMap
+                                    activeAnchor={activeAnchor}
+                                    pins={interactivePresentation.pins}
+                                    focusedPlaceKey={effectiveFocusedPlaceKey}
+                                    focusedPlaceKeys={focusedPlaceKeys}
+                                    activePlaceKey={activePlaceKey}
+                                    activePlaceKeys={activePlaceKeys}
+                                    onViewSection={handleViewSection}
+                                    onHoverPlaceStart={handleMapHoverStart}
+                                    onHoverPlaceEnd={handleMapHoverEnd}
+                                    onClusterSelect={handleMapClusterSelect}
+                                    onFocusHandled={handleMapFocusHandled}
+                                    onResetView={clearMapSelection}
+                                    onMapClick={handlePersonalPlaceMapClick}
+                                    interactive
+                                    markerMode="number"
+                                    placeNumberByKey={interactivePresentation.placeNumberByKey}
+                                    emptyLabel={t('personalPlaceMapHint')}
+                                    mapHeightClassName="h-[42vh] min-h-[320px] max-h-[620px]"
+                                    mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
+                                    showZoomLevelCounter={TOWN_MAP_PROOF_ENABLED}
+                                    minimumZoomCenter={TOWN_MAP_PROOF_ENABLED ? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null}
+                                    lockMinimumZoomCamera={TOWN_MAP_PROOF_ENABLED}
+                                    basemapMode={basemapMode}
+                                    fixedTownSurfaceManifest={townMapManifestState.manifest}
+                                    fixedTownAssetBaseUrl={townMapAssetBaseUrl}
+                                    fixedTownSurfaceAvailable={townMapAvailable}
+                                    fixedTownSurfacePending={townMapSurfacePending}
+                                    fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                                    fixedTownSurfaceGrayscale={false}
+                                    fixedTownSurfaceLockMinZoom={false}
+                                    fixedTownSurfaceFallbackBelowMinZoom={false}
+                                    fixedTownSurfaceFallbackScope="local"
+                                    onBasemapModeChange={handleBasemapModeChange}
+                                    onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
+                                    onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
+                                    mapModeControl={mapModeControl}
+                                />
+                            ) : null}
+                            <EmptyOwnerDirectory
+                                onAddAssets={openManageAssets}
+                                onAddPersonalPlace={openPersonalPlacePicker}
+                            />
+                        </div>
                     ) : (
                         <>
                             <SharedMapDirectoryList
@@ -1811,6 +2272,7 @@ export default function MyMapDetailPage() {
                                 onHoverPlaceStart={handleMapHoverStart}
                                 onHoverPlaceEnd={handleMapHoverEnd}
                                 onRemoveResource={handleRemoveResource}
+                                onEditPersonalPlace={handleEditPersonalPlace}
                                 onUpdateResourceNotes={handleUpdateResourceNotes}
                                 highlightPlaceKey={activePlaceKey}
                                 highlightPlaceKeys={activePlaceKeys}
@@ -1836,6 +2298,7 @@ export default function MyMapDetailPage() {
                                         onClusterSelect={handleMapClusterSelect}
                                         onFocusHandled={handleMapFocusHandled}
                                         onResetView={clearMapSelection}
+                                        onMapClick={personalPlacePickerActive ? handlePersonalPlaceMapClick : null}
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
@@ -1877,6 +2340,7 @@ export default function MyMapDetailPage() {
                                         onClusterSelect={handleMapClusterSelect}
                                         onFocusHandled={handleMapFocusHandled}
                                         onResetView={clearMapSelection}
+                                        onMapClick={personalPlacePickerActive ? handlePersonalPlaceMapClick : null}
                                         interactive={!suspendMapInteraction}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
@@ -1949,6 +2413,15 @@ export default function MyMapDetailPage() {
                 }}
                 onPublish={handlePublishShare}
                 onUnpublish={handleUnpublishShare}
+            />
+
+            <PersonalPlaceModal
+                open={personalPlaceModalOpen}
+                draft={personalPlaceDraft}
+                submitting={personalPlaceSubmitting}
+                error={personalPlaceError}
+                onClose={closePersonalPlaceModal}
+                onSubmit={handleSavePersonalPlace}
             />
         </>
     );

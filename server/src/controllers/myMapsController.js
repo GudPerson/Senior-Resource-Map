@@ -2,7 +2,7 @@ import { and, asc, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { getDb } from '../db/index.js';
-import { myMapAssetNotes, myMapAssets, myMapShareSnapshots, myMaps, userFavorites } from '../db/schema.js';
+import { myMapAssetNotes, myMapAssets, myMapPersonalPlaces, myMapShareSnapshots, myMaps, userFavorites } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     createSavedAssetResolutionContext,
@@ -15,6 +15,7 @@ import {
 import { normalizeRole } from '../utils/roles.js';
 import { createShareToken } from '../utils/shareTokens.js';
 import {
+    optionalOneLineTextSchema,
     optionalTextSchema,
     positiveIntValueSchema,
     requiredOneLineTextSchema,
@@ -22,6 +23,21 @@ import {
 } from '../utils/inputValidation.js';
 
 const MY_MAP_NOTE_MAX_LENGTH = 3000;
+const PERSONAL_PLACE_NOTE_MAX_LENGTH = 3000;
+
+function coordinateValueSchema(label, min, max) {
+    return z.any().transform((value, ctx) => {
+        const parsed = Number.parseFloat(String(value ?? '').trim());
+        if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `${label} must be a valid coordinate.`,
+            });
+            return z.NEVER;
+        }
+        return parsed;
+    });
+}
 
 const mapAssetRefBodySchema = z.object({
     resourceType: z.enum(['hard', 'soft']),
@@ -57,6 +73,16 @@ const shareMyMapBodySchema = z.object({
     includeHandoffNotes: z.boolean().optional(),
 });
 
+const personalPlaceBodySchema = z.object({
+    name: requiredOneLineTextSchema('Personal place name', 160),
+    categoryLabel: optionalOneLineTextSchema(120),
+    address: optionalTextSchema(500),
+    postalCode: optionalOneLineTextSchema(20),
+    lat: coordinateValueSchema('Latitude', -90, 90),
+    lng: coordinateValueSchema('Longitude', -180, 180),
+    note: optionalTextSchema(PERSONAL_PLACE_NOTE_MAX_LENGTH),
+});
+
 function createHttpError(status, message) {
     const error = new Error(message);
     error.status = status;
@@ -70,6 +96,11 @@ function assertDirectoryUser(user) {
 }
 
 function parseMapId(value) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parsePersonalPlaceId(value) {
     const parsed = Number.parseInt(String(value ?? ''), 10);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
@@ -89,6 +120,25 @@ function normalizeNote(value) {
     if (value === undefined) return undefined;
     const text = String(value ?? '').trim();
     return text ? text : null;
+}
+
+function normalizeOptionalPersonalPlaceText(value) {
+    if (value === undefined) return null;
+    const text = String(value ?? '').trim();
+    return text ? text : null;
+}
+
+function normalizePersonalPlaceInput(body = {}) {
+    const name = normalizeMapName(body.name);
+    return {
+        name,
+        categoryLabel: normalizeOptionalPersonalPlaceText(body.categoryLabel),
+        address: normalizeOptionalPersonalPlaceText(body.address),
+        postalCode: normalizeOptionalPersonalPlaceText(body.postalCode),
+        lat: Number(body.lat),
+        lng: Number(body.lng),
+        note: normalizeNote(body.note) ?? null,
+    };
 }
 
 function normalizeNoteItems(body = {}) {
@@ -146,12 +196,16 @@ function parseAssetRefs(values) {
 }
 
 function formatMyMapSummary(map) {
-    const assetCount = Array.isArray(map?.assets) ? map.assets.length : Number(map?.assetCount || 0);
+    const savedResourceCount = Array.isArray(map?.assets) ? map.assets.length : Number(map?.savedResourceCount || map?.assetCount || 0);
+    const personalPlaceCount = Array.isArray(map?.personalPlaces) ? map.personalPlaces.length : Number(map?.personalPlaceCount || 0);
+    const assetCount = savedResourceCount + personalPlaceCount;
     return {
         id: map.id,
         name: map.name,
         description: map.description || null,
         assetCount,
+        savedResourceCount,
+        personalPlaceCount,
         isShared: Boolean(map.isShared),
         shareToken: map.isShared ? (map.shareToken || null) : null,
         sharePath: map.isShared && map.shareToken ? `/shared/maps/${map.shareToken}` : null,
@@ -175,6 +229,24 @@ function serializeMyMapAssetRecord(mapAsset) {
             notesUpdatedAt: mapAsset.notesUpdatedAt ?? null,
         },
         snapshot: normalizeMyMapAssetSnapshot(mapAsset.resourceType, mapAsset.resourceId, mapAsset.snapshot),
+    };
+}
+
+function serializeMyMapPersonalPlace(place) {
+    const lat = Number.parseFloat(place?.lat);
+    const lng = Number.parseFloat(place?.lng);
+    return {
+        id: place.id,
+        mapId: place.mapId,
+        name: place.name,
+        categoryLabel: place.categoryLabel || null,
+        address: place.address || null,
+        postalCode: place.postalCode || null,
+        lat: Number.isFinite(lat) ? lat : null,
+        lng: Number.isFinite(lng) ? lng : null,
+        note: place.note || null,
+        createdAt: place.createdAt ?? null,
+        updatedAt: place.updatedAt ?? null,
     };
 }
 
@@ -242,6 +314,22 @@ async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
                             orderBy: [asc(myMapAssetNotes.sortOrder), asc(myMapAssetNotes.id)],
                         },
                     },
+                },
+                personalPlaces: {
+                    columns: {
+                        id: true,
+                        mapId: true,
+                        name: true,
+                        categoryLabel: true,
+                        address: true,
+                        postalCode: true,
+                        lat: true,
+                        lng: true,
+                        note: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                    orderBy: [asc(myMapPersonalPlaces.createdAt), asc(myMapPersonalPlaces.id)],
                 },
             }
             : undefined,
@@ -330,6 +418,11 @@ export async function listMyMaps(db, user) {
         where: eq(myMaps.userId, user.id),
         with: {
             assets: {
+                columns: {
+                    id: true,
+                },
+            },
+            personalPlaces: {
                 columns: {
                     id: true,
                 },
@@ -650,6 +743,114 @@ export async function removeAssetFromMyMap(db, user, mapId, resourceType, resour
     };
 }
 
+export async function createMyMapPersonalPlace(db, user, mapId, body) {
+    assertDirectoryUser(user);
+    const map = await requireOwnedMap(db, user.id, mapId);
+    const values = normalizePersonalPlaceInput(body);
+    if (!values.name) {
+        throw createHttpError(400, 'Personal place name is required');
+    }
+
+    const timestamp = new Date();
+    const [createdPlace] = await db.insert(myMapPersonalPlaces).values({
+        mapId: map.id,
+        name: values.name,
+        categoryLabel: values.categoryLabel,
+        address: values.address,
+        postalCode: values.postalCode,
+        lat: String(values.lat),
+        lng: String(values.lng),
+        note: values.note,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+    }).returning();
+
+    await touchMap(db, map.id);
+    return serializeMyMapPersonalPlace(createdPlace);
+}
+
+export async function updateMyMapPersonalPlace(db, user, mapId, personalPlaceId, body) {
+    assertDirectoryUser(user);
+    await requireOwnedMap(db, user.id, mapId);
+    const existing = await db.query.myMapPersonalPlaces.findFirst({
+        where: and(
+            eq(myMapPersonalPlaces.id, personalPlaceId),
+            eq(myMapPersonalPlaces.mapId, mapId)
+        ),
+    });
+
+    if (!existing) {
+        throw createHttpError(404, 'Personal place not found');
+    }
+
+    const values = normalizePersonalPlaceInput(body);
+    if (!values.name) {
+        throw createHttpError(400, 'Personal place name is required');
+    }
+
+    const timestamp = new Date();
+    await db.update(myMapPersonalPlaces)
+        .set({
+            name: values.name,
+            categoryLabel: values.categoryLabel,
+            address: values.address,
+            postalCode: values.postalCode,
+            lat: String(values.lat),
+            lng: String(values.lng),
+            note: values.note,
+            updatedAt: timestamp,
+        })
+        .where(
+            and(
+                eq(myMapPersonalPlaces.id, personalPlaceId),
+                eq(myMapPersonalPlaces.mapId, mapId)
+            )
+        );
+
+    await touchMap(db, mapId);
+    const updatedPlace = await db.query.myMapPersonalPlaces.findFirst({
+        where: and(
+            eq(myMapPersonalPlaces.id, personalPlaceId),
+            eq(myMapPersonalPlaces.mapId, mapId)
+        ),
+    });
+    return serializeMyMapPersonalPlace(updatedPlace || {
+        ...existing,
+        ...values,
+        updatedAt: timestamp,
+    });
+}
+
+export async function deleteMyMapPersonalPlace(db, user, mapId, personalPlaceId) {
+    assertDirectoryUser(user);
+    await requireOwnedMap(db, user.id, mapId);
+    const existing = await db.query.myMapPersonalPlaces.findFirst({
+        where: and(
+            eq(myMapPersonalPlaces.id, personalPlaceId),
+            eq(myMapPersonalPlaces.mapId, mapId)
+        ),
+    });
+
+    if (!existing) {
+        throw createHttpError(404, 'Personal place not found');
+    }
+
+    await db.delete(myMapPersonalPlaces)
+        .where(
+            and(
+                eq(myMapPersonalPlaces.id, personalPlaceId),
+                eq(myMapPersonalPlaces.mapId, mapId)
+            )
+        );
+    await touchMap(db, mapId);
+
+    return {
+        success: true,
+        mapId,
+        personalPlaceId,
+    };
+}
+
 export const getMyMaps = async (c) => {
     try {
         const user = c.get('user');
@@ -795,6 +996,61 @@ export const postMyMapAsset = async (c) => {
     } catch (err) {
         console.error('postMyMapAsset Error:', err);
         return c.json({ error: err.message || 'Failed to add asset to map' }, err.status || 500);
+    }
+};
+
+export const postMyMapPersonalPlace = async (c) => {
+    try {
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const mapId = parseMapId(c.req.param('id'));
+        if (!mapId) {
+            return c.json({ error: 'Map id is required' }, 400);
+        }
+        const body = validateRequestBody(await c.req.json(), personalPlaceBodySchema, 'Personal place');
+        const place = await createMyMapPersonalPlace(db, user, mapId, body);
+        return c.json(place, 201);
+    } catch (err) {
+        console.error('postMyMapPersonalPlace Error:', err);
+        return c.json({ error: err.message || 'Failed to add personal place' }, err.status || 500);
+    }
+};
+
+export const patchMyMapPersonalPlace = async (c) => {
+    try {
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const mapId = parseMapId(c.req.param('id'));
+        const personalPlaceId = parsePersonalPlaceId(c.req.param('placeId'));
+        if (!mapId || !personalPlaceId) {
+            return c.json({ error: 'Map id and personal place id are required' }, 400);
+        }
+        const body = validateRequestBody(await c.req.json(), personalPlaceBodySchema, 'Personal place');
+        const place = await updateMyMapPersonalPlace(db, user, mapId, personalPlaceId, body);
+        return c.json(place);
+    } catch (err) {
+        console.error('patchMyMapPersonalPlace Error:', err);
+        return c.json({ error: err.message || 'Failed to update personal place' }, err.status || 500);
+    }
+};
+
+export const deleteMyMapPersonalPlaceRoute = async (c) => {
+    try {
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const mapId = parseMapId(c.req.param('id'));
+        const personalPlaceId = parsePersonalPlaceId(c.req.param('placeId'));
+        if (!mapId || !personalPlaceId) {
+            return c.json({ error: 'Map id and personal place id are required' }, 400);
+        }
+        const result = await deleteMyMapPersonalPlace(db, user, mapId, personalPlaceId);
+        return c.json(result);
+    } catch (err) {
+        console.error('deleteMyMapPersonalPlace Error:', err);
+        return c.json({ error: err.message || 'Failed to remove personal place' }, err.status || 500);
     }
 };
 

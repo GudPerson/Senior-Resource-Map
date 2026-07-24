@@ -147,6 +147,7 @@ function getMapName(directory, presentation) {
 function getResourceTypeCategory(row) {
     if (row?.resourceType === 'hard') return 'Place';
     if (row?.resourceType === 'soft') return 'Offering';
+    if (row?.resourceType === 'personal_place') return 'Personal place';
     return '';
 }
 

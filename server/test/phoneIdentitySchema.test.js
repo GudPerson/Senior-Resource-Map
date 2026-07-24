@@ -130,6 +130,17 @@ test('runtime schema bootstrap includes My Map note columns', async () => {
         'expected multi-note table bootstrap SQL',
     );
     assert.ok(
+        statements.some((statement) => statement.includes('create table if not exists my_map_personal_places')),
+        'expected personal places table bootstrap SQL',
+    );
+    assert.ok(
+        statements.some((statement) => (
+            statement.includes('create index if not exists my_map_personal_places_map_idx')
+            && statement.includes('map_id')
+        )),
+        'expected personal places map index bootstrap SQL',
+    );
+    assert.ok(
         statements.some((statement) => statement.includes('create table if not exists my_map_share_snapshots')),
         'expected shared map snapshot table bootstrap SQL',
     );

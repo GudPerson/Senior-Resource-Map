@@ -6,6 +6,7 @@ import {
     Gift,
     HandHeart,
     HeartPulse,
+    MapPin,
     ShieldPlus,
     Sparkles,
     Stethoscope,
@@ -20,6 +21,10 @@ function normalizeText(value) {
 function resolveIcon(resourceType, bucket, subCategory) {
     const normalizedBucket = normalizeText(bucket);
     const normalizedSubCategory = normalizeText(subCategory);
+
+    if (resourceType === 'personal_place') {
+        return MapPin;
+    }
 
     if (resourceType === 'hard') {
         if (normalizedSubCategory.includes('health')) return Stethoscope;
