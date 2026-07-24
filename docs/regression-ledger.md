@@ -187,8 +187,29 @@ Rules:
   both the normal and exact four-root production-style client builds passed
   with only the existing large chunk warning. Broad client coverage passed
   465/466; the sole failure is the already recorded expired Care Calendar
-  conflict fixture on source untouched by this follow-up. Signed-in browser
-  UAT and deployment have not yet been performed.
+  conflict fixture on source untouched by this follow-up.
+- 2026-07-24 personal-place follow-up production release: the additive
+  boundary-schema bootstrap completed before runtime deployment, and a direct
+  `information_schema` probe confirmed `user_personal_places.logo_url` exists.
+  `main` and `codex/personal-place-action-feedback` were pushed at
+  `433c73092`. Worker version `142fd452-7f38-4c9a-a241-484f37bb909e` and Pages
+  deployment `https://aad51e87.senior-resource-map.pages.dev` were released.
+  The custom domain served `assets/index-DB5oQ5vl.js`,
+  `assets/MyMapDetailPage-BkfNrm0C.js`,
+  `assets/MyDirectoryPage-C_47b6-E.js`,
+  `assets/ImageUpload-CCjzNfoA.js`,
+  `assets/useDirectoryDistanceAnchor-C79bQ6_r.js`, and
+  `assets/index-Cn-lymxK.css`; each checked asset matched local `client/dist`
+  byte-for-byte. The deployed bundles retained all four versioned Detailed-map
+  roots, the regular-map fallback, and `Save PDF`, while both retired map
+  strings remained absent. API health returned OK, and the new image-upload
+  endpoint returned the expected authentication rejection without a token.
+  Signed-in read-only Chrome UAT on map 258 showed 22 owner resources, the
+  `Use my current location` control, and `Logo or image` with PNG/JPEG/WebP
+  5 MB guidance in the existing personal-place editor. My Places returned the
+  two reusable records. No geolocation permission, upload, save, attach,
+  remove, delete, or other user-content mutation was performed during release
+  verification.
 - Release and rollback: before any deploy, run the additive boundary-schema
   bootstrap against the intended database, verify row/category/link counts,
   then complete signed-in owner and shared-link UAT. Roll back application code
