@@ -47,6 +47,10 @@ import {
     selectVisibleFixedTownChunks,
     shouldCapFixedTownRequestedLiveTiles,
 } from '../lib/fixedTownSurface.js';
+import {
+    createPersonalPlaceIconDataUrl,
+    renderPersonalPlaceIconMarkup,
+} from '../lib/personalPlaceCategories.jsx';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
@@ -199,6 +203,7 @@ function normalizeCategoryBubbleItems(items = null, pin = {}) {
             placeKey: pin.placeKey || null,
             color: pin.categoryColor || null,
             iconUrl: pin.categoryIconUrl || null,
+            iconKey: pin.categoryIconKey || null,
             label: pin.title || '',
         }];
 
@@ -207,6 +212,7 @@ function normalizeCategoryBubbleItems(items = null, pin = {}) {
             placeKey: item?.placeKey || pin.placeKey || null,
             color: normalizeMarkerColor(item?.color || item?.categoryColor || pin.categoryColor, '#0f766e'),
             iconUrl: item?.iconUrl || item?.categoryIconUrl || null,
+            iconKey: item?.iconKey || item?.categoryIconKey || pin.categoryIconKey || null,
             label: String(item?.label || item?.title || index + 1),
         }))
         .filter((item) => item.placeKey);
@@ -514,7 +520,7 @@ function createCategoryBubbleMarker(pin = {}, {
     const lobeClassName = compact
         ? 'directory-category-bubble-marker__lobe directory-category-bubble-marker__lobe--compact-dot'
         : 'directory-category-bubble-marker__lobe';
-    const markerKey = bubbleItems.map((item) => `${item.placeKey || ''}:${item.color || ''}:${item.iconUrl || ''}`).join('|') || pin.placeKey || '';
+    const markerKey = bubbleItems.map((item) => `${item.placeKey || ''}:${item.color || ''}:${item.iconUrl || ''}:${item.iconKey || ''}`).join('|') || pin.placeKey || '';
     const markerNumber = Number(pin.number) || Number.MAX_SAFE_INTEGER;
     const markerSelected = emphasis === 'primary';
     const activeKeys = activePlaceKeys instanceof Set ? activePlaceKeys : new Set(activePlaceKeys || []);
@@ -526,7 +532,14 @@ function createCategoryBubbleMarker(pin = {}, {
             : '0 8px 16px rgba(15,23,42,0.2)';
         const content = item.iconUrl
             ? `<img class="directory-category-bubble-marker__icon" src="${escapeHtml(item.iconUrl)}" alt="" />`
-            : renderCategoryBubbleFallbackIcon();
+            : item.iconKey
+                ? renderPersonalPlaceIconMarkup(item.iconKey, {
+                    size: compact ? 8 : 15,
+                    color: '#ffffff',
+                    strokeWidth: 2.5,
+                    className: 'directory-category-bubble-marker__icon',
+                })
+                : renderCategoryBubbleFallbackIcon();
         return `
             <span
                 class="${lobeClassName}"
@@ -2541,7 +2554,7 @@ export default function DirectoryMap({
                 .map((item) => `${item?.label ?? item?.number ?? ''}:${item?.color ?? item?.categoryColor ?? ''}:${item?.placeKey ?? ''}`)
                 .join(',');
             const categoryItemKey = (pin.categoryBubbleItems || [])
-                .map((item) => `${item?.placeKey ?? ''}:${item?.color ?? item?.categoryColor ?? ''}:${item?.iconUrl ?? item?.categoryIconUrl ?? ''}`)
+                .map((item) => `${item?.placeKey ?? ''}:${item?.color ?? item?.categoryColor ?? ''}:${item?.iconUrl ?? item?.categoryIconUrl ?? ''}:${item?.iconKey ?? item?.categoryIconKey ?? ''}`)
                 .join(',');
             return `${pin.pinKey || pin.placeKey}:${pin.placeKey}:${pin.number || ''}:${itemKey}:${categoryItemKey}`;
         }).join(';');
@@ -2781,18 +2794,23 @@ export default function DirectoryMap({
                                 pin.placeKey
                             )
                             : (() => {
+                                const categoryIconUrl = pinCategoryIconMode === 'none'
+                                    ? null
+                                    : (pin.categoryIconUrl || (pin.categoryIconKey
+                                        ? createPersonalPlaceIconDataUrl(pin.categoryIconKey)
+                                        : null));
                                 const savedPinIcon = createSavedPlacePinIcon({
                                     count: pin.curatedCount,
                                     emphasis: isMatched ? 'primary' : 'default',
                                     tone: 'saved',
-                                    iconUrl: pinCategoryIconMode === 'none' ? null : (pin.categoryIconUrl || null),
+                                    iconUrl: categoryIconUrl,
                                     color: pin.categoryColor || null,
                                     colorSegments: pin.categoryColorSegments || [],
                                     placeKey: pin.placeKey,
                                     showBadge: pinBadgeMode !== 'none',
                                 });
                                 savedPinIcon.options.assetCount = getDirectoryPinAssetCount(pin);
-                                savedPinIcon.options.categoryIconUrl = pin.categoryIconUrl || null;
+                                savedPinIcon.options.categoryIconUrl = categoryIconUrl;
                                 savedPinIcon.options.categoryColor = pin.categoryColor || null;
                                 savedPinIcon.options.categoryColorSegments = pin.categoryColorSegments || [];
                                 savedPinIcon.options.curatedCount = pin.curatedCount;
@@ -2856,18 +2874,23 @@ export default function DirectoryMap({
                     pin.placeKey
                 )
                 : (() => {
+                    const categoryIconUrl = pinCategoryIconMode === 'none'
+                        ? null
+                        : (pin.categoryIconUrl || (pin.categoryIconKey
+                            ? createPersonalPlaceIconDataUrl(pin.categoryIconKey)
+                            : null));
                     const savedPinIcon = createSavedPlacePinIcon({
                         count: pin.curatedCount,
                         emphasis: isMatched ? 'primary' : 'default',
                         tone: 'saved',
-                        iconUrl: pinCategoryIconMode === 'none' ? null : (pin.categoryIconUrl || null),
+                        iconUrl: categoryIconUrl,
                         color: pin.categoryColor || null,
                         colorSegments: pin.categoryColorSegments || [],
                         placeKey: pin.placeKey,
                         showBadge: pinBadgeMode !== 'none',
                     });
                     savedPinIcon.options.assetCount = getDirectoryPinAssetCount(pin);
-                    savedPinIcon.options.categoryIconUrl = pin.categoryIconUrl || null;
+                    savedPinIcon.options.categoryIconUrl = categoryIconUrl;
                     savedPinIcon.options.categoryColor = pin.categoryColor || null;
                     savedPinIcon.options.categoryColorSegments = pin.categoryColorSegments || [];
                     savedPinIcon.options.curatedCount = pin.curatedCount;

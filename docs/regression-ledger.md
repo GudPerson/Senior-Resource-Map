@@ -15,6 +15,50 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-24 Private My Places Library V2
+
+- Current behavior: every signed-in non-guest user has a private My Places
+  library under My Directory. A personal place can be reused on multiple owned
+  My Maps without duplicating the place record. Removing it from one map only
+  detaches that map link; deleting it from My Places removes it from every map.
+  Users can create, rename, recolour, re-icon, reorder, archive, and restore
+  their own categories from the curated icon and colour controls. Category
+  changes propagate to every linked owner map, card, pin, search result,
+  distance-sorted row, and owner Print/PDF/PNG export.
+- Known-good reference: implementation branch
+  `codex/my-places-library-v2`, based on the sealed V1 commit `2f61b13cc` and
+  local rollback tag `personal-places-v1-2026-07-24`. No V2 schema bootstrap,
+  production data mutation, push, or deployment has happened.
+- Reproduction steps: sign in as any non-guest role; open My Directory and
+  choose `My Places`; create a category with an icon and colour, then create a
+  place in that category. Attach the same place to two owned maps. Confirm both
+  maps show the same category styling; edit the category and confirm both maps
+  update. Remove the place from one map and confirm it remains in the library
+  and on the other map. Delete it from My Places and confirm it disappears from
+  every map. Publish or open a shared link and confirm it is absent.
+- Acceptance criteria: category, place, and map-link operations require an
+  authenticated non-guest owner; a user cannot read or mutate another user's
+  places, categories, or map links; map deletion removes only its links and
+  preserves reusable library places; library deletion cascades all links;
+  legacy V1 rows are backfilled idempotently into one canonical place plus its
+  original map link; shared-map snapshots, shared APIs, guests, Discover,
+  managed Resources, imports, governance, and AI enrichment never receive
+  personal places or personal categories.
+- Verification result before deploy: focused My Maps/controller coverage passed
+  22/22; focused V2 schema, presentation, source, marker, and i18n coverage
+  passed 37/37; full server coverage passed 461/461; locked map coverage passed
+  77/77; the DirectoryMap camera guard passed 7/7; and the exact
+  production-style client build passed with native-scale Default, native-scale
+  Gray, print-master Default, and print-master Gray roots. The broader client
+  suite passed 469/470; its only failure is the previously recorded,
+  date-sensitive Care Calendar conflict test whose fixed 2026-07-20 events are
+  now expired and whose source is untouched by V2.
+- Release and rollback: before any deploy, run the additive boundary-schema
+  bootstrap against the intended database, verify row/category/link counts,
+  then complete signed-in owner and shared-link UAT. Roll back application code
+  to tag `personal-places-v1-2026-07-24` or commit `2f61b13cc`; keep the
+  additive V2 tables during rollback so no library data is discarded.
+
 ## 2026-07-23 Personal Places on My Map V1
 
 - Current behavior: signed-in non-guest map owners can add, edit, and remove
@@ -24,9 +68,10 @@ Rules:
   postal code, coordinates, and a private note. Personal places render as
   `personal_place` rows, cards, pins, search results, distance-sorted entries,
   and owner Print/PDF/PNG export content.
-- Known-good reference: local branch `codex/personal-places-my-map-v1`, based
-  on `5374844820ccd020ba3a8bfcdbb375894bbccae6`. No deployment has happened
-  for this implementation.
+- Known-good reference: commit `2f61b13cc` on local branch
+  `codex/personal-places-my-map-v1`, tagged
+  `personal-places-v1-2026-07-24`. No deployment has happened for this
+  implementation.
 - Reproduction steps: sign in as a standard, caregiver, partner, or admin
   non-guest user; open an owned My Map; choose `Add personal place`; click or
   tap the map; fill or OneMap-lookup the form; save; confirm the new row
@@ -45,10 +90,10 @@ Rules:
   production-style `npm run build:client` passed with native-scale Default,
   native-scale Gray, print-master Default, and print-master Gray asset roots.
   `git diff --check` passed.
-- Rollback: revert the Personal Places V1 source changes on this branch to
-  remove the `my_map_personal_places` table bootstrap, API routes, owner UI,
+- Rollback: return to the pre-V1 base `5374844820ccd020ba3a8bfcdbb375894bbccae6`
+  to remove the `my_map_personal_places` table bootstrap, API routes, owner UI,
   and directory merge. Existing deployed maps and shared snapshots are
-  unaffected until this branch is deployed.
+  unaffected until V1 or V2 is deployed.
 
 ## 2026-07-23 map work stable baseline lock
 

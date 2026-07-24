@@ -961,6 +961,8 @@ function MapNotesOverlay({
                                         resourceType={row.resourceType}
                                         bucket={row.bucket}
                                         subCategory={row.subCategory}
+                                        categoryIconKey={row.categoryIconKey}
+                                        categoryColor={row.categoryColor}
                                     />
                                     <span className="min-w-0 flex-1">
                                         <span className="block truncate text-sm font-black leading-tight text-slate-900">{row.name}</span>
@@ -1473,6 +1475,8 @@ function DirectoryPlaceBadge({
                 bucket={resolvedBadgeRow?.bucket}
                 subCategory={resolvedBadgeRow?.subCategory}
                 logoUrl={resolvedBadgeRow?.logoUrl}
+                categoryIconKey={resolvedBadgeRow?.categoryIconKey}
+                categoryColor={resolvedBadgeRow?.categoryColor}
                 alt={resolvedBadgeRow?.name ? `${resolvedBadgeRow.name} logo` : `${group.name} logo`}
                 className={`${logoTileSizeClassName} border-slate-200/90 bg-white shadow-[0_16px_28px_-18px_rgba(15,23,42,0.55)] ring-1 ring-white/90`}
             />
@@ -2236,6 +2240,8 @@ function DirectoryUnmappedRow({ row, interactive, mode, canSaveResources, onRemo
                 bucket={row.bucket}
                 subCategory={row.subCategory}
                 logoUrl={row.logoUrl}
+                categoryIconKey={row.categoryIconKey}
+                categoryColor={row.categoryColor}
                 alt={row.name ? `${row.name} logo` : ''}
             />
             <div className="min-w-0 flex-1">

@@ -15,7 +15,22 @@ import {
     updateMyMapAssetNotes,
     unpublishMyMap,
 } from '../src/controllers/myMapsController.js';
-import { myMapAssetNotes, myMapAssets, myMapPersonalPlaces, myMapShareSnapshots, myMaps } from '../src/db/schema.js';
+import {
+    attachPersonalPlaceToMap,
+    createPersonalPlaceCategory,
+    deletePersonalPlace,
+    listPersonalPlaces,
+    updatePersonalPlaceCategory,
+} from '../src/controllers/personalPlacesController.js';
+import {
+    myMapAssetNotes,
+    myMapAssets,
+    myMapPersonalPlaceLinks,
+    myMapShareSnapshots,
+    myMaps,
+    userPersonalPlaceCategories,
+    userPersonalPlaces,
+} from '../src/db/schema.js';
 
 const DEFAULT_USER = { id: 7, role: 'standard', postalCode: '680153' };
 const PARTNER_USER = { ...DEFAULT_USER, role: 'partner' };
@@ -77,9 +92,10 @@ function createMapAsset(overrides = {}) {
 function createPersonalPlace(overrides = {}) {
     return {
         id: 5,
-        mapId: 3,
+        userId: DEFAULT_USER.id,
+        categoryId: 2,
+        legacyCategoryLabel: 'Shop',
         name: 'Useful coffee shop',
-        categoryLabel: 'Shop',
         address: '21 Choa Chu Kang Avenue 4 Singapore 689812',
         postalCode: '689812',
         lat: '1.3851000',
@@ -87,6 +103,32 @@ function createPersonalPlace(overrides = {}) {
         note: 'Good rest stop after appointments.',
         createdAt: new Date('2026-03-14T10:10:00.000Z'),
         updatedAt: new Date('2026-03-14T10:10:00.000Z'),
+        ...overrides,
+    };
+}
+
+function createPersonalPlaceCategoryFixture(overrides = {}) {
+    return {
+        id: 2,
+        userId: DEFAULT_USER.id,
+        name: 'Shop',
+        normalizedName: 'shop',
+        iconKey: 'shopping-bag',
+        color: '#0F766E',
+        sortOrder: 0,
+        isArchived: false,
+        createdAt: new Date('2026-03-14T09:50:00.000Z'),
+        updatedAt: new Date('2026-03-14T09:50:00.000Z'),
+        ...overrides,
+    };
+}
+
+function createPersonalPlaceLink(overrides = {}) {
+    return {
+        id: 4,
+        mapId: 3,
+        personalPlaceId: 5,
+        addedAt: new Date('2026-03-14T10:10:00.000Z'),
         ...overrides,
     };
 }
@@ -108,6 +150,18 @@ function createHardAsset(overrides = {}) {
     };
 }
 
+function getWhereParamValues(value, output = []) {
+    if (!value || typeof value !== 'object') return output;
+    if (value.constructor?.name === 'Param') {
+        output.push(value.value);
+        return output;
+    }
+    if (Array.isArray(value.queryChunks)) {
+        value.queryChunks.forEach((chunk) => getWhereParamValues(chunk, output));
+    }
+    return output;
+}
+
 function attachAssets(state, map) {
     if (!map) return null;
     return {
@@ -120,9 +174,16 @@ function attachAssets(state, map) {
                     .filter((note) => note.mapAssetId === asset.id)
                     .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id),
             })),
-        personalPlaces: state.personalPlaces
-            .filter((place) => place.mapId === map.id)
-            .sort((a, b) => a.createdAt - b.createdAt || a.id - b.id),
+        personalPlaceLinks: state.personalPlaceLinks
+            .filter((link) => link.mapId === map.id)
+            .map((link) => {
+                const personalPlace = state.personalPlaces.find((place) => place.id === link.personalPlaceId);
+                const category = state.personalPlaceCategories.find((item) => item.id === personalPlace?.categoryId) || null;
+                return {
+                    ...link,
+                    personalPlace: personalPlace ? { ...personalPlace, category } : null,
+                };
+            }),
     };
 }
 
@@ -132,6 +193,8 @@ function createFakeDb({
     mapAssets = [],
     mapAssetNotes = [],
     personalPlaces = [],
+    personalPlaceCategories = [],
+    personalPlaceLinks = [],
     shareSnapshots = [],
     hardAsset = null,
     denyOwnedMaps = false,
@@ -142,12 +205,16 @@ function createFakeDb({
         mapAssets: mapAssets.map((item) => ({ ...item })),
         mapAssetNotes: mapAssetNotes.map((item) => ({ ...item })),
         personalPlaces: personalPlaces.map((item) => ({ ...item })),
+        personalPlaceCategories: personalPlaceCategories.map((item) => ({ ...item })),
+        personalPlaceLinks: personalPlaceLinks.map((item) => ({ ...item })),
         shareSnapshots: shareSnapshots.map((item) => ({ ...item })),
         hardAsset,
         nextMapId: maps.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextMapAssetId: mapAssets.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextMapAssetNoteId: mapAssetNotes.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextPersonalPlaceId: personalPlaces.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
+        nextPersonalPlaceCategoryId: personalPlaceCategories.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
+        nextPersonalPlaceLinkId: personalPlaceLinks.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextShareSnapshotId: shareSnapshots.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
     };
 
@@ -156,7 +223,14 @@ function createFakeDb({
         query: {
             myMaps: {
                 findMany: async () => state.maps.map((map) => attachAssets(state, map)),
-                findFirst: async () => (denyOwnedMaps ? null : attachAssets(state, state.maps[0] || null)),
+                findFirst: async ({ where } = {}) => {
+                    if (denyOwnedMaps) return null;
+                    const [mapId, userId] = getWhereParamValues(where);
+                    const map = state.maps.find((item) => (
+                        (!mapId || item.id === mapId) && (!userId || item.userId === userId)
+                    )) || null;
+                    return attachAssets(state, map);
+                },
             },
             myMapAssets: {
                 findFirst: async () => {
@@ -173,8 +247,62 @@ function createFakeDb({
             myMapShareSnapshots: {
                 findFirst: async () => state.shareSnapshots[0] || null,
             },
-            myMapPersonalPlaces: {
-                findFirst: async () => state.personalPlaces[0] || null,
+            myMapPersonalPlaceLinks: {
+                findFirst: async ({ where } = {}) => {
+                    const values = getWhereParamValues(where);
+                    return state.personalPlaceLinks.find((link) => (
+                        values.length === 0
+                        || (values.includes(link.mapId) && values.includes(link.personalPlaceId))
+                    )) || null;
+                },
+            },
+            userPersonalPlaceCategories: {
+                findMany: async () => [...state.personalPlaceCategories],
+                findFirst: async ({ where } = {}) => {
+                    const values = getWhereParamValues(where);
+                    const normalizedName = values.find((value) => typeof value === 'string');
+                    if (normalizedName) {
+                        const userId = values.find((value) => typeof value === 'number');
+                        return state.personalPlaceCategories.find((category) => (
+                            category.userId === userId && category.normalizedName === normalizedName
+                        )) || null;
+                    }
+                    const [categoryId, userId] = values;
+                    return state.personalPlaceCategories.find((category) => (
+                        (!categoryId || category.id === categoryId)
+                        && (!userId || category.userId === userId)
+                    )) || null;
+                },
+            },
+            userPersonalPlaces: {
+                findMany: async () => state.personalPlaces.map((place) => ({
+                    ...place,
+                    category: state.personalPlaceCategories.find((item) => item.id === place.categoryId) || null,
+                    mapLinks: state.personalPlaceLinks
+                        .filter((link) => link.personalPlaceId === place.id)
+                        .map((link) => ({
+                            ...link,
+                            map: state.maps.find((map) => map.id === link.mapId) || null,
+                        })),
+                })),
+                findFirst: async ({ where } = {}) => {
+                    const [personalPlaceId, userId] = getWhereParamValues(where);
+                    const place = state.personalPlaces.find((item) => (
+                        (!personalPlaceId || item.id === personalPlaceId)
+                        && (!userId || item.userId === userId)
+                    )) || null;
+                    if (!place) return null;
+                    return {
+                        ...place,
+                        category: state.personalPlaceCategories.find((item) => item.id === place.categoryId) || null,
+                        mapLinks: state.personalPlaceLinks
+                            .filter((link) => link.personalPlaceId === place.id)
+                            .map((link) => ({
+                                ...link,
+                                map: state.maps.find((map) => map.id === link.mapId) || null,
+                            })),
+                    };
+                },
             },
             userFavorites: {
                 findFirst: async () => state.favorites[0] || null,
@@ -239,7 +367,24 @@ function createFakeDb({
                 };
             }
 
-            if (table === myMapPersonalPlaces) {
+            if (table === userPersonalPlaceCategories) {
+                return {
+                    values(value) {
+                        const row = {
+                            id: state.nextPersonalPlaceCategoryId++,
+                            createdAt: new Date('2026-03-14T11:06:30.000Z'),
+                            updatedAt: new Date('2026-03-14T11:06:30.000Z'),
+                            ...value,
+                        };
+                        state.personalPlaceCategories.push(row);
+                        return {
+                            returning: async () => [row],
+                        };
+                    },
+                };
+            }
+
+            if (table === userPersonalPlaces) {
                 return {
                     values(value) {
                         const row = {
@@ -249,6 +394,22 @@ function createFakeDb({
                             ...value,
                         };
                         state.personalPlaces.push(row);
+                        return {
+                            returning: async () => [row],
+                        };
+                    },
+                };
+            }
+
+            if (table === myMapPersonalPlaceLinks) {
+                return {
+                    values(value) {
+                        const row = {
+                            id: state.nextPersonalPlaceLinkId++,
+                            addedAt: new Date('2026-03-14T11:07:30.000Z'),
+                            ...value,
+                        };
+                        state.personalPlaceLinks.push(row);
                         return {
                             returning: async () => [row],
                         };
@@ -310,7 +471,7 @@ function createFakeDb({
                 };
             }
 
-            if (table === myMapPersonalPlaces) {
+            if (table === userPersonalPlaces) {
                 return {
                     set(values) {
                         return {
@@ -321,6 +482,23 @@ function createFakeDb({
                                     ...values,
                                 };
                                 return [state.personalPlaces[0]];
+                            },
+                        };
+                    },
+                };
+            }
+
+            if (table === userPersonalPlaceCategories) {
+                return {
+                    set(values) {
+                        return {
+                            where: async () => {
+                                if (!state.personalPlaceCategories[0]) return [];
+                                state.personalPlaceCategories[0] = {
+                                    ...state.personalPlaceCategories[0],
+                                    ...values,
+                                };
+                                return [state.personalPlaceCategories[0]];
                             },
                         };
                     },
@@ -352,7 +530,7 @@ function createFakeDb({
                     where: async () => {
                         state.maps = [];
                         state.mapAssets = [];
-                        state.personalPlaces = [];
+                        state.personalPlaceLinks = [];
                     },
                 };
             }
@@ -374,10 +552,19 @@ function createFakeDb({
                 };
             }
 
-            if (table === myMapPersonalPlaces) {
+            if (table === userPersonalPlaces) {
                 return {
                     where: async () => {
                         state.personalPlaces = [];
+                        state.personalPlaceLinks = [];
+                    },
+                };
+            }
+
+            if (table === myMapPersonalPlaceLinks) {
+                return {
+                    where: async () => {
+                        state.personalPlaceLinks = [];
                     },
                 };
             }
@@ -487,11 +674,13 @@ test('personal places can be updated and deleted on owned maps', async () => {
     const db = createFakeDb({
         maps: [createMap()],
         personalPlaces: [createPersonalPlace()],
+        personalPlaceCategories: [createPersonalPlaceCategoryFixture()],
+        personalPlaceLinks: [createPersonalPlaceLink()],
     });
 
     const updated = await updateMyMapPersonalPlace(db, DEFAULT_USER, 3, 5, {
         name: 'Updated pickup point',
-        categoryLabel: 'Pickup point',
+        categoryId: 2,
         address: '10 Choa Chu Kang Avenue 4 Singapore 689810',
         postalCode: '689810',
         lat: 1.3862,
@@ -501,9 +690,10 @@ test('personal places can be updated and deleted on owned maps', async () => {
     const deleted = await deleteMyMapPersonalPlace(db, DEFAULT_USER, 3, 5);
 
     assert.equal(updated.name, 'Updated pickup point');
-    assert.equal(updated.categoryLabel, 'Pickup point');
+    assert.equal(updated.categoryLabel, 'Shop');
     assert.equal(deleted.success, true);
-    assert.equal(db.state.personalPlaces.length, 0);
+    assert.equal(db.state.personalPlaces.length, 1);
+    assert.equal(db.state.personalPlaceLinks.length, 0);
 });
 
 test('personal place mutations reject guests and maps not owned by the user', async () => {
@@ -534,6 +724,63 @@ test('personal place mutations reject guests and maps not owned by the user', as
             return true;
         }
     );
+});
+
+test('personal places can be reused across more than one owned map', async () => {
+    const db = createFakeDb({
+        maps: [
+            createMap({ id: 3, name: 'Appointments' }),
+            createMap({ id: 4, name: 'Errands' }),
+        ],
+        personalPlaces: [createPersonalPlace()],
+        personalPlaceCategories: [createPersonalPlaceCategoryFixture()],
+        personalPlaceLinks: [createPersonalPlaceLink({ mapId: 3 })],
+    });
+
+    const attached = await attachPersonalPlaceToMap(db, DEFAULT_USER, 4, 5);
+    const places = await listPersonalPlaces(db, DEFAULT_USER);
+
+    assert.equal(attached.attached, true);
+    assert.deepEqual(places[0].mapIds.sort(), [3, 4]);
+    assert.equal(db.state.personalPlaces.length, 1);
+    assert.equal(db.state.personalPlaceLinks.length, 2);
+});
+
+test('custom category icon and colour update the shared library record', async () => {
+    const db = createFakeDb();
+    const created = await createPersonalPlaceCategory(db, DEFAULT_USER, {
+        name: 'Pharmacy',
+        iconKey: 'shopping-bag',
+        color: '#BE123C',
+    });
+    const updated = await updatePersonalPlaceCategory(db, DEFAULT_USER, created.id, {
+        name: 'Medication',
+        iconKey: 'package-check',
+        color: '#2563EB',
+    });
+
+    assert.equal(updated.name, 'Medication');
+    assert.equal(updated.iconKey, 'package-check');
+    assert.equal(updated.color, '#2563EB');
+});
+
+test('deleting a library place removes all map links but not the maps', async () => {
+    const db = createFakeDb({
+        maps: [createMap({ id: 3 }), createMap({ id: 4 })],
+        personalPlaces: [createPersonalPlace()],
+        personalPlaceCategories: [createPersonalPlaceCategoryFixture()],
+        personalPlaceLinks: [
+            createPersonalPlaceLink({ id: 4, mapId: 3 }),
+            createPersonalPlaceLink({ id: 6, mapId: 4 }),
+        ],
+    });
+
+    const result = await deletePersonalPlace(db, DEFAULT_USER, 5);
+
+    assert.deepEqual(result.removedFromMapIds.sort(), [3, 4]);
+    assert.equal(db.state.personalPlaces.length, 0);
+    assert.equal(db.state.personalPlaceLinks.length, 0);
+    assert.equal(db.state.maps.length, 2);
 });
 
 test('updateMyMapAssetNotes stores multiple simple notes with per-note sharing', async () => {
@@ -634,6 +881,8 @@ test('publishMyMap excludes owner personal places from shared snapshots', async 
         maps: [createMap()],
         mapAssets: [createMapAsset()],
         personalPlaces: [createPersonalPlace()],
+        personalPlaceCategories: [createPersonalPlaceCategoryFixture()],
+        personalPlaceLinks: [createPersonalPlaceLink()],
         hardAsset: createHardAsset(),
     });
 
@@ -742,11 +991,13 @@ test('addAssetToMyMap adds a saved asset and returns a serialized record', async
     assert.equal(db.state.mapAssets.length, 1);
 });
 
-test('deleteMyMapRecord removes the map and all of its asset associations', async () => {
+test('deleteMyMapRecord removes map links but preserves reusable personal places', async () => {
     const db = createFakeDb({
         maps: [createMap()],
         mapAssets: [createMapAsset()],
         personalPlaces: [createPersonalPlace()],
+        personalPlaceCategories: [createPersonalPlaceCategoryFixture()],
+        personalPlaceLinks: [createPersonalPlaceLink()],
     });
 
     const result = await deleteMyMapRecord(db, DEFAULT_USER, 3);
@@ -754,5 +1005,6 @@ test('deleteMyMapRecord removes the map and all of its asset associations', asyn
     assert.equal(result.success, true);
     assert.equal(db.state.maps.length, 0);
     assert.equal(db.state.mapAssets.length, 0);
-    assert.equal(db.state.personalPlaces.length, 0);
+    assert.equal(db.state.personalPlaceLinks.length, 0);
+    assert.equal(db.state.personalPlaces.length, 1);
 });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bookmark, Map, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Bookmark, Map, MapPinned, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
@@ -8,6 +8,7 @@ import MyMapsEmptyState from '../components/MyMapsEmptyState.jsx';
 import RenameMapModal from '../components/RenameMapModal.jsx';
 import SavedAssetCard from '../components/SavedAssetCard.jsx';
 import SavedAssetsEmptyState from '../components/SavedAssetsEmptyState.jsx';
+import PersonalPlacesSection from '../components/personalPlaces/PersonalPlacesSection.jsx';
 import MobileBottomSheet from '../components/mobile/MobileBottomSheet.jsx';
 import { useConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME, DashboardMobileNavigation, DashboardSidebar } from '../components/dashboard/DashboardNavigation.jsx';
@@ -21,6 +22,7 @@ import { fetchMyMapsWithResilience, getMyMapsListStatus } from '../lib/myMapsLoa
 const DIRECTORY_SECTIONS = {
     saved: 'saved-assets',
     maps: 'my-maps',
+    places: 'my-places',
 };
 
 function getSortOptions(t) {
@@ -80,7 +82,15 @@ function sortMaps(items, sortOrder) {
 }
 
 function formatSectionLabel(section, t) {
-    return section === DIRECTORY_SECTIONS.maps ? t('myMaps') : t('savedResources');
+    if (section === DIRECTORY_SECTIONS.maps) return t('myMaps');
+    if (section === DIRECTORY_SECTIONS.places) return 'My Places';
+    return t('savedResources');
+}
+
+function parseDirectorySection(value) {
+    return Object.values(DIRECTORY_SECTIONS).includes(value)
+        ? value
+        : DIRECTORY_SECTIONS.saved;
 }
 
 function SavedAssetsLoadingState() {
@@ -170,10 +180,11 @@ function SavedAssetsLoadErrorState({ message, onRetry, retrying = false }) {
 function DirectoryTabs({ activeSection, onSelect }) {
     const { t } = useLocale();
     return (
-        <div className="mt-6 inline-flex rounded-2xl bg-slate-100 p-1.5 shadow-inner">
+        <div className="mt-6 inline-flex max-w-full flex-wrap rounded-2xl bg-slate-100 p-1.5 shadow-inner">
             {[
                 { value: DIRECTORY_SECTIONS.saved, label: t('savedResources'), icon: Bookmark },
                 { value: DIRECTORY_SECTIONS.maps, label: t('myMaps'), icon: Map },
+                { value: DIRECTORY_SECTIONS.places, label: 'My Places', icon: MapPinned },
             ].map((tab) => {
                 const active = activeSection === tab.value;
                 const Icon = tab.icon;
@@ -182,7 +193,7 @@ function DirectoryTabs({ activeSection, onSelect }) {
                         key={tab.value}
                         type="button"
                         onClick={() => onSelect(tab.value)}
-                        className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-200 ${
+                        className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition-all duration-200 sm:px-5 ${
                             active
                                 ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200'
                                 : 'text-slate-500 hover:text-slate-700'
@@ -212,9 +223,7 @@ export default function MyDirectoryPage() {
         isSavedAssetPending,
     } = useSavedAssets();
 
-    const initialSection = searchParams.get('section') === DIRECTORY_SECTIONS.maps
-        ? DIRECTORY_SECTIONS.maps
-        : DIRECTORY_SECTIONS.saved;
+    const initialSection = parseDirectorySection(searchParams.get('section'));
 
     const [activeSection, setActiveSection] = useState(initialSection);
     const [searchTerm, setSearchTerm] = useState('');
@@ -240,9 +249,7 @@ export default function MyDirectoryPage() {
     const mapSortOptions = useMemo(() => getMapSortOptions(t), [t]);
 
     useEffect(() => {
-        const nextSection = searchParams.get('section') === DIRECTORY_SECTIONS.maps
-            ? DIRECTORY_SECTIONS.maps
-            : DIRECTORY_SECTIONS.saved;
+        const nextSection = parseDirectorySection(searchParams.get('section'));
         setActiveSection(nextSection);
     }, [searchParams]);
 
@@ -439,7 +446,9 @@ export default function MyDirectoryPage() {
                             <p className={`mt-2 max-w-2xl text-slate-500 ${isCompactDirectory ? 'text-[13px] leading-6' : 'text-sm'}`}>
                                 {activeSection === DIRECTORY_SECTIONS.maps
                                     ? t('directoryMapsIntro')
-                                    : t('directorySavedIntro')}
+                                    : activeSection === DIRECTORY_SECTIONS.places
+                                        ? 'Private places you can reuse across more than one map.'
+                                        : t('directorySavedIntro')}
                             </p>
                             <DirectoryTabs activeSection={activeSection} onSelect={switchSection} />
                         </header>
@@ -553,7 +562,7 @@ export default function MyDirectoryPage() {
                                     </div>
                                 )}
                             </section>
-                        ) : (
+                        ) : activeSection === DIRECTORY_SECTIONS.maps ? (
                             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                                 <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
                                     <div>
@@ -682,6 +691,8 @@ export default function MyDirectoryPage() {
                                     </div>
                                 )}
                             </section>
+                        ) : (
+                            <PersonalPlacesSection />
                         )}
                     </div>
                 </main>

@@ -151,6 +151,7 @@ function getCategoryEntriesForRows(rows = [], options = {}) {
             label: getRowCategoryLabel(row, options),
             color: normalizeCategoryColor(useMapCategory ? (row.mapCategoryColor || row.categoryColor) : row.categoryColor),
             iconUrl: useMapCategory ? (row.mapCategoryIconUrl || row.categoryIconUrl || null) : (row.categoryIconUrl || null),
+            iconKey: useMapCategory ? (row.mapCategoryIconKey || row.categoryIconKey || null) : (row.categoryIconKey || null),
         });
     });
 
@@ -168,6 +169,7 @@ function getPrimaryCategoryEntry(rows = [], options = {}) {
         label: getRowCategoryLabel(sourceRow, options),
         color: '',
         iconUrl: null,
+        iconKey: null,
     };
 }
 
@@ -203,6 +205,7 @@ function getCategoryBubbleItemsForGroup(group = {}, options = {}) {
                 placeKey: member.placeKey,
                 color: entry.color || null,
                 iconUrl: entry.iconUrl || null,
+                iconKey: entry.iconKey || null,
                 label: member.name || '',
             };
         })
@@ -496,6 +499,9 @@ function buildGroupedPins(groups = [], options = {}) {
                     categoryIconUrl: primaryCategoryEntry.iconUrl
                         || group.rows.find((row) => row.categoryIconUrl)?.categoryIconUrl
                         || null,
+                    categoryIconKey: primaryCategoryEntry.iconKey
+                        || group.rows.find((row) => row.categoryIconKey)?.categoryIconKey
+                        || null,
                     categoryColor: primaryCategoryEntry.color || categoryColorSegments[0] || null,
                     categoryColorSegments,
                     categoryBubbleItems: getCategoryBubbleItemsForGroup(group, options),
@@ -517,6 +523,7 @@ function buildGroupedPins(groups = [], options = {}) {
                 lng: group.lng,
                 curatedCount: group.curatedCount,
                 categoryIconUrl: null,
+                categoryIconKey: null,
                 categoryColor: categoryColorSegments[0] || null,
                 categoryColorSegments,
                 categoryBubbleItems: getCategoryBubbleItemsForGroup(group, options),
@@ -562,6 +569,7 @@ function buildUnmappedDisplayGroup(row, index, mappedPlaceKeys = new Set()) {
         categorySortKey: normalizeText(categoryLabel),
         categoryColor: categoryEntry.color || null,
         categoryIconUrl: categoryEntry.iconUrl || null,
+        categoryIconKey: categoryEntry.iconKey || null,
         resourceSortKey: normalizeText(row.name || row.placeName || ''),
     };
 }
@@ -578,6 +586,7 @@ function decorateV2MappedGroup(group) {
         categorySortKey: normalizeText(categoryLabel),
         categoryColor: categoryEntry.color || null,
         categoryIconUrl: categoryEntry.iconUrl || null,
+        categoryIconKey: categoryEntry.iconKey || null,
         resourceSortKey: normalizeText(group.name),
     };
 }

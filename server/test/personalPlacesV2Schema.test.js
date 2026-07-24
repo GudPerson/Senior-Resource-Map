@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import test from 'node:test';
+
+function readSource(path) {
+    return fs.readFileSync(new URL(path, import.meta.url), 'utf8');
+}
+
+test('V2 schema separates private library places, categories, and map links', () => {
+    const schemaSource = readSource('../src/db/schema.js');
+
+    assert.match(schemaSource, /user_personal_place_categories/);
+    assert.match(schemaSource, /user_personal_places/);
+    assert.match(schemaSource, /my_map_personal_place_links/);
+    assert.match(schemaSource, /onDelete: 'cascade'/);
+    assert.match(schemaSource, /legacyMapPersonalPlaceId/);
+});
+
+test('boundary bootstrap backfills V1 places idempotently', () => {
+    const boundarySource = readSource('../src/utils/boundarySchema.js');
+
+    assert.match(boundarySource, /INSERT INTO user_personal_places/);
+    assert.match(boundarySource, /legacy_map_personal_place_id/);
+    assert.match(boundarySource, /ON CONFLICT \(legacy_map_personal_place_id\) DO NOTHING/);
+    assert.match(boundarySource, /INSERT INTO my_map_personal_place_links/);
+    assert.match(boundarySource, /ON CONFLICT \(map_id, personal_place_id\) DO NOTHING/);
+});
+
+test('shared map directory still admits personal places only in owner mode', () => {
+    const directorySource = readSource('../src/utils/myMapDirectory.js');
+
+    assert.match(directorySource, /if \(mode === 'owner'\)/);
+    assert.match(directorySource, /for \(const personalPlace of map\?\.personalPlaces \|\| \[\]\)/);
+    assert.doesNotMatch(directorySource, /mode === 'shared'[\s\S]{0,200}personalPlaces/);
+});

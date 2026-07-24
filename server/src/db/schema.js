@@ -708,6 +708,53 @@ export const myMapPersonalPlaces = pgTable('my_map_personal_places', {
   mapNameIdx: index('my_map_personal_places_map_name_idx').on(table.mapId, table.name),
 }));
 
+export const userPersonalPlaceCategories = pgTable('user_personal_place_categories', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar('name', { length: 120 }).notNull(),
+  normalizedName: varchar('normalized_name', { length: 120 }).notNull(),
+  iconKey: varchar('icon_key', { length: 40 }).notNull().default('map-pin'),
+  color: varchar('color', { length: 7 }).notNull().default('#64748B'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isArchived: boolean('is_archived').notNull().default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  userNameUnique: uniqueIndex('user_personal_place_categories_user_name_unique').on(table.userId, table.normalizedName),
+  userSortIdx: index('user_personal_place_categories_user_sort_idx').on(table.userId, table.sortOrder, table.name),
+}));
+
+export const userPersonalPlaces = pgTable('user_personal_places', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  categoryId: integer('category_id').references(() => userPersonalPlaceCategories.id, { onDelete: 'set null' }),
+  legacyCategoryLabel: varchar('legacy_category_label', { length: 120 }),
+  name: varchar('name', { length: 255 }).notNull(),
+  address: text('address'),
+  postalCode: varchar('postal_code', { length: 20 }),
+  lat: decimal('lat', { precision: 10, scale: 7 }).notNull(),
+  lng: decimal('lng', { precision: 10, scale: 7 }).notNull(),
+  note: text('note'),
+  legacyMapPersonalPlaceId: integer('legacy_map_personal_place_id').references(() => myMapPersonalPlaces.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  userIdx: index('user_personal_places_user_idx').on(table.userId),
+  userNameIdx: index('user_personal_places_user_name_idx').on(table.userId, table.name),
+  legacyPlaceUnique: uniqueIndex('user_personal_places_legacy_place_unique').on(table.legacyMapPersonalPlaceId),
+}));
+
+export const myMapPersonalPlaceLinks = pgTable('my_map_personal_place_links', {
+  id: serial('id').primaryKey(),
+  mapId: integer('map_id').references(() => myMaps.id, { onDelete: 'cascade' }).notNull(),
+  personalPlaceId: integer('personal_place_id').references(() => userPersonalPlaces.id, { onDelete: 'cascade' }).notNull(),
+  addedAt: timestamp('added_at').defaultNow(),
+}, (table) => ({
+  mapPlaceUnique: uniqueIndex('my_map_personal_place_links_map_place_unique').on(table.mapId, table.personalPlaceId),
+  mapIdx: index('my_map_personal_place_links_map_idx').on(table.mapId),
+  personalPlaceIdx: index('my_map_personal_place_links_place_idx').on(table.personalPlaceId),
+}));
+
 export const userCalendarItems = pgTable('user_calendar_items', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
@@ -945,6 +992,8 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   softAssets: many(softAssets),
   favorites: many(userFavorites),
   myMaps: many(myMaps),
+  personalPlaceCategories: many(userPersonalPlaceCategories),
+  personalPlaces: many(userPersonalPlaces),
   assetMemberships: many(userAssetMemberships),
   phoneIdentities: many(userPhoneIdentities),
   phoneVerificationAttempts: many(phoneVerificationAttempts),
@@ -1353,6 +1402,7 @@ export const myMapsRelations = relations(myMaps, ({ one, many }) => ({
   }),
   assets: many(myMapAssets),
   personalPlaces: many(myMapPersonalPlaces),
+  personalPlaceLinks: many(myMapPersonalPlaceLinks),
   shareSnapshot: one(myMapShareSnapshots, {
     fields: [myMaps.id],
     references: [myMapShareSnapshots.mapId],
@@ -1378,6 +1428,37 @@ export const myMapPersonalPlacesRelations = relations(myMapPersonalPlaces, ({ on
   map: one(myMaps, {
     fields: [myMapPersonalPlaces.mapId],
     references: [myMaps.id],
+  }),
+}));
+
+export const userPersonalPlaceCategoriesRelations = relations(userPersonalPlaceCategories, ({ one, many }) => ({
+  user: one(users, {
+    fields: [userPersonalPlaceCategories.userId],
+    references: [users.id],
+  }),
+  personalPlaces: many(userPersonalPlaces),
+}));
+
+export const userPersonalPlacesRelations = relations(userPersonalPlaces, ({ one, many }) => ({
+  user: one(users, {
+    fields: [userPersonalPlaces.userId],
+    references: [users.id],
+  }),
+  category: one(userPersonalPlaceCategories, {
+    fields: [userPersonalPlaces.categoryId],
+    references: [userPersonalPlaceCategories.id],
+  }),
+  mapLinks: many(myMapPersonalPlaceLinks),
+}));
+
+export const myMapPersonalPlaceLinksRelations = relations(myMapPersonalPlaceLinks, ({ one }) => ({
+  map: one(myMaps, {
+    fields: [myMapPersonalPlaceLinks.mapId],
+    references: [myMaps.id],
+  }),
+  personalPlace: one(userPersonalPlaces, {
+    fields: [myMapPersonalPlaceLinks.personalPlaceId],
+    references: [userPersonalPlaces.id],
   }),
 }));
 

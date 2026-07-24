@@ -209,7 +209,9 @@ test('directory map can show V2 category colors inside the saved pin circle with
     assert.match(discoverUtilsSource, /background:\$\{categoryFill\}/);
     assert.match(discoverUtilsSource, /fill="\$\{outerFill\}"/);
     assert.match(directoryMapSource, /pinCategoryIconMode = 'auto'/);
-    assert.match(directoryMapSource, /iconUrl: pinCategoryIconMode === 'none' \? null : \(pin\.categoryIconUrl \|\| null\)/);
+    assert.match(directoryMapSource, /const categoryIconUrl = pinCategoryIconMode === 'none'/);
+    assert.match(directoryMapSource, /createPersonalPlaceIconDataUrl\(pin\.categoryIconKey\)/);
+    assert.match(directoryMapSource, /iconUrl: categoryIconUrl/);
     assert.match(directoryMapSource, /color: pin\.categoryColor \|\| null/);
     assert.match(directoryMapSource, /colorSegments: pin\.categoryColorSegments \|\| \[\]/);
     assert.match(directoryMapSource, /savedPinIcon\.options\.categoryColor = pin\.categoryColor \|\| null/);
@@ -241,7 +243,7 @@ test('directory map can render V2 clusters as compact overlapping asset pins ins
     assert.match(directoryMapSource, /cursor:pointer/);
     assert.match(directoryMapSource, /directory-asset-spread-cluster__hit-zone/);
     assert.doesNotMatch(directoryMapSource, /directory-asset-spread-cluster__anchor/);
-    assert.match(directoryMapSource, /savedPinIcon\.options\.categoryIconUrl = pin\.categoryIconUrl \|\| null/);
+    assert.match(directoryMapSource, /savedPinIcon\.options\.categoryIconUrl = categoryIconUrl/);
     assert.match(directoryMapSource, /color: iconOptions\.categoryColor \|\| null/);
     assert.match(directoryMapSource, /colorSegments: iconOptions\.categoryColorSegments \|\| \[\]/);
     assert.match(directoryMapSource, /savedPinIcon\.options\.curatedCount = pin\.curatedCount/);

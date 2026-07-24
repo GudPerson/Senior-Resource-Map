@@ -14,6 +14,9 @@ import { FIXED_TOWN_SURFACE_MIN_ZOOM } from '../components/FixedTownSurfaceLayer
 import MyMapPdfExportButton from '../components/MyMapPdfExportButton.jsx';
 import MyMapV2PreviewScaffold from '../components/MyMapV2PreviewScaffold.jsx';
 import PrintLayoutControls from '../components/PrintLayoutControls.jsx';
+import AddPersonalPlaceChooserModal from '../components/personalPlaces/AddPersonalPlaceChooserModal.jsx';
+import PersonalPlaceCategoryManagerModal from '../components/personalPlaces/PersonalPlaceCategoryManagerModal.jsx';
+import PersonalPlaceEditorModal from '../components/personalPlaces/PersonalPlaceEditorModal.jsx';
 import ShareMapModal from '../components/ShareMapModal.jsx';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import TownMapModeControl from '../components/TownMapModeControl.jsx';
@@ -862,6 +865,14 @@ export default function MyMapDetailPage() {
     const [personalPlaceDraft, setPersonalPlaceDraft] = useState(null);
     const [personalPlaceSubmitting, setPersonalPlaceSubmitting] = useState(false);
     const [personalPlaceError, setPersonalPlaceError] = useState('');
+    const [personalPlacesLibrary, setPersonalPlacesLibrary] = useState([]);
+    const [personalPlaceCategories, setPersonalPlaceCategories] = useState([]);
+    const [personalPlaceChooserOpen, setPersonalPlaceChooserOpen] = useState(false);
+    const [personalPlaceChooserSubmitting, setPersonalPlaceChooserSubmitting] = useState(false);
+    const [personalPlaceChooserError, setPersonalPlaceChooserError] = useState('');
+    const [personalPlaceCategoryManagerOpen, setPersonalPlaceCategoryManagerOpen] = useState(false);
+    const [personalPlaceCategoryBusy, setPersonalPlaceCategoryBusy] = useState(false);
+    const [personalPlaceCategoryError, setPersonalPlaceCategoryError] = useState('');
     const [basemapMode, setBasemapMode] = useState(() => (TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live'));
     const [printMapState, setPrintMapState] = useState(() => (
         createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS)
@@ -886,7 +897,12 @@ export default function MyMapDetailPage() {
     const townMapSelectionKeyRef = useRef({});
     const useDesktopOwnerLayout = useMediaQuery('(min-width: 1024px)');
     const useDesktopDirectoryBodyLayout = useMediaQuery('(min-width: 1024px)');
-    const suspendMapInteraction = shareOpen || editOpen || addOpen || personalPlaceModalOpen;
+    const suspendMapInteraction = shareOpen
+        || editOpen
+        || addOpen
+        || personalPlaceModalOpen
+        || personalPlaceChooserOpen
+        || personalPlaceCategoryManagerOpen;
     const isPrintView = searchParams.get('view') === 'print';
     const previousPrintViewRef = useRef(isPrintView);
     const myMapUiMode = getMyMapUiMode(searchParams);
@@ -911,10 +927,14 @@ export default function MyMapDetailPage() {
         }
         setError('');
         try {
-            const [item, subcategories] = await Promise.all([
+            const [item, subcategories, libraryPlaces, categories] = await Promise.all([
                 fetchMyMapWithResilience(() => api.getMyMap(mapId)),
                 api.getSubCategories({ suppressAuthExpired: true }).catch(() => []),
+                api.getPersonalPlaces().catch(() => []),
+                api.getPersonalPlaceCategories().catch(() => []),
             ]);
+            setPersonalPlacesLibrary(Array.isArray(libraryPlaces) ? libraryPlaces : []);
+            setPersonalPlaceCategories(Array.isArray(categories) ? categories : []);
             const enrichedDirectory = applySubCategoryMetaToDirectory(item, subcategories);
             const addressBackfilledDirectory = await backfillMissingHardPlaceAddresses(enrichedDirectory);
             const nextDirectory = await backfillGroupFocusPlaceKeys(addressBackfilledDirectory);
@@ -1621,7 +1641,14 @@ export default function MyMapDetailPage() {
         setPersonalPlaceModalOpen(false);
         setPersonalPlaceDraft(null);
         setPersonalPlaceError('');
+        setPersonalPlaceChooserError('');
         clearMapSelection();
+        setPersonalPlaceChooserOpen(true);
+    }
+
+    function startCreatingPersonalPlaceOnMap() {
+        setPersonalPlaceChooserOpen(false);
+        setPersonalPlaceChooserError('');
         setPersonalPlacePickerActive(true);
     }
 
@@ -1656,6 +1683,8 @@ export default function MyMapDetailPage() {
         setPersonalPlaceDraft({
             id: row.personalPlaceId || row.resourceId,
             name: row.name || '',
+            categoryId: row.categoryId || row.personalPlaceCategory?.id || null,
+            category: row.personalPlaceCategory || null,
             categoryLabel: row.subCategory || row.categoryLabel || '',
             address: row.address || '',
             postalCode: row.postalCode || '',
@@ -1684,6 +1713,60 @@ export default function MyMapDetailPage() {
             setPersonalPlaceError(err.message || t('personalPlaceSaveFailed'));
         } finally {
             setPersonalPlaceSubmitting(false);
+        }
+    }
+
+    async function handleAttachPersonalPlaces(personalPlaceIds) {
+        if (!directory || !Array.isArray(personalPlaceIds) || personalPlaceIds.length === 0) return;
+        setPersonalPlaceChooserSubmitting(true);
+        setPersonalPlaceChooserError('');
+        try {
+            await Promise.all(personalPlaceIds.map((personalPlaceId) => (
+                api.attachMyMapPersonalPlace(directory.id, personalPlaceId)
+            )));
+            setPersonalPlaceChooserOpen(false);
+            await loadMap();
+        } catch (err) {
+            console.error(err);
+            setPersonalPlaceChooserError(err.message || 'Failed to add personal places to this map.');
+        } finally {
+            setPersonalPlaceChooserSubmitting(false);
+        }
+    }
+
+    async function handleCreatePersonalPlaceCategory(values) {
+        setPersonalPlaceCategoryBusy(true);
+        setPersonalPlaceCategoryError('');
+        try {
+            const created = await api.createPersonalPlaceCategory(values);
+            setPersonalPlaceCategories((current) => [...current, created]);
+        } catch (err) {
+            console.error(err);
+            setPersonalPlaceCategoryError(err.message || 'Failed to create category.');
+        } finally {
+            setPersonalPlaceCategoryBusy(false);
+        }
+    }
+
+    async function handleUpdatePersonalPlaceCategory(categoryId, values) {
+        setPersonalPlaceCategoryBusy(true);
+        setPersonalPlaceCategoryError('');
+        try {
+            const updated = await api.updatePersonalPlaceCategory(categoryId, values);
+            setPersonalPlaceCategories((current) => current.map((category) => (
+                category.id === updated.id ? updated : category
+            )));
+            setPersonalPlacesLibrary((current) => current.map((place) => (
+                place.categoryId === updated.id
+                    ? { ...place, categoryLabel: updated.name, category: updated }
+                    : place
+            )));
+            await loadMap();
+        } catch (err) {
+            console.error(err);
+            setPersonalPlaceCategoryError(err.message || 'Failed to update category.');
+        } finally {
+            setPersonalPlaceCategoryBusy(false);
         }
     }
 
@@ -2144,13 +2227,44 @@ export default function MyMapDetailPage() {
                     onUnpublish={handleUnpublishShare}
                 />
 
-                <PersonalPlaceModal
+                <AddPersonalPlaceChooserModal
+                    open={personalPlaceChooserOpen}
+                    mapId={directory.id}
+                    places={personalPlacesLibrary}
+                    submitting={personalPlaceChooserSubmitting}
+                    error={personalPlaceChooserError}
+                    onClose={() => {
+                        if (personalPlaceChooserSubmitting) return;
+                        setPersonalPlaceChooserOpen(false);
+                        setPersonalPlaceChooserError('');
+                    }}
+                    onAttach={handleAttachPersonalPlaces}
+                    onCreateNew={startCreatingPersonalPlaceOnMap}
+                />
+
+                <PersonalPlaceEditorModal
                     open={personalPlaceModalOpen}
                     draft={personalPlaceDraft}
+                    categories={personalPlaceCategories}
                     submitting={personalPlaceSubmitting}
                     error={personalPlaceError}
                     onClose={closePersonalPlaceModal}
+                    onManageCategories={() => setPersonalPlaceCategoryManagerOpen(true)}
                     onSubmit={handleSavePersonalPlace}
+                />
+
+                <PersonalPlaceCategoryManagerModal
+                    open={personalPlaceCategoryManagerOpen}
+                    categories={personalPlaceCategories}
+                    busy={personalPlaceCategoryBusy}
+                    error={personalPlaceCategoryError}
+                    onClose={() => {
+                        if (personalPlaceCategoryBusy) return;
+                        setPersonalPlaceCategoryManagerOpen(false);
+                        setPersonalPlaceCategoryError('');
+                    }}
+                    onCreate={handleCreatePersonalPlaceCategory}
+                    onUpdate={handleUpdatePersonalPlaceCategory}
                 />
             </>
         );
@@ -2415,13 +2529,44 @@ export default function MyMapDetailPage() {
                 onUnpublish={handleUnpublishShare}
             />
 
-            <PersonalPlaceModal
+            <AddPersonalPlaceChooserModal
+                open={personalPlaceChooserOpen}
+                mapId={directory.id}
+                places={personalPlacesLibrary}
+                submitting={personalPlaceChooserSubmitting}
+                error={personalPlaceChooserError}
+                onClose={() => {
+                    if (personalPlaceChooserSubmitting) return;
+                    setPersonalPlaceChooserOpen(false);
+                    setPersonalPlaceChooserError('');
+                }}
+                onAttach={handleAttachPersonalPlaces}
+                onCreateNew={startCreatingPersonalPlaceOnMap}
+            />
+
+            <PersonalPlaceEditorModal
                 open={personalPlaceModalOpen}
                 draft={personalPlaceDraft}
+                categories={personalPlaceCategories}
                 submitting={personalPlaceSubmitting}
                 error={personalPlaceError}
                 onClose={closePersonalPlaceModal}
+                onManageCategories={() => setPersonalPlaceCategoryManagerOpen(true)}
                 onSubmit={handleSavePersonalPlace}
+            />
+
+            <PersonalPlaceCategoryManagerModal
+                open={personalPlaceCategoryManagerOpen}
+                categories={personalPlaceCategories}
+                busy={personalPlaceCategoryBusy}
+                error={personalPlaceCategoryError}
+                onClose={() => {
+                    if (personalPlaceCategoryBusy) return;
+                    setPersonalPlaceCategoryManagerOpen(false);
+                    setPersonalPlaceCategoryError('');
+                }}
+                onCreate={handleCreatePersonalPlaceCategory}
+                onUpdate={handleUpdatePersonalPlaceCategory}
             />
         </>
     );

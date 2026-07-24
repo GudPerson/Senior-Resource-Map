@@ -190,6 +190,121 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                 )
             `);
             await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS user_personal_place_categories (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    name VARCHAR(120) NOT NULL,
+                    normalized_name VARCHAR(120) NOT NULL,
+                    icon_key VARCHAR(40) NOT NULL DEFAULT 'map-pin',
+                    color VARCHAR(7) NOT NULL DEFAULT '#64748B',
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS user_personal_places (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    category_id INTEGER REFERENCES user_personal_place_categories(id) ON DELETE SET NULL,
+                    legacy_category_label VARCHAR(120),
+                    name VARCHAR(255) NOT NULL,
+                    address TEXT,
+                    postal_code VARCHAR(20),
+                    lat NUMERIC(10, 7) NOT NULL,
+                    lng NUMERIC(10, 7) NOT NULL,
+                    note TEXT,
+                    legacy_map_personal_place_id INTEGER REFERENCES my_map_personal_places(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS my_map_personal_place_links (
+                    id SERIAL PRIMARY KEY,
+                    map_id INTEGER NOT NULL REFERENCES my_maps(id) ON DELETE CASCADE,
+                    personal_place_id INTEGER NOT NULL REFERENCES user_personal_places(id) ON DELETE CASCADE,
+                    added_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_personal_place_categories_user_name_unique ON user_personal_place_categories (user_id, normalized_name)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_personal_places_legacy_place_unique ON user_personal_places (legacy_map_personal_place_id)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_map_personal_place_links_map_place_unique ON my_map_personal_place_links (map_id, personal_place_id)`);
+            await db.execute(sql`
+                INSERT INTO user_personal_place_categories (
+                    user_id,
+                    name,
+                    normalized_name,
+                    icon_key,
+                    color,
+                    sort_order,
+                    is_archived,
+                    created_at,
+                    updated_at
+                )
+                SELECT DISTINCT
+                    maps.user_id,
+                    TRIM(places.category_label),
+                    LOWER(REGEXP_REPLACE(TRIM(places.category_label), '\s+', ' ', 'g')),
+                    'map-pin',
+                    '#64748B',
+                    1000,
+                    FALSE,
+                    NOW(),
+                    NOW()
+                FROM my_map_personal_places places
+                INNER JOIN my_maps maps ON maps.id = places.map_id
+                WHERE NULLIF(TRIM(places.category_label), '') IS NOT NULL
+                ON CONFLICT (user_id, normalized_name) DO NOTHING
+            `);
+            await db.execute(sql`
+                INSERT INTO user_personal_places (
+                    user_id,
+                    category_id,
+                    legacy_category_label,
+                    name,
+                    address,
+                    postal_code,
+                    lat,
+                    lng,
+                    note,
+                    legacy_map_personal_place_id,
+                    created_at,
+                    updated_at
+                )
+                SELECT
+                    maps.user_id,
+                    categories.id,
+                    places.category_label,
+                    places.name,
+                    places.address,
+                    places.postal_code,
+                    places.lat,
+                    places.lng,
+                    places.note,
+                    places.id,
+                    places.created_at,
+                    places.updated_at
+                FROM my_map_personal_places places
+                INNER JOIN my_maps maps ON maps.id = places.map_id
+                LEFT JOIN user_personal_place_categories categories
+                    ON categories.user_id = maps.user_id
+                    AND categories.normalized_name = LOWER(REGEXP_REPLACE(TRIM(places.category_label), '\s+', ' ', 'g'))
+                ON CONFLICT (legacy_map_personal_place_id) DO NOTHING
+            `);
+            await db.execute(sql`
+                INSERT INTO my_map_personal_place_links (map_id, personal_place_id, added_at)
+                SELECT
+                    places.map_id,
+                    library_places.id,
+                    places.created_at
+                FROM my_map_personal_places places
+                INNER JOIN user_personal_places library_places
+                    ON library_places.legacy_map_personal_place_id = places.id
+                ON CONFLICT (map_id, personal_place_id) DO NOTHING
+            `);
+            await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_map_share_snapshots (
                     id SERIAL PRIMARY KEY,
                     map_id INTEGER NOT NULL REFERENCES my_maps(id) ON DELETE CASCADE,
@@ -809,6 +924,14 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_asset_notes_map_asset_sort_idx ON my_map_asset_notes (map_asset_id, sort_order)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_personal_places_map_idx ON my_map_personal_places (map_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_personal_places_map_name_idx ON my_map_personal_places (map_id, name)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_personal_place_categories_user_name_unique ON user_personal_place_categories (user_id, normalized_name)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS user_personal_place_categories_user_sort_idx ON user_personal_place_categories (user_id, sort_order, name)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS user_personal_places_user_idx ON user_personal_places (user_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS user_personal_places_user_name_idx ON user_personal_places (user_id, name)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_personal_places_legacy_place_unique ON user_personal_places (legacy_map_personal_place_id)`);
+            await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_map_personal_place_links_map_place_unique ON my_map_personal_place_links (map_id, personal_place_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_personal_place_links_map_idx ON my_map_personal_place_links (map_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_personal_place_links_place_idx ON my_map_personal_place_links (personal_place_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS soft_assets_calendar_enabled_idx ON soft_assets (calendar_enabled, calendar_starts_at)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS user_calendar_items_user_starts_idx ON user_calendar_items (user_id, starts_at)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS user_calendar_items_source_idx ON user_calendar_items (soft_asset_id, source_starts_at)`);

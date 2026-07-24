@@ -724,7 +724,11 @@ function buildPersonalPlaceDirectoryEntry(personalPlace, categoryLookup) {
         return null;
     }
 
-    const categoryLabel = normalizeText(personalPlace?.categoryLabel) || 'Personal place';
+    const personalCategory = personalPlace?.category || null;
+    const categoryLabel = normalizeText(personalCategory?.name)
+        || normalizeText(personalPlace?.legacyCategoryLabel)
+        || normalizeText(personalPlace?.categoryLabel)
+        || 'Personal place';
     const categoryKey = normalizeCategoryKey(categoryLabel);
     const categoryMeta = categoryKey ? categoryLookup.get(categoryKey) || null : null;
     const placeKey = buildPersonalPlaceKey(id);
@@ -734,11 +738,20 @@ function buildPersonalPlaceDirectoryEntry(personalPlace, categoryLookup) {
         resourceId: id,
         personalPlaceId: id,
         name: normalizeText(personalPlace?.name) || 'Personal place',
+        categoryId: personalPlace?.categoryId ?? personalCategory?.id ?? null,
+        personalPlaceCategory: personalCategory ? {
+            id: personalCategory.id,
+            name: personalCategory.name,
+            iconKey: personalCategory.iconKey || 'map-pin',
+            color: personalCategory.color || '#64748B',
+            isArchived: Boolean(personalCategory.isArchived),
+        } : null,
         bucket: 'Personal places',
         subCategory: categoryLabel,
         iconKey: categoryKey || 'personal place',
         categoryIconUrl: categoryMeta?.iconUrl || null,
-        categoryColor: categoryMeta?.color || '#64748b',
+        categoryIconKey: normalizeText(personalCategory?.iconKey) || null,
+        categoryColor: normalizeText(personalCategory?.color) || categoryMeta?.color || '#64748b',
         descriptor: normalizeText(personalPlace?.note),
         address: normalizeText(personalPlace?.address),
         postalCode: normalizeText(personalPlace?.postalCode),
@@ -754,7 +767,7 @@ function buildPersonalPlaceDirectoryEntry(personalPlace, categoryLookup) {
         access: null,
         missingProfileFields: [],
         assetKey: placeKey,
-        addedAt: personalPlace?.createdAt ?? null,
+        addedAt: personalPlace?.addedAt ?? personalPlace?.createdAt ?? null,
         updatedAt: personalPlace?.updatedAt ?? null,
         isPersonalPlace: true,
     };
@@ -920,7 +933,15 @@ export async function buildMyMapDirectory(db, {
                 personalPlaceId: entry.row.personalPlaceId,
                 status: entry.row.status,
                 name: entry.row.name,
+                categoryId: personalPlace?.categoryId ?? personalPlace?.category?.id ?? null,
                 categoryLabel: entry.row.subCategory,
+                category: personalPlace?.category ? {
+                    id: personalPlace.category.id,
+                    name: personalPlace.category.name,
+                    iconKey: personalPlace.category.iconKey || 'map-pin',
+                    color: personalPlace.category.color || '#64748B',
+                    isArchived: Boolean(personalPlace.category.isArchived),
+                } : null,
                 address: entry.row.address,
                 postalCode: entry.row.postalCode,
                 lat: entry.place.lat,

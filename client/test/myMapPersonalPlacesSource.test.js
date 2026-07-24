@@ -32,3 +32,30 @@ test('shared directory list treats personal places as owner-only local rows', ()
     assert.match(source, /getResourceKindLabel/);
     assert.match(source, /\!\['hard', 'soft'\]\.includes\(row\?\.resourceType\)/);
 });
+
+test('My Places library supports reusable places and delete-everywhere semantics', () => {
+    const directorySource = readSource('../src/pages/MyDirectoryPage.jsx');
+    const librarySource = readSource('../src/components/personalPlaces/PersonalPlacesSection.jsx');
+    const chooserSource = readSource('../src/components/personalPlaces/AddPersonalPlaceChooserModal.jsx');
+    const apiSource = readSource('../src/lib/api.js');
+
+    assert.match(directorySource, /places: 'my-places'/);
+    assert.match(directorySource, /<PersonalPlacesSection/);
+    assert.match(librarySource, /api\.getPersonalPlaces\(\)/);
+    assert.match(librarySource, /api\.deletePersonalPlace\(place\.id\)/);
+    assert.match(librarySource, /Delete everywhere/);
+    assert.match(chooserSource, /place\.mapIds/);
+    assert.match(apiSource, /attachMyMapPersonalPlace/);
+});
+
+test('personal place categories expose curated icons, colours, and global editing', () => {
+    const categorySource = readSource('../src/components/personalPlaces/PersonalPlaceCategoryManagerModal.jsx');
+    const presentationSource = readSource('../src/lib/directoryPresentation.js');
+    const mapSource = readSource('../src/components/DirectoryMap.jsx');
+
+    assert.match(categorySource, /PERSONAL_PLACE_ICON_OPTIONS/);
+    assert.match(categorySource, /PERSONAL_PLACE_COLOR_OPTIONS/);
+    assert.match(categorySource, /isArchived/);
+    assert.match(presentationSource, /categoryIconKey/);
+    assert.match(mapSource, /renderPersonalPlaceIconMarkup/);
+});
