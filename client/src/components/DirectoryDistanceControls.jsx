@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, MapPin, X } from 'lucide-react';
+import { Home, LocateFixed, LoaderCircle, MapPin, X } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 
 export default function DirectoryDistanceControls({
@@ -17,8 +17,10 @@ export default function DirectoryDistanceControls({
         error,
         isResolvingHome,
         isSettingTemporary,
+        isLocatingCurrent,
         activateHome,
         setTemporaryLocation,
+        locateCurrentLocation,
         clearTemporaryLocation,
         clearActiveAnchor,
     } = anchorState;
@@ -29,6 +31,8 @@ export default function DirectoryDistanceControls({
         : t('enterPostalCodeFirst');
     const activeLocationLabel = activeMode === 'home'
         ? t('usingHome')
+        : activeMode === 'current'
+            ? t('usingCurrentLocation')
         : activeMode === 'temporary'
             ? t('usingSetLocation')
             : t('distanceFrom');
@@ -58,7 +62,28 @@ export default function DirectoryDistanceControls({
         </button>
     ) : null;
 
-    const clearButton = (activeMode === 'temporary' || activeMode === 'home') ? (
+    const currentLocationButton = (
+        <button
+            type="button"
+            onClick={locateCurrentLocation}
+            disabled={isLocatingCurrent}
+            aria-label={isLocatingCurrent ? t('locatingCurrentLocation') : t('discoveryUseCurrentTitle')}
+            title={isLocatingCurrent ? t('locatingCurrentLocation') : t('discoveryUseCurrentTitle')}
+            className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl border transition ${
+                activeMode === 'current'
+                    ? 'border-brand-600 bg-brand-50 text-brand-700 ring-2 ring-brand-100'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:text-brand-700'
+            } disabled:cursor-wait disabled:opacity-60`}
+        >
+            {isLocatingCurrent ? (
+                <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />
+            ) : (
+                <LocateFixed size={18} aria-hidden="true" />
+            )}
+        </button>
+    );
+
+    const clearButton = (activeMode === 'temporary' || activeMode === 'home' || activeMode === 'current') ? (
         <button
             type="button"
             onClick={activeMode === 'temporary' ? clearTemporaryLocation : clearActiveAnchor}
@@ -105,6 +130,7 @@ export default function DirectoryDistanceControls({
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                     <span>{activeLocationLabel}</span>
                     {homeButton}
+                    {currentLocationButton}
                 </div>
                 {clearButton ? <div className="flex-shrink-0">{clearButton}</div> : null}
             </div>
@@ -122,6 +148,7 @@ export default function DirectoryDistanceControls({
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                 <span>{activeLocationLabel}</span>
                 {homeButton}
+                {currentLocationButton}
             </div>
 
             {locationInput}

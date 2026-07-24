@@ -90,13 +90,18 @@ export function useDirectoryDistanceAnchor({
     ));
     const [temporaryAnchor, setTemporaryAnchor] = useState(() => normalizeAnchor(loadStoredJson(temporaryAnchorStorageKey)));
     const [homeAnchor, setHomeAnchor] = useState(null);
+    const [currentAnchor, setCurrentAnchor] = useState(null);
     const [error, setError] = useState('');
     const [isResolvingHome, setIsResolvingHome] = useState(false);
     const [isSettingTemporary, setIsSettingTemporary] = useState(false);
+    const [isLocatingCurrent, setIsLocatingCurrent] = useState(false);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        window.sessionStorage.setItem(activeModeStorageKey, activeMode || 'none');
+        window.sessionStorage.setItem(
+            activeModeStorageKey,
+            activeMode === 'current' ? 'none' : activeMode || 'none'
+        );
     }, [activeMode, activeModeStorageKey]);
 
     useEffect(() => {
@@ -166,8 +171,12 @@ export function useDirectoryDistanceAnchor({
             return homeAnchor;
         }
 
+        if (activeMode === 'current' && currentAnchor) {
+            return currentAnchor;
+        }
+
         return null;
-    }, [activeMode, homeAnchor, temporaryAnchor]);
+    }, [activeMode, currentAnchor, homeAnchor, temporaryAnchor]);
 
     const activateHome = useCallback(async () => {
         if (!normalizedPostalCode) {
@@ -237,6 +246,53 @@ export function useDirectoryDistanceAnchor({
         }
     }, []);
 
+    const locateCurrentLocation = useCallback(() => {
+        if (typeof navigator === 'undefined' || !navigator.geolocation) {
+            setError('Current location is not available in this browser.');
+            return Promise.resolve(false);
+        }
+
+        setIsLocatingCurrent(true);
+        setError('');
+        return new Promise((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = Number(position?.coords?.latitude);
+                    const lng = Number(position?.coords?.longitude);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                        setError('Your current location could not be determined.');
+                        setIsLocatingCurrent(false);
+                        resolve(false);
+                        return;
+                    }
+
+                    setCurrentAnchor({
+                        kind: 'current',
+                        lat,
+                        lng,
+                        postalCode: '',
+                        address: 'Current location',
+                    });
+                    setActiveMode('current');
+                    setIsLocatingCurrent(false);
+                    resolve(true);
+                },
+                (locationError) => {
+                    setError(locationError?.code === 1
+                        ? 'Location permission was not granted.'
+                        : 'Your current location could not be determined.');
+                    setIsLocatingCurrent(false);
+                    resolve(false);
+                },
+                {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 60000,
+                }
+            );
+        });
+    }, []);
+
     const clearTemporaryLocation = useCallback(() => {
         setTemporaryAnchor(null);
         setError('');
@@ -245,6 +301,7 @@ export function useDirectoryDistanceAnchor({
 
     const clearActiveAnchor = useCallback(() => {
         setError('');
+        setCurrentAnchor(null);
         setActiveMode(null);
     }, []);
 
@@ -257,8 +314,10 @@ export function useDirectoryDistanceAnchor({
         error,
         isResolvingHome,
         isSettingTemporary,
+        isLocatingCurrent,
         activateHome,
         setTemporaryLocation,
+        locateCurrentLocation,
         clearTemporaryLocation,
         clearActiveAnchor,
     };

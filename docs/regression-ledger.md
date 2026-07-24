@@ -166,6 +166,29 @@ Rules:
   during release verification. Full server coverage passed 466/466 and broad
   client coverage passed 473/474; the sole failure is the previously recorded
   expired Care Calendar fixture on source untouched by this release.
+- 2026-07-24 personal-place action feedback, current location, and media
+  follow-up: add, attach, edit, remove, and library-delete actions now expose a
+  disabled pending state or an accessible live status while both the mutation
+  and subsequent map refresh complete, followed by a short success message.
+  My Map distance controls include the existing current-location interaction;
+  it uses browser geolocation only for the current page session, never replaces
+  the saved home/postal anchor, and clears through the existing distance-anchor
+  control. Reusable personal places can store one optional uploaded PNG, JPEG,
+  or WebP logo/image of up to 5 MB through a dedicated authenticated non-guest
+  endpoint and user-scoped Cloudinary folder. The image occupies the normal
+  resource-logo slot in owner library, chooser, map-card, and owner-export
+  presentation; the category icon and colour continue to own category badges
+  and map pins. Personal places and their image URLs remain absent from shared
+  snapshots, shared APIs, Discover, managed Resources, imports, governance, and
+  guest views. This follow-up requires the additive `logo_url` boundary-schema
+  bootstrap before runtime deployment. Focused feedback, geolocation, image,
+  owner-directory, and shared-exclusion coverage passed 56/56; full server
+  coverage passed 466/466; focused locked owner-map coverage passed 64/64; and
+  both the normal and exact four-root production-style client builds passed
+  with only the existing large chunk warning. Broad client coverage passed
+  465/466; the sole failure is the already recorded expired Care Calendar
+  conflict fixture on source untouched by this follow-up. Signed-in browser
+  UAT and deployment have not yet been performed.
 - Release and rollback: before any deploy, run the additive boundary-schema
   bootstrap against the intended database, verify row/category/link counts,
   then complete signed-in owner and shared-link UAT. Roll back application code

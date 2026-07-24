@@ -424,6 +424,12 @@ export const api = {
         const data = await requestFormData('/upload/personal-place-category-icon', formData);
         return data.secure_url;
     },
+    uploadPersonalPlaceImage: async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const data = await requestFormData('/upload/personal-place-image', formData);
+        return data.secure_url;
+    },
 
     // Restricted resource content
     getPrivateResourceContent: (resourceType, resourceId, options = {}) => request(

@@ -732,6 +732,7 @@ export const userPersonalPlaces = pgTable('user_personal_places', {
   categoryId: integer('category_id').references(() => userPersonalPlaceCategories.id, { onDelete: 'set null' }),
   legacyCategoryLabel: varchar('legacy_category_label', { length: 120 }),
   name: varchar('name', { length: 255 }).notNull(),
+  logoUrl: text('logo_url'),
   address: text('address'),
   postalCode: varchar('postal_code', { length: 20 }),
   lat: decimal('lat', { precision: 10, scale: 7 }).notNull(),

@@ -310,6 +310,9 @@ function buildAnchorNote(anchor) {
             ? `Distances shown from Home (${formatStreetLabel(anchor.address)})`
             : 'Distances shown from Home';
     }
+    if (anchor.kind === 'current') {
+        return 'Distances shown from your current location';
+    }
 
     if (anchor.address) {
         return `Distances shown from ${formatStreetLabel(anchor.address)}`;

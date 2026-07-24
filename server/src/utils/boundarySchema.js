@@ -213,6 +213,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     category_id INTEGER REFERENCES user_personal_place_categories(id) ON DELETE SET NULL,
                     legacy_category_label VARCHAR(120),
                     name VARCHAR(255) NOT NULL,
+                    logo_url TEXT,
                     address TEXT,
                     postal_code VARCHAR(20),
                     lat NUMERIC(10, 7) NOT NULL,
@@ -225,6 +226,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                 )
             `);
             await db.execute(sql`ALTER TABLE user_personal_place_categories ADD COLUMN IF NOT EXISTS icon_url TEXT`);
+            await db.execute(sql`ALTER TABLE user_personal_places ADD COLUMN IF NOT EXISTS logo_url TEXT`);
             await db.execute(sql`ALTER TABLE user_personal_places ADD COLUMN IF NOT EXISTS short_description VARCHAR(240)`);
             await db.execute(sql`
                 UPDATE user_personal_places

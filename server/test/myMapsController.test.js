@@ -99,6 +99,7 @@ function createPersonalPlace(overrides = {}) {
         categoryId: 2,
         legacyCategoryLabel: 'Shop',
         name: 'Useful coffee shop',
+        logoUrl: 'https://res.cloudinary.com/example/useful-coffee-shop.png',
         address: '21 Choa Chu Kang Avenue 4 Singapore 689812',
         postalCode: '689812',
         lat: '1.3851000',
@@ -674,6 +675,7 @@ test('personal places can be created and appear only in owner directory shape', 
     const created = await createMyMapPersonalPlace(db, DEFAULT_USER, 3, {
         name: 'Useful coffee shop',
         categoryLabel: 'Shop',
+        logoUrl: 'https://res.cloudinary.com/example/useful-coffee-shop.png',
         address: '21 Choa Chu Kang Avenue 4 Singapore 689812',
         postalCode: '689812',
         lat: 1.3851,
@@ -691,6 +693,7 @@ test('personal places can be created and appear only in owner directory shape', 
     assert.equal(detail.assets.length, 1);
     assert.equal(detail.personalPlaces.length, 1);
     assert.equal(personalRow.name, 'Useful coffee shop');
+    assert.equal(personalRow.logoUrl, 'https://res.cloudinary.com/example/useful-coffee-shop.png');
     assert.equal(personalRow.descriptor, 'Good rest stop after appointments.');
     assert.equal(personalRow.saveEligible, false);
     assert.equal(detail.pins.some((pin) => pin.placeKey === 'personal-place-1'), true);
@@ -727,6 +730,7 @@ test('personal places can be updated and deleted on owned maps', async () => {
     const updated = await updateMyMapPersonalPlace(db, DEFAULT_USER, 3, 5, {
         name: 'Updated pickup point',
         categoryId: 2,
+        logoUrl: 'https://res.cloudinary.com/example/updated-pickup-point.png',
         address: '10 Choa Chu Kang Avenue 4 Singapore 689810',
         postalCode: '689810',
         lat: 1.3862,
@@ -736,6 +740,7 @@ test('personal places can be updated and deleted on owned maps', async () => {
     const deleted = await deleteMyMapPersonalPlace(db, DEFAULT_USER, 3, 5);
 
     assert.equal(updated.name, 'Updated pickup point');
+    assert.equal(updated.logoUrl, 'https://res.cloudinary.com/example/updated-pickup-point.png');
     assert.equal(updated.categoryLabel, 'Shop');
     assert.equal(deleted.success, true);
     assert.equal(db.state.personalPlaces.length, 1);

@@ -303,6 +303,7 @@ function getDirectoryPinAssetCount(pin = {}) {
 
 function createDirectoryAnchorIcon(anchorPoint = null) {
     const isHome = anchorPoint?.kind === 'home' || anchorPoint?.source === 'home';
+    const isCurrent = anchorPoint?.kind === 'current' || anchorPoint?.source === 'geolocation';
     const ringColor = '#0f766e';
     const shellColor = '#ffffff';
     const glyphColor = '#e11d48';
@@ -311,6 +312,14 @@ function createDirectoryAnchorIcon(anchorPoint = null) {
         ? `
             <img src="${homeAnchorImage}" alt="" style="width:36px;height:36px;display:block;filter:drop-shadow(0 12px 20px rgba(15,118,110,0.24));" />
         `
+        : isCurrent
+            ? `
+                <svg viewBox="0 0 24 24" width="19" height="19" focusable="false" aria-hidden="true">
+                    <circle cx="12" cy="12" r="4" fill="none" stroke="${ringColor}" stroke-width="2.2" />
+                    <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" fill="none" stroke="${ringColor}" stroke-width="2.2" stroke-linecap="round" />
+                    <circle cx="12" cy="12" r="1.5" fill="${ringColor}" />
+                </svg>
+            `
         : `
             <svg viewBox="0 0 24 24" width="18" height="18" focusable="false" aria-hidden="true">
                 <path d="M12 20.5c-.28 0-.56-.09-.78-.27C7.12 16.79 4 14.17 4 10.58 4 8.23 5.9 6.33 8.25 6.33c1.5 0 2.92.77 3.75 2.01.83-1.24 2.25-2.01 3.75-2.01C18.1 6.33 20 8.23 20 10.58c0 3.59-3.12 6.21-7.22 9.65-.22.18-.5.27-.78.27Z" fill="${glyphColor}" />
@@ -3123,7 +3132,11 @@ export default function DirectoryMap({
                         {showPopup ? (
                             <Popup>
                                 <div className="p-1 font-bold text-sm">
-                                    {anchorPoint.kind === 'home' ? 'Home postal code' : 'Set location'}
+                                    {anchorPoint.kind === 'home'
+                                        ? 'Home postal code'
+                                        : anchorPoint.kind === 'current'
+                                            ? 'Your current location'
+                                            : 'Set location'}
                                 </div>
                             </Popup>
                         ) : null}

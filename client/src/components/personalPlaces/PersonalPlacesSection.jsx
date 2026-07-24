@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { MapPinned, Pencil, Plus, Search, Settings2, Trash2, X } from 'lucide-react';
+import { LoaderCircle, MapPinned, Pencil, Plus, Search, Settings2, Trash2, X } from 'lucide-react';
 
 import { api } from '../../lib/api.js';
-import { PersonalPlaceCategoryIcon } from '../../lib/personalPlaceCategories.jsx';
 import { useConfirmDialog } from '../ConfirmDialog.jsx';
+import ResourceRowIcon from '../ResourceRowIcon.jsx';
 import PersonalPlaceCategoryManagerModal from './PersonalPlaceCategoryManagerModal.jsx';
 import PersonalPlaceEditorModal from './PersonalPlaceEditorModal.jsx';
 
@@ -22,6 +22,7 @@ export default function PersonalPlacesSection() {
     const [editorDraft, setEditorDraft] = useState(undefined);
     const [editorBusy, setEditorBusy] = useState(false);
     const [editorError, setEditorError] = useState('');
+    const [deletingPlaceId, setDeletingPlaceId] = useState(null);
     const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
     const [categoryBusy, setCategoryBusy] = useState(false);
     const [categoryError, setCategoryError] = useState('');
@@ -83,6 +84,7 @@ export default function PersonalPlacesSection() {
     }
 
     async function handleDeletePlace(place) {
+        if (deletingPlaceId !== null) return;
         const mapCount = place.mapIds?.length || 0;
         const confirmed = await requestConfirmation({
             title: 'Delete personal place',
@@ -95,6 +97,7 @@ export default function PersonalPlacesSection() {
         });
         if (!confirmed) return;
 
+        setDeletingPlaceId(place.id);
         setError('');
         try {
             await api.deletePersonalPlace(place.id);
@@ -102,6 +105,8 @@ export default function PersonalPlacesSection() {
         } catch (deleteError) {
             console.error(deleteError);
             setError(deleteError.message || 'Failed to delete personal place.');
+        } finally {
+            setDeletingPlaceId(null);
         }
     }
 
@@ -228,20 +233,20 @@ export default function PersonalPlacesSection() {
                 ) : (
                     <div className="grid gap-3 md:grid-cols-2">
                         {filteredPlaces.map((place) => {
-                            const category = place.category || categories.find((item) => item.id === place.categoryId);
                             const mapCount = place.mapIds?.length || 0;
+                            const deleting = deletingPlaceId === place.id;
                             return (
-                                <article key={place.id} className="flex min-w-0 items-start gap-3 rounded-lg border border-slate-200 p-4 shadow-sm">
-                                    <span
-                                        className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-white"
-                                        style={{ backgroundColor: category?.color || '#475569' }}
-                                    >
-                                        <PersonalPlaceCategoryIcon
-                                            iconKey={category?.iconKey}
-                                            iconUrl={category?.iconUrl}
-                                            size={19}
-                                        />
-                                    </span>
+                                <article
+                                    key={place.id}
+                                    aria-busy={deleting}
+                                    className={`flex min-w-0 items-start gap-3 rounded-lg border border-slate-200 p-4 shadow-sm ${deleting ? 'bg-slate-50' : ''}`}
+                                >
+                                    <ResourceRowIcon
+                                        resourceType="personal_place"
+                                        logoUrl={place.logoUrl}
+                                        alt={`${place.name} image`}
+                                        className="rounded-lg"
+                                    />
                                     <div className="min-w-0 flex-1">
                                         <h3 className="truncate text-sm font-black text-slate-900">{place.name}</h3>
                                         <p className="mt-1 truncate text-xs font-semibold text-slate-500">
@@ -257,14 +262,21 @@ export default function PersonalPlacesSection() {
                                             {mapCount === 0 ? 'Not on a map yet' : `Used in ${mapCount} ${mapCount === 1 ? 'map' : 'maps'}`}
                                         </p>
                                     </div>
-                                    <div className="flex flex-shrink-0 gap-1">
-                                        <button type="button" onClick={() => { setEditorError(''); setEditorDraft(place); }} className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-brand-700" aria-label={`Edit ${place.name}`} title="Edit">
-                                            <Pencil size={16} />
-                                        </button>
-                                        <button type="button" onClick={() => handleDeletePlace(place)} className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700" aria-label={`Delete ${place.name}`} title="Delete everywhere">
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
+                                    {deleting ? (
+                                        <span role="status" className="inline-flex flex-shrink-0 items-center gap-2 py-2 text-xs font-bold text-slate-600">
+                                            <LoaderCircle size={16} className="animate-spin text-brand-700" aria-hidden="true" />
+                                            Deleting...
+                                        </span>
+                                    ) : (
+                                        <div className="flex flex-shrink-0 gap-1">
+                                            <button type="button" onClick={() => { setEditorError(''); setEditorDraft(place); }} disabled={deletingPlaceId !== null} className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-brand-700 disabled:opacity-40" aria-label={`Edit ${place.name}`} title="Edit">
+                                                <Pencil size={16} />
+                                            </button>
+                                            <button type="button" onClick={() => handleDeletePlace(place)} disabled={deletingPlaceId !== null} className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40" aria-label={`Delete ${place.name}`} title="Delete everywhere">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    )}
                                 </article>
                             );
                         })}

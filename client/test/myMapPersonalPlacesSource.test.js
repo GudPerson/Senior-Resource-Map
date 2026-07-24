@@ -44,8 +44,25 @@ test('My Places library supports reusable places and delete-everywhere semantics
     assert.match(librarySource, /api\.getPersonalPlaces\(\)/);
     assert.match(librarySource, /api\.deletePersonalPlace\(place\.id\)/);
     assert.match(librarySource, /Delete everywhere/);
+    assert.match(librarySource, /setDeletingPlaceId\(place\.id\)/);
+    assert.match(librarySource, /Deleting\.\.\./);
+    assert.match(librarySource, /logoUrl=\{place\.logoUrl\}/);
     assert.match(chooserSource, /place\.mapIds/);
+    assert.match(chooserSource, /aria-busy=\{submitting\}/);
+    assert.match(chooserSource, /Adding selected places to your map/);
     assert.match(apiSource, /attachMyMapPersonalPlace/);
+});
+
+test('personal-place map mutations keep visible progress through the map refresh', () => {
+    const detailSource = readSource('../src/pages/MyMapDetailPage.jsx');
+
+    assert.match(detailSource, /function PersonalPlaceActionStatus/);
+    assert.match(detailSource, /data-personal-place-action-status/);
+    assert.match(detailSource, /personalPlaceMutationInFlightRef/);
+    assert.match(detailSource, /personalPlaceUpdatingMap/);
+    assert.match(detailSource, /personalPlaceRemovingFromMap/);
+    assert.match(detailSource, /personalPlaceRemovedFromMap/);
+    assert.match(detailSource, /const refreshed = await loadMap\(\)/);
 });
 
 test('personal place categories expose curated icons, colours, and global editing', () => {
@@ -90,6 +107,10 @@ test('My Map short descriptions stay separate from Map Notes and suppress repeat
     assert.match(listSource, /<PrimaryMapShortDescription/);
     assert.match(listSource, /t\('addShortDescription'\)/);
     assert.match(editorSource, /personalPlaceShortDescription/);
+    assert.match(editorSource, /personalPlaceImage/);
+    assert.match(editorSource, /uploadFile=\{api\.uploadPersonalPlaceImage\}/);
+    assert.match(editorSource, /logoUrl: form\.logoUrl\.trim\(\)/);
     assert.doesNotMatch(editorSource, /personalPlaceNote/);
     assert.match(apiSource, /updateMyMapAssetShortDescriptor/);
+    assert.match(apiSource, /uploadPersonalPlaceImage/);
 });

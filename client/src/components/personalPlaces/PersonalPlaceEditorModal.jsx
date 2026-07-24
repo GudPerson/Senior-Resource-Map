@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MapPin, Search, Settings2, X } from 'lucide-react';
 
+import ImageUpload from '../ImageUpload.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { api } from '../../lib/api.js';
 import { searchOneMap } from '../../lib/geo.js';
 import { PersonalPlaceCategoryIcon } from '../../lib/personalPlaceCategories.jsx';
 
@@ -31,6 +33,7 @@ export default function PersonalPlaceEditorModal({
     );
     const [form, setForm] = useState({
         name: '',
+        logoUrl: '',
         categoryId: '',
         address: '',
         postalCode: '',
@@ -49,6 +52,7 @@ export default function PersonalPlaceEditorModal({
         );
         setForm({
             name: draft?.name || '',
+            logoUrl: draft?.logoUrl || '',
             categoryId: String(draft?.categoryId || draft?.category?.id || fallbackCategory?.id || activeCategories[0]?.id || ''),
             address: draft?.address || '',
             postalCode: draft?.postalCode || '',
@@ -111,6 +115,7 @@ export default function PersonalPlaceEditorModal({
         onSubmit?.({
             id: draft?.id || null,
             name: form.name.trim(),
+            logoUrl: form.logoUrl.trim(),
             categoryId: selectedCategory?.id || null,
             categoryLabel: selectedCategory?.name || draft?.categoryLabel || '',
             address: form.address.trim(),
@@ -198,6 +203,22 @@ export default function PersonalPlaceEditorModal({
                                     placeholder={t('personalPlaceNamePlaceholder')}
                                 />
                             </label>
+
+                            <div className="space-y-1.5 sm:col-span-2">
+                                <ImageUpload
+                                    label={t('personalPlaceImage')}
+                                    value={form.logoUrl}
+                                    onChange={(value) => updateField('logoUrl', value)}
+                                    uploadFile={api.uploadPersonalPlaceImage}
+                                    accept={{
+                                        'image/jpeg': ['.jpg', '.jpeg'],
+                                        'image/png': ['.png'],
+                                        'image/webp': ['.webp'],
+                                    }}
+                                    maxSize={5 * 1024 * 1024}
+                                />
+                                <p className="text-xs leading-5 text-slate-500">{t('personalPlaceImageHelp')}</p>
+                            </div>
 
                             <div className="space-y-1.5">
                                 <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlaceCategory')}</span>

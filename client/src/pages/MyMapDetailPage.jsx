@@ -2,7 +2,21 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { flushSync } from 'react-dom';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
-import { ArrowLeft, LayoutTemplate, Link2, MapPin, Menu, Pencil, Plus, Printer, RotateCcw, Search, X } from 'lucide-react';
+import {
+    ArrowLeft,
+    CheckCircle2,
+    LayoutTemplate,
+    Link2,
+    LoaderCircle,
+    MapPin,
+    Menu,
+    Pencil,
+    Plus,
+    Printer,
+    RotateCcw,
+    Search,
+    X,
+} from 'lucide-react';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
@@ -97,6 +111,32 @@ function MapDetailLoadingState() {
             <div className="h-44 animate-pulse rounded-[32px] border border-slate-200 bg-white shadow-sm" />
             <div className="h-80 animate-pulse rounded-[32px] border border-slate-200 bg-white shadow-sm" />
             <div className="h-64 animate-pulse rounded-[32px] border border-slate-200 bg-white shadow-sm" />
+        </div>
+    );
+}
+
+function PersonalPlaceActionStatus({ status }) {
+    if (!status) return null;
+
+    const pending = status.phase === 'pending';
+    return (
+        <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            data-personal-place-action-status={status.phase}
+            className={`pointer-events-none fixed inset-x-4 bottom-4 z-[1450] mx-auto flex min-h-12 max-w-md items-center gap-3 rounded-xl border px-4 py-3 text-sm font-bold shadow-xl sm:inset-x-auto sm:right-5 sm:mx-0 ${
+                pending
+                    ? 'border-brand-200 bg-white text-slate-800'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+            }`}
+        >
+            {pending ? (
+                <LoaderCircle size={18} className="flex-shrink-0 animate-spin text-brand-700" aria-hidden="true" />
+            ) : (
+                <CheckCircle2 size={18} className="flex-shrink-0 text-emerald-700" aria-hidden="true" />
+            )}
+            <span>{status.message}</span>
         </div>
     );
 }
@@ -890,6 +930,7 @@ export default function MyMapDetailPage() {
     const [personalPlaceChooserOpen, setPersonalPlaceChooserOpen] = useState(false);
     const [personalPlaceChooserSubmitting, setPersonalPlaceChooserSubmitting] = useState(false);
     const [personalPlaceChooserError, setPersonalPlaceChooserError] = useState('');
+    const [personalPlaceActionStatus, setPersonalPlaceActionStatus] = useState(null);
     const [personalPlaceCategoryManagerOpen, setPersonalPlaceCategoryManagerOpen] = useState(false);
     const [personalPlaceCategoryBusy, setPersonalPlaceCategoryBusy] = useState(false);
     const [personalPlaceCategoryError, setPersonalPlaceCategoryError] = useState('');
@@ -914,6 +955,7 @@ export default function MyMapDetailPage() {
     const townMapManifestState = townMapManifestStates[mapStyle]
         || createTownMapManifestState();
     const townMapAssetBaseUrl = townMapManifestState.activeAssetBaseUrl || townMapRootAssetBaseUrl;
+    const personalPlaceMutationInFlightRef = useRef(false);
     const pendingFocusFrameRef = useRef(null);
     const townMapFocusSurfaceClearTimerRef = useRef(null);
     const desktopSelectionSnapRef = useRef(null);
@@ -938,7 +980,7 @@ export default function MyMapDetailPage() {
     });
 
     const loadMap = useCallback(async () => {
-        if (!mapId) return;
+        if (!mapId) return false;
         const cachedDirectory = getCachedMyMapDetail(user, mapId);
         if (cachedDirectory) {
             directoryCacheKeyRef.current = currentMapCacheKey;
@@ -965,11 +1007,13 @@ export default function MyMapDetailPage() {
             cacheMyMapDetail(user, mapId, nextDirectory);
             directoryCacheKeyRef.current = currentMapCacheKey;
             setDirectory(nextDirectory);
+            return true;
         } catch (err) {
             console.error(err);
             if (!cachedDirectory) {
                 setError(err.message || t('failedLoadMap'));
             }
+            return false;
         } finally {
             setLoading(false);
         }
@@ -978,6 +1022,17 @@ export default function MyMapDetailPage() {
     useEffect(() => {
         loadMap();
     }, [loadMap]);
+
+    useEffect(() => {
+        if (personalPlaceActionStatus?.phase !== 'success') return undefined;
+        const completedStatus = personalPlaceActionStatus;
+        const timeoutId = window.setTimeout(() => {
+            setPersonalPlaceActionStatus((current) => (
+                current === completedStatus ? null : current
+            ));
+        }, 2400);
+        return () => window.clearTimeout(timeoutId);
+    }, [personalPlaceActionStatus]);
 
     useEffect(() => {
         if (directoryCacheKeyRef.current !== currentMapCacheKey) return;
@@ -1688,6 +1743,7 @@ export default function MyMapDetailPage() {
         setPersonalPlaceDraft({
             id: null,
             name: '',
+            logoUrl: '',
             categoryLabel: '',
             address: '',
             postalCode: '',
@@ -1707,6 +1763,7 @@ export default function MyMapDetailPage() {
         setPersonalPlaceDraft({
             id: row.personalPlaceId || row.resourceId,
             name: row.name || '',
+            logoUrl: row.logoUrl || '',
             categoryId: row.categoryId || row.personalPlaceCategory?.id || null,
             category: row.personalPlaceCategory || null,
             categoryLabel: row.subCategory || row.categoryLabel || '',
@@ -1720,40 +1777,82 @@ export default function MyMapDetailPage() {
     }
 
     async function handleSavePersonalPlace(values) {
-        if (!directory) return;
+        if (!directory || personalPlaceMutationInFlightRef.current) return;
+        personalPlaceMutationInFlightRef.current = true;
         setPersonalPlaceSubmitting(true);
         setPersonalPlaceError('');
+        setActionError('');
+        const editing = Boolean(values?.id);
         try {
-            if (values?.id) {
+            if (editing) {
                 await api.updateMyMapPersonalPlace(directory.id, values.id, values);
             } else {
                 await api.createMyMapPersonalPlace(directory.id, values);
             }
             setPersonalPlaceModalOpen(false);
             setPersonalPlaceDraft(null);
-            await loadMap();
+            setPersonalPlaceActionStatus({
+                phase: 'pending',
+                message: t('personalPlaceUpdatingMap'),
+            });
+            const refreshed = await loadMap();
+            if (!refreshed) {
+                setPersonalPlaceActionStatus(null);
+                setActionError(t('failedLoadMap'));
+                return;
+            }
+            setPersonalPlaceActionStatus({
+                phase: 'success',
+                message: t(editing ? 'personalPlaceUpdated' : 'personalPlaceAddedToMap'),
+            });
         } catch (err) {
             console.error(err);
+            setPersonalPlaceActionStatus(null);
             setPersonalPlaceError(err.message || t('personalPlaceSaveFailed'));
         } finally {
+            personalPlaceMutationInFlightRef.current = false;
             setPersonalPlaceSubmitting(false);
         }
     }
 
     async function handleAttachPersonalPlaces(personalPlaceIds) {
-        if (!directory || !Array.isArray(personalPlaceIds) || personalPlaceIds.length === 0) return;
+        if (
+            !directory
+            || personalPlaceMutationInFlightRef.current
+            || !Array.isArray(personalPlaceIds)
+            || personalPlaceIds.length === 0
+        ) return;
+        personalPlaceMutationInFlightRef.current = true;
         setPersonalPlaceChooserSubmitting(true);
         setPersonalPlaceChooserError('');
+        setActionError('');
         try {
             await Promise.all(personalPlaceIds.map((personalPlaceId) => (
                 api.attachMyMapPersonalPlace(directory.id, personalPlaceId)
             )));
             setPersonalPlaceChooserOpen(false);
-            await loadMap();
+            setPersonalPlaceActionStatus({
+                phase: 'pending',
+                message: t('personalPlaceUpdatingMap'),
+            });
+            const refreshed = await loadMap();
+            if (!refreshed) {
+                setPersonalPlaceActionStatus(null);
+                setActionError(t('failedLoadMap'));
+                return;
+            }
+            setPersonalPlaceActionStatus({
+                phase: 'success',
+                message: t(personalPlaceIds.length === 1
+                    ? 'personalPlaceAddedToMap'
+                    : 'personalPlacesAddedToMap'),
+            });
         } catch (err) {
             console.error(err);
+            setPersonalPlaceActionStatus(null);
             setPersonalPlaceChooserError(err.message || 'Failed to add personal places to this map.');
         } finally {
+            personalPlaceMutationInFlightRef.current = false;
             setPersonalPlaceChooserSubmitting(false);
         }
     }
@@ -1796,17 +1895,46 @@ export default function MyMapDetailPage() {
 
     async function handleRemoveResource(row) {
         if (!directory) return;
+        const personalPlace = row?.resourceType === 'personal_place';
+        if (personalPlace && personalPlaceMutationInFlightRef.current) return;
+        if (personalPlace) {
+            personalPlaceMutationInFlightRef.current = true;
+            setPersonalPlaceActionStatus({
+                phase: 'pending',
+                message: t('personalPlaceRemovingFromMap'),
+            });
+        }
         setActionError('');
         try {
-            if (row?.resourceType === 'personal_place') {
+            if (personalPlace) {
                 await api.deleteMyMapPersonalPlace(directory.id, row.personalPlaceId || row.resourceId);
             } else {
                 await api.removeMyMapAsset(directory.id, row.resourceType, row.resourceId);
             }
-            await loadMap();
+            if (personalPlace) {
+                setPersonalPlaceActionStatus({
+                    phase: 'pending',
+                    message: t('personalPlaceUpdatingMap'),
+                });
+            }
+            const refreshed = await loadMap();
+            if (!refreshed) {
+                if (personalPlace) setPersonalPlaceActionStatus(null);
+                setActionError(t('failedLoadMap'));
+                return;
+            }
+            if (personalPlace) {
+                setPersonalPlaceActionStatus({
+                    phase: 'success',
+                    message: t('personalPlaceRemovedFromMap'),
+                });
+            }
         } catch (err) {
             console.error(err);
-            setActionError(err.message || (row?.resourceType === 'personal_place' ? t('personalPlaceDeleteFailed') : t('failedRemoveMapResource')));
+            if (personalPlace) setPersonalPlaceActionStatus(null);
+            setActionError(err.message || (personalPlace ? t('personalPlaceDeleteFailed') : t('failedRemoveMapResource')));
+        } finally {
+            if (personalPlace) personalPlaceMutationInFlightRef.current = false;
         }
     }
 
@@ -2248,6 +2376,8 @@ export default function MyMapDetailPage() {
                     preserveMobileMapFrameInFlow={TOWN_MAP_PROOF_ENABLED}
                 />
 
+                <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
+
                 <CreateMapModal
                     isOpen={addOpen}
                     mode="manage-assets"
@@ -2559,6 +2689,8 @@ export default function MyMapDetailPage() {
                     )}
                 </div>
             </div>
+
+            <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
 
             <CreateMapModal
                 isOpen={addOpen}

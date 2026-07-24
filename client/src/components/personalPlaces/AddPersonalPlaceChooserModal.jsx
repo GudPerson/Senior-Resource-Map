@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, MapPin, Plus, Search, X } from 'lucide-react';
 
-import { PersonalPlaceCategoryIcon } from '../../lib/personalPlaceCategories.jsx';
+import ResourceRowIcon from '../ResourceRowIcon.jsx';
 
 function normalizeText(value) {
     return String(value || '').trim().toLowerCase();
@@ -46,7 +46,14 @@ export default function AddPersonalPlaceChooserModal({
 
     return (
         <div className="fixed inset-0 z-[1350] flex items-end bg-slate-950/45 sm:items-center sm:justify-center sm:p-6" role="presentation" onClick={() => { if (!submitting) onClose?.(); }}>
-            <section className="flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-w-2xl sm:rounded-[28px]" role="dialog" aria-modal="true" aria-label="Add personal place to map" onClick={(event) => event.stopPropagation()}>
+            <section
+                className="flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-w-2xl sm:rounded-[28px]"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Add personal place to map"
+                aria-busy={submitting}
+                onClick={(event) => event.stopPropagation()}
+            >
                 <header className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
                     <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-700">
                         <MapPin size={19} />
@@ -68,10 +75,11 @@ export default function AddPersonalPlaceChooserModal({
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
                             placeholder="Search My Places"
+                            disabled={submitting}
                             className="input-field min-h-11 w-full pl-10"
                         />
                     </div>
-                    <button type="button" onClick={onCreateNew} className="btn-ghost min-h-11 flex-shrink-0 justify-center border border-slate-200 px-4">
+                    <button type="button" onClick={onCreateNew} disabled={submitting} className="btn-ghost min-h-11 flex-shrink-0 justify-center border border-slate-200 px-4 disabled:opacity-50">
                         <Plus size={16} />
                         Create new
                     </button>
@@ -88,7 +96,7 @@ export default function AddPersonalPlaceChooserModal({
                                     ? 'Create a personal place by choosing a point on this map.'
                                     : 'Every matching place is already on this map.'}
                             </p>
-                            <button type="button" onClick={onCreateNew} className="btn-primary mx-auto mt-5">
+                            <button type="button" onClick={onCreateNew} disabled={submitting} className="btn-primary mx-auto mt-5 disabled:opacity-50">
                                 <Plus size={16} />
                                 Create new
                             </button>
@@ -97,25 +105,24 @@ export default function AddPersonalPlaceChooserModal({
                         <div className="space-y-2">
                             {availablePlaces.map((place) => {
                                 const selected = selectedIds.includes(place.id);
-                                const category = place.category || {};
                                 return (
                                     <button
                                         key={place.id}
                                         type="button"
                                         onClick={() => togglePlace(place.id)}
+                                        disabled={submitting}
                                         className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition ${
                                             selected
                                                 ? 'border-brand-400 bg-brand-50 ring-2 ring-brand-100'
                                                 : 'border-slate-200 bg-white hover:border-brand-200'
-                                        }`}
+                                        } disabled:cursor-wait disabled:opacity-70`}
                                     >
-                                        <span className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-white" style={{ backgroundColor: category.color || '#475569' }}>
-                                            <PersonalPlaceCategoryIcon
-                                                iconKey={category.iconKey}
-                                                iconUrl={category.iconUrl}
-                                                size={17}
-                                            />
-                                        </span>
+                                        <ResourceRowIcon
+                                            resourceType="personal_place"
+                                            logoUrl={place.logoUrl}
+                                            alt={`${place.name} image`}
+                                            className="h-10 w-10 rounded-lg"
+                                        />
                                         <span className="min-w-0 flex-1">
                                             <span className="block truncate text-sm font-black text-slate-900">{place.name}</span>
                                             <span className="mt-0.5 block truncate text-xs font-semibold text-slate-500">
@@ -139,7 +146,9 @@ export default function AddPersonalPlaceChooserModal({
                 </div>
 
                 <footer className="flex items-center justify-between gap-3 border-t border-slate-100 p-4">
-                    <p className="text-sm font-semibold text-slate-500">{selectedIds.length} selected</p>
+                    <p className="text-sm font-semibold text-slate-500" aria-live="polite">
+                        {submitting ? 'Adding selected places to your map...' : `${selectedIds.length} selected`}
+                    </p>
                     <button type="button" onClick={() => onAttach?.(selectedIds)} disabled={selectedIds.length === 0 || submitting} className="btn-primary min-h-11 px-5 disabled:opacity-50">
                         {submitting ? 'Adding...' : 'Add to this map'}
                     </button>

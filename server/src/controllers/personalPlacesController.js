@@ -19,6 +19,7 @@ import {
 import { normalizeRole } from '../utils/roles.js';
 
 const PERSONAL_PLACE_SHORT_DESCRIPTION_MAX_LENGTH = 240;
+const PERSONAL_PLACE_LOGO_URL_MAX_LENGTH = 2000;
 const PERSONAL_PLACE_CATEGORY_ICON_URL_MAX_LENGTH = 2000;
 const PERSONAL_PLACE_ICON_KEYS = new Set([
     'bus',
@@ -65,6 +66,7 @@ export const personalPlaceBodySchema = z.object({
     name: requiredOneLineTextSchema('Personal place name', 160),
     categoryId: categoryIdSchema.nullable().optional(),
     categoryLabel: optionalOneLineTextSchema(120),
+    logoUrl: optionalOneLineTextSchema(PERSONAL_PLACE_LOGO_URL_MAX_LENGTH),
     address: optionalTextSchema(500),
     postalCode: optionalOneLineTextSchema(20),
     lat: coordinateValueSchema('Latitude', -90, 90),
@@ -133,6 +135,7 @@ function normalizePersonalPlaceInput(body = {}) {
             ? null
             : parsePositiveId(body.categoryId),
         categoryLabel: normalizeOptionalText(body.categoryLabel),
+        logoUrl: normalizeOptionalText(body.logoUrl),
         address: normalizeOptionalText(body.address),
         postalCode: normalizeOptionalText(body.postalCode),
         lat: Number(body.lat),
@@ -166,6 +169,7 @@ export function serializePersonalPlace(place) {
         categoryId: category?.id ?? place.categoryId ?? null,
         categoryLabel: category?.name || place.legacyCategoryLabel || null,
         category,
+        logoUrl: place.logoUrl || null,
         address: place.address || null,
         postalCode: place.postalCode || null,
         lat: Number.isFinite(lat) ? lat : null,
@@ -373,6 +377,7 @@ export async function createPersonalPlace(db, user, body) {
         categoryId: category?.id || null,
         legacyCategoryLabel: values.categoryLabel,
         name: values.name,
+        logoUrl: values.logoUrl,
         address: values.address,
         postalCode: values.postalCode,
         lat: String(values.lat),
@@ -423,6 +428,7 @@ export async function updatePersonalPlace(db, user, personalPlaceId, body) {
         categoryId: category?.id || null,
         legacyCategoryLabel: values.categoryLabel,
         name: values.name,
+        logoUrl: values.logoUrl,
         address: values.address,
         postalCode: values.postalCode,
         lat: String(values.lat),

@@ -4,7 +4,8 @@ import { assertPersonalPlacesUser } from '../controllers/personalPlacesControlle
 
 const router = new Hono();
 const PERSONAL_CATEGORY_ICON_MAX_BYTES = 2 * 1024 * 1024;
-const PERSONAL_CATEGORY_ICON_TYPES = new Set([
+const PERSONAL_PLACE_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const PERSONAL_PLACE_IMAGE_TYPES = new Set([
     'image/jpeg',
     'image/png',
     'image/webp',
@@ -123,7 +124,7 @@ router.post('/personal-place-category-icon', authenticateToken, async (c) => {
         if (!(file instanceof File)) {
             return c.json({ error: 'Choose an image to upload' }, 400);
         }
-        if (!PERSONAL_CATEGORY_ICON_TYPES.has(file.type)) {
+        if (!PERSONAL_PLACE_IMAGE_TYPES.has(file.type)) {
             return c.json({ error: 'Use a PNG, JPEG, or WebP image' }, 400);
         }
         if (file.size > PERSONAL_CATEGORY_ICON_MAX_BYTES) {
@@ -145,6 +146,40 @@ router.post('/personal-place-category-icon', authenticateToken, async (c) => {
             }, 503);
         }
         return c.json({ error: err.message || 'Failed to upload category icon' }, err.status || 500);
+    }
+});
+
+router.post('/personal-place-image', authenticateToken, async (c) => {
+    try {
+        const user = c.get('user');
+        assertPersonalPlacesUser(user);
+        const body = await c.req.parseBody();
+        const file = body.file;
+        if (!(file instanceof File)) {
+            return c.json({ error: 'Choose an image to upload' }, 400);
+        }
+        if (!PERSONAL_PLACE_IMAGE_TYPES.has(file.type)) {
+            return c.json({ error: 'Use a PNG, JPEG, or WebP image' }, 400);
+        }
+        if (file.size > PERSONAL_PLACE_IMAGE_MAX_BYTES) {
+            return c.json({ error: 'Personal place images must be 5 MB or smaller' }, 400);
+        }
+
+        const data = await uploadImage(
+            c,
+            file,
+            `seniorcare-connect/personal-place-images/${user.id}`
+        );
+        return c.json({ secure_url: data.secure_url });
+    } catch (err) {
+        console.error('Personal place image upload error:', err);
+        if (err.code === 'UPLOAD_NOT_CONFIGURED') {
+            return c.json({
+                error: 'Personal place image upload is unavailable in this environment.',
+                code: 'upload_not_configured',
+            }, 503);
+        }
+        return c.json({ error: err.message || 'Failed to upload personal place image' }, err.status || 500);
     }
 });
 
