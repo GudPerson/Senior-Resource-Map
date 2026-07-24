@@ -127,6 +127,20 @@ Rules:
   coverage passed 60/60; locked map/print coverage passed 79/79; and the exact
   four-root production-style client build passed with only the existing large
   chunk warning.
+- 2026-07-24 category-aware Full-map columns: the 2/3/4-column resource-page
+  partitioner now treats a contiguous category run as a preferred block. It
+  keeps ordinary categories within one column when the resulting page remains
+  balanced, while a category that is materially taller than a normal column
+  may flow into the next column and repeat its header. Signed-in Chrome UAT on
+  map 258 at four columns confirmed all six `PA Resident Network (RN)` cards in
+  one column and both `Senior Citizen Fitness Corner` cards in one column on
+  both the visible and hidden export surfaces. The resulting `6/6/4/6`
+  distribution retained 22/22 left-aligned number badges. A synthetic
+  oversized-category regression case confirmed that a 12-card category can
+  still span columns. Focused print, directory, personal-place, and i18n
+  coverage passed 61/61; locked map/print coverage passed 80/80; and the exact
+  four-root production-style client build passed with only the existing large
+  chunk warning.
 - Release and rollback: before any deploy, run the additive boundary-schema
   bootstrap against the intended database, verify row/category/link counts,
   then complete signed-in owner and shared-link UAT. Roll back application code

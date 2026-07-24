@@ -115,36 +115,82 @@ export function normalizePrintMapResourceColumnCount(value) {
         : PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT;
 }
 
+function getPrintResourceCategoryRunKey(group) {
+    const categoryKey = String(group?.categorySortKey || group?.categoryLabel || '')
+        .trim()
+        .toLowerCase();
+    if (!categoryKey) return '';
+    return `${group?.isUnmappedGroup ? 'unmapped' : 'mapped'}:${categoryKey}`;
+}
+
 export function splitPrintResourceGroups(groups = [], requestedColumnCount = PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT) {
     const columnCount = normalizePrintMapResourceColumnCount(requestedColumnCount);
     const columns = Array.from({ length: columnCount }, () => []);
     const weightedGroups = (groups || []).map((group) => ({
         group,
         weight: Math.max(1, (group?.rows || []).length) + 1,
+        categoryRunKey: getPrintResourceCategoryRunKey(group),
     }));
+    if (!weightedGroups.length) return columns;
+
+    const activeColumnCount = Math.min(columnCount, weightedGroups.length);
     const totalWeight = weightedGroups.reduce((total, item) => total + item.weight, 0);
-    const targetWeight = totalWeight / columnCount;
-    let columnIndex = 0;
-    let assignedWeight = 0;
-
-    weightedGroups.forEach((item, itemIndex) => {
-        const remainingGroupCount = weightedGroups.length - itemIndex;
-        const remainingColumnCount = columnCount - columnIndex;
-        const mustAdvanceToKeepColumnsAvailable = remainingGroupCount <= remainingColumnCount - 1;
-        const canAdvance = columnIndex < columnCount - 1
-            && columns[columnIndex].length > 0
-            && (
-                assignedWeight >= targetWeight * (columnIndex + 1)
-                || mustAdvanceToKeepColumnsAvailable
-            );
-
-        if (canAdvance) {
-            columnIndex += 1;
-        }
-
-        columns[columnIndex].push(item.group);
-        assignedWeight += item.weight;
+    const targetWeight = totalWeight / activeColumnCount;
+    const categorySplitPenalty = targetWeight * targetWeight * 2;
+    const prefixWeights = [0];
+    weightedGroups.forEach((item) => {
+        prefixWeights.push(prefixWeights[prefixWeights.length - 1] + item.weight);
     });
+
+    const costs = Array.from(
+        { length: activeColumnCount + 1 },
+        () => Array(weightedGroups.length + 1).fill(Number.POSITIVE_INFINITY),
+    );
+    const previousBoundaries = Array.from(
+        { length: activeColumnCount + 1 },
+        () => Array(weightedGroups.length + 1).fill(-1),
+    );
+    costs[0][0] = 0;
+
+    for (let usedColumns = 1; usedColumns <= activeColumnCount; usedColumns += 1) {
+        const minEnd = usedColumns;
+        const maxEnd = weightedGroups.length - (activeColumnCount - usedColumns);
+        for (let end = minEnd; end <= maxEnd; end += 1) {
+            for (let start = usedColumns - 1; start < end; start += 1) {
+                const previousCost = costs[usedColumns - 1][start];
+                if (!Number.isFinite(previousCost)) continue;
+
+                const segmentWeight = prefixWeights[end] - prefixWeights[start];
+                const deviation = segmentWeight - targetWeight;
+                const splitsCategory = start > 0
+                    && Boolean(weightedGroups[start].categoryRunKey)
+                    && weightedGroups[start].categoryRunKey === weightedGroups[start - 1].categoryRunKey;
+                const candidateCost = previousCost
+                    + (deviation * deviation)
+                    + (splitsCategory ? categorySplitPenalty : 0);
+
+                if (candidateCost < costs[usedColumns][end]) {
+                    costs[usedColumns][end] = candidateCost;
+                    previousBoundaries[usedColumns][end] = start;
+                }
+            }
+        }
+    }
+
+    const boundaries = [weightedGroups.length];
+    let end = weightedGroups.length;
+    for (let usedColumns = activeColumnCount; usedColumns > 0; usedColumns -= 1) {
+        const start = previousBoundaries[usedColumns][end];
+        boundaries.push(start);
+        end = start;
+    }
+    boundaries.reverse();
+
+    for (let columnIndex = 0; columnIndex < activeColumnCount; columnIndex += 1) {
+        columns[columnIndex] = weightedGroups
+            .slice(boundaries[columnIndex], boundaries[columnIndex + 1])
+            .map((item) => item.group);
+    }
 
     return columns;
 }

@@ -227,12 +227,58 @@ test('Full layout supports two to four ordered resource columns', () => {
     );
     assert.equal(splitPrintResourceGroups(groups, 4).length, 4);
     assert.deepEqual(
-        splitPrintResourceGroups(equalGroups, 3).map((column) => column.length),
-        [8, 7, 7],
+        splitPrintResourceGroups(equalGroups, 3).map((column) => column.length).sort((a, b) => a - b),
+        [7, 7, 8],
     );
     assert.deepEqual(
         splitPrintResourceGroups(equalGroups.slice(0, 2), 4).map((column) => column.length),
         [1, 1, 0, 0],
+    );
+});
+
+test('Full layout keeps ordinary category runs together and only splits long categories', () => {
+    const makeCategoryGroups = (categoryLabel, count) => Array.from({ length: count }, (_, index) => ({
+        name: `${categoryLabel} ${index + 1}`,
+        categoryLabel,
+        categorySortKey: categoryLabel,
+        rows: [],
+    }));
+    const categoryGroups = [
+        ...makeCategoryGroups('Active Ageing Centre', 3),
+        ...makeCategoryGroups('Community Club', 2),
+        ...makeCategoryGroups('Outdoor', 1),
+        ...makeCategoryGroups('PA Resident Network', 6),
+        ...makeCategoryGroups('Personal place', 1),
+        ...makeCategoryGroups('Senior Care Centre', 3),
+        ...makeCategoryGroups('Senior Citizen Fitness Corner', 2),
+        ...makeCategoryGroups('Shopping Mall', 3),
+        ...makeCategoryGroups('SportSG Facilities', 1),
+    ];
+    const categoryColumns = splitPrintResourceGroups(categoryGroups, 4);
+    const categoryColumnIndexes = (categoryLabel) => categoryColumns
+        .map((column, index) => (
+            column.some((group) => group.categoryLabel === categoryLabel) ? index : -1
+        ))
+        .filter((index) => index >= 0);
+
+    assert.deepEqual(
+        categoryColumns.map((column) => column.length).sort((a, b) => a - b),
+        [4, 6, 6, 6],
+    );
+    assert.equal(categoryColumnIndexes('PA Resident Network').length, 1);
+    assert.equal(categoryColumnIndexes('Senior Citizen Fitness Corner').length, 1);
+
+    const longCategoryGroups = [
+        ...makeCategoryGroups('Long category', 12),
+        ...makeCategoryGroups('Other A', 1),
+        ...makeCategoryGroups('Other B', 1),
+        ...makeCategoryGroups('Other C', 1),
+    ];
+    const longCategoryColumns = splitPrintResourceGroups(longCategoryGroups, 4);
+    assert.ok(
+        longCategoryColumns.filter((column) => (
+            column.some((group) => group.categoryLabel === 'Long category')
+        )).length > 1,
     );
 });
 
