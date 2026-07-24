@@ -562,6 +562,7 @@ const RESOURCE_LIST_SORT_OPTIONS = [
     { value: 'name-asc', label: 'Name A-Z' },
     { value: 'name-desc', label: 'Name Z-A' },
 ];
+const LARGE_FILTERED_WORKBOOK_CSV_THRESHOLD = 1000;
 
 function compareResourceListText(left, right) {
     return String(left || '').trim().toLowerCase().localeCompare(String(right || '').trim().toLowerCase());
@@ -1750,10 +1751,12 @@ export default function ResourcesPage() {
                 if (!hardUsesClientOnlyFilter) {
                     const rowCount = hardTabCount || filteredHardAssets.length;
                     if (rowCount > 0) {
+                        const format = rowCount > LARGE_FILTERED_WORKBOOK_CSV_THRESHOLD ? 'csv' : 'xlsx';
                         exportJobs.push({
                             resourceType: 'places',
                             filters: buildServerFilteredWorkbookFilters(hardResourceListParams, normalizedQuery),
-                            summary: `${rowCount} place${rowCount === 1 ? '' : 's'}`,
+                            format,
+                            summary: `${rowCount} place${rowCount === 1 ? '' : 's'}${format === 'csv' ? ' as CSV' : ''}`,
                         });
                     }
                 } else {
@@ -1807,8 +1810,9 @@ export default function ResourcesPage() {
 
             for (const job of exportJobs) {
                 const exportPayload = job.filters ? { filters: job.filters } : job.ids;
-                const { blob, fileName, contentType } = await api.exportFilteredWorkbook(job.resourceType, exportPayload, 'xlsx');
-                downloadFile(blob, fileName || `${job.resourceType}_filtered_export.xlsx`, contentType);
+                const format = job.format || 'xlsx';
+                const { blob, fileName, contentType } = await api.exportFilteredWorkbook(job.resourceType, exportPayload, format);
+                downloadFile(blob, fileName || `${job.resourceType}_filtered_export.${format}`, contentType);
                 completedExports.push(job.summary);
             }
 

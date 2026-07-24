@@ -2312,7 +2312,6 @@ export async function exportFilteredWorkbookData(c) {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
 
-        const references = await buildWorkbookReferences(db, resourceType);
         const rows = await resolveTemplateExport(resourceType, db, actor, exportOptions);
         await recordExportAudit(db, actor, resourceType, 'filtered_workbook_exported', {
             format,
@@ -2320,7 +2319,8 @@ export async function exportFilteredWorkbookData(c) {
             rowCount: rows.length,
             filters: exportOptions.filterSummary,
         });
-        const referenceRows = buildReferenceRows(resourceType, references);
+        const references = format === XLSX_FORMAT ? await buildWorkbookReferences(db, resourceType) : null;
+        const referenceRows = references ? buildReferenceRows(resourceType, references) : [];
         const body = format === XLSX_FORMAT
             ? buildWorkbookBuffer(resourceType, rows, referenceRows)
             : buildCsvBuffer(resourceType, rows);

@@ -171,6 +171,8 @@ test('server-filtered places workbook export avoids browser-side full pagination
     );
 
     assert.match(serverFilteredBranch, /filters: buildServerFilteredWorkbookFilters\(hardResourceListParams, normalizedQuery\)/);
+    assert.match(serverFilteredBranch, /LARGE_FILTERED_WORKBOOK_CSV_THRESHOLD/);
+    assert.match(serverFilteredBranch, /format === 'csv' \? ' as CSV' : ''/);
     assert.doesNotMatch(serverFilteredBranch, /resolveHardAssetsForFilteredExport/);
     assert.doesNotMatch(serverFilteredBranch, /fetchAllPaginatedResults/);
 });
