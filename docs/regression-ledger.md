@@ -15,6 +15,154 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-26 Private My Map Print annotations V1
+
+- Current behavior: every signed-in non-guest map owner can open `Annotate`
+  only while Print View uses the desktop `Full map` layout. The focused toolset
+  contains labelled pins, lines, rectangles, circles, and point-by-point
+  polygon boundaries; the earlier standalone text and arrow tools are retired.
+  Rectangle, circle, and polygon notes render directly inside their shapes
+  without a separate text box. Owners can choose preset or custom colours,
+  text colour, font size, line weight, fill opacity, and dashed lines. Each
+  drawing tool gives a contextual map instruction and exposes explicit
+  `Done drawing` and `Cancel tool` controls. `Undo last point` removes only the
+  latest draft anchor, and Backspace remains available as a keyboard shortcut.
+  Selected annotations can move backward or forward one layer at a time, with
+  document array order serving as the persisted layer order.
+- Annotation edits autosave to one revisioned document per owned map, retain a
+  bounded and debounced local draft on save failure, expose undo/redo and
+  visible map-surface save feedback, and can be retried after a load failure.
+  Text and slider edits preview locally and commit on blur or pointer release
+  instead of rerendering and saving the map for every input event. Saved
+  polygon anchors remain sparse and editable while the map renders a
+  deterministic rounded path derived from those anchors. Phone and tablet Full
+  map Print View render saved annotations read-only and do not expose the
+  editor. Balanced and Side focus layouts do not render annotations. The
+  visible Full map owner preview and hidden Full map PNG/PDF capture use the
+  same annotation document.
+- Known-good reference: branch `codex/print-map-annotations`, based on
+  `0745e2012`. The annotation table is private through `my_maps.user_id` and
+  deletes with its map. Shared-map snapshots and APIs do not query or serialize
+  annotation documents.
+- Reproduction steps: run the production schema bootstrap, sign in as any
+  non-guest user, open an owned My Map, choose Print View, then choose
+  `Full map`, then choose `Annotate` on a desktop pointer device. Place and edit
+  a pin, line, rectangle, circle, and polygon. Confirm each drawing tool shows
+  its helper instruction and can be completed with the tick or abandoned with
+  the cross. While drafting, place one point incorrectly, choose `Undo last
+  point`, and confirm only that point is removed. Add shape notes and confirm
+  they appear within their shapes; change custom shape and font colours and
+  font size. Overlap two annotations, move the selected annotation backward
+  and forward, then reload and confirm the layer order persists. Confirm
+  polygon corners render rounded while edit handles remain on the original
+  sparse anchors. Save PNG and PDF exports and confirm both match the visible
+  Full map preview. Switch to Balanced or Side focus and confirm annotations
+  and the editor are absent; reopen Full map and confirm the saved annotations
+  return. Open the same Full map Print View at a phone or tablet breakpoint
+  and confirm the saved annotations remain visible but `Annotate` is absent.
+  Open the public Shared Map link and confirm annotations are absent.
+- Acceptance criteria: annotation reads and writes require an authenticated
+  non-guest owner; guests and non-owners are rejected; stale revisions fail
+  rather than overwriting another session; annotation count, point count,
+  labels, colours, opacity, line weight, ids, and geometry types are bounded;
+  freehand/lasso input is rejected; map deletion cascades the document;
+  Shared Maps, Discover, managed Resources, personal-place data, imports,
+  governance, AI, interactive My Map, resource pins, map camera, Detailed
+  basemap selection, and map notes remain unchanged. Polygon persistence keeps
+  sparse control anchors as the only editable and saved geometry. Corner
+  rounding is render-only, deterministic, bounded, and does not move or add
+  edit handles. Annotation type, typography, style, and point-count schemas
+  reject the retired text and arrow types. Layer order is bounded by the
+  existing annotation count and persisted without a second ordering model.
+  Annotations render only in the owner Full map layout, including export. No
+  road-provider request, road-refinement API route, road attribution, or
+  road-snap metadata is required.
+- Verification result before deploy: annotation model/controller coverage
+  and focused client normalization, smoothing, editor-source, and responsive
+  coverage passed 13/13; map-lockdown coverage passed 59/59; full server
+  coverage passed 481/481; and the exact four-root production client build
+  passed with only the established large-chunk advisory. Final
+  `git diff --check`, exact build, and served-artifact verification are release
+  gates immediately before deployment. Authenticated browser UAT remains a
+  user-assisted check because the available Chrome session is signed out.
+- Polygon smoothing and road-snap removal rollback: the rounded display path is
+  isolated in `client/src/lib/printAnnotations.js` and can be removed without
+  changing saved geometry. Full annotation rollback removes the annotation API
+  routes, private document table/controller, editor/layer components, and
+  optional `DirectoryMap.mapOverlay` prop; no public resource or shared-map
+  rollback is required.
+- 2026-07-27 road-snap removal and polygon interaction lock: the experimental
+  road-refinement provider, server adapter and route, client API helper,
+  toolbar controls, tolerance state, attribution hook, and provider-error
+  handling were removed. Previously saved local polygons that contain
+  generated refinement points normalize back to their original sparse
+  `controlPoints`. Polygon display now uses bounded render-only quadratic
+  corner sampling, while dragging still updates only the original anchors.
+  Drafting exposes `Undo last point` only when at least one point exists and
+  removes exactly the most recent point. No external network request is made
+  when drawing or editing a boundary.
+- 2026-07-26 repeatable local UAT startup recovery: `npm run dev:server` now
+  starts the local Wrangler Worker with an explicit development-only
+  `NODE_ENV` override while preserving the production `wrangler.toml`. This
+  restores localhost JWT fallback and non-secure `SameSite=Lax` session
+  cookies without adding or changing a secret. Schema changes remain
+  deliberately separate through the idempotent, database-mutating
+  `npm run uat:local:prepare` command. Before sharing a local UAT link, run the
+  prepare command when the feature changes the boundary schema, start both
+  app surfaces, verify API and client HTTP responses, then complete one
+  authenticated route check. A source-level regression test locks the local
+  development override, explicit schema command, and unchanged production
+  configuration. The Vite development client also unregisters stale
+  localhost CareAround service workers, clears only `carearound-*` caches, and
+  reloads once when a previously controlled tab needs to move back to the
+  live development shell. Production PWA registration remains enabled on
+  HTTPS non-localhost origins and is disabled on localhost, including local
+  production previews. The configured annotation table was prepared and
+  confirmed present; focused local-auth, PWA, and annotation coverage passed
+  22/22; full server coverage passed 480/480; `git diff --check` passed; and
+  the exact four-root production client build passed. Chrome then loaded the
+  live Vite `/@vite/client` and `/src/main.jsx` entries instead of the stale
+  production bundle. The final owner-route check requires the user to sign in
+  again because retiring the stale localhost app state intentionally leaves a
+  fresh credential form.
+- 2026-07-26 local Detailed-map UAT contract recovery: authenticated Print
+  View UAT exposed that the previous default `npm run dev:client` command
+  omitted every `VITE_TOWN_MAP_*` variable. The stable Detailed implementation
+  and production build remained intact, but local Vite compiled the feature
+  out and rendered live OneMap tiles at zoom 15. The default local client
+  command now includes the same native-scale Default, native-scale Gray,
+  Print Master Default, and Print Master Gray roots as the production build.
+  An explicit `dev:client:without-detailed-map` command retains the intentional
+  fallback path. `npm run verify:map-lockdown` now owns the focused fixed
+  surface, integration, map-settings, Print View, and annotation tests plus
+  the exact four-root production build. A source regression test prevents
+  either the local UAT roots or combined verification command from drifting.
+  The new command passed 58/58 focused checks and its exact four-root build
+  passed with only the established large-chunk advisory. Browser verification
+  of the actual Leaflet image-overlay layer remains the final handoff check
+  after the user signs in again following the required Vite restart.
+- 2026-07-26 local Detailed-map CORS recovery: authenticated owner-map UAT
+  then confirmed that all four build variables were present while zoom 15
+  still rendered no fixed-surface image overlays. The public map asset host
+  returned the manifest successfully to non-browser clients but omitted the
+  CORS response header required by a localhost browser, so the source loader
+  reached its unavailable fallback. Normal `npm run dev:client` now points
+  the same four versioned asset families through a localhost-only,
+  same-origin Vite proxy. Production builds retain the direct
+  `https://maps.carearound.sg` roots and no map, API, auth, or deployment
+  behavior changes. The local config test now locks both the proxy roots and
+  the production four-root build separately. The proxied index, W04 manifest,
+  and a W04 image chunk returned `200`; local-config coverage passed 4/4;
+  map-lockdown coverage passed 58/58; and the exact four-root production build
+  passed with only the established large-chunk advisory. Authenticated Chrome
+  UAT then confirmed the owner interactive map at zoom 15 used 15 visible W04
+  image overlays and zero live OneMap tiles. Owner Print View used 24 overlays
+  and zero live tiles at zoom 15; retained all 24 after keyboard resizing;
+  retained Detailed across Default and Gray; kept attribution visible; and
+  returned to the owned Print View after a controlled reload without showing
+  the sign-in form. Zooming the reloaded Print View from its normal zoom 14
+  start to zoom 15 restored 24 Detailed overlays and zero live tiles.
+
 ## 2026-07-24 Private My Places Library V2
 
 - Current behavior: every signed-in non-guest user has a private My Places

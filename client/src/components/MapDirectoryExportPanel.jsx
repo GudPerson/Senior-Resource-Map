@@ -15,6 +15,7 @@ export default function MapDirectoryExportPanel({
     fixedTownSurfaceAvailable = false,
     fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
+    printAnnotations = [],
 }) {
     return (
         <DirectoryPrintView
@@ -35,6 +36,7 @@ export default function MapDirectoryExportPanel({
             fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
             fixedTownSurfacePending={fixedTownSurfacePending}
             fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
+            printAnnotations={printAnnotations}
         />
     );
 }

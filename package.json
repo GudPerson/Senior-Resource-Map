@@ -7,9 +7,11 @@
     "server"
   ],
   "scripts": {
-    "dev:client": "npm run dev --workspace=client -- --host localhost --port 5173",
-    "dev:server": "npm run dev:worker --workspace=server",
+    "dev:client": "VITE_TOWN_MAP_PROOF_ENABLED=true VITE_TOWN_MAP_ASSET_BASE_URL=/__carearound-town-maps/v2/native-scale-20260722/default VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=/__carearound-town-maps/v2/native-scale-20260722/gray VITE_TOWN_MAP_PRINT_MASTER_ASSET_BASE_URL=/__carearound-town-maps/v2/print-master-100-20260723/default VITE_TOWN_MAP_GRAY_PRINT_MASTER_ASSET_BASE_URL=/__carearound-town-maps/v2/print-master-100-20260723/gray npm run dev --workspace=client -- --host localhost --port 5173",
+    "dev:client:without-detailed-map": "npm run dev --workspace=client -- --host localhost --port 5173",
+    "dev:server": "npm run dev:worker:local --workspace=server",
     "dev:server:node": "npm run dev:node --workspace=server",
+    "uat:local:prepare": "npm run bootstrap:boundary-schema --workspace=server",
     "dev:town-map-assets": "node scripts/town-map/serve-w01-assets.mjs",
     "dev:islandwide-town-map-assets": "node scripts/town-map/serve-islandwide-assets.mjs",
     "dev:print-master-assets": "node scripts/town-map/serve-print-master-assets.mjs",
@@ -38,6 +40,9 @@
     "town-map:gray:r2:upload": "node scripts/town-map/upload-w01-r2.mjs --style=gray --apply",
     "town-map:gray:r2:verify": "node scripts/town-map/verify-w01-r2.mjs --style=gray",
     "town-map:r2:test": "node --test scripts/town-map/*.test.mjs",
+    "test:map-lockdown": "node --test client/test/fixedTownSurface.test.js client/test/fixedTownSurfaceIntegration.test.js client/test/mapSettingsControl.test.js client/test/printMapWorkspace.test.js client/test/printAnnotations.test.js",
+    "build:client:map-lockdown": "VITE_API_URL=https://api.carearound.sg/api VITE_TOWN_MAP_PROOF_ENABLED=true VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/default VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/gray VITE_TOWN_MAP_PRINT_MASTER_ASSET_BASE_URL=https://maps.carearound.sg/v2/print-master-100-20260723/default VITE_TOWN_MAP_GRAY_PRINT_MASTER_ASSET_BASE_URL=https://maps.carearound.sg/v2/print-master-100-20260723/gray npm run build:client",
+    "verify:map-lockdown": "npm run test:map-lockdown && npm run build:client:map-lockdown",
     "build:client": "npm run build --workspace=client",
     "build:cloudflare": "npm run build:client",
     "deploy:client": "node scripts/validate-cloudflare-client-env.mjs && npm run build --workspace=client && cd client && npx wrangler pages deploy dist --project-name senior-resource-map",

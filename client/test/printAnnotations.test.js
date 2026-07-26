@@ -1,0 +1,228 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import test from 'node:test';
+
+import {
+    buildRoundedPrintAnnotationPolygon,
+    createPrintAnnotation,
+    getAnnotationLocalDraftKey,
+    getPrintAnnotationCaptureKey,
+    normalizePrintAnnotation,
+    normalizePrintAnnotations,
+} from '../src/lib/printAnnotations.js';
+
+const POLYGON_POINTS = [
+    [1.381, 103.741],
+    [1.384, 103.746],
+    [1.379, 103.749],
+];
+
+test('print annotation normalization supports pins, lines, area shapes, and control-anchor polygons', () => {
+    const polygon = createPrintAnnotation({
+        type: 'polygon',
+        points: POLYGON_POINTS,
+        text: 'Walking area',
+    });
+    const circle = createPrintAnnotation({
+        type: 'circle',
+        points: POLYGON_POINTS.slice(0, 2),
+        text: 'Meeting zone',
+    });
+    const line = createPrintAnnotation({
+        type: 'line',
+        points: POLYGON_POINTS.slice(0, 2),
+    });
+    assert.equal(polygon.type, 'polygon');
+    assert.deepEqual(polygon.controlPoints, POLYGON_POINTS);
+    assert.equal(circle.type, 'circle');
+    assert.equal(line.type, 'line');
+    assert.equal(normalizePrintAnnotation({
+        id: 'retired_text',
+        type: 'text',
+        points: [POLYGON_POINTS[0]],
+        text: 'Retired',
+    }), null);
+    assert.equal(normalizePrintAnnotation({
+        id: 'retired_arrow',
+        type: 'arrow',
+        points: POLYGON_POINTS.slice(0, 2),
+    }), null);
+    assert.equal(normalizePrintAnnotation({
+        id: 'legacy_lasso',
+        type: 'lasso',
+        points: POLYGON_POINTS,
+    }), null);
+    assert.equal(normalizePrintAnnotation({
+        id: 'short_polygon',
+        type: 'polygon',
+        points: POLYGON_POINTS.slice(0, 2),
+    }), null);
+});
+
+test('normalization restores polygon control anchors and drops retired refinement metadata', () => {
+    const annotation = normalizePrintAnnotation({
+        id: 'legacy_refined_boundary',
+        type: 'polygon',
+        points: [
+            POLYGON_POINTS[0],
+            [1.382, 103.743],
+            POLYGON_POINTS[1],
+            POLYGON_POINTS[2],
+        ],
+        controlPoints: POLYGON_POINTS,
+        text: 'Walking boundary',
+        style: {},
+        refinement: {
+            kind: 'road_centerline',
+            provider: 'legacy-provider',
+            sourceVersion: '2026-07',
+            refinedAt: '2026-07-26T08:00:00.000Z',
+            snapDistanceMeters: 25,
+        },
+    });
+
+    assert.deepEqual(annotation.points, POLYGON_POINTS);
+    assert.deepEqual(annotation.controlPoints, POLYGON_POINTS);
+    assert.equal(Object.hasOwn(annotation, 'refinement'), false);
+});
+
+test('normalization bounds shape typography and drops retired label layout', () => {
+    const polygon = createPrintAnnotation({
+        type: 'polygon',
+        points: POLYGON_POINTS,
+        text: 'Walking area',
+        style: {
+            textColor: '#123456',
+            fontSize: 99,
+        },
+    });
+    const pin = createPrintAnnotation({
+        type: 'pin',
+        points: [POLYGON_POINTS[0]],
+        text: 'Pickup',
+        style: {
+            textColor: '#abcdef',
+            fontSize: 18,
+        },
+    });
+
+    assert.equal(polygon.style.textColor, '#123456');
+    assert.equal(polygon.style.fontSize, 32);
+    assert.equal(Object.hasOwn(polygon, 'layout'), false);
+    assert.equal(pin.style.textColor, '#ABCDEF');
+    assert.equal(pin.style.fontSize, 18);
+    assert.equal(Object.hasOwn(pin, 'layout'), false);
+});
+
+test('polygon corner rounding is render-only, bounded, and deterministic', () => {
+    const square = [
+        [1, 103],
+        [1, 104],
+        [2, 104],
+        [2, 103],
+    ];
+    const original = structuredClone(square);
+    const rounded = buildRoundedPrintAnnotationPolygon(square);
+
+    assert.deepEqual(square, original);
+    assert.equal(rounded.length, 20);
+    assert.deepEqual(rounded, buildRoundedPrintAnnotationPolygon(square));
+    assert.ok(rounded.every(([lat, lng]) => (
+        lat >= 1 && lat <= 2 && lng >= 103 && lng <= 104
+    )));
+    assert.ok(square.every((corner) => (
+        !rounded.some((point) => point[0] === corner[0] && point[1] === corner[1])
+    )));
+});
+
+test('annotation capture and local draft keys are stable and owner scoped', () => {
+    const annotation = createPrintAnnotation({
+        type: 'line',
+        points: POLYGON_POINTS.slice(0, 2),
+    });
+    assert.equal(
+        getPrintAnnotationCaptureKey([annotation]),
+        getPrintAnnotationCaptureKey(normalizePrintAnnotations([annotation])),
+    );
+    assert.equal(getAnnotationLocalDraftKey(7, 258), 'carearound:print-annotations:7:258');
+    assert.equal(getAnnotationLocalDraftKey('guest', 258), '');
+});
+
+test('owner Print View wires desktop-only editing, private persistence, and export parity', () => {
+    const ownerSource = fs.readFileSync(
+        new URL('../src/pages/MyMapDetailPage.jsx', import.meta.url),
+        'utf8',
+    );
+    const printSource = fs.readFileSync(
+        new URL('../src/components/DirectoryPrintView.jsx', import.meta.url),
+        'utf8',
+    );
+    const exportSource = fs.readFileSync(
+        new URL('../src/components/MapImageExportButton.jsx', import.meta.url),
+        'utf8',
+    );
+    const sharedSource = fs.readFileSync(
+        new URL('../src/pages/SharedMapPage.jsx', import.meta.url),
+        'utf8',
+    );
+    const layerSource = fs.readFileSync(
+        new URL('../src/components/PrintAnnotationLayer.jsx', import.meta.url),
+        'utf8',
+    );
+    const toolbarSource = fs.readFileSync(
+        new URL('../src/components/PrintAnnotationToolbar.jsx', import.meta.url),
+        'utf8',
+    );
+
+    assert.match(ownerSource, /min-width: 1024px/);
+    assert.match(ownerSource, /hover: hover/);
+    assert.match(ownerSource, /pointer: fine/);
+    assert.match(ownerSource, /data-print-annotation-trigger="true"/);
+    assert.match(ownerSource, /data-print-annotation-full-map-only="true"/);
+    assert.match(ownerSource, /isFullMapPrintLayout/);
+    assert.match(ownerSource, /printAnnotations=\{printAnnotations\.annotations\}/);
+    assert.match(printSource, /<PrintAnnotationLayer/);
+    assert.match(printSource, /annotationEditing/);
+    assert.match(printSource, /annotationsEnabledForLayout/);
+    assert.match(printSource, /PRINT_MAP_LAYOUT_FULL/);
+    assert.match(exportSource, /getPrintAnnotationCaptureKey/);
+    assert.match(exportSource, /printAnnotations=\{printAnnotations\}/);
+    assert.match(layerSource, /data-annotation-shape-text/);
+    assert.match(layerSource, /buildRoundedPrintAnnotationPolygon/);
+    assert.match(layerSource, /PRINT_ANNOTATION_TOOL_CIRCLE/);
+    assert.match(layerSource, /PRINT_ANNOTATION_TOOL_LINE/);
+    assert.match(toolbarSource, /Undo last point/);
+    assert.match(toolbarSource, /Done drawing/);
+    assert.match(toolbarSource, /Cancel tool/);
+    assert.match(toolbarSource, /data-print-annotation-helper/);
+    assert.match(toolbarSource, /Choose custom shape colour/);
+    assert.match(toolbarSource, /Text colour/);
+    assert.match(toolbarSource, /Font size/);
+    assert.match(toolbarSource, /Bring forward/);
+    assert.match(toolbarSource, /Send backward/);
+    assert.match(printSource, /undoLastAnnotationDraftPoint/);
+    assert.match(printSource, /setAnnotationDraftPoints\(\(current\) => current\.slice\(0, -1\)\)/);
+    assert.match(printSource, /handleMoveSelectedAnnotation/);
+    assert.doesNotMatch(
+        toolbarSource,
+        /label: 'Text callout'|label: 'Arrow'|PRINT_ANNOTATION_TOOL_TEXT|PRINT_ANNOTATION_TOOL_ARROW/,
+    );
+    assert.doesNotMatch(layerSource, /ResizableLabelMarker|data-annotation-resize/);
+    assert.doesNotMatch(layerSource, /Road geometry|openstreetmap-overpass/);
+    assert.doesNotMatch(toolbarSource, /Snap to roads|Road alignment|snapDistanceMeters/);
+    assert.doesNotMatch(printSource, /refineBoundaryToRoadCenterlines|onRefineRoadBoundary/);
+    assert.doesNotMatch(sharedSource, /PrintAnnotationLayer|printAnnotations/);
+});
+
+test('annotation autosaves are serialized to preserve revision order', () => {
+    const hookSource = fs.readFileSync(
+        new URL('../src/hooks/usePrintAnnotations.js', import.meta.url),
+        'utf8',
+    );
+
+    assert.match(hookSource, /saveQueueRef = useRef\(Promise\.resolve\(null\)\)/);
+    assert.match(hookSource, /const queuedSave = saveQueueRef\.current\.then/);
+    assert.match(hookSource, /saveQueueRef\.current = queuedSave\.catch/);
+    assert.match(hookSource, /LOCAL_DRAFT_DELAY_MS = 180/);
+    assert.doesNotMatch(hookSource, /refineRoadBoundary|snapDistanceMeters/);
+});

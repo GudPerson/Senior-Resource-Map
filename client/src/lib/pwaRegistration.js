@@ -14,7 +14,36 @@ export function canRegisterServiceWorker({ navigatorLike, locationLike, env = {}
     if (!navigatorLike?.serviceWorker) return false;
     const protocol = locationLike?.protocol || '';
     const hostname = locationLike?.hostname || '';
-    return protocol === 'https:' || isLocalhost(hostname);
+    return protocol === 'https:' && !isLocalhost(hostname);
+}
+
+export async function retireLocalDevelopmentPwa(win = globalThis.window, env = getRuntimeEnv()) {
+    if (!env.DEV || !isLocalhost(win?.location?.hostname)) return false;
+
+    const serviceWorker = win?.navigator?.serviceWorker;
+    if (!serviceWorker?.getRegistrations) return false;
+
+    const registrations = await serviceWorker.getRegistrations();
+    const hadController = Boolean(serviceWorker.controller);
+    const unregisterResults = await Promise.all(
+        registrations.map((registration) => registration.unregister())
+    );
+
+    let deletedCache = false;
+    if (win?.caches?.keys && win.caches?.delete) {
+        const cacheKeys = await win.caches.keys();
+        const careAroundCacheKeys = cacheKeys.filter((key) => key.startsWith('carearound-'));
+        const deleteResults = await Promise.all(
+            careAroundCacheKeys.map((key) => win.caches.delete(key))
+        );
+        deletedCache = deleteResults.some(Boolean);
+    }
+
+    const changed = unregisterResults.some(Boolean) || deletedCache;
+    if (changed && hadController) {
+        win.location?.reload?.();
+    }
+    return changed;
 }
 
 function dispatchPwaUpdateReady(win, registration) {
@@ -55,6 +84,15 @@ function wireUpdateLifecycle(win, registration) {
 }
 
 export async function registerCareAroundPwa(win = globalThis.window, env = getRuntimeEnv()) {
+    if (env.DEV) {
+        try {
+            await retireLocalDevelopmentPwa(win, env);
+        } catch (err) {
+            console.warn('CareAround local PWA cleanup failed.', err);
+        }
+        return null;
+    }
+
     if (!win || !canRegisterServiceWorker({
         navigatorLike: win.navigator,
         locationLike: win.location,

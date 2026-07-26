@@ -2381,6 +2381,7 @@ export default function DirectoryMap({
     captureReadyKey = '',
     mobileControlPortalTarget = null,
     onMapClick = null,
+    mapOverlay = null,
     surfaceStatus = null,
 }) {
     const { mapStyle } = useMapStyle();
@@ -2946,7 +2947,7 @@ export default function DirectoryMap({
         }
         : undefined;
 
-    if (!pins.length && !anchorPoint && !onMapClick) {
+    if (!pins.length && !anchorPoint && !onMapClick && !mapOverlay) {
         return (
             <div className={`rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500 ${className}`}>
                 {emptyLabel}
@@ -3165,6 +3166,7 @@ export default function DirectoryMap({
                     </Marker>
                 ) : null}
                 {renderedMarkers}
+                {mapOverlay}
             </MapContainer>
             {surfaceStatus ? (
                 <div

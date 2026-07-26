@@ -15,6 +15,7 @@ import {
     normalizePrintMapQuality,
     shouldExportPrintMapAsSeparatePages,
 } from '../lib/printMapState.js';
+import { getPrintAnnotationCaptureKey } from '../lib/printAnnotations.js';
 
 const TRANSPARENT_IMAGE_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
@@ -51,6 +52,7 @@ export default function MapImageExportButton({
     fixedTownSurfaceAvailable = false,
     fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
+    printAnnotations = [],
 }) {
     const { t } = useLocale();
     const exportRef = useRef(null);
@@ -63,6 +65,7 @@ export default function MapImageExportButton({
     const exportRoot = typeof document !== 'undefined' ? document.body : null;
     const exportWidth = PRINT_MAP_CANVAS_WIDTH_PX;
     const printMapCaptureKey = printMapState ? buildPrintMapCaptureKey(printMapState) : '';
+    const printAnnotationCaptureKey = getPrintAnnotationCaptureKey(printAnnotations);
     const printMapQuality = normalizePrintMapQuality(printMapState?.mapQuality);
     const exportAsSeparatePages = shouldExportPrintMapAsSeparatePages(printMapState);
     const exporting = Boolean(exportingFormat);
@@ -82,6 +85,7 @@ export default function MapImageExportButton({
         directory?.summary?.resourceCount,
         directory?.updatedAt,
         printMapCaptureKey,
+        printAnnotationCaptureKey,
         shareUrl,
     ]);
 
@@ -289,6 +293,7 @@ export default function MapImageExportButton({
                             fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
                             fixedTownSurfacePending={fixedTownSurfacePending}
                             fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
+                            printAnnotations={printAnnotations}
                         />
                     </div>
                 </div>

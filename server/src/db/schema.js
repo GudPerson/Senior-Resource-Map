@@ -692,6 +692,15 @@ export const myMapAssetNotes = pgTable('my_map_asset_notes', {
   mapAssetSortIdx: index('my_map_asset_notes_map_asset_sort_idx').on(table.mapAssetId, table.sortOrder),
 }));
 
+export const myMapPrintAnnotationDocuments = pgTable('my_map_print_annotation_documents', {
+  mapId: integer('map_id').primaryKey().references(() => myMaps.id, { onDelete: 'cascade' }),
+  schemaVersion: integer('schema_version').notNull().default(1),
+  annotations: jsonb('annotations').notNull().default([]),
+  revision: integer('revision').notNull().default(1),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 export const myMapPersonalPlaces = pgTable('my_map_personal_places', {
   id: serial('id').primaryKey(),
   mapId: integer('map_id').references(() => myMaps.id, { onDelete: 'cascade' }).notNull(),
@@ -1407,6 +1416,10 @@ export const myMapsRelations = relations(myMaps, ({ one, many }) => ({
   assets: many(myMapAssets),
   personalPlaces: many(myMapPersonalPlaces),
   personalPlaceLinks: many(myMapPersonalPlaceLinks),
+  printAnnotationDocument: one(myMapPrintAnnotationDocuments, {
+    fields: [myMaps.id],
+    references: [myMapPrintAnnotationDocuments.mapId],
+  }),
   shareSnapshot: one(myMapShareSnapshots, {
     fields: [myMaps.id],
     references: [myMapShareSnapshots.mapId],
@@ -1425,6 +1438,13 @@ export const myMapAssetNotesRelations = relations(myMapAssetNotes, ({ one }) => 
   mapAsset: one(myMapAssets, {
     fields: [myMapAssetNotes.mapAssetId],
     references: [myMapAssets.id],
+  }),
+}));
+
+export const myMapPrintAnnotationDocumentsRelations = relations(myMapPrintAnnotationDocuments, ({ one }) => ({
+  map: one(myMaps, {
+    fields: [myMapPrintAnnotationDocuments.mapId],
+    references: [myMaps.id],
   }),
 }));
 

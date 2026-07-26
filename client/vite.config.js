@@ -10,6 +10,11 @@ export default defineConfig({
             '/api': {
                 target: 'http://127.0.0.1:8787',
                 changeOrigin: true
+            },
+            '/__carearound-town-maps': {
+                target: 'https://maps.carearound.sg',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/__carearound-town-maps/, '')
             }
         }
     }

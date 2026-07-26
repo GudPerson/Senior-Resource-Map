@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import {
     canRegisterServiceWorker,
     registerCareAroundPwa,
+    retireLocalDevelopmentPwa,
 } from '../src/lib/pwaRegistration.js';
 
 const manifest = JSON.parse(fs.readFileSync(new URL('../public/site.webmanifest', import.meta.url), 'utf8'));
@@ -28,7 +29,7 @@ test('PWA manifest keeps CareAround installable metadata scoped to the app', () 
     assert.ok(manifest.shortcuts.some((shortcut) => shortcut.url === '/my-directory'));
 });
 
-test('service worker registration is production-only and requires a secure context', () => {
+test('service worker registration is production-only, HTTPS, and never localhost', () => {
     assert.equal(canRegisterServiceWorker({
         env: { PROD: false },
         navigatorLike: { serviceWorker: {} },
@@ -46,6 +47,53 @@ test('service worker registration is production-only and requires a secure conte
         navigatorLike: { serviceWorker: {} },
         locationLike: { protocol: 'https:', hostname: 'app.carearound.sg' },
     }), true);
+
+    assert.equal(canRegisterServiceWorker({
+        env: { PROD: true },
+        navigatorLike: { serviceWorker: {} },
+        locationLike: { protocol: 'http:', hostname: 'localhost' },
+    }), false);
+
+    assert.equal(canRegisterServiceWorker({
+        env: { PROD: true },
+        navigatorLike: { serviceWorker: {} },
+        locationLike: { protocol: 'https:', hostname: 'localhost' },
+    }), false);
+});
+
+test('development startup retires stale localhost service workers and CareAround caches', async () => {
+    const calls = [];
+    const win = {
+        navigator: {
+            serviceWorker: {
+                controller: {},
+                getRegistrations: async () => [{
+                    unregister: async () => {
+                        calls.push(['unregister']);
+                        return true;
+                    },
+                }],
+            },
+        },
+        location: {
+            hostname: 'localhost',
+            reload: () => calls.push(['reload']),
+        },
+        caches: {
+            keys: async () => ['carearound-static-v1', 'unrelated-cache'],
+            delete: async (key) => {
+                calls.push(['delete', key]);
+                return true;
+            },
+        },
+    };
+
+    assert.equal(await retireLocalDevelopmentPwa(win, { DEV: true }), true);
+    assert.deepEqual(calls, [
+        ['unregister'],
+        ['delete', 'carearound-static-v1'],
+        ['reload'],
+    ]);
 });
 
 test('service worker registration wires the CareAround worker without touching app routes', async () => {

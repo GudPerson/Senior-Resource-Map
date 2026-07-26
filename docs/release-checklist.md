@@ -182,12 +182,71 @@ The smoke suite covers:
 
 ## 3. Full Local Verification
 
-For local browser verification, run both app surfaces:
+For a new feature that adds or changes boundary-schema tables or columns,
+prepare the configured UAT database explicitly before starting the app:
+
+```bash
+npm run uat:local:prepare
+```
+
+This command is idempotent but database-mutating. Run it only when the
+configured `server/.env` database is the intended UAT target. Normal local
+server startup never applies schema changes implicitly.
+
+For local browser verification, run both app surfaces in separate terminals:
 
 ```bash
 npm run dev:server
 npm run dev:client
 ```
+
+`dev:server` overrides only the local Worker `NODE_ENV` to `development`.
+This keeps localhost session cookies usable and activates the existing
+development JWT fallback without adding a local secret or changing the
+production Worker configuration. The Vite development client also retires
+stale CareAround service workers and caches on localhost so an older
+production bundle cannot intercept local navigation or send sign-in to the
+production API. Before handing off a UAT link, verify:
+
+The default `dev:client` command includes the same four Detailed-map asset
+families as the production build, so owner My Map and Print View UAT cannot
+silently compile Detailed out. For localhost only, those roots use the
+same-origin `/__carearound-town-maps` Vite proxy because the public map asset
+host does not currently return a browser CORS header for manifest requests.
+Production builds keep the direct versioned `https://maps.carearound.sg`
+roots. `dev:client:without-detailed-map` is available only for an explicit
+fallback or isolation check; do not use it for normal UAT.
+
+For any enhancement that touches My Map, `DirectoryMap`, Print View, map
+settings, export, or their presentation pipeline, run the combined gate:
+
+```bash
+npm run verify:map-lockdown
+```
+
+```bash
+curl http://localhost:8787/api/health
+curl -I http://localhost:5173/login
+```
+
+Then sign in and confirm the affected authenticated route loads without a
+`JWT_SECRET is required in production`, missing-relation error, or a cached
+production client bundle. At owner Print View zoom 15, confirm Detailed chunks
+replace the OneMap tile surface, attribution remains present, and Default/Gray
+plus map-frame resize keep Detailed active. A local map that reports Detailed
+as unavailable must also be checked for a successful same-origin
+`/__carearound-town-maps/.../manifest.json` response before product map code is
+changed.
+
+For Print annotation changes, first choose the desktop `Full map` layout.
+Exercise the pin, line, rectangle, circle, and polygon tools; confirm each tool
+shows a contextual helper and can be completed or cancelled explicitly. Check
+`Undo last point`, in-shape notes, custom shape and font colours, font size,
+and backward/forward layer ordering. Confirm input and slider changes do not
+trigger a save on every movement, reload to verify persistence, and verify
+PNG/PDF parity. Switch to Balanced and Side focus and confirm annotations and
+the editor are absent. Standalone text, arrow, freehand/lasso, and road-snap
+tools are intentionally unsupported.
 
 Then run the release aggregate:
 

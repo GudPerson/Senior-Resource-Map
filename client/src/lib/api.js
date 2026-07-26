@@ -557,6 +557,8 @@ export const api = {
     getMyMap: (id) => request('GET', `/my-maps/${id}`),
     updateMyMap: (id, body) => request('PATCH', `/my-maps/${id}`, body),
     deleteMyMap: (id) => request('DELETE', `/my-maps/${id}`),
+    getMyMapPrintAnnotations: (id) => request('GET', `/my-maps/${id}/print-annotations`),
+    updateMyMapPrintAnnotations: (id, body) => request('PUT', `/my-maps/${id}/print-annotations`, body),
     publishMyMapShare: (id, body = {}) => request('POST', `/my-maps/${id}/share`, body),
     unpublishMyMapShare: (id) => request('DELETE', `/my-maps/${id}/share`),
     addMyMapAsset: (id, body) => request('POST', `/my-maps/${id}/assets`, body),

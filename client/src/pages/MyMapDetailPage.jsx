@@ -10,6 +10,7 @@ import {
     LoaderCircle,
     MapPin,
     Menu,
+    PenLine,
     Pencil,
     Plus,
     Printer,
@@ -64,7 +65,9 @@ import {
 } from '../lib/fixedTownSurface.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { usePrintAnnotations } from '../hooks/usePrintAnnotations.js';
 import {
+    PRINT_MAP_LAYOUT_FULL,
     createOwnerPrintMapState,
     resetOwnerPrintMapState,
 } from '../lib/printMapState.js';
@@ -942,6 +945,7 @@ export default function MyMapDetailPage() {
         createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS)
     ));
     const [printLayoutOpen, setPrintLayoutOpen] = useState(false);
+    const [printAnnotationEditorOpen, setPrintAnnotationEditorOpen] = useState(false);
     const [townMapManifestStates, setTownMapManifestStates] = useState({
         [CAREAROUND_MAP_STYLE_DEFAULT]: createTownMapManifestState(),
         [CAREAROUND_MAP_STYLE_GRAY]: createTownMapManifestState(),
@@ -973,6 +977,16 @@ export default function MyMapDetailPage() {
     const previousPrintViewRef = useRef(isPrintView);
     const myMapUiMode = getMyMapUiMode(searchParams);
     const isV2View = myMapUiMode === MY_MAP_UI_MODE_V2 && !isPrintView;
+    const canEditPrintAnnotations = useMediaQuery(
+        '(min-width: 1024px) and (hover: hover) and (pointer: fine)',
+    );
+    const printAnnotations = usePrintAnnotations({
+        mapId,
+        userId: user?.id,
+        enabled: isPrintView,
+    });
+    const printAnnotationsReady = ['saved', 'unsaved', 'saving'].includes(printAnnotations.status);
+    const isFullMapPrintLayout = printMapState.layoutPreset === PRINT_MAP_LAYOUT_FULL;
     const anchorState = useDirectoryDistanceAnchor({
         storageKey: mapId ? `my-map:no-default:${mapId}` : 'my-map:no-default',
         userPostalCode: user?.postalCode || '',
@@ -1051,8 +1065,19 @@ export default function MyMapDetailPage() {
         if (isPrintView && !wasPrintView) {
             setPrintMapState(createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS));
             setPrintLayoutOpen(false);
+            setPrintAnnotationEditorOpen(false);
         }
     }, [isPrintView, mapStyle]);
+
+    useEffect(() => {
+        if (isPrintView && canEditPrintAnnotations) return;
+        setPrintAnnotationEditorOpen(false);
+    }, [canEditPrintAnnotations, isPrintView]);
+
+    useEffect(() => {
+        if (isFullMapPrintLayout) return;
+        setPrintAnnotationEditorOpen(false);
+    }, [isFullMapPrintLayout]);
 
     useEffect(() => {
         if (!TOWN_MAP_PROOF_ENABLED) {
@@ -2128,12 +2153,15 @@ export default function MyMapDetailPage() {
     function openPrintView() {
         setPrintMapState(createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS));
         setPrintLayoutOpen(false);
+        setPrintAnnotationEditorOpen(false);
         const nextParams = new URLSearchParams(searchParams);
         nextParams.set('view', 'print');
         setSearchParams(nextParams);
     }
 
     function closePrintView() {
+        printAnnotations.saveNow();
+        setPrintAnnotationEditorOpen(false);
         setPrintLayoutOpen(false);
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('view');
@@ -2206,6 +2234,36 @@ export default function MyMapDetailPage() {
                                 <LayoutTemplate size={16} aria-hidden="true" />
                                 {t('printLayout')}
                             </button>
+                            {canEditPrintAnnotations ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (!printAnnotationsReady) return;
+                                        if (!isFullMapPrintLayout) {
+                                            setPrintAnnotationEditorOpen(false);
+                                            setPrintLayoutOpen(true);
+                                            return;
+                                        }
+                                        setPrintLayoutOpen(false);
+                                        setPrintAnnotationEditorOpen((current) => !current);
+                                    }}
+                                    disabled={!printAnnotationsReady}
+                                    className={`btn-ghost min-h-11 w-full justify-center border px-3 text-xs sm:w-auto sm:text-sm ${
+                                        printAnnotationEditorOpen
+                                            ? 'border-brand-600 bg-brand-50 text-brand-800'
+                                            : 'border-slate-200 text-slate-700'
+                                    } disabled:cursor-wait disabled:opacity-45`}
+                                    aria-pressed={printAnnotationEditorOpen}
+                                    title={isFullMapPrintLayout
+                                        ? 'Annotate the full map'
+                                        : 'Choose Full map in Print layout to annotate'}
+                                    data-print-annotation-trigger="true"
+                                    data-print-annotation-full-map-only="true"
+                                >
+                                    <PenLine size={16} />
+                                    Annotate
+                                </button>
+                            ) : null}
                             <button
                                 type="button"
                                 onClick={resetPrintMap}
@@ -2229,6 +2287,7 @@ export default function MyMapDetailPage() {
                                     fixedTownSurfaceAvailable={printTownMapAvailable}
                                     fixedTownSurfacePending={printTownMapSurfacePending}
                                     fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                                    printAnnotations={printAnnotations.annotations}
                                     className="min-h-11 w-full px-3 text-xs sm:w-auto sm:text-sm"
                                 />
                             </Suspense>
@@ -2236,6 +2295,14 @@ export default function MyMapDetailPage() {
                         <p className="w-full text-left text-sm font-semibold text-slate-600 lg:ml-auto lg:w-auto lg:text-right">
                             Your saved image will match this preview.
                         </p>
+                        {canEditPrintAnnotations && !isFullMapPrintLayout ? (
+                            <p
+                                className="w-full text-xs font-semibold text-slate-500"
+                                data-print-annotation-full-map-help="true"
+                            >
+                                Choose Full map in Print layout to annotate.
+                            </p>
+                        ) : null}
                         {printLayoutOpen ? (
                             <div id="owner-print-layout-controls" className="w-full">
                                 <PrintLayoutControls
@@ -2266,6 +2333,20 @@ export default function MyMapDetailPage() {
                         fixedTownSurfacePending={printTownMapSurfacePending}
                         fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
+                        printAnnotations={printAnnotations.annotations}
+                        annotationEditing={printAnnotationEditorOpen
+                            && canEditPrintAnnotations
+                            && isFullMapPrintLayout}
+                        annotationStatus={printAnnotations.status}
+                        annotationError={printAnnotations.error}
+                        onPrintAnnotationsChange={printAnnotations.replaceAnnotations}
+                        onSavePrintAnnotations={printAnnotations.saveNow}
+                        onUndoPrintAnnotations={printAnnotations.undo}
+                        onRedoPrintAnnotations={printAnnotations.redo}
+                        canUndoPrintAnnotations={printAnnotations.canUndo}
+                        canRedoPrintAnnotations={printAnnotations.canRedo}
+                        onReloadPrintAnnotations={printAnnotations.reload}
+                        onCloseAnnotationEditor={() => setPrintAnnotationEditorOpen(false)}
                     />
                 </div>
             </div>

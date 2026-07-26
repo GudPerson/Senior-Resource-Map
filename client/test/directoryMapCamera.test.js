@@ -63,7 +63,9 @@ test('directory map keeps hooks stable when an empty map gains a distance anchor
         directoryMapSource.indexOf('export default function DirectoryMap'),
     );
     const markerMemoIndex = componentSource.indexOf('const renderedMarkers = useMemo');
-    const emptyMapReturnIndex = componentSource.indexOf('if (!pins.length && !anchorPoint && !onMapClick)');
+    const emptyMapReturnIndex = componentSource.indexOf(
+        'if (!pins.length && !anchorPoint && !onMapClick && !mapOverlay)',
+    );
 
     assert.ok(markerMemoIndex > 0, 'marker memo should exist');
     assert.ok(emptyMapReturnIndex > 0, 'empty-map return should exist');

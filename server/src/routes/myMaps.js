@@ -17,6 +17,10 @@ import {
     postMyMapPersonalPlace,
     postMyMapShare,
 } from '../controllers/myMapsController.js';
+import {
+    getMyMapPrintAnnotations,
+    putMyMapPrintAnnotations,
+} from '../controllers/printAnnotationsController.js';
 
 const router = new Hono();
 
@@ -27,6 +31,8 @@ router.patch('/:id', authenticateToken, patchMyMap);
 router.delete('/:id', authenticateToken, deleteMyMap);
 router.post('/:id/share', authenticateToken, postMyMapShare);
 router.delete('/:id/share', authenticateToken, deleteMyMapShare);
+router.get('/:id/print-annotations', authenticateToken, getMyMapPrintAnnotations);
+router.put('/:id/print-annotations', authenticateToken, putMyMapPrintAnnotations);
 router.post('/:id/personal-places', authenticateToken, postMyMapPersonalPlace);
 router.patch('/:id/personal-places/:placeId', authenticateToken, patchMyMapPersonalPlace);
 router.delete('/:id/personal-places/:placeId', authenticateToken, deleteMyMapPersonalPlaceRoute);

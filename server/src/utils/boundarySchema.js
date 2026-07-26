@@ -177,6 +177,16 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                 )
             `);
             await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS my_map_print_annotation_documents (
+                    map_id INTEGER PRIMARY KEY REFERENCES my_maps(id) ON DELETE CASCADE,
+                    schema_version INTEGER NOT NULL DEFAULT 1,
+                    annotations JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    revision INTEGER NOT NULL DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_map_personal_places (
                     id SERIAL PRIMARY KEY,
                     map_id INTEGER NOT NULL REFERENCES my_maps(id) ON DELETE CASCADE,

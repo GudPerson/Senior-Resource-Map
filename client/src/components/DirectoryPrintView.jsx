@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GripHorizontal } from 'lucide-react';
 import DirectoryMap from './DirectoryMap.jsx';
 import DirectoryQrCode from './DirectoryQrCode.jsx';
+import PrintAnnotationLayer from './PrintAnnotationLayer.jsx';
+import PrintAnnotationToolbar from './PrintAnnotationToolbar.jsx';
 import SharedMapDirectoryList from './SharedMapDirectoryList.jsx';
 import BrandLockup from './layout/BrandLockup.jsx';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
@@ -13,6 +15,7 @@ import {
     PRINT_MAP_LABEL_DETAIL_FULL,
     PRINT_MAP_LABEL_DETAIL_LOGOS,
     PRINT_MAP_LAYOUT_FOCUS,
+    PRINT_MAP_LAYOUT_FULL,
     PRINT_MAP_PAGE_LAYOUT_FULL,
     PRINT_MAP_RESOURCE_LAYER_SHOW,
     buildPrintMapCaptureKey,
@@ -24,6 +27,17 @@ import {
     normalizePrintMapResourceColumnCount,
     normalizePrintMapResourceLayer,
 } from '../lib/printMapState.js';
+import {
+    DEFAULT_PRINT_ANNOTATION_STYLE,
+    PRINT_ANNOTATION_TOOL_CIRCLE,
+    PRINT_ANNOTATION_TOOL_PIN,
+    PRINT_ANNOTATION_TOOL_POLYGON,
+    PRINT_ANNOTATION_TOOL_RECTANGLE,
+    PRINT_ANNOTATION_TOOL_SELECT,
+    createPrintAnnotation,
+    getPrintAnnotationMinimumPointCount,
+    normalizePrintAnnotationStyle,
+} from '../lib/printAnnotations.js';
 
 const PRINT_BADGE_COORDINATE_GROUPING_TOLERANCE = 0.0003;
 const PRINT_FULL_MAP_FIXED_SURFACE_MAX_DECODED_BYTES = 384 * 1024 * 1024;
@@ -388,8 +402,137 @@ function PrintDirectoryMap({
     mapMaxWidthPx = 680,
     showResourcePins = true,
     mobileControlPortalTarget = null,
+    printAnnotations = [],
+    annotationEditing = false,
+    annotationStatus = 'idle',
+    annotationError = '',
+    onPrintAnnotationsChange = null,
+    onSavePrintAnnotations = null,
+    onUndoPrintAnnotations = null,
+    onRedoPrintAnnotations = null,
+    canUndoPrintAnnotations = false,
+    canRedoPrintAnnotations = false,
+    onReloadPrintAnnotations = null,
+    onCloseAnnotationEditor = null,
 }) {
     const { t } = useLocale();
+    const [annotationTool, setAnnotationTool] = useState(PRINT_ANNOTATION_TOOL_SELECT);
+    const [selectedAnnotationId, setSelectedAnnotationId] = useState(null);
+    const [annotationDraftPoints, setAnnotationDraftPoints] = useState([]);
+    const [annotationDraftText, setAnnotationDraftText] = useState('');
+    const [annotationDraftStyle, setAnnotationDraftStyle] = useState(DEFAULT_PRINT_ANNOTATION_STYLE);
+    const selectedAnnotationIndex = printAnnotations.findIndex(
+        (annotation) => annotation.id === selectedAnnotationId,
+    );
+    const selectedAnnotation = useMemo(() => (
+        printAnnotations.find((annotation) => annotation.id === selectedAnnotationId) || null
+    ), [printAnnotations, selectedAnnotationId]);
+
+    useEffect(() => {
+        if (annotationEditing) return;
+        setAnnotationTool(PRINT_ANNOTATION_TOOL_SELECT);
+        setSelectedAnnotationId(null);
+        setAnnotationDraftPoints([]);
+    }, [annotationEditing]);
+
+    const cancelAnnotationTool = useCallback(() => {
+        setAnnotationDraftPoints([]);
+        setAnnotationTool(PRINT_ANNOTATION_TOOL_SELECT);
+    }, []);
+    const undoLastAnnotationDraftPoint = useCallback(() => {
+        setAnnotationDraftPoints((current) => current.slice(0, -1));
+    }, []);
+
+    const handleAnnotationToolChange = useCallback((tool) => {
+        setAnnotationTool(tool);
+        setSelectedAnnotationId(null);
+        setAnnotationDraftPoints([]);
+    }, []);
+
+    const handleCreateAnnotation = useCallback((type, points) => {
+        const annotation = createPrintAnnotation({
+            type,
+            points,
+            text: [
+                PRINT_ANNOTATION_TOOL_PIN,
+                PRINT_ANNOTATION_TOOL_RECTANGLE,
+                PRINT_ANNOTATION_TOOL_CIRCLE,
+                PRINT_ANNOTATION_TOOL_POLYGON,
+            ].includes(type) ? annotationDraftText : '',
+            style: annotationDraftStyle,
+        });
+        if (!annotation) return;
+        onPrintAnnotationsChange?.((current) => [...current, annotation]);
+        setSelectedAnnotationId(annotation.id);
+        setAnnotationTool(PRINT_ANNOTATION_TOOL_SELECT);
+        setAnnotationDraftPoints([]);
+    }, [
+        annotationDraftStyle,
+        annotationDraftText,
+        onPrintAnnotationsChange,
+    ]);
+
+    const handleUpdateAnnotation = useCallback((annotationId, patch) => {
+        onPrintAnnotationsChange?.((current) => current.map((annotation) => (
+            annotation.id === annotationId
+                ? {
+                    ...annotation,
+                    ...patch,
+                    ...(patch.style ? {
+                        style: normalizePrintAnnotationStyle({
+                            ...annotation.style,
+                            ...patch.style,
+                        }),
+                    } : {}),
+                }
+                : annotation
+        )));
+    }, [onPrintAnnotationsChange]);
+
+    const handleSelectedAnnotationChange = useCallback((patch) => {
+        if (!selectedAnnotationId) return;
+        if (
+            selectedAnnotation?.type === PRINT_ANNOTATION_TOOL_PIN
+            && Object.hasOwn(patch, 'text')
+            && !String(patch.text || '').trim()
+        ) {
+            return;
+        }
+        handleUpdateAnnotation(selectedAnnotationId, patch);
+    }, [handleUpdateAnnotation, selectedAnnotation, selectedAnnotationId]);
+
+    const handleDeleteSelectedAnnotation = useCallback(() => {
+        if (!selectedAnnotationId) return;
+        onPrintAnnotationsChange?.((current) => current.filter(
+            (annotation) => annotation.id !== selectedAnnotationId,
+        ));
+        setSelectedAnnotationId(null);
+    }, [onPrintAnnotationsChange, selectedAnnotationId]);
+
+    const handleFinishDrawing = useCallback(() => {
+        const minimumPointCount = getPrintAnnotationMinimumPointCount(annotationTool);
+        if (!minimumPointCount || annotationDraftPoints.length < minimumPointCount) return;
+        handleCreateAnnotation(annotationTool, annotationDraftPoints);
+    }, [annotationDraftPoints, annotationTool, handleCreateAnnotation]);
+
+    const handleMoveSelectedAnnotation = useCallback((direction) => {
+        if (!selectedAnnotationId) return;
+        onPrintAnnotationsChange?.((current) => {
+            const currentIndex = current.findIndex(
+                (annotation) => annotation.id === selectedAnnotationId,
+            );
+            if (currentIndex < 0) return current;
+            const nextIndex = direction === 'forward'
+                ? Math.min(current.length - 1, currentIndex + 1)
+                : Math.max(0, currentIndex - 1);
+            if (nextIndex === currentIndex) return current;
+            const next = [...current];
+            const [moved] = next.splice(currentIndex, 1);
+            next.splice(nextIndex, 0, moved);
+            return next;
+        });
+    }, [onPrintAnnotationsChange, selectedAnnotationId]);
+
     const handleControlledMapStyleChange = useCallback((mapStyle) => {
         onPrintMapStateChange?.({ mapStyle });
     }, [onPrintMapStateChange]);
@@ -485,7 +628,83 @@ function PrintDirectoryMap({
                 mobileControlPortalTarget={mobileControlPortalTarget}
                 mapModeControl={printMapState && interactive ? mapModeControl : null}
                 showMapStyleControl={interactive}
+                mapOverlay={printAnnotations.length || annotationEditing ? (
+                    <PrintAnnotationLayer
+                        annotations={printAnnotations}
+                        editable={annotationEditing}
+                        tool={annotationTool}
+                        selectedId={selectedAnnotationId}
+                        draftPoints={annotationDraftPoints}
+                        draftText={annotationDraftText}
+                        draftStyle={annotationDraftStyle}
+                        onSelect={(annotationId) => {
+                            setSelectedAnnotationId(annotationId);
+                            setAnnotationTool(PRINT_ANNOTATION_TOOL_SELECT);
+                            setAnnotationDraftPoints([]);
+                        }}
+                        onUpdate={handleUpdateAnnotation}
+                        onDraftPointsChange={setAnnotationDraftPoints}
+                        onCreate={handleCreateAnnotation}
+                        onCancel={cancelAnnotationTool}
+                    />
+                ) : null}
+                surfaceStatus={!annotationEditing && ['loading', 'saving', 'unsaved', 'error'].includes(annotationStatus) ? (
+                    <div
+                        className={`rounded-md border px-3 py-2 text-center text-xs font-bold shadow-sm ${
+                            annotationStatus === 'error'
+                                ? 'border-red-200 bg-red-50 text-red-700'
+                                : 'border-brand-200 bg-white/95 text-brand-800'
+                        }`}
+                    >
+                        {annotationStatus === 'loading' ? 'Loading annotations...' : null}
+                        {annotationStatus === 'saving' ? 'Saving annotations...' : null}
+                        {annotationStatus === 'unsaved' ? 'Annotation changes pending' : null}
+                        {annotationStatus === 'error' ? (
+                            <div className="flex items-center gap-2">
+                                <span>{annotationError || 'Annotations could not be loaded.'}</span>
+                                <button
+                                    type="button"
+                                    onClick={onReloadPrintAnnotations}
+                                    className="rounded-md border border-red-200 bg-white px-2 py-1 text-[11px] font-bold text-red-700"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
             />
+            {annotationEditing ? (
+                <PrintAnnotationToolbar
+                    tool={annotationTool}
+                    draftText={annotationDraftText}
+                    draftStyle={annotationDraftStyle}
+                    draftPointCount={annotationDraftPoints.length}
+                    selectedAnnotation={selectedAnnotation}
+                    status={annotationStatus}
+                    error={annotationError}
+                    canUndo={canUndoPrintAnnotations}
+                    canRedo={canRedoPrintAnnotations}
+                    canMoveSelectedBackward={selectedAnnotationIndex > 0}
+                    canMoveSelectedForward={selectedAnnotationIndex >= 0
+                        && selectedAnnotationIndex < printAnnotations.length - 1}
+                    onToolChange={handleAnnotationToolChange}
+                    onDraftTextChange={setAnnotationDraftText}
+                    onDraftStyleChange={setAnnotationDraftStyle}
+                    onSelectedChange={handleSelectedAnnotationChange}
+                    onFinishDrawing={handleFinishDrawing}
+                    onUndoDraftPoint={undoLastAnnotationDraftPoint}
+                    onCancelDraft={cancelAnnotationTool}
+                    onMoveSelected={handleMoveSelectedAnnotation}
+                    onDeleteSelected={handleDeleteSelectedAnnotation}
+                    onUndo={onUndoPrintAnnotations}
+                    onRedo={onRedoPrintAnnotations}
+                    onClose={() => {
+                        onSavePrintAnnotations?.();
+                        onCloseAnnotationEditor?.();
+                    }}
+                />
+            ) : null}
             {printMapState && interactive ? (
                 <PrintMapResizeHandle
                     height={clampPrintMapHeight(printMapState.height, printMapState)}
@@ -545,6 +764,18 @@ export default function DirectoryPrintView({
     fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
     onFixedTownSurfaceViewportChange,
+    printAnnotations = [],
+    annotationEditing = false,
+    annotationStatus = 'idle',
+    annotationError = '',
+    onPrintAnnotationsChange = null,
+    onSavePrintAnnotations = null,
+    onUndoPrintAnnotations = null,
+    onRedoPrintAnnotations = null,
+    canUndoPrintAnnotations = false,
+    canRedoPrintAnnotations = false,
+    onReloadPrintAnnotations = null,
+    onCloseAnnotationEditor = null,
 }) {
     const useV2OwnerPrint = mode === 'owner';
     const basePresentation = buildDirectoryPresentation(directory, {
@@ -552,6 +783,8 @@ export default function DirectoryPrintView({
         presentationMode: useV2OwnerPrint ? 'v2-cards' : 'default',
     });
     const printLayoutConfig = getOwnerPrintLayoutConfig(printMapState);
+    const annotationsEnabledForLayout = useV2OwnerPrint
+        && printLayoutConfig.layoutPreset === PRINT_MAP_LAYOUT_FULL;
     const labelDetail = normalizePrintMapLabelDetail(printMapState?.labelDetail);
     const resourceColumnCount = normalizePrintMapResourceColumnCount(printMapState?.resourceColumnCount);
     const resourceLayer = normalizePrintMapResourceLayer(printMapState?.resourceLayer);
@@ -767,6 +1000,20 @@ export default function DirectoryPrintView({
                         mobileControlPortalTarget={useV2OwnerPrint && variant === 'screen'
                             ? mobileControlPortalTarget
                             : null}
+                        printAnnotations={annotationsEnabledForLayout ? printAnnotations : []}
+                        annotationEditing={annotationsEnabledForLayout
+                            && variant === 'screen'
+                            && annotationEditing}
+                        annotationStatus={annotationsEnabledForLayout ? annotationStatus : 'idle'}
+                        annotationError={annotationsEnabledForLayout ? annotationError : ''}
+                        onPrintAnnotationsChange={onPrintAnnotationsChange}
+                        onSavePrintAnnotations={onSavePrintAnnotations}
+                        onUndoPrintAnnotations={onUndoPrintAnnotations}
+                        onRedoPrintAnnotations={onRedoPrintAnnotations}
+                        canUndoPrintAnnotations={canUndoPrintAnnotations}
+                        canRedoPrintAnnotations={canRedoPrintAnnotations}
+                        onReloadPrintAnnotations={onReloadPrintAnnotations}
+                        onCloseAnnotationEditor={onCloseAnnotationEditor}
                     />
                 )}
                 cardBadgeMode={useV2OwnerPrint ? (showPrintLogos ? 'logo' : 'none') : 'number'}
