@@ -451,7 +451,7 @@ function DraftShape({
         fillColor: style.fillColor,
         fillOpacity: Math.min(style.fillOpacity, 0.1),
         weight: style.weight,
-        dashArray: '7 6',
+        dashArray: style.dashed ? '9 7' : null,
         lineCap: 'round',
         lineJoin: 'round',
     };

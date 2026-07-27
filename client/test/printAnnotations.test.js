@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
     buildRoundedPrintAnnotationPolygon,
     createPrintAnnotation,
+    DEFAULT_PRINT_ANNOTATION_STYLE,
     getAnnotationLocalDraftKey,
     getPrintAnnotationCaptureKey,
     normalizePrintAnnotation,
@@ -57,6 +58,25 @@ test('print annotation normalization supports pins, lines, area shapes, and cont
         type: 'polygon',
         points: POLYGON_POINTS.slice(0, 2),
     }), null);
+});
+
+test('new annotation lines default to solid while dashed remains optional', () => {
+    const solidLine = createPrintAnnotation({
+        type: 'line',
+        points: POLYGON_POINTS.slice(0, 2),
+    });
+    const dashedLine = createPrintAnnotation({
+        type: 'line',
+        points: POLYGON_POINTS.slice(0, 2),
+        style: {
+            ...DEFAULT_PRINT_ANNOTATION_STYLE,
+            dashed: true,
+        },
+    });
+
+    assert.equal(DEFAULT_PRINT_ANNOTATION_STYLE.dashed, false);
+    assert.equal(solidLine.style.dashed, false);
+    assert.equal(dashedLine.style.dashed, true);
 });
 
 test('normalization restores polygon control anchors and drops retired refinement metadata', () => {
@@ -199,6 +219,8 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(layerSource, /buildRoundedPrintAnnotationPolygon/);
     assert.match(layerSource, /PRINT_ANNOTATION_TOOL_CIRCLE/);
     assert.match(layerSource, /PRINT_ANNOTATION_TOOL_LINE/);
+    assert.match(layerSource, /dashArray: style\.dashed \? '9 7' : null/);
+    assert.doesNotMatch(layerSource, /dashArray: '7 6'/);
     assert.match(toolbarSource, /Undo last point/);
     assert.match(toolbarSource, /Done drawing/);
     assert.match(toolbarSource, /Cancel tool/);

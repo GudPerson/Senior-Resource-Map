@@ -103,10 +103,12 @@ Rules:
   earlier standalone text and arrow tools are retired.
   Rectangle, circle, and polygon notes render directly inside their shapes
   without a separate text box. Owners can choose preset or custom colours,
-  text colour, font size, line weight, fill opacity, and dashed lines. Each
-  drawing tool gives a contextual map instruction and exposes explicit
-  `Done drawing` and `Cancel tool` controls. `Undo last point` removes only the
-  latest draft anchor, and Backspace remains available as a keyboard shortcut.
+  text colour, font size, line weight, fill opacity, and dashed lines. New
+  annotation outlines and line drafts are solid by default; `Dashed line` is
+  an explicit option that updates both the draft and saved annotation. Each
+  drawing tool gives a contextual map instruction and exposes explicit `Done
+  drawing` and `Cancel tool` controls. `Undo last point` removes only the latest
+  draft anchor, and Backspace remains available as a keyboard shortcut.
   Selected annotations can move backward or forward one layer at a time, with
   document array order serving as the persisted layer order.
 - Annotation edits autosave to one revisioned document per owned map, retain a
@@ -131,20 +133,22 @@ Rules:
   reappear. Repeat in a narrow desktop browser window and confirm that pointer
   capability, rather than a 1024px viewport threshold, keeps `Annotate`
   available. Place and edit a pin, line, rectangle, circle, and polygon. Confirm
-  each drawing tool shows
-  its helper instruction and can be completed with the tick or abandoned with
-  the cross. While drafting, place one point incorrectly, choose `Undo last
-  point`, and confirm only that point is removed. Add shape notes and confirm
-  they appear within their shapes; change custom shape and font colours and
-  font size. Overlap two annotations, move the selected annotation backward
-  and forward, then reload and confirm the layer order persists. Confirm
-  polygon corners render rounded while edit handles remain on the original
-  sparse anchors. Save PNG and PDF exports and confirm both match the visible
-  Full map preview. Switch to Balanced or Side focus and confirm annotations
-  and the editor are absent; reopen Full map and confirm the saved annotations
-  return. Open the same Full map Print View at a phone or tablet breakpoint
-  and confirm the saved annotations remain visible but `Annotate` is absent.
-  Open the public Shared Map link and confirm annotations are absent.
+  each drawing tool shows its helper instruction and can be completed with the
+  tick or abandoned with the cross. Confirm a new line and shape draft use a
+  solid outline, select `Dashed line`, and confirm the draft and saved
+  annotation become dashed. While drafting, place one point incorrectly,
+  choose `Undo last point`, and confirm only that point is removed. Add shape
+  notes and confirm they appear within their shapes; change custom shape and
+  font colours and font size. Overlap two annotations, move the selected
+  annotation backward and forward, then reload and confirm the layer order
+  persists. Confirm polygon corners render rounded while edit handles remain
+  on the original sparse anchors. Save PNG and PDF exports and confirm both
+  match the visible Full map preview. Switch to Balanced or Side focus and
+  confirm annotations and the editor are absent; reopen Full map and confirm
+  the saved annotations return. Open the same Full map Print View at a phone or
+  tablet breakpoint and confirm the saved annotations remain visible but
+  `Annotate` is absent. Open the public Shared Map link and confirm annotations
+  are absent.
 - Acceptance criteria: annotation reads and writes require an authenticated
   non-guest owner; guests and non-owners are rejected; stale revisions fail
   rather than overwriting another session; annotation count, point count,
@@ -188,6 +192,14 @@ Rules:
   desktop-capability query, the toolbar transition handler, and its explanatory
   copy; annotation persistence, schemas, Full-map-only rendering, exports, and
   shared-map exclusion are unchanged.
+- 2026-07-27 solid annotation default recovery: the draft renderer now follows
+  the active annotation style instead of hard-coding a dashed preview. New
+  annotation lines and shape outlines start solid, while the existing `Dashed
+  line` checkbox remains an explicit opt-in and saved dashed annotations remain
+  unchanged. Focused annotation coverage passed 8/8; map-lockdown coverage
+  passed 62/62; full server coverage passed 481/481; and the exact four-root
+  production client build passed with only the established large-chunk
+  advisory.
 - Polygon smoothing and road-snap removal rollback: the rounded display path is
   isolated in `client/src/lib/printAnnotations.js` and can be removed without
   changing saved geometry. Full annotation rollback removes the annotation API
