@@ -363,6 +363,32 @@ test('print label detail choices retain the numbered map key while controlling a
     assert.match(printViewSource, /printResourceColumnCount=\{resourceColumnCount\}/);
 });
 
+test('Print View owns one-shot short-description editing without leaking controls into exports', () => {
+    const nestedMapPropsStart = printViewSource.indexOf('function PrintDirectoryMap({');
+    const nestedMapProps = printViewSource.slice(
+        nestedMapPropsStart,
+        printViewSource.indexOf('}) {', nestedMapPropsStart),
+    );
+    const printViewPropsStart = printViewSource.indexOf('export default function DirectoryPrintView({');
+    const printViewProps = printViewSource.slice(
+        printViewPropsStart,
+        printViewSource.indexOf('}) {', printViewPropsStart),
+    );
+
+    assert.match(ownerPageSource, /data-print-short-description-trigger="true"/);
+    assert.match(ownerPageSource, /setPrintShortDescriptionMode\(\(current\) => !current\)/);
+    assert.match(ownerPageSource, /onEditResourceShortDescription=\{printShortDescriptionMode[\s\S]*handleEditResourceShortDescription[\s\S]*: null\}/);
+    assert.match(printViewProps, /onEditResourceShortDescription = null/);
+    assert.doesNotMatch(nestedMapProps, /onEditResourceShortDescription/);
+    assert.match(printViewSource, /onEditResourceShortDescription=\{variant === 'screen'[\s\S]*\? onEditResourceShortDescription[\s\S]*: null\}/);
+    assert.match(sharedMapDirectorySource, /data-print-short-description-action="true"/);
+    assert.match(sharedMapDirectorySource, /printShortDescriptionEditing \|\| hasRowShortDescription\(row\)/);
+    assert.ok(
+        (ownerPageSource.match(/setPrintShortDescriptionMode\(false\)/g) || []).length >= 4,
+        'the one-shot mode should close after save, cancel, navigation, and competing tools',
+    );
+});
+
 test('owner print preview exposes controlled zoom, detail, colour, camera, and height controls', () => {
     assert.match(printViewSource, /data-print-map-resize-handle="true"/);
     assert.match(printViewSource, /role="separator"/);

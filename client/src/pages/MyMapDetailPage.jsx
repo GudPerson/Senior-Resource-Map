@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
 import {
+    AlignLeft,
     ArrowLeft,
     CheckCircle2,
     LayoutTemplate,
@@ -946,6 +947,7 @@ export default function MyMapDetailPage() {
     ));
     const [printLayoutOpen, setPrintLayoutOpen] = useState(false);
     const [printAnnotationEditorOpen, setPrintAnnotationEditorOpen] = useState(false);
+    const [printShortDescriptionMode, setPrintShortDescriptionMode] = useState(false);
     const [townMapManifestStates, setTownMapManifestStates] = useState({
         [CAREAROUND_MAP_STYLE_DEFAULT]: createTownMapManifestState(),
         [CAREAROUND_MAP_STYLE_GRAY]: createTownMapManifestState(),
@@ -978,7 +980,7 @@ export default function MyMapDetailPage() {
     const myMapUiMode = getMyMapUiMode(searchParams);
     const isV2View = myMapUiMode === MY_MAP_UI_MODE_V2 && !isPrintView;
     const canEditPrintAnnotations = useMediaQuery(
-        '(min-width: 1024px) and (hover: hover) and (pointer: fine)',
+        '(hover: hover) and (pointer: fine)',
     );
     const printAnnotations = usePrintAnnotations({
         mapId,
@@ -1066,6 +1068,7 @@ export default function MyMapDetailPage() {
             setPrintMapState(createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS));
             setPrintLayoutOpen(false);
             setPrintAnnotationEditorOpen(false);
+            setPrintShortDescriptionMode(false);
         }
     }, [isPrintView, mapStyle]);
 
@@ -2002,6 +2005,7 @@ export default function MyMapDetailPage() {
         if (shortDescriptionSubmitting) return;
         setShortDescriptionRow(null);
         setShortDescriptionError('');
+        setPrintShortDescriptionMode(false);
     }
 
     async function handleSaveResourceShortDescription(shortDescriptor) {
@@ -2022,6 +2026,7 @@ export default function MyMapDetailPage() {
                 shortDescriptor
             ));
             setShortDescriptionRow(null);
+            setPrintShortDescriptionMode(false);
         } catch (err) {
             console.error(err);
             setShortDescriptionError(err.message || 'Failed to update short description.');
@@ -2154,6 +2159,7 @@ export default function MyMapDetailPage() {
         setPrintMapState(createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS));
         setPrintLayoutOpen(false);
         setPrintAnnotationEditorOpen(false);
+        setPrintShortDescriptionMode(false);
         const nextParams = new URLSearchParams(searchParams);
         nextParams.set('view', 'print');
         setSearchParams(nextParams);
@@ -2162,6 +2168,7 @@ export default function MyMapDetailPage() {
     function closePrintView() {
         printAnnotations.saveNow();
         setPrintAnnotationEditorOpen(false);
+        setPrintShortDescriptionMode(false);
         setPrintLayoutOpen(false);
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('view');
@@ -2170,6 +2177,25 @@ export default function MyMapDetailPage() {
 
     function resetPrintMap() {
         setPrintMapState((current) => resetOwnerPrintMapState(current, mapStyle));
+    }
+
+    function togglePrintAnnotationEditor() {
+        if (!printAnnotationsReady) return;
+        if (printAnnotationEditorOpen) {
+            setPrintAnnotationEditorOpen(false);
+            return;
+        }
+
+        printAnnotations.reload();
+        setPrintShortDescriptionMode(false);
+        setPrintLayoutOpen(false);
+        if (!isFullMapPrintLayout) {
+            setPrintMapState((current) => ({
+                ...current,
+                layoutPreset: PRINT_MAP_LAYOUT_FULL,
+            }));
+        }
+        setPrintAnnotationEditorOpen(true);
     }
 
     if (loading || (directory && directoryCacheKeyRef.current !== currentMapCacheKey)) {
@@ -2237,16 +2263,7 @@ export default function MyMapDetailPage() {
                             {canEditPrintAnnotations ? (
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        if (!printAnnotationsReady) return;
-                                        if (!isFullMapPrintLayout) {
-                                            setPrintAnnotationEditorOpen(false);
-                                            setPrintLayoutOpen(true);
-                                            return;
-                                        }
-                                        setPrintLayoutOpen(false);
-                                        setPrintAnnotationEditorOpen((current) => !current);
-                                    }}
+                                    onClick={togglePrintAnnotationEditor}
                                     disabled={!printAnnotationsReady}
                                     className={`btn-ghost min-h-11 w-full justify-center border px-3 text-xs sm:w-auto sm:text-sm ${
                                         printAnnotationEditorOpen
@@ -2256,14 +2273,33 @@ export default function MyMapDetailPage() {
                                     aria-pressed={printAnnotationEditorOpen}
                                     title={isFullMapPrintLayout
                                         ? 'Annotate the full map'
-                                        : 'Choose Full map in Print layout to annotate'}
+                                        : 'Open Full map and annotate'}
                                     data-print-annotation-trigger="true"
                                     data-print-annotation-full-map-only="true"
+                                    data-print-annotation-auto-full-map="true"
                                 >
                                     <PenLine size={16} />
                                     Annotate
                                 </button>
                             ) : null}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setPrintLayoutOpen(false);
+                                    setPrintAnnotationEditorOpen(false);
+                                    setPrintShortDescriptionMode((current) => !current);
+                                }}
+                                className={`btn-ghost min-h-11 w-full justify-center border px-3 text-xs sm:w-auto sm:text-sm ${
+                                    printShortDescriptionMode
+                                        ? 'border-brand-600 bg-brand-50 text-brand-800'
+                                        : 'border-slate-200 text-slate-700'
+                                }`}
+                                aria-pressed={printShortDescriptionMode}
+                                data-print-short-description-trigger="true"
+                            >
+                                <AlignLeft size={16} aria-hidden="true" />
+                                {t('addShortDescription')}
+                            </button>
                             <button
                                 type="button"
                                 onClick={resetPrintMap}
@@ -2300,7 +2336,7 @@ export default function MyMapDetailPage() {
                                 className="w-full text-xs font-semibold text-slate-500"
                                 data-print-annotation-full-map-help="true"
                             >
-                                Choose Full map in Print layout to annotate.
+                                Annotations open in Full map.
                             </p>
                         ) : null}
                         {printLayoutOpen ? (
@@ -2347,8 +2383,20 @@ export default function MyMapDetailPage() {
                         canRedoPrintAnnotations={printAnnotations.canRedo}
                         onReloadPrintAnnotations={printAnnotations.reload}
                         onCloseAnnotationEditor={() => setPrintAnnotationEditorOpen(false)}
+                        onEditResourceShortDescription={printShortDescriptionMode
+                            ? handleEditResourceShortDescription
+                            : null}
                     />
                 </div>
+
+                <MapAssetShortDescriptionModal
+                    open={Boolean(shortDescriptionRow)}
+                    row={shortDescriptionRow}
+                    submitting={shortDescriptionSubmitting}
+                    error={shortDescriptionError}
+                    onClose={closeResourceShortDescription}
+                    onSubmit={handleSaveResourceShortDescription}
+                />
             </div>
         );
     }
@@ -2376,7 +2424,6 @@ export default function MyMapDetailPage() {
                     onViewSection={handleViewSection}
                     onRemoveResource={handleRemoveResource}
                     onEditPersonalPlace={handleEditPersonalPlace}
-                    onEditResourceShortDescription={handleEditResourceShortDescription}
                     onUpdateResourceNotes={handleUpdateResourceNotes}
                     onMapClick={personalPlacePickerActive ? handlePersonalPlaceMapClick : null}
                     onHoverPlaceStart={handleMapHoverStart}
@@ -2674,7 +2721,6 @@ export default function MyMapDetailPage() {
                                 onHoverPlaceEnd={handleMapHoverEnd}
                                 onRemoveResource={handleRemoveResource}
                                 onEditPersonalPlace={handleEditPersonalPlace}
-                                onEditResourceShortDescription={handleEditResourceShortDescription}
                                 onUpdateResourceNotes={handleUpdateResourceNotes}
                                 highlightPlaceKey={activePlaceKey}
                                 highlightPlaceKeys={activePlaceKeys}

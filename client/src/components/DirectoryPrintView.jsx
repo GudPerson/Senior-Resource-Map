@@ -776,6 +776,7 @@ export default function DirectoryPrintView({
     canRedoPrintAnnotations = false,
     onReloadPrintAnnotations = null,
     onCloseAnnotationEditor = null,
+    onEditResourceShortDescription = null,
 }) {
     const useV2OwnerPrint = mode === 'owner';
     const basePresentation = buildDirectoryPresentation(directory, {
@@ -956,6 +957,9 @@ export default function DirectoryPrintView({
                 layout="print"
                 canSaveResources={false}
                 allowPrintLinks={variant === 'screen'}
+                onEditResourceShortDescription={variant === 'screen'
+                    ? onEditResourceShortDescription
+                    : null}
                 highlightPlaceKeys={activePrintPlaceKeys}
                 // Keep Balanced exact, while Map focus swaps to a constrained single label rail.
                 desktopGridClassName={printLayoutConfig.gridClassName}

@@ -174,12 +174,20 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
         'utf8',
     );
 
-    assert.match(ownerSource, /min-width: 1024px/);
-    assert.match(ownerSource, /hover: hover/);
-    assert.match(ownerSource, /pointer: fine/);
+    assert.match(
+        ownerSource,
+        /const canEditPrintAnnotations = useMediaQuery\(\s*'\(hover: hover\) and \(pointer: fine\)'/,
+    );
+    assert.doesNotMatch(
+        ownerSource,
+        /const canEditPrintAnnotations = useMediaQuery\(\s*'\(min-width: 1024px\)/,
+    );
     assert.match(ownerSource, /data-print-annotation-trigger="true"/);
     assert.match(ownerSource, /data-print-annotation-full-map-only="true"/);
+    assert.match(ownerSource, /data-print-annotation-auto-full-map="true"/);
     assert.match(ownerSource, /isFullMapPrintLayout/);
+    assert.match(ownerSource, /layoutPreset: PRINT_MAP_LAYOUT_FULL/);
+    assert.match(ownerSource, /printAnnotations\.reload\(\)/);
     assert.match(ownerSource, /printAnnotations=\{printAnnotations\.annotations\}/);
     assert.match(printSource, /<PrintAnnotationLayer/);
     assert.match(printSource, /annotationEditing/);

@@ -106,6 +106,7 @@ test('personal place categories expose curated icons, colours, and global editin
 
 test('My Map short descriptions stay separate from Map Notes and suppress repeated card names', () => {
     const detailSource = readSource('../src/pages/MyMapDetailPage.jsx');
+    const printViewSource = readSource('../src/components/DirectoryPrintView.jsx');
     const listSource = readSource('../src/components/SharedMapDirectoryList.jsx');
     const editorSource = readSource('../src/components/personalPlaces/PersonalPlaceEditorModal.jsx');
     const apiSource = readSource('../src/lib/api.js');
@@ -119,6 +120,20 @@ test('My Map short descriptions stay separate from Map Notes and suppress repeat
     assert.match(listSource, /function getPrimaryManagedPlaceRow/);
     assert.match(listSource, /<PrimaryMapShortDescription/);
     assert.match(listSource, /t\('addShortDescription'\)/);
+    assert.match(detailSource, /const \[printShortDescriptionMode, setPrintShortDescriptionMode\]/);
+    assert.match(detailSource, /data-print-short-description-trigger="true"/);
+    assert.match(detailSource, /onEditResourceShortDescription=\{printShortDescriptionMode[\s\S]*handleEditResourceShortDescription[\s\S]*: null\}/);
+    assert.equal(
+        (detailSource.match(/onEditResourceShortDescription=\{handleEditResourceShortDescription\}/g) || []).length,
+        0,
+    );
+    assert.match(printViewSource, /variant === 'screen'[\s\S]*\? onEditResourceShortDescription[\s\S]*: null/);
+    assert.match(listSource, /data-print-short-description-action="true"/);
+    assert.match(listSource, /const printShortDescriptionEditing = !interactive/);
+    assert.ok(
+        (detailSource.match(/setPrintShortDescriptionMode\(false\)/g) || []).length >= 4,
+        'save, cancel, print close, and competing print tools should leave description mode',
+    );
     assert.match(editorSource, /personalPlaceShortDescription/);
     assert.match(editorSource, /personalPlaceImage/);
     assert.match(editorSource, /uploadFile=\{api\.uploadPersonalPlaceImage\}/);

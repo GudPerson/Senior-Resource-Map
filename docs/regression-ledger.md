@@ -17,10 +17,13 @@ Rules:
 
 ## 2026-07-26 Private My Map Print annotations V1
 
-- Current behavior: every signed-in non-guest map owner can open `Annotate`
-  only while Print View uses the desktop `Full map` layout. The focused toolset
-  contains labelled pins, lines, rectangles, circles, and point-by-point
-  polygon boundaries; the earlier standalone text and arrow tools are retired.
+- Current behavior: every signed-in non-guest map owner using a hover-capable
+  fine-pointer device can open `Annotate` from any Print View layout. If the
+  current layout is Balanced or Side focus, `Annotate` switches directly to
+  `Full map` before opening the editor. Annotation rendering and editing remain
+  limited to the owner `Full map` layout. The focused toolset contains labelled
+  pins, lines, rectangles, circles, and point-by-point polygon boundaries; the
+  earlier standalone text and arrow tools are retired.
   Rectangle, circle, and polygon notes render directly inside their shapes
   without a separate text box. Owners can choose preset or custom colours,
   text colour, font size, line weight, fill opacity, and dashed lines. Each
@@ -45,9 +48,13 @@ Rules:
   deletes with its map. Shared-map snapshots and APIs do not query or serialize
   annotation documents.
 - Reproduction steps: run the production schema bootstrap, sign in as any
-  non-guest user, open an owned My Map, choose Print View, then choose
-  `Full map`, then choose `Annotate` on a desktop pointer device. Place and edit
-  a pin, line, rectangle, circle, and polygon. Confirm each drawing tool shows
+  non-guest user, open an owned My Map, choose Print View, leave the layout on
+  Balanced, then choose `Annotate` on a desktop pointer device. Confirm the
+  layout changes to `Full map`, the editor opens, and existing saved annotations
+  reappear. Repeat in a narrow desktop browser window and confirm that pointer
+  capability, rather than a 1024px viewport threshold, keeps `Annotate`
+  available. Place and edit a pin, line, rectangle, circle, and polygon. Confirm
+  each drawing tool shows
   its helper instruction and can be completed with the tick or abandoned with
   the cross. While drafting, place one point incorrectly, choose `Undo last
   point`, and confirm only that point is removed. Add shape notes and confirm
@@ -74,7 +81,9 @@ Rules:
   edit handles. Annotation type, typography, style, and point-count schemas
   reject the retired text and arrow types. Layer order is bounded by the
   existing annotation count and persisted without a second ordering model.
-  Annotations render only in the owner Full map layout, including export. No
+  Annotations render only in the owner Full map layout, including export.
+  Opening the editor from another owner Print View layout must switch to Full
+  map without deleting or rewriting the saved annotation document. No
   road-provider request, road-refinement API route, road attribution, or
   road-snap metadata is required.
 - Verification result before deploy: annotation model/controller coverage
@@ -85,6 +94,23 @@ Rules:
   `git diff --check`, exact build, and served-artifact verification are release
   gates immediately before deployment. Authenticated browser UAT remains a
   user-assisted check because the available Chrome session is signed out.
+- 2026-07-27 annotation discoverability recovery: a narrow desktop browser
+  window no longer loses `Annotate` solely because its viewport is below
+  1024px. Hover and fine-pointer capability now identify the desktop editing
+  surface. Choosing `Annotate` from Balanced or Side focus closes Print layout,
+  switches to Full map, reloads the private annotation document, and opens the
+  editor; the saved layer remains hidden in non-Full layouts. Focused
+  annotation, Print View, and personal-place source coverage passed 34/34;
+  map-lockdown coverage passed 60/60; full server coverage passed 481/481; the
+  exact four-root production client build passed with only the established
+  large-chunk advisory; and `git diff --check` passed. Authenticated Chrome UAT
+  on map 258 at a 733px viewport confirmed `Annotate` remained available in
+  Balanced, automatically opened `full-map`, restored the saved polygon and
+  editor, and retained Detailed at zoom 15 with visible fixed-surface overlays,
+  attribution, and zero live tile images. Rollback is limited to the
+  desktop-capability query, the toolbar transition handler, and its explanatory
+  copy; annotation persistence, schemas, Full-map-only rendering, exports, and
+  shared-map exclusion are unchanged.
 - Polygon smoothing and road-snap removal rollback: the rounded display path is
   isolated in `client/src/lib/printAnnotations.js` and can be removed without
   changing saved geometry. Full annotation rollback removes the annotation API
@@ -246,6 +272,27 @@ Rules:
   full server coverage passed 466/466; locked map coverage passed 77/77; and
   the exact four-root production-style client build passed with the existing
   large chunk warning.
+- 2026-07-27 Print View short-description editing placement: ordinary owner
+  My Map cards now display saved per-map short descriptions without persistent
+  add or edit prompts. The owner Print View toolbar owns a one-shot
+  `Add short description` mode that reveals add actions for missing
+  descriptions and edit actions for saved descriptions on the visible print
+  resource layer. Saving or cancelling closes the editor and exits that mode,
+  so its prompts remain hidden until the toolbar trigger is used again.
+  Hidden PNG/PDF capture renderers, shared maps, and shared payloads never
+  receive the editing callback or controls; saved text continues to follow the
+  selected print label-detail setting. Rollback is limited to the transient
+  Print View state and callback wiring; the existing descriptor API, storage,
+  modal, owner export content, and personal-place privacy boundary are
+  unchanged. Focused personal-place and Print View source coverage passed
+  27/27; locked map/print coverage passed 60/60; and the exact four-root
+  production-style client build passed with only the existing large chunk
+  warning. Authenticated Chrome UAT on map 258 confirmed zero prompts before
+  activation, 20 visible managed-resource actions after activation, zero
+  hidden-export actions, and zero prompts with the trigger reset after Cancel.
+  Ordinary My Map retained its saved personal-place description with no managed
+  `Add short description` prompts. Print View at zoom 15 retained 24 Detailed
+  fixed-surface overlays and zero live tile images.
 - 2026-07-24 signed-in Chrome UAT: map 258 showed the `centre extension`
   personal place name once, its `Onboarding in 2027` short description, and no
   `Private note` field. Its editor exposed `Short description`. All 20 saved

@@ -1355,7 +1355,7 @@ function DirectoryResourceRow({
 
         return (
             <div className="border-b border-slate-100 pb-1 last:border-b-0 last:pb-0">
-                {printRowTitle || shortDescription || row.status === 'unavailable' ? (
+                {printRowTitle || shortDescription || row.status === 'unavailable' || canManageShortDescription ? (
                     <div className="flex items-start gap-1.5">
                         <span className="mt-[0.45em] h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
                         <div className="min-w-0 flex-1">
@@ -1365,9 +1365,33 @@ function DirectoryResourceRow({
                                 {row.status === 'unavailable' ? <StatusBadge status={row.status} /> : null}
                             </div>
                             {shortDescription ? (
-                                <p className={`${printRowTitle ? 'mt-0.5' : ''} text-[0.625rem] leading-snug text-slate-500`}>
-                                    {shortDescription}
-                                </p>
+                                <div className={`flex items-start gap-1 ${printRowTitle ? 'mt-0.5' : ''}`}>
+                                    <p className="min-w-0 flex-1 text-[0.625rem] leading-snug text-slate-500">
+                                        {shortDescription}
+                                    </p>
+                                    {canManageShortDescription ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => onEditResourceShortDescription(row)}
+                                            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-brand-700"
+                                            aria-label={`${t('editShortDescription')}: ${row.name}`}
+                                            title={t('editShortDescription')}
+                                            data-print-short-description-action="true"
+                                        >
+                                            <Pencil size={11} aria-hidden="true" />
+                                        </button>
+                                    ) : null}
+                                </div>
+                            ) : canManageShortDescription ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onEditResourceShortDescription(row)}
+                                    className={`${printRowTitle ? 'mt-0.5' : ''} inline-flex items-center gap-1 text-[0.625rem] font-semibold leading-snug text-slate-500 transition hover:text-brand-700`}
+                                    data-print-short-description-action="true"
+                                >
+                                    <Plus size={11} aria-hidden="true" />
+                                    {t('addShortDescription')}
+                                </button>
                             ) : null}
                         </div>
                     </div>
@@ -1643,18 +1667,41 @@ function PrimaryMapShortDescription({
     if (!row) return null;
 
     const shortDescription = String(row.mapShortDescriptor || '').trim();
-    const canManage = !print
-        && mode === 'owner'
+    const canManage = mode === 'owner'
         && Boolean(onEditResourceShortDescription);
 
     if (!shortDescription && !canManage) return null;
 
     if (print) {
         return shortDescription ? (
-            <p className={`mt-0.5 leading-snug text-slate-500 ${compact ? 'text-[0.625rem]' : 'text-[0.6875rem]'}`}>
-                {shortDescription}
-            </p>
-        ) : null;
+            <div className="mt-0.5 flex items-start gap-1">
+                <p className={`min-w-0 flex-1 leading-snug text-slate-500 ${compact ? 'text-[0.625rem]' : 'text-[0.6875rem]'}`}>
+                    {shortDescription}
+                </p>
+                {canManage ? (
+                    <button
+                        type="button"
+                        onClick={() => onEditResourceShortDescription(row)}
+                        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-brand-700"
+                        aria-label={`${t('editShortDescription')}: ${row.name}`}
+                        title={t('editShortDescription')}
+                        data-print-short-description-action="true"
+                    >
+                        <Pencil size={11} aria-hidden="true" />
+                    </button>
+                ) : null}
+            </div>
+        ) : (
+            <button
+                type="button"
+                onClick={() => onEditResourceShortDescription(row)}
+                className={`mt-0.5 inline-flex items-center gap-1 font-semibold leading-snug text-slate-500 transition hover:text-brand-700 ${compact ? 'text-[0.625rem]' : 'text-[0.6875rem]'}`}
+                data-print-short-description-action="true"
+            >
+                <Plus size={11} aria-hidden="true" />
+                {t('addShortDescription')}
+            </button>
+        );
     }
 
     return shortDescription ? (
@@ -1786,11 +1833,17 @@ function DirectoryPlaceGroupCard({
     const showPrintAddress = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES
         || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const showPrintResourceRows = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
-    const showPrintShortDescriptions = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS
+    const printShortDescriptionEditing = !interactive
+        && mode === 'owner'
+        && Boolean(onEditResourceShortDescription);
+    const showPrintShortDescriptions = printShortDescriptionEditing
+        || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS
         || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const printVisibleRows = showPrintResourceRows
         ? visibleRows
-        : (showPrintShortDescriptions ? visibleRows.filter(hasRowShortDescription) : []);
+        : (showPrintShortDescriptions
+            ? visibleRows.filter((row) => printShortDescriptionEditing || hasRowShortDescription(row))
+            : []);
     const useCompactNamesOnlyCard = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES;
     const showPrimaryCardBadge = cardBadgeMode !== 'none';
     const printNumberBadge = showPrintNumberBadge ? (
@@ -1876,7 +1929,9 @@ function DirectoryPlaceGroupCard({
                                     const nestedPrintRows = showPrintResourceRows
                                         ? nestedVisibleRows
                                         : (showPrintShortDescriptions
-                                            ? nestedVisibleRows.filter(hasRowShortDescription)
+                                            ? nestedVisibleRows.filter((row) => (
+                                                printShortDescriptionEditing || hasRowShortDescription(row)
+                                            ))
                                             : []);
                                     const nestedPlaceTitle = nestedPlaceDetailPath && allowPrintLinks ? (
                                         <Link to={nestedPlaceDetailPath} reloadDocument className={`block font-bold leading-tight text-slate-900 transition hover:text-brand-700 ${compactPrint ? 'text-[0.9375rem]' : 'text-base'}`}>
@@ -1902,6 +1957,7 @@ function DirectoryPlaceGroupCard({
                                                     mode={mode}
                                                     compact={compactPrint}
                                                     print
+                                                    onEditResourceShortDescription={onEditResourceShortDescription}
                                                 />
                                             ) : null}
                                             {nestedPrintRows.length ? (
@@ -1914,6 +1970,7 @@ function DirectoryPlaceGroupCard({
                                                             mode={mode}
                                                             interactive={false}
                                                             canSaveResources={canSaveResources}
+                                                            onEditResourceShortDescription={onEditResourceShortDescription}
                                                             allowPrintLinks={allowPrintLinks}
                                                             compactPrint={compactPrint}
                                                         />
@@ -1991,6 +2048,7 @@ function DirectoryPlaceGroupCard({
                                 mode={mode}
                                 compact={compactPrint}
                                 print
+                                onEditResourceShortDescription={onEditResourceShortDescription}
                             />
                         ) : null}
 
@@ -2004,6 +2062,7 @@ function DirectoryPlaceGroupCard({
                                         mode={mode}
                                         interactive={false}
                                         canSaveResources={canSaveResources}
+                                        onEditResourceShortDescription={onEditResourceShortDescription}
                                         allowPrintLinks={allowPrintLinks}
                                         compactPrint={compactPrint}
                                     />
@@ -2385,6 +2444,8 @@ function DirectoryUnmappedRow({
 
     if (!interactive) {
         const canOpenDetail = Boolean(detailPath) && row.status !== 'unavailable';
+        const canManageShortDescription = mode === 'owner'
+            && Boolean(onEditResourceShortDescription);
 
         return (
             <div className="border-b border-slate-200/80 pb-2 last:border-b-0 last:pb-0">
@@ -2400,7 +2461,33 @@ function DirectoryUnmappedRow({
                         )}
                         {row.contextLabel ? <p className="mt-0.5 text-[0.625rem] text-slate-500">{row.contextLabel}</p> : null}
                         {row.mapShortDescriptor ? (
-                            <p className="mt-0.5 text-[0.625rem] leading-snug text-slate-500">{row.mapShortDescriptor}</p>
+                            <div className="mt-0.5 flex items-start gap-1">
+                                <p className="min-w-0 flex-1 text-[0.625rem] leading-snug text-slate-500">
+                                    {row.mapShortDescriptor}
+                                </p>
+                                {canManageShortDescription ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => onEditResourceShortDescription(row)}
+                                        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-brand-700"
+                                        aria-label={`${t('editShortDescription')}: ${row.name}`}
+                                        title={t('editShortDescription')}
+                                        data-print-short-description-action="true"
+                                    >
+                                        <Pencil size={11} aria-hidden="true" />
+                                    </button>
+                                ) : null}
+                            </div>
+                        ) : canManageShortDescription ? (
+                            <button
+                                type="button"
+                                onClick={() => onEditResourceShortDescription(row)}
+                                className="mt-0.5 inline-flex items-center gap-1 text-[0.625rem] font-semibold leading-snug text-slate-500 transition hover:text-brand-700"
+                                data-print-short-description-action="true"
+                            >
+                                <Plus size={11} aria-hidden="true" />
+                                {t('addShortDescription')}
+                            </button>
                         ) : null}
                         {mode === 'shared' ? <SharedResourceNotes notes={sharedNotes} print /> : null}
                     </div>
