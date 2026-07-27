@@ -22,6 +22,7 @@ import {
     PRINT_MAP_PAGE_LAYOUT_STANDARD,
     PRINT_MAP_QUALITY_HIGH,
     PRINT_MAP_QUALITY_STANDARD,
+    PRINT_MAP_ANNOTATION_LAYER_SHOW,
     PRINT_MAP_RESOURCE_LAYER_HIDE,
     PRINT_MAP_RESOURCE_LAYER_SHOW,
     PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT,
@@ -64,6 +65,9 @@ test('owner print map starts from a safe baseline while carrying only the global
         resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
         mapQuality: PRINT_MAP_QUALITY_STANDARD,
         resourceLayer: PRINT_MAP_RESOURCE_LAYER_SHOW,
+        annotationLayer: PRINT_MAP_ANNOTATION_LAYER_SHOW,
+        hiddenResourceLayerKeys: [],
+        hiddenAnnotationIds: [],
         layoutPreset: PRINT_MAP_LAYOUT_BALANCED,
         mapSide: PRINT_MAP_SIDE_LEFT,
         mapWidth: PRINT_MAP_WIDTH_WIDE,
@@ -103,6 +107,9 @@ test('owner print reset clears camera and detail changes without losing the devi
         resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
         mapQuality: PRINT_MAP_QUALITY_HIGH,
         resourceLayer: PRINT_MAP_RESOURCE_LAYER_HIDE,
+        annotationLayer: 'hide',
+        hiddenResourceLayerKeys: ['resource:carearound'],
+        hiddenAnnotationIds: ['annotation_1'],
         layoutPreset: PRINT_MAP_LAYOUT_FOCUS,
         mapSide: PRINT_MAP_SIDE_RIGHT,
         mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
@@ -119,6 +126,9 @@ test('owner print reset clears camera and detail changes without losing the devi
     assert.equal(reset.resourcePlacement, PRINT_MAP_RESOURCE_PLACEMENT_BESIDE);
     assert.equal(reset.mapQuality, PRINT_MAP_QUALITY_STANDARD);
     assert.equal(reset.resourceLayer, PRINT_MAP_RESOURCE_LAYER_SHOW);
+    assert.equal(reset.annotationLayer, PRINT_MAP_ANNOTATION_LAYER_SHOW);
+    assert.deepEqual(reset.hiddenResourceLayerKeys, []);
+    assert.deepEqual(reset.hiddenAnnotationIds, []);
     assert.equal(reset.layoutPreset, PRINT_MAP_LAYOUT_BALANCED);
     assert.equal(reset.mapSide, PRINT_MAP_SIDE_LEFT);
     assert.equal(reset.mapWidth, PRINT_MAP_WIDTH_WIDE);
@@ -139,6 +149,9 @@ test('capture key changes for every visual print map setting', () => {
         buildPrintMapCaptureKey({ ...baseline, resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE }),
         buildPrintMapCaptureKey({ ...baseline, mapQuality: PRINT_MAP_QUALITY_HIGH }),
         buildPrintMapCaptureKey({ ...baseline, resourceLayer: PRINT_MAP_RESOURCE_LAYER_HIDE }),
+        buildPrintMapCaptureKey({ ...baseline, annotationLayer: 'hide' }),
+        buildPrintMapCaptureKey({ ...baseline, hiddenResourceLayerKeys: ['resource:carearound'] }),
+        buildPrintMapCaptureKey({ ...baseline, hiddenAnnotationIds: ['annotation_1'] }),
         buildPrintMapCaptureKey({ ...baseline, layoutPreset: PRINT_MAP_LAYOUT_FOCUS }),
         buildPrintMapCaptureKey({ ...baseline, mapSide: PRINT_MAP_SIDE_RIGHT }),
         buildPrintMapCaptureKey({ ...baseline, mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE }),
@@ -146,7 +159,7 @@ test('capture key changes for every visual print map setting', () => {
         buildPrintMapCaptureKey({ ...baseline, labelDetail: PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS }),
         buildPrintMapCaptureKey({ ...baseline, resourceColumnCount: 4 }),
     ]);
-    assert.equal(keys.size, 15);
+    assert.equal(keys.size, 18);
 });
 
 test('Full layout exports the map and resources as separate image pages', () => {
@@ -406,6 +419,7 @@ test('owner print preview exposes controlled zoom, detail, colour, camera, and h
     assert.match(printViewSource, /onFixedTownSurfaceViewportChange=\{onFixedTownSurfaceViewportChange\}/);
     assert.match(printViewSource, /mapHeightPx=\{printMapState \? clampPrintMapHeight\(printMapState\.height, printMapState\) : null\}/);
     assert.match(printViewSource, /pins=\{presentation\.pins\}/);
+    assert.match(printViewSource, /renderPins=\{visibleResourcePins\}/);
     assert.match(printViewSource, /showPins=\{showResourcePins\}/);
     assert.match(printViewSource, /printResourcesBelow=\{printResourcesBelow\}/);
     assert.match(sharedMapDirectorySource, /data-print-full-map-page="true"/);
@@ -467,9 +481,35 @@ test('DirectoryMap controlled print hooks stay optional for Shared Maps and exis
     assert.match(directoryMapSource, /mapViewState = null/);
     assert.match(directoryMapSource, /captureReadyKey = ''/);
     assert.match(directoryMapSource, /showPins = true/);
+    assert.match(directoryMapSource, /renderPins = null/);
+    assert.match(directoryMapSource, /const markerPins = useMemo/);
+    assert.match(directoryMapSource, /pins=\{displayPins\}/);
     assert.match(directoryMapSource, /if \(!showPins\) return null/);
     assert.match(printViewSource, /printMapState = null/);
     assert.match(printViewSource, /printMapState=\{useV2OwnerPrint \? printMapState : null\}/);
+});
+
+test('Full map owns a session-only resource and annotation layer panel', () => {
+    const layersControlSource = readFileSync(
+        new URL('../src/components/PrintMapLayersControl.jsx', import.meta.url),
+        'utf8',
+    );
+    const layersModelSource = readFileSync(
+        new URL('../src/lib/printMapLayers.js', import.meta.url),
+        'utf8',
+    );
+
+    assert.match(printViewSource, /<PrintMapLayersControl/);
+    assert.match(printViewSource, /filterPrintMapResourcePins/);
+    assert.match(printViewSource, /filterPrintMapAnnotations/);
+    assert.match(printViewSource, /data-print-map-layers-enabled="true"/);
+    assert.match(layersControlSource, /data-print-map-layers-control="true"/);
+    assert.match(layersModelSource, /CareAround resources/);
+    assert.match(layersModelSource, /Personal places/);
+    assert.match(layersControlSource, /Annotations/);
+    assert.match(layersControlSource, /Reset layers/);
+    assert.doesNotMatch(layersControlSource, /Delete annotation/);
+    assert.doesNotMatch(ownerPageSource, /updateMyMapPrintLayer|savePrintLayer/);
 });
 
 test('owner print PDF action uses concise PDF wording in every locale', () => {

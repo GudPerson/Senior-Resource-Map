@@ -68,6 +68,7 @@ import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { usePrintAnnotations } from '../hooks/usePrintAnnotations.js';
 import {
+    PRINT_MAP_ANNOTATION_LAYER_SHOW,
     PRINT_MAP_LAYOUT_FULL,
     createOwnerPrintMapState,
     resetOwnerPrintMapState,
@@ -2189,12 +2190,13 @@ export default function MyMapDetailPage() {
         printAnnotations.reload();
         setPrintShortDescriptionMode(false);
         setPrintLayoutOpen(false);
-        if (!isFullMapPrintLayout) {
-            setPrintMapState((current) => ({
-                ...current,
+        setPrintMapState((current) => ({
+            ...current,
+            annotationLayer: PRINT_MAP_ANNOTATION_LAYER_SHOW,
+            ...(!isFullMapPrintLayout ? {
                 layoutPreset: PRINT_MAP_LAYOUT_FULL,
-            }));
-        }
+            } : {}),
+        }));
         setPrintAnnotationEditorOpen(true);
     }
 
@@ -2383,6 +2385,7 @@ export default function MyMapDetailPage() {
                         canRedoPrintAnnotations={printAnnotations.canRedo}
                         onReloadPrintAnnotations={printAnnotations.reload}
                         onCloseAnnotationEditor={() => setPrintAnnotationEditorOpen(false)}
+                        mapLayersEnabled={canEditPrintAnnotations && isFullMapPrintLayout}
                         onEditResourceShortDescription={printShortDescriptionMode
                             ? handleEditResourceShortDescription
                             : null}

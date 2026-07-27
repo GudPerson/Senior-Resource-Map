@@ -19,6 +19,9 @@ export const PRINT_MAP_QUALITY_STANDARD = 'standard';
 export const PRINT_MAP_QUALITY_HIGH = 'high';
 export const PRINT_MAP_RESOURCE_LAYER_SHOW = 'show';
 export const PRINT_MAP_RESOURCE_LAYER_HIDE = 'hide';
+export const PRINT_MAP_ANNOTATION_LAYER_SHOW = 'show';
+export const PRINT_MAP_ANNOTATION_LAYER_HIDE = 'hide';
+export const PRINT_MAP_MAX_HIDDEN_LAYER_KEYS = 200;
 
 export const PRINT_MAP_EXPORT_PIXEL_RATIO = 2;
 export const PRINT_MAP_EXPORT_CANVAS_SCALE_STANDARD = 2;
@@ -68,6 +71,21 @@ export function normalizePrintMapResourceLayer(value) {
     return value === PRINT_MAP_RESOURCE_LAYER_HIDE
         ? PRINT_MAP_RESOURCE_LAYER_HIDE
         : PRINT_MAP_RESOURCE_LAYER_SHOW;
+}
+
+export function normalizePrintMapAnnotationLayer(value) {
+    return value === PRINT_MAP_ANNOTATION_LAYER_HIDE
+        ? PRINT_MAP_ANNOTATION_LAYER_HIDE
+        : PRINT_MAP_ANNOTATION_LAYER_SHOW;
+}
+
+export function normalizePrintMapHiddenLayerKeys(value) {
+    if (!Array.isArray(value)) return [];
+    return [...new Set(value
+        .map((item) => String(item || '').trim())
+        .filter(Boolean))]
+        .sort((left, right) => left.localeCompare(right))
+        .slice(0, PRINT_MAP_MAX_HIDDEN_LAYER_KEYS);
 }
 
 export function getPrintMapPreviewScale(containerWidth) {
@@ -314,6 +332,9 @@ export function createOwnerPrintMapState(mapStyle, {
         resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
         mapQuality: PRINT_MAP_QUALITY_STANDARD,
         resourceLayer: PRINT_MAP_RESOURCE_LAYER_SHOW,
+        annotationLayer: PRINT_MAP_ANNOTATION_LAYER_SHOW,
+        hiddenResourceLayerKeys: [],
+        hiddenAnnotationIds: [],
         layoutPreset: PRINT_MAP_LAYOUT_BALANCED,
         mapSide: PRINT_MAP_SIDE_LEFT,
         mapWidth: PRINT_MAP_WIDTH_WIDE,
@@ -342,6 +363,9 @@ export function buildPrintMapCaptureKey(state) {
         normalizePrintMapResourcePlacement(state?.resourcePlacement),
         normalizePrintMapQuality(state?.mapQuality),
         normalizePrintMapResourceLayer(state?.resourceLayer),
+        normalizePrintMapAnnotationLayer(state?.annotationLayer),
+        JSON.stringify(normalizePrintMapHiddenLayerKeys(state?.hiddenResourceLayerKeys)),
+        JSON.stringify(normalizePrintMapHiddenLayerKeys(state?.hiddenAnnotationIds)),
         normalizePrintMapLayoutPreset(state?.layoutPreset),
         normalizePrintMapSide(state?.mapSide),
         normalizePrintMapWidth(state?.mapWidth),

@@ -4,6 +4,7 @@ import DirectoryMap from './DirectoryMap.jsx';
 import DirectoryQrCode from './DirectoryQrCode.jsx';
 import PrintAnnotationLayer from './PrintAnnotationLayer.jsx';
 import PrintAnnotationToolbar from './PrintAnnotationToolbar.jsx';
+import PrintMapLayersControl from './PrintMapLayersControl.jsx';
 import SharedMapDirectoryList from './SharedMapDirectoryList.jsx';
 import BrandLockup from './layout/BrandLockup.jsx';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
@@ -16,7 +17,10 @@ import {
     PRINT_MAP_LABEL_DETAIL_LOGOS,
     PRINT_MAP_LAYOUT_FOCUS,
     PRINT_MAP_LAYOUT_FULL,
+    PRINT_MAP_ANNOTATION_LAYER_HIDE,
+    PRINT_MAP_ANNOTATION_LAYER_SHOW,
     PRINT_MAP_PAGE_LAYOUT_FULL,
+    PRINT_MAP_RESOURCE_LAYER_HIDE,
     PRINT_MAP_RESOURCE_LAYER_SHOW,
     buildPrintMapCaptureKey,
     clampPrintMapHeight,
@@ -24,9 +28,17 @@ import {
     getPrintMapPreviewScale,
     getPrintMapHeightBounds,
     normalizePrintMapLabelDetail,
+    normalizePrintMapAnnotationLayer,
+    normalizePrintMapHiddenLayerKeys,
     normalizePrintMapResourceColumnCount,
     normalizePrintMapResourceLayer,
 } from '../lib/printMapState.js';
+import {
+    buildPrintMapResourceLayers,
+    filterPrintMapAnnotations,
+    filterPrintMapResourcePins,
+    getVisiblePrintResourcePlaceKeys,
+} from '../lib/printMapLayers.js';
 import {
     DEFAULT_PRINT_ANNOTATION_STYLE,
     PRINT_ANNOTATION_TOOL_CIRCLE,
@@ -401,8 +413,12 @@ function PrintDirectoryMap({
     previewScale = 1,
     mapMaxWidthPx = 680,
     showResourcePins = true,
+    visibleResourcePins = [],
     mobileControlPortalTarget = null,
     printAnnotations = [],
+    visiblePrintAnnotations = [],
+    mapLayersEnabled = false,
+    resourceLayerGroups = [],
     annotationEditing = false,
     annotationStatus = 'idle',
     annotationError = '',
@@ -421,6 +437,12 @@ function PrintDirectoryMap({
     const [annotationDraftPoints, setAnnotationDraftPoints] = useState([]);
     const [annotationDraftText, setAnnotationDraftText] = useState('');
     const [annotationDraftStyle, setAnnotationDraftStyle] = useState(DEFAULT_PRINT_ANNOTATION_STYLE);
+    const hiddenResourceLayerKeys = normalizePrintMapHiddenLayerKeys(
+        printMapState?.hiddenResourceLayerKeys,
+    );
+    const hiddenAnnotationIds = normalizePrintMapHiddenLayerKeys(
+        printMapState?.hiddenAnnotationIds,
+    );
     const selectedAnnotationIndex = printAnnotations.findIndex(
         (annotation) => annotation.id === selectedAnnotationId,
     );
@@ -515,11 +537,11 @@ function PrintDirectoryMap({
         handleCreateAnnotation(annotationTool, annotationDraftPoints);
     }, [annotationDraftPoints, annotationTool, handleCreateAnnotation]);
 
-    const handleMoveSelectedAnnotation = useCallback((direction) => {
-        if (!selectedAnnotationId) return;
+    const handleMoveAnnotation = useCallback((annotationId, direction) => {
+        if (!annotationId) return;
         onPrintAnnotationsChange?.((current) => {
             const currentIndex = current.findIndex(
-                (annotation) => annotation.id === selectedAnnotationId,
+                (annotation) => annotation.id === annotationId,
             );
             if (currentIndex < 0) return current;
             const nextIndex = direction === 'forward'
@@ -531,7 +553,43 @@ function PrintDirectoryMap({
             next.splice(nextIndex, 0, moved);
             return next;
         });
-    }, [onPrintAnnotationsChange, selectedAnnotationId]);
+    }, [onPrintAnnotationsChange]);
+    const handleMoveSelectedAnnotation = useCallback((direction) => {
+        handleMoveAnnotation(selectedAnnotationId, direction);
+    }, [handleMoveAnnotation, selectedAnnotationId]);
+
+    const toggleLayerKey = useCallback((currentKeys, key) => {
+        const current = new Set(normalizePrintMapHiddenLayerKeys(currentKeys));
+        if (current.has(key)) {
+            current.delete(key);
+        } else {
+            current.add(key);
+        }
+        return normalizePrintMapHiddenLayerKeys([...current]);
+    }, []);
+
+    const handleResourceLayerKeyToggle = useCallback((layerKey) => {
+        onPrintMapStateChange?.({
+            hiddenResourceLayerKeys: toggleLayerKey(hiddenResourceLayerKeys, layerKey),
+        });
+    }, [
+        hiddenResourceLayerKeys,
+        onPrintMapStateChange,
+        toggleLayerKey,
+    ]);
+
+    const handleAnnotationVisibilityToggle = useCallback((annotationId) => {
+        const nextHiddenIds = toggleLayerKey(hiddenAnnotationIds, annotationId);
+        onPrintMapStateChange?.({ hiddenAnnotationIds: nextHiddenIds });
+        if (nextHiddenIds.includes(selectedAnnotationId)) {
+            setSelectedAnnotationId(null);
+        }
+    }, [
+        hiddenAnnotationIds,
+        onPrintMapStateChange,
+        selectedAnnotationId,
+        toggleLayerKey,
+    ]);
 
     const handleControlledMapStyleChange = useCallback((mapStyle) => {
         onPrintMapStateChange?.({ mapStyle });
@@ -569,6 +627,7 @@ function PrintDirectoryMap({
             <DirectoryMap
                 activeAnchor={presentation.activeAnchor}
                 pins={presentation.pins}
+                renderPins={visibleResourcePins}
                 showPins={showResourcePins}
                 focusedPlaceKey={showResourcePins ? focusedPlaceKey : null}
                 activePlaceKey={showResourcePins ? activePlaceKey : null}
@@ -628,9 +687,9 @@ function PrintDirectoryMap({
                 mobileControlPortalTarget={mobileControlPortalTarget}
                 mapModeControl={printMapState && interactive ? mapModeControl : null}
                 showMapStyleControl={interactive}
-                mapOverlay={printAnnotations.length || annotationEditing ? (
+                mapOverlay={visiblePrintAnnotations.length || annotationEditing ? (
                     <PrintAnnotationLayer
-                        annotations={printAnnotations}
+                        annotations={visiblePrintAnnotations}
                         editable={annotationEditing}
                         tool={annotationTool}
                         selectedId={selectedAnnotationId}
@@ -674,6 +733,54 @@ function PrintDirectoryMap({
                     </div>
                 ) : null}
             />
+            {mapLayersEnabled && printMapState ? (
+                <div data-print-map-layers-enabled="true">
+                    <PrintMapLayersControl
+                        resourceGroups={resourceLayerGroups}
+                        resourceLayer={normalizePrintMapResourceLayer(printMapState.resourceLayer)}
+                        annotationLayer={normalizePrintMapAnnotationLayer(printMapState.annotationLayer)}
+                        hiddenResourceLayerKeys={hiddenResourceLayerKeys}
+                        hiddenAnnotationIds={hiddenAnnotationIds}
+                        annotations={printAnnotations}
+                        annotationEditing={annotationEditing}
+                        selectedAnnotationId={selectedAnnotationId}
+                        onResourceLayerChange={(visible) => {
+                            onPrintMapStateChange?.({
+                                resourceLayer: visible
+                                    ? PRINT_MAP_RESOURCE_LAYER_SHOW
+                                    : PRINT_MAP_RESOURCE_LAYER_HIDE,
+                            });
+                        }}
+                        onResourceLayerKeyToggle={handleResourceLayerKeyToggle}
+                        onAnnotationLayerChange={(visible) => {
+                            onPrintMapStateChange?.({
+                                annotationLayer: visible
+                                    ? PRINT_MAP_ANNOTATION_LAYER_SHOW
+                                    : PRINT_MAP_ANNOTATION_LAYER_HIDE,
+                            });
+                            if (!visible && annotationEditing) {
+                                onSavePrintAnnotations?.();
+                                onCloseAnnotationEditor?.();
+                            }
+                        }}
+                        onAnnotationVisibilityToggle={handleAnnotationVisibilityToggle}
+                        onAnnotationSelect={(annotationId) => {
+                            setSelectedAnnotationId(annotationId);
+                            setAnnotationTool(PRINT_ANNOTATION_TOOL_SELECT);
+                            setAnnotationDraftPoints([]);
+                        }}
+                        onAnnotationMove={handleMoveAnnotation}
+                        onReset={() => {
+                            onPrintMapStateChange?.({
+                                resourceLayer: PRINT_MAP_RESOURCE_LAYER_SHOW,
+                                annotationLayer: PRINT_MAP_ANNOTATION_LAYER_SHOW,
+                                hiddenResourceLayerKeys: [],
+                                hiddenAnnotationIds: [],
+                            });
+                        }}
+                    />
+                </div>
+            ) : null}
             {annotationEditing ? (
                 <PrintAnnotationToolbar
                     tool={annotationTool}
@@ -777,6 +884,7 @@ export default function DirectoryPrintView({
     onReloadPrintAnnotations = null,
     onCloseAnnotationEditor = null,
     onEditResourceShortDescription = null,
+    mapLayersEnabled = false,
 }) {
     const useV2OwnerPrint = mode === 'owner';
     const basePresentation = buildDirectoryPresentation(directory, {
@@ -795,6 +903,24 @@ export default function DirectoryPrintView({
     const presentation = useV2OwnerPrint
         ? withOwnerPrintLayout(ownerPrintPresentation, printLayoutConfig)
         : ownerPrintPresentation;
+    const resourceLayerModel = useV2OwnerPrint
+        ? buildPrintMapResourceLayers(ownerPrintPresentation)
+        : { groups: [], layerKeyByPlaceKey: {} };
+    const visibleResourcePlaceKeys = showResourcePins
+        ? getVisiblePrintResourcePlaceKeys(
+            resourceLayerModel,
+            printMapState?.hiddenResourceLayerKeys,
+        )
+        : new Set();
+    const visibleResourcePins = useV2OwnerPrint
+        ? filterPrintMapResourcePins(presentation.pins, visibleResourcePlaceKeys)
+        : presentation.pins;
+    const visiblePrintAnnotations = annotationsEnabledForLayout
+        ? filterPrintMapAnnotations(printAnnotations, {
+            annotationLayer: normalizePrintMapAnnotationLayer(printMapState?.annotationLayer),
+            hiddenAnnotationIds: printMapState?.hiddenAnnotationIds,
+        })
+        : [];
     const showPrintLogos = labelDetail === PRINT_MAP_LABEL_DETAIL_LOGOS
         || labelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const resolvedShareUrl = shareUrl || buildDirectoryShareUrl(directory?.share?.sharePath);
@@ -1001,10 +1127,16 @@ export default function DirectoryPrintView({
                         previewScale={variant === 'screen' ? scale : 1}
                         mapMaxWidthPx={printLayoutConfig.mapMaxWidthPx}
                         showResourcePins={showResourcePins}
+                        visibleResourcePins={visibleResourcePins}
                         mobileControlPortalTarget={useV2OwnerPrint && variant === 'screen'
                             ? mobileControlPortalTarget
                             : null}
                         printAnnotations={annotationsEnabledForLayout ? printAnnotations : []}
+                        visiblePrintAnnotations={visiblePrintAnnotations}
+                        mapLayersEnabled={mapLayersEnabled
+                            && annotationsEnabledForLayout
+                            && variant === 'screen'}
+                        resourceLayerGroups={resourceLayerModel.groups}
                         annotationEditing={annotationsEnabledForLayout
                             && variant === 'screen'
                             && annotationEditing}

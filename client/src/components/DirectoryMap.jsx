@@ -2332,6 +2332,7 @@ export default function DirectoryMap({
     clusterMarkerMode = 'bubble',
     spreadCoincidentPins = true,
     showPins = true,
+    renderPins = null,
     placeNumberByKey = null,
     showPopup = true,
     showZoomControl = interactive,
@@ -2392,7 +2393,15 @@ export default function DirectoryMap({
     const captureErrorRef = useRef(null);
     const mapFrameRef = useRef(null);
     const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive, spreadCoincidentPins), [interactive, pins, spreadCoincidentPins]);
-    const shouldCluster = showPins && clusterMarkerMode !== 'none' && displayPins.length > 1;
+    const markerPins = useMemo(
+        () => (Array.isArray(renderPins) ? renderPins : pins),
+        [pins, renderPins],
+    );
+    const displayMarkerPins = useMemo(
+        () => spreadPinsForDisplay(markerPins, interactive, spreadCoincidentPins),
+        [interactive, markerPins, spreadCoincidentPins],
+    );
+    const shouldCluster = showPins && clusterMarkerMode !== 'none' && displayMarkerPins.length > 1;
     const clusterGroupRef = useRef(null);
     const mapInstanceRef = useRef(null);
     const resolvedMapStyle = normalizeCareAroundMapStyle(mapStyleOverride ?? mapStyle);
@@ -2563,7 +2572,7 @@ export default function DirectoryMap({
         if (markerMode !== 'print-badge' && markerMode !== 'category-bubble') return '';
 
         const activeKeys = [...activePlaceKeySet].sort().join('|');
-        const markerKeys = displayPins.map((pin) => {
+        const markerKeys = displayMarkerPins.map((pin) => {
             const itemKey = (pin.printBadgeItems || [])
                 .map((item) => `${item?.label ?? item?.number ?? ''}:${item?.color ?? item?.categoryColor ?? ''}:${item?.placeKey ?? ''}`)
                 .join(',');
@@ -2575,8 +2584,8 @@ export default function DirectoryMap({
 
         const focusedKeys = (focusedPlaceKeys || []).map((value) => String(value)).sort().join('|');
         return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${focusedKeys}::${activeKeys}::${compactCategoryBubbles ? 'compact' : 'full'}::${markerKeys}`;
-    }, [activePlaceKey, activePlaceKeySet, compactCategoryBubbles, displayPins, focusedPlaceKey, focusedPlaceKeys, markerMode]);
-    const capturePinSignature = useMemo(() => displayPins.map((pin) => {
+    }, [activePlaceKey, activePlaceKeySet, compactCategoryBubbles, displayMarkerPins, focusedPlaceKey, focusedPlaceKeys, markerMode]);
+    const capturePinSignature = useMemo(() => displayMarkerPins.map((pin) => {
         const point = getDirectoryPinMapPoint(pin);
         return [
             pin.pinKey || pin.placeKey || '',
@@ -2587,7 +2596,7 @@ export default function DirectoryMap({
             placeNumberByKey?.[pin.placeKey] || '',
             pin.printNumberLabel || '',
         ].join(':');
-    }).join(';'), [displayPins, placeNumberByKey]);
+    }).join(';'), [displayMarkerPins, placeNumberByKey]);
     const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
     const showRecenterControl = interactive && (displayPins.length + (anchorPoint ? 1 : 0)) > 1;
     const hasMapSettingsControl = Boolean(resolvedMapModeControl || showMapStyleControl);
@@ -2770,7 +2779,7 @@ export default function DirectoryMap({
                     maxClusterRadius={42}
                     iconCreateFunction={(cluster) => createDirectoryClusterIcon(cluster, activePlaceKeySet, clusterMarkerMode)}
                 >
-                    {displayPins.map((pin) => {
+                    {displayMarkerPins.map((pin) => {
                         const activeKey = activePlaceKey ?? focusedPlaceKey;
                         const isDeepZoom = String(activeKey).endsWith(':zoom');
                         const cleanKey = isDeepZoom ? String(activeKey).replace(':zoom', '') : activeKey;
@@ -2852,7 +2861,7 @@ export default function DirectoryMap({
             );
         }
 
-        return displayPins.map((pin) => {
+        return displayMarkerPins.map((pin) => {
             const activeKey = activePlaceKey ?? focusedPlaceKey;
             const isDeepZoom = String(activeKey).endsWith(':zoom');
             const cleanKey = isDeepZoom ? String(activeKey).replace(':zoom', '') : activeKey;
@@ -2930,7 +2939,7 @@ export default function DirectoryMap({
                 />
             );
         });
-    }, [shouldCluster, showPins, displayPins, markerMode, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
+    }, [shouldCluster, showPins, displayMarkerPins, markerMode, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
     const mapClickEnabled = interactive && typeof onMapClick === 'function';
     const currentAnchorPlacementHandlers = mapClickEnabled && anchorPoint?.kind === 'current'

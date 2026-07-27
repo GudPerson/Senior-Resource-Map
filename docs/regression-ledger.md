@@ -15,6 +15,68 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-27 Owner Full map Print layer controls
+
+- Current behavior: a signed-in map owner on a desktop-capable Print View can
+  open `Map layers` from the `Full map` surface. Resource visibility can be
+  changed for all mapped resources, for CareAround or Personal places, or for
+  an individual category, including custom personal-place categories.
+  Annotation visibility can be changed for the whole annotation layer or for
+  one saved annotation. Annotation rows retain the existing backward/forward
+  controls, and those controls continue to update the persisted annotation
+  document order. Visibility choices last only for the current Print View
+  session and reset on reload.
+- Resource cards remain complete when map pins are hidden. Hidden pins do not
+  renumber the surviving pins, change their colours, or refit the map camera.
+  The visible owner preview and hidden PNG/PDF capture surface receive the same
+  filtered resource pins and annotations. Resource pins remain in their
+  established Leaflet marker pane; annotation ordering does not interleave
+  resources into the annotation z-order.
+- Known-good reference: branch `codex/print-map-layers`, based on
+  `c500da944`. The implementation is client-only and adds no schema, API,
+  sharing, or persistence contract for visibility.
+- Reproduction steps: sign in as a non-guest owner, open an owned My Map with
+  `?view=print`, choose `Full map`, and open `Map layers`. Hide Personal places
+  and confirm only personal-place pins disappear while every resource card,
+  the resource total, surviving pin number, map centre, and zoom remain
+  unchanged. Restore that group, hide one CareAround or personal category, and
+  repeat. Hide one annotation and then all annotations; confirm resource pins
+  remain. Confirm the screen preview and export capture surface show the same
+  visible layers. Reload and confirm all visibility controls reset while the
+  saved annotations and their order remain. Switch to Balanced or Side map and
+  confirm the layer control is absent. Open an interactive owner map, a shared
+  map, and a guest view and confirm no layer control is exposed.
+- Acceptance criteria: layer visibility is owner-only, desktop-only,
+  `Full map` Print View state; it is not stored in the annotation document,
+  map record, local storage, shared-map snapshot, or server. Resource cards
+  and export directory content remain complete. Filtering uses stable place
+  keys and preserves original pin numbers, colours, grouping, map fit inputs,
+  and camera state. Preview, PNG, and PDF map surfaces match. Annotation
+  visibility does not delete or rewrite an annotation. Existing annotation
+  order remains the only z-order model and can still be persisted through the
+  established editor workflow. Interactive My Map, Balanced and Side layouts,
+  Shared Maps, Discover, managed Resources, personal-place privacy, map notes,
+  Detailed basemap behavior, imports, governance, and AI remain unchanged.
+- Verification result before deploy: focused layer, Print View, and annotation
+  coverage passed 32/32; map-lockdown coverage passed 61/61; full server
+  coverage passed 481/481; local Detailed-map configuration coverage passed
+  2/2; and the exact four-root production client build passed with only the
+  established large-chunk advisory. The broad client suite passed 492/493; its
+  only failure is the previously recorded date-sensitive Care Calendar
+  conflict fixture whose fixed 2026-07-20 events are now expired and whose
+  source is untouched here. Authenticated Chrome UAT on map 258 confirmed
+  screen/export parity when hiding Personal places, Outdoor, and Boundary 1;
+  all 22 resource cards and original pin numbers remained; visibility reset
+  after reload; and the owner session remained authenticated. At zoom 15 the
+  Print View retained 24 Detailed image overlays, zero live tile images,
+  attribution, Default/Gray switching, and Detailed behavior after keyboard
+  resize.
+- Rollback: remove `PrintMapLayersControl` and its session visibility fields,
+  restore Print View to pass the full pin and annotation arrays to both
+  surfaces, and remove the optional `DirectoryMap.renderPins` split. No API,
+  schema, annotation-document, personal-place, shared-map, or public-resource
+  rollback is required.
+
 ## 2026-07-26 Private My Map Print annotations V1
 
 - Current behavior: every signed-in non-guest map owner using a hover-capable
