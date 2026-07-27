@@ -71,6 +71,21 @@ Rules:
   Print View retained 24 Detailed image overlays, zero live tile images,
   attribution, Default/Gray switching, and Detailed behavior after keyboard
   resize.
+- Production release result: implementation commit `f07417c37` was pushed on
+  `codex/print-map-layers` and fast-forwarded to `main`. The exact validated
+  four-root `client/dist` was explicitly published to the production Pages
+  branch at `https://7efb5b23.senior-resource-map.pages.dev` after the
+  connected Git build produced a mismatched cached directory chunk. The custom
+  domain then served `assets/index-DZLT63u3.js`,
+  `assets/index-DqBjD9xl.css`,
+  `assets/MyMapDetailPage-mX-pib7E.js`, and
+  `assets/useDirectoryDistanceAnchor-d-A3YUR2.js`; all four files matched the
+  validated local artifacts byte-for-byte. Production API health returned OK
+  at `2026-07-27T04:08:51.254Z`, and production smoke passed all 6/6 release
+  journeys, including authenticated partner access, postal import, map
+  creation, saved-resource detail, and schedule review. No Worker/API, schema,
+  database, shared-map, public-resource, or production-data change was
+  deployed.
 - Rollback: remove `PrintMapLayersControl` and its session visibility fields,
   restore Print View to pass the full pin and annotation arrays to both
   surfaces, and remove the optional `DirectoryMap.renderPins` split. No API,
