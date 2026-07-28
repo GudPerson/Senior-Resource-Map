@@ -49,6 +49,7 @@ import {
     buildManagedResourceListParams,
     buildManagedSoftResourceListParams,
     fetchResourceListPageWithResilience,
+    getServerResourceListSearchQuery,
     RESOURCE_LIST_SEARCH_DEBOUNCE_MS,
     shouldUseFullResourceDataset,
     settleResourceListRequest,
@@ -58,6 +59,10 @@ import {
     buildResourceLoadFailureMessage,
     getManagedResourceListStatus,
 } from '../../lib/resourceLoadState.js';
+import {
+    matchesResourceSearchGroups,
+    parseResourceSearchGroups,
+} from '../../lib/resourceSearch.js';
 import {
     canAccessManagedResources,
     getHardAssetStaffAccessIds,
@@ -431,54 +436,6 @@ function getTemplateHostOptions(template, hardAssets, subregions) {
     });
 }
 
-function normalizeResourceSearchText(value) {
-    return String(value || '')
-        .trim()
-        .toLowerCase()
-        .replace(/[()[\]{}]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-function parseResourceSearchGroups(value) {
-    const groupSeen = new Set();
-    const groups = [];
-
-    for (const rawGroup of String(value || '').split('/')) {
-        const phraseSeen = new Set();
-        const phrases = rawGroup
-            .split(',')
-            .map((phrase) => normalizeResourceSearchText(phrase))
-            .filter((phrase) => {
-                if (!phrase || phraseSeen.has(phrase)) return false;
-                phraseSeen.add(phrase);
-                return true;
-            });
-
-        if (phrases.length === 0) continue;
-
-        const groupKey = phrases.join(' && ');
-        if (groupSeen.has(groupKey)) continue;
-        groupSeen.add(groupKey);
-        groups.push(phrases);
-    }
-
-    return groups;
-}
-
-function buildResourceSearchTerms(terms) {
-    return terms
-        .flatMap((term) => (Array.isArray(term) ? term : [term]))
-        .map((term) => normalizeResourceSearchText(term))
-        .filter(Boolean);
-}
-
-function matchesResourceSearchGroups(terms, groups) {
-    if (groups.length === 0) return true;
-    const normalizedTerms = buildResourceSearchTerms(terms);
-    return groups.some((group) => group.every((phrase) => normalizedTerms.some((term) => term.includes(phrase))));
-}
-
 function filterAssetWithQuery(asset, query, boundaryChecksEnabled, boundaryFilter) {
     if (boundaryChecksEnabled && boundaryFilter !== 'all' && getAssetBoundaryStatus(asset) !== boundaryFilter) {
         return false;
@@ -714,6 +671,7 @@ export default function ResourcesPage() {
     const boundaryChecksEnabled = normalizedRole === 'regional_admin' || normalizedRole === 'partner' || partnerStaffLegacyPartnerIds.length > 0;
     const deferredSearchTerm = useDeferredValue(debouncedSearchTerm);
     const normalizedQuery = deferredSearchTerm.trim().toLowerCase();
+    const serverResourceSearchQuery = getServerResourceListSearchQuery(normalizedQuery);
     const needsFullAssetDataset = shouldUseFullResourceDataset({
         query: normalizedQuery,
         boundaryChecksEnabled,
@@ -733,8 +691,10 @@ export default function ResourcesPage() {
     });
     const groupMemberHardCandidateParams = buildGroupMemberCandidateListParams({ assetType: 'hard' });
     const groupMemberSoftCandidateParams = buildGroupMemberCandidateListParams({ assetType: 'soft' });
-    const fullHardResourceListParams = withResourceListSearchParam(hardResourceListParams, normalizedQuery);
-    const fullSoftResourceListParams = withResourceListSearchParam(softResourceListParams, normalizedQuery);
+    const fullHardResourceListParams = withResourceListSearchParam(hardResourceListParams, serverResourceSearchQuery);
+    const fullSoftResourceListParams = withResourceListSearchParam(softResourceListParams, serverResourceSearchQuery);
+    const pagedHardResourceListParams = withResourceListSearchParam(hardResourceListParams, serverResourceSearchQuery);
+    const pagedSoftResourceListParams = withResourceListSearchParam(softResourceListParams, serverResourceSearchQuery);
     const assetLoadKey = useMemo(() => (
         needsFullAssetDataset
             ? ['full', normalizedQuery, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
@@ -808,14 +768,14 @@ export default function ResourcesPage() {
             ? fetchAllPaginatedResults(api.getHardAssets, fullHardResourceListParams)
             : fetchResourceListPageWithResilience(
                 api.getHardAssets,
-                { ...hardResourceListParams, q: normalizedQuery },
+                pagedHardResourceListParams,
                 { page: hardAssetsPage, pageSize: hardAssetsPageSize },
             );
         const softAssetsRequest = needsFullAssetDataset
             ? fetchAllPaginatedResults(api.getSoftAssets, fullSoftResourceListParams)
             : fetchResourceListPageWithResilience(
                 api.getSoftAssets,
-                { ...softResourceListParams, q: normalizedQuery },
+                pagedSoftResourceListParams,
                 { page: softAssetsPage, pageSize: softAssetsPageSize },
             );
 
@@ -878,11 +838,10 @@ export default function ResourcesPage() {
 
             const softResponse = normalizePaginatedResponse(result.value || [], softAssetsPageSize);
             const softData = softResponse.data || [];
-            const groupData = await fetchAllPaginatedResults(api.getSoftAssets, {
+            const groupData = await fetchAllPaginatedResults(api.getSoftAssets, withResourceListSearchParam({
                 ...softResourceListParams,
                 assetMode: 'group',
-                q: normalizedQuery,
-            }).catch(() => []);
+            }, serverResourceSearchQuery)).catch(() => []);
             const groupIds = new Set((Array.isArray(groupData) ? groupData : []).map((asset) => Number(asset.id)).filter(Number.isInteger));
             const mergedSoftData = [
                 ...softData.filter((asset) => !groupIds.has(Number(asset.id))),
@@ -2079,13 +2038,15 @@ export default function ResourcesPage() {
             <div className="relative mb-6">
                 <div className="flex flex-col gap-3 xl:flex-row">
                     <div className="relative max-w-md flex-1">
-                        <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex w-12 items-center justify-center text-slate-400">
+                            <Search size={19} strokeWidth={2.25} />
+                        </span>
                         <input
                             type="search"
                             placeholder={searchPlaceholder}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full rounded-xl border-2 border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm font-medium text-slate-900 transition-all focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            className="min-h-[44px] w-full rounded-xl border-2 border-slate-200 bg-white py-2.5 pl-12 pr-3 text-sm font-medium leading-6 text-slate-900 transition-all focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
                         />
                     </div>
                     {showManagedAreaFilter ? (

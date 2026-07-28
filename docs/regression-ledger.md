@@ -94,6 +94,38 @@ Rules:
   full server coverage passed 487/487 with `npm run test:server`; and
   `git diff --check` passed.
 
+## 2026-07-28 Manage Resources search operator and search bar polish
+
+- Current behavior: Manage Resources keeps simple searches paginated and
+  server-filtered, but Discovery-style operator searches such as `rn,rc` and
+  `rn/rc` now load the scoped managed dataset without sending the operator
+  query as a literal server `q` value. Client-side Manage Resources search then
+  applies comma groups as AND and slash groups as OR across Place, Offering,
+  Group, and Template list text. Filtered workbook export keeps the established
+  server-filtered path for simple Place searches and uses ordered ids for
+  client-only operator searches. The Manage Resources search icon is centered
+  in a fixed full-height icon slot so it stays aligned with the input text.
+- Known-good reference: branch `codex/manage-resources-search-polish`, based
+  on `64502aa3a`. The change is client-only and does not alter server search
+  utilities, workbook schemas, access-control rules, Discover ranking, public
+  visibility, My Directory, My Maps, map behavior, imports, or production data.
+- Reproduction steps: sign in as a user with Manage Resources access, open
+  `/dashboard/resources`, search Places for `rn,rc`, and confirm Resident
+  Network / Residents' Committee rows are returned instead of an empty literal
+  `rn,rc` result. Search `rn/rc` and confirm either phrase can match. Confirm a
+  simple search such as `frcs` still uses the normal server-filtered list and
+  filtered workbook export remains available.
+- Acceptance criteria: comma-separated phrases must all match within at least
+  one searchable field group, slash-separated groups must match as alternatives,
+  repeated or empty operators must not break the search, managed-resource
+  scoping must remain enforced before any client-side filtering, and the search
+  icon must remain vertically centered across normal and larger text settings.
+- Verification result before deploy: focused client coverage passed 16/16 with
+  `node --test client/test/resourceListLoading.test.js client/test/resourceSearch.test.js`;
+  `npm run build:client` passed with the established large-chunk advisory;
+  full server coverage passed 487/487 with `npm run test:server`; and
+  `git diff --check` passed.
+
 ## 2026-07-27 Owner Full map Print layer controls
 
 - Current behavior: a signed-in map owner on a desktop-capable Print View can

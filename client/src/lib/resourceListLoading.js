@@ -3,13 +3,22 @@ import { fetchPaginatedResultPage } from './paginatedResults.js';
 export const RESOURCE_LIST_PAGE_LOAD_ATTEMPTS = 3;
 export const RESOURCE_LIST_SEARCH_DEBOUNCE_MS = 350;
 
+export function hasClientOnlyResourceSearchOperators(query = '') {
+    return /[,/]/.test(String(query || '').trim());
+}
+
+export function getServerResourceListSearchQuery(query = '') {
+    const normalizedQuery = String(query || '').trim();
+    return hasClientOnlyResourceSearchOperators(normalizedQuery) ? '' : normalizedQuery;
+}
+
 export function shouldUseFullResourceDataset({
     query = '',
     boundaryChecksEnabled = false,
     boundaryFilter = 'all',
 } = {}) {
     const normalizedQuery = String(query || '').trim();
-    const hasClientOnlySearchOperators = /[,/]/.test(normalizedQuery);
+    const hasClientOnlySearchOperators = hasClientOnlyResourceSearchOperators(normalizedQuery);
     const hasClientBoundaryFilter = Boolean(boundaryChecksEnabled) && boundaryFilter !== 'all';
     return hasClientOnlySearchOperators || hasClientBoundaryFilter;
 }

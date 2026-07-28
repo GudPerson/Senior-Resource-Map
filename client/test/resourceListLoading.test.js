@@ -8,6 +8,8 @@ import {
     buildManagedResourceListParams,
     buildManagedSoftResourceListParams,
     fetchResourceListPageWithResilience,
+    getServerResourceListSearchQuery,
+    hasClientOnlyResourceSearchOperators,
     RESOURCE_LIST_SEARCH_DEBOUNCE_MS,
     settleResourceListRequest,
     shouldHydrateAllAdminResourcePages,
@@ -156,6 +158,31 @@ test('withResourceListSearchParam scopes full dataset loads to the active search
         scope: 'managed',
         regionScoped: true,
     });
+});
+
+test('Discovery-style Manage Resources operators stay client-side instead of literal server q', () => {
+    assert.equal(hasClientOnlyResourceSearchOperators('rn, rc'), true);
+    assert.equal(hasClientOnlyResourceSearchOperators('rn / rc'), true);
+    assert.equal(hasClientOnlyResourceSearchOperators('frcs'), false);
+    assert.equal(getServerResourceListSearchQuery(' frcs '), 'frcs');
+    assert.equal(getServerResourceListSearchQuery(' rn, rc '), '');
+    assert.equal(getServerResourceListSearchQuery(' rn / rc '), '');
+
+    assert.deepEqual(withResourceListSearchParam({
+        scope: 'managed',
+        summary: true,
+    }, getServerResourceListSearchQuery('rn, rc')), {
+        scope: 'managed',
+        summary: true,
+    });
+});
+
+test('ResourcesPage loads operator searches without narrowing the server q first', () => {
+    assert.match(resourcesPageSource, /const serverResourceSearchQuery = getServerResourceListSearchQuery\(normalizedQuery\);/);
+    assert.match(resourcesPageSource, /withResourceListSearchParam\(hardResourceListParams, serverResourceSearchQuery\)/);
+    assert.match(resourcesPageSource, /withResourceListSearchParam\(softResourceListParams, serverResourceSearchQuery\)/);
+    assert.match(resourcesPageSource, /withResourceListSearchParam\(\{\s*\.\.\.softResourceListParams,\s*assetMode: 'group',\s*\}, serverResourceSearchQuery\)/);
+    assert.doesNotMatch(resourcesPageSource, /q: normalizedQuery/);
 });
 
 test('server-filtered places workbook export avoids browser-side full pagination', () => {
