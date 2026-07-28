@@ -226,6 +226,9 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(toolbarSource, /Cancel tool/);
     assert.match(toolbarSource, /data-print-annotation-helper/);
     assert.match(toolbarSource, /Choose custom shape colour/);
+    assert.match(toolbarSource, /aria-label="Shape colour picker"/);
+    assert.match(toolbarSource, /data-print-annotation-shape-color-picker="true"/);
+    assert.match(toolbarSource, /\{activeStyle\.color\}/);
     assert.match(toolbarSource, /Text colour/);
     assert.match(toolbarSource, /Font size/);
     assert.match(toolbarSource, /Bring forward/);

@@ -200,6 +200,17 @@ Rules:
   passed 62/62; full server coverage passed 481/481; and the exact four-root
   production client build passed with only the established large-chunk
   advisory.
+- 2026-07-28 custom shape-colour picker recovery: the existing custom
+  shape-colour input is now a clearly labelled `Custom` control that shows the
+  current swatch and hexadecimal value. Preset shape colours, separate text
+  colour, outline/fill coupling, saved annotation styles, and the annotation
+  document schema are unchanged. Authenticated Chrome UAT on map 258 confirmed
+  the control rendered inside the Full-map annotation toolbar as `Custom
+  #0F766E`, remained fully contained, and retained its accessible `Shape colour
+  picker` label. Focused annotation coverage passed 8/8; map-lockdown coverage
+  passed 62/62; full server coverage passed 481/481; `git diff --check` passed;
+  and the exact four-root production client build passed with only the
+  established large-chunk advisory.
 - Polygon smoothing and road-snap removal rollback: the rounded display path is
   isolated in `client/src/lib/printAnnotations.js` and can be removed without
   changing saved geometry. Full annotation rollback removes the annotation API

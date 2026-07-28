@@ -244,13 +244,23 @@ export default function PrintAnnotationToolbar({
                         />
                     ))}
                     <label
-                        className="relative flex h-7 w-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-white shadow-sm ring-1 ring-slate-200"
+                        className="relative flex h-8 min-w-[126px] cursor-pointer items-center gap-2 overflow-hidden rounded-md border border-slate-200 bg-white px-2 text-xs font-bold text-slate-600 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
                         title="Choose custom shape colour"
-                        aria-label="Choose custom shape colour"
                     >
+                        <span
+                            className="h-4 w-4 shrink-0 rounded border border-slate-300"
+                            style={{ backgroundColor: activeStyle.color }}
+                            aria-hidden="true"
+                        />
+                        <span>Custom</span>
+                        <span className="ml-auto font-mono text-[10px] text-slate-500">
+                            {activeStyle.color}
+                        </span>
                         <input
                             type="color"
                             value={activeStyle.color}
+                            aria-label="Shape colour picker"
+                            data-print-annotation-shape-color-picker="true"
                             onChange={(event) => {
                                 const color = event.target.value.toUpperCase();
                                 if (selectedAnnotation) {
@@ -274,7 +284,7 @@ export default function PrintAnnotationToolbar({
                                     },
                                 });
                             }}
-                            className="absolute inset-[-8px] h-12 w-12 cursor-pointer border-0 p-0"
+                            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                         />
                     </label>
                 </div>
