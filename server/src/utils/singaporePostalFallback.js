@@ -1,6 +1,7 @@
 import { eq, or } from 'drizzle-orm';
 
 import { subregionPostalCodes, subregions } from '../db/schema.js';
+import { normalizeContextLocation } from './discoveryLocationContext.js';
 import { normalizePostalCode } from './postalBoundaries.js';
 import { normalizeRole } from './roles.js';
 
@@ -21,6 +22,15 @@ function getExactOneMapResult(payload, postalCode) {
     return results.find((result) => normalizePostalCode(result?.POSTAL) === postalCode) || null;
 }
 
+function normalizeKnownSingaporeLocation(location) {
+    const normalized = normalizeContextLocation(location);
+    if (!normalized) return null;
+    return {
+        ...normalized,
+        address: String(location?.address || '').trim(),
+    };
+}
+
 export async function validateSingaporePostalCodeWithOneMap(rawPostalCode, fetchImpl = fetch) {
     const postalCode = normalizePostalCode(rawPostalCode);
     if (!postalCode) {
@@ -33,7 +43,13 @@ export async function validateSingaporePostalCodeWithOneMap(rawPostalCode, fetch
         throw new Error(`Could not validate Singapore postal code with OneMap (${status}).`);
     }
 
-    const payload = await response.json();
+    let payload;
+    try {
+        payload = await response.json();
+    } catch {
+        throw new Error('Could not validate Singapore postal code with OneMap (invalid response).');
+    }
+
     const result = getExactOneMapResult(payload, postalCode);
     if (!result) {
         return { valid: false, postalCode, reason: 'not_found' };
@@ -104,6 +120,19 @@ export async function resolveSingaporePostalFallback(db, rawPostalCode, actor, o
     const singaporeRegion = await loadSingaporeFallbackRegion(db);
     if (!singaporeRegion || !actorCanUseSingaporeFallbackRegion(actor, singaporeRegion.id)) {
         return null;
+    }
+
+    const knownLocation = normalizeKnownSingaporeLocation(options.knownLocation);
+    if (knownLocation) {
+        await cacheSingaporePostalCode(db, singaporeRegion.id, postalCode);
+
+        return {
+            subregion: singaporeRegion,
+            matches: [singaporeRegion],
+            ambiguous: false,
+            fallbackUsed: true,
+            oneMapLocation: knownLocation,
+        };
     }
 
     const validation = await validateSingaporePostalCodeWithOneMap(postalCode, options.fetchImpl || fetch);

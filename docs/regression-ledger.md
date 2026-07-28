@@ -62,6 +62,25 @@ Rules:
   full server coverage passed 483/483 with `npm run test:server`;
   `npm run build:client` passed with only the established large-chunk advisory;
   and `git diff --check` passed.
+- 2026-07-28 postal fallback follow-up: production UAT of the 1,093-row
+  `Enriched_CareAround_RC_RN_list_import_ready.csv` showed 1,068 Places
+  created/updated, then rejected 25 rows. The leading-zero Singapore postals
+  were being parsed from CSV numeric cells as five-digit numbers such as
+  `50034`, `80006`, and `90005`; Places workbook parsing now normalizes
+  `postalCode` cells through the shared postal-code normalizer before subregion
+  lookup and import reporting. Valid SG Places rows that already include
+  Singapore-bounds latitude/longitude can use the Singapore fallback region and
+  cache the postal code without another live OneMap call, keeping the stricter
+  live OneMap fallback for imported rows without trusted coordinates. OneMap
+  non-JSON responses now produce clean validation/geocoding errors instead of
+  raw JSON parser text. Verification passed focused coverage with
+  `node --test server/test/workbookSecurity.test.js server/test/singaporePostalFallback.test.js server/test/workbookImportSubrequestBudgetSource.test.js`;
+  full server coverage passed 486/486 with `npm run test:server`; and
+  `git diff --check` passed. A local parser probe against
+  `Enriched_CareAround_RC_RN_list_import_ready.csv` kept the affected
+  leading-zero rows as `050034`, `050538`, `080006`, `080012`, `080104`,
+  `080333`, `081004`, `085701`, `088995`, `089774`, `090005`, `090022`,
+  `090034`, `090108`, `090114`, and `098917`.
 
 ## 2026-07-27 Owner Full map Print layer controls
 

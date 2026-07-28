@@ -30,6 +30,8 @@ test('Places workbook import keeps database prefetches and cache refreshes bound
     assert.doesNotMatch(placesImport, /UPSERT_BATCH_SIZE = 100/);
     assert.match(placesImport, /PLACE_IMPORT_PREFETCH_BATCH_SIZE/);
     assert.match(placesImport, /PLACE_IMPORT_UPSERT_BATCH_SIZE/);
+    assert.match(placesImport, /normalizePostalCode\(row\.postalCode\) \|\| normalizeText\(row\.postalCode\)/);
+    assert.match(placesImport, /knownLocation/);
     assert.match(placesImport, /scheduleCacheRebuild/);
     assert.match(placesImport, /rebuildPlaceImportMapCaches/);
     assert.match(importerDispatcher, /scheduleWorkbookPostImportTask/);

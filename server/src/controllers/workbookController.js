@@ -45,6 +45,7 @@ import {
 import { normalizeRole } from '../utils/roles.js';
 import { actorCanManageAsset, actorCanManagePartnerOwnedEntity, canAssignPartnerOwner } from '../utils/ownership.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
+import { normalizePostalCode } from '../utils/postalBoundaries.js';
 import { resolveSingleSubregionByPostal } from '../utils/subregionRouting.js';
 import { resolveSingaporePostalFallback } from '../utils/singaporePostalFallback.js';
 import { syncAssetTags } from '../utils/tags.js';
@@ -293,6 +294,13 @@ function chunkArray(values, size = 500) {
 
 function normalizeHeader(value) {
     return normalizeText(value).replace(/\*/g, '').replace(/[^a-z0-9]+/gi, '').toLowerCase();
+}
+
+function normalizeWorkbookMappedValue(key, value) {
+    if (key === 'postalCode') {
+        return normalizePostalCode(value) || normalizeText(value);
+    }
+    return value;
 }
 
 function getWorkbookFormat(fileName) {
@@ -650,7 +658,7 @@ export async function parseWorkbookRows(file, resourceType) {
         const mapped = { __rowNumber: index + 2 };
         canonicalHeaders.forEach((key, cellIndex) => {
             if (!key) return;
-            mapped[key] = row[cellIndex];
+            mapped[key] = normalizeWorkbookMappedValue(key, row[cellIndex]);
         });
         return mapped;
     }).filter((row) => Object.entries(row).some(([key, value]) => key !== '__rowNumber' && normalizeText(value) !== ''));
@@ -932,7 +940,18 @@ function patchHasEffectiveChanges(current, patch) {
 
 async function geocodePostalCode(postalCode, country = 'SG') {
     const response = await fetch(`https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${encodeURIComponent(postalCode)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`);
-    const data = await response.json();
+    if (!response?.ok) {
+        const status = response?.status || 'unknown';
+        throw new Error(`Could not geocode postal code "${postalCode}" in "${country}" with OneMap (${status}).`);
+    }
+
+    let data;
+    try {
+        data = await response.json();
+    } catch {
+        throw new Error(`Could not geocode postal code "${postalCode}" in "${country}" with OneMap (invalid response).`);
+    }
+
     if (data?.results?.length) {
         return {
             lat: parseFloat(data.results[0].LATITUDE),
@@ -1491,7 +1510,7 @@ async function importPlaces(db, actor, rows, references, env, options = {}) {
         if (countryCode.length > 2) countryCode = countryCode.substring(0, 2).toUpperCase();
         
         const country = countryCode;
-        const postalCode = normalizeText(row.postalCode);
+        const postalCode = normalizePostalCode(row.postalCode) || normalizeText(row.postalCode);
         const externalKey = normalizeText(row.externalKey);
         const ownershipMode = normalizeOwnershipModeValue(row.ownershipMode);
         
@@ -1573,7 +1592,13 @@ async function importPlaces(db, actor, rows, references, env, options = {}) {
             let derivedSubregion = subregionMap.get(postalCode);
             if (!derivedSubregion) {
                 const fallback = country === 'SG'
-                    ? await resolveSingaporePostalFallback(db, postalCode, actor)
+                    ? await resolveSingaporePostalFallback(db, postalCode, actor, {
+                        knownLocation: {
+                            lat: row.lat,
+                            lng: row.lng,
+                            address,
+                        },
+                    })
                     : null;
                 if (!fallback) {
                     throw new Error(`Postal code ${postalCode} does not match any configured subregion.`);

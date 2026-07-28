@@ -75,6 +75,13 @@ test('OneMap validation rejects a response that does not contain the requested p
     });
 });
 
+test('OneMap validation reports non-JSON responses cleanly', async () => {
+    await assert.rejects(
+        () => validateSingaporePostalCodeWithOneMap('822211', async () => new Response('<html></html>')),
+        /Could not validate Singapore postal code with OneMap \(invalid response\)/,
+    );
+});
+
 test('Singapore fallback is available only to Super Admins or actors scoped to SG', () => {
     assert.equal(actorCanUseSingaporeFallbackRegion({ role: 'super_admin', subregionIds: [] }, 186), true);
     assert.equal(actorCanUseSingaporeFallbackRegion({ role: 'regional_admin', subregionIds: [186] }, 186), true);
@@ -101,6 +108,32 @@ test('Singapore fallback caches a valid postal code into the Singapore Region', 
         lat: 1.38572932197005,
         lng: 103.892595434586,
         address: '279C SENGKANG EAST AVENUE COMPASSVALE ANCILLA SINGAPORE 543279',
+    });
+});
+
+test('Singapore fallback can use trusted import coordinates without calling OneMap', async () => {
+    const db = createFallbackDb();
+    let oneMapCalled = false;
+    const result = await resolveSingaporePostalFallback(db, 399479, { role: 'super_admin', subregionIds: [] }, {
+        knownLocation: {
+            lat: '1.323587536',
+            lng: '103.8844586',
+            address: '35 Jalan Satu',
+        },
+        fetchImpl: async () => {
+            oneMapCalled = true;
+            return jsonResponse({ results: [] });
+        },
+    });
+
+    assert.equal(oneMapCalled, false);
+    assert.equal(result.subregion.id, 186);
+    assert.equal(result.fallbackUsed, true);
+    assert.deepEqual(db.inserted, [{ subregionId: 186, postalCode: '399479' }]);
+    assert.deepEqual(result.oneMapLocation, {
+        lat: 1.323587536,
+        lng: 103.8844586,
+        address: '35 Jalan Satu',
     });
 });
 

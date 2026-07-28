@@ -87,6 +87,15 @@ test('workbook import accepts template-shaped xlsx rows after parser hardening',
     assert.equal(rows[0].name, 'Test Place');
 });
 
+test('workbook parser preserves leading-zero postal codes from CSV numeric cells', async () => {
+    const file = mockUpload('places.csv', buildPlacesCsv(['place-1,Lead Zero Place,SG,050034,system']));
+
+    const rows = await parseWorkbookRows(file, 'places');
+
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].postalCode, '050034');
+});
+
 test('workbook parser preserves WhatsApp contact fields across resource sheets', async () => {
     const placeFile = mockUpload('places.csv', [
         'externalKey,name,country,postalCode,ownershipMode,whatsappContact',
