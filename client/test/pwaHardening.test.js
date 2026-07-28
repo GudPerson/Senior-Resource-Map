@@ -144,6 +144,15 @@ test('service worker keeps API/auth traffic network-owned and uses offline fallb
     assert.doesNotMatch(serviceWorkerSource, /\/auth\/me/);
 });
 
+test('service worker retires stale asset caches and never stores HTML fallbacks as assets', () => {
+    assert.match(serviceWorkerSource, /const CACHE_VERSION = 'v2'/);
+    assert.match(serviceWorkerSource, /function isHtmlAssetResponse\(url, response\)/);
+    assert.match(serviceWorkerSource, /url\.pathname\.startsWith\('\/assets\/'\)/);
+    assert.match(serviceWorkerSource, /content-type[\s\S]*text\/html/);
+    assert.match(serviceWorkerSource, /cached && !isHtmlAssetResponse\(url, cached\)/);
+    assert.match(serviceWorkerSource, /response\?\.ok && !isHtmlAssetResponse\(url, response\)/);
+});
+
 test('offline and delivery files are present and service worker updates are not cached by Cloudflare Pages', () => {
     assert.match(offlineSource, /You are offline/);
     assert.match(offlineSource, /CareAround SG needs a connection/);

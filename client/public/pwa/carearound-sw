@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'carearound-pwa';
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `${CACHE_PREFIX}:${CACHE_VERSION}:static`;
 const OFFLINE_URL = '/offline';
 const PRECACHE_URLS = [
@@ -30,11 +30,18 @@ function isCacheableStaticRequest(url) {
         || url.pathname === '/icon-512.png';
 }
 
+function isHtmlAssetResponse(url, response) {
+    return url.pathname.startsWith('/assets/')
+        && (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
+}
+
 async function cacheFirst(request) {
+    const url = new URL(request.url);
     const cached = await caches.match(request);
-    if (cached) return cached;
+    if (cached && !isHtmlAssetResponse(url, cached)) return cached;
+
     const response = await fetch(request);
-    if (response?.ok) {
+    if (response?.ok && !isHtmlAssetResponse(url, response)) {
         const cache = await caches.open(STATIC_CACHE);
         await cache.put(request, response.clone());
     }
