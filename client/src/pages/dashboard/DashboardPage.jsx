@@ -8,6 +8,8 @@ import { DEFAULT_LOCALE } from '../../lib/i18n.js';
 import { isStandardUserRole } from '../../lib/roles.js';
 import { DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME, DashboardMobileNavigation, DashboardSidebar, getDashboardSectionLabel } from '../../components/dashboard/DashboardNavigation.jsx';
 
+const DASHBOARD_ROUTE_CACHE_VERSION = '2026-07-28.2';
+
 export default function DashboardPage() {
     const { user, login, logout, isImpersonating } = useAuth();
     const { locale, t } = useLocale();
@@ -84,7 +86,7 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="flex min-h-[calc(100vh-4rem)] bg-slate-50">
+        <div className="flex min-h-[calc(100vh-4rem)] bg-slate-50" data-route-cache-version={DASHBOARD_ROUTE_CACHE_VERSION}>
             <aside className={DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME}>
                 <DashboardSidebar
                     isImpersonating={isImpersonating}

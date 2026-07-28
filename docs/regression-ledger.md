@@ -3456,6 +3456,17 @@ Active next recovery family:
   the configured retry, and the partner-dashboard target then passed 1/1 on a
   clean rerun. No Worker/API, schema, auth, service-worker, map asset,
   visibility, saved-resource, or production-data change was deployed.
+- 2026-07-28 dashboard route chunk cache recovery: production `/dashboard` and
+  authenticated dashboard children showed the route-level `Please refresh this
+  page` fallback after the custom domain cached an HTML fallback response for
+  the small lazy route chunk `DashboardPage-CUfZFdEy.js`. The dashboard shell now
+  carries an invisible `data-route-cache-version="2026-07-28.2"` marker solely
+  to rotate the lazy chunk URL and avoid the poisoned edge object. Acceptance
+  requires `/dashboard`, `/dashboard/resources`, and `/dashboard/admin` to load
+  the dashboard shell from a fresh JavaScript chunk on the custom domain, with
+  no auth, API, visibility, import, search, map, or production-data behavior
+  changed. Verification before deploy: production-configured client build
+  passed and emitted `DashboardPage-DkhdC3d6.js`.
 
 ## Recovery workflow
 
