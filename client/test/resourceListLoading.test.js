@@ -11,6 +11,7 @@ import {
     buildManagedSoftResourceListParams,
     fetchResourceListPageWithResilience,
     getServerResourceListSearchQuery,
+    hasLoadedSubregionPostalCoverage,
     hasClientOnlyResourceSearchOperators,
     RESOURCE_LIST_SEARCH_DEBOUNCE_MS,
     settleResourceListRequest,
@@ -159,6 +160,17 @@ test('resource list search debounce has a bounded demo-friendly delay', () => {
     assert.equal(RESOURCE_LIST_SEARCH_DEBOUNCE_MS, 350);
 });
 
+test('subregion postal coverage distinguishes lightweight metadata from detailed data', () => {
+    assert.equal(hasLoadedSubregionPostalCoverage([]), false);
+    assert.equal(hasLoadedSubregionPostalCoverage([
+        { id: 1, postalCodeCount: 2, postalCodesList: [] },
+    ]), false);
+    assert.equal(hasLoadedSubregionPostalCoverage([
+        { id: 1, postalCodeCount: 2, postalCodesList: ['521232', '542175'] },
+        { id: 2, postalCodeCount: 0, postalCodesList: [] },
+    ]), true);
+});
+
 test('admin resource loads do not eagerly hydrate every resource page', () => {
     assert.equal(shouldHydrateAllAdminResourcePages({ role: 'regional_admin' }), false);
     assert.equal(shouldHydrateAllAdminResourcePages({ role: 'super_admin' }), true);
@@ -231,10 +243,37 @@ test('membership drawer hydrates one hard asset instead of relying on list summa
 
     assert.match(membershipDrawerSource, /api\.generateHardAssetMembershipQr\(asset\.id\)/);
     assert.match(membershipDrawerSource, /api\.getHardAsset\(asset\.id\)/);
+    assert.match(membershipDrawerSource, /ensureDetailedSubregions\(\)/);
     assert.match(resourcesPageSource, /const canShowMembers = typeof activeInlineHardAsset\.membershipCount === 'number';/);
     assert.match(resourcesPageSource, /activeInlineHardAsset\.memberPreview\.map/);
     assert.doesNotMatch(resourcesPageSource, /asset\.membershipCount/);
     assert.doesNotMatch(resourcesPageSource, /asset\.memberPreview/);
+});
+
+test('ResourcesPage defers full postal coverage until a place workflow needs it', () => {
+    const metadataSource = sourceBetween(
+        resourcesPageSource,
+        'async function loadResourceMetadata()',
+        'async function ensureDetailedSubregions()',
+    );
+    const detailedSource = sourceBetween(
+        resourcesPageSource,
+        'async function ensureDetailedSubregions()',
+        'useEffect(() => {',
+    );
+
+    assert.match(metadataSource, /api\.getSubregions\(\{ includePostalCodes: false \}\)/);
+    assert.match(detailedSource, /api\.getSubregions\(\)/);
+    assert.match(resourcesPageSource, /await ensureDetailedSubregions\(\)/);
+});
+
+test('managed Places, Offerings, and Groups expose the shared saved-resource control', () => {
+    assert.match(resourcesPageSource, /import SaveAssetButton from '\.\.\/\.\.\/components\/SaveAssetButton\.jsx';/);
+    assert.match(resourcesPageSource, /resourceType="hard"[\s\S]{0,240}buildManagedSavedAssetSummary\(asset, 'hard'\)/);
+    assert.ok(
+        (resourcesPageSource.match(/resourceType="soft"/g) || []).length >= 2,
+        'Expected saved-resource controls for managed Offerings and Groups',
+    );
 });
 
 test('server-filtered places workbook export avoids browser-side full pagination', () => {

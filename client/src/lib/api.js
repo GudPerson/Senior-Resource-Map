@@ -90,6 +90,7 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
         suppressAuthExpired = false,
         keepalive = false,
         headers = {},
+        signal,
     } = options;
     const canRetryAcrossBases = method === 'GET' || method === 'HEAD';
     const canUseFallbackBase = canRetryAcrossBases && canRetryAcrossBasesForPath(path);
@@ -108,12 +109,14 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
                     method,
                     headers: buildRequestHeaders(method, headers, body !== undefined),
                     credentials: 'include',
+                    ...(signal ? { signal } : {}),
                     ...(keepalive ? { keepalive: true } : {}),
                     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
                 });
                 break;
             } catch (err) {
                 lastNetworkError = err;
+                if (signal?.aborted) throw err;
                 if (attempt < attemptsForBase) {
                     await sleep(retryDelayMs * attempt);
                     continue;
@@ -313,13 +316,13 @@ export const api = {
     createImpersonationSession: (id) => request('POST', `/auth/impersonate/${id}`),
 
     // Hard Assets
-    getHardAssets: (params = {}) => {
+    getHardAssets: (params = {}, options = {}) => {
         const searchParams = new URLSearchParams();
         Object.entries(params).forEach(([key, value]) => {
             if (value !== undefined && value !== null) searchParams.append(key, value);
         });
         const qs = searchParams.toString();
-        return request('GET', `/hard-assets${qs ? `?${qs}` : ''}`);
+        return request('GET', `/hard-assets${qs ? `?${qs}` : ''}`, undefined, options);
     },
     getHardAsset: (id, options = {}) => request('GET', `/hard-assets/${id}`, undefined, options),
     createHardAsset: (body) => request('POST', '/hard-assets', body),
@@ -336,13 +339,13 @@ export const api = {
     revokeHardAssetStaff: (id, membershipId) => request('DELETE', `/hard-assets/${id}/staff/${membershipId}`),
 
     // Soft Assets
-    getSoftAssets: (params = {}) => {
+    getSoftAssets: (params = {}, options = {}) => {
         const searchParams = new URLSearchParams();
         Object.entries(params).forEach(([key, value]) => {
             if (value !== undefined && value !== null) searchParams.append(key, value);
         });
         const qs = searchParams.toString();
-        return request('GET', `/soft-assets${qs ? `?${qs}` : ''}`);
+        return request('GET', `/soft-assets${qs ? `?${qs}` : ''}`, undefined, options);
     },
     getSoftAsset: (id, options = {}) => request('GET', `/soft-assets/${id}`, undefined, options),
     createSoftAsset: (body) => request('POST', '/soft-assets', body),

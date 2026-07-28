@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     DEFAULT_RESOURCE_PAGE_TIMEOUT_MS,
     fetchAllPaginatedResults,
+    fetchPaginatedResultPage,
     fetchPaginatedResultsPartial,
 } from '../src/lib/paginatedResults.js';
 
@@ -100,4 +101,31 @@ test('fetchPaginatedResultsPartial keeps loaded pages when a later page fails', 
     assert.equal(result.pagination.isPartial, true);
     assert.deepEqual(result.pagination.failedPages, [3]);
     assert.deepEqual(result.data.map((item) => item.id), [1, 2, 4]);
+});
+
+test('timed-out resource pages abort once without multiplying retries', async () => {
+    let attempts = 0;
+    let aborts = 0;
+
+    await assert.rejects(
+        () => fetchPaginatedResultPage((_params, options = {}) => {
+            attempts += 1;
+            return new Promise((resolve, reject) => {
+                options.signal?.addEventListener('abort', () => {
+                    aborts += 1;
+                    const error = new Error('Aborted');
+                    error.name = 'AbortError';
+                    reject(error);
+                });
+            });
+        }, {}, {
+            maxAttempts: 3,
+            pageTimeoutMs: 10,
+            waitMs: async () => {},
+        }),
+        (error) => error?.code === 'RESOURCE_PAGE_TIMEOUT',
+    );
+
+    assert.equal(attempts, 1);
+    assert.equal(aborts, 1);
 });

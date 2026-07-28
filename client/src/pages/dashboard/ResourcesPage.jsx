@@ -35,6 +35,7 @@ import DirectoryQrCode from '../../components/DirectoryQrCode.jsx';
 import GroupAssetForm from '../../components/GroupAssetForm.jsx';
 import HardAssetImportWizard from '../../components/HardAssetImportWizard.jsx';
 import MarkdownLiteText from '../../components/MarkdownLiteText.jsx';
+import SaveAssetButton from '../../components/SaveAssetButton.jsx';
 import SoftAssetCollateralImportWizard from '../../components/SoftAssetCollateralImportWizard.jsx';
 import SoftAssetChildForm from '../../components/SoftAssetChildForm.jsx';
 import SoftAssetTemplateForm from '../../components/SoftAssetTemplateForm.jsx';
@@ -51,6 +52,7 @@ import {
     buildManagedResourceListParams,
     fetchResourceListPageWithResilience,
     getServerResourceListSearchQuery,
+    hasLoadedSubregionPostalCoverage,
     RESOURCE_LIST_SEARCH_DEBOUNCE_MS,
     shouldUseFullResourceDataset,
     settleResourceListRequest,
@@ -129,6 +131,21 @@ function formatFriendlyDate(value) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '';
     return date.toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function buildManagedSavedAssetSummary(asset, resourceType) {
+    const location = resourceType === 'hard'
+        ? asset
+        : (asset?.location || asset?.locations?.[0] || null);
+
+    return {
+        name: asset?.name,
+        subCategory: asset?.subCategory,
+        address: location?.address,
+        lat: location?.lat,
+        lng: location?.lng,
+        detailPath: `/resource/${resourceType}/${asset?.id}`,
+    };
 }
 
 function formatFreshnessStatus(value) {
@@ -608,6 +625,7 @@ export default function ResourcesPage() {
     const [templateDetails, setTemplateDetails] = useState({});
     const [templateLoadingIds, setTemplateLoadingIds] = useState([]);
     const [subregions, setSubregions] = useState([]);
+    const [subregionPostalLoading, setSubregionPostalLoading] = useState(false);
     const [partnerOptions, setPartnerOptions] = useState([]);
     const [accessUserOptions, setAccessUserOptions] = useState([]);
     const [partnerBoundary, setPartnerBoundary] = useState(null);
@@ -652,6 +670,7 @@ export default function ResourcesPage() {
     const [softAssetsPageSize] = useState(50);
     const loadRequestIdRef = useRef(0);
     const metadataRequestIdRef = useRef(0);
+    const subregionPostalLoadRef = useRef(null);
     const groupMemberCandidateRequestIdRef = useRef(0);
     const inlineActionDrawerRef = useRef(null);
 
@@ -943,12 +962,16 @@ export default function ResourcesPage() {
         setMetadataLoading(true);
 
         const coreMetadataRequest = Promise.all([
-            api.getSubregions().catch(() => []),
+            api.getSubregions({ includePostalCodes: false }).catch(() => []),
             api.getSoftAssetParents().catch(() => []),
             api.getAudienceZones().catch(() => []),
         ]).then(([fetchedSubregions, fetchedTemplates, fetchedAudienceZones]) => {
             if (requestId !== metadataRequestIdRef.current) return;
-            setSubregions(Array.isArray(fetchedSubregions) ? fetchedSubregions : []);
+            setSubregions((currentSubregions) => (
+                hasLoadedSubregionPostalCoverage(currentSubregions)
+                    ? currentSubregions
+                    : (Array.isArray(fetchedSubregions) ? fetchedSubregions : [])
+            ));
             setSoftAssetParents(Array.isArray(fetchedTemplates) ? fetchedTemplates : []);
             setAudienceZones(Array.isArray(fetchedAudienceZones) ? fetchedAudienceZones : []);
             setResourceLoadErrors((prev) => ({ ...prev, templates: null }));
@@ -998,6 +1021,35 @@ export default function ResourcesPage() {
         }
 
         await coreMetadataRequest;
+    }
+
+    async function ensureDetailedSubregions() {
+        if (hasLoadedSubregionPostalCoverage(subregions)) {
+            return subregions;
+        }
+        if (subregionPostalLoadRef.current) {
+            return subregionPostalLoadRef.current;
+        }
+
+        setSubregionPostalLoading(true);
+        const request = api.getSubregions()
+            .then((fetchedSubregions) => {
+                const detailedSubregions = Array.isArray(fetchedSubregions) ? fetchedSubregions : [];
+                if (!hasLoadedSubregionPostalCoverage(detailedSubregions)) {
+                    throw new Error('Detailed postal coverage could not be loaded.');
+                }
+                setSubregions(detailedSubregions);
+                return detailedSubregions;
+            })
+            .finally(() => {
+                if (subregionPostalLoadRef.current === request) {
+                    subregionPostalLoadRef.current = null;
+                    setSubregionPostalLoading(false);
+                }
+            });
+
+        subregionPostalLoadRef.current = request;
+        return request;
     }
 
     useEffect(() => {
@@ -1345,6 +1397,7 @@ export default function ResourcesPage() {
                     console.error('Failed to load membership details', error);
                     return asset;
                 }),
+                ensureDetailedSubregions(),
             ]);
             setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'qr' ? {
                 ...prev,
@@ -1431,14 +1484,14 @@ export default function ResourcesPage() {
 
     async function openEdit(asset, assetType) {
         if (assetType === 'hard') {
-            if (canOpenHardAssetEditorFromSummary(asset)) {
-                setInlineAction({ id: asset.id, type: 'edit', loading: false, asset });
-                return;
-            }
-
             setInlineAction({ id: asset.id, type: 'edit', loading: true, asset });
             try {
-                const fullAsset = await api.getHardAsset(asset.id);
+                const [fullAsset] = await Promise.all([
+                    canOpenHardAssetEditorFromSummary(asset)
+                        ? Promise.resolve(asset)
+                        : api.getHardAsset(asset.id),
+                    ensureDetailedSubregions(),
+                ]);
                 setInlineAction((prev) => (
                     prev?.id === asset.id && prev?.type === 'edit'
                         ? { ...prev, loading: false, asset: fullAsset }
@@ -1497,11 +1550,22 @@ export default function ResourcesPage() {
         }
     }
 
-    function openManualHardAssetCreate() {
+    async function openManualHardAssetCreate() {
         setPlaceCreateChooserOpen(false);
         setPlaceImportWizardOpen(false);
         setPlaceImportCloseGuard(null);
-        setAssetModal({ mode: 'create', assetType: 'hard', data: null });
+        setAssetModal({ mode: 'create', assetType: 'hard', data: null, loading: true });
+        try {
+            await ensureDetailedSubregions();
+            setAssetModal((prev) => (
+                prev?.mode === 'create' && prev?.assetType === 'hard'
+                    ? { ...prev, loading: false }
+                    : prev
+            ));
+        } catch (err) {
+            setAssetModal(null);
+            setActionNotice({ type: 'warning', message: err.message || 'Failed to load postal coverage.' });
+        }
     }
 
     async function closePlaceImportWizard({ force = false } = {}) {
@@ -1514,10 +1578,16 @@ export default function ResourcesPage() {
         return true;
     }
 
-    function openGooglePlaceImportWizard() {
+    async function openGooglePlaceImportWizard() {
         setPlaceCreateChooserOpen(false);
         setPlaceImportCloseGuard(null);
         setPlaceImportWizardOpen(true);
+        try {
+            await ensureDetailedSubregions();
+        } catch (err) {
+            setPlaceImportWizardOpen(false);
+            setActionNotice({ type: 'warning', message: err.message || 'Failed to load postal coverage.' });
+        }
     }
 
     async function openExistingImportedHardAsset(assetId) {
@@ -2304,6 +2374,14 @@ export default function ResourcesPage() {
                                                                 <GovernanceMetadata asset={asset} />
                                                             </div>
                                                         </div>
+                                                        <SaveAssetButton
+                                                            resourceId={asset.id}
+                                                            resourceType="hard"
+                                                            summary={buildManagedSavedAssetSummary(asset, 'hard')}
+                                                            variant="inspector"
+                                                            iconSize={16}
+                                                            className="shrink-0 bg-white"
+                                                        />
                                                     </div>
 
                                                     {(asset.subCategory || asset.tags?.length > 0 || hiddenStatus.hidden) ? (
@@ -2641,10 +2719,20 @@ export default function ResourcesPage() {
                                                         />
                                                     ) : null}
                                                 </div>
-                                                <span className="inline-flex items-center gap-1 rounded-md border border-brand-100 bg-brand-50 px-2 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-brand-700">
-                                                    <Layers3 size={13} />
-                                                    {readinessLabel}
-                                                </span>
+                                                <div className="flex shrink-0 items-center gap-2">
+                                                    <span className="inline-flex items-center gap-1 rounded-md border border-brand-100 bg-brand-50 px-2 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-brand-700">
+                                                        <Layers3 size={13} />
+                                                        {readinessLabel}
+                                                    </span>
+                                                    <SaveAssetButton
+                                                        resourceId={asset.id}
+                                                        resourceType="soft"
+                                                        summary={buildManagedSavedAssetSummary(asset, 'soft')}
+                                                        variant="inspector"
+                                                        iconSize={16}
+                                                        className="shrink-0 bg-white"
+                                                    />
+                                                </div>
                                             </div>
                                             <div className="mt-3 flex flex-wrap gap-1.5">
                                                 <HiddenBadge status={hiddenStatus} />
@@ -2742,7 +2830,7 @@ export default function ResourcesPage() {
                             return (
                                 <div key={asset.id} className="card flex flex-col items-start gap-4 p-5">
                                     <div className="flex w-full items-start justify-between gap-3">
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex min-w-0 flex-1 items-center gap-3">
                                             {asset.logoUrl ? (
                                                 <DashboardLogoFrame src={asset.logoUrl} alt={`${asset.name} logo`} sizeClass="h-12 w-12" />
                                             ) : (
@@ -2767,6 +2855,14 @@ export default function ResourcesPage() {
                                                 </div>
                                             </div>
                                         </div>
+                                        <SaveAssetButton
+                                            resourceId={asset.id}
+                                            resourceType="soft"
+                                            summary={buildManagedSavedAssetSummary(asset, 'soft')}
+                                            variant="inspector"
+                                            iconSize={16}
+                                            className="shrink-0 bg-white"
+                                        />
                                     </div>
 
                                     {(asset.subCategory || asset.tags?.length > 0 || hiddenStatus.hidden || asset.isMemberOnly || isChild) ? (
@@ -3113,19 +3209,25 @@ export default function ResourcesPage() {
                     maxWidth="max-w-4xl"
                     bodyClassName="max-h-[82vh] overflow-y-auto pr-1"
                 >
-                    <HardAssetImportWizard
-                        currentUser={user}
-                        partnerHardAssets={hardAssets}
-                        partnerOptions={partnerOptions}
-                        subregions={subregions}
-                        onEditExisting={openExistingImportedHardAsset}
-                        onRegisterCloseHandler={(handler) => setPlaceImportCloseGuard(() => handler || null)}
-                        onSave={async () => {
-                            await load();
-                            setActionNotice({ type: 'success', message: 'Place saved.' });
-                        }}
-                        onCancel={() => closePlaceImportWizard({ force: true })}
-                    />
+                    {subregionPostalLoading ? (
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                            Loading postal coverage...
+                        </div>
+                    ) : (
+                        <HardAssetImportWizard
+                            currentUser={user}
+                            partnerHardAssets={hardAssets}
+                            partnerOptions={partnerOptions}
+                            subregions={subregions}
+                            onEditExisting={openExistingImportedHardAsset}
+                            onRegisterCloseHandler={(handler) => setPlaceImportCloseGuard(() => handler || null)}
+                            onSave={async () => {
+                                await load();
+                                setActionNotice({ type: 'success', message: 'Place saved.' });
+                            }}
+                            onCancel={() => closePlaceImportWizard({ force: true })}
+                        />
+                    )}
                 </ResourceModal>
             ) : null}
 
@@ -3174,7 +3276,7 @@ export default function ResourcesPage() {
                 >
                     {assetModal.loading ? (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                            Loading offering details…
+                            {assetModal.assetType === 'hard' ? 'Loading postal coverage...' : 'Loading offering details...'}
                         </div>
                     ) : (
                         <AssetForm

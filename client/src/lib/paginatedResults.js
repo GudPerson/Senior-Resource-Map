@@ -1,5 +1,13 @@
 export const DEFAULT_RESOURCE_PAGE_TIMEOUT_MS = 45_000;
 
+export class ResourcePageTimeoutError extends Error {
+    constructor(message = 'Resource page timed out.') {
+        super(message);
+        this.name = 'ResourcePageTimeoutError';
+        this.code = 'RESOURCE_PAGE_TIMEOUT';
+    }
+}
+
 function wait(ms) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
@@ -30,13 +38,29 @@ export function normalizePaginatedResponse(response, defaultPageSize = 500) {
     };
 }
 
-export function withTimeoutOrThrow(promise, timeoutMs = DEFAULT_RESOURCE_PAGE_TIMEOUT_MS, message = 'Resource page timed out.') {
-    return Promise.race([
-        promise,
-        new Promise((_, reject) => {
-            setTimeout(() => reject(new Error(message)), timeoutMs);
-        }),
-    ]);
+export function withTimeoutOrThrow(
+    promise,
+    timeoutMs = DEFAULT_RESOURCE_PAGE_TIMEOUT_MS,
+    message = 'Resource page timed out.',
+    onTimeout,
+) {
+    return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+            onTimeout?.();
+            reject(new ResourcePageTimeoutError(message));
+        }, timeoutMs);
+
+        Promise.resolve(promise).then(
+            (value) => {
+                clearTimeout(timeoutId);
+                resolve(value);
+            },
+            (error) => {
+                clearTimeout(timeoutId);
+                reject(error);
+            },
+        );
+    });
 }
 
 export async function fetchPaginatedResultPage(fetchPage, params = {}, options = {}) {
@@ -50,15 +74,23 @@ export async function fetchPaginatedResultPage(fetchPage, params = {}, options =
     let lastError = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        const abortController = typeof AbortController === 'function' ? new AbortController() : null;
         try {
             const response = await withTimeoutOrThrow(
-                fetchPage({ ...params, page, pageSize }),
+                fetchPage(
+                    { ...params, page, pageSize },
+                    abortController ? { signal: abortController.signal } : {},
+                ),
                 pageTimeoutMs,
                 'Resource page timed out.',
+                () => abortController?.abort(),
             );
             return normalizePaginatedResponse(response, pageSize);
         } catch (err) {
             lastError = err;
+            if (err?.code === 'RESOURCE_PAGE_TIMEOUT' || err?.name === 'AbortError') {
+                break;
+            }
             if (attempt < maxAttempts) {
                 await waitMs(350 * attempt);
             }

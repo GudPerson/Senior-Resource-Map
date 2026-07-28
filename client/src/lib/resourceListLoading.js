@@ -3,6 +3,15 @@ import { fetchPaginatedResultPage } from './paginatedResults.js';
 export const RESOURCE_LIST_PAGE_LOAD_ATTEMPTS = 3;
 export const RESOURCE_LIST_SEARCH_DEBOUNCE_MS = 350;
 
+export function hasLoadedSubregionPostalCoverage(subregions = []) {
+    return Array.isArray(subregions)
+        && subregions.length > 0
+        && subregions.every((subregion) => (
+            Number(subregion?.postalCodeCount || 0) === 0
+            || (Array.isArray(subregion?.postalCodesList) && subregion.postalCodesList.length > 0)
+        ));
+}
+
 export function hasClientOnlyResourceSearchOperators(query = '') {
     return /[,/]/.test(String(query || '').trim());
 }

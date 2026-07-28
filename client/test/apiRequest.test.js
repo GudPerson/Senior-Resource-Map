@@ -79,6 +79,55 @@ test('keepalive request option is omitted unless requested', async () => {
     assert.equal(Object.hasOwn(fetchOptions, 'keepalive'), false);
 });
 
+test('request abort signal is forwarded to fetch', async () => {
+    const abortController = new AbortController();
+    let fetchOptions;
+    const fetchImpl = async (url, options) => {
+        fetchOptions = options;
+        return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+    };
+
+    await requestWithBaseCandidates('GET', '/hard-assets?scope=managed', undefined, {
+        baseCandidates: ['https://api.example/api'],
+        fetchImpl,
+        signal: abortController.signal,
+    });
+
+    assert.equal(fetchOptions.signal, abortController.signal);
+});
+
+test('managed hard and soft asset helpers forward abort signals', async () => {
+    const originalFetch = globalThis.fetch;
+    const abortController = new AbortController();
+    const fetchCalls = [];
+
+    globalThis.fetch = async (url, options) => {
+        fetchCalls.push({ url, options });
+        return new Response(JSON.stringify({
+            data: [],
+            pagination: { page: 1, pageSize: 50, totalCount: 0, totalPages: 1 },
+        }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+    };
+
+    try {
+        await api.getHardAssets({ scope: 'managed' }, { signal: abortController.signal });
+        await api.getSoftAssets({ scope: 'managed' }, { signal: abortController.signal });
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+
+    assert.equal(fetchCalls.length, 2);
+    assert.match(fetchCalls[0].url, /\/hard-assets\?scope=managed$/);
+    assert.match(fetchCalls[1].url, /\/soft-assets\?scope=managed$/);
+    assert.ok(fetchCalls.every((call) => call.options.signal === abortController.signal));
+});
+
 test('authenticated form uploads do not fall through to fallback bases after an API HTML response', async () => {
     const calls = [];
     const fetchImpl = async (url) => {

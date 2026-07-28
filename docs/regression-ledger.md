@@ -159,6 +159,48 @@ Rules:
   `npm run build:client` passed with the established large-chunk advisory; and
   the exact four-root production client build passed with the established
   large-chunk advisory.
+- 2026-07-28 database-wait amplification hotfix and managed-resource save
+  follow-up: production evidence showed the initial full `/subregions` request
+  taking about 95.8 seconds while the three managed Place, Offering, and Group
+  list requests took about 58-63 seconds with low Worker CPU. Later retries
+  recovered to about 3 seconds as the database path warmed. The page now loads
+  Region names and postal counts with `includePostalCodes=false`; full postal
+  coverage is loaded once, on demand, only before a Place create, import, edit,
+  or Memberships workflow that needs exact postal matching. The detailed
+  result is cached for that page session and a late lightweight response cannot
+  replace it. Managed page requests now carry an abort signal, and a 45-second
+  timeout aborts and stops instead of starting up to two more live copies.
+  Immediate non-timeout failures retain the established bounded retry. Places,
+  Offerings, and Groups also expose the existing shared heart control so an
+  operator can save or remove a managed resource from My Directory without
+  returning to Discover.
+- Reproduction steps: sign in with Manage Resources access and open
+  `/dashboard/resources`. Confirm the default page requests summary Region
+  metadata without the full postal list and renders Place, Offering, and Group
+  counts independently. Open a Place create/import/edit or Memberships flow
+  and confirm exact postal coverage loads before the postal-dependent UI.
+  Trigger or simulate a resource page timeout and confirm only one request is
+  made for that attempt. Use the heart control on a Place, Offering, and Group;
+  confirm the state also appears in My Directory and can be removed from either
+  surface.
+- Acceptance criteria: default Manage Resources loading must not fetch the full
+  Region postal-code payload; postal-dependent Place workflows must retain
+  exact configured-region and Singapore fallback behavior; timed-out resource
+  requests must be aborted without duplicate retry load while fast transient
+  failures can still retry; the shared saved-resource API and optimistic state
+  remain the only source of truth for favourites; and no server schema,
+  permissions, ownership, import, visibility, Discover ranking/filtering,
+  My Maps, auth/session, or production-data behavior changes.
+- Verification result before deploy: focused client coverage passed 38/38 with
+  `node --test client/test/paginatedResults.test.js client/test/apiRequest.test.js client/test/resourceListLoading.test.js client/test/savedAssetsContextSource.test.js`;
+  all 495 client tests outside the known date-sensitive
+  `careCalendarPlanning.test.js` fixture passed; the full client run passed
+  498/499 with only that unchanged July 20 expiry fixture failing, matching the
+  existing ledgered baseline; full server coverage passed 489/489 with
+  `npm run test:server`; the exact four-root production client build passed
+  with the established large-chunk advisory; and `git diff --check` passed.
+  Credentialed smoke was unavailable because the smoke username and password
+  were not present in the shell.
 
 ## 2026-07-27 Owner Full map Print layer controls
 
