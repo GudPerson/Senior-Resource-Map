@@ -3466,8 +3466,14 @@ Active next recovery family:
   Acceptance requires `/dashboard`, `/dashboard/resources`, and
   `/dashboard/admin` to load route chunks as JavaScript on the custom domain,
   with no auth, API, visibility, import, search, map, or production-data
-  behavior changed. Verification before deploy: production-configured client
-  build passed and emitted a fresh dashboard route chunk.
+  behavior changed. Verification: focused PWA coverage passed 8/8,
+  production-configured client build passed, `https://app.carearound.sg`
+  served service worker `v2`, entry `assets/index-DGsR0f4j.js`, dashboard
+  chunk `assets/DashboardPage-Ciu8jEnC.js`, resources chunk
+  `assets/ResourcesPage-B1fvyNgy.js`, and admin chunk
+  `assets/AdminPage-BG95sj08.js` as JavaScript. Signed-in Chrome UAT loaded
+  `/dashboard`, `/dashboard/resources`, and `/dashboard/admin`; Resources search
+  `rn/rc` returned results and Admin hydrated its resources table.
 
 ## Recovery workflow
 
