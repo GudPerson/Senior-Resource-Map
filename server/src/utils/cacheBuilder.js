@@ -472,6 +472,7 @@ export const rebuildMapCache = async (subregionId, envVars, deps = {}) => {
     try {
         const db = deps.db || getDb(envVars);
         const store = deps.store || dataStore;
+        const shouldRebuildAggregate = deps.rebuildAggregate !== false;
         const query = buildMapCacheQuery(subregionId);
 
         const { rows } = await db.execute(query);
@@ -484,7 +485,7 @@ export const rebuildMapCache = async (subregionId, envVars, deps = {}) => {
         }, envVars);
         console.log(`✅ Edge cache updated for subregion ${subregionId}: ${blobKey}`);
 
-        if (subregionId !== 'all') {
+        if (subregionId !== 'all' && shouldRebuildAggregate) {
             await rebuildMapCache('all', envVars, deps);
         }
 

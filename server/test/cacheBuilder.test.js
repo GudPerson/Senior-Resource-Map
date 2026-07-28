@@ -56,3 +56,34 @@ test('rebuildMapCache writes both the scoped cache and the aggregate cache', asy
     assert.equal(writes[0].value.version, MAP_CACHE_SCHEMA_VERSION);
     assert.deepEqual(writes[0].value.data, [{ id: 1, title: 'Visible asset', lat: '1.3000', lng: '103.8000', asset_type: 'soft' }]);
 });
+
+test('rebuildMapCache can skip aggregate recursion for batched refreshes', async () => {
+    const executedQueries = [];
+    const writes = [];
+    const fakeDb = {
+        async execute(query) {
+            executedQueries.push(stringifyQuery(query));
+            return {
+                rows: [{ id: 1, title: 'Visible asset', lat: '1.3000', lng: '103.8000', asset_type: 'soft' }],
+            };
+        },
+    };
+    const fakeStore = {
+        async setJSON(key, value) {
+            writes.push({ key, value });
+            return true;
+        },
+    };
+
+    await rebuildMapCache(12, { MAP_CACHE: {} }, {
+        db: fakeDb,
+        store: fakeStore,
+        rebuildAggregate: false,
+    });
+
+    assert.equal(executedQueries.length, 1);
+    assert.deepEqual(
+        writes.map((entry) => entry.key),
+        ['locations-cache-region-12.json']
+    );
+});

@@ -89,6 +89,8 @@ const WORKBOOK_IMPORT_MAX_BYTES = 10 * 1024 * 1024;
 const WORKBOOK_IMPORT_MAX_ROWS = 5000;
 const WORKBOOK_IMPORT_MAX_COLUMNS = 80;
 const WORKBOOK_CELL_MAX_CHARS = 20_000;
+const PLACE_IMPORT_PREFETCH_BATCH_SIZE = 1000;
+const PLACE_IMPORT_UPSERT_BATCH_SIZE = 250;
 
 const filteredWorkbookFilterSchema = z.object({
     scope: z.enum(['managed']).optional(),
@@ -1019,6 +1021,45 @@ async function buildWorkbookReferences(db, resourceType = null) {
     };
 }
 
+async function buildImportReferences(db, resourceType, rows = []) {
+    const references = {
+        partnerLookup: new Map(),
+        subregionLookup: new Map(),
+        audienceZoneLookup: new Map(),
+    };
+
+    if (resourceType === 'template-rollouts') {
+        return references;
+    }
+
+    if (resourceType === 'places') {
+        const needsPartners = rows.some((row) => normalizeText(row.ownershipMode).toLowerCase() === 'partner');
+        if (needsPartners) {
+            references.partnerLookup = await loadPartnerLookup(db);
+        }
+        return references;
+    }
+
+    if (resourceType === 'standalone-offerings' || resourceType === 'templates') {
+        const [partnerLookup, subregionLookup, audienceZoneLookup] = await Promise.all([
+            loadPartnerLookup(db),
+            resourceType === 'standalone-offerings' ? loadSubregionLookup(db) : Promise.resolve(new Map()),
+            loadAudienceZoneLookup(db),
+        ]);
+        return {
+            partnerLookup,
+            subregionLookup,
+            audienceZoneLookup,
+        };
+    }
+
+    if (resourceType === 'groups') {
+        references.subregionLookup = await loadSubregionLookup(db);
+    }
+
+    return references;
+}
+
 function buildReferenceRows(resourceType, references) {
     const rows = [];
     rows.push(['Allowed', 'ownershipMode', 'system, partner']);
@@ -1406,13 +1447,40 @@ async function resolveTemplateExport(resourceType, db, actor, options = {}) {
     throw new Error(`Unsupported workbook resource "${resourceType}".`);
 }
 
-async function importPlaces(db, actor, rows, references, env) {
+async function rebuildPlaceImportMapCaches(subregionIds, env) {
+    const regionIds = [...new Set((subregionIds || [])
+        .map((subregionId) => getCacheRegionId(subregionId))
+        .filter((subregionId) => subregionId && subregionId !== 'all'))];
+
+    await rebuildMapCache('all', env);
+    for (const subregionId of regionIds) {
+        await rebuildMapCache(subregionId, env, { rebuildAggregate: false });
+    }
+}
+
+function scheduleWorkbookPostImportTask(c, taskName, task) {
+    const taskPromise = (async () => {
+        try {
+            await task();
+        } catch (error) {
+            console.error(`Workbook post-import task failed: ${taskName}`, {
+                message: error?.message,
+            });
+        }
+    })();
+    const waitUntil = c?.executionCtx?.waitUntil;
+    if (typeof waitUntil === 'function') {
+        waitUntil.call(c.executionCtx, taskPromise);
+    } else {
+        taskPromise.catch(() => undefined);
+    }
+}
+
+async function importPlaces(db, actor, rows, references, env, options = {}) {
     const report = buildImportReport('places');
     const affectedSubregions = new Set();
     const payloadMap = new Map();
     const existingFinalKeysBeforeUpsert = new Set();
-    const PREFETCH_BATCH_SIZE = 20;
-    const UPSERT_BATCH_SIZE = 100;
 
     // 1. Pre-process and collect keys for bulk fetching
     const uniquePostals = new Set();
@@ -1444,7 +1512,7 @@ async function importPlaces(db, actor, rows, references, env) {
     const subregionMap = new Map();
     const fallbackLocationMap = new Map();
     if (uniquePostals.size > 0) {
-        for (const postalChunk of chunkArray(Array.from(uniquePostals), PREFETCH_BATCH_SIZE)) {
+        for (const postalChunk of chunkArray(Array.from(uniquePostals), PLACE_IMPORT_PREFETCH_BATCH_SIZE)) {
             const matches = await db
                 .select({
                     postalCode: subregionPostalCodes.postalCode,
@@ -1470,7 +1538,7 @@ async function importPlaces(db, actor, rows, references, env) {
     const initialKeys = [...new Set(processedRows.map(r => r.externalKey).filter(Boolean))];
     const existingAssetMap = new Map();
     if (initialKeys.length > 0) {
-        for (const keyChunk of chunkArray(initialKeys, PREFETCH_BATCH_SIZE)) {
+        for (const keyChunk of chunkArray(initialKeys, PLACE_IMPORT_PREFETCH_BATCH_SIZE)) {
             const existingAssets = await db.query.hardAssets.findMany({
                 where: inArray(hardAssets.externalKey, keyChunk),
                 with: { partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } } }
@@ -1591,7 +1659,7 @@ async function importPlaces(db, actor, rows, references, env) {
 
     // 5. Final Bulk Upsert
     if (payloads.length > 0) {
-        for (const payloadChunk of chunkArray(payloads, UPSERT_BATCH_SIZE)) {
+        for (const payloadChunk of chunkArray(payloads, PLACE_IMPORT_UPSERT_BATCH_SIZE)) {
             await db.insert(hardAssets)
                 .values(payloadChunk)
                 .onConflictDoUpdate({
@@ -1627,8 +1695,12 @@ async function importPlaces(db, actor, rows, references, env) {
         report.skippedCount = 0;
     }
 
-    for (const subregionId of affectedSubregions) {
-        await rebuildMapCache(getCacheRegionId(subregionId), env);
+    if (affectedSubregions.size > 0) {
+        if (typeof options.scheduleCacheRebuild === 'function') {
+            options.scheduleCacheRebuild([...affectedSubregions]);
+        } else {
+            await rebuildPlaceImportMapCaches([...affectedSubregions], env);
+        }
     }
 
     return report;
@@ -2351,15 +2423,17 @@ export async function importWorkbookData(c) {
         await ensureBoundarySchema(db, c.env);
 
         const rows = await parseWorkbookRows(file, resourceType);
-        const references = {
-            partnerLookup: await loadPartnerLookup(db),
-            subregionLookup: await loadSubregionLookup(db),
-            audienceZoneLookup: await loadAudienceZoneLookup(db),
-        };
+        const references = await buildImportReferences(db, resourceType, rows);
 
         let report;
         if (resourceType === 'places') {
-            report = await importPlaces(db, actor, rows, references, c.env);
+            report = await importPlaces(db, actor, rows, references, c.env, {
+                scheduleCacheRebuild: (subregionIds) => scheduleWorkbookPostImportTask(
+                    c,
+                    'places-map-cache',
+                    () => rebuildPlaceImportMapCaches(subregionIds, c.env)
+                ),
+            });
         } else if (resourceType === 'standalone-offerings') {
             report = await importStandaloneOfferings(db, actor, rows, references, c.env);
         } else if (resourceType === 'templates') {

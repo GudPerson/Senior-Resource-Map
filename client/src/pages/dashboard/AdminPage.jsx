@@ -115,6 +115,7 @@ const SUBREGION_SORT_OPTIONS = [
 
 const SUBREGION_BOUNDARY_SOURCE_ROW_LIMIT = 5000;
 const SUBREGION_BOUNDARY_EXPANDED_CODE_LIMIT = 25000;
+const ASSET_WORKBOOK_CSV_IMPORT_BATCH_SIZE = 100;
 const SPREADSHEET_UPLOAD_ACCEPT = '.csv,.xlsx,.xls';
 const SUBREGION_BOUNDARY_POSTAL_KEYS = [
     'postalCode',
@@ -193,6 +194,15 @@ function parseCsvUploadRows(file) {
             error: (err) => reject(err),
         });
     });
+}
+
+function normalizeAssetWorkbookCsvHeader(value) {
+    return String(value || '')
+        .trim()
+        .replace(/\*/g, '')
+        .trim()
+        .replace(/[^a-z0-9]+/gi, '')
+        .toLowerCase();
 }
 
 function isExcelUploadFile(file) {
@@ -1677,7 +1687,7 @@ export default function AdminPage() {
                 complete: async (results) => {
                     try {
                         const data = results.data;
-                        const BATCH_SIZE = 500;
+                        const BATCH_SIZE = ASSET_WORKBOOK_CSV_IMPORT_BATCH_SIZE;
                         const totalBatches = Math.ceil(data.length / BATCH_SIZE);
                         const cumulativeReport = {
                             type: 'success',
@@ -1703,8 +1713,9 @@ export default function AdminPage() {
                                 // Extract values using keys that might contain asterisks (e.g., "* name")
                                 const rawEntries = Object.entries(row);
                                 const findVal = (key) => {
-                                    const entry = rawEntries.find(([k]) => 
-                                        k.trim().replace(/\*/g, '').toLowerCase() === key.toLowerCase()
+                                    const targetHeader = normalizeAssetWorkbookCsvHeader(key);
+                                    const entry = rawEntries.find(([k]) =>
+                                        normalizeAssetWorkbookCsvHeader(k) === targetHeader
                                     );
                                     return entry ? entry[1] : undefined;
                                 };

@@ -15,6 +15,54 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-28 Admin Places CSV required-header import recovery
+
+- Current behavior: Admin Data Tools can upload Places CSV files generated from
+  the CareAround workbook template/export labels, including required headers
+  such as `name *`, `postalCode *`, `Postal Code *`, and canonical headers such
+  as `name` and `postalCode`. Client-side CSV batching canonicalizes those
+  labels before building batch files, so required display markers do not erase
+  the actual values.
+- Known-good reference: branch `codex/admin-csv-import-header-normalization`,
+  based on `ba99dced8`. The change is client-only and does not alter workbook
+  schemas, server import validation, resource ownership rules, subregion
+  derivation, geocoding, cache rebuilds, audit logging, Discover, or map
+  behavior.
+- Reproduction steps: download or prepare a Places CSV whose header row uses
+  the display labels `externalKey *`, `name *`, `country *`, `postalCode *`,
+  and `ownershipMode *`; upload it through Admin Tools -> Asset Workbook Tools
+  -> Places. Confirm the client CSV batcher preserves row values for `name` and
+  `postalCode` instead of reporting every row as missing those fields.
+- Acceptance criteria: CSV and Excel imports continue to accept canonical and
+  display-labelled workbook headers case-insensitively. Required-field markers,
+  spaces, underscores, punctuation, and a UTF-8 BOM in CSV headers must not
+  stop the batching step from finding canonical required fields. Server-side
+  validation and import rules remain authoritative after batching.
+- Verification result before deploy: focused client source coverage passed
+  `node --test client/test/adminAssetWorkbookCsvHeaders.test.js`; the original
+  `Enriched_CareAround_RC_RN_list.csv` reproduced the old lookup failure with
+  1,093/1,093 rows missing `name` and `postalCode`, while the patched lookup
+  recovered both fields for 1,093/1,093 rows with no Papa parse errors. Server
+  `parseWorkbookRows` accepted both the original display-labelled CSV and the
+  cleaned import-ready copy as 1,093 Places rows. `npm run build:client` passed
+  with only the established large-chunk advisory, and `git diff --check` passed.
+- 2026-07-28 Worker subrequest-limit follow-up: after the header recovery, the
+  production import reached the Places path but failed with `Too many
+  subrequests by single Worker invocation`. Places CSV uploads now use 100-row
+  client batches instead of 500-row batches; server Places import prefetches
+  postal-code and existing-key lookups in 1,000-key chunks instead of 20-key
+  chunks; system-owned Places rows skip unused partner/subregion/audience-zone
+  reference lookups; and Places map-cache refresh is queued as a post-import
+  task that refreshes `all` first, then affected regions without recursively
+  rebuilding `all` after every region. The importer still writes through the
+  same server validation, ownership checks, postal-code subregion derivation,
+  geocoding fallback, upsert contract, and audit event. Verification passed
+  focused coverage with `node --test client/test/adminAssetWorkbookCsvHeaders.test.js`
+  and `node --test server/test/cacheBuilder.test.js server/test/workbookImportSubrequestBudgetSource.test.js`;
+  full server coverage passed 483/483 with `npm run test:server`;
+  `npm run build:client` passed with only the established large-chunk advisory;
+  and `git diff --check` passed.
+
 ## 2026-07-27 Owner Full map Print layer controls
 
 - Current behavior: a signed-in map owner on a desktop-capable Print View can
