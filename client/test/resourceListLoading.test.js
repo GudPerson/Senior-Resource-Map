@@ -222,6 +222,21 @@ test('ResourcesPage does not block Offerings on eager all-Group hydration', () =
     assert.match(resourcesPageSource, /setResourceLoadErrors\(\(prev\) => \(\{ \.\.\.prev, groups: failure \}\)\)/);
 });
 
+test('membership drawer hydrates one hard asset instead of relying on list summaries', () => {
+    const membershipDrawerSource = sourceBetween(
+        resourcesPageSource,
+        'async function openMembershipQr(asset)',
+        'function getPermissionFlag',
+    );
+
+    assert.match(membershipDrawerSource, /api\.generateHardAssetMembershipQr\(asset\.id\)/);
+    assert.match(membershipDrawerSource, /api\.getHardAsset\(asset\.id\)/);
+    assert.match(resourcesPageSource, /const canShowMembers = typeof activeInlineHardAsset\.membershipCount === 'number';/);
+    assert.match(resourcesPageSource, /activeInlineHardAsset\.memberPreview\.map/);
+    assert.doesNotMatch(resourcesPageSource, /asset\.membershipCount/);
+    assert.doesNotMatch(resourcesPageSource, /asset\.memberPreview/);
+});
+
 test('server-filtered places workbook export avoids browser-side full pagination', () => {
     const hardExportBranch = sourceBetween(
         resourcesPageSource,

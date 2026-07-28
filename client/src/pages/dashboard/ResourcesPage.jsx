@@ -1339,8 +1339,19 @@ export default function ResourcesPage() {
     async function openMembershipQr(asset) {
         setInlineAction({ id: asset.id, type: 'qr', asset, loading: true, data: null, copied: false });
         try {
-            const result = await api.generateHardAssetMembershipQr(asset.id);
-            setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'qr' ? { ...prev, loading: false, data: result } : prev));
+            const [result, hydratedAsset] = await Promise.all([
+                api.generateHardAssetMembershipQr(asset.id),
+                api.getHardAsset(asset.id).catch((error) => {
+                    console.error('Failed to load membership details', error);
+                    return asset;
+                }),
+            ]);
+            setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'qr' ? {
+                ...prev,
+                asset: hydratedAsset || asset,
+                loading: false,
+                data: result,
+            } : prev));
         } catch (error) {
             console.error('Failed to generate membership QR', error);
             setInlineAction((prev) => (prev?.id === asset.id && prev?.type === 'qr' ? { ...prev, loading: false } : prev));
@@ -2257,7 +2268,6 @@ export default function ResourcesPage() {
                         </p>
                         {visibleHardAssets.map((asset) => {
                             const hiddenStatus = getHiddenStatus(asset);
-                            const canShowMembers = typeof asset.membershipCount === 'number';
                             const canEditPlace = canEditHardAsset(asset);
                             const canChangeHardAssetVisibility = canHideHardAsset(asset);
                             const canRemoveHardAsset = canDeleteHardAsset(asset);
@@ -2266,6 +2276,7 @@ export default function ResourcesPage() {
                             const activeInlineHardAsset = inlineAction?.id === asset.id && inlineAction?.asset
                                 ? inlineAction.asset
                                 : asset;
+                            const canShowMembers = typeof activeInlineHardAsset.membershipCount === 'number';
 
                             return (
                                 <div key={asset.id} className="card flex flex-col gap-4">
@@ -2527,14 +2538,14 @@ export default function ResourcesPage() {
                                                                         <div className="flex flex-wrap items-center gap-2">
                                                                             <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-bold text-slate-600">
                                                                                 <Users size={13} className="text-brand-600" />
-                                                                                {asset.membershipCount} total
+                                                                                {activeInlineHardAsset.membershipCount} total
                                                                             </span>
                                                                         </div>
                                                                     </div>
 
-                                                                    {asset.memberPreview?.length ? (
+                                                                    {activeInlineHardAsset.memberPreview?.length ? (
                                                                         <div className="mt-4 space-y-2">
-                                                                            {asset.memberPreview.map((membership) => (
+                                                                            {activeInlineHardAsset.memberPreview.map((membership) => (
                                                                                 <div key={membership.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
                                                                                     <div className="min-w-0">
                                                                                         <p className="truncate text-[13px] font-bold text-slate-900">
@@ -2545,14 +2556,14 @@ export default function ResourcesPage() {
                                                                                         </p>
                                                                                     </div>
                                                                                     <div className="flex shrink-0">
-                                                                                        {getMemberLocationBadge(membership, asset, subregions, audienceZones)}
+                                                                                        {getMemberLocationBadge(membership, activeInlineHardAsset, subregions, audienceZones)}
                                                                                     </div>
                                                                                 </div>
                                                                             ))}
 
-                                                                            {asset.hasMoreMembers ? (
+                                                                            {activeInlineHardAsset.hasMoreMembers ? (
                                                                                 <p className="px-2 pt-1 text-[11px] font-semibold text-slate-500">
-                                                                                    +{asset.membershipCount - asset.memberPreview.length} more member{asset.membershipCount - asset.memberPreview.length === 1 ? '' : 's'} linked.
+                                                                                    +{activeInlineHardAsset.membershipCount - activeInlineHardAsset.memberPreview.length} more member{activeInlineHardAsset.membershipCount - activeInlineHardAsset.memberPreview.length === 1 ? '' : 's'} linked.
                                                                                 </p>
                                                                             ) : null}
                                                                         </div>

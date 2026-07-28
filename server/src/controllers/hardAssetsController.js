@@ -1329,17 +1329,11 @@ export const getHardAssets = async (c) => {
                 if (row.tag?.name) tagsByAssetId.get(row.hardAssetId).push(row.tag.name);
             }
 
-            const organizationContextsByResource = await loadOrganizationContextsForResources(
-                db,
-                pagedAssetIds.map((id) => ({ resourceType: 'hard', resourceId: id })),
-            );
-            const membershipSummariesByAssetId = await loadMembershipSummariesForAssets(db, pagedAssetIds);
             const formatted = pagedAssetsWithRegions.map((asset) => formatHardAssetListSummary(asset, {
                 boundaryStatus: resolvePostalBoundaryStatus(asset.postalCode, boundaryContext),
                 tags: tagsByAssetId.get(asset.id) || [],
-                organizationLinks: organizationContextsByResource.get(`hard:${asset.id}`) || [],
+                organizationLinks: [],
                 permissions: buildHardAssetPermissionSummary(user, asset),
-                membershipSummary: membershipSummariesByAssetId.get(asset.id) || null,
             }));
 
             return c.json({
@@ -1388,20 +1382,11 @@ export const getHardAssets = async (c) => {
                 if (row.tag?.name) tagsByAssetId.get(row.hardAssetId).push(row.tag.name);
             }
 
-            const manageableAssetIds = pagedAssetSummaries
-                .filter((asset) => actorCanManageAsset(user, asset, asset.partner))
-                .map((asset) => asset.id);
-            const organizationContextsByResource = await loadOrganizationContextsForResources(
-                db,
-                pagedAssetIds.map((id) => ({ resourceType: 'hard', resourceId: id })),
-            );
-            const membershipSummariesByAssetId = await loadMembershipSummariesForAssets(db, manageableAssetIds);
             const formatted = pagedAssetSummaries.map((asset) => formatHardAssetListSummary(asset, {
                 boundaryStatus: resolvePostalBoundaryStatus(asset.postalCode, boundaryContext),
                 tags: tagsByAssetId.get(asset.id) || [],
-                organizationLinks: organizationContextsByResource.get(`hard:${asset.id}`) || [],
+                organizationLinks: [],
                 permissions: buildHardAssetPermissionSummary(user, asset),
-                membershipSummary: membershipSummariesByAssetId.get(asset.id) || null,
             }));
 
             return c.json({

@@ -143,6 +143,22 @@ Rules:
   `npm run build:client` passed with the established large-chunk advisory; and
   the exact four-root production client build passed with the established
   large-chunk advisory.
+- 2026-07-28 hard-list budget follow-up: managed Places list summaries no
+  longer hydrate membership previews or organization resource links for every
+  page. The Memberships drawer now fetches the single detailed Place record on
+  demand, preserving the member preview there while keeping initial Places list
+  requests inside the Worker subrequest budget. This keeps the list endpoint
+  scoped, paginated, and lightweight without changing resource details,
+  membership QR generation, imports, public Discover, ownership, visibility, or
+  production data.
+- Verification result before deploy: focused client coverage passed 32/32 with
+  `node --test client/test/resourceListLoading.test.js client/test/groupAssetUiSource.test.js`;
+  focused server coverage passed 14/14 with
+  `node --test server/test/hardAssetSummaryListBudgetSource.test.js server/test/softAssetAssetModeFilterSource.test.js server/test/resourceListScope.test.js`;
+  full server coverage passed 489/489 with `npm run test:server`; standard
+  `npm run build:client` passed with the established large-chunk advisory; and
+  the exact four-root production client build passed with the established
+  large-chunk advisory.
 
 ## 2026-07-27 Owner Full map Print layer controls
 
