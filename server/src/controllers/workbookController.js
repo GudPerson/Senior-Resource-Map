@@ -92,6 +92,9 @@ const WORKBOOK_IMPORT_MAX_COLUMNS = 80;
 const WORKBOOK_CELL_MAX_CHARS = 20_000;
 const PLACE_IMPORT_PREFETCH_BATCH_SIZE = 1000;
 const PLACE_IMPORT_UPSERT_BATCH_SIZE = 250;
+const ONEMAP_GEOCODE_MAX_ATTEMPTS = 4;
+const ONEMAP_GEOCODE_BASE_RETRY_DELAY_MS = 500;
+const ONEMAP_GEOCODE_MAX_RETRY_DELAY_MS = 3_000;
 
 const filteredWorkbookFilterSchema = z.object({
     scope: z.enum(['managed']).optional(),
@@ -938,28 +941,68 @@ function patchHasEffectiveChanges(current, patch) {
     });
 }
 
-async function geocodePostalCode(postalCode, country = 'SG') {
-    const response = await fetch(`https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${encodeURIComponent(postalCode)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`);
-    if (!response?.ok) {
-        const status = response?.status || 'unknown';
-        throw new Error(`Could not geocode postal code "${postalCode}" in "${country}" with OneMap (${status}).`);
+function waitFor(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shouldRetryOneMapGeocode(status) {
+    const numericStatus = Number(status);
+    return numericStatus === 429 || numericStatus >= 500;
+}
+
+function getOneMapRetryDelayMs(response, attempt) {
+    const retryAfter = Number.parseFloat(String(response?.headers?.get?.('Retry-After') || ''));
+    if (Number.isFinite(retryAfter) && retryAfter > 0) {
+        return Math.min(Math.ceil(retryAfter * 1000), ONEMAP_GEOCODE_MAX_RETRY_DELAY_MS);
     }
 
-    let data;
-    try {
-        data = await response.json();
-    } catch {
-        throw new Error(`Could not geocode postal code "${postalCode}" in "${country}" with OneMap (invalid response).`);
+    return Math.min(
+        ONEMAP_GEOCODE_BASE_RETRY_DELAY_MS * attempt,
+        ONEMAP_GEOCODE_MAX_RETRY_DELAY_MS,
+    );
+}
+
+export async function geocodePostalCode(postalCode, country = 'SG', options = {}) {
+    const fetchImpl = options.fetchImpl || fetch;
+    const waitImpl = options.waitImpl || waitFor;
+    const normalizedPostalCode = normalizePostalCode(postalCode) || normalizeText(postalCode);
+    const url = `https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${encodeURIComponent(normalizedPostalCode)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`;
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= ONEMAP_GEOCODE_MAX_ATTEMPTS; attempt += 1) {
+        const response = await fetchImpl(url);
+        if (!response?.ok) {
+            const status = response?.status || 'unknown';
+            lastError = new Error(`Could not geocode postal code "${normalizedPostalCode}" in "${country}" with OneMap (${status}).`);
+            if (attempt < ONEMAP_GEOCODE_MAX_ATTEMPTS && shouldRetryOneMapGeocode(status)) {
+                await waitImpl(getOneMapRetryDelayMs(response, attempt));
+                continue;
+            }
+            throw lastError;
+        }
+
+        let data;
+        try {
+            data = await response.json();
+        } catch {
+            throw new Error(`Could not geocode postal code "${normalizedPostalCode}" in "${country}" with OneMap (invalid response).`);
+        }
+
+        const results = Array.isArray(data?.results) ? data.results : [];
+        const result = results.find((entry) => normalizePostalCode(entry?.POSTAL) === normalizedPostalCode) || results[0];
+        if (result) {
+            const lat = parseFloat(result.LATITUDE);
+            const lng = parseFloat(result.LONGITUDE);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                return { lat, lng };
+            }
+        }
+
+        break;
     }
 
-    if (data?.results?.length) {
-        return {
-            lat: parseFloat(data.results[0].LATITUDE),
-            lng: parseFloat(data.results[0].LONGITUDE),
-        };
-    }
-
-    throw new Error(`Could not geocode postal code "${postalCode}" in "${country}".`);
+    if (lastError) throw lastError;
+    throw new Error(`Could not geocode postal code "${normalizedPostalCode}" in "${country}".`);
 }
 
 function canManageSoftAssetParent(actor, parent, ownerUser) {
@@ -1500,6 +1543,7 @@ async function importPlaces(db, actor, rows, references, env, options = {}) {
     const affectedSubregions = new Set();
     const payloadMap = new Map();
     const existingFinalKeysBeforeUpsert = new Set();
+    const geocodeLocationMap = new Map();
 
     // 1. Pre-process and collect keys for bulk fetching
     const uniquePostals = new Set();
@@ -1633,9 +1677,14 @@ async function importPlaces(db, actor, rows, references, env, options = {}) {
             }
             if (!coords) {
                 const fallbackLocation = fallbackLocationMap.get(postalCode);
-                coords = fallbackLocation
-                    ? { lat: fallbackLocation.lat, lng: fallbackLocation.lng }
-                    : await geocodePostalCode(postalCode, country);
+                if (fallbackLocation) {
+                    coords = { lat: fallbackLocation.lat, lng: fallbackLocation.lng };
+                } else if (geocodeLocationMap.has(postalCode)) {
+                    coords = geocodeLocationMap.get(postalCode);
+                } else {
+                    coords = await geocodePostalCode(postalCode, country);
+                    geocodeLocationMap.set(postalCode, coords);
+                }
             }
 
             const finalKey = existing?.externalKey || externalKey || await buildDeterministicExternalKey('place', name);

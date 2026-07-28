@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import * as XLSX from '@e965/xlsx';
 
-import { parseWorkbookRows } from '../src/controllers/workbookController.js';
+import { geocodePostalCode, parseWorkbookRows } from '../src/controllers/workbookController.js';
 
 function toArrayBuffer(buffer) {
     return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
@@ -24,6 +24,13 @@ function buildPlacesCsv(rows) {
         'externalKey,name,country,postalCode,ownershipMode',
         ...rows,
     ].join('\n');
+}
+
+function jsonResponse(payload, status = 200) {
+    return new Response(JSON.stringify(payload), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+    });
 }
 
 test('workbook import rejects unsupported file extensions before parsing', async () => {
@@ -94,6 +101,35 @@ test('workbook parser preserves leading-zero postal codes from CSV numeric cells
 
     assert.equal(rows.length, 1);
     assert.equal(rows[0].postalCode, '050034');
+});
+
+test('places geocode retries transient OneMap throttling', async () => {
+    let calls = 0;
+    const waits = [];
+
+    const result = await geocodePostalCode('542175', 'SG', {
+        fetchImpl: async () => {
+            calls += 1;
+            if (calls === 1) return new Response('rate limited', { status: 429 });
+            return jsonResponse({
+                results: [{
+                    POSTAL: '542175',
+                    LATITUDE: '1.3863336674455',
+                    LONGITUDE: '103.911166400228',
+                }],
+            });
+        },
+        waitImpl: async (ms) => {
+            waits.push(ms);
+        },
+    });
+
+    assert.equal(calls, 2);
+    assert.deepEqual(waits, [500]);
+    assert.deepEqual(result, {
+        lat: 1.3863336674455,
+        lng: 103.911166400228,
+    });
 });
 
 test('workbook parser preserves WhatsApp contact fields across resource sheets', async () => {

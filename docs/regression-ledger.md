@@ -81,6 +81,18 @@ Rules:
   leading-zero rows as `050034`, `050538`, `080006`, `080012`, `080104`,
   `080333`, `081004`, `085701`, `088995`, `089774`, `090005`, `090022`,
   `090034`, `090108`, `090114`, and `098917`.
+- 2026-07-28 OneMap throttle follow-up: a retry of the same import created or
+  updated 1,090 Places and left three errors for `460151`, `521232`, and
+  `542175`. Those rows were valid OneMap postals but had blank `lat`/`lng`, so
+  they used the server geocoding path and OneMap returned HTTP 429. Places
+  import now caches geocoded coordinates by postal code within each batch, so
+  repeated blank-coordinate postals such as `460151` do not make duplicate
+  OneMap calls. The geocoder retries transient OneMap 429/5xx responses with a
+  short capped backoff and still prefers exact `POSTAL` matches from the
+  response before accepting coordinates. Verification passed focused coverage
+  with `node --test server/test/workbookSecurity.test.js server/test/singaporePostalFallback.test.js server/test/workbookImportSubrequestBudgetSource.test.js`;
+  full server coverage passed 487/487 with `npm run test:server`; and
+  `git diff --check` passed.
 
 ## 2026-07-27 Owner Full map Print layer controls
 
