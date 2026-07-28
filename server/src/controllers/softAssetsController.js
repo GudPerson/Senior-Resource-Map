@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
 import { hardAssets, offeringScheduleVersions, softAssetGroupMembers, softAssetRegionCoverages, softAssets, softAssetLocations, softAssetStaffMemberships, subregionPostalCodes, users } from '../db/schema.js';
@@ -1502,6 +1502,8 @@ export const getSoftAssets = async (c) => {
         const whereClauses = [eq(softAssets.isDeleted, false)];
         if (assetModeFilter === SOFT_ASSET_MODES.GROUP) {
             whereClauses.push(eq(softAssets.assetMode, SOFT_ASSET_MODES.GROUP));
+        } else if (assetModeFilter === 'offering' || assetModeFilter === 'offerings') {
+            whereClauses.push(ne(softAssets.assetMode, SOFT_ASSET_MODES.GROUP));
         }
         const isDirectStaffManagedScope = listScope === 'managed' && isStandardDirectResourceOperator(user);
 

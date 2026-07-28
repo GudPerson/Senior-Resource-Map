@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 
 import {
     buildGroupMemberCandidateListParams,
+    buildManagedGroupResourceListParams,
     buildManagedHardResourceListParams,
+    buildManagedOfferingResourceListParams,
     buildManagedResourceListParams,
     buildManagedSoftResourceListParams,
     fetchResourceListPageWithResilience,
@@ -124,6 +126,28 @@ test('buildManagedSoftResourceListParams requests lean summaries for managed sof
     }), {});
 });
 
+test('managed offering and Group list params request distinct soft asset families', () => {
+    assert.deepEqual(buildManagedOfferingResourceListParams({
+        canManageResourceTools: true,
+        role: 'super_admin',
+    }), { scope: 'managed', summary: true, assetMode: 'offering' });
+
+    assert.deepEqual(buildManagedOfferingResourceListParams({
+        canManageResourceTools: true,
+        role: 'regional_admin',
+    }), { scope: 'managed', regionScoped: true, summary: true, assetMode: 'offering' });
+
+    assert.deepEqual(buildManagedGroupResourceListParams({
+        canManageResourceTools: true,
+        role: 'super_admin',
+    }), { scope: 'managed', summary: true, assetMode: 'group' });
+
+    assert.deepEqual(buildManagedOfferingResourceListParams({
+        canManageResourceTools: false,
+        role: 'super_admin',
+    }), {});
+});
+
 test('buildGroupMemberCandidateListParams keeps Group member search on public candidates', () => {
     assert.deepEqual(buildGroupMemberCandidateListParams({ assetType: 'hard' }), { summary: true });
     assert.deepEqual(buildGroupMemberCandidateListParams({ assetType: 'soft' }), {});
@@ -180,9 +204,22 @@ test('Discovery-style Manage Resources operators stay client-side instead of lit
 test('ResourcesPage loads operator searches without narrowing the server q first', () => {
     assert.match(resourcesPageSource, /const serverResourceSearchQuery = getServerResourceListSearchQuery\(normalizedQuery\);/);
     assert.match(resourcesPageSource, /withResourceListSearchParam\(hardResourceListParams, serverResourceSearchQuery\)/);
-    assert.match(resourcesPageSource, /withResourceListSearchParam\(softResourceListParams, serverResourceSearchQuery\)/);
-    assert.match(resourcesPageSource, /withResourceListSearchParam\(\{\s*\.\.\.softResourceListParams,\s*assetMode: 'group',\s*\}, serverResourceSearchQuery\)/);
+    assert.match(resourcesPageSource, /withResourceListSearchParam\(offeringResourceListParams, serverResourceSearchQuery\)/);
+    assert.match(resourcesPageSource, /withResourceListSearchParam\(groupResourceListParams, serverResourceSearchQuery\)/);
     assert.doesNotMatch(resourcesPageSource, /q: normalizedQuery/);
+});
+
+test('ResourcesPage does not block Offerings on eager all-Group hydration', () => {
+    const loadSoftAssetsSource = sourceBetween(
+        resourcesPageSource,
+        'async function loadSoftAssets()',
+        'async function loadGroupAssets()',
+    );
+
+    assert.doesNotMatch(loadSoftAssetsSource, /fetchAllPaginatedResults\(api\.getSoftAssets/);
+    assert.match(resourcesPageSource, /const groupAssetsRequest = canSeeGroupResources/);
+    assert.match(resourcesPageSource, /fetchResourceListPageWithResilience\(\s*api\.getSoftAssets,\s*pagedGroupResourceListParams,/);
+    assert.match(resourcesPageSource, /setResourceLoadErrors\(\(prev\) => \(\{ \.\.\.prev, groups: failure \}\)\)/);
 });
 
 test('server-filtered places workbook export avoids browser-side full pagination', () => {

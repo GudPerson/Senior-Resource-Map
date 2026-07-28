@@ -44,6 +44,16 @@ export function buildManagedSoftResourceListParams(options = {}) {
     return Object.keys(params).length > 0 ? { ...params, summary: true } : params;
 }
 
+export function buildManagedOfferingResourceListParams(options = {}) {
+    const params = buildManagedSoftResourceListParams(options);
+    return Object.keys(params).length > 0 ? { ...params, assetMode: 'offering' } : params;
+}
+
+export function buildManagedGroupResourceListParams(options = {}) {
+    const params = buildManagedSoftResourceListParams(options);
+    return Object.keys(params).length > 0 ? { ...params, assetMode: 'group' } : params;
+}
+
 export function buildGroupMemberCandidateListParams({ assetType = '' } = {}) {
     return String(assetType || '').trim().toLowerCase() === 'hard'
         ? { summary: true }

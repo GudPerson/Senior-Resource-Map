@@ -76,7 +76,7 @@ test('Dashboard Resources keeps Groups on a separate tab and editor path', () =>
     const groupTabSource = sourceBetween(resourcesPageSource, ") : activeTab === 'groups' ? (", ") : activeTab === 'soft' ? (");
 
     assert.match(resourcesPageSource, /activeTab === 'groups'/);
-    assert.match(resourcesPageSource, /Groups \(\{groupTabCount\}\)/);
+    assert.match(resourcesPageSource, /Groups \(\{groupTabLabel\}\)/);
     assert.match(resourcesPageSource, /GroupAssetForm/);
     assert.match(resourcesPageSource, /offeringSoftAssets = useMemo/);
     assert.match(resourcesPageSource, /groupMemberCandidates/);

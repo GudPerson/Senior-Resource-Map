@@ -45,9 +45,10 @@ import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabil
 import { fetchAllPaginatedResults } from '../../lib/paginatedResults.js';
 import {
     buildGroupMemberCandidateListParams,
+    buildManagedGroupResourceListParams,
     buildManagedHardResourceListParams,
+    buildManagedOfferingResourceListParams,
     buildManagedResourceListParams,
-    buildManagedSoftResourceListParams,
     fetchResourceListPageWithResilience,
     getServerResourceListSearchQuery,
     RESOURCE_LIST_SEARCH_DEBOUNCE_MS,
@@ -601,6 +602,7 @@ export default function ResourcesPage() {
     const { user } = useAuth();
     const [hardAssets, setHardAssets] = useState([]);
     const [softAssets, setSoftAssets] = useState([]);
+    const [groupAssets, setGroupAssets] = useState([]);
     const [softAssetParents, setSoftAssetParents] = useState([]);
     const [audienceZones, setAudienceZones] = useState([]);
     const [templateDetails, setTemplateDetails] = useState({});
@@ -610,9 +612,9 @@ export default function ResourcesPage() {
     const [accessUserOptions, setAccessUserOptions] = useState([]);
     const [partnerBoundary, setPartnerBoundary] = useState(null);
     const [partnerBoundaryFeedback, setPartnerBoundaryFeedback] = useState('');
-    const [resourceLoading, setResourceLoading] = useState({ hard: true, soft: true });
+    const [resourceLoading, setResourceLoading] = useState({ hard: true, soft: true, groups: true });
     const [metadataLoading, setMetadataLoading] = useState(false);
-    const [resourceLoadErrors, setResourceLoadErrors] = useState({ hard: null, soft: null, templates: null });
+    const [resourceLoadErrors, setResourceLoadErrors] = useState({ hard: null, soft: null, groups: null, templates: null });
     const [hasCompletedResourceLoad, setHasCompletedResourceLoad] = useState(false);
     const [activeTab, setActiveTab] = useState('hard');
     const [assetModal, setAssetModal] = useState(null);
@@ -642,8 +644,10 @@ export default function ResourcesPage() {
     const [exportingFilteredWorkbook, setExportingFilteredWorkbook] = useState(false);
     const [hardAssetsPage, setHardAssetsPage] = useState(1);
     const [softAssetsPage, setSoftAssetsPage] = useState(1);
+    const [groupAssetsPage, setGroupAssetsPage] = useState(1);
     const [hardAssetsTotal, setHardAssetsTotal] = useState(0);
     const [softAssetsTotal, setSoftAssetsTotal] = useState(0);
+    const [groupAssetsTotal, setGroupAssetsTotal] = useState(0);
     const [hardAssetsPageSize] = useState(50);
     const [softAssetsPageSize] = useState(50);
     const loadRequestIdRef = useRef(0);
@@ -685,22 +689,29 @@ export default function ResourcesPage() {
         canManageResourceTools,
         role: normalizedRole,
     });
-    const softResourceListParams = buildManagedSoftResourceListParams({
+    const offeringResourceListParams = buildManagedOfferingResourceListParams({
+        canManageResourceTools,
+        role: normalizedRole,
+    });
+    const groupResourceListParams = buildManagedGroupResourceListParams({
         canManageResourceTools,
         role: normalizedRole,
     });
     const groupMemberHardCandidateParams = buildGroupMemberCandidateListParams({ assetType: 'hard' });
     const groupMemberSoftCandidateParams = buildGroupMemberCandidateListParams({ assetType: 'soft' });
     const fullHardResourceListParams = withResourceListSearchParam(hardResourceListParams, serverResourceSearchQuery);
-    const fullSoftResourceListParams = withResourceListSearchParam(softResourceListParams, serverResourceSearchQuery);
+    const fullSoftResourceListParams = withResourceListSearchParam(offeringResourceListParams, serverResourceSearchQuery);
+    const fullGroupResourceListParams = withResourceListSearchParam(groupResourceListParams, serverResourceSearchQuery);
     const pagedHardResourceListParams = withResourceListSearchParam(hardResourceListParams, serverResourceSearchQuery);
-    const pagedSoftResourceListParams = withResourceListSearchParam(softResourceListParams, serverResourceSearchQuery);
+    const pagedSoftResourceListParams = withResourceListSearchParam(offeringResourceListParams, serverResourceSearchQuery);
+    const pagedGroupResourceListParams = withResourceListSearchParam(groupResourceListParams, serverResourceSearchQuery);
     const assetLoadKey = useMemo(() => (
         needsFullAssetDataset
             ? ['full', normalizedQuery, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
-            : ['paged', normalizedQuery, hardAssetsPage, softAssetsPage, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
+            : ['paged', normalizedQuery, hardAssetsPage, softAssetsPage, groupAssetsPage, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
     ), [
         directAssetAccessKey,
+        groupAssetsPage,
         hardAssetsPage,
         canManageResourceTools,
         needsFullAssetDataset,
@@ -761,8 +772,8 @@ export default function ResourcesPage() {
     async function load() {
         const requestId = loadRequestIdRef.current + 1;
         loadRequestIdRef.current = requestId;
-        setResourceLoading({ hard: true, soft: true });
-        setResourceLoadErrors((prev) => ({ ...prev, hard: null, soft: null }));
+        setResourceLoading({ hard: true, soft: true, groups: canSeeGroupResources });
+        setResourceLoadErrors((prev) => ({ ...prev, hard: null, soft: null, groups: null }));
 
         const hardAssetsRequest = needsFullAssetDataset
             ? fetchAllPaginatedResults(api.getHardAssets, fullHardResourceListParams)
@@ -778,6 +789,20 @@ export default function ResourcesPage() {
                 pagedSoftResourceListParams,
                 { page: softAssetsPage, pageSize: softAssetsPageSize },
             );
+        const groupAssetsRequest = canSeeGroupResources
+            ? (
+                needsFullAssetDataset
+                    ? fetchAllPaginatedResults(api.getSoftAssets, fullGroupResourceListParams)
+                    : fetchResourceListPageWithResilience(
+                        api.getSoftAssets,
+                        pagedGroupResourceListParams,
+                        { page: groupAssetsPage, pageSize: softAssetsPageSize },
+                    )
+            )
+            : Promise.resolve({
+                data: [],
+                pagination: { page: 1, pageSize: softAssetsPageSize, totalCount: 0, totalPages: 1 },
+            });
 
         const buildFailure = (err) => buildResourceLoadFailureMessage({
             isOffline: typeof navigator !== 'undefined' && navigator.onLine === false,
@@ -838,32 +863,22 @@ export default function ResourcesPage() {
 
             const softResponse = normalizePaginatedResponse(result.value || [], softAssetsPageSize);
             const softData = softResponse.data || [];
-            const groupData = await fetchAllPaginatedResults(api.getSoftAssets, withResourceListSearchParam({
-                ...softResourceListParams,
-                assetMode: 'group',
-            }, serverResourceSearchQuery)).catch(() => []);
-            const groupIds = new Set((Array.isArray(groupData) ? groupData : []).map((asset) => Number(asset.id)).filter(Number.isInteger));
-            const mergedSoftData = [
-                ...softData.filter((asset) => !groupIds.has(Number(asset.id))),
-                ...(Array.isArray(groupData) ? groupData : []),
-            ];
 
             if (!canManageResourceTools) {
                 const favorites = await api.getFavorites();
                 if (requestId !== loadRequestIdRef.current) return;
                 const favoriteSoftIds = new Set(favorites.filter((favorite) => favorite.resourceType === 'soft').map((favorite) => favorite.resourceId));
-                const favoriteSoftAssets = mergedSoftData.filter((asset) => favoriteSoftIds.has(asset.id));
+                const favoriteSoftAssets = softData.filter((asset) => favoriteSoftIds.has(asset.id));
                 setSoftAssets(favoriteSoftAssets);
                 setSoftAssetsTotal(favoriteSoftAssets.length);
             } else if (normalizedRole === 'super_admin' || normalizedRole === 'regional_admin') {
-                setSoftAssets(mergedSoftData);
+                setSoftAssets(softData);
                 setSoftAssetsTotal(needsFullAssetDataset ? softData.length : (softResponse.pagination?.totalCount || 0));
             } else {
                 const partnerOwnerIds = new Set(partnerScopedOwnerIds);
-                const scopedSoftAssets = mergedSoftData.filter((asset) => {
+                const scopedSoftAssets = softData.filter((asset) => {
                     if (partnerOwnerIds.has(Number(asset.partnerId))) return true;
                     if (softAssetStaffAccessIdSet.has(Number(asset.id))) return true;
-                    if (isGroupAsset(asset)) return false;
                     const linkedIds = getLinkedHardAssetIdsForOffering(asset);
                     return [...linkedIds].some((hardAssetId) => hardAssetStaffAccessIdSet.has(hardAssetId));
                 });
@@ -876,7 +891,41 @@ export default function ResourcesPage() {
             setResourceLoading((prev) => ({ ...prev, soft: false }));
         }
 
-        await Promise.all([loadHardAssets(), loadSoftAssets()]);
+        async function loadGroupAssets() {
+            const result = await settleResourceListRequest(groupAssetsRequest);
+            if (requestId !== loadRequestIdRef.current) return;
+            if (result.status !== 'fulfilled') {
+                console.error(result.reason);
+                const failure = buildFailure(result.reason);
+                setResourceLoadErrors((prev) => ({ ...prev, groups: failure }));
+                setActionNotice({ type: 'warning', message: failure.notice });
+                setGroupAssets([]);
+                setGroupAssetsTotal(0);
+                setResourceLoading((prev) => ({ ...prev, groups: false }));
+                return;
+            }
+
+            const groupResponse = normalizePaginatedResponse(result.value || [], softAssetsPageSize);
+            const groupData = groupResponse.data || [];
+            if (normalizedRole === 'partner' || partnerScopedOwnerIds.length > 0 || hasDirectAssetAccess) {
+                const partnerOwnerIds = new Set(partnerScopedOwnerIds);
+                const scopedGroupAssets = groupData.filter((asset) => (
+                    partnerOwnerIds.has(Number(asset.partnerId))
+                    || softAssetStaffAccessIdSet.has(Number(asset.id))
+                ));
+                setGroupAssets(scopedGroupAssets);
+                setGroupAssetsTotal(needsFullAssetDataset ? scopedGroupAssets.length : (groupResponse.pagination?.totalCount || 0));
+            } else {
+                setGroupAssets(groupData);
+                setGroupAssetsTotal(needsFullAssetDataset ? groupData.length : (groupResponse.pagination?.totalCount || 0));
+            }
+
+            setResourceLoadErrors((prev) => ({ ...prev, groups: null }));
+            setHasCompletedResourceLoad(true);
+            setResourceLoading((prev) => ({ ...prev, groups: false }));
+        }
+
+        await Promise.all([loadHardAssets(), loadSoftAssets(), loadGroupAssets()]);
     }
 
     async function loadResourceMetadata() {
@@ -966,6 +1015,7 @@ export default function ResourcesPage() {
     useEffect(() => {
         setHardAssetsPage(1);
         setSoftAssetsPage(1);
+        setGroupAssetsPage(1);
     }, [boundaryFilter, normalizedQuery]);
 
     useEffect(() => {
@@ -1008,8 +1058,8 @@ export default function ResourcesPage() {
         [softAssets],
     );
     const groupSoftAssets = useMemo(
-        () => softAssets.filter((asset) => isGroupAsset(asset)),
-        [softAssets],
+        () => groupAssets,
+        [groupAssets],
     );
 
     const filteredSoftAssets = useMemo(
@@ -1055,6 +1105,7 @@ export default function ResourcesPage() {
     );
     const hardUsesClientOnlyFilter = needsFullAssetDataset;
     const softUsesClientOnlyFilter = needsFullAssetDataset;
+    const groupUsesClientOnlyFilter = needsFullAssetDataset;
     const visibleHardAssets = useMemo(
         () => (
             hardUsesClientOnlyFilter
@@ -1071,26 +1122,34 @@ export default function ResourcesPage() {
         ),
         [filteredSoftAssets, softAssetsPage, softAssetsPageSize, softUsesClientOnlyFilter]
     );
-    const visibleGroupAssets = filteredGroupAssets;
+    const visibleGroupAssets = useMemo(
+        () => (
+            groupUsesClientOnlyFilter
+                ? filteredGroupAssets.slice((groupAssetsPage - 1) * softAssetsPageSize, groupAssetsPage * softAssetsPageSize)
+                : filteredGroupAssets
+        ),
+        [filteredGroupAssets, groupAssetsPage, groupUsesClientOnlyFilter, softAssetsPageSize]
+    );
     const hardTabCount = hardUsesClientOnlyFilter ? filteredHardAssets.length : hardAssetsTotal;
-    const groupTabCount = filteredGroupAssets.length;
-    const softTabCount = softUsesClientOnlyFilter ? filteredSoftAssets.length : Math.max(0, softAssetsTotal - groupTabCount);
+    const groupTabCount = groupUsesClientOnlyFilter ? filteredGroupAssets.length : groupAssetsTotal;
+    const softTabCount = softUsesClientOnlyFilter ? filteredSoftAssets.length : softAssetsTotal;
     const hardInitialLoading = resourceLoading.hard && filteredHardAssets.length === 0;
     const softInitialLoading = resourceLoading.soft && filteredSoftAssets.length === 0;
+    const groupInitialLoading = resourceLoading.groups && filteredGroupAssets.length === 0;
     const templateInitialLoading = metadataLoading && filteredTemplates.length === 0;
     const activeListLoading = activeTab === 'hard'
         ? hardInitialLoading
         : activeTab === 'soft'
             ? softInitialLoading
             : activeTab === 'groups'
-                ? softInitialLoading
+                ? groupInitialLoading
                 : templateInitialLoading;
     const activeResourceLoadError = activeTab === 'hard'
         ? resourceLoadErrors.hard
         : activeTab === 'soft'
             ? resourceLoadErrors.soft
             : activeTab === 'groups'
-                ? resourceLoadErrors.soft
+                ? resourceLoadErrors.groups
                 : resourceLoadErrors.templates;
     const showInitialResourceLoadFailure = Boolean(
         resourceLoadErrors.hard
@@ -1101,6 +1160,7 @@ export default function ResourcesPage() {
     );
     const hardTabLabel = showInitialResourceLoadFailure ? '-' : hardTabCount;
     const softTabLabel = showInitialResourceLoadFailure ? '-' : softTabCount;
+    const groupTabLabel = showInitialResourceLoadFailure ? '-' : groupTabCount;
     const templateTabLabel = showInitialResourceLoadFailure ? '-' : filteredTemplates.length;
     const hardListStatus = getManagedResourceListStatus({
         loading: hardInitialLoading,
@@ -1114,6 +1174,12 @@ export default function ResourcesPage() {
         visibleItemCount: filteredSoftAssets.length,
         hasCompletedResourceLoad,
     });
+    const groupListStatus = getManagedResourceListStatus({
+        loading: groupInitialLoading,
+        loadError: resourceLoadErrors.groups,
+        visibleItemCount: filteredGroupAssets.length,
+        hasCompletedResourceLoad,
+    });
     const templateListStatus = getManagedResourceListStatus({
         loading: templateInitialLoading,
         loadError: resourceLoadErrors.templates,
@@ -1122,6 +1188,7 @@ export default function ResourcesPage() {
     });
     const hardPageRange = getVisiblePageRange(hardAssetsPage, hardAssetsPageSize, hardTabCount, visibleHardAssets.length);
     const softPageRange = getVisiblePageRange(softAssetsPage, softAssetsPageSize, softTabCount, visibleSoftAssets.length);
+    const groupPageRange = getVisiblePageRange(groupAssetsPage, softAssetsPageSize, groupTabCount, visibleGroupAssets.length);
     const canExportFilteredWorkbook = canManageResourceTools
         && (
             ['super_admin', 'regional_admin', 'partner'].includes(normalizedRole)
@@ -1166,7 +1233,10 @@ export default function ResourcesPage() {
 
     async function resolveSoftAssetsForFilteredExport() {
         if (softUsesClientOnlyFilter) return filteredSoftAssets;
-        const allSoftAssets = await fetchAllPaginatedResults(api.getSoftAssets, resourceListParams);
+        const allSoftAssets = await fetchAllPaginatedResults(api.getSoftAssets, withResourceListSearchParam(
+            offeringResourceListParams,
+            serverResourceSearchQuery,
+        ));
         return sortResourceItems(
             scopeSoftAssetsForCurrentUser(allSoftAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
             sortOrder,
@@ -1532,6 +1602,7 @@ export default function ResourcesPage() {
 
     function replaceSoftAsset(updatedAsset) {
         setSoftAssets((prev) => prev.map((asset) => (asset.id === updatedAsset.id ? { ...asset, ...updatedAsset } : asset)));
+        setGroupAssets((prev) => prev.map((asset) => (asset.id === updatedAsset.id ? { ...asset, ...updatedAsset } : asset)));
     }
 
     function buildInlineSoftAssetInitialData(hostAsset) {
@@ -2127,7 +2198,7 @@ export default function ResourcesPage() {
                             }`}
                         >
                             <Layers3 size={18} strokeWidth={activeTab === 'groups' ? 2.5 : 2} />
-                            Groups ({groupTabCount})
+                            Groups ({groupTabLabel})
                         </button>
                     ) : null}
                     {canManageResourceTools && canCreateStandaloneResources ? (
@@ -2512,8 +2583,8 @@ export default function ResourcesPage() {
                     </div>
                 )
             ) : activeTab === 'groups' ? (
-                softListStatus === 'load-error' ? (
-                    <ResourceLoadFailureState failure={resourceLoadErrors.soft} onRetry={load} />
+                groupListStatus === 'load-error' ? (
+                    <ResourceLoadFailureState failure={resourceLoadErrors.groups} onRetry={load} />
                 ) : filteredGroupAssets.length === 0 ? (
                     <EmptyState
                         icon={Layers3}
@@ -2528,7 +2599,7 @@ export default function ResourcesPage() {
                 ) : (
                     <div className="space-y-4">
                         <p className="text-sm text-slate-500">
-                            Showing {visibleGroupAssets.length} of {groupTabCount} groups
+                            Showing {groupPageRange.start}-{groupPageRange.end} of {groupTabCount} groups
                         </p>
                         {visibleGroupAssets.map((asset) => {
                             const hiddenStatus = getHiddenStatus(asset);
@@ -2607,6 +2678,12 @@ export default function ResourcesPage() {
                                 </div>
                             );
                         })}
+                        <Pagination
+                            totalCount={groupTabCount}
+                            pageSize={softAssetsPageSize}
+                            currentPage={groupAssetsPage}
+                            onPageChange={setGroupAssetsPage}
+                        />
                     </div>
                 )
             ) : activeTab === 'soft' ? (

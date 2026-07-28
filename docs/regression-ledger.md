@@ -125,6 +125,24 @@ Rules:
   `npm run build:client` passed with the established large-chunk advisory;
   full server coverage passed 487/487 with `npm run test:server`; and
   `git diff --check` passed.
+- 2026-07-28 resource-list load recovery follow-up: Manage Resources now loads
+  Places, Offerings, and Groups as separate bounded list families. Offerings
+  request `assetMode=offering`, which the Worker treats as every soft asset
+  except Groups so generated child offerings remain in the Offerings tab.
+  Groups request `assetMode=group` through their own loader, loading state,
+  error state, count, and pagination. A slow or failed Groups request no longer
+  blocks Offerings from rendering or forces the Offerings count to zero. The
+  change does not alter Discover, public visibility, access-control rules,
+  workbook schemas, imports, ownership, resource detail, My Directory, My Maps,
+  auth/session behavior, or production data.
+- Verification result before deploy: focused coverage passed 31/31 with
+  `node --test client/test/resourceListLoading.test.js client/test/groupAssetUiSource.test.js`;
+  the Worker source guard passed with
+  `node --test server/test/softAssetAssetModeFilterSource.test.js`; full
+  server coverage passed 488/488 with `npm run test:server`; standard
+  `npm run build:client` passed with the established large-chunk advisory; and
+  the exact four-root production client build passed with the established
+  large-chunk advisory.
 
 ## 2026-07-27 Owner Full map Print layer controls
 
