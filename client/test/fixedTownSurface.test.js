@@ -18,6 +18,7 @@ import {
     parseFixedTownSurfaceIndex,
     parseFixedTownSurfaceManifest,
     resolveFixedTownChunkUrl,
+    resolveFixedTownDisplayZoomStep,
     resolveFixedTownBasemapMode,
     resolveFixedTownMinimumZoomSnap,
     resolveFixedTownManifestUrl,
@@ -652,6 +653,24 @@ test('memory fallback retries after fractional containment advances within displ
         currentZoom: 15.1,
         fallbackZoom: null,
     }), false);
+});
+
+test('print containment keeps fractional Detailed zooms in their visible integer step', () => {
+    assert.equal(resolveFixedTownDisplayZoomStep({
+        zoom: 15.6,
+        preserveContainmentStep: true,
+    }), 15);
+    assert.equal(resolveFixedTownDisplayZoomStep({
+        zoom: 16.6,
+        preserveContainmentStep: true,
+    }), 16);
+    assert.equal(resolveFixedTownDisplayZoomStep({
+        zoom: 15.6,
+    }), 16);
+    assert.equal(resolveFixedTownDisplayZoomStep({
+        zoom: undefined,
+        preserveContainmentStep: true,
+    }), null);
 });
 
 test('requested Detailed mode caps live tiles only while its viewport can be covered', () => {

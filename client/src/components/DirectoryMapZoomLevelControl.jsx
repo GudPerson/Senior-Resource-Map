@@ -3,12 +3,14 @@ import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 
 import { shouldCenterDirectoryMapAtMinimumZoom } from '../lib/directoryMapCamera.js';
+import { resolveFixedTownDisplayZoomStep } from '../lib/fixedTownSurface.js';
 
 export default function DirectoryMapZoomLevelControl({
     enabled = false,
     minZoom,
     minimumZoomCenter = null,
     lockAtMinimumZoom = false,
+    preserveContainmentStep = false,
 }) {
     const map = useMap();
 
@@ -55,7 +57,10 @@ export default function DirectoryMapZoomLevelControl({
 
         const updateCounter = () => {
             if (!counter) return;
-            const zoomLevel = Math.round(Number(map.getZoom()));
+            const zoomLevel = resolveFixedTownDisplayZoomStep({
+                zoom: map.getZoom(),
+                preserveContainmentStep,
+            });
             counter.textContent = Number.isFinite(zoomLevel) ? String(zoomLevel) : '—';
             counter.setAttribute(
                 'aria-label',
@@ -137,7 +142,7 @@ export default function DirectoryMapZoomLevelControl({
                 zoomInButton.style.borderTopRightRadius = previousZoomInRadii.topRight;
             }
         };
-    }, [enabled, lockAtMinimumZoom, map, minZoom, minimumZoomCenter]);
+    }, [enabled, lockAtMinimumZoom, map, minZoom, minimumZoomCenter, preserveContainmentStep]);
 
     return null;
 }

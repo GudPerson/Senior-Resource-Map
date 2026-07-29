@@ -3065,6 +3065,7 @@ export default function DirectoryMap({
                     minZoom={resolvedMapMinZoom}
                     minimumZoomCenter={minimumZoomCenter}
                     lockAtMinimumZoom={lockMinimumZoomCamera}
+                    preserveContainmentStep={fixedTownSurfaceContainOnResize}
                 />
                 <DirectoryMapMobileControlDock
                     target={mobileControlPortalTarget}

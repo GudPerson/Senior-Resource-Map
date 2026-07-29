@@ -1591,6 +1591,17 @@ export function shouldRetryFixedTownSurfaceMemoryFallback({
         && normalizedCurrentZoom - normalizedFallbackZoom >= 0.05;
 }
 
+export function resolveFixedTownDisplayZoomStep({
+    zoom,
+    preserveContainmentStep = false,
+} = {}) {
+    const normalizedZoom = Number(zoom);
+    if (!Number.isFinite(normalizedZoom)) return null;
+    return preserveContainmentStep
+        ? Math.floor(normalizedZoom + Number.EPSILON)
+        : Math.round(normalizedZoom);
+}
+
 export function shouldCapFixedTownRequestedLiveTiles({
     townRequested = false,
     surfaceConfigured = false,

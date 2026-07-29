@@ -84,12 +84,17 @@ Rules:
   step 15 could not retry Detailed until the UI reached step 16. The fallback
   now retains the exact failed zoom and retries after at least `0.05` fractional
   zoom advancement. The existing `384 MiB` memory guard remains unchanged.
+  Full-map Print View also preserves the lower visible integer step while its
+  containment helper applies a fractional internal zoom, so an internal
+  `15.x` containment adjustment remains displayed as zoom step 15 instead of
+  presenting itself as step 16. Other map counters retain their established
+  nearest-step behavior.
   Reproduction must cold-load an authenticated owner Full-map Print View at
   displayed step 15, without first visiting step 16, and then cover resize,
   Default/Gray switching, and reload. Acceptance requires fixed-surface image
   overlays, no live Leaflet tile-pane images, visible Singapore Land Authority
   attribution, and session continuity throughout. Focused fixed-surface
-  coverage passed 30/30, map-lockdown coverage passed 65/65, full server
+  coverage passed 31/31, map-lockdown coverage passed 66/66, full server
   coverage passed 490/490, the exact four-root production client build passed
   with the established large-chunk advisory, and `git diff --check` passed.
   Full client source coverage passed 511/512 with only the same unrelated,

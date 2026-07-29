@@ -122,7 +122,9 @@ test('directory map keeps Live as the default and resolves Town locally from set
 test('owner proof zoom counter sits above native controls and recenters only at its minimum step', () => {
     assert.match(zoomLevelControlSource, /data-map-zoom-level/);
     assert.match(zoomLevelControlSource, /zoomControlContainer\.insertBefore\(counter, zoomControlContainer\.firstChild\)/);
-    assert.match(zoomLevelControlSource, /Math\.round\(Number\(map\.getZoom\(\)\)\)/);
+    assert.match(zoomLevelControlSource, /resolveFixedTownDisplayZoomStep\(\{/);
+    assert.match(zoomLevelControlSource, /preserveContainmentStep/);
+    assert.match(directoryMapSource, /preserveContainmentStep=\{fixedTownSurfaceContainOnResize\}/);
     assert.match(zoomLevelControlSource, /map\.on\('zoom', updateCounter\)/);
     assert.match(zoomLevelControlSource, /map\.on\('zoomend', handleZoomEnd\)/);
     assert.match(zoomLevelControlSource, /map\.on\('moveend', handleMoveEnd\)/);
