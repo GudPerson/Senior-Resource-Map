@@ -1570,6 +1570,27 @@ export function resolveFixedTownMinimumZoomSnap({
     return normalizedMinZoom;
 }
 
+export function shouldRetryFixedTownSurfaceMemoryFallback({
+    currentZoom,
+    fallbackZoom,
+} = {}) {
+    if (
+        currentZoom === null
+        || currentZoom === undefined
+        || currentZoom === ''
+        || fallbackZoom === null
+        || fallbackZoom === undefined
+        || fallbackZoom === ''
+    ) {
+        return false;
+    }
+    const normalizedCurrentZoom = Number(currentZoom);
+    const normalizedFallbackZoom = Number(fallbackZoom);
+    return Number.isFinite(normalizedCurrentZoom)
+        && Number.isFinite(normalizedFallbackZoom)
+        && normalizedCurrentZoom - normalizedFallbackZoom >= 0.05;
+}
+
 export function shouldCapFixedTownRequestedLiveTiles({
     townRequested = false,
     surfaceConfigured = false,

@@ -26,6 +26,7 @@ import {
     selectFixedTownSurfaceForViewport,
     selectVisibleFixedTownChunks,
     shouldCapFixedTownRequestedLiveTiles,
+    shouldRetryFixedTownSurfaceMemoryFallback,
     validateFixedTownSurfaceIndex,
     validateFixedTownSurfaceManifest,
 } from '../src/lib/fixedTownSurface.js';
@@ -620,6 +621,37 @@ test('print-only Detailed recovery snaps a rounded eligible zoom to the exact mi
         minZoom: 15,
         viewportEligible: false,
     }), null);
+});
+
+test('memory fallback retries after fractional containment advances within displayed zoom 15', () => {
+    assert.equal(shouldRetryFixedTownSurfaceMemoryFallback({
+        currentZoom: 15,
+        fallbackZoom: 15,
+    }), false);
+    assert.equal(shouldRetryFixedTownSurfaceMemoryFallback({
+        currentZoom: 15.04,
+        fallbackZoom: 15,
+    }), false);
+    assert.equal(shouldRetryFixedTownSurfaceMemoryFallback({
+        currentZoom: 15.1,
+        fallbackZoom: 15,
+    }), true);
+    assert.equal(shouldRetryFixedTownSurfaceMemoryFallback({
+        currentZoom: 15.2,
+        fallbackZoom: 15.1,
+    }), true);
+    assert.equal(shouldRetryFixedTownSurfaceMemoryFallback({
+        currentZoom: 14.9,
+        fallbackZoom: 15,
+    }), false);
+    assert.equal(shouldRetryFixedTownSurfaceMemoryFallback({
+        currentZoom: null,
+        fallbackZoom: 15,
+    }), false);
+    assert.equal(shouldRetryFixedTownSurfaceMemoryFallback({
+        currentZoom: 15.1,
+        fallbackZoom: null,
+    }), false);
 });
 
 test('requested Detailed mode caps live tiles only while its viewport can be covered', () => {

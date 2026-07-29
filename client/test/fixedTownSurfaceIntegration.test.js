@@ -93,7 +93,9 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /surfaceFaulted: Boolean\(fixedTownSurfaceFaultReason\)/);
     assert.match(directoryMapSource, /maxZoom=\{shouldCapTownRequestedLiveTiles/);
     assert.match(directoryMapSource, /fixedTownSurfaceFaultReason === 'viewport-memory-limit'/);
-    assert.match(directoryMapSource, /currentTileZoom > fixedTownSurfaceFaultTileZoomRef\.current/);
+    assert.match(directoryMapSource, /shouldRetryFixedTownSurfaceMemoryFallback\(\{/);
+    assert.match(directoryMapSource, /fallbackZoom: fixedTownSurfaceFaultZoomRef\.current/);
+    assert.doesNotMatch(directoryMapSource, /fixedTownSurfaceFaultTileZoomRef/);
     assert.match(directoryMapSource, /<DirectoryMapController/);
     assert.match(directoryMapSource, /<DirectoryMapRecenterControl/);
     assert.match(directoryMapSource, /mapMinZoom = CAREAROUND_BASEMAP_MIN_ZOOM/);

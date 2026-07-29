@@ -46,6 +46,7 @@ import {
     resolveFixedTownBasemapMode,
     selectVisibleFixedTownChunks,
     shouldCapFixedTownRequestedLiveTiles,
+    shouldRetryFixedTownSurfaceMemoryFallback,
 } from '../lib/fixedTownSurface.js';
 import {
     createPersonalPlaceIconDataUrl,
@@ -2433,7 +2434,7 @@ export default function DirectoryMap({
     const [fixedTownSurfaceViewportEligible, setFixedTownSurfaceViewportEligible] = useState(null);
     const [fixedTownManualLiveOverride, setFixedTownManualLiveOverride] = useState(false);
     const [fixedTownSurfaceFaultReason, setFixedTownSurfaceFaultReason] = useState('');
-    const fixedTownSurfaceFaultTileZoomRef = useRef(null);
+    const fixedTownSurfaceFaultZoomRef = useRef(null);
     const resolvedMapMinZoom = Number.isFinite(Number(mapMinZoom))
         ? Number(mapMinZoom)
         : CAREAROUND_BASEMAP_MIN_ZOOM;
@@ -2472,7 +2473,7 @@ export default function DirectoryMap({
         if (nextMode === 'town') {
             setFixedTownManualLiveOverride(false);
             setFixedTownSurfaceFaultReason('');
-            fixedTownSurfaceFaultTileZoomRef.current = null;
+            fixedTownSurfaceFaultZoomRef.current = null;
         } else if (townMapZoomEligible) {
             setFixedTownManualLiveOverride(true);
         }
@@ -2483,13 +2484,13 @@ export default function DirectoryMap({
             const reason = details.reason || 'surface-unavailable';
             if (reason === 'outside-surface' && onFixedTownSurfaceViewportChange) {
                 setFixedTownSurfaceFaultReason('');
-                fixedTownSurfaceFaultTileZoomRef.current = null;
+                fixedTownSurfaceFaultZoomRef.current = null;
                 return;
             }
             const fallbackZoom = Number(details.zoom ?? fixedTownSurfaceZoom);
-            fixedTownSurfaceFaultTileZoomRef.current = reason === 'viewport-memory-limit'
+            fixedTownSurfaceFaultZoomRef.current = reason === 'viewport-memory-limit'
                 && Number.isFinite(fallbackZoom)
-                ? Math.round(fallbackZoom)
+                ? fallbackZoom
                 : null;
             setFixedTownSurfaceFaultReason(reason);
             return;
@@ -2506,27 +2507,27 @@ export default function DirectoryMap({
         if (!townMapZoomEligible) {
             setFixedTownManualLiveOverride(false);
             setFixedTownSurfaceFaultReason('');
-            fixedTownSurfaceFaultTileZoomRef.current = null;
+            fixedTownSurfaceFaultZoomRef.current = null;
             return;
         }
-        const currentTileZoom = Math.round(Number(fixedTownSurfaceZoom));
         if (
             fixedTownSurfaceFaultReason === 'viewport-memory-limit'
-            && Number.isFinite(currentTileZoom)
-            && Number.isFinite(fixedTownSurfaceFaultTileZoomRef.current)
-            && currentTileZoom > fixedTownSurfaceFaultTileZoomRef.current
+            && shouldRetryFixedTownSurfaceMemoryFallback({
+                currentZoom: fixedTownSurfaceZoom,
+                fallbackZoom: fixedTownSurfaceFaultZoomRef.current,
+            })
         ) {
             setFixedTownSurfaceFaultReason('');
-            fixedTownSurfaceFaultTileZoomRef.current = null;
+            fixedTownSurfaceFaultZoomRef.current = null;
             return;
         }
         if (!configuredFixedTownSurfaceAvailable) {
             setFixedTownSurfaceFaultReason('');
-            fixedTownSurfaceFaultTileZoomRef.current = null;
+            fixedTownSurfaceFaultZoomRef.current = null;
         }
         if (fixedTownSurfaceFaultReason === 'outside-surface' && fixedTownSurfaceInViewport) {
             setFixedTownSurfaceFaultReason('');
-            fixedTownSurfaceFaultTileZoomRef.current = null;
+            fixedTownSurfaceFaultZoomRef.current = null;
         }
     }, [
         configuredFixedTownSurfaceAvailable,

@@ -77,6 +77,23 @@ Rules:
   client/test/mapSettingsControl.test.js`; `npm run build:client:map-lockdown`
   passed with the established large-chunk advisory; and `git diff --check`
   passed.
+- 2026-07-29 Print View cold-start zoom-15 recovery: a Full-map Print View that
+  opened directly at underlying zoom `15.0` could exceed the fixed-surface
+  viewport memory guard by a small amount. The fallback stored rounded zoom
+  step `15`, so the normal fractional containment adjustment within displayed
+  step 15 could not retry Detailed until the UI reached step 16. The fallback
+  now retains the exact failed zoom and retries after at least `0.05` fractional
+  zoom advancement. The existing `384 MiB` memory guard remains unchanged.
+  Reproduction must cold-load an authenticated owner Full-map Print View at
+  displayed step 15, without first visiting step 16, and then cover resize,
+  Default/Gray switching, and reload. Acceptance requires fixed-surface image
+  overlays, no live Leaflet tile-pane images, visible Singapore Land Authority
+  attribution, and session continuity throughout. Focused fixed-surface
+  coverage passed 30/30, map-lockdown coverage passed 65/65, full server
+  coverage passed 490/490, the exact four-root production client build passed
+  with the established large-chunk advisory, and `git diff --check` passed.
+  Full client source coverage passed 511/512 with only the same unrelated,
+  repeatable Care Calendar planning-conflict assertion already recorded above.
 
 ## 2026-07-28 Admin Places CSV required-header import recovery
 
