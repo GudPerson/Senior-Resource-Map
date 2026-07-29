@@ -20,6 +20,7 @@ import {
 
 import {
     PRINT_ANNOTATION_COLORS,
+    PRINT_ANNOTATION_MAX_CONTROL_POINTS,
     PRINT_ANNOTATION_TOOL_CIRCLE,
     PRINT_ANNOTATION_TOOL_LINE,
     PRINT_ANNOTATION_TOOL_PIN,
@@ -44,7 +45,7 @@ const TOOL_HELP = {
     [PRINT_ANNOTATION_TOOL_LINE]: 'Click once to start, click the end point, then choose Done.',
     [PRINT_ANNOTATION_TOOL_RECTANGLE]: 'Click one corner, click the opposite corner, then choose Done.',
     [PRINT_ANNOTATION_TOOL_CIRCLE]: 'Click the centre, click the outer edge, then choose Done.',
-    [PRINT_ANNOTATION_TOOL_POLYGON]: 'Click to add boundary points. Choose Done when the shape is complete.',
+    [PRINT_ANNOTATION_TOOL_POLYGON]: `Click to add up to ${PRINT_ANNOTATION_MAX_CONTROL_POINTS} boundary points. Choose Done when the shape is complete.`,
 };
 
 function IconButton({

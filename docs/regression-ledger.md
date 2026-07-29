@@ -414,6 +414,15 @@ Rules:
   Drafting exposes `Undo last point` only when at least one point exists and
   removes exactly the most recent point. No external network request is made
   when drawing or editing a boundary.
+- 2026-07-29 polygon point-limit increase: owner Full-map Print View polygon
+  drafting now allows up to 200 sparse control anchors per boundary. The
+  toolbar helper states the active limit, client normalization preserves 200
+  anchors and truncates anything beyond that, and the server validator accepts
+  200-anchor polygons while still rejecting larger control-point arrays. The
+  annotation document remains bounded by the existing 100-annotation and
+  2,000-total-point caps, so this does not make freehand or unlimited geometry
+  valid. Render-only polygon corner smoothing remains capped to 500 display
+  points, preserving editable sparse anchors and export performance.
 - 2026-07-26 repeatable local UAT startup recovery: `npm run dev:server` now
   starts the local Wrangler Worker with an explicit development-only
   `NODE_ENV` override while preserving the production `wrangler.toml`. This

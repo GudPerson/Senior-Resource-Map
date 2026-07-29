@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import {
     getPrintAnnotationDocument,
+    PRINT_ANNOTATION_MAX_CONTROL_POINTS,
     replacePrintAnnotationDocument,
     validatePrintAnnotationDocumentInput,
 } from '../src/controllers/printAnnotationsController.js';
@@ -80,6 +81,13 @@ function createFakeDb({ ownsMap = true } = {}) {
     };
 }
 
+function createBoundaryPoints(count) {
+    return Array.from({ length: count }, (unused, index) => [
+        1.3 + (index * 0.000001),
+        103.7 + (index * 0.000001),
+    ]);
+}
+
 test('print annotation validation accepts sparse polygon control anchors', () => {
     const input = {
         schemaVersion: 1,
@@ -90,6 +98,34 @@ test('print annotation validation accepts sparse polygon control anchors', () =>
     };
 
     assert.deepEqual(validatePrintAnnotationDocumentInput(input), input);
+});
+
+test('print annotation validation accepts two hundred polygon control anchors', () => {
+    const points = createBoundaryPoints(PRINT_ANNOTATION_MAX_CONTROL_POINTS);
+    const input = {
+        schemaVersion: 1,
+        annotations: [
+            createPolygon({
+                points,
+                controlPoints: points,
+            }),
+        ],
+    };
+
+    assert.equal(PRINT_ANNOTATION_MAX_CONTROL_POINTS, 200);
+    assert.deepEqual(validatePrintAnnotationDocumentInput(input), input);
+    assert.throws(
+        () => validatePrintAnnotationDocumentInput({
+            schemaVersion: 1,
+            annotations: [
+                createPolygon({
+                    points: createBoundaryPoints(PRINT_ANNOTATION_MAX_CONTROL_POINTS + 1),
+                    controlPoints: createBoundaryPoints(PRINT_ANNOTATION_MAX_CONTROL_POINTS + 1),
+                }),
+            ],
+        }),
+        /Print annotations is invalid/,
+    );
 });
 
 test('print annotation validation accepts bounded lines, circles, and typography', () => {

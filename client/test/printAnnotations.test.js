@@ -10,6 +10,7 @@ import {
     getPrintAnnotationCaptureKey,
     normalizePrintAnnotation,
     normalizePrintAnnotations,
+    PRINT_ANNOTATION_MAX_CONTROL_POINTS,
 } from '../src/lib/printAnnotations.js';
 
 const POLYGON_POINTS = [
@@ -17,6 +18,13 @@ const POLYGON_POINTS = [
     [1.384, 103.746],
     [1.379, 103.749],
 ];
+
+function createBoundaryPoints(count) {
+    return Array.from({ length: count }, (unused, index) => [
+        1.3 + (index * 0.000001),
+        103.7 + (index * 0.000001),
+    ]);
+}
 
 test('print annotation normalization supports pins, lines, area shapes, and control-anchor polygons', () => {
     const polygon = createPrintAnnotation({
@@ -104,6 +112,32 @@ test('normalization restores polygon control anchors and drops retired refinemen
     assert.deepEqual(annotation.points, POLYGON_POINTS);
     assert.deepEqual(annotation.controlPoints, POLYGON_POINTS);
     assert.equal(Object.hasOwn(annotation, 'refinement'), false);
+});
+
+test('normalization preserves up to two hundred polygon control anchors', () => {
+    const exactLimitPoints = createBoundaryPoints(PRINT_ANNOTATION_MAX_CONTROL_POINTS);
+    const overLimitPoints = createBoundaryPoints(PRINT_ANNOTATION_MAX_CONTROL_POINTS + 1);
+    const exactLimit = createPrintAnnotation({
+        type: 'polygon',
+        points: exactLimitPoints,
+    });
+    const overLimit = createPrintAnnotation({
+        type: 'polygon',
+        points: overLimitPoints,
+    });
+
+    assert.equal(PRINT_ANNOTATION_MAX_CONTROL_POINTS, 200);
+    assert.equal(exactLimit.points.length, 200);
+    assert.equal(exactLimit.controlPoints.length, 200);
+    assert.equal(overLimit.points.length, 200);
+    assert.equal(overLimit.controlPoints.length, 200);
+});
+
+test('polygon corner rounding remains bounded with the larger control-point limit', () => {
+    const rounded = buildRoundedPrintAnnotationPolygon(createBoundaryPoints(PRINT_ANNOTATION_MAX_CONTROL_POINTS));
+
+    assert.ok(rounded.length <= 500);
+    assert.ok(rounded.length >= PRINT_ANNOTATION_MAX_CONTROL_POINTS);
 });
 
 test('normalization bounds shape typography and drops retired label layout', () => {
@@ -225,6 +259,7 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(toolbarSource, /Done drawing/);
     assert.match(toolbarSource, /Cancel tool/);
     assert.match(toolbarSource, /data-print-annotation-helper/);
+    assert.match(toolbarSource, /up to \$\{PRINT_ANNOTATION_MAX_CONTROL_POINTS\} boundary points/);
     assert.match(toolbarSource, /Choose custom shape colour/);
     assert.match(toolbarSource, /aria-label="Shape colour picker"/);
     assert.match(toolbarSource, /data-print-annotation-shape-color-picker="true"/);

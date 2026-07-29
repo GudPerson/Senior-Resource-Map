@@ -13,7 +13,7 @@ import { validateRequestBody } from '../utils/inputValidation.js';
 export const PRINT_ANNOTATION_SCHEMA_VERSION = 1;
 export const PRINT_ANNOTATION_MAX_COUNT = 100;
 export const PRINT_ANNOTATION_MAX_POINTS = 500;
-export const PRINT_ANNOTATION_MAX_CONTROL_POINTS = 60;
+export const PRINT_ANNOTATION_MAX_CONTROL_POINTS = 200;
 export const PRINT_ANNOTATION_MAX_TOTAL_POINTS = 2000;
 export const PRINT_ANNOTATION_MAX_TEXT_LENGTH = 240;
 
