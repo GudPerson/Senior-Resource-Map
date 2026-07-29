@@ -683,7 +683,7 @@ function PrintDirectoryMap({
                     ? PRINT_FULL_MAP_FIXED_SURFACE_MAX_DECODED_BYTES
                     : null}
                 fixedTownSurfaceFallbackScope="local"
-                onFixedTownSurfaceViewportChange={onFixedTownSurfaceViewportChange}
+                onFixedTownSurfaceViewportChange={interactive ? onFixedTownSurfaceViewportChange : null}
                 mobileControlPortalTarget={mobileControlPortalTarget}
                 mapModeControl={printMapState && interactive ? mapModeControl : null}
                 showMapStyleControl={interactive}

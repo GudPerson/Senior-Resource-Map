@@ -107,7 +107,11 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /<DirectoryMapFixedTownMinZoomSnapSync/);
     assert.match(directoryMapSource, /<DirectoryMapFixedTownResizeContainmentSync/);
     assert.match(directoryMapSource, /map\.getBoundsZoom\(leafletSurfaceBounds, true\)/);
+    assert.match(directoryMapSource, /const minimumRequiredZoom = Math\.max\(normalizedMinZoom, requiredZoom\)/);
+    assert.match(directoryMapSource, /const nextZoomBase = minimumRequiredZoom > currentZoom/);
+    assert.doesNotMatch(directoryMapSource, /Math\.max\(currentZoom \+ zoomSnap, normalizedMinZoom, requiredZoom\)/);
     assert.match(directoryMapSource, /map\.unproject\(nextCenter, nextZoom\)/);
+    assert.match(directoryMapSource, /keepExpandedViewportInsideSurface\(\);\s*map\.on\('resize moveend zoomend', scheduleContainment\)/);
     assert.match(directoryMapSource, /map\.on\('resize moveend zoomend', scheduleContainment\)/);
     assert.match(directoryMapSource, /map\.off\('resize moveend zoomend', scheduleContainment\)/);
     assert.doesNotMatch(directoryMapSource, /<MapContainer[^>]*key=/s);

@@ -1961,11 +1961,13 @@ function DirectoryMapFixedTownResizeContainmentSync({
 
             const zoomSnap = 0.1;
             const maximumZoom = Number(map.getMaxZoom());
+            const minimumRequiredZoom = Math.max(normalizedMinZoom, requiredZoom);
+            const nextZoomBase = minimumRequiredZoom > currentZoom
+                ? minimumRequiredZoom
+                : currentZoom + zoomSnap;
             const nextZoom = Math.min(
                 Number.isFinite(maximumZoom) ? maximumZoom : requiredZoom,
-                Math.ceil(
-                    Math.max(currentZoom + zoomSnap, normalizedMinZoom, requiredZoom) / zoomSnap,
-                ) * zoomSnap,
+                Math.ceil(nextZoomBase / zoomSnap) * zoomSnap,
             );
             const viewportHalf = map.getSize().divideBy(2);
             const surfaceNorthWest = map.project(leafletSurfaceBounds.getNorthWest(), nextZoom);
@@ -1989,8 +1991,8 @@ function DirectoryMapFixedTownResizeContainmentSync({
             frame = window.requestAnimationFrame(keepExpandedViewportInsideSurface);
         };
 
+        keepExpandedViewportInsideSurface();
         map.on('resize moveend zoomend', scheduleContainment);
-        scheduleContainment();
         return () => {
             if (frame !== null) window.cancelAnimationFrame(frame);
             map.off('resize moveend zoomend', scheduleContainment);

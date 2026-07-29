@@ -61,6 +61,22 @@ Rules:
   and showed one repeatable unrelated Care Calendar planning-conflict assertion
   failure in `client/test/careCalendarPlanning.test.js`; the touched My Map,
   annotation, and fixed-town map guardrails remained green.
+- 2026-07-29 Print View zoom-15 Detailed follow-up: the interactive owner Print
+  View preview is now the only print map instance that reports fixed-surface
+  viewport bounds for Detailed surface selection. Hidden export/capture maps
+  consume the selected surface without overwriting it, so a covered displayed
+  zoom step 15 preview does not fall back to live OneMap tiles because of an
+  offscreen capture viewport. The resize containment helper also applies the
+  minimum required fractional zoom immediately before listening for
+  resize/move/zoom events, avoiding unnecessary promotion from displayed step
+  15 to step 16 when the current covered viewport only needs containment. Focused
+  map/print coverage passed 54/54 with `node --test
+  client/test/printMapWorkspace.test.js
+  client/test/fixedTownSurfaceIntegration.test.js
+  client/test/fixedTownSurface.test.js
+  client/test/mapSettingsControl.test.js`; `npm run build:client:map-lockdown`
+  passed with the established large-chunk advisory; and `git diff --check`
+  passed.
 
 ## 2026-07-28 Admin Places CSV required-header import recovery
 
