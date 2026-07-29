@@ -124,6 +124,26 @@ Rules:
   coverage passed 513/514 with only the same unrelated, repeatable Care
   Calendar planning-conflict assertion already recorded above. Full server
   coverage remained green at 490/490 from the same client-only release run.
+  Release follow-up: implementation commits `c0ccbd06`, `54b7029e`, and
+  `465cce54` were pushed to `codex/my-map-owner-regression-recovery`. The
+  validated client was explicitly published to the Pages production branch at
+  `https://a7378ec6.senior-resource-map.pages.dev`; the custom domain serves
+  `assets/index-BO3mqbup.js`,
+  `assets/MyMapDetailPage-CRi8hNNe.js`,
+  `assets/useDirectoryDistanceAnchor-nhODyfps.js`, and PWA cache `v3`.
+  A post-propagation audit matched all 59 deployed client assets to the
+  validated `client/dist` files with correct non-HTML content types. Fresh
+  authenticated custom-domain UAT on owner Print View map 269 cold-loaded at
+  visible zoom 15 with `Detailed` selected, eight fixed-surface image layers,
+  zero live tile-pane images, Singapore Land Authority attribution, and no
+  CareAround application warnings or errors. The same state survived
+  Default/Gray switching, map-height resize, and reload with owner session
+  continuity and without the route update fallback. Production public smoke
+  passed 1/1 and API health returned OK at
+  `2026-07-29T15:16:37.914Z`. The credentialed smoke subset was not run because
+  its account variables were unavailable in the release shell. No Worker/API,
+  R2, schema, auth, permission, map-data, or production-data deployment was
+  performed.
 
 ## 2026-07-28 Admin Places CSV required-header import recovery
 
