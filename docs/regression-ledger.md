@@ -99,6 +99,31 @@ Rules:
   with the established large-chunk advisory, and `git diff --check` passed.
   Full client source coverage passed 511/512 with only the same unrelated,
   repeatable Care Calendar planning-conflict assertion already recorded above.
+- 2026-07-29 My Map lazy-chunk cache recovery: production UAT of the zoom-15
+  follow-up reached the route-level `Page update needed` fallback on the custom
+  domain even though the exact immutable Pages deployment loaded the same owner
+  Print View successfully at displayed step 15. Browser diagnostics identified
+  a failed dynamic import for the cached `MyMapDetailPage` chunk, while direct
+  custom-domain checks returned the current chunk as JavaScript with matching
+  bytes. This isolated the failure to the custom domain's four-hour static
+  cache plus the PWA's cache-first asset response, not to auth, API data, React
+  rendering, or Detailed-map selection. The My Map route now carries
+  `data-route-cache-version="2026-07-29.1"` to rotate its lazy chunk, and PWA
+  cache `v3` revalidates `/assets/` with the network before refreshing its
+  offline copy. It still falls back to a valid cached JavaScript asset when the
+  network is unavailable and still rejects HTML fallbacks as build assets.
+  Reproduce by loading an older controlled PWA cache, publishing a build whose
+  entry dependency changes, and opening an authenticated owner My Map route.
+  Acceptance requires the custom-domain route to load without the update
+  fallback, the service worker to replace stale build assets without caching
+  HTML, offline cached assets to remain usable, and Full-map Print View to show
+  Detailed fixed-surface overlays at displayed step 15. Focused PWA and
+  fixed-surface coverage passed 40/40; map-lockdown coverage passed 66/66; the
+  exact four-root production client build passed with the established
+  large-chunk advisory; and `git diff --check` passed. Full client source
+  coverage passed 513/514 with only the same unrelated, repeatable Care
+  Calendar planning-conflict assertion already recorded above. Full server
+  coverage remained green at 490/490 from the same client-only release run.
 
 ## 2026-07-28 Admin Places CSV required-header import recovery
 

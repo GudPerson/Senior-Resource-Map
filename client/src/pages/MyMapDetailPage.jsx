@@ -84,6 +84,7 @@ const OWNER_PRINT_BASEMAP_OPTIONS = TOWN_MAP_PROOF_ENABLED
     ? { basemapMode: 'auto' }
     : undefined;
 const MY_MAP_DETAIL_CACHE_LIMIT = 8;
+const MY_MAP_ROUTE_CACHE_VERSION = '2026-07-29.1';
 const myMapDetailCache = new Map();
 
 function getMyMapDetailCacheKey(user, mapId) {
@@ -2215,7 +2216,7 @@ export default function MyMapDetailPage() {
 
     if (loading || (directory && directoryCacheKeyRef.current !== currentMapCacheKey)) {
         return (
-            <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
+            <div className="min-h-[calc(100vh-4rem)] bg-slate-50" data-route-cache-version={MY_MAP_ROUTE_CACHE_VERSION}>
                 <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6 xl:px-10 2xl:px-14">
                     <MapDetailLoadingState />
                 </div>
@@ -2225,7 +2226,7 @@ export default function MyMapDetailPage() {
 
     if (error || !directory) {
         return (
-            <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
+            <div className="min-h-[calc(100vh-4rem)] bg-slate-50" data-route-cache-version={MY_MAP_ROUTE_CACHE_VERSION}>
                 <div className="mx-auto w-full max-w-3xl px-4 py-12 text-center sm:px-6 lg:px-8">
                     <div className="rounded-[32px] border border-dashed border-slate-200 bg-white px-6 py-16 shadow-sm">
                         <h1 className="text-2xl font-bold text-slate-900">{t('mapNotAvailable')}</h1>
@@ -2249,7 +2250,7 @@ export default function MyMapDetailPage() {
 
     if (isPrintView) {
         return (
-            <div className="min-h-screen bg-white">
+            <div className="min-h-screen bg-white" data-route-cache-version={MY_MAP_ROUTE_CACHE_VERSION}>
                 <div className="print:hidden border-b border-slate-200 bg-white/90 backdrop-blur">
                     <div className="flex w-full flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
                         <div
@@ -2620,7 +2621,7 @@ export default function MyMapDetailPage() {
 
     return (
         <>
-            <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
+            <div className="min-h-[calc(100vh-4rem)] bg-slate-50" data-route-cache-version={MY_MAP_ROUTE_CACHE_VERSION}>
                 {!useDesktopOwnerLayout ? (
                         <MyMapMobileControls
                             directory={directory}

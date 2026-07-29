@@ -15,6 +15,7 @@ const headersSource = fs.readFileSync(new URL('../public/_headers', import.meta.
 const mainSource = fs.readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 const indexSource = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const shellRecoverySource = fs.readFileSync(new URL('../public/app-shell-recovery-20260721-1.js', import.meta.url), 'utf8');
+const myMapDetailSource = fs.readFileSync(new URL('../src/pages/MyMapDetailPage.jsx', import.meta.url), 'utf8');
 
 test('PWA manifest keeps CareAround installable metadata scoped to the app', () => {
     assert.equal(manifest.name, 'CareAround SG');
@@ -144,13 +145,22 @@ test('service worker keeps API/auth traffic network-owned and uses offline fallb
     assert.doesNotMatch(serviceWorkerSource, /\/auth\/me/);
 });
 
-test('service worker retires stale asset caches and never stores HTML fallbacks as assets', () => {
-    assert.match(serviceWorkerSource, /const CACHE_VERSION = 'v2'/);
+test('service worker revalidates build assets, retires stale caches, and never stores HTML fallbacks', () => {
+    assert.match(serviceWorkerSource, /const CACHE_VERSION = 'v3'/);
+    assert.match(serviceWorkerSource, /function isBuildAssetRequest\(url\)/);
+    assert.match(serviceWorkerSource, /async function revalidatedAsset\(request\)/);
+    assert.match(serviceWorkerSource, /fetch\(request, \{ cache: 'reload' \}\)/);
     assert.match(serviceWorkerSource, /function isHtmlAssetResponse\(url, response\)/);
     assert.match(serviceWorkerSource, /url\.pathname\.startsWith\('\/assets\/'\)/);
     assert.match(serviceWorkerSource, /content-type[\s\S]*text\/html/);
     assert.match(serviceWorkerSource, /cached && !isHtmlAssetResponse\(url, cached\)/);
     assert.match(serviceWorkerSource, /response\?\.ok && !isHtmlAssetResponse\(url, response\)/);
+    assert.match(serviceWorkerSource, /event\.respondWith\(revalidatedAsset\(event\.request\)\)/);
+});
+
+test('My Map route carries a visible cache version so lazy-chunk recovery rotates its URL', () => {
+    assert.match(myMapDetailSource, /const MY_MAP_ROUTE_CACHE_VERSION = '2026-07-29\.1'/);
+    assert.match(myMapDetailSource, /data-route-cache-version=\{MY_MAP_ROUTE_CACHE_VERSION\}/);
 });
 
 test('offline and delivery files are present and service worker updates are not cached by Cloudflare Pages', () => {

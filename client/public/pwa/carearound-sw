@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'carearound-pwa';
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE = `${CACHE_PREFIX}:${CACHE_VERSION}:static`;
 const OFFLINE_URL = '/offline';
 const PRECACHE_URLS = [
@@ -21,8 +21,7 @@ function isApiRequest(url) {
 
 function isCacheableStaticRequest(url) {
     if (!isSameOrigin(url)) return false;
-    return url.pathname.startsWith('/assets/')
-        || url.pathname === '/site.webmanifest'
+    return url.pathname === '/site.webmanifest'
         || url.pathname === '/favicon.png'
         || url.pathname === '/favicon.svg'
         || url.pathname === '/apple-touch-icon.png'
@@ -30,9 +29,32 @@ function isCacheableStaticRequest(url) {
         || url.pathname === '/icon-512.png';
 }
 
+function isBuildAssetRequest(url) {
+    return isSameOrigin(url) && url.pathname.startsWith('/assets/');
+}
+
 function isHtmlAssetResponse(url, response) {
     return url.pathname.startsWith('/assets/')
         && (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
+}
+
+async function revalidatedAsset(request) {
+    const url = new URL(request.url);
+    const cached = await caches.match(request);
+
+    try {
+        const response = await fetch(request, { cache: 'reload' });
+        if (response?.ok && !isHtmlAssetResponse(url, response)) {
+            const cache = await caches.open(STATIC_CACHE);
+            await cache.put(request, response.clone());
+            return response;
+        }
+        if (cached && !isHtmlAssetResponse(url, cached)) return cached;
+        return response;
+    } catch (error) {
+        if (cached && !isHtmlAssetResponse(url, cached)) return cached;
+        throw error;
+    }
 }
 
 async function cacheFirst(request) {
@@ -96,6 +118,11 @@ self.addEventListener('fetch', (event) => {
 
     if (event.request.mode === 'navigate') {
         event.respondWith(navigationWithOfflineFallback(event.request));
+        return;
+    }
+
+    if (isBuildAssetRequest(url)) {
+        event.respondWith(revalidatedAsset(event.request));
         return;
     }
 
