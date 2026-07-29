@@ -31,6 +31,7 @@ import MyMapPdfExportButton from '../components/MyMapPdfExportButton.jsx';
 import MyMapV2PreviewScaffold from '../components/MyMapV2PreviewScaffold.jsx';
 import MapAssetShortDescriptionModal from '../components/MapAssetShortDescriptionModal.jsx';
 import PrintLayoutControls from '../components/PrintLayoutControls.jsx';
+import PrintAnnotationLayer from '../components/PrintAnnotationLayer.jsx';
 import AddPersonalPlaceChooserModal from '../components/personalPlaces/AddPersonalPlaceChooserModal.jsx';
 import PersonalPlaceCategoryManagerModal from '../components/personalPlaces/PersonalPlaceCategoryManagerModal.jsx';
 import PersonalPlaceEditorModal from '../components/personalPlaces/PersonalPlaceEditorModal.jsx';
@@ -976,6 +977,7 @@ export default function MyMapDetailPage() {
         || personalPlaceChooserOpen
         || personalPlaceCategoryManagerOpen
         || Boolean(shortDescriptionRow);
+    const directoryMapInteractionSuspended = suspendMapInteraction && !personalPlacePickerActive;
     const isPrintView = searchParams.get('view') === 'print';
     const previousPrintViewRef = useRef(isPrintView);
     const myMapUiMode = getMyMapUiMode(searchParams);
@@ -986,9 +988,20 @@ export default function MyMapDetailPage() {
     const printAnnotations = usePrintAnnotations({
         mapId,
         userId: user?.id,
-        enabled: isPrintView,
+        enabled: Boolean(mapId && user?.id),
+        restoreLocalDraft: isPrintView,
+        autosave: isPrintView,
     });
     const printAnnotationsReady = ['saved', 'unsaved', 'saving'].includes(printAnnotations.status);
+    const ownerInteractiveAnnotationOverlay = useMemo(() => {
+        if (isPrintView || !printAnnotations.annotations.length) return null;
+        return (
+            <PrintAnnotationLayer
+                annotations={printAnnotations.annotations}
+                editable={false}
+            />
+        );
+    }, [isPrintView, printAnnotations.annotations]);
     const isFullMapPrintLayout = printMapState.layoutPreset === PRINT_MAP_LAYOUT_FULL;
     const anchorState = useDirectoryDistanceAnchor({
         storageKey: mapId ? `my-map:no-default:${mapId}` : 'my-map:no-default',
@@ -2422,7 +2435,7 @@ export default function MyMapDetailPage() {
                     selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}
                     selectionScrollRequest={selectionScrollRequest}
                     desktopScrollTargetRef={desktopSelectionSnapRef}
-                    suspendMapInteraction={suspendMapInteraction}
+                    suspendMapInteraction={directoryMapInteractionSuspended}
                     onViewOnMap={handleViewOnMap}
                     onViewSection={handleViewSection}
                     onRemoveResource={handleRemoveResource}
@@ -2436,6 +2449,7 @@ export default function MyMapDetailPage() {
                     onClusterSelect={handleMapClusterSelect}
                     onFocusHandled={handleMapFocusHandled}
                     onResetView={clearMapSelection}
+                    mapOverlay={ownerInteractiveAnnotationOverlay}
                     toolbar={useDesktopOwnerLayout ? (
                         <OwnerHeader
                             directory={directory}
@@ -2703,6 +2717,7 @@ export default function MyMapDetailPage() {
                                     onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                                     onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                     mapModeControl={mapModeControl}
+                                    mapOverlay={ownerInteractiveAnnotationOverlay}
                                     surfaceStatus={personalPlaceActionStatus ? (
                                         <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
                                     ) : null}
@@ -2750,7 +2765,7 @@ export default function MyMapDetailPage() {
                                         onFocusHandled={handleMapFocusHandled}
                                         onResetView={clearMapSelection}
                                         onMapClick={personalPlacePickerActive ? handlePersonalPlaceMapClick : null}
-                                        interactive={!suspendMapInteraction}
+                                        interactive={!directoryMapInteractionSuspended}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
                                         emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
@@ -2773,6 +2788,7 @@ export default function MyMapDetailPage() {
                                         onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                         mapModeControl={mapModeControl}
+                                        mapOverlay={ownerInteractiveAnnotationOverlay}
                                         surfaceStatus={personalPlaceActionStatus ? (
                                             <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
                                         ) : null}
@@ -2795,7 +2811,7 @@ export default function MyMapDetailPage() {
                                         onFocusHandled={handleMapFocusHandled}
                                         onResetView={clearMapSelection}
                                         onMapClick={personalPlacePickerActive ? handlePersonalPlaceMapClick : null}
-                                        interactive={!suspendMapInteraction}
+                                        interactive={!directoryMapInteractionSuspended}
                                         markerMode="number"
                                         placeNumberByKey={interactivePresentation.placeNumberByKey}
                                         emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
@@ -2818,6 +2834,7 @@ export default function MyMapDetailPage() {
                                         onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                         mapModeControl={mapModeControl}
+                                        mapOverlay={ownerInteractiveAnnotationOverlay}
                                         surfaceStatus={personalPlaceActionStatus ? (
                                             <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
                                         ) : null}

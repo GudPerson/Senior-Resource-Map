@@ -70,6 +70,9 @@ test('personal-place map mutations keep visible progress through the map refresh
     assert.match(detailSource, /personalPlaceRemovingFromMap/);
     assert.match(detailSource, /personalPlaceRemovedFromMap/);
     assert.match(detailSource, /const refreshed = await loadMap\(\)/);
+    assert.match(detailSource, /directoryMapInteractionSuspended = suspendMapInteraction && !personalPlacePickerActive/);
+    assert.match(detailSource, /suspendMapInteraction=\{directoryMapInteractionSuspended\}/);
+    assert.match(detailSource, /interactive=\{!directoryMapInteractionSuspended\}/);
     assert.match(detailSource, /mapSurfaceStatus=\{personalPlaceActionStatus/);
     assert.match(detailSource, /surfaceStatus=\{personalPlaceActionStatus/);
     assert.doesNotMatch(detailSource, /fixed inset-x-4 bottom-4/);

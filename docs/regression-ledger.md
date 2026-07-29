@@ -15,6 +15,53 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-29 Owner My Map placement, Detailed map, and annotation visibility recovery
+
+- Current behavior: owner My Map can enter `Add personal place` placement mode
+  from the chooser and the map remains clickable while the chooser closes, so
+  clicking or tapping the map opens the personal-place editor instead of
+  silently dropping the wizard. Saved Print View annotations are loaded for the
+  owner My Map detail route and rendered read-only on the normal interactive
+  owner map; annotation creation/editing remains limited to desktop Full-map
+  Print View, and shared maps still receive no print-annotation payload or
+  overlay. The Detailed fixed-town map buffers only transient negative viewport
+  eligibility during move/resize/zoom settling, reducing flicker back to the
+  standard map while preserving the real outside-surface fallback.
+- Known-good reference: branch `codex/my-map-owner-regression-recovery`, based
+  on `codex/community-plaza-coordinate-correction` before tracked edits. The
+  change is client-only and does not alter resource governance, personal-place
+  privacy, public Discover resources, shared-map snapshots, notes storage,
+  annotation persistence schema, Leaflet marker data, Cloudflare Worker/API
+  behavior, auth/session, postal validation, imports, or production data.
+- Reproduction steps: sign in as the owner, open an owned My Map, choose `Add
+  personal place`, click `Create new`, then click the map and confirm the
+  editor opens. Open the same owner map with saved print annotations and confirm
+  the annotations appear on the interactive map as read-only overlays; open
+  Print View Full-map to confirm annotation tools still own editing. Move,
+  resize, or expand the zoom-15 Detailed map while the viewport remains within
+  the covered surface and confirm it does not unnecessarily fall back to the
+  standard map.
+- Acceptance criteria: personal-place map placement stays active until a map
+  coordinate is selected or cancelled; normal interactive map annotations are
+  owner-only and read-only; Print View remains the only annotation editing
+  workspace; Shared Maps and guest routes do not expose annotations; Detailed
+  map fallback still occurs when a settled viewport is genuinely outside the
+  available fixed-town surface.
+- Verification result before deploy: focused source/map coverage passed 30/30
+  with `node --test client/test/printAnnotations.test.js
+  client/test/myMapPersonalPlacesSource.test.js
+  client/test/fixedTownSurfaceIntegration.test.js
+  client/test/directoryMapCamera.test.js`; broader map/print coverage passed
+  63/63 with `node --test client/test/printMapWorkspace.test.js
+  client/test/mapSettingsControl.test.js client/test/fixedTownSurface.test.js
+  client/test/myMapV2Scaffold.test.js`; and the exact four-root production
+  client build passed with the established large-chunk advisory via
+  `npm run build:client:map-lockdown`. Full client source coverage was also
+  attempted with `node --test client/test/*.test.js client/src/lib/*.test.js`
+  and showed one repeatable unrelated Care Calendar planning-conflict assertion
+  failure in `client/test/careCalendarPlanning.test.js`; the touched My Map,
+  annotation, and fixed-town map guardrails remained green.
+
 ## 2026-07-28 Admin Places CSV required-header import recovery
 
 - Current behavior: Admin Data Tools can upload Places CSV files generated from

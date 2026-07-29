@@ -2051,8 +2051,9 @@ function DirectoryMapFixedTownViewportSync({
         }
 
         let frame = null;
+        let fallbackTimer = null;
         let lastEligible = null;
-        const emitViewportEligible = () => {
+        const emitViewportEligible = ({ allowFallback = false } = {}) => {
             frame = null;
             const bounds = map.getBounds();
             const viewportBounds = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
@@ -2064,6 +2065,18 @@ function DirectoryMapFixedTownViewportSync({
                     && selectVisibleFixedTownChunks(manifest.chunks, viewportBounds).length > 0,
                 )
                 : null;
+            if (eligible === false && lastEligible === true && !allowFallback) {
+                if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
+                fallbackTimer = window.setTimeout(() => {
+                    fallbackTimer = null;
+                    emitViewportEligible({ allowFallback: true });
+                }, 160);
+                return;
+            }
+            if (eligible !== false && fallbackTimer !== null) {
+                window.clearTimeout(fallbackTimer);
+                fallbackTimer = null;
+            }
             if (eligible === lastEligible) return;
             lastEligible = eligible;
             onViewportEligibleChange?.(eligible);
@@ -2077,6 +2090,7 @@ function DirectoryMapFixedTownViewportSync({
         scheduleViewportEligible();
         return () => {
             if (frame !== null) window.cancelAnimationFrame(frame);
+            if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
             map.off('move zoom resize moveend zoomend', scheduleViewportEligible);
         };
     }, [enabled, manifest, map, onViewportBoundsChange, onViewportEligibleChange]);

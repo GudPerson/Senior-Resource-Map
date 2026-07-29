@@ -35,6 +35,7 @@ export default function MyMapV2PreviewScaffold({
     onFocusHandled,
     onResetView,
     onMapClick,
+    mapOverlay = null,
     toolbar = null,
     useDesktopBodyLayout = useDesktopLayout,
     emptyLabel,
@@ -113,6 +114,7 @@ export default function MyMapV2PreviewScaffold({
             onFixedTownSurfaceMetricsChange={onFixedTownSurfaceMetricsChange}
             onFixedTownSurfaceViewportChange={onFixedTownSurfaceViewportChange}
             mapModeControl={mapModeControl}
+            mapOverlay={mapOverlay}
             surfaceStatus={mapSurfaceStatus}
         />
     );

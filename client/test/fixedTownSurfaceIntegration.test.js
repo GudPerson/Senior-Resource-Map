@@ -40,6 +40,10 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /resolveFixedTownBasemapMode\(/);
     assert.match(directoryMapSource, /function DirectoryMapZoomSync/);
     assert.match(directoryMapSource, /function DirectoryMapFixedTownViewportSync/);
+    assert.match(directoryMapSource, /fallbackTimer/);
+    assert.match(directoryMapSource, /eligible === false && lastEligible === true && !allowFallback/);
+    assert.match(directoryMapSource, /emitViewportEligible\(\{ allowFallback: true \}\)/);
+    assert.match(directoryMapSource, /window\.clearTimeout\(fallbackTimer\)/);
     assert.match(directoryMapSource, /function DirectoryMapFixedTownMinZoomSnapSync/);
     assert.match(directoryMapSource, /function DirectoryMapFixedTownResizeContainmentSync/);
     assert.match(directoryMapSource, /normalizeFixedTownStandardZoom/);

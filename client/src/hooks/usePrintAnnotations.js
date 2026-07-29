@@ -56,6 +56,8 @@ export function usePrintAnnotations({
     mapId,
     userId,
     enabled,
+    restoreLocalDraft = true,
+    autosave = true,
 }) {
     const storageKey = getAnnotationLocalDraftKey(userId, mapId);
     const [document, setDocument] = useState(EMPTY_DOCUMENT);
@@ -98,7 +100,7 @@ export function usePrintAnnotations({
                 if (cancelled || loadingTokenRef.current !== token) return;
                 const revision = Number(loaded?.revision || 0);
                 const serverAnnotations = normalizePrintAnnotations(loaded?.annotations);
-                const localDraft = readLocalDraft(storageKey);
+                const localDraft = restoreLocalDraft ? readLocalDraft(storageKey) : null;
                 const canRestoreDraft = localDraft
                     && localDraft.baseRevision === revision
                     && JSON.stringify(localDraft.annotations) !== JSON.stringify(serverAnnotations);
@@ -122,7 +124,7 @@ export function usePrintAnnotations({
         return () => {
             cancelled = true;
         };
-    }, [enabled, loadVersion, mapId, storageKey, syncDocumentState]);
+    }, [enabled, loadVersion, mapId, restoreLocalDraft, storageKey, syncDocumentState]);
 
     const saveNow = useCallback(() => {
         if (!enabled || !mapId) return Promise.resolve(null);
@@ -176,7 +178,7 @@ export function usePrintAnnotations({
     }, [enabled, mapId, storageKey]);
 
     useEffect(() => {
-        if (status !== 'unsaved' || !enabled) return undefined;
+        if (status !== 'unsaved' || !enabled || !autosave) return undefined;
         if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
         saveTimerRef.current = window.setTimeout(() => {
             saveTimerRef.current = null;
@@ -188,7 +190,7 @@ export function usePrintAnnotations({
                 saveTimerRef.current = null;
             }
         };
-    }, [enabled, saveNow, status, document.annotations]);
+    }, [autosave, enabled, saveNow, status, document.annotations]);
 
     useEffect(() => () => {
         if (saveTimerRef.current) {

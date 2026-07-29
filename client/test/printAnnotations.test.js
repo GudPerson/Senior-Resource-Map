@@ -241,6 +241,13 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(ownerSource, /data-print-annotation-auto-full-map="true"/);
     assert.match(ownerSource, /isFullMapPrintLayout/);
     assert.match(ownerSource, /layoutPreset: PRINT_MAP_LAYOUT_FULL/);
+    assert.match(ownerSource, /import PrintAnnotationLayer from '\.\.\/components\/PrintAnnotationLayer\.jsx'/);
+    assert.match(ownerSource, /enabled: Boolean\(mapId && user\?\.id\)/);
+    assert.match(ownerSource, /restoreLocalDraft: isPrintView/);
+    assert.match(ownerSource, /autosave: isPrintView/);
+    assert.match(ownerSource, /ownerInteractiveAnnotationOverlay/);
+    assert.match(ownerSource, /editable=\{false\}/);
+    assert.match(ownerSource, /mapOverlay=\{ownerInteractiveAnnotationOverlay\}/);
     assert.match(ownerSource, /printAnnotations\.reload\(\)/);
     assert.match(ownerSource, /printAnnotations=\{printAnnotations\.annotations\}/);
     assert.match(printSource, /<PrintAnnotationLayer/);
@@ -292,5 +299,9 @@ test('annotation autosaves are serialized to preserve revision order', () => {
     assert.match(hookSource, /const queuedSave = saveQueueRef\.current\.then/);
     assert.match(hookSource, /saveQueueRef\.current = queuedSave\.catch/);
     assert.match(hookSource, /LOCAL_DRAFT_DELAY_MS = 180/);
+    assert.match(hookSource, /restoreLocalDraft = true/);
+    assert.match(hookSource, /autosave = true/);
+    assert.match(hookSource, /restoreLocalDraft \? readLocalDraft\(storageKey\) : null/);
+    assert.match(hookSource, /status !== 'unsaved' \|\| !enabled \|\| !autosave/);
     assert.doesNotMatch(hookSource, /refineRoadBoundary|snapDistanceMeters/);
 });
