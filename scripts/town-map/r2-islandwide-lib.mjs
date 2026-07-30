@@ -94,12 +94,18 @@ async function getSourceChunkRootForSurface({
   );
 }
 
-export function validateIslandwideIndexBuffer(indexBuffer, { style = "default" } = {}) {
+export function validateIslandwideIndexBuffer(indexBuffer, {
+  style = "default",
+  expectedSurfaceCount = 32,
+} = {}) {
   const normalizedStyle = normalizeIslandwideStyle(style);
   const index = parseFixedTownSurfaceIndex(JSON.parse(Buffer.from(indexBuffer).toString("utf8")));
   invariant(index, "Islandwide index manifest is invalid");
   invariant(index.collection?.style === normalizedStyle, `Expected ${normalizedStyle} islandwide index`);
-  invariant(index.surfaces.length === 32, "Islandwide index must contain 32 town surfaces");
+  invariant(
+    index.surfaces.length === expectedSurfaceCount,
+    `Islandwide index must contain ${expectedSurfaceCount} surface${expectedSurfaceCount === 1 ? "" : "s"}`,
+  );
   return {
     index,
     indexSha256: sha256(indexBuffer),
@@ -125,6 +131,7 @@ export async function loadIslandwideR2DeploymentPlan({
   manifestRoot = DEFAULT_ISLANDWIDE_MANIFEST_ROOT,
   sourceRoot = DEFAULT_ISLANDWIDE_SOURCE_ROOT,
   prefix = DEFAULT_ISLANDWIDE_R2_PREFIX,
+  expectedSurfaceCount = 32,
 } = {}) {
   const normalizedStyle = normalizeIslandwideStyle(style);
   const normalizedPrefix = normalizeR2Prefix(getPrefixForStyle(prefix, normalizedStyle));
@@ -133,7 +140,10 @@ export async function loadIslandwideR2DeploymentPlan({
   const resolvedSourceRoot = path.resolve(sourceRoot);
   const indexPath = path.join(resolvedStyleManifestRoot, "manifest.json");
   const indexBuffer = await readFile(indexPath);
-  const validatedIndex = validateIslandwideIndexBuffer(indexBuffer, { style: normalizedStyle });
+  const validatedIndex = validateIslandwideIndexBuffer(indexBuffer, {
+    style: normalizedStyle,
+    expectedSurfaceCount,
+  });
 
   const chunkObjects = [];
   const manifestObjects = [];

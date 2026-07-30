@@ -46,7 +46,9 @@ test('one shared Map settings trigger opens responsive map appearance controls',
     assert.match(mapSettingsSource, /role="dialog"/);
     assert.match(mapSettingsSource, />Map appearance</);
     assert.match(mapSettingsSource, />\s*Map detail\s*</);
-    assert.match(mapSettingsSource, /Detailed turns on automatically when you zoom in to level 15/);
+    assert.match(mapSettingsSource, /detailedMinZoom = 15/);
+    assert.match(mapSettingsSource, /level \{detailedMinZoom\}/);
+    assert.match(directoryMapSource, /detailedMinZoom=\{resolvedFixedTownTransitionMinZoom\}/);
     assert.match(mapSettingsSource, />\s*Map colour\s*</);
     assert.match(mapSettingsSource, /Your colour choice is used on every map/);
     assert.match(mapSettingsSource, /Close map settings/);

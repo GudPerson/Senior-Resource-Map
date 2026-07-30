@@ -33,12 +33,22 @@ const MANIFEST_ROOT = argumentValue("manifest-root", process.env.TOWN_MAP_MANIFE
 const WRANGLER_BIN = argumentValue("wrangler-bin", process.env.WRANGLER_BIN || "npx");
 const CHUNK_START_INDEX = Number(argumentValue("chunk-start-index", process.env.TOWN_MAP_R2_CHUNK_START_INDEX || "1"));
 const PUT_RETRIES = Number(argumentValue("put-retries", process.env.TOWN_MAP_R2_PUT_RETRIES || "3"));
+const EXPECTED_SURFACE_COUNT = Number(argumentValue(
+  "surface-count",
+  process.env.TOWN_MAP_EXPECTED_SURFACE_COUNT || "32",
+));
 
 invariant(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(BUCKET), `Unsafe R2 bucket name: ${BUCKET}`);
 invariant(Number.isSafeInteger(CONCURRENCY) && CONCURRENCY >= 1 && CONCURRENCY <= 12, "Concurrency must be between 1 and 12");
 invariant(typeof WRANGLER_BIN === "string" && WRANGLER_BIN.trim(), "Wrangler command is required");
 invariant(Number.isSafeInteger(CHUNK_START_INDEX) && CHUNK_START_INDEX >= 1, "Chunk start index must be a positive integer");
 invariant(Number.isSafeInteger(PUT_RETRIES) && PUT_RETRIES >= 0 && PUT_RETRIES <= 8, "PUT retries must be between 0 and 8");
+invariant(
+  Number.isSafeInteger(EXPECTED_SURFACE_COUNT)
+    && EXPECTED_SURFACE_COUNT >= 1
+    && EXPECTED_SURFACE_COUNT <= 100,
+  "Expected surface count must be between 1 and 100",
+);
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -129,6 +139,7 @@ async function main() {
     sourceRoot: SOURCE_ROOT,
     manifestRoot: MANIFEST_ROOT,
     prefix: PREFIX,
+    expectedSurfaceCount: EXPECTED_SURFACE_COUNT,
   });
   const summary = {
     apply: APPLY,

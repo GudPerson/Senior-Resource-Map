@@ -14,8 +14,13 @@ const WEB_MERCATOR_ZOOM = 19;
 const WEB_MERCATOR_WORLD_SIZE = WEB_MERCATOR_TILE_SIZE * (2 ** WEB_MERCATOR_ZOOM);
 const WORLD_PIXEL_TOLERANCE = 1e-6;
 const GEOGRAPHIC_TOLERANCE = 1e-9;
-const ACCEPTED_RETAINED_SCALES = Object.freeze([0.4, 0.5]);
-const ACCEPTED_PROFILES = Object.freeze(['sparse-40', 'urban-50']);
+const ACCEPTED_NATIVE_RETAINED_SCALES = Object.freeze([0.4, 0.5]);
+const ACCEPTED_NATIVE_PROFILES = Object.freeze(['sparse-40', 'urban-50']);
+const FIXED_TOWN_OVERVIEW_PROFILE = 'overview-25';
+const FIXED_TOWN_OVERVIEW_RETAINED_SCALE = 0.25;
+const FIXED_TOWN_OVERVIEW_EDITION = 'zoom14-overview-v1';
+const FIXED_TOWN_OVERVIEW_ATLAS_EDITION = 'zoom14-overview-atlas-v1';
+export const FIXED_TOWN_OVERVIEW_MIN_ZOOM = 14;
 const ACCEPTED_CHUNK_CANONICALIZATION = 'UTF-8 lines "<sha256>  <filename>\\n", sorted by filename';
 
 const ACCEPTED_W01_DEFAULT = Object.freeze({
@@ -718,19 +723,19 @@ function validateFixedTownSurfaceManifestAgainst(manifest, accepted) {
     );
 }
 
-function hasAcceptedGenericSourceProfile(source) {
+function hasAcceptedGenericNativeSourceProfile(source) {
     if (!isRecord(source)) return false;
     const readability = source.readability;
     return source.provider === 'OneMap'
         && source.crs === 'EPSG:3857'
         && source.zoom === WEB_MERCATOR_ZOOM
         && source.tileSize === WEB_MERCATOR_TILE_SIZE
-        && ACCEPTED_RETAINED_SCALES.includes(source.retainedScale)
+        && ACCEPTED_NATIVE_RETAINED_SCALES.includes(source.retainedScale)
         && source.jpegQuality === 95
         && source.jpegChromaSubsampling === '4:4:4'
         && Number.isSafeInteger(source.generatorVersion)
         && source.generatorVersion > 0
-        && ACCEPTED_PROFILES.includes(source.profile)
+        && ACCEPTED_NATIVE_PROFILES.includes(source.profile)
         && isNonEmptyString(source.profileLabel)
         && source.onemapNativeLabels === true
         && source.hdbOverlay === false
@@ -742,6 +747,58 @@ function hasAcceptedGenericSourceProfile(source) {
         && readability.embeddedImageStreamsPreserved === true
         && readability.textPreserved === true
         && readability.contentPreserved === true;
+}
+
+function hasAcceptedGenericOverviewSourceProfile(source) {
+    if (!isRecord(source)) return false;
+    const readability = source.readability;
+    const overview = source.overview;
+    const hasCommonProfile = source.provider === 'OneMap'
+        && source.crs === 'EPSG:3857'
+        && source.zoom === WEB_MERCATOR_ZOOM
+        && source.tileSize === WEB_MERCATOR_TILE_SIZE
+        && source.retainedScale === FIXED_TOWN_OVERVIEW_RETAINED_SCALE
+        && source.jpegQuality === 95
+        && source.jpegChromaSubsampling === '4:4:4'
+        && Number.isSafeInteger(source.generatorVersion)
+        && source.generatorVersion > 0
+        && source.profile === FIXED_TOWN_OVERVIEW_PROFILE
+        && source.profileLabel === '25% z19 zoom-14 overview'
+        && source.onemapNativeLabels === true
+        && source.hdbOverlay === false
+        && source.cartographicRenderZoom === 17
+        && source.labelTarget === 'native OneMap zoom-17 proportions'
+        && source.readabilityPercent === 175
+        && isRecord(readability)
+        && readability.embeddedImageStreamsPreserved === false
+        && readability.textPreserved === true
+        && readability.contentPreserved === true
+        && isRecord(overview)
+        && overview.targetDisplayZoom === FIXED_TOWN_OVERVIEW_MIN_ZOOM
+        && SHA256_PATTERN.test(String(overview.sourceManifestSha256 || ''))
+        && SHA256_PATTERN.test(String(overview.sourceCollectionManifestSha256 || ''));
+    if (!hasCommonProfile) return false;
+
+    const hasLegacyPlateProfile = readability.edition === FIXED_TOWN_OVERVIEW_EDITION
+        && readability.scaleFactor === 0.5
+        && readability.rasterResampled === true
+        && overview.edition === FIXED_TOWN_OVERVIEW_EDITION
+        && overview.sourceCartographicRenderZoom === 18
+        && overview.sourceRetainedScale === 0.5
+        && overview.resampling === 'LANCZOS';
+    const hasAtlasProfile = readability.edition === FIXED_TOWN_OVERVIEW_ATLAS_EDITION
+        && readability.scaleFactor === 1
+        && readability.rasterResampled === false
+        && overview.edition === FIXED_TOWN_OVERVIEW_ATLAS_EDITION
+        && overview.sourceCartographicRenderZoom === 17
+        && overview.sourceRetainedScale === 1
+        && overview.resampling === 'NONE';
+    return hasLegacyPlateProfile || hasAtlasProfile;
+}
+
+function hasAcceptedGenericSourceProfile(source) {
+    return hasAcceptedGenericNativeSourceProfile(source)
+        || hasAcceptedGenericOverviewSourceProfile(source);
 }
 
 function isValidIntegrityHash(value) {
@@ -769,6 +826,7 @@ function hasAcceptedGenericIntegrity(integrity) {
         integrity.readabilityReportSha256,
         integrity.collectionValidationSha256,
         integrity.sourceAlignmentSha256,
+        integrity.sourceCollectionManifestSha256,
         integrity.validatedSourcePdfSha256,
         integrity.validatedReadabilityPdfSha256,
         integrity.embeddedImageStreamSignature,
@@ -1058,6 +1116,9 @@ function validateFixedTownSurfaceManifestGeneric(manifest) {
 export function validateFixedTownSurfaceManifest(manifest) {
     if (!isRecord(manifest)) return false;
     if (manifest?.map?.id === ACCEPTED_W01_DEFAULT.id) {
+        if (manifest?.source?.profile === FIXED_TOWN_OVERVIEW_PROFILE) {
+            return validateFixedTownSurfaceManifestGeneric(manifest);
+        }
         const acceptedManifests = manifest?.map?.style === 'gray'
             ? ACCEPTED_W01_MANIFESTS.gray
             : ACCEPTED_W01_MANIFESTS.default;
@@ -1117,11 +1178,14 @@ function validateFixedTownSurfaceIndexEntry(surface, collectionStyle, collection
     if (surface.version !== undefined && !FIXED_TOWN_SURFACE_VERSION_PATTERN.test(String(surface.version || ''))) {
         return false;
     }
-    if (surface.profile !== undefined && !ACCEPTED_PROFILES.includes(surface.profile)) {
-        return false;
-    }
-    if (surface.retainedScale !== undefined && !ACCEPTED_RETAINED_SCALES.includes(surface.retainedScale)) {
-        return false;
+    if (surface.profile !== undefined || surface.retainedScale !== undefined) {
+        const isAcceptedNativeProfile = ACCEPTED_NATIVE_PROFILES.includes(surface.profile)
+            && ACCEPTED_NATIVE_RETAINED_SCALES.includes(surface.retainedScale);
+        const isAcceptedOverviewProfile = surface.profile === FIXED_TOWN_OVERVIEW_PROFILE
+            && surface.retainedScale === FIXED_TOWN_OVERVIEW_RETAINED_SCALE;
+        if (!isAcceptedNativeProfile && !isAcceptedOverviewProfile) {
+            return false;
+        }
     }
     if (surface.retainedPixelDimensions !== undefined && !isValidPixelSize(surface.retainedPixelDimensions)) {
         return false;
@@ -1529,6 +1593,58 @@ export function isFixedTownSurfaceZoomEligible(zoom, minZoom) {
     return Number.isFinite(normalizedZoom)
         && Number.isFinite(normalizedMinZoom)
         && Math.round(normalizedZoom) >= Math.round(normalizedMinZoom);
+}
+
+export function resolveFixedTownSurfaceTier({
+    zoom,
+    nativeMinZoom = 15,
+    overviewMinZoom = FIXED_TOWN_OVERVIEW_MIN_ZOOM,
+    overviewConfigured = false,
+} = {}) {
+    const normalizedZoom = Number(zoom);
+    const normalizedNativeMinZoom = Number(nativeMinZoom);
+    const normalizedOverviewMinZoom = Number(overviewMinZoom);
+    const nativeEligible = Number.isFinite(normalizedZoom)
+        && Number.isFinite(normalizedNativeMinZoom)
+        && normalizedZoom >= normalizedNativeMinZoom;
+    const overviewEligible = Number.isFinite(normalizedZoom)
+        && Number.isFinite(normalizedOverviewMinZoom)
+        && normalizedZoom >= normalizedOverviewMinZoom;
+    return overviewConfigured && overviewEligible && !nativeEligible
+        ? 'overview'
+        : 'native';
+}
+
+export function resolveFixedTownTransitionMinZoom({
+    nativeMinZoom = 15,
+    overviewMinZoom = FIXED_TOWN_OVERVIEW_MIN_ZOOM,
+    overviewConfigured = false,
+} = {}) {
+    const normalizedNativeMinZoom = Number(nativeMinZoom);
+    const normalizedOverviewMinZoom = Number(overviewMinZoom);
+    if (!overviewConfigured || !Number.isFinite(normalizedOverviewMinZoom)) {
+        return normalizedNativeMinZoom;
+    }
+    if (!Number.isFinite(normalizedNativeMinZoom)) {
+        return normalizedOverviewMinZoom;
+    }
+    return Math.min(normalizedNativeMinZoom, normalizedOverviewMinZoom);
+}
+
+export function shouldDeferFixedTownContainmentToLowerTier({
+    zoom,
+    activeMinZoom,
+    transitionMinZoom,
+} = {}) {
+    const normalizedZoom = Number(zoom);
+    const normalizedActiveMinZoom = Number(activeMinZoom);
+    const normalizedTransitionMinZoom = Number(transitionMinZoom);
+    return Number.isFinite(normalizedZoom)
+        && Number.isFinite(normalizedActiveMinZoom)
+        && Number.isFinite(normalizedTransitionMinZoom)
+        && normalizedTransitionMinZoom < normalizedActiveMinZoom
+        && normalizedZoom >= normalizedTransitionMinZoom
+        && normalizedZoom < normalizedActiveMinZoom;
 }
 
 export function normalizeFixedTownStandardZoom(zoom, minZoom) {

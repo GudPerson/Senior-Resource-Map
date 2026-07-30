@@ -31,10 +31,20 @@ const BASE_URL = String(
 ).replace(/\/+$/, "");
 const ORIGIN = process.env.TOWN_MAP_VERIFY_ORIGIN || "https://app.carearound.sg";
 const CONCURRENCY = Number(process.env.TOWN_MAP_VERIFY_CONCURRENCY || "8");
+const EXPECTED_SURFACE_COUNT = Number(argumentValue(
+  "surface-count",
+  process.env.TOWN_MAP_EXPECTED_SURFACE_COUNT || "32",
+));
 
 invariant(BASE_URL.startsWith("https://") || process.argv.includes("--allow-http"), `Public islandwide base URL must use HTTPS: ${BASE_URL}`);
 invariant(Number.isSafeInteger(CONCURRENCY) && CONCURRENCY >= 1 && CONCURRENCY <= 16, "Verify concurrency must be between 1 and 16");
 invariant(Number.isSafeInteger(SAMPLE_SIZE) && SAMPLE_SIZE >= 1 && SAMPLE_SIZE <= 20, "Sample size must be between 1 and 20");
+invariant(
+  Number.isSafeInteger(EXPECTED_SURFACE_COUNT)
+    && EXPECTED_SURFACE_COUNT >= 1
+    && EXPECTED_SURFACE_COUNT <= 100,
+  "Expected surface count must be between 1 and 100",
+);
 
 function percentile(values, percentileValue) {
   const sorted = [...values].sort((left, right) => left - right);
@@ -85,7 +95,10 @@ function sampleChunks(chunks) {
 
 async function main() {
   const indexResult = await fetchObject(`${BASE_URL}/manifest.json`, {}, { cors: true });
-  const validatedIndex = validateIslandwideIndexBuffer(indexResult.buffer, { style: STYLE });
+  const validatedIndex = validateIslandwideIndexBuffer(indexResult.buffer, {
+    style: STYLE,
+    expectedSurfaceCount: EXPECTED_SURFACE_COUNT,
+  });
   if (![ORIGIN, "*"].includes(indexResult.corsAllowOrigin)) {
     throw new Error(`Index CORS did not allow ${ORIGIN}; received ${indexResult.corsAllowOrigin || "no header"}`);
   }

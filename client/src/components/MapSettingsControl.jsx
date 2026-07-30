@@ -18,7 +18,15 @@ function CloseButton({ onClick }) {
     );
 }
 
-function MapSettingsPanelContent({ mapModeControl, mapStyleDescription, mapStyleValue, onMapStyleChange, panelId, showMapStyleControl }) {
+function MapSettingsPanelContent({
+    detailedMinZoom,
+    mapModeControl,
+    mapStyleDescription,
+    mapStyleValue,
+    onMapStyleChange,
+    panelId,
+    showMapStyleControl,
+}) {
     return (
         <div id={panelId} className="space-y-5" data-map-settings-panel="true">
             {mapModeControl ? (
@@ -27,7 +35,7 @@ function MapSettingsPanelContent({ mapModeControl, mapStyleDescription, mapStyle
                         Map detail
                     </h3>
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Detailed turns on automatically when you zoom in to level 15.
+                        Detailed turns on automatically when you zoom in to level {detailedMinZoom}.
                     </p>
                     <div className="mt-3">{mapModeControl}</div>
                 </section>
@@ -51,6 +59,7 @@ function MapSettingsPanelContent({ mapModeControl, mapStyleDescription, mapStyle
 }
 
 export default function MapSettingsControl({
+    detailedMinZoom = 15,
     mapModeControl = null,
     mapStyleDescription = 'Your colour choice is used on every map.',
     mapStyleValue = null,
@@ -98,6 +107,7 @@ export default function MapSettingsControl({
 
     const panelContent = (
         <MapSettingsPanelContent
+            detailedMinZoom={detailedMinZoom}
             mapModeControl={mapModeControl}
             mapStyleDescription={mapStyleDescription}
             mapStyleValue={mapStyleValue}

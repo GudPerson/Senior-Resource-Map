@@ -15,6 +15,125 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-30 Zoom-14 Detailed continuous atlas release
+
+- Current behavior: owner My Map and Print View use the established native
+  fixed surfaces at displayed zoom 15 and above. Displayed zoom 14 uses one
+  continuous Singapore overview atlas, so panning no longer crosses
+  town-surface edges or waits for a per-town handoff. Default and Gray have
+  separate immutable roots. The normal Leaflet camera, resource pins,
+  annotations, map resizing, map settings, and export pipeline are unchanged.
+  While a covered fixed surface is genuinely loading, the map and settings show
+  `Loading detailed map...`; controlled fallback remains available outside the
+  atlas coverage and recovers when the full viewport re-enters coverage.
+- Known-good reference: branch `codex/detailed-map-zoom14-overview`, using
+  immutable roots
+  `https://maps.carearound.sg/v3/zoom14-atlas-20260730/default` and
+  `https://maps.carearound.sg/v3/zoom14-atlas-20260730/gray`. The atlas is
+  deterministically generated from the complete authorised local OneMap
+  zoom-17 cache and remains a fixed image-overlay surface rather than a live
+  tile pyramid. The release is client and static-map-asset only; Worker/API,
+  schema, production data, map ownership, annotations, and personal-place
+  privacy are unchanged.
+- Reproduction steps: sign in as an owner and open map 269 in Print View. From
+  displayed zoom 15, zoom out once to displayed zoom 14. Pan east and west
+  across the former town-plate boundaries, resize the map taller, switch
+  Default to Gray and back, reload, and reactivate displayed zoom 14. Save a
+  PNG. Repeat the fixed-overlay and zero-live-tile checks on the production
+  custom domain after deployment.
+- Acceptance criteria: displayed zoom 14 uses only the continuous overview
+  atlas; displayed zoom 15 and above continue to use only the established
+  native collection; covered pans, resize, Default/Gray switching, and reload
+  do not leave Detailed stuck on the regular map; the Leaflet live tile pane
+  stays empty while Detailed is active; Singapore Land Authority attribution
+  remains visible; owner authentication survives reload; and PNG export
+  completes without a map-readiness error. The six production map roots are a
+  required build contract, and Default and Gray upload commands must remain
+  isolated to their own immutable prefixes.
+- Verification result before deploy: the continuous atlas validation passed
+  for one Default and one Gray surface, each with 2,109 chunks. Full public
+  verification fetched and hash-checked all 2,109 Default chunks
+  (153,236,225 bytes, index
+  `be1e2a41c5395cd72111268cebd8e763741bb653bcee08c4c33bbb719e83792b`)
+  and all 2,109 Gray chunks (100,217,117 bytes, index
+  `8a7e1f054edf076083a499bd19d79775714e5e2f65a9454ea844e9d437bd640e`).
+  Both roots returned the expected CareAround CORS header and revalidating
+  index cache policy. Map-lockdown tests passed 71/71, R2 deployment tests
+  passed 8/8, server tests passed 490/490, the exact six-root production build
+  passed, and `git diff --check` passed. The broad client suite passed 519/520;
+  its only failure remains the already-recorded date-sensitive Care Calendar
+  planning-conflict fixture. Authenticated Chrome UAT on map 269 confirmed
+  displayed zoom 14 with 12-15 visible fixed chunks, zero live tile-pane
+  images, east/west movement across former plate edges, map-height resize from
+  about 348 to 460 pixels, Default/Gray switching, reload/session continuity,
+  zoom-14 reactivation, visible attribution, and PNG completion without the
+  prior map-readiness error.
+
+## 2026-07-30 Feature-gated zoom-14 Detailed overview trial
+
+- Current behavior: the normal local and production Detailed map contract is
+  unchanged at displayed zoom 15. The opt-in
+  `npm run dev:client:zoom14-overview` trial adds a separate, lower-resolution
+  overview collection at displayed zoom 14 while retaining the native fixed
+  surface at zoom 15 and above. The tier boundary uses the exact native
+  threshold, and native containment yields during the 15-to-14 handoff so an
+  internal fractional zoom cannot immediately restore the native tier. Map
+  settings report level 14 only when the overview collection is configured.
+  A genuine overview-surface manifest handoff now shows `Loading detailed
+  map...` on the map surface and inside Map settings until the selected fixed
+  surface is ready. Outside-coverage fallback remains a separate state and
+  does not show the loading message.
+- Known-good reference: branch `codex/detailed-map-zoom14-overview`, based on
+  the production zoom-15 Detailed-map baseline and recovery sequence recorded
+  below. The trial is client-only and feature-gated. Production asset roots,
+  default local startup, native manifests, annotations, resource pins, owner
+  privacy, API behavior, and production data remain unchanged.
+- Reproduction steps: start the opt-in local client, sign in as an owner, and
+  open maps 269 and 258 in Print View. From a covered displayed zoom 15, zoom
+  out once to displayed zoom 14. Pan far enough to change the selected overview
+  surface from C01 to C02 on map 269 and from W04 to W01 on map 258. Resize the
+  map, switch Default to Gray and back, complete a 14-to-15-to-14 round trip,
+  reload, and reactivate zoom 14. Pan beyond the generated overview envelope
+  until the regular map appears, then return until the full settled viewport
+  is contained by an overview surface.
+- Acceptance criteria: displayed zoom 14 uses only the overview collection;
+  displayed zoom 15 and above use only the native collection; movement and
+  plate changes do not regress to the regular map while the settled viewport
+  remains covered; genuine outside-coverage fallback returns to Detailed
+  automatically once the full viewport re-enters coverage; resize and
+  Default/Gray switching preserve Detailed; the Leaflet tile pane stays empty;
+  Singapore Land Authority attribution remains visible; reload preserves the
+  owner session; and disabling the trial flag restores the established
+  zoom-15-only contract. Future 100% zoom-14 coverage must cover every supported
+  viewport envelope, including boundary overlap, rather than only every
+  Singapore point or town centre. A pending covered-surface handoff must show
+  the visible loading message, remove it when fixed image layers are ready, and
+  never reuse it for a genuinely outside-coverage viewport.
+- Verification result before deploy: the generated overview validation passed
+  for 32 Default and 32 Gray surfaces. Focused surface, integration, settings,
+  and local-configuration coverage passed 42/42. Map-lockdown, Print View, and
+  annotation coverage passed 70/70, followed by the exact four-root
+  production-style client build with only the established large-chunk
+  advisory. The broad client suite passed 518/519; its only failure is the
+  already-recorded date-sensitive Care Calendar planning-conflict fixture.
+  Authenticated Chrome UAT confirmed C01-to-C02 and W04-to-W01 movement at
+  displayed zoom 14, map-height resize from 360 to 440 pixels, Default/Gray
+  switching, a 14-to-15-to-14 round trip, reload and reactivation, fixed image
+  overlays throughout, zero live tile-pane images, no unavailable message,
+  visible attribution, and owner-session continuity. Follow-up UAT on map 269
+  confirmed that leaving the current overview envelope falls back, returning
+  only the viewport centre remains in fallback while an edge is still outside,
+  and Detailed recovers without a reload or mode toggle once the full viewport
+  is covered again. Follow-up instrumentation reproduced the reported sequence:
+  covered overview movement briefly entered the real pending state, repeated
+  containment adjustments advanced the internal zoom from `14.7` through
+  `14.9` to native `15.0`, and an uncached overview handoff displayed the new
+  in-map loading message for about 1.6 seconds before fixed image layers
+  returned. Panning beyond the generated envelope showed no loading message.
+  Focused surface, integration, settings, and local-configuration coverage
+  remained green at 42/42. This trial has not been committed, pushed, or
+  deployed.
+
 ## 2026-07-30 Owner Print View image-export readiness recovery
 
 - Current behavior: the high-resolution offscreen export surface is mounted

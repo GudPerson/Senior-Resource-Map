@@ -52,6 +52,10 @@ export default function MapImageExportButton({
     fixedTownSurfaceAvailable = false,
     fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
+    fixedTownOverviewSurfaceManifest = null,
+    fixedTownOverviewAssetBaseUrl = '',
+    fixedTownOverviewSurfaceAvailable = false,
+    fixedTownOverviewSurfacePending = false,
     printAnnotations = [],
 }) {
     const { t } = useLocale();
@@ -327,6 +331,10 @@ export default function MapImageExportButton({
                             fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
                             fixedTownSurfacePending={fixedTownSurfacePending}
                             fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
+                            fixedTownOverviewSurfaceManifest={fixedTownOverviewSurfaceManifest}
+                            fixedTownOverviewAssetBaseUrl={fixedTownOverviewAssetBaseUrl}
+                            fixedTownOverviewSurfaceAvailable={fixedTownOverviewSurfaceAvailable}
+                            fixedTownOverviewSurfacePending={fixedTownOverviewSurfacePending}
                             printAnnotations={printAnnotations}
                         />
                     </div>

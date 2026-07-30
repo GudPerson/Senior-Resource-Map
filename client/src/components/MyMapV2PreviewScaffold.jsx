@@ -51,6 +51,10 @@ export default function MyMapV2PreviewScaffold({
     fixedTownSurfaceAvailable,
     fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
+    fixedTownOverviewSurfaceManifest = null,
+    fixedTownOverviewAssetBaseUrl = '',
+    fixedTownOverviewSurfaceAvailable,
+    fixedTownOverviewSurfacePending = false,
     fixedTownSurfaceGrayscale = false,
     fixedTownSurfaceLockMinZoom = true,
     fixedTownSurfaceFallbackBelowMinZoom = true,
@@ -105,6 +109,10 @@ export default function MyMapV2PreviewScaffold({
             fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
             fixedTownSurfacePending={fixedTownSurfacePending}
             fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
+            fixedTownOverviewSurfaceManifest={fixedTownOverviewSurfaceManifest}
+            fixedTownOverviewAssetBaseUrl={fixedTownOverviewAssetBaseUrl}
+            fixedTownOverviewSurfaceAvailable={fixedTownOverviewSurfaceAvailable}
+            fixedTownOverviewSurfacePending={fixedTownOverviewSurfacePending}
             fixedTownSurfaceGrayscale={fixedTownSurfaceGrayscale}
             fixedTownSurfaceLockMinZoom={fixedTownSurfaceLockMinZoom}
             fixedTownSurfaceFallbackBelowMinZoom={fixedTownSurfaceFallbackBelowMinZoom}

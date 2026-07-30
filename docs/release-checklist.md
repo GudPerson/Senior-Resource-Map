@@ -76,25 +76,29 @@ VITE_API_URL=https://api.carearound.sg/api npm run build:client
 The deploy script validates this before publishing.
 
 While the owner Detailed fixed-surface map is active in production, every
-client build must also keep its build-time activation and both versioned asset
-bases. The islandwide release line should use the versioned islandwide roots:
+client build must also keep its build-time activation and all versioned asset
+bases. The islandwide release line should use these exact roots:
 
 ```bash
 VITE_API_URL=https://api.carearound.sg/api \
 VITE_TOWN_MAP_PROOF_ENABLED=true \
 VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/default \
 VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/gray \
+VITE_TOWN_MAP_ZOOM14_OVERVIEW_ENABLED=true \
+VITE_TOWN_MAP_OVERVIEW_ASSET_BASE_URL=https://maps.carearound.sg/v3/zoom14-atlas-20260730/default \
+VITE_TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL=https://maps.carearound.sg/v3/zoom14-atlas-20260730/gray \
 VITE_TOWN_MAP_PRINT_MASTER_ASSET_BASE_URL=https://maps.carearound.sg/v2/print-master-100-20260723/default \
 VITE_TOWN_MAP_GRAY_PRINT_MASTER_ASSET_BASE_URL=https://maps.carearound.sg/v2/print-master-100-20260723/gray \
 npm run build:client
 ```
 
 Omitting the interactive `VITE_TOWN_MAP_*` values intentionally compiles Map
-detail out of the owner client. The two print-master roots remain retained
-build-contract roots; the current stable UX does not expose a Print Master
-button. Omitting any of the four map roots is a rollback or dormant-contract
-change, not the normal production build, and `npm run deploy:client` rejects
-omission.
+detail out of the owner client. The two zoom-14 atlas roots extend Detailed one
+displayed zoom step without replacing the established zoom-15 native roots.
+The two print-master roots remain retained build-contract roots; the current
+stable UX does not expose a Print Master button. Omitting any of the six map
+roots is a rollback or dormant-contract change, not the normal production
+build, and `npm run deploy:client` rejects omission.
 For immediate asset rollback, rebuild with the retained islandwide v1 roots
 `/v1/islandwide` and `/v1/islandwide/gray` and set
 `VITE_ALLOW_TOWN_MAP_ROLLBACK=true`. The older W01-only roots `/v1/w01` and
@@ -114,12 +118,13 @@ node --test client/test/fixedTownSurface.test.js \
   client/test/printMapWorkspace.test.js
 ```
 
-Then run the exact four-root production client build above.
+Then run the exact six-root production client build above.
 
 After any Pages deploy, verify the custom-domain bundle, not only the Pages
 preview. The deployed bundle must preserve:
 
 - v2 native-scale Default and Gray roots;
+- v3 zoom-14 atlas Default and Gray roots;
 - retained print-master roots;
 - `resize moveend zoomend` containment;
 - `The regular map is still shown.`;

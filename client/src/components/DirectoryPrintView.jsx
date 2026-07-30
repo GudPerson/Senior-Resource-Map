@@ -409,6 +409,10 @@ function PrintDirectoryMap({
     fixedTownSurfaceAvailable = false,
     fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
+    fixedTownOverviewSurfaceManifest = null,
+    fixedTownOverviewAssetBaseUrl = '',
+    fixedTownOverviewSurfaceAvailable = false,
+    fixedTownOverviewSurfacePending = false,
     onFixedTownSurfaceViewportChange,
     previewScale = 1,
     mapMaxWidthPx = 680,
@@ -675,6 +679,10 @@ function PrintDirectoryMap({
                 fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
                 fixedTownSurfacePending={fixedTownSurfacePending}
                 fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
+                fixedTownOverviewSurfaceManifest={fixedTownOverviewSurfaceManifest}
+                fixedTownOverviewAssetBaseUrl={fixedTownOverviewAssetBaseUrl}
+                fixedTownOverviewSurfaceAvailable={fixedTownOverviewSurfaceAvailable}
+                fixedTownOverviewSurfacePending={fixedTownOverviewSurfacePending}
                 fixedTownSurfaceLockMinZoom={false}
                 fixedTownSurfaceSnapToMinZoom={Boolean(printMapState && interactive)}
                 fixedTownSurfaceContainOnResize={Boolean(printMapState && interactive)}
@@ -870,6 +878,10 @@ export default function DirectoryPrintView({
     fixedTownSurfaceAvailable = false,
     fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
+    fixedTownOverviewSurfaceManifest = null,
+    fixedTownOverviewAssetBaseUrl = '',
+    fixedTownOverviewSurfaceAvailable = false,
+    fixedTownOverviewSurfacePending = false,
     onFixedTownSurfaceViewportChange,
     printAnnotations = [],
     annotationEditing = false,
@@ -1123,6 +1135,10 @@ export default function DirectoryPrintView({
                         fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
                         fixedTownSurfacePending={fixedTownSurfacePending}
                         fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
+                        fixedTownOverviewSurfaceManifest={fixedTownOverviewSurfaceManifest}
+                        fixedTownOverviewAssetBaseUrl={fixedTownOverviewAssetBaseUrl}
+                        fixedTownOverviewSurfaceAvailable={fixedTownOverviewSurfaceAvailable}
+                        fixedTownOverviewSurfacePending={fixedTownOverviewSurfacePending}
                         onFixedTownSurfaceViewportChange={onFixedTownSurfaceViewportChange}
                         previewScale={variant === 'screen' ? scale : 1}
                         mapMaxWidthPx={printLayoutConfig.mapMaxWidthPx}

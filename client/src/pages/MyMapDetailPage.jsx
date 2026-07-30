@@ -79,6 +79,14 @@ const MapImageExportButton = lazy(() => import('../components/MapImageExportButt
 const TOWN_MAP_PROOF_ENABLED = import.meta.env.VITE_TOWN_MAP_PROOF_ENABLED === 'true';
 const TOWN_MAP_ASSET_BASE_URL = normalizeFixedTownAssetBaseUrl(import.meta.env.VITE_TOWN_MAP_ASSET_BASE_URL || '');
 const TOWN_MAP_GRAY_ASSET_BASE_URL = normalizeFixedTownAssetBaseUrl(import.meta.env.VITE_TOWN_MAP_GRAY_ASSET_BASE_URL || '');
+const TOWN_MAP_OVERVIEW_ENABLED = TOWN_MAP_PROOF_ENABLED
+    && import.meta.env.VITE_TOWN_MAP_ZOOM14_OVERVIEW_ENABLED === 'true';
+const TOWN_MAP_OVERVIEW_ASSET_BASE_URL = normalizeFixedTownAssetBaseUrl(
+    import.meta.env.VITE_TOWN_MAP_OVERVIEW_ASSET_BASE_URL || '',
+);
+const TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL = normalizeFixedTownAssetBaseUrl(
+    import.meta.env.VITE_TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL || '',
+);
 const TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER = [1.3521, 103.846];
 const OWNER_PRINT_BASEMAP_OPTIONS = TOWN_MAP_PROOF_ENABLED
     ? { basemapMode: 'auto' }
@@ -897,6 +905,208 @@ function buildTownMapSelectionKey({ style, surfaceId, viewportBounds, points }) 
     return `${style || ''}:${surfaceId || ''}:${viewportKey}:${pointsKey}`;
 }
 
+function useTownMapOverviewManifestStates({
+    enabled,
+    viewportBounds,
+    coveragePoints,
+    focusSurfaceId,
+}) {
+    const [states, setStates] = useState({
+        [CAREAROUND_MAP_STYLE_DEFAULT]: createTownMapManifestState(),
+        [CAREAROUND_MAP_STYLE_GRAY]: createTownMapManifestState(),
+    });
+    const selectionKeyRef = useRef({});
+
+    useEffect(() => {
+        if (!enabled) return undefined;
+
+        const controller = new AbortController();
+        const assetBaseUrls = {
+            [CAREAROUND_MAP_STYLE_DEFAULT]: TOWN_MAP_OVERVIEW_ASSET_BASE_URL,
+            [CAREAROUND_MAP_STYLE_GRAY]: TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL,
+        };
+        setStates(Object.fromEntries(
+            Object.entries(assetBaseUrls).map(([style, assetBaseUrl]) => [
+                style,
+                createTownMapManifestState(assetBaseUrl ? 'loading' : 'error'),
+            ]),
+        ));
+
+        Object.entries(assetBaseUrls).forEach(([style, assetBaseUrl]) => {
+            if (!assetBaseUrl) return;
+            fetchFixedTownSurfaceSource(assetBaseUrl, { signal: controller.signal })
+                .then((source) => {
+                    setStates((current) => ({
+                        ...current,
+                        [style]: source.type === 'index'
+                            ? {
+                                ...createTownMapManifestState('ready'),
+                                sourceType: 'index',
+                                index: source.index,
+                                activeManifestStatus: 'idle',
+                            }
+                            : {
+                                ...createTownMapManifestState('ready'),
+                                sourceType: 'manifest',
+                                manifest: source.manifest,
+                                activeSurfaceId: source.manifest.map?.id || '',
+                                activeAssetBaseUrl: assetBaseUrl,
+                                activeManifestStatus: 'ready',
+                            },
+                    }));
+                })
+                .catch((error) => {
+                    if (error?.name === 'AbortError') return;
+                    setStates((current) => ({
+                        ...current,
+                        [style]: createTownMapManifestState('error'),
+                    }));
+                });
+        });
+
+        return () => controller.abort();
+    }, [enabled]);
+
+    useEffect(() => {
+        if (!enabled) return undefined;
+
+        const assetBaseUrls = {
+            [CAREAROUND_MAP_STYLE_DEFAULT]: TOWN_MAP_OVERVIEW_ASSET_BASE_URL,
+            [CAREAROUND_MAP_STYLE_GRAY]: TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL,
+        };
+        Object.entries(states).forEach(([style, state]) => {
+            if (state?.status !== 'ready' || state.sourceType !== 'index' || !state.index) return;
+
+            const selectedSurface = focusSurfaceId
+                ? state.index.surfaces.find((surface) => surface?.id === focusSurfaceId) || null
+                : selectFixedTownSurfaceForViewport(
+                    state.index,
+                    viewportBounds,
+                    coveragePoints,
+                );
+            const activeSurfaceId = selectedSurface?.id || '';
+            const selectionKey = buildTownMapSelectionKey({
+                style,
+                surfaceId: activeSurfaceId,
+                viewportBounds,
+                points: coveragePoints,
+            });
+            if (!activeSurfaceId) {
+                if (state.activeSurfaceId || state.manifest || state.activeManifestStatus !== 'idle') {
+                    setStates((current) => ({
+                        ...current,
+                        [style]: {
+                            ...current[style],
+                            manifest: null,
+                            activeSurfaceId: '',
+                            activeAssetBaseUrl: '',
+                            activeManifestStatus: 'idle',
+                        },
+                    }));
+                }
+                selectionKeyRef.current[style] = selectionKey;
+                return;
+            }
+            if (
+                selectionKeyRef.current[style] === selectionKey
+                && state.activeSurfaceId === activeSurfaceId
+                && (
+                    state.manifest
+                    || ['loading', 'error'].includes(state.activeManifestStatus)
+                )
+            ) {
+                return;
+            }
+            selectionKeyRef.current[style] = selectionKey;
+
+            const cachedManifest = state.manifestsById?.[activeSurfaceId] || null;
+            const activeAssetBaseUrl = resolveFixedTownSurfaceAssetBaseUrl(
+                assetBaseUrls[style],
+                selectedSurface,
+            );
+            const manifestPath = resolveFixedTownSurfaceManifestPath(selectedSurface);
+            if (!activeAssetBaseUrl || !manifestPath) {
+                setStates((current) => ({
+                    ...current,
+                    [style]: {
+                        ...current[style],
+                        manifest: null,
+                        activeSurfaceId,
+                        activeAssetBaseUrl: '',
+                        activeManifestStatus: 'error',
+                    },
+                }));
+                return;
+            }
+            if (cachedManifest) {
+                setStates((current) => ({
+                    ...current,
+                    [style]: {
+                        ...current[style],
+                        manifest: cachedManifest,
+                        activeSurfaceId,
+                        activeAssetBaseUrl,
+                        activeManifestStatus: 'ready',
+                    },
+                }));
+                return;
+            }
+
+            setStates((current) => ({
+                ...current,
+                [style]: {
+                    ...current[style],
+                    manifest: null,
+                    activeSurfaceId,
+                    activeAssetBaseUrl,
+                    activeManifestStatus: 'loading',
+                },
+            }));
+            fetchFixedTownSurfaceManifest(assetBaseUrls[style], { manifestPath })
+                .then((manifest) => {
+                    setStates((current) => {
+                        const currentStyleState = current[style]
+                            || createTownMapManifestState('ready');
+                        if (currentStyleState.activeSurfaceId !== activeSurfaceId) return current;
+                        return {
+                            ...current,
+                            [style]: {
+                                ...currentStyleState,
+                                manifest,
+                                activeSurfaceId,
+                                activeAssetBaseUrl,
+                                activeManifestStatus: 'ready',
+                                manifestsById: {
+                                    ...(currentStyleState.manifestsById || {}),
+                                    [activeSurfaceId]: manifest,
+                                },
+                            },
+                        };
+                    });
+                })
+                .catch((error) => {
+                    if (error?.name === 'AbortError') return;
+                    setStates((current) => {
+                        const currentStyleState = current[style]
+                            || createTownMapManifestState('ready');
+                        if (currentStyleState.activeSurfaceId !== activeSurfaceId) return current;
+                        return {
+                            ...current,
+                            [style]: {
+                                ...currentStyleState,
+                                manifest: null,
+                                activeManifestStatus: 'error',
+                            },
+                        };
+                    });
+                });
+        });
+        return undefined;
+    }, [coveragePoints, enabled, focusSurfaceId, states, viewportBounds]);
+
+    return states;
+}
+
 export default function MyMapDetailPage() {
     const { mapId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -1198,6 +1408,86 @@ export default function MyMapDetailPage() {
             : [];
         return [...pinPoints, ...anchorPoint];
     }, [activeAnchor, townMapCoveragePresentation.pins]);
+    const townMapOverviewManifestStates = useTownMapOverviewManifestStates({
+        enabled: TOWN_MAP_OVERVIEW_ENABLED,
+        viewportBounds: townMapViewportBounds,
+        coveragePoints: townMapCoveragePoints,
+        focusSurfaceId: townMapFocusSurfaceId,
+    });
+    const townMapOverviewRootAssetBaseUrl = mapStyle === CAREAROUND_MAP_STYLE_GRAY
+        ? TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL
+        : TOWN_MAP_OVERVIEW_ASSET_BASE_URL;
+    const townMapOverviewManifestState = townMapOverviewManifestStates[mapStyle]
+        || createTownMapManifestState();
+    const townMapOverviewAssetBaseUrl = townMapOverviewManifestState.activeAssetBaseUrl
+        || townMapOverviewRootAssetBaseUrl;
+    const townMapOverviewViewportSurface = useMemo(() => {
+        if (
+            !TOWN_MAP_OVERVIEW_ENABLED
+            || townMapOverviewManifestState.status !== 'ready'
+            || townMapOverviewManifestState.sourceType !== 'index'
+            || !townMapOverviewManifestState.index
+        ) {
+            return null;
+        }
+        return selectFixedTownSurfaceForViewport(
+            townMapOverviewManifestState.index,
+            townMapViewportBounds,
+            townMapCoveragePoints,
+        );
+    }, [
+        townMapCoveragePoints,
+        townMapOverviewManifestState.index,
+        townMapOverviewManifestState.sourceType,
+        townMapOverviewManifestState.status,
+        townMapViewportBounds,
+    ]);
+    const townMapOverviewViewportSurfaceId = townMapOverviewViewportSurface?.id || '';
+    const townMapOverviewSurfaceResolving = Boolean(
+        TOWN_MAP_OVERVIEW_ENABLED
+        && townMapOverviewManifestState.status === 'ready'
+        && townMapOverviewManifestState.sourceType === 'index'
+        && townMapOverviewViewportSurfaceId
+        && townMapOverviewViewportSurfaceId !== townMapOverviewManifestState.activeSurfaceId
+    );
+    const townMapOverviewFocusSurfaceMismatch = Boolean(
+        TOWN_MAP_OVERVIEW_ENABLED
+        && townMapOverviewManifestState.status === 'ready'
+        && townMapOverviewManifestState.sourceType === 'index'
+        && townMapFocusSurfaceId
+        && townMapFocusSurfaceId !== townMapOverviewManifestState.activeSurfaceId
+    );
+    const townMapOverviewFocusSurfacePending = Boolean(
+        TOWN_MAP_OVERVIEW_ENABLED
+        && townMapOverviewManifestState.status === 'ready'
+        && townMapOverviewManifestState.sourceType === 'index'
+        && townMapFocusSurfaceId
+    );
+    const townMapOverviewAvailable = Boolean(
+        TOWN_MAP_OVERVIEW_ENABLED
+        && townMapOverviewAssetBaseUrl
+        && townMapOverviewManifestState.status === 'ready'
+        && townMapOverviewManifestState.manifest
+        && townMapOverviewManifestState.activeManifestStatus === 'ready'
+        && !townMapOverviewSurfaceResolving
+        && !townMapOverviewFocusSurfaceMismatch
+        && townMapCoveragePoints.length
+    );
+    const townMapOverviewSurfacePending = Boolean(
+        TOWN_MAP_OVERVIEW_ENABLED
+        && (
+            townMapOverviewManifestState.status === 'loading'
+            || (
+                townMapOverviewManifestState.status === 'ready'
+                && townMapOverviewManifestState.sourceType === 'index'
+                && (
+                    townMapOverviewManifestState.activeManifestStatus === 'loading'
+                    || townMapOverviewSurfaceResolving
+                    || townMapOverviewFocusSurfacePending
+                )
+            )
+        )
+    );
     const townMapViewportSurface = useMemo(() => {
         if (
             !TOWN_MAP_PROOF_ENABLED
@@ -1452,6 +1742,13 @@ export default function MyMapDetailPage() {
         || createTownMapManifestState();
     const printTownMapAssetBaseUrl = printTownMapManifestState.activeAssetBaseUrl
         || printTownMapRootAssetBaseUrl;
+    const printTownMapOverviewRootAssetBaseUrl = printMapState.mapStyle === CAREAROUND_MAP_STYLE_GRAY
+        ? TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL
+        : TOWN_MAP_OVERVIEW_ASSET_BASE_URL;
+    const printTownMapOverviewManifestState = townMapOverviewManifestStates[printMapState.mapStyle]
+        || createTownMapManifestState();
+    const printTownMapOverviewAssetBaseUrl = printTownMapOverviewManifestState.activeAssetBaseUrl
+        || printTownMapOverviewRootAssetBaseUrl;
     const printTownMapViewportSurface = useMemo(() => {
         if (
             !TOWN_MAP_PROOF_ENABLED
@@ -1494,6 +1791,70 @@ export default function MyMapDetailPage() {
                 )
             )
         )
+    );
+    const printTownMapOverviewViewportSurface = useMemo(() => {
+        if (
+            !TOWN_MAP_OVERVIEW_ENABLED
+            || printTownMapOverviewManifestState.status !== 'ready'
+            || printTownMapOverviewManifestState.sourceType !== 'index'
+            || !printTownMapOverviewManifestState.index
+        ) {
+            return null;
+        }
+        return selectFixedTownSurfaceForViewport(
+            printTownMapOverviewManifestState.index,
+            townMapViewportBounds,
+            townMapCoveragePoints,
+        );
+    }, [
+        printTownMapOverviewManifestState.index,
+        printTownMapOverviewManifestState.sourceType,
+        printTownMapOverviewManifestState.status,
+        townMapCoveragePoints,
+        townMapViewportBounds,
+    ]);
+    const printTownMapOverviewViewportSurfaceId = printTownMapOverviewViewportSurface?.id || '';
+    const printTownMapOverviewSurfaceResolving = Boolean(
+        TOWN_MAP_OVERVIEW_ENABLED
+        && printTownMapOverviewManifestState.status === 'ready'
+        && printTownMapOverviewManifestState.sourceType === 'index'
+        && printTownMapOverviewViewportSurfaceId
+        && printTownMapOverviewViewportSurfaceId !== printTownMapOverviewManifestState.activeSurfaceId
+    );
+    const printTownMapOverviewSurfacePending = Boolean(
+        TOWN_MAP_OVERVIEW_ENABLED
+        && (
+            printTownMapOverviewManifestState.status === 'loading'
+            || (
+                printTownMapOverviewManifestState.status === 'ready'
+                && printTownMapOverviewManifestState.sourceType === 'index'
+                && (
+                    printTownMapOverviewManifestState.activeManifestStatus === 'loading'
+                    || printTownMapOverviewSurfaceResolving
+                )
+            )
+        )
+    );
+    const printTownMapOverviewOutsidePointCount = useMemo(() => {
+        if (
+            !printTownMapOverviewManifestState.index
+            && !printTownMapOverviewManifestState.manifest
+        ) {
+            return 0;
+        }
+        return townMapCoveragePoints.filter((point) => (
+            !isTownMapPointCoveredByState(point, printTownMapOverviewManifestState)
+        )).length;
+    }, [printTownMapOverviewManifestState, townMapCoveragePoints]);
+    const printTownMapOverviewAvailable = Boolean(
+        TOWN_MAP_OVERVIEW_ENABLED
+        && printTownMapOverviewAssetBaseUrl
+        && printTownMapOverviewManifestState.status === 'ready'
+        && printTownMapOverviewManifestState.manifest
+        && printTownMapOverviewManifestState.activeManifestStatus === 'ready'
+        && !printTownMapOverviewSurfaceResolving
+        && townMapCoveragePoints.length
+        && printTownMapOverviewOutsidePointCount === 0
     );
     const printTownMapOutsidePointCount = useMemo(() => {
         if (!printTownMapManifestState.index && !printTownMapManifestState.manifest) return 0;
@@ -1557,6 +1918,7 @@ export default function MyMapDetailPage() {
 
     const renderTownMapModeControl = useCallback(({
         mode = 'live',
+        townPending = false,
         townViewportEligible = true,
         townZoomEligible = false,
         fallbackReason = '',
@@ -1578,15 +1940,21 @@ export default function MyMapDetailPage() {
         const compactViewportStatusMessage = viewportStatusMessage
             ? 'Outside Detailed area'
             : '';
+        const pendingStatusMessage = townPending
+            ? 'Loading detailed map…'
+            : townMapStatus.message;
+        const pendingCompactStatusMessage = townPending
+            ? 'Loading detailed…'
+            : townMapStatus.compactMessage;
         const fallbackStatusMessage = fallbackReason === 'outside-surface'
             ? 'Detailed map is not ready for this area. The regular map is still shown here.'
             : 'Detailed map could not load. The regular map is still shown.';
         const statusMessage = fallbackReason
             ? fallbackStatusMessage
-            : (viewportStatusMessage || townMapStatus.message);
+            : (viewportStatusMessage || pendingStatusMessage);
         const compactStatusMessage = fallbackReason
             ? (fallbackReason === 'outside-surface' ? 'Outside Detailed area' : 'Detailed unavailable')
-            : (compactViewportStatusMessage || townMapStatus.compactMessage);
+            : (compactViewportStatusMessage || pendingCompactStatusMessage);
         return (
             <TownMapModeControl
                 mode={mode}
@@ -1603,6 +1971,7 @@ export default function MyMapDetailPage() {
     const mapModeControl = TOWN_MAP_PROOF_ENABLED ? renderTownMapModeControl : null;
     const renderPrintTownMapModeControl = useCallback(({
         mode = 'live',
+        townPending = false,
         townZoomEligible = false,
         fallbackReason = '',
         onModeChange,
@@ -1620,11 +1989,11 @@ export default function MyMapDetailPage() {
             ? (printTownMapOutsidePointCount > 0
                 ? 'Some places are outside the detailed map area. The regular map is still shown.'
                 : 'Detailed map is unavailable. The regular map is still shown.')
-            : (printTownMapSurfacePending ? 'Preparing the detailed map…' : '');
+            : (townPending ? 'Loading detailed map…' : '');
         const compactStatusMessage = unavailable
             ? statusMessage
-            : (printTownMapSurfacePending ? 'Loading detailed…' : '');
-        const canRequestDetailed = printTownMapAvailable || printTownMapSurfacePending;
+            : (townPending ? 'Loading detailed…' : '');
+        const canRequestDetailed = printTownMapAvailable || townPending;
         const handleModeChange = (nextMode) => {
             setPrintMapState((current) => ({
                 ...current,
@@ -1654,7 +2023,6 @@ export default function MyMapDetailPage() {
         printTownMapAvailable,
         printTownMapManifestState.status,
         printTownMapOutsidePointCount,
-        printTownMapSurfacePending,
     ]);
     const printMapModeControl = TOWN_MAP_PROOF_ENABLED ? renderPrintTownMapModeControl : null;
 
@@ -2339,6 +2707,10 @@ export default function MyMapDetailPage() {
                                     fixedTownSurfaceAvailable={printTownMapAvailable}
                                     fixedTownSurfacePending={printTownMapSurfacePending}
                                     fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                                    fixedTownOverviewSurfaceManifest={printTownMapOverviewManifestState.manifest}
+                                    fixedTownOverviewAssetBaseUrl={printTownMapOverviewAssetBaseUrl}
+                                    fixedTownOverviewSurfaceAvailable={printTownMapOverviewAvailable}
+                                    fixedTownOverviewSurfacePending={printTownMapOverviewSurfacePending}
                                     printAnnotations={printAnnotations.annotations}
                                     className="min-h-11 w-full px-3 text-xs sm:w-auto sm:text-sm"
                                 />
@@ -2384,6 +2756,10 @@ export default function MyMapDetailPage() {
                         fixedTownSurfaceAvailable={printTownMapAvailable}
                         fixedTownSurfacePending={printTownMapSurfacePending}
                         fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                        fixedTownOverviewSurfaceManifest={printTownMapOverviewManifestState.manifest}
+                        fixedTownOverviewAssetBaseUrl={printTownMapOverviewAssetBaseUrl}
+                        fixedTownOverviewSurfaceAvailable={printTownMapOverviewAvailable}
+                        fixedTownOverviewSurfacePending={printTownMapOverviewSurfacePending}
                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                         printAnnotations={printAnnotations.annotations}
                         annotationEditing={printAnnotationEditorOpen
@@ -2511,6 +2887,10 @@ export default function MyMapDetailPage() {
                     fixedTownSurfaceAvailable={townMapAvailable}
                     fixedTownSurfacePending={townMapSurfacePending}
                     fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                    fixedTownOverviewSurfaceManifest={townMapOverviewManifestState.manifest}
+                    fixedTownOverviewAssetBaseUrl={townMapOverviewAssetBaseUrl}
+                    fixedTownOverviewSurfaceAvailable={townMapOverviewAvailable}
+                    fixedTownOverviewSurfacePending={townMapOverviewSurfacePending}
                     fixedTownSurfaceGrayscale={false}
                     fixedTownSurfaceLockMinZoom={false}
                     fixedTownSurfaceFallbackBelowMinZoom={false}
@@ -2710,6 +3090,10 @@ export default function MyMapDetailPage() {
                                     fixedTownSurfaceAvailable={townMapAvailable}
                                     fixedTownSurfacePending={townMapSurfacePending}
                                     fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                                    fixedTownOverviewSurfaceManifest={townMapOverviewManifestState.manifest}
+                                    fixedTownOverviewAssetBaseUrl={townMapOverviewAssetBaseUrl}
+                                    fixedTownOverviewSurfaceAvailable={townMapOverviewAvailable}
+                                    fixedTownOverviewSurfacePending={townMapOverviewSurfacePending}
                                     fixedTownSurfaceGrayscale={false}
                                     fixedTownSurfaceLockMinZoom={false}
                                     fixedTownSurfaceFallbackBelowMinZoom={false}
@@ -2781,6 +3165,10 @@ export default function MyMapDetailPage() {
                                         fixedTownSurfaceAvailable={townMapAvailable}
                                         fixedTownSurfacePending={townMapSurfacePending}
                                         fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                                        fixedTownOverviewSurfaceManifest={townMapOverviewManifestState.manifest}
+                                        fixedTownOverviewAssetBaseUrl={townMapOverviewAssetBaseUrl}
+                                        fixedTownOverviewSurfaceAvailable={townMapOverviewAvailable}
+                                        fixedTownOverviewSurfacePending={townMapOverviewSurfacePending}
                                         fixedTownSurfaceGrayscale={false}
                                         fixedTownSurfaceLockMinZoom={false}
                                         fixedTownSurfaceFallbackBelowMinZoom={false}
@@ -2827,6 +3215,10 @@ export default function MyMapDetailPage() {
                                         fixedTownSurfaceAvailable={townMapAvailable}
                                         fixedTownSurfacePending={townMapSurfacePending}
                                         fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                                        fixedTownOverviewSurfaceManifest={townMapOverviewManifestState.manifest}
+                                        fixedTownOverviewAssetBaseUrl={townMapOverviewAssetBaseUrl}
+                                        fixedTownOverviewSurfaceAvailable={townMapOverviewAvailable}
+                                        fixedTownOverviewSurfacePending={townMapOverviewSurfacePending}
                                         fixedTownSurfaceGrayscale={false}
                                         fixedTownSurfaceLockMinZoom={false}
                                         fixedTownSurfaceFallbackBelowMinZoom={false}

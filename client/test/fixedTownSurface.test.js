@@ -7,6 +7,7 @@ import {
     FIXED_TOWN_SURFACE_INDEX_SCHEMA,
     FIXED_TOWN_SURFACE_INDEX_SCHEMA_VERSION,
     FIXED_TOWN_SURFACE_SCHEMA_VERSION,
+    FIXED_TOWN_OVERVIEW_MIN_ZOOM,
     areWsenBoundsContained,
     doWsenBoundsIntersect,
     fetchFixedTownSurfaceManifest,
@@ -24,9 +25,12 @@ import {
     resolveFixedTownManifestUrl,
     resolveFixedTownSurfaceAssetBaseUrl,
     resolveFixedTownSurfaceManifestPath,
+    resolveFixedTownSurfaceTier,
+    resolveFixedTownTransitionMinZoom,
     selectFixedTownSurfaceForViewport,
     selectVisibleFixedTownChunks,
     shouldCapFixedTownRequestedLiveTiles,
+    shouldDeferFixedTownContainmentToLowerTier,
     shouldRetryFixedTownSurfaceMemoryFallback,
     validateFixedTownSurfaceIndex,
     validateFixedTownSurfaceManifest,
@@ -52,6 +56,87 @@ function buildManifest() {
 
 function cloneManifest() {
     return structuredClone(buildManifest());
+}
+
+function buildOverviewManifest() {
+    const manifest = cloneManifest();
+    const sourceManifestSha256 = 'b'.repeat(64);
+    const sourceCollectionManifestSha256 = 'c'.repeat(64);
+    manifest.map.version = 'w01-overview-z17-s25-q95-g1-81bd26441edaff1d';
+    manifest.source.retainedScale = 0.25;
+    manifest.source.generatorVersion = 1;
+    manifest.source.profile = 'overview-25';
+    manifest.source.profileLabel = '25% z19 zoom-14 overview';
+    manifest.source.cartographicRenderZoom = 17;
+    manifest.source.labelTarget = 'native OneMap zoom-17 proportions';
+    manifest.source.readability = {
+        edition: 'zoom14-overview-v1',
+        scaleFactor: 0.5,
+        rasterResampled: true,
+        embeddedImageStreamsPreserved: false,
+        textPreserved: true,
+        contentPreserved: true,
+    };
+    manifest.source.overview = {
+        edition: 'zoom14-overview-v1',
+        targetDisplayZoom: 14,
+        sourceCartographicRenderZoom: 18,
+        sourceRetainedScale: 0.5,
+        resampling: 'LANCZOS',
+        sourceManifestSha256,
+        sourceCollectionManifestSha256,
+    };
+    manifest.integrity.sourceManifestSha256 = sourceManifestSha256;
+    manifest.integrity.sourceCollectionManifestSha256 = sourceCollectionManifestSha256;
+
+    const columnWidths = new Map();
+    const rowHeights = new Map();
+    manifest.chunks.forEach((chunk) => {
+        const [left, top, right, bottom] = chunk.worldPixelBounds;
+        chunk.pixelSize = [
+            Math.round((right - left) * 0.25),
+            Math.round((bottom - top) * 0.25),
+        ];
+        columnWidths.set(chunk.column, chunk.pixelSize[0]);
+        rowHeights.set(chunk.row, chunk.pixelSize[1]);
+    });
+    const [left, top, right, bottom] = manifest.source.worldPixelBounds.nominal;
+    manifest.retainedPixelDimensions.nominal = [
+        Math.round((right - left) * 0.25),
+        Math.round((bottom - top) * 0.25),
+    ];
+    manifest.retainedPixelDimensions.chunkGrid = [
+        [...columnWidths.entries()]
+            .sort(([leftColumn], [rightColumn]) => leftColumn - rightColumn)
+            .reduce((sum, [, width]) => sum + width, 0),
+        [...rowHeights.entries()]
+            .sort(([leftRow], [rightRow]) => leftRow - rightRow)
+            .reduce((sum, [, height]) => sum + height, 0),
+    ];
+    return manifest;
+}
+
+function buildOverviewAtlasManifest(style = 'default') {
+    const manifest = buildOverviewManifest();
+    manifest.map.id = 'SG14';
+    manifest.map.name = 'Singapore Zoom-14 Detailed Map Atlas';
+    manifest.map.style = style;
+    manifest.map.version = `sg14-atlas-z17-${style}-s25-q95-g1-81bd26441edaff1d`;
+    manifest.source.readability = {
+        ...manifest.source.readability,
+        edition: 'zoom14-overview-atlas-v1',
+        scaleFactor: 1,
+        rasterResampled: false,
+    };
+    manifest.source.overview = {
+        ...manifest.source.overview,
+        edition: 'zoom14-overview-atlas-v1',
+        sourceCartographicRenderZoom: 17,
+        sourceRetainedScale: 1,
+        resampling: 'NONE',
+    };
+    if (style === 'gray') manifest.source.style = 'Grey';
+    return manifest;
 }
 
 test('fixed town surface manifest accepts the complete v1 contract', () => {
@@ -97,6 +182,40 @@ test('fixed town surface manifest accepts generic non-W01 islandwide plates with
         * sparseSourceTileCount.source.tileGrid.rows
         + 1;
     assert.equal(validateFixedTownSurfaceManifest(sparseSourceTileCount), false);
+});
+
+test('fixed town surface manifest accepts only the explicit zoom-14 overview profile', () => {
+    const overviewManifest = buildOverviewManifest();
+    assert.equal(validateFixedTownSurfaceManifest(overviewManifest), true);
+    assert.equal(FIXED_TOWN_OVERVIEW_MIN_ZOOM, 14);
+
+    const wrongResampling = structuredClone(overviewManifest);
+    wrongResampling.source.overview.resampling = 'BILINEAR';
+    assert.equal(validateFixedTownSurfaceManifest(wrongResampling), false);
+
+    const wrongDisplayZoom = structuredClone(overviewManifest);
+    wrongDisplayZoom.source.overview.targetDisplayZoom = 13;
+    assert.equal(validateFixedTownSurfaceManifest(wrongDisplayZoom), false);
+
+    const untrackedRaster = structuredClone(overviewManifest);
+    untrackedRaster.source.readability.rasterResampled = false;
+    assert.equal(validateFixedTownSurfaceManifest(untrackedRaster), false);
+});
+
+test('fixed town surface manifest accepts the complete zoom-14 atlas provenance profile', () => {
+    const atlasManifest = buildOverviewAtlasManifest();
+    assert.equal(validateFixedTownSurfaceManifest(atlasManifest), true);
+
+    const grayAtlasManifest = buildOverviewAtlasManifest('gray');
+    assert.equal(validateFixedTownSurfaceManifest(grayAtlasManifest), true);
+
+    const atlasWithLegacyResampling = structuredClone(atlasManifest);
+    atlasWithLegacyResampling.source.overview.resampling = 'LANCZOS';
+    assert.equal(validateFixedTownSurfaceManifest(atlasWithLegacyResampling), false);
+
+    const atlasWithUntrackedScale = structuredClone(atlasManifest);
+    atlasWithUntrackedScale.source.readability.scaleFactor = 0.5;
+    assert.equal(validateFixedTownSurfaceManifest(atlasWithUntrackedScale), false);
 });
 
 test('generated islandwide indexes and per-surface manifests pass the fixed-surface contract', () => {
@@ -539,6 +658,67 @@ test('point coverage uses lat and lng against nominal WSEN bounds', () => {
     assert.equal(isPointWithinWsenBounds({ lat: 103.75, lng: 1.36 }, nominalBounds), false);
     assert.equal(isPointWithinWsenBounds({ lat: 1.41, lng: 103.75 }, nominalBounds), false);
     assert.equal(isPointWithinWsenBounds({ lat: null, lng: 103.75 }, nominalBounds), false);
+});
+
+test('zoom-14 overview tier never replaces the native zoom-15 tier', () => {
+    const resolveTier = (zoom, overviewConfigured = true) => resolveFixedTownSurfaceTier({
+        zoom,
+        nativeMinZoom: 15,
+        overviewMinZoom: FIXED_TOWN_OVERVIEW_MIN_ZOOM,
+        overviewConfigured,
+    });
+
+    assert.equal(resolveTier(null), 'native');
+    assert.equal(resolveTier(13.5), 'native');
+    assert.equal(resolveTier(13.99), 'native');
+    assert.equal(resolveTier(14), 'overview');
+    assert.equal(resolveTier(14.49), 'overview');
+    assert.equal(resolveTier(14.5), 'overview');
+    assert.equal(resolveTier(14.99), 'overview');
+    assert.equal(resolveTier(15), 'native');
+    assert.equal(resolveTier(14, false), 'native');
+});
+
+test('fixed town transition threshold expands only when overview assets are configured', () => {
+    assert.equal(resolveFixedTownTransitionMinZoom(), 15);
+    assert.equal(resolveFixedTownTransitionMinZoom({
+        nativeMinZoom: 15,
+        overviewMinZoom: 14,
+        overviewConfigured: false,
+    }), 15);
+    assert.equal(resolveFixedTownTransitionMinZoom({
+        nativeMinZoom: 15,
+        overviewMinZoom: 14,
+        overviewConfigured: true,
+    }), 14);
+    assert.equal(resolveFixedTownTransitionMinZoom({
+        nativeMinZoom: 15,
+        overviewMinZoom: 'invalid',
+        overviewConfigured: true,
+    }), 15);
+});
+
+test('native containment yields while a configured lower tier takes over', () => {
+    assert.equal(shouldDeferFixedTownContainmentToLowerTier({
+        zoom: 14.6,
+        activeMinZoom: 15,
+        transitionMinZoom: 14,
+    }), true);
+    assert.equal(shouldDeferFixedTownContainmentToLowerTier({
+        zoom: 15,
+        activeMinZoom: 15,
+        transitionMinZoom: 14,
+    }), false);
+    assert.equal(shouldDeferFixedTownContainmentToLowerTier({
+        zoom: 14.6,
+        activeMinZoom: 15,
+        transitionMinZoom: 15,
+    }), false);
+    assert.equal(shouldDeferFixedTownContainmentToLowerTier({
+        zoom: 13.9,
+        activeMinZoom: 15,
+        transitionMinZoom: 14,
+    }), false);
 });
 
 test('WSEN viewport intersection includes touching edges and rejects invalid bounds', () => {

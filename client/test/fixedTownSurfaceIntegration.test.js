@@ -38,6 +38,13 @@ const discoveryMapSource = await readFile(
 test('directory map keeps Live as the default and resolves Town locally from settled zoom', () => {
     assert.match(directoryMapSource, /basemapMode = 'live'/);
     assert.match(directoryMapSource, /resolveFixedTownBasemapMode\(/);
+    assert.match(directoryMapSource, /resolveFixedTownSurfaceTier\(/);
+    assert.match(directoryMapSource, /resolveFixedTownTransitionMinZoom\(/);
+    assert.match(directoryMapSource, /fixedTownSurfaceTier === 'overview'/);
+    assert.match(directoryMapSource, /activeFixedTownSurfaceManifest/);
+    assert.match(directoryMapSource, /activeFixedTownAssetBaseUrl/);
+    assert.match(directoryMapSource, /data-fixed-town-surface-tier/);
+    assert.match(directoryMapSource, /carearound-town:\$\{fixedTownSurfaceTier\}/);
     assert.match(directoryMapSource, /function DirectoryMapZoomSync/);
     assert.match(directoryMapSource, /function DirectoryMapFixedTownViewportSync/);
     assert.match(directoryMapSource, /fallbackTimer/);
@@ -46,10 +53,26 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /window\.clearTimeout\(fallbackTimer\)/);
     assert.match(directoryMapSource, /function DirectoryMapFixedTownMinZoomSnapSync/);
     assert.match(directoryMapSource, /function DirectoryMapFixedTownResizeContainmentSync/);
+    assert.match(directoryMapSource, /shouldDeferFixedTownContainmentToLowerTier\(\{/);
     assert.match(directoryMapSource, /normalizeFixedTownStandardZoom/);
     assert.match(directoryMapSource, /selectVisibleFixedTownChunks\(manifest\.chunks, viewportBounds\)/);
     assert.match(directoryMapSource, /areWsenBoundsContained\(viewportBounds, surfaceBounds\)/);
-    assert.match(directoryMapSource, /normalizeStandardZoomBelow=\{shouldGateTownRequestedLiveTiles/);
+    assert.match(
+        directoryMapSource,
+        /normalizeStandardZoomBelow=\{shouldGateTownRequestedLiveTiles\s*\?\s*resolvedFixedTownTransitionMinZoom/,
+    );
+    assert.match(
+        directoryMapSource,
+        /<DirectoryMapFixedTownMinZoomSnapSync[\s\S]*?minZoom=\{resolvedFixedTownTransitionMinZoom\}/,
+    );
+    assert.match(
+        directoryMapSource,
+        /<FixedTownSurfaceLayer[\s\S]*?minZoom=\{resolvedFixedTownSurfaceMinZoom\}/,
+    );
+    assert.match(
+        directoryMapSource,
+        /<DirectoryMapFixedTownResizeContainmentSync[\s\S]*?transitionMinZoom=\{resolvedFixedTownTransitionMinZoom\}/,
+    );
     assert.match(directoryMapSource, /map\.setView\(map\.getCenter\(\), normalizedZoom, \{ animate: false \}\)/);
     assert.match(directoryMapSource, /map\.on\('zoom', handleZoom\)/);
     assert.match(directoryMapSource, /map\.on\('zoomend', handleZoomEnd\)/);
@@ -71,14 +94,18 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /fixedTownSurfacePending = false/);
     assert.match(directoryMapSource, /townMapZoomUnknown = fixedTownSurfaceZoom === null \|\| fixedTownSurfaceZoom === undefined/);
     assert.match(directoryMapSource, /hasFocusedMapTarget = Boolean\(focusedPlaceKey\) \|\| focusedPlaceKeys\.length > 0/);
-    assert.match(directoryMapSource, /fixedTownSurfacePending\s*&&\s*fixedTownSurfaceViewportEligible !== false/);
+    assert.match(directoryMapSource, /activeFixedTownSurfacePending\s*&&\s*fixedTownSurfaceViewportEligible !== false/);
     assert.match(directoryMapSource, /shouldSuppressTownPendingLiveTiles/);
     assert.match(directoryMapSource, /townMapZoomEligible \|\| townMapZoomUnknown \|\| hasFocusedMapTarget/);
     assert.match(directoryMapSource, /shouldSuppressTownFocusLiveTiles/);
     assert.match(directoryMapSource, /shouldSuppressTownPendingLiveTiles\s*\|\|\s*shouldSuppressTownFocusLiveTiles/);
+    assert.match(directoryMapSource, /townPending: activeFixedTownSurfacePending/);
+    assert.match(directoryMapSource, /data-fixed-town-surface-loading="true"/);
+    assert.match(directoryMapSource, /Loading detailed map\.\.\./);
+    assert.match(directoryMapSource, /surfaceStatus \|\| \(shouldSuppressTownPendingLiveTiles/);
     assert.match(directoryMapSource, /fixedTownSurfaceConfigured/);
-    assert.doesNotMatch(directoryMapSource, /resolvedFixedTownSurfaceAvailable \|\| fixedTownSurfacePending \|\| hasFocusedMapTarget/);
-    assert.match(directoryMapSource, /resolvedFixedTownSurfaceAvailable\s*\|\|\s*\(fixedTownSurfacePending && fixedTownSurfaceViewportEligible !== false\)/);
+    assert.doesNotMatch(directoryMapSource, /resolvedFixedTownSurfaceAvailable \|\| activeFixedTownSurfacePending \|\| hasFocusedMapTarget/);
+    assert.match(directoryMapSource, /resolvedFixedTownSurfaceAvailable\s*\|\|\s*\(activeFixedTownSurfacePending && fixedTownSurfaceViewportEligible !== false\)/);
     assert.match(directoryMapSource, /reason === 'outside-surface' && onFixedTownSurfaceViewportChange/);
     assert.match(directoryMapSource, /shouldUseDirectTownDeepFocus/);
     assert.match(directoryMapSource, /shouldUseDirectTownDeepFocus = townBasemapRequested\s*&& resolvedFixedTownSurfaceAvailable/);
@@ -177,6 +204,12 @@ test('town map proof is owner-only, local-flagged, and uses viewport coverage fo
     assert.match(ownerPageSource, /VITE_TOWN_MAP_PROOF_ENABLED/);
     assert.match(ownerPageSource, /VITE_TOWN_MAP_ASSET_BASE_URL/);
     assert.match(ownerPageSource, /VITE_TOWN_MAP_GRAY_ASSET_BASE_URL/);
+    assert.match(ownerPageSource, /VITE_TOWN_MAP_ZOOM14_OVERVIEW_ENABLED/);
+    assert.match(ownerPageSource, /VITE_TOWN_MAP_OVERVIEW_ASSET_BASE_URL/);
+    assert.match(ownerPageSource, /VITE_TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL/);
+    assert.match(ownerPageSource, /useTownMapOverviewManifestStates/);
+    assert.match(ownerPageSource, /fixedTownOverviewSurfaceManifest=\{townMapOverviewManifestState\.manifest\}/);
+    assert.match(ownerPageSource, /fixedTownOverviewSurfaceManifest=\{printTownMapOverviewManifestState\.manifest\}/);
     assert.match(ownerPageSource, /mapStyle === CAREAROUND_MAP_STYLE_GRAY/);
     assert.match(ownerPageSource, /mapMinZoom=\{TOWN_MAP_PROOF_ENABLED \? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined\}/);
     assert.match(ownerPageSource, /showZoomLevelCounter=\{TOWN_MAP_PROOF_ENABLED\}/);
@@ -238,6 +271,8 @@ test('owner mode control keeps layman labels and accessible guidance inside map 
     assert.match(townMapControlSource, /compactStatusMessage/);
     assert.match(ownerPageSource, /Zoom in to level.*Detailed map will turn on automatically/);
     assert.match(ownerPageSource, /Zoom in to.*for Detailed/);
+    assert.match(ownerPageSource, /townPending = false/);
+    assert.match(ownerPageSource, /townPending \? 'Loading detailed map…'/);
     assert.match(ownerPageSource, /regular map is still shown/);
     assert.doesNotMatch(ownerPageSource, /Standard map is still on/);
     assert.doesNotMatch(townMapControlSource, /easy[- ]read/i);

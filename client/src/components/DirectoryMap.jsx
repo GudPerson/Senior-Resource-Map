@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
+import { LoaderCircle } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -39,13 +40,17 @@ import {
     shouldRefitDirectoryCameraAfterResize,
 } from '../lib/directoryMapCamera.js';
 import {
+    FIXED_TOWN_OVERVIEW_MIN_ZOOM,
     areWsenBoundsContained,
     isFixedTownSurfaceZoomEligible,
     normalizeFixedTownStandardZoom,
     resolveFixedTownMinimumZoomSnap,
     resolveFixedTownBasemapMode,
+    resolveFixedTownSurfaceTier,
+    resolveFixedTownTransitionMinZoom,
     selectVisibleFixedTownChunks,
     shouldCapFixedTownRequestedLiveTiles,
+    shouldDeferFixedTownContainmentToLowerTier,
     shouldRetryFixedTownSurfaceMemoryFallback,
 } from '../lib/fixedTownSurface.js';
 import {
@@ -1913,6 +1918,7 @@ function DirectoryMapFixedTownResizeContainmentSync({
     enabled = false,
     manifest = null,
     minZoom,
+    transitionMinZoom = minZoom,
 }) {
     const map = useMap();
 
@@ -1935,6 +1941,13 @@ function DirectoryMapFixedTownResizeContainmentSync({
             frame = null;
             const currentZoom = Number(map.getZoom());
             const normalizedMinZoom = Number(minZoom);
+            if (shouldDeferFixedTownContainmentToLowerTier({
+                zoom: currentZoom,
+                activeMinZoom: normalizedMinZoom,
+                transitionMinZoom,
+            })) {
+                return;
+            }
             if (
                 !Number.isFinite(currentZoom)
                 || !Number.isFinite(normalizedMinZoom)
@@ -1998,7 +2011,7 @@ function DirectoryMapFixedTownResizeContainmentSync({
             if (frame !== null) window.cancelAnimationFrame(frame);
             map.off('resize moveend zoomend', scheduleContainment);
         };
-    }, [enabled, manifest, map, minZoom]);
+    }, [enabled, manifest, map, minZoom, transitionMinZoom]);
 
     return null;
 }
@@ -2376,6 +2389,11 @@ export default function DirectoryMap({
     fixedTownSurfaceAvailable,
     fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
+    fixedTownOverviewSurfaceManifest = null,
+    fixedTownOverviewAssetBaseUrl = '',
+    fixedTownOverviewSurfaceAvailable,
+    fixedTownOverviewSurfacePending = false,
+    fixedTownOverviewSurfaceMinZoom = FIXED_TOWN_OVERVIEW_MIN_ZOOM,
     fixedTownSurfaceGrayscale = false,
     fixedTownSurfaceLockMinZoom = true,
     fixedTownSurfaceSnapToMinZoom = false,
@@ -2438,19 +2456,50 @@ export default function DirectoryMap({
     const resolvedMapMinZoom = Number.isFinite(Number(mapMinZoom))
         ? Number(mapMinZoom)
         : CAREAROUND_BASEMAP_MIN_ZOOM;
-    const resolvedFixedTownSurfaceMinZoom = Number.isFinite(Number(fixedTownSurfaceMinZoom))
+    const resolvedNativeFixedTownSurfaceMinZoom = Number.isFinite(Number(fixedTownSurfaceMinZoom))
         ? Number(fixedTownSurfaceMinZoom)
         : FIXED_TOWN_SURFACE_MIN_ZOOM;
-    const configuredFixedTownSurfaceAvailable = fixedTownSurfaceAvailable ?? Boolean(
-        fixedTownSurfaceManifest && fixedTownAssetBaseUrl,
+    const resolvedOverviewFixedTownSurfaceMinZoom = Number.isFinite(Number(fixedTownOverviewSurfaceMinZoom))
+        ? Number(fixedTownOverviewSurfaceMinZoom)
+        : FIXED_TOWN_OVERVIEW_MIN_ZOOM;
+    const fixedTownOverviewConfigured = Boolean(fixedTownOverviewAssetBaseUrl);
+    const resolvedFixedTownTransitionMinZoom = resolveFixedTownTransitionMinZoom({
+        nativeMinZoom: resolvedNativeFixedTownSurfaceMinZoom,
+        overviewMinZoom: resolvedOverviewFixedTownSurfaceMinZoom,
+        overviewConfigured: fixedTownOverviewConfigured,
+    });
+    const fixedTownSurfaceTier = resolveFixedTownSurfaceTier({
+        zoom: fixedTownSurfaceZoom,
+        nativeMinZoom: resolvedNativeFixedTownSurfaceMinZoom,
+        overviewMinZoom: resolvedOverviewFixedTownSurfaceMinZoom,
+        overviewConfigured: fixedTownOverviewConfigured,
+    });
+    const usingFixedTownOverview = fixedTownSurfaceTier === 'overview';
+    const activeFixedTownSurfaceManifest = usingFixedTownOverview
+        ? fixedTownOverviewSurfaceManifest
+        : fixedTownSurfaceManifest;
+    const activeFixedTownAssetBaseUrl = usingFixedTownOverview
+        ? fixedTownOverviewAssetBaseUrl
+        : fixedTownAssetBaseUrl;
+    const activeFixedTownSurfaceAvailable = usingFixedTownOverview
+        ? fixedTownOverviewSurfaceAvailable
+        : fixedTownSurfaceAvailable;
+    const activeFixedTownSurfacePending = usingFixedTownOverview
+        ? fixedTownOverviewSurfacePending
+        : fixedTownSurfacePending;
+    const resolvedFixedTownSurfaceMinZoom = usingFixedTownOverview
+        ? resolvedOverviewFixedTownSurfaceMinZoom
+        : resolvedNativeFixedTownSurfaceMinZoom;
+    const configuredFixedTownSurfaceAvailable = activeFixedTownSurfaceAvailable ?? Boolean(
+        activeFixedTownSurfaceManifest && activeFixedTownAssetBaseUrl,
     );
     const fixedTownBasemapPreference = fixedTownManualLiveOverride ? 'live' : basemapMode;
     const townBasemapRequested = ['auto', 'town'].includes(fixedTownBasemapPreference);
-    const fixedTownSurfaceConfigured = Boolean(fixedTownAssetBaseUrl);
+    const fixedTownSurfaceConfigured = Boolean(activeFixedTownAssetBaseUrl);
     const hasFocusedMapTarget = Boolean(focusedPlaceKey) || focusedPlaceKeys.length > 0;
     const shouldTrustFixedTownFocusSurface = townBasemapRequested
         && fixedTownSurfaceConfigured
-        && fixedTownSurfacePending
+        && activeFixedTownSurfacePending
         && fixedTownSurfaceViewportEligible !== false;
     const fixedTownSurfaceInViewport = fixedTownSurfaceViewportEligible !== false;
     const resolvedFixedTownSurfaceAvailable = configuredFixedTownSurfaceAvailable
@@ -2466,7 +2515,9 @@ export default function DirectoryMap({
         zoom: fixedTownSurfaceZoom,
         minZoom: resolvedFixedTownSurfaceMinZoom,
     });
-    const shouldTrackFixedTownSurfaceZoom = configuredFixedTownSurfaceAvailable
+    const shouldTrackFixedTownSurfaceZoom = Boolean(
+        fixedTownAssetBaseUrl || fixedTownOverviewAssetBaseUrl
+    )
         || basemapMode !== 'live'
         || typeof mapModeControl === 'function';
     const handleMapModeChange = useCallback((nextMode) => {
@@ -2503,6 +2554,15 @@ export default function DirectoryMap({
         onFixedTownSurfaceViewportChange,
     ]);
 
+    const fixedTownSurfaceTierRef = useRef(fixedTownSurfaceTier);
+    useEffect(() => {
+        if (fixedTownSurfaceTierRef.current === fixedTownSurfaceTier) return;
+        fixedTownSurfaceTierRef.current = fixedTownSurfaceTier;
+        setFixedTownSurfaceViewportEligible(null);
+        setFixedTownSurfaceFaultReason('');
+        fixedTownSurfaceFaultZoomRef.current = null;
+    }, [fixedTownSurfaceTier]);
+
     useEffect(() => {
         if (!townMapZoomEligible) {
             setFixedTownManualLiveOverride(false);
@@ -2537,10 +2597,16 @@ export default function DirectoryMap({
         townMapZoomEligible,
     ]);
 
+    const townMapZoomUnknown = fixedTownSurfaceZoom === null || fixedTownSurfaceZoom === undefined;
+    const shouldSuppressTownPendingLiveTiles = townBasemapRequested
+        && activeFixedTownSurfacePending
+        && fixedTownSurfaceViewportEligible !== false
+        && (townMapZoomEligible || townMapZoomUnknown || hasFocusedMapTarget);
     const resolvedMapModeControl = typeof mapModeControl === 'function'
         ? mapModeControl({
             mode: effectiveBasemapMode,
             townAvailable: configuredFixedTownSurfaceAvailable,
+            townPending: activeFixedTownSurfacePending,
             townViewportEligible: fixedTownSurfaceInViewport,
             townZoomEligible: townMapZoomEligible,
             zoom: fixedTownSurfaceZoom,
@@ -2549,17 +2615,12 @@ export default function DirectoryMap({
             controlVariant: 'panel',
         })
         : mapModeControl;
-    const townMapZoomUnknown = fixedTownSurfaceZoom === null || fixedTownSurfaceZoom === undefined;
-    const shouldSuppressTownPendingLiveTiles = townBasemapRequested
-        && fixedTownSurfacePending
-        && fixedTownSurfaceViewportEligible !== false
-        && (townMapZoomEligible || townMapZoomUnknown || hasFocusedMapTarget);
     const shouldSuppressTownFocusLiveTiles = townBasemapRequested
         && hasFocusedMapTarget
         && fixedTownSurfaceConfigured
         && (
             resolvedFixedTownSurfaceAvailable
-            || (fixedTownSurfacePending && fixedTownSurfaceViewportEligible !== false)
+            || (activeFixedTownSurfacePending && fixedTownSurfaceViewportEligible !== false)
         );
     const shouldSuppressTownLiveTiles = shouldSuppressTownPendingLiveTiles
         || shouldSuppressTownFocusLiveTiles;
@@ -2567,7 +2628,7 @@ export default function DirectoryMap({
         && fixedTownSurfaceConfigured
         && (
             resolvedFixedTownSurfaceAvailable
-            || (fixedTownSurfacePending && fixedTownSurfaceViewportEligible !== false)
+            || (activeFixedTownSurfacePending && fixedTownSurfaceViewportEligible !== false)
         );
     const shouldCapTownRequestedLiveTiles = shouldCapFixedTownRequestedLiveTiles({
         townRequested: townBasemapRequested,
@@ -2578,13 +2639,24 @@ export default function DirectoryMap({
     const shouldRenderFixedTownSurface = effectiveBasemapMode === 'town'
         || (
             shouldSuppressTownLiveTiles
-            && fixedTownSurfaceManifest
-            && fixedTownAssetBaseUrl
+            && activeFixedTownSurfaceManifest
+            && activeFixedTownAssetBaseUrl
         );
     const shouldUseDirectTownDeepFocus = townBasemapRequested
         && resolvedFixedTownSurfaceAvailable;
     const shouldDeferTownDeepFocus = townBasemapRequested
         && shouldGateTownRequestedLiveTiles;
+    const resolvedSurfaceStatus = surfaceStatus || (shouldSuppressTownPendingLiveTiles ? (
+        <div
+            data-fixed-town-surface-loading="true"
+            role="status"
+            aria-live="polite"
+            className="inline-flex items-center gap-2 rounded-md border border-brand-200 bg-white/95 px-3 py-2 text-xs font-bold text-brand-800 shadow-sm backdrop-blur"
+        >
+            <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+            <span>Loading detailed map...</span>
+        </div>
+    ) : null);
     const printBadgeLayoutRefreshKey = useMemo(() => {
         if (markerMode !== 'print-badge' && markerMode !== 'category-bubble') return '';
 
@@ -3004,6 +3076,7 @@ export default function DirectoryMap({
             data-map-controlled-center={mapViewState?.center?.join(',') || undefined}
             data-map-controlled-zoom={Number.isFinite(Number(mapViewState?.zoom)) ? Number(mapViewState.zoom) : undefined}
             data-map-basemap-mode={effectiveBasemapMode}
+            data-fixed-town-surface-tier={effectiveBasemapMode === 'town' ? fixedTownSurfaceTier : undefined}
             data-print-export-map-frame={onMapReadyForCapture ? 'true' : undefined}
             data-external-mobile-map-controls={mobileControlPortalTarget ? 'true' : undefined}
         >
@@ -3034,13 +3107,14 @@ export default function DirectoryMap({
                     enabled={fixedTownSurfaceContainOnResize
                         && townBasemapRequested
                         && fixedTownSurfaceConfigured}
-                    manifest={fixedTownSurfaceManifest}
+                    manifest={activeFixedTownSurfaceManifest}
                     minZoom={resolvedFixedTownSurfaceMinZoom}
+                    transitionMinZoom={resolvedFixedTownTransitionMinZoom}
                 />
                 <DirectoryMapZoomSync
                     enabled={shouldTrackFixedTownSurfaceZoom}
                     normalizeStandardZoomBelow={shouldGateTownRequestedLiveTiles
-                        ? resolvedFixedTownSurfaceMinZoom
+                        ? resolvedFixedTownTransitionMinZoom
                         : null}
                     onZoomChange={setFixedTownSurfaceZoom}
                 />
@@ -3049,7 +3123,7 @@ export default function DirectoryMap({
                         configuredFixedTownSurfaceAvailable
                         || Boolean(onFixedTownSurfaceViewportChange)
                     )}
-                    manifest={fixedTownSurfaceManifest}
+                    manifest={activeFixedTownSurfaceManifest}
                     onViewportEligibleChange={setFixedTownSurfaceViewportEligible}
                     onViewportBoundsChange={onFixedTownSurfaceViewportChange}
                 />
@@ -3057,7 +3131,7 @@ export default function DirectoryMap({
                     enabled={fixedTownSurfaceSnapToMinZoom
                         && townBasemapRequested
                         && fixedTownSurfaceConfigured}
-                    minZoom={resolvedFixedTownSurfaceMinZoom}
+                    minZoom={resolvedFixedTownTransitionMinZoom}
                     viewportEligible={fixedTownSurfaceViewportEligible}
                 />
                 <DirectoryMapZoomLevelControl
@@ -3072,6 +3146,7 @@ export default function DirectoryMap({
                     showZoomControls={showZoomControl}
                     settingsControl={hasMapSettingsControl ? (
                         <MapSettingsControl
+                            detailedMinZoom={resolvedFixedTownTransitionMinZoom}
                             mapModeControl={resolvedMapModeControl}
                             mapStyleDescription={mapStyleDescription}
                             mapStyleValue={mapStyleOverride}
@@ -3083,9 +3158,11 @@ export default function DirectoryMap({
                 />
                 {shouldRenderFixedTownSurface ? (
                     <FixedTownSurfaceLayer
-                        key={onMapReadyForCapture ? `capture-town:${captureReadyKey}` : 'carearound-town'}
-                        manifest={fixedTownSurfaceManifest}
-                        assetBaseUrl={fixedTownAssetBaseUrl}
+                        key={onMapReadyForCapture
+                            ? `capture-town:${fixedTownSurfaceTier}:${captureReadyKey}`
+                            : `carearound-town:${fixedTownSurfaceTier}`}
+                        manifest={activeFixedTownSurfaceManifest}
+                        assetBaseUrl={activeFixedTownAssetBaseUrl}
                         minZoom={resolvedFixedTownSurfaceMinZoom}
                         grayscale={fixedTownSurfaceGrayscale}
                         lockMinZoom={fixedTownSurfaceLockMinZoom}
@@ -3195,19 +3272,20 @@ export default function DirectoryMap({
                 {renderedMarkers}
                 {mapOverlay}
             </MapContainer>
-            {surfaceStatus ? (
+            {resolvedSurfaceStatus ? (
                 <div
                     data-map-surface-status="true"
                     className="pointer-events-none absolute left-3 right-16 top-3 z-[1003] flex justify-center"
                 >
                     <div className="w-full max-w-md">
-                        {surfaceStatus}
+                        {resolvedSurfaceStatus}
                     </div>
                 </div>
             ) : null}
             {resolvedMapModeControl || showMapStyleControl ? (
                 <div className="absolute right-[13px] top-3 z-[1002] lg:right-3">
                     <MapSettingsControl
+                        detailedMinZoom={resolvedFixedTownTransitionMinZoom}
                         mapModeControl={resolvedMapModeControl}
                         mapStyleDescription={mapStyleDescription}
                         mapStyleValue={mapStyleOverride}

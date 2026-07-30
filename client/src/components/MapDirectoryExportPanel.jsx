@@ -15,6 +15,10 @@ export default function MapDirectoryExportPanel({
     fixedTownSurfaceAvailable = false,
     fixedTownSurfacePending = false,
     fixedTownSurfaceMinZoom,
+    fixedTownOverviewSurfaceManifest = null,
+    fixedTownOverviewAssetBaseUrl = '',
+    fixedTownOverviewSurfaceAvailable = false,
+    fixedTownOverviewSurfacePending = false,
     printAnnotations = [],
 }) {
     return (
@@ -36,6 +40,10 @@ export default function MapDirectoryExportPanel({
             fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}
             fixedTownSurfacePending={fixedTownSurfacePending}
             fixedTownSurfaceMinZoom={fixedTownSurfaceMinZoom}
+            fixedTownOverviewSurfaceManifest={fixedTownOverviewSurfaceManifest}
+            fixedTownOverviewAssetBaseUrl={fixedTownOverviewAssetBaseUrl}
+            fixedTownOverviewSurfaceAvailable={fixedTownOverviewSurfaceAvailable}
+            fixedTownOverviewSurfacePending={fixedTownOverviewSurfacePending}
             printAnnotations={printAnnotations}
         />
     );

@@ -4,6 +4,8 @@ const preferredTownMapUrl = 'https://maps.carearound.sg/v2/native-scale-20260722
 const preferredTownMapGrayUrl = 'https://maps.carearound.sg/v2/native-scale-20260722/gray';
 const preferredTownMapPrintMasterUrl = 'https://maps.carearound.sg/v2/print-master-100-20260723/default';
 const preferredTownMapGrayPrintMasterUrl = 'https://maps.carearound.sg/v2/print-master-100-20260723/gray';
+const preferredTownMapOverviewUrl = 'https://maps.carearound.sg/v3/zoom14-atlas-20260730/default';
+const preferredTownMapGrayOverviewUrl = 'https://maps.carearound.sg/v3/zoom14-atlas-20260730/gray';
 const rollbackTownMapUrls = Object.freeze([
     'https://maps.carearound.sg/v1/islandwide',
     'https://maps.carearound.sg/v1/w01',
@@ -13,6 +15,9 @@ const rollbackTownMapGrayUrls = Object.freeze([
     'https://maps.carearound.sg/v1/w01/gray',
 ]);
 const allowTownMapRollback = String(process.env.VITE_ALLOW_TOWN_MAP_ROLLBACK || '').trim() === 'true';
+const townMapOverviewEnabled = String(
+    process.env.VITE_TOWN_MAP_ZOOM14_OVERVIEW_ENABLED || '',
+).trim() === 'true';
 
 function fail(message) {
     console.error(message);
@@ -108,4 +113,23 @@ if (
     fail(
         `Production Pages deploys must use the versioned Print Master assets (${preferredTownMapPrintMasterUrl} and ${preferredTownMapGrayPrintMasterUrl}).`
     );
+}
+
+if (townMapOverviewEnabled) {
+    const townMapOverviewUrl = normalizeUrl(
+        process.env.VITE_TOWN_MAP_OVERVIEW_ASSET_BASE_URL,
+        'VITE_TOWN_MAP_OVERVIEW_ASSET_BASE_URL',
+    );
+    const townMapGrayOverviewUrl = normalizeUrl(
+        process.env.VITE_TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL,
+        'VITE_TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL',
+    );
+    if (
+        townMapOverviewUrl !== preferredTownMapOverviewUrl
+        || townMapGrayOverviewUrl !== preferredTownMapGrayOverviewUrl
+    ) {
+        fail(
+            `Zoom-14 Detailed deploys must use the versioned overview atlas assets (${preferredTownMapOverviewUrl} and ${preferredTownMapGrayOverviewUrl}).`
+        );
+    }
 }
