@@ -15,6 +15,38 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-31 Owner Print View sticky workspace toolbar
+
+- Current behavior: the owner Print View workspace toolbar remains visible
+  while the page and map preview scroll. It is sticky below the global
+  navigation at 56 px on compact screens and 64 px from the `sm` breakpoint,
+  stays above the map surface but below the global navigation, and keeps the
+  existing responsive actions and expandable Print layout controls. The
+  toolbar remains excluded from browser printing and PNG/PDF export surfaces.
+- Known-good reference: branch `codex/print-toolbar-sticky`. The change is
+  limited to the existing owner Print View toolbar wrapper and its focused
+  source regression. It does not change Leaflet, map sizing or camera state,
+  Detailed-map selection, annotations, resource cards, descriptor data,
+  ownership, APIs, schemas, or export composition.
+- Reproduction steps: sign in as a map owner and open map 258 in Print View.
+  Record the toolbar position, scroll down through the map preview and resource
+  cards, and confirm the toolbar remains immediately below the global
+  navigation. Open and close Print layout after scrolling, then save a PNG or
+  PDF and inspect the output.
+- Acceptance criteria: computed toolbar position is `sticky`; desktop `top`
+  resolves to 64 px and compact `top` resolves to 56 px; the toolbar's viewport
+  top remains stable after page scroll; buttons and panels keep their existing
+  behavior; the toolbar does not overlap the global navigation; preview scroll
+  position is not reset; the toolbar remains absent from print and saved
+  image/PDF output; all locked map behavior remains unchanged.
+- Verification result before deploy: focused Print View coverage passed 22/22.
+  The complete locked-map gate passed 72/72 and its exact six-root production
+  client build passed with only the established large-chunk advisory. The full
+  server suite passed 493/493. Authenticated localhost UAT on owner map 258
+  measured `position: sticky`, `top: 64px`, and viewport top 65 px before
+  scrolling; after a 282.5 px page scroll, the toolbar remained at viewport top
+  64 px with the same 69.375 px height.
+
 ## 2026-07-30 Owner Print View descriptor readability and formatting
 
 - Current behavior: Print View renders a resource address and its optional short

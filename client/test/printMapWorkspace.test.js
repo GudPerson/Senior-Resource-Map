@@ -550,6 +550,11 @@ test('visible preview and hidden image export consume the same frozen print map 
     assert.match(printViewSource, /getOwnerPrintLayoutConfig\(printMapState\)/);
     assert.match(printViewSource, /printLabelDetail=\{labelDetail\}/);
     assert.match(printViewSource, /mapMaxWidthPx=\{printLayoutConfig\.mapMaxWidthPx\}/);
+    assert.match(
+        ownerPageSource,
+        /className="sticky top-\[56px\] z-\[1150\][^"]*print:hidden sm:top-\[64px\]"/,
+    );
+    assert.match(ownerPageSource, /data-owner-print-toolbar="true"/);
     assert.match(ownerPageSource, /data-print-toolbar-actions="true"/);
     assert.match(ownerPageSource, /Your saved image will match this preview/);
     assert.doesNotMatch(ownerPageSource, /onClick=\{\(\) => window\.print\(\)\}/);

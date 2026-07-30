@@ -2642,7 +2642,10 @@ export default function MyMapDetailPage() {
     if (isPrintView) {
         return (
             <div className="min-h-screen bg-white" data-route-cache-version={MY_MAP_ROUTE_CACHE_VERSION}>
-                <div className="print:hidden border-b border-slate-200 bg-white/90 backdrop-blur">
+                <div
+                    className="sticky top-[56px] z-[1150] border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur print:hidden sm:top-[64px]"
+                    data-owner-print-toolbar="true"
+                >
                     <div className="flex w-full flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
                         <div
                             className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-start"
