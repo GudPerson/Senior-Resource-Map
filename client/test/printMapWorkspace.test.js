@@ -456,6 +456,10 @@ test('visible preview and hidden image export consume the same frozen print map 
     assert.match(exportButtonSource, /printMapState=\{printMapState\}/);
     assert.match(exportButtonSource, /printMapCaptureKey/);
     assert.match(exportButtonSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);
+    assert.match(exportButtonSource, /await mountExportSurface\('image'\)/);
+    assert.match(exportButtonSource, /await mountExportSurface\('pdf'\)/);
+    assert.match(exportButtonSource, /\{exporting && exportRoot \? createPortal\(/);
+    assert.match(exportButtonSource, /<div ref=\{handleExportNodeRef\}>/);
     assert.match(exportPanelSource, /printMapState=\{printMapState\}/);
     assert.match(exportPanelSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);
     assert.match(exportPanelSource, /onMapViewportSnapshot=\{onMapViewportSnapshot\}/);

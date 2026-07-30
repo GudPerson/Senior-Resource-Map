@@ -60,6 +60,7 @@ export default function MapImageExportButton({
     const mapErrorRef = useRef(null);
     const mapViewportSnapshotRef = useRef(null);
     const readyWaitersRef = useRef([]);
+    const exportNodeWaitersRef = useRef([]);
     const [exportingFormat, setExportingFormat] = useState('');
     const [error, setError] = useState('');
     const exportRoot = typeof document !== 'undefined' ? document.body : null;
@@ -70,11 +71,15 @@ export default function MapImageExportButton({
     const exportAsSeparatePages = shouldExportPrintMapAsSeparatePages(printMapState);
     const exporting = Boolean(exportingFormat);
 
-    useEffect(() => {
+    const resetExportReadiness = useCallback(() => {
         exportReadyRef.current = false;
         mapErrorRef.current = null;
         mapViewportSnapshotRef.current = null;
         readyWaitersRef.current = [];
+    }, []);
+
+    useEffect(() => {
+        resetExportReadiness();
     }, [
         activeAnchor?.address,
         activeAnchor?.kind,
@@ -86,8 +91,37 @@ export default function MapImageExportButton({
         directory?.updatedAt,
         printMapCaptureKey,
         printAnnotationCaptureKey,
+        resetExportReadiness,
         shareUrl,
     ]);
+
+    const handleExportNodeRef = useCallback((node) => {
+        exportRef.current = node;
+        if (!node) return;
+        const waiters = exportNodeWaitersRef.current.splice(0);
+        waiters.forEach(({ resolve }) => resolve(node));
+    }, []);
+
+    async function mountExportSurface(format) {
+        resetExportReadiness();
+        setExportingFormat(format);
+        if (exportRef.current) return exportRef.current;
+
+        return new Promise((resolve, reject) => {
+            const waiterEntry = {
+                resolve: (node) => {
+                    window.clearTimeout(waiterEntry.timeoutId);
+                    resolve(node);
+                },
+                timeoutId: window.setTimeout(() => {
+                    exportNodeWaitersRef.current = exportNodeWaitersRef.current
+                        .filter((waiter) => waiter !== waiterEntry);
+                    reject(new Error('Export failed because the print surface did not open.'));
+                }, 2000),
+            };
+            exportNodeWaitersRef.current.push(waiterEntry);
+        });
+    }
 
     const handleMapReadyForCapture = useCallback(() => {
         exportReadyRef.current = true;
@@ -211,11 +245,11 @@ export default function MapImageExportButton({
     }
 
     async function handleImageExport() {
-        if (!exportRef.current || exporting) return;
-        setExportingFormat('image');
+        if (exporting) return;
         setError('');
 
         try {
+            await mountExportSurface('image');
             await waitForExportSurface();
             const capturedPages = await captureExportPages();
             capturedPages.forEach(({ dataUrl, name }) => {
@@ -230,11 +264,11 @@ export default function MapImageExportButton({
     }
 
     async function handlePdfExport() {
-        if (!exportRef.current || exporting) return;
-        setExportingFormat('pdf');
+        if (exporting) return;
         setError('');
 
         try {
+            await mountExportSurface('pdf');
             await waitForExportSurface({ forceHighQuality: true });
             const pages = await captureExportPages({ forceHighQuality: true });
             await downloadPrintMapPdf({ pages, directoryName: directory?.name });
@@ -272,13 +306,13 @@ export default function MapImageExportButton({
                 <p className="text-sm font-medium text-red-600">{error}</p>
             ) : null}
 
-            {exportRoot ? createPortal(
+            {exporting && exportRoot ? createPortal(
                 <div
                     className="pointer-events-none fixed left-0 top-0 overflow-visible p-8"
                     style={{ left: '-10000px', opacity: 0.001 }}
                     aria-hidden="true"
                 >
-                    <div ref={exportRef}>
+                    <div ref={handleExportNodeRef}>
                         <MapDirectoryExportPanel
                             directory={directory}
                             activeAnchor={activeAnchor}

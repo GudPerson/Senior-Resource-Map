@@ -15,6 +15,43 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-30 Owner Print View image-export readiness recovery
+
+- Current behavior: the high-resolution offscreen export surface is mounted
+  only after an owner chooses `Save PNG`, `Save 2 PNGs`, or `Save PDF`, and it
+  is released as soon as that export finishes or fails. Idle Print View keeps
+  only the visible map surface in memory. Each save starts from a fresh capture
+  readiness state while retaining the existing cached-image load handling and
+  frozen print-map state.
+- Known-good reference: branch
+  `codex/my-map-owner-regression-recovery`, based on the production zoom-15
+  Detailed-map and cached-image readiness fixes in `e33972f31`, `f5940d9e1`,
+  `c0ccbd06`, and `54b7029e`. The change is limited to the client export
+  lifecycle and does not alter the visible Print View map, Detailed-map zoom
+  eligibility, fixed-surface manifests or assets, annotations, resource
+  numbering, PDFs, owner privacy, API behavior, or production data.
+- Reproduction steps: sign in as an owner, open an owned map in Print View,
+  choose `Full map`, and leave the map at displayed zoom 15 with the Detailed
+  fixed surface visible. Choose `Save 2 PNGs`. Confirm that the fresh export
+  surface finishes loading and that both the map and resources images download
+  without the message `Image export failed because the directory map did not
+  finish loading`.
+- Acceptance criteria: Print View does not keep a duplicate offscreen Detailed
+  map mounted while idle; save actions mount a fresh high-resolution surface
+  and wait for its real map readiness; Full-map save produces both PNGs; the
+  map PNG contains the Detailed basemap, resource pins, and annotations; the
+  resources PNG retains the selected layout; no readiness error is shown; and
+  the offscreen surface unmounts after completion.
+- Verification result before deploy: authenticated local owner UAT on map 269
+  at Full-map zoom 15 downloaded
+  `iccp-queenstown-4-map.png` at 5920 x 4432 and
+  `iccp-queenstown-4-resources.png` at 5920 x 1560 with no export error. Visual
+  inspection confirmed the Detailed basemap, numbered resource pins, saved
+  polygon annotation, Singapore Land Authority attribution, and map framing in
+  the map image. Map-lockdown coverage passed 66/66 and the exact four-root
+  production client build passed with the established large-chunk advisory via
+  `npm run verify:map-lockdown`; `git diff --check` passed.
+
 ## 2026-07-29 Owner My Map placement, Detailed map, and annotation visibility recovery
 
 - Current behavior: owner My Map can enter `Add personal place` placement mode
