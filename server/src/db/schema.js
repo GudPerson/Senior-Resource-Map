@@ -671,6 +671,8 @@ export const myMapAssets = pgTable('my_map_assets', {
   resourceId: integer('resource_id').notNull(),
   snapshot: jsonb('snapshot'),
   shortDescriptor: varchar('short_descriptor', { length: 240 }),
+  shortDescriptorTextColor: varchar('short_descriptor_text_color', { length: 7 }),
+  shortDescriptorHighlightColor: varchar('short_descriptor_highlight_color', { length: 7 }),
   privateNote: text('private_note'),
   handoffNote: text('handoff_note'),
   notesUpdatedAt: timestamp('notes_updated_at'),
@@ -690,6 +692,20 @@ export const myMapAssetNotes = pgTable('my_map_asset_notes', {
 }, (table) => ({
   mapAssetIdx: index('my_map_asset_notes_map_asset_idx').on(table.mapAssetId),
   mapAssetSortIdx: index('my_map_asset_notes_map_asset_sort_idx').on(table.mapAssetId, table.sortOrder),
+}));
+
+export const myMapAssetShortDescriptors = pgTable('my_map_asset_short_descriptors', {
+  id: serial('id').primaryKey(),
+  mapAssetId: integer('map_asset_id').references(() => myMapAssets.id, { onDelete: 'cascade' }).notNull(),
+  descriptorText: varchar('descriptor_text', { length: 240 }).notNull(),
+  textColor: varchar('text_color', { length: 7 }),
+  highlightColor: varchar('highlight_color', { length: 7 }),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  mapAssetIdx: index('my_map_asset_short_descriptors_map_asset_idx').on(table.mapAssetId),
+  mapAssetSortIdx: index('my_map_asset_short_descriptors_map_asset_sort_idx').on(table.mapAssetId, table.sortOrder),
 }));
 
 export const myMapPrintAnnotationDocuments = pgTable('my_map_print_annotation_documents', {
@@ -1432,11 +1448,19 @@ export const myMapAssetsRelations = relations(myMapAssets, ({ one, many }) => ({
     references: [myMaps.id],
   }),
   notes: many(myMapAssetNotes),
+  shortDescriptors: many(myMapAssetShortDescriptors),
 }));
 
 export const myMapAssetNotesRelations = relations(myMapAssetNotes, ({ one }) => ({
   mapAsset: one(myMapAssets, {
     fields: [myMapAssetNotes.mapAssetId],
+    references: [myMapAssets.id],
+  }),
+}));
+
+export const myMapAssetShortDescriptorsRelations = relations(myMapAssetShortDescriptors, ({ one }) => ({
+  mapAsset: one(myMapAssets, {
+    fields: [myMapAssetShortDescriptors.mapAssetId],
     references: [myMapAssets.id],
   }),
 }));

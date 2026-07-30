@@ -15,6 +15,73 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-30 Owner Print View descriptor readability and formatting
+
+- Current behavior: Print View renders a resource address and its optional short
+  descriptions at the same type size as that card's resource name in compact
+  and regular layouts. An owner can add up to 20 ordered map-only short
+  descriptions, edit or remove each one, choose an independent text colour and
+  optional highlight for each description, and inspect each result in the
+  editor preview. The saved formatting appears in Print View cards and
+  image/PDF exports. Existing single unformatted descriptions are migrated into
+  the first description slot and retain the established slate text colour.
+- Known-good reference: branch `codex/print-description-formatting`. Formatting
+  is stored only on the owner's map-resource link, with the first item mirrored
+  into the legacy `my_map_assets` fields for older clients. It does not modify
+  the source resource, personal-place data, public Discover data, map geometry,
+  pins, numbering, annotations, layout state, or shared-map snapshots.
+- Reproduction steps: sign in as a map owner and open map 258 in Print View.
+  Choose a layout that shows full details and compare each resource name,
+  address, and description. Choose `Add short description`, add a second
+  description, give the two descriptions different text/highlight colours,
+  save, refresh, change print layouts, and save a PNG or PDF. Remove only the
+  second description, refresh again, and inspect the map's shared snapshot
+  separately.
+- Acceptance criteria: addresses and descriptions match the corresponding name
+  size in compact and regular Print View cards; every description keeps its own
+  colour and highlight after save, refresh, layout changes, and export;
+  no-highlight can be restored; invalid colour values fall back safely; an
+  older cached client that submits the legacy single-description payload
+  updates only the first item without clearing later items; owner-only
+  descriptor text and formatting remain absent from shared snapshots; all
+  established map and annotation behavior remains unchanged.
+- Verification result before deploy: focused descriptor, schema, privacy,
+  personal-place, and source tests passed 44/44. The complete server suite
+  passed 493/493. The locked-map suite passed 72/72 and its exact six-root
+  production client build passed. A subsequent normal client build also passed,
+  with only the established large-chunk advisory. Authenticated localhost owner
+  UAT on map 258 added a second independently styled description, saved it,
+  reloaded and confirmed both descriptions, then removed the second item and
+  reloaded to confirm the original remained. A non-required broad client sweep
+  passed 525/526; its sole failure reproduces in isolation in the untouched Care
+  Calendar planning test because that test's fixed 20 Jul 2026 events are now
+  expired relative to the current date. No calendar source or test file is
+  changed in this release.
+
+## 2026-07-30 Migrated personal-place detach persistence
+
+- Current behavior: removing a personal place from an owner map deletes the V2
+  map link. If that reusable personal place originated from the legacy
+  map-specific table, detaching it from its original map also deletes only that
+  matching legacy row so the compatibility bootstrap cannot recreate the link
+  on refresh. The reusable personal-place library record and links to any other
+  owner maps remain intact.
+- Known-good reference: branch `codex/print-description-formatting`, controller
+  `detachPersonalPlaceFromMap`, and the migrated-place regression in
+  `server/test/myMapsController.test.js`.
+- Reproduction steps: migrate a legacy personal place into the reusable V2
+  library, attach the same reusable place to a second owner map, detach it from
+  its original map, then run the V1-to-V2 compatibility bootstrap or refresh
+  the owner map.
+- Acceptance criteria: the removed place does not return to the original map;
+  the original legacy row is gone; the reusable owner-library place remains;
+  the second map link remains; another user's maps/places and normal resource
+  assets are unchanged.
+- Verification result before deploy: the focused 44/44 suite includes an exact
+  migrated-place detach case that verifies legacy-row deletion, reusable-place
+  retention, and other-map-link retention. The full server suite passed
+  493/493.
+
 ## 2026-07-30 Owner Print View annotation continuity and card columns
 
 - Current behavior: saved owner annotations render from the same annotation

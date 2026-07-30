@@ -697,20 +697,38 @@ function applyResourceNotesToDirectory(directory, resourceType, resourceId, note
     };
 }
 
-function applyResourceShortDescriptorToDirectory(directory, resourceType, resourceId, shortDescriptor) {
+function applyResourceShortDescriptorToDirectory(directory, resourceType, resourceId, descriptorPatch) {
     if (!directory) return directory;
     const matchesResource = (item) => item?.resourceType === resourceType
         && Number(item?.resourceId) === Number(resourceId);
+    const {
+        shortDescriptor,
+        shortDescriptorTextColor,
+        shortDescriptorHighlightColor,
+        shortDescriptors = [],
+    } = descriptorPatch;
 
     return {
         ...directory,
         assets: (directory.assets || []).map((asset) => (
-            matchesResource(asset) ? { ...asset, shortDescriptor } : asset
+            matchesResource(asset) ? {
+                ...asset,
+                shortDescriptor,
+                shortDescriptorTextColor,
+                shortDescriptorHighlightColor,
+                shortDescriptors,
+            } : asset
         )),
         places: (directory.places || []).map((place) => ({
             ...place,
             rows: (place.rows || []).map((row) => (
-                matchesResource(row) ? { ...row, mapShortDescriptor: shortDescriptor } : row
+                matchesResource(row) ? {
+                    ...row,
+                    mapShortDescriptor: shortDescriptor,
+                    mapShortDescriptorTextColor: shortDescriptorTextColor,
+                    mapShortDescriptorHighlightColor: shortDescriptorHighlightColor,
+                    mapShortDescriptors: shortDescriptors,
+                } : row
             )),
         })),
     };
@@ -2391,22 +2409,27 @@ export default function MyMapDetailPage() {
         setPrintShortDescriptionMode(false);
     }
 
-    async function handleSaveResourceShortDescription(shortDescriptor) {
+    async function handleSaveResourceShortDescription(descriptorPatch) {
         if (!directory || !shortDescriptionRow) return;
         setShortDescriptionSubmitting(true);
         setShortDescriptionError('');
         try {
-            await api.updateMyMapAssetShortDescriptor(
+            const updated = await api.updateMyMapAssetShortDescriptor(
                 directory.id,
                 shortDescriptionRow.resourceType,
                 shortDescriptionRow.resourceId,
-                { shortDescriptor }
+                descriptorPatch
             );
             setDirectory((current) => applyResourceShortDescriptorToDirectory(
                 current,
                 shortDescriptionRow.resourceType,
                 shortDescriptionRow.resourceId,
-                shortDescriptor
+                {
+                    shortDescriptor: updated?.shortDescriptor ?? descriptorPatch.shortDescriptor,
+                    shortDescriptorTextColor: updated?.shortDescriptorTextColor ?? null,
+                    shortDescriptorHighlightColor: updated?.shortDescriptorHighlightColor ?? null,
+                    shortDescriptors: updated?.shortDescriptors ?? descriptorPatch.shortDescriptors ?? [],
+                }
             ));
             setShortDescriptionRow(null);
             setPrintShortDescriptionMode(false);

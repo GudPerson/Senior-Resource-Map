@@ -16,6 +16,11 @@ test('V2 schema separates private library places, categories, and map links', ()
     assert.match(schemaSource, /logoUrl: text\('logo_url'\)/);
     assert.match(schemaSource, /shortDescription: varchar\('short_description'/);
     assert.match(schemaSource, /shortDescriptor: varchar\('short_descriptor'/);
+    assert.match(schemaSource, /shortDescriptorTextColor: varchar\('short_descriptor_text_color'/);
+    assert.match(schemaSource, /shortDescriptorHighlightColor: varchar\('short_descriptor_highlight_color'/);
+    assert.match(schemaSource, /my_map_asset_short_descriptors/);
+    assert.match(schemaSource, /descriptorText: varchar\('descriptor_text'/);
+    assert.match(schemaSource, /shortDescriptors: many\(myMapAssetShortDescriptors\)/);
     assert.match(schemaSource, /onDelete: 'cascade'/);
     assert.match(schemaSource, /legacyMapPersonalPlaceId/);
 });
@@ -32,6 +37,11 @@ test('boundary bootstrap backfills V1 places idempotently', () => {
     assert.match(boundarySource, /ADD COLUMN IF NOT EXISTS logo_url TEXT/);
     assert.match(boundarySource, /ADD COLUMN IF NOT EXISTS short_description VARCHAR\(240\)/);
     assert.match(boundarySource, /ADD COLUMN IF NOT EXISTS short_descriptor VARCHAR\(240\)/);
+    assert.match(boundarySource, /ADD COLUMN IF NOT EXISTS short_descriptor_text_color VARCHAR\(7\)/);
+    assert.match(boundarySource, /ADD COLUMN IF NOT EXISTS short_descriptor_highlight_color VARCHAR\(7\)/);
+    assert.match(boundarySource, /CREATE TABLE IF NOT EXISTS my_map_asset_short_descriptors/);
+    assert.match(boundarySource, /INSERT INTO my_map_asset_short_descriptors/);
+    assert.match(boundarySource, /WHERE existing\.map_asset_id = assets\.id/);
 });
 
 test('shared map directory still admits personal places only in owner mode', () => {

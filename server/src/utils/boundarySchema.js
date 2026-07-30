@@ -155,6 +155,8 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     resource_id INTEGER NOT NULL,
                     snapshot JSONB,
                     short_descriptor VARCHAR(240),
+                    short_descriptor_text_color VARCHAR(7),
+                    short_descriptor_highlight_color VARCHAR(7),
                     private_note TEXT,
                     handoff_note TEXT,
                     notes_updated_at TIMESTAMP,
@@ -162,6 +164,8 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                 )
             `);
             await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS short_descriptor VARCHAR(240)`);
+            await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS short_descriptor_text_color VARCHAR(7)`);
+            await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS short_descriptor_highlight_color VARCHAR(7)`);
             await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS private_note TEXT`);
             await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS handoff_note TEXT`);
             await db.execute(sql`ALTER TABLE my_map_assets ADD COLUMN IF NOT EXISTS notes_updated_at TIMESTAMP`);
@@ -171,6 +175,18 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     map_asset_id INTEGER NOT NULL REFERENCES my_map_assets(id) ON DELETE CASCADE,
                     note_text TEXT NOT NULL,
                     is_shared BOOLEAN NOT NULL DEFAULT FALSE,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS my_map_asset_short_descriptors (
+                    id SERIAL PRIMARY KEY,
+                    map_asset_id INTEGER NOT NULL REFERENCES my_map_assets(id) ON DELETE CASCADE,
+                    descriptor_text VARCHAR(240) NOT NULL,
+                    text_color VARCHAR(7),
+                    highlight_color VARCHAR(7),
                     sort_order INTEGER NOT NULL DEFAULT 0,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
@@ -417,6 +433,33 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     FROM my_map_asset_notes existing
                     WHERE existing.map_asset_id = legacy.map_asset_id
                 )
+            `);
+            await db.execute(sql`
+                INSERT INTO my_map_asset_short_descriptors (
+                    map_asset_id,
+                    descriptor_text,
+                    text_color,
+                    highlight_color,
+                    sort_order,
+                    created_at,
+                    updated_at
+                )
+                SELECT
+                    assets.id,
+                    BTRIM(assets.short_descriptor),
+                    assets.short_descriptor_text_color,
+                    assets.short_descriptor_highlight_color,
+                    0,
+                    COALESCE(assets.added_at, NOW()),
+                    COALESCE(assets.added_at, NOW())
+                FROM my_map_assets assets
+                WHERE assets.short_descriptor IS NOT NULL
+                    AND BTRIM(assets.short_descriptor) <> ''
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM my_map_asset_short_descriptors existing
+                        WHERE existing.map_asset_id = assets.id
+                    )
             `);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS private_resource_contents (
@@ -948,6 +991,8 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_map_assets_map_resource_unique ON my_map_assets (map_id, resource_type, resource_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_asset_notes_map_asset_idx ON my_map_asset_notes (map_asset_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_asset_notes_map_asset_sort_idx ON my_map_asset_notes (map_asset_id, sort_order)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_asset_short_descriptors_map_asset_idx ON my_map_asset_short_descriptors (map_asset_id)`);
+            await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_asset_short_descriptors_map_asset_sort_idx ON my_map_asset_short_descriptors (map_asset_id, sort_order)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_personal_places_map_idx ON my_map_personal_places (map_id)`);
             await db.execute(sql`CREATE INDEX IF NOT EXISTS my_map_personal_places_map_name_idx ON my_map_personal_places (map_id, name)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_personal_place_categories_user_name_unique ON user_personal_place_categories (user_id, normalized_name)`);

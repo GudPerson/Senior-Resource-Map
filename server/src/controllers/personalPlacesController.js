@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { getDb } from '../db/index.js';
 import {
+    myMapPersonalPlaces,
     myMapPersonalPlaceLinks,
     myMaps,
     userPersonalPlaceCategories,
@@ -518,6 +519,13 @@ export async function detachPersonalPlaceFromMap(db, user, mapId, personalPlaceI
             eq(myMapPersonalPlaceLinks.mapId, mapId),
             eq(myMapPersonalPlaceLinks.personalPlaceId, personalPlaceId)
         ));
+    if (place.legacyMapPersonalPlaceId) {
+        await db.delete(myMapPersonalPlaces)
+            .where(and(
+                eq(myMapPersonalPlaces.id, place.legacyMapPersonalPlaceId),
+                eq(myMapPersonalPlaces.mapId, mapId)
+            ));
+    }
     await db.update(myMaps).set({ updatedAt: new Date() }).where(eq(myMaps.id, mapId));
     return { success: true, mapId, personalPlaceId };
 }

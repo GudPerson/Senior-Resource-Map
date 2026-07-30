@@ -505,6 +505,36 @@ function buildMapAssetNotes(mapAsset, map, mode) {
     };
 }
 
+function buildMapAssetShortDescriptors(mapAsset, mode) {
+    if (mode !== 'owner') return [];
+
+    const explicitDescriptors = Array.isArray(mapAsset?.shortDescriptors)
+        ? mapAsset.shortDescriptors.map((descriptor, index) => ({
+            id: Number.isInteger(descriptor?.id) ? descriptor.id : null,
+            text: normalizeText(descriptor?.descriptorText ?? descriptor?.text),
+            textColor: normalizeText(descriptor?.textColor),
+            highlightColor: normalizeText(descriptor?.highlightColor),
+            sortOrder: Number.isInteger(descriptor?.sortOrder) ? descriptor.sortOrder : index,
+        })).filter((descriptor) => descriptor.text)
+        : [];
+
+    if (explicitDescriptors.length > 0) {
+        return explicitDescriptors.sort((left, right) => (
+            left.sortOrder - right.sortOrder || (left.id || 0) - (right.id || 0)
+        ));
+    }
+
+    const legacyText = normalizeText(mapAsset?.shortDescriptor);
+    if (!legacyText) return [];
+    return [{
+        id: null,
+        text: legacyText,
+        textColor: normalizeText(mapAsset?.shortDescriptorTextColor),
+        highlightColor: normalizeText(mapAsset?.shortDescriptorHighlightColor),
+        sortOrder: 0,
+    }];
+}
+
 function buildRow({
     mapAsset,
     place,
@@ -515,7 +545,10 @@ function buildRow({
     categoryLookup,
     mapCategorySource = null,
     notes = null,
+    mapShortDescriptors = [],
     mapShortDescriptor = null,
+    mapShortDescriptorTextColor = null,
+    mapShortDescriptorHighlightColor = null,
 }) {
     const categoryKey = normalizeCategoryKey(snapshot.subCategory);
     const categoryMeta = categoryKey ? categoryLookup.get(categoryKey) || null : null;
@@ -541,7 +574,10 @@ function buildRow({
             mapCategoryColor: mapCategoryMeta?.color || null,
         } : {}),
         descriptor: snapshot.descriptor || null,
+        mapShortDescriptors,
         mapShortDescriptor: normalizeText(mapShortDescriptor),
+        mapShortDescriptorTextColor: normalizeText(mapShortDescriptorTextColor),
+        mapShortDescriptorHighlightColor: normalizeText(mapShortDescriptorHighlightColor),
         address: place.address || null,
         logoUrl: snapshot.logoUrl || fallbackLogoUrl || null,
         availabilityEnabled: normalizeAvailabilityEnabled(snapshot.availabilityEnabled),
@@ -889,6 +925,8 @@ export async function buildMyMapDirectory(db, {
             : null;
 
         const notes = buildMapAssetNotes(mapAsset, map, mode);
+        const shortDescriptors = buildMapAssetShortDescriptors(mapAsset, mode);
+        const firstShortDescriptor = shortDescriptors[0] || null;
 
         assetSummaries.push({
             assetKey: buildAssetKey(mapAsset.resourceType, mapAsset.resourceId),
@@ -896,7 +934,10 @@ export async function buildMyMapDirectory(db, {
             resourceId: mapAsset.resourceId,
             status: rowBaseStatus,
             ...(mode === 'owner' ? {
-                shortDescriptor: normalizeText(mapAsset.shortDescriptor),
+                shortDescriptor: firstShortDescriptor?.text || null,
+                shortDescriptorTextColor: firstShortDescriptor?.textColor || null,
+                shortDescriptorHighlightColor: firstShortDescriptor?.highlightColor || null,
+                shortDescriptors,
             } : {}),
             ...(notes ? { notes } : {}),
         });
@@ -922,7 +963,10 @@ export async function buildMyMapDirectory(db, {
                 categoryLookup,
                 mapCategorySource: getSoftHostCategoryMetaForPlace(hostCategoryMetaByPlace, place),
                 notes,
-                mapShortDescriptor: mode === 'owner' ? mapAsset.shortDescriptor : null,
+                mapShortDescriptors: shortDescriptors,
+                mapShortDescriptor: firstShortDescriptor?.text || null,
+                mapShortDescriptorTextColor: firstShortDescriptor?.textColor || null,
+                mapShortDescriptorHighlightColor: firstShortDescriptor?.highlightColor || null,
             });
             addRowToPlace(placeMap, place, row);
         }

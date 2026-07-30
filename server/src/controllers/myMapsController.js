@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import {
     myMapAssetNotes,
+    myMapAssetShortDescriptors,
     myMapAssets,
     myMapPersonalPlaceLinks,
     myMapShareSnapshots,
@@ -39,6 +40,10 @@ import {
 
 const MY_MAP_NOTE_MAX_LENGTH = 3000;
 const MY_MAP_SHORT_DESCRIPTOR_MAX_LENGTH = 240;
+const optionalHexColorSchema = z.union([
+    z.string().trim().regex(/^#[0-9a-f]{6}$/i, 'Colour must use a 6-digit hex value'),
+    z.null(),
+]).optional();
 const mapAssetRefBodySchema = z.object({
     resourceType: z.enum(['hard', 'soft']),
     resourceId: positiveIntValueSchema('Resource id'),
@@ -61,6 +66,14 @@ const mapAssetNoteInputSchema = z.object({
     isShared: z.boolean().optional(),
 });
 
+const mapAssetShortDescriptorInputSchema = z.object({
+    id: z.number().int().positive().optional(),
+    text: optionalOneLineTextSchema(MY_MAP_SHORT_DESCRIPTOR_MAX_LENGTH),
+    textColor: optionalHexColorSchema,
+    highlightColor: optionalHexColorSchema,
+    sortOrder: z.number().int().min(0).optional(),
+});
+
 const updateMyMapAssetNotesBodySchema = z.object({
     resourceType: z.enum(['hard', 'soft']),
     resourceId: positiveIntValueSchema('Resource id'),
@@ -73,6 +86,9 @@ const updateMyMapAssetShortDescriptorBodySchema = z.object({
     resourceType: z.enum(['hard', 'soft']),
     resourceId: positiveIntValueSchema('Resource id'),
     shortDescriptor: optionalOneLineTextSchema(MY_MAP_SHORT_DESCRIPTOR_MAX_LENGTH),
+    shortDescriptorTextColor: optionalHexColorSchema,
+    shortDescriptorHighlightColor: optionalHexColorSchema,
+    shortDescriptors: z.array(mapAssetShortDescriptorInputSchema).max(20).optional(),
 });
 
 const shareMyMapBodySchema = z.object({
@@ -110,6 +126,11 @@ function normalizeMapDescription(value) {
     if (value === undefined) return undefined;
     const text = String(value ?? '').trim();
     return text ? text : null;
+}
+
+function normalizeHexColor(value) {
+    const text = String(value || '').trim();
+    return /^#[0-9a-f]{6}$/i.test(text) ? text.toUpperCase() : null;
 }
 
 function normalizeNote(value) {
@@ -193,7 +214,41 @@ function formatMyMapSummary(map) {
     };
 }
 
+function serializeMapAssetShortDescriptorItems(mapAsset) {
+    const explicitDescriptors = Array.isArray(mapAsset?.shortDescriptors)
+        ? mapAsset.shortDescriptors.map((descriptor, index) => ({
+            id: Number.isInteger(descriptor?.id) ? descriptor.id : null,
+            text: String(descriptor?.descriptorText ?? descriptor?.text ?? '').trim(),
+            textColor: normalizeHexColor(descriptor?.textColor),
+            highlightColor: normalizeHexColor(descriptor?.highlightColor),
+            sortOrder: Number.isInteger(descriptor?.sortOrder) ? descriptor.sortOrder : index,
+            createdAt: descriptor?.createdAt ?? null,
+            updatedAt: descriptor?.updatedAt ?? null,
+        })).filter((descriptor) => descriptor.text)
+        : [];
+
+    if (explicitDescriptors.length > 0) {
+        return explicitDescriptors.sort((left, right) => (
+            left.sortOrder - right.sortOrder || (left.id || 0) - (right.id || 0)
+        ));
+    }
+
+    const legacyText = String(mapAsset?.shortDescriptor || '').trim();
+    if (!legacyText) return [];
+    return [{
+        id: null,
+        text: legacyText,
+        textColor: normalizeHexColor(mapAsset?.shortDescriptorTextColor),
+        highlightColor: normalizeHexColor(mapAsset?.shortDescriptorHighlightColor),
+        sortOrder: 0,
+        createdAt: mapAsset?.addedAt ?? null,
+        updatedAt: mapAsset?.addedAt ?? null,
+    }];
+}
+
 function serializeMyMapAssetRecord(mapAsset) {
+    const shortDescriptors = serializeMapAssetShortDescriptorItems(mapAsset);
+    const firstShortDescriptor = shortDescriptors[0] || null;
     return {
         id: mapAsset.id,
         mapId: mapAsset.mapId,
@@ -201,7 +256,10 @@ function serializeMyMapAssetRecord(mapAsset) {
         resourceId: mapAsset.resourceId,
         assetKey: `${mapAsset.resourceType}-${mapAsset.resourceId}`,
         addedAt: mapAsset.addedAt ?? null,
-        shortDescriptor: mapAsset.shortDescriptor || null,
+        shortDescriptor: firstShortDescriptor?.text || null,
+        shortDescriptorTextColor: firstShortDescriptor?.textColor || null,
+        shortDescriptorHighlightColor: firstShortDescriptor?.highlightColor || null,
+        shortDescriptors,
         notes: {
             items: serializeMapAssetNoteItems(mapAsset),
             notesUpdatedAt: mapAsset.notesUpdatedAt ?? null,
@@ -265,6 +323,8 @@ async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
                         resourceId: true,
                         snapshot: true,
                         shortDescriptor: true,
+                        shortDescriptorTextColor: true,
+                        shortDescriptorHighlightColor: true,
                         privateNote: true,
                         handoffNote: true,
                         notesUpdatedAt: true,
@@ -273,6 +333,12 @@ async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
                     with: {
                         notes: {
                             orderBy: [asc(myMapAssetNotes.sortOrder), asc(myMapAssetNotes.id)],
+                        },
+                        shortDescriptors: {
+                            orderBy: [
+                                asc(myMapAssetShortDescriptors.sortOrder),
+                                asc(myMapAssetShortDescriptors.id),
+                            ],
                         },
                     },
                 },
@@ -715,24 +781,105 @@ export async function updateMyMapAssetShortDescriptor(db, user, mapId, body) {
             eq(myMapAssets.resourceType, assetRef.resourceType),
             eq(myMapAssets.resourceId, assetRef.resourceId)
         ),
+        with: {
+            shortDescriptors: {
+                orderBy: [
+                    asc(myMapAssetShortDescriptors.sortOrder),
+                    asc(myMapAssetShortDescriptors.id),
+                ],
+            },
+        },
     });
     if (!existing) {
         throw createHttpError(404, 'Map resource not found');
     }
 
-    const shortDescriptor = String(body.shortDescriptor || '').trim() || null;
+    const existingShortDescriptors = serializeMapAssetShortDescriptorItems(existing);
+    let nextShortDescriptors;
+    if (Array.isArray(body.shortDescriptors)) {
+        nextShortDescriptors = body.shortDescriptors
+            .map((descriptor, index) => ({
+                text: String(descriptor?.text || '').trim(),
+                textColor: normalizeHexColor(descriptor?.textColor),
+                highlightColor: normalizeHexColor(descriptor?.highlightColor),
+                sortOrder: index,
+            }))
+            .filter((descriptor) => descriptor.text);
+    } else {
+        const legacyText = String(body.shortDescriptor || '').trim();
+        const remainingDescriptors = existingShortDescriptors.slice(1);
+        nextShortDescriptors = legacyText
+            ? [{
+                text: legacyText,
+                textColor: body.shortDescriptorTextColor === undefined
+                    ? (existingShortDescriptors[0]?.textColor || null)
+                    : normalizeHexColor(body.shortDescriptorTextColor),
+                highlightColor: body.shortDescriptorHighlightColor === undefined
+                    ? (existingShortDescriptors[0]?.highlightColor || null)
+                    : normalizeHexColor(body.shortDescriptorHighlightColor),
+                sortOrder: 0,
+            }, ...remainingDescriptors.map((descriptor, index) => ({
+                text: descriptor.text,
+                textColor: descriptor.textColor,
+                highlightColor: descriptor.highlightColor,
+                sortOrder: index + 1,
+            }))]
+            : remainingDescriptors.map((descriptor, index) => ({
+                text: descriptor.text,
+                textColor: descriptor.textColor,
+                highlightColor: descriptor.highlightColor,
+                sortOrder: index,
+            }));
+    }
+
+    const firstShortDescriptor = nextShortDescriptors[0] || null;
+    const shortDescriptor = firstShortDescriptor?.text || null;
+    const shortDescriptorTextColor = firstShortDescriptor?.textColor || null;
+    const shortDescriptorHighlightColor = firstShortDescriptor?.highlightColor || null;
     await db.update(myMapAssets)
-        .set({ shortDescriptor })
+        .set({
+            shortDescriptor,
+            shortDescriptorTextColor,
+            shortDescriptorHighlightColor,
+        })
         .where(and(
             eq(myMapAssets.mapId, mapId),
             eq(myMapAssets.resourceType, assetRef.resourceType),
             eq(myMapAssets.resourceId, assetRef.resourceId)
         ));
+    await db.delete(myMapAssetShortDescriptors)
+        .where(eq(myMapAssetShortDescriptors.mapAssetId, existing.id));
+    if (nextShortDescriptors.length > 0) {
+        await db.insert(myMapAssetShortDescriptors).values(
+            nextShortDescriptors.map((descriptor, index) => ({
+                mapAssetId: existing.id,
+                descriptorText: descriptor.text,
+                textColor: descriptor.textColor,
+                highlightColor: descriptor.highlightColor,
+                sortOrder: index,
+                updatedAt: new Date(),
+            }))
+        );
+    }
     await touchMap(db, mapId);
 
-    return serializeMyMapAssetRecord({
+    const updated = await db.query.myMapAssets.findFirst({
+        where: eq(myMapAssets.id, existing.id),
+        with: {
+            shortDescriptors: {
+                orderBy: [
+                    asc(myMapAssetShortDescriptors.sortOrder),
+                    asc(myMapAssetShortDescriptors.id),
+                ],
+            },
+        },
+    });
+    return serializeMyMapAssetRecord(updated || {
         ...existing,
         shortDescriptor,
+        shortDescriptorTextColor,
+        shortDescriptorHighlightColor,
+        shortDescriptors: nextShortDescriptors,
     });
 }
 

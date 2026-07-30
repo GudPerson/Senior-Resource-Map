@@ -19,6 +19,10 @@ import {
     splitPrintSideResourceGroups,
 } from '../lib/printMapState.js';
 import {
+    getMapShortDescriptorPrintStyle,
+    normalizeMapShortDescriptorItems,
+} from '../lib/mapShortDescriptorStyle.js';
+import {
     ArrowLeft,
     Bold,
     CalendarPlus,
@@ -1101,9 +1105,21 @@ function getPrimaryManagedPlaceRow(group) {
 }
 
 function hasRowShortDescription(row) {
-    return Boolean(String(
-        isPersonalPlaceRow(row) ? (row?.descriptor || '') : (row?.mapShortDescriptor || '')
-    ).trim());
+    return getRowShortDescriptionItems(row).length > 0;
+}
+
+function getRowShortDescriptionItems(row) {
+    if (isPersonalPlaceRow(row)) {
+        const text = String(row?.descriptor || '').trim();
+        return text ? [{
+            id: null,
+            text,
+            textColor: null,
+            highlightColor: null,
+            sortOrder: 0,
+        }] : [];
+    }
+    return normalizeMapShortDescriptorItems(row);
 }
 
 function isListOnlyGroupDisplayGroup(group) {
@@ -1333,9 +1349,8 @@ function DirectoryResourceRow({
     const canManageShortDescription = mode === 'owner'
         && !personalPlace
         && Boolean(onEditResourceShortDescription);
-    const shortDescription = String(
-        personalPlace ? (row.descriptor || '') : (row.mapShortDescriptor || '')
-    ).trim();
+    const shortDescriptionItems = getRowShortDescriptionItems(row);
+    const hasShortDescription = shortDescriptionItems.length > 0;
     const repeatsPlaceName = String(row?.name || '').trim().toLowerCase()
         === String(place?.name || '').trim().toLowerCase();
     const showResourceName = !repeatsPlaceName;
@@ -1357,7 +1372,7 @@ function DirectoryResourceRow({
 
         return (
             <div className="border-b border-slate-100 pb-1 last:border-b-0 last:pb-0">
-                {printRowTitle || shortDescription || row.status === 'unavailable' || canManageShortDescription ? (
+                {printRowTitle || hasShortDescription || row.status === 'unavailable' || canManageShortDescription ? (
                     <div className="flex items-start gap-1.5">
                         <span className="mt-[0.45em] h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
                         <div className="min-w-0 flex-1">
@@ -1366,11 +1381,17 @@ function DirectoryResourceRow({
                                 <AvailabilityCountBadge row={row} compact />
                                 {row.status === 'unavailable' ? <StatusBadge status={row.status} /> : null}
                             </div>
-                            {shortDescription ? (
+                            {hasShortDescription ? (
                                 <div className={`flex items-start gap-1 ${printRowTitle ? 'mt-0.5' : ''}`}>
-                                    <p className="min-w-0 flex-1 text-[0.625rem] leading-snug text-slate-500">
-                                        {shortDescription}
-                                    </p>
+                                    <div className="min-w-0 flex-1 space-y-0.5">
+                                        {shortDescriptionItems.map((item, index) => (
+                                            <p key={item.id || `${item.text}-${index}`} className="leading-snug">
+                                                <MapShortDescriptionText item={item} textClassName={rowTitleClassName}>
+                                                    {item.text}
+                                                </MapShortDescriptionText>
+                                            </p>
+                                        ))}
+                                    </div>
                                     {canManageShortDescription ? (
                                         <button
                                             type="button"
@@ -1419,9 +1440,18 @@ function DirectoryResourceRow({
                                     ) : showResourceName ? (
                                         <p className={`font-semibold leading-snug text-slate-800 ${rowTitleClassName}`}>{row.name}</p>
                                     ) : null}
-                                    {shortDescription ? (
+                                    {hasShortDescription ? (
                                         <div className={`flex items-start gap-1.5 ${showResourceName ? 'mt-1' : ''}`}>
-                                            <p className="min-w-0 flex-1 text-xs leading-5 text-slate-500">{shortDescription}</p>
+                                            <div className="min-w-0 flex-1 space-y-0.5">
+                                                {shortDescriptionItems.map((item, index) => (
+                                                    <p
+                                                        key={item.id || `${item.text}-${index}`}
+                                                        className="text-xs leading-5 text-slate-500"
+                                                    >
+                                                        {item.text}
+                                                    </p>
+                                                ))}
+                                            </div>
                                             {canManageShortDescription ? (
                                                 <button
                                                     type="button"
@@ -1668,18 +1698,28 @@ function PrimaryMapShortDescription({
     const { t } = useLocale();
     if (!row) return null;
 
-    const shortDescription = String(row.mapShortDescriptor || '').trim();
+    const shortDescriptionItems = getRowShortDescriptionItems(row);
+    const hasShortDescription = shortDescriptionItems.length > 0;
     const canManage = mode === 'owner'
         && Boolean(onEditResourceShortDescription);
 
-    if (!shortDescription && !canManage) return null;
+    if (!hasShortDescription && !canManage) return null;
 
     if (print) {
-        return shortDescription ? (
+        return hasShortDescription ? (
             <div className="mt-0.5 flex items-start gap-1">
-                <p className={`min-w-0 flex-1 leading-snug text-slate-500 ${compact ? 'text-[0.625rem]' : 'text-[0.6875rem]'}`}>
-                    {shortDescription}
-                </p>
+                <div className="min-w-0 flex-1 space-y-0.5">
+                    {shortDescriptionItems.map((item, index) => (
+                        <p key={item.id || `${item.text}-${index}`} className="leading-snug">
+                            <MapShortDescriptionText
+                                item={item}
+                                textClassName={compact ? 'text-[0.9375rem]' : 'text-base'}
+                            >
+                                {item.text}
+                            </MapShortDescriptionText>
+                        </p>
+                    ))}
+                </div>
                 {canManage ? (
                     <button
                         type="button"
@@ -1706,11 +1746,18 @@ function PrimaryMapShortDescription({
         );
     }
 
-    return shortDescription ? (
+    return hasShortDescription ? (
         <div className="mt-1 flex items-start gap-1.5">
-            <p className={`min-w-0 flex-1 leading-5 text-slate-500 ${compact ? 'text-xs' : 'text-sm'}`}>
-                {shortDescription}
-            </p>
+            <div className="min-w-0 flex-1 space-y-0.5">
+                {shortDescriptionItems.map((item, index) => (
+                    <p
+                        key={item.id || `${item.text}-${index}`}
+                        className={`leading-5 text-slate-500 ${compact ? 'text-xs' : 'text-sm'}`}
+                    >
+                        {item.text}
+                    </p>
+                ))}
+            </div>
             {canManage ? (
                 <button
                     type="button"
@@ -1732,6 +1779,25 @@ function PrimaryMapShortDescription({
             <Plus size={13} />
             {t('addShortDescription')}
         </button>
+    );
+}
+
+function MapShortDescriptionText({
+    item,
+    textClassName,
+    children,
+}) {
+    const style = getMapShortDescriptorPrintStyle(item);
+    const highlighted = Boolean(style.backgroundColor);
+
+    return (
+        <span
+            className={`inline font-medium ${textClassName} ${highlighted ? 'rounded px-1 py-0.5' : ''}`}
+            style={style}
+            data-print-short-description-text="true"
+        >
+            {children}
+        </span>
     );
 }
 
@@ -1949,7 +2015,10 @@ function DirectoryPlaceGroupCard({
                                         <div key={nestedPlace.placeKey} className="space-y-1.5">
                                             {nestedPlaceTitle}
                                             {showPrintAddress && nestedPlace.shortLocationLine ? (
-                                                <p className={`${compactPrint ? 'text-[0.625rem]' : 'text-[0.6875rem]'} text-slate-500`}>
+                                                <p
+                                                    className={`${compactPrint ? 'text-[0.9375rem]' : 'text-base'} font-medium leading-tight text-slate-500`}
+                                                    data-print-address-text="true"
+                                                >
                                                     {nestedPlace.shortLocationLine}
                                                 </p>
                                             ) : null}
@@ -2036,7 +2105,12 @@ function DirectoryPlaceGroupCard({
                         {printPlaceTitle}
                         {showPrintAddress ? <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                             {group.shortLocationLine ? (
-                                <p className={`${compactPrint ? 'text-[0.625rem]' : 'text-[0.6875rem]'} text-slate-500`}>{group.shortLocationLine}</p>
+                                <p
+                                    className={`${compactPrint ? 'text-[0.9375rem]' : 'text-base'} font-medium leading-tight text-slate-500`}
+                                    data-print-address-text="true"
+                                >
+                                    {group.shortLocationLine}
+                                </p>
                             ) : null}
                             {group.distanceLabel ? (
                                 <span className="inline-flex rounded-full border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-[0.625rem] font-bold text-brand-700">
@@ -2443,6 +2517,8 @@ function DirectoryUnmappedRow({
     }), [row.contextLabel, row.locationLabel, row.placeName]);
     const detailPath = useDirectoryDetailPath(row.detailPath);
     const sharedNotes = normalizeNoteItems(row?.notes);
+    const shortDescriptionItems = getRowShortDescriptionItems(row);
+    const hasShortDescription = shortDescriptionItems.length > 0;
 
     if (!interactive) {
         const canOpenDetail = Boolean(detailPath) && row.status !== 'unavailable';
@@ -2461,12 +2537,25 @@ function DirectoryUnmappedRow({
                         ) : (
                             <p className="text-[0.75rem] font-semibold leading-snug text-slate-800">{row.name}</p>
                         )}
-                        {row.contextLabel ? <p className="mt-0.5 text-[0.625rem] text-slate-500">{row.contextLabel}</p> : null}
-                        {row.mapShortDescriptor ? (
+                        {row.contextLabel ? (
+                            <p
+                                className="mt-0.5 text-[0.75rem] font-medium leading-snug text-slate-500"
+                                data-print-address-text="true"
+                            >
+                                {row.contextLabel}
+                            </p>
+                        ) : null}
+                        {hasShortDescription ? (
                             <div className="mt-0.5 flex items-start gap-1">
-                                <p className="min-w-0 flex-1 text-[0.625rem] leading-snug text-slate-500">
-                                    {row.mapShortDescriptor}
-                                </p>
+                                <div className="min-w-0 flex-1 space-y-0.5">
+                                    {shortDescriptionItems.map((item, index) => (
+                                        <p key={item.id || `${item.text}-${index}`} className="leading-snug">
+                                            <MapShortDescriptionText item={item} textClassName="text-[0.75rem]">
+                                                {item.text}
+                                            </MapShortDescriptionText>
+                                        </p>
+                                    ))}
+                                </div>
                                 {canManageShortDescription ? (
                                     <button
                                         type="button"
@@ -2541,9 +2630,18 @@ function DirectoryUnmappedRow({
                         {row.locationLabel ? (
                             <p className={`mt-1 text-slate-400 ${compact ? 'line-clamp-1 text-xs' : 'text-sm'}`}>{row.locationLabel}</p>
                         ) : null}
-                        {row.mapShortDescriptor ? (
+                        {hasShortDescription ? (
                             <div className="mt-1 flex items-start gap-1.5">
-                                <p className="min-w-0 flex-1 text-sm leading-5 text-slate-600">{row.mapShortDescriptor}</p>
+                                <div className="min-w-0 flex-1 space-y-0.5">
+                                    {shortDescriptionItems.map((item, index) => (
+                                        <p
+                                            key={item.id || `${item.text}-${index}`}
+                                            className="text-sm leading-5 text-slate-600"
+                                        >
+                                            {item.text}
+                                        </p>
+                                    ))}
+                                </div>
                                 {mode === 'owner' && onEditResourceShortDescription ? (
                                     <button
                                         type="button"

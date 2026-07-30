@@ -111,6 +111,7 @@ test('My Map short descriptions stay separate from Map Notes and suppress repeat
     const detailSource = readSource('../src/pages/MyMapDetailPage.jsx');
     const printViewSource = readSource('../src/components/DirectoryPrintView.jsx');
     const listSource = readSource('../src/components/SharedMapDirectoryList.jsx');
+    const shortDescriptionModalSource = readSource('../src/components/MapAssetShortDescriptionModal.jsx');
     const editorSource = readSource('../src/components/personalPlaces/PersonalPlaceEditorModal.jsx');
     const apiSource = readSource('../src/lib/api.js');
 
@@ -119,7 +120,7 @@ test('My Map short descriptions stay separate from Map Notes and suppress repeat
     assert.match(detailSource, /<MapAssetShortDescriptionModal/);
     assert.match(listSource, /const repeatsPlaceName/);
     assert.match(listSource, /const showResourceName = !repeatsPlaceName/);
-    assert.match(listSource, /row\.mapShortDescriptor/);
+    assert.match(listSource, /normalizeMapShortDescriptorItems/);
     assert.match(listSource, /function getPrimaryManagedPlaceRow/);
     assert.match(listSource, /<PrimaryMapShortDescription/);
     assert.match(listSource, /t\('addShortDescription'\)/);
@@ -132,6 +133,18 @@ test('My Map short descriptions stay separate from Map Notes and suppress repeat
     );
     assert.match(printViewSource, /variant === 'screen'[\s\S]*\? onEditResourceShortDescription[\s\S]*: null/);
     assert.match(listSource, /data-print-short-description-action="true"/);
+    assert.match(listSource, /data-print-short-description-text="true"/);
+    assert.match(listSource, /data-print-address-text="true"/);
+    assert.match(listSource, /getMapShortDescriptorPrintStyle/);
+    assert.match(listSource, /compactPrint \? 'text-\[0\.9375rem\]' : 'text-base'/);
+    assert.match(shortDescriptionModalSource, /MAP_SHORT_DESCRIPTOR_TEXT_COLORS/);
+    assert.match(shortDescriptionModalSource, /MAP_SHORT_DESCRIPTOR_HIGHLIGHT_COLORS/);
+    assert.match(shortDescriptionModalSource, /shortDescriptionCustomTextColour/);
+    assert.match(shortDescriptionModalSource, /shortDescriptionCustomHighlightColour/);
+    assert.match(shortDescriptionModalSource, /shortDescriptorTextColor/);
+    assert.match(shortDescriptionModalSource, /shortDescriptorHighlightColor/);
+    assert.match(shortDescriptionModalSource, /addAnotherShortDescription/);
+    assert.match(shortDescriptionModalSource, /shortDescriptors/);
     assert.match(listSource, /const printShortDescriptionEditing = !interactive/);
     assert.ok(
         (detailSource.match(/setPrintShortDescriptionMode\(false\)/g) || []).length >= 4,

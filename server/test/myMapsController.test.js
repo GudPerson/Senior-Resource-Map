@@ -26,8 +26,10 @@ import {
 } from '../src/controllers/personalPlacesController.js';
 import {
     myMapAssetNotes,
+    myMapAssetShortDescriptors,
     myMapAssets,
     myMapPersonalPlaceLinks,
+    myMapPersonalPlaces,
     myMapShareSnapshots,
     myMaps,
     userPersonalPlaceCategories,
@@ -83,6 +85,8 @@ function createMapAsset(overrides = {}) {
         resourceType: 'hard',
         resourceId: 29,
         shortDescriptor: null,
+        shortDescriptorTextColor: null,
+        shortDescriptorHighlightColor: null,
         privateNote: null,
         handoffNote: null,
         notesUpdatedAt: null,
@@ -105,6 +109,7 @@ function createPersonalPlace(overrides = {}) {
         lat: '1.3851000',
         lng: '103.7449000',
         shortDescription: 'Good rest stop after appointments.',
+        legacyMapPersonalPlaceId: null,
         createdAt: new Date('2026-03-14T10:10:00.000Z'),
         updatedAt: new Date('2026-03-14T10:10:00.000Z'),
         ...overrides,
@@ -178,6 +183,9 @@ function attachAssets(state, map) {
                 notes: state.mapAssetNotes
                     .filter((note) => note.mapAssetId === asset.id)
                     .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id),
+                shortDescriptors: state.mapAssetShortDescriptors
+                    .filter((descriptor) => descriptor.mapAssetId === asset.id)
+                    .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id),
             })),
         personalPlaceLinks: state.personalPlaceLinks
             .filter((link) => link.mapId === map.id)
@@ -197,9 +205,11 @@ function createFakeDb({
     maps = [],
     mapAssets = [],
     mapAssetNotes = [],
+    mapAssetShortDescriptors = [],
     personalPlaces = [],
     personalPlaceCategories = [],
     personalPlaceLinks = [],
+    legacyPersonalPlaces = [],
     shareSnapshots = [],
     hardAsset = null,
     denyOwnedMaps = false,
@@ -209,14 +219,17 @@ function createFakeDb({
         maps: maps.map((item) => ({ ...item })),
         mapAssets: mapAssets.map((item) => ({ ...item })),
         mapAssetNotes: mapAssetNotes.map((item) => ({ ...item })),
+        mapAssetShortDescriptors: mapAssetShortDescriptors.map((item) => ({ ...item })),
         personalPlaces: personalPlaces.map((item) => ({ ...item })),
         personalPlaceCategories: personalPlaceCategories.map((item) => ({ ...item })),
         personalPlaceLinks: personalPlaceLinks.map((item) => ({ ...item })),
+        legacyPersonalPlaces: legacyPersonalPlaces.map((item) => ({ ...item })),
         shareSnapshots: shareSnapshots.map((item) => ({ ...item })),
         hardAsset,
         nextMapId: maps.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextMapAssetId: mapAssets.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextMapAssetNoteId: mapAssetNotes.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
+        nextMapAssetShortDescriptorId: mapAssetShortDescriptors.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextPersonalPlaceId: personalPlaces.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextPersonalPlaceCategoryId: personalPlaceCategories.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextPersonalPlaceLinkId: personalPlaceLinks.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
@@ -245,6 +258,9 @@ function createFakeDb({
                         ...asset,
                         notes: state.mapAssetNotes
                             .filter((note) => note.mapAssetId === asset.id)
+                            .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id),
+                        shortDescriptors: state.mapAssetShortDescriptors
+                            .filter((descriptor) => descriptor.mapAssetId === asset.id)
                             .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id),
                     };
                 },
@@ -365,6 +381,23 @@ function createFakeDb({
                             ...item,
                         }));
                         state.mapAssetNotes.push(...rows);
+                        return {
+                            returning: async () => rows,
+                        };
+                    },
+                };
+            }
+
+            if (table === myMapAssetShortDescriptors) {
+                return {
+                    values(value) {
+                        const rows = (Array.isArray(value) ? value : [value]).map((item) => ({
+                            id: state.nextMapAssetShortDescriptorId++,
+                            createdAt: new Date('2026-03-14T11:06:15.000Z'),
+                            updatedAt: new Date('2026-03-14T11:06:15.000Z'),
+                            ...item,
+                        }));
+                        state.mapAssetShortDescriptors.push(...rows);
                         return {
                             returning: async () => rows,
                         };
@@ -566,6 +599,7 @@ function createFakeDb({
                     where: async () => {
                         state.mapAssets = [];
                         state.mapAssetNotes = [];
+                        state.mapAssetShortDescriptors = [];
                     },
                 };
             }
@@ -574,6 +608,14 @@ function createFakeDb({
                 return {
                     where: async () => {
                         state.mapAssetNotes = [];
+                    },
+                };
+            }
+
+            if (table === myMapAssetShortDescriptors) {
+                return {
+                    where: async () => {
+                        state.mapAssetShortDescriptors = [];
                     },
                 };
             }
@@ -589,8 +631,22 @@ function createFakeDb({
 
             if (table === myMapPersonalPlaceLinks) {
                 return {
-                    where: async () => {
-                        state.personalPlaceLinks = [];
+                    where: async (where) => {
+                        const values = getWhereParamValues(where);
+                        state.personalPlaceLinks = state.personalPlaceLinks.filter((link) => (
+                            !values.includes(link.mapId) || !values.includes(link.personalPlaceId)
+                        ));
+                    },
+                };
+            }
+
+            if (table === myMapPersonalPlaces) {
+                return {
+                    where: async (where) => {
+                        const values = getWhereParamValues(where);
+                        state.legacyPersonalPlaces = state.legacyPersonalPlaces.filter((place) => (
+                            !values.includes(place.id) || !values.includes(place.mapId)
+                        ));
                     },
                 };
             }
@@ -797,6 +853,33 @@ test('personal places can be reused across more than one owned map', async () =>
     assert.equal(db.state.personalPlaceLinks.length, 2);
 });
 
+test('detaching a migrated personal place removes its legacy map row without deleting the reusable place', async () => {
+    const db = createFakeDb({
+        maps: [
+            createMap({ id: 3, name: 'Appointments' }),
+            createMap({ id: 4, name: 'Errands' }),
+        ],
+        personalPlaces: [createPersonalPlace({ legacyMapPersonalPlaceId: 41 })],
+        personalPlaceCategories: [createPersonalPlaceCategoryFixture()],
+        personalPlaceLinks: [
+            createPersonalPlaceLink({ id: 4, mapId: 3 }),
+            createPersonalPlaceLink({ id: 5, mapId: 4 }),
+        ],
+        legacyPersonalPlaces: [{
+            id: 41,
+            mapId: 3,
+            name: 'Useful coffee shop',
+        }],
+    });
+
+    const deleted = await deleteMyMapPersonalPlace(db, DEFAULT_USER, 3, 5);
+
+    assert.equal(deleted.success, true);
+    assert.equal(db.state.personalPlaces.length, 1);
+    assert.equal(db.state.legacyPersonalPlaces.length, 0);
+    assert.deepEqual(db.state.personalPlaceLinks.map((link) => link.mapId), [4]);
+});
+
 test('custom category icon and colour update the shared library record', async () => {
     const db = createFakeDb();
     const created = await createPersonalPlaceCategory(db, DEFAULT_USER, {
@@ -829,13 +912,95 @@ test('map owners can add a short descriptor without changing the source resource
         resourceType: 'hard',
         resourceId: 29,
         shortDescriptor: 'Use the side entrance after 6 pm.',
+        shortDescriptorTextColor: '#0f766e',
+        shortDescriptorHighlightColor: '#fef3c7',
     });
     const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
 
     assert.equal(updated.shortDescriptor, 'Use the side entrance after 6 pm.');
+    assert.equal(updated.shortDescriptorTextColor, '#0F766E');
+    assert.equal(updated.shortDescriptorHighlightColor, '#FEF3C7');
     assert.equal(detail.assets[0].shortDescriptor, 'Use the side entrance after 6 pm.');
+    assert.equal(detail.assets[0].shortDescriptorTextColor, '#0F766E');
+    assert.equal(detail.assets[0].shortDescriptorHighlightColor, '#FEF3C7');
     assert.equal(detail.places[0].rows[0].mapShortDescriptor, 'Use the side entrance after 6 pm.');
+    assert.equal(detail.places[0].rows[0].mapShortDescriptorTextColor, '#0F766E');
+    assert.equal(detail.places[0].rows[0].mapShortDescriptorHighlightColor, '#FEF3C7');
     assert.equal(detail.places[0].rows[0].descriptor, null);
+});
+
+test('map owners can keep multiple independently styled short descriptions in order', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset()],
+        hardAsset: null,
+    });
+
+    const updated = await updateMyMapAssetShortDescriptor(db, DEFAULT_USER, 3, {
+        resourceType: 'hard',
+        resourceId: 29,
+        shortDescriptors: [
+            {
+                text: 'Use the side entrance after 6 pm.',
+                textColor: '#0f766e',
+                highlightColor: '#fef3c7',
+            },
+            {
+                text: 'Registration is on level two.',
+                textColor: '#1d4ed8',
+                highlightColor: '#dbeafe',
+            },
+        ],
+    });
+    const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+
+    assert.deepEqual(
+        updated.shortDescriptors.map(({ text, textColor, highlightColor, sortOrder }) => ({
+            text,
+            textColor,
+            highlightColor,
+            sortOrder,
+        })),
+        [
+            {
+                text: 'Use the side entrance after 6 pm.',
+                textColor: '#0F766E',
+                highlightColor: '#FEF3C7',
+                sortOrder: 0,
+            },
+            {
+                text: 'Registration is on level two.',
+                textColor: '#1D4ED8',
+                highlightColor: '#DBEAFE',
+                sortOrder: 1,
+            },
+        ],
+    );
+    assert.equal(detail.assets[0].shortDescriptors.length, 2);
+    assert.equal(detail.places[0].rows[0].mapShortDescriptors.length, 2);
+    assert.equal(detail.places[0].rows[0].mapShortDescriptors[1].text, 'Registration is on level two.');
+});
+
+test('map descriptor updates preserve existing colours when an older client omits style fields', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset({
+            shortDescriptor: 'Original context.',
+            shortDescriptorTextColor: '#1D4ED8',
+            shortDescriptorHighlightColor: '#DBEAFE',
+        })],
+        hardAsset: null,
+    });
+
+    const updated = await updateMyMapAssetShortDescriptor(db, DEFAULT_USER, 3, {
+        resourceType: 'hard',
+        resourceId: 29,
+        shortDescriptor: 'Updated context.',
+    });
+
+    assert.equal(updated.shortDescriptor, 'Updated context.');
+    assert.equal(updated.shortDescriptorTextColor, '#1D4ED8');
+    assert.equal(updated.shortDescriptorHighlightColor, '#DBEAFE');
 });
 
 test('starter personal place categories remain unique when first loads race', async () => {
@@ -994,6 +1159,8 @@ test('publishMyMap excludes owner-only resource short descriptors', async () => 
         maps: [createMap()],
         mapAssets: [createMapAsset({
             shortDescriptor: 'Private map context.',
+            shortDescriptorTextColor: '#1D4ED8',
+            shortDescriptorHighlightColor: '#DBEAFE',
         })],
         hardAsset: createHardAsset(),
     });
@@ -1002,7 +1169,13 @@ test('publishMyMap excludes owner-only resource short descriptors', async () => 
 
     const snapshot = db.state.shareSnapshots[0].snapshot;
     assert.equal(snapshot.assets[0].shortDescriptor, undefined);
+    assert.equal(snapshot.assets[0].shortDescriptorTextColor, undefined);
+    assert.equal(snapshot.assets[0].shortDescriptorHighlightColor, undefined);
+    assert.equal(snapshot.assets[0].shortDescriptors, undefined);
     assert.equal(snapshot.places[0].rows[0].mapShortDescriptor, null);
+    assert.equal(snapshot.places[0].rows[0].mapShortDescriptorTextColor, null);
+    assert.equal(snapshot.places[0].rows[0].mapShortDescriptorHighlightColor, null);
+    assert.deepEqual(snapshot.places[0].rows[0].mapShortDescriptors, []);
 });
 
 test('unpublishMyMap clears the active share token', async () => {
