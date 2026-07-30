@@ -51,8 +51,37 @@ Rules:
   columns, and Balanced restored to 1 column. The same saved annotation pane
   remained present in every layout; displayed zoom stayed at 14; fixed Detailed
   image layers remained active; and the live Leaflet tile pane stayed empty.
-  No CareAround browser errors were recorded. This branch has not been pushed
-  or deployed.
+  No CareAround browser errors were recorded.
+- Production release: commit `395895852` was pushed to
+  `codex/print-layout-annotation-continuity` and `main`. Cloudflare Pages first
+  produced immutable preview
+  `https://5c330c47.senior-resource-map.pages.dev`; the validated `client/dist`
+  was then explicitly republished to production as
+  `https://b3b474ec.senior-resource-map.pages.dev` after the custom domain was
+  observed serving its previous entry bundle.
+- Production artifact proof: `https://app.carearound.sg` serves entry bundle
+  `/assets/index-COubuHAm.js` with SHA-256
+  `5cc15ab8f8d570baa79369056099a1c050e61c9f17d98945c673b678353aad9b`,
+  stylesheet `/assets/index-BTGWrUum.css` with SHA-256
+  `1da99cb6d77833f36e0dfe089fdabf2572f4833d4985b9dfe6561ad510ae89c3`,
+  My Map chunk `/assets/MyMapDetailPage-zKeWWqFh.js` with SHA-256
+  `d48e1d27dce31f8c7d5762b75c7e46abf2b8a88e6eafe87dd642102069f6b548`,
+  and Directory/Map chunk
+  `/assets/useDirectoryDistanceAnchor-BzwrZIV6.js` with SHA-256
+  `a9dddfc9b241c0e61e0e8381e4bec51f47a698813922d7ed75330e7248f1c685`.
+  All four custom-domain files matched the validated production build byte for
+  byte and returned the expected content types.
+- Production behavior proof: authenticated owner UAT on
+  `https://app.carearound.sg/my-directory/maps/258?view=print` confirmed the
+  same annotation pane in Balanced, Side map with 2 columns, Full map with 6
+  columns, and Balanced restored to 1 column. Displayed zoom remained 14,
+  fixed Detailed layers remained active, the live tile pane stayed empty, and
+  Singapore Land Authority attribution remained visible. The API health check
+  returned `status: ok`. Production smoke credentials were not available in
+  the release shell, so the credentialed smoke suite was not run; authenticated
+  production owner UAT and exact custom-domain artifact proof were retained
+  instead. This was a client-only release with no Worker/API, schema, data,
+  authentication, ownership, or privacy change.
 
 ## 2026-07-30 Zoom-14 Detailed continuous atlas release
 
