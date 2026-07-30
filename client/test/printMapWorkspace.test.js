@@ -26,6 +26,7 @@ import {
     PRINT_MAP_RESOURCE_LAYER_HIDE,
     PRINT_MAP_RESOURCE_LAYER_SHOW,
     PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT,
+    PRINT_MAP_SIDE_RESOURCE_COLUMN_COUNT_DEFAULT,
     PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
     PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
     PRINT_MAP_SIDE_LEFT,
@@ -40,9 +41,11 @@ import {
     getPrintMapPreviewScale,
     normalizePrintMapLabelDetail,
     normalizePrintMapResourceColumnCount,
+    normalizePrintMapSideResourceColumnCount,
     resetOwnerPrintMapState,
     shouldExportPrintMapAsSeparatePages,
     splitPrintResourceGroups,
+    splitPrintSideResourceGroups,
 } from '../src/lib/printMapState.js';
 
 const printViewSource = readFileSync(new URL('../src/components/DirectoryPrintView.jsx', import.meta.url), 'utf8');
@@ -73,6 +76,7 @@ test('owner print map starts from a safe baseline while carrying only the global
         mapWidth: PRINT_MAP_WIDTH_WIDE,
         labelDetail: PRINT_MAP_LABEL_DETAIL_FULL,
         resourceColumnCount: PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT,
+        sideResourceColumnCount: PRINT_MAP_SIDE_RESOURCE_COLUMN_COUNT_DEFAULT,
         resetVersion: 0,
     });
     assert.equal(clampPrintMapHeight(100), PRINT_MAP_MIN_HEIGHT_PX);
@@ -115,6 +119,7 @@ test('owner print reset clears camera and detail changes without losing the devi
         mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
         labelDetail: PRINT_MAP_LABEL_DETAIL_NAMES,
         resourceColumnCount: 4,
+        sideResourceColumnCount: 2,
         resetVersion: 2,
     };
     const reset = resetOwnerPrintMapState(current, 'gray');
@@ -134,6 +139,7 @@ test('owner print reset clears camera and detail changes without losing the devi
     assert.equal(reset.mapWidth, PRINT_MAP_WIDTH_WIDE);
     assert.equal(reset.labelDetail, PRINT_MAP_LABEL_DETAIL_FULL);
     assert.equal(reset.resourceColumnCount, PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT);
+    assert.equal(reset.sideResourceColumnCount, PRINT_MAP_SIDE_RESOURCE_COLUMN_COUNT_DEFAULT);
     assert.equal(reset.resetVersion, 3);
 });
 
@@ -158,8 +164,9 @@ test('capture key changes for every visual print map setting', () => {
         buildPrintMapCaptureKey({ ...baseline, labelDetail: PRINT_MAP_LABEL_DETAIL_NAMES }),
         buildPrintMapCaptureKey({ ...baseline, labelDetail: PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS }),
         buildPrintMapCaptureKey({ ...baseline, resourceColumnCount: 4 }),
+        buildPrintMapCaptureKey({ ...baseline, sideResourceColumnCount: 2 }),
     ]);
-    assert.equal(keys.size, 18);
+    assert.equal(keys.size, 19);
 });
 
 test('Full layout exports the map and resources as separate image pages', () => {
@@ -209,6 +216,30 @@ test('print layout presets keep Balanced and Side stable while Full owns the sep
         mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
     }).mapMaxWidthPx, 1020);
     assert.deepEqual(getOwnerPrintLayoutConfig({
+        layoutPreset: PRINT_MAP_LAYOUT_FOCUS,
+        mapSide: PRINT_MAP_SIDE_LEFT,
+        mapWidth: PRINT_MAP_WIDTH_WIDE,
+        sideResourceColumnCount: 2,
+    }), {
+        layoutPreset: PRINT_MAP_LAYOUT_FOCUS,
+        mapSide: PRINT_MAP_SIDE_LEFT,
+        mapWidth: PRINT_MAP_WIDTH_WIDE,
+        mapMaxWidthPx: 740,
+        gridClassName: 'grid-cols-[0px_minmax(0,1fr)_620px]',
+    });
+    assert.deepEqual(getOwnerPrintLayoutConfig({
+        layoutPreset: PRINT_MAP_LAYOUT_FOCUS,
+        mapSide: PRINT_MAP_SIDE_RIGHT,
+        mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
+        sideResourceColumnCount: 2,
+    }), {
+        layoutPreset: PRINT_MAP_LAYOUT_FOCUS,
+        mapSide: PRINT_MAP_SIDE_RIGHT,
+        mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
+        mapMaxWidthPx: 800,
+        gridClassName: 'grid-cols-[560px_minmax(0,1fr)_0px]',
+    });
+    assert.deepEqual(getOwnerPrintLayoutConfig({
         layoutPreset: PRINT_MAP_LAYOUT_FULL,
     }), {
         layoutPreset: PRINT_MAP_LAYOUT_FULL,
@@ -220,7 +251,7 @@ test('print layout presets keep Balanced and Side stable while Full owns the sep
     });
 });
 
-test('Full layout supports two to four ordered resource columns', () => {
+test('Full layout supports two to six ordered resource columns', () => {
     const groups = Array.from({ length: 8 }, (_, index) => ({
         name: `Place ${index + 1}`,
         rows: Array.from({ length: index % 3 }, () => ({})),
@@ -233,7 +264,9 @@ test('Full layout supports two to four ordered resource columns', () => {
     assert.equal(normalizePrintMapResourceColumnCount(2), 2);
     assert.equal(normalizePrintMapResourceColumnCount('3'), 3);
     assert.equal(normalizePrintMapResourceColumnCount(4), 4);
-    assert.equal(normalizePrintMapResourceColumnCount(5), PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT);
+    assert.equal(normalizePrintMapResourceColumnCount(5), 5);
+    assert.equal(normalizePrintMapResourceColumnCount(6), 6);
+    assert.equal(normalizePrintMapResourceColumnCount(7), PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT);
     assert.deepEqual(
         splitPrintResourceGroups(groups, 4).flat().map((group) => group.name),
         groups.map((group) => group.name),
@@ -246,6 +279,48 @@ test('Full layout supports two to four ordered resource columns', () => {
     assert.deepEqual(
         splitPrintResourceGroups(equalGroups.slice(0, 2), 4).map((column) => column.length),
         [1, 1, 0, 0],
+    );
+    assert.equal(splitPrintResourceGroups(equalGroups, 6).length, 6);
+});
+
+test('Side layout supports one or two ordered category-aware card columns', () => {
+    const groups = [
+        ...Array.from({ length: 2 }, (_, index) => ({
+            name: `Category A ${index + 1}`,
+            categoryLabel: 'Category A',
+            categorySortKey: 'Category A',
+            rows: [],
+        })),
+        ...Array.from({ length: 2 }, (_, index) => ({
+            name: `Category B ${index + 1}`,
+            categoryLabel: 'Category B',
+            categorySortKey: 'Category B',
+            rows: [],
+        })),
+        ...Array.from({ length: 4 }, (_, index) => ({
+            name: `Category C ${index + 1}`,
+            categoryLabel: 'Category C',
+            categorySortKey: 'Category C',
+            rows: [],
+        })),
+    ];
+
+    assert.equal(normalizePrintMapSideResourceColumnCount(1), 1);
+    assert.equal(normalizePrintMapSideResourceColumnCount('2'), 2);
+    assert.equal(
+        normalizePrintMapSideResourceColumnCount(3),
+        PRINT_MAP_SIDE_RESOURCE_COLUMN_COUNT_DEFAULT,
+    );
+    assert.deepEqual(
+        splitPrintSideResourceGroups(groups, 2).flat().map((group) => group.name),
+        groups.map((group) => group.name),
+    );
+    assert.equal(splitPrintSideResourceGroups(groups, 2).length, 2);
+    assert.equal(
+        splitPrintSideResourceGroups(groups, 2)
+            .filter((column) => column.some((group) => group.categoryLabel === 'Category A'))
+            .length,
+        1,
     );
 });
 
@@ -345,6 +420,10 @@ test('print layout controls use a compact mobile-safe three-mode layout with pro
     assert.match(printLayoutControlsSource, /t\('printLabelFullDetails'\)/);
     assert.match(printLayoutControlsSource, /data-print-resource-column-controls="true"/);
     assert.match(printLayoutControlsSource, /resourceColumnCount: count/);
+    assert.match(printLayoutControlsSource, /\[2, 3, 4, 5, 6\]/);
+    assert.match(printLayoutControlsSource, /data-print-side-resource-column-controls="true"/);
+    assert.match(printLayoutControlsSource, /sideResourceColumnCount: count/);
+    assert.match(printLayoutControlsSource, /\[1, 2\]/);
     assert.match(printLayoutControlsSource, /layoutPreset === PRINT_MAP_LAYOUT_FOCUS/);
     assert.match(printLayoutControlsSource, /layoutPreset === PRINT_MAP_LAYOUT_FULL/);
     assert.match(printLayoutControlsSource, /data-print-map-width-controls="true"/);
@@ -373,7 +452,11 @@ test('print label detail choices retain the numbered map key while controlling a
     assert.match(sharedMapDirectorySource, /printNumberBadgePosition="start"/);
     assert.match(sharedMapDirectorySource, /renderPrintResourceColumn\(groups, 'start'\)/);
     assert.match(sharedMapDirectorySource, /data-print-resource-columns=\{normalizedPrintResourceColumnCount\}/);
+    assert.match(sharedMapDirectorySource, /data-print-side-resource-columns=\{normalizedPrintColumnCount\}/);
     assert.match(printViewSource, /printResourceColumnCount=\{resourceColumnCount\}/);
+    assert.match(printViewSource, /const effectiveSideResourceColumnCount = printLayoutConfig\.layoutPreset === PRINT_MAP_LAYOUT_FOCUS/);
+    assert.match(printViewSource, /data-print-side-resource-columns=\{effectiveSideResourceColumnCount\}/);
+    assert.match(printViewSource, /printSideResourceColumnCount=\{effectiveSideResourceColumnCount\}/);
 });
 
 test('Print View owns one-shot short-description editing without leaking controls into exports', () => {

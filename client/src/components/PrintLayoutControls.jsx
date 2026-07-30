@@ -28,6 +28,7 @@ import {
     normalizePrintMapResourceColumnCount,
     normalizePrintMapResourceLayer,
     normalizePrintMapSide,
+    normalizePrintMapSideResourceColumnCount,
     normalizePrintMapWidth,
 } from '../lib/printMapState.js';
 
@@ -56,6 +57,9 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
     const mapWidth = normalizePrintMapWidth(value?.mapWidth);
     const labelDetail = normalizePrintMapLabelDetail(value?.labelDetail);
     const resourceColumnCount = normalizePrintMapResourceColumnCount(value?.resourceColumnCount);
+    const sideResourceColumnCount = normalizePrintMapSideResourceColumnCount(
+        value?.sideResourceColumnCount,
+    );
     const patchState = (patch) => onChange?.((current) => ({
         ...current,
         ...(typeof patch === 'function' ? patch(current || {}) : patch),
@@ -142,8 +146,8 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
             {layoutPreset === PRINT_MAP_LAYOUT_FULL ? (
                 <fieldset className="mt-3" data-print-resource-column-controls="true">
                     <legend className="text-sm font-bold text-slate-800">{t('printResourceCardColumns')}</legend>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                        {[2, 3, 4].map((count) => (
+                    <div className="mt-2 grid grid-cols-5 gap-2">
+                        {[2, 3, 4, 5, 6].map((count) => (
                             <ChoiceButton
                                 key={count}
                                 selected={resourceColumnCount === count}
@@ -159,7 +163,9 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
             ) : null}
 
             {layoutPreset !== PRINT_MAP_LAYOUT_FULL ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className={`mt-3 grid gap-3 ${
+                    layoutPreset === PRINT_MAP_LAYOUT_FOCUS ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+                }`}>
                     {layoutPreset === PRINT_MAP_LAYOUT_FOCUS ? (
                         <fieldset>
                             <legend className="text-sm font-bold text-slate-800">{t('printMapPosition')}</legend>
@@ -175,6 +181,25 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
                                     onClick={() => patchState({ mapSide: PRINT_MAP_SIDE_RIGHT })}
                                 />
                             </div>
+                        </fieldset>
+                    ) : null}
+
+                    {layoutPreset === PRINT_MAP_LAYOUT_FOCUS ? (
+                        <fieldset data-print-side-resource-column-controls="true">
+                            <legend className="text-sm font-bold text-slate-800">{t('printResourceCardColumns')}</legend>
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                                {[1, 2].map((count) => (
+                                    <ChoiceButton
+                                        key={count}
+                                        selected={sideResourceColumnCount === count}
+                                        label={String(count)}
+                                        onClick={() => patchState({ sideResourceColumnCount: count })}
+                                    />
+                                ))}
+                            </div>
+                            <p className="mt-1.5 text-xs font-medium leading-4 text-slate-500">
+                                {t('printSideResourceCardColumnsHelp')}
+                            </p>
                         </fieldset>
                     ) : null}
 

@@ -14,7 +14,9 @@ import {
     PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS,
     normalizePrintMapLabelDetail,
     normalizePrintMapResourceColumnCount,
+    normalizePrintMapSideResourceColumnCount,
     splitPrintResourceGroups,
+    splitPrintSideResourceGroups,
 } from '../lib/printMapState.js';
 import {
     ArrowLeft,
@@ -2798,19 +2800,27 @@ function DirectoryGroupColumn({
     showPrintNumberBadges = false,
     printNumberBadgePosition = 'end',
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
+    printColumnCount = 1,
     afterContent = null,
 }) {
     if (!groups.length && !afterContent) {
         return preserveSlot ? <div aria-hidden="true" className="min-h-px" /> : null;
     }
 
-    return (
-        <div className={interactive ? (compactInteractive ? 'space-y-3' : 'space-y-4') : (compactPrint ? 'space-y-1.5' : 'space-y-2')}>
-            {groups.map((group, index) => {
+    const spacingClassName = interactive
+        ? (compactInteractive ? 'space-y-3' : 'space-y-4')
+        : (compactPrint ? 'space-y-1.5' : 'space-y-2');
+    const normalizedPrintColumnCount = interactive
+        ? 1
+        : normalizePrintMapSideResourceColumnCount(printColumnCount);
+    const groupColumns = normalizedPrintColumnCount > 1
+        ? splitPrintSideResourceGroups(groups, normalizedPrintColumnCount)
+        : [groups];
+    const renderGroups = (columnGroups) => columnGroups.map((group, index) => {
                 const categoryKey = normalizeLabel(group.categorySortKey || group.categoryLabel);
                 const categoryStatus = group.isUnmappedGroup ? 'unmapped' : 'mapped';
                 const categoryRunKey = `${categoryStatus}:${categoryKey}`;
-                const previousGroup = index > 0 ? groups[index - 1] : null;
+                const previousGroup = index > 0 ? columnGroups[index - 1] : null;
                 const previousCategoryKey = previousGroup
                     ? normalizeLabel(previousGroup.categorySortKey || previousGroup.categoryLabel)
                     : '';
@@ -2863,7 +2873,27 @@ function DirectoryGroupColumn({
                         />
                     </React.Fragment>
                 );
-            })}
+            });
+
+    return (
+        <div
+            className={normalizedPrintColumnCount > 1 ? 'grid min-w-0 gap-3' : spacingClassName}
+            style={normalizedPrintColumnCount > 1
+                ? { gridTemplateColumns: `repeat(${normalizedPrintColumnCount}, minmax(0, 1fr))` }
+                : undefined}
+            data-print-side-resource-columns={normalizedPrintColumnCount}
+        >
+            {groupColumns.map((columnGroups, index) => (
+                normalizedPrintColumnCount > 1 ? (
+                    <div key={`print-side-resource-column-${index}`} className={spacingClassName}>
+                        {renderGroups(columnGroups)}
+                    </div>
+                ) : (
+                    <React.Fragment key="print-side-resource-column-0">
+                        {renderGroups(columnGroups)}
+                    </React.Fragment>
+                )
+            ))}
             {afterContent}
         </div>
     );
@@ -2970,6 +3000,7 @@ export default function SharedMapDirectoryList({
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
     printResourcesBelow = false,
     printResourceColumnCount = 2,
+    printSideResourceColumnCount = 1,
     printResourcePageHeader = null,
     desktopScrollTargetRef = null,
     selectionPlaceKey = null,
@@ -3028,6 +3059,9 @@ export default function SharedMapDirectoryList({
         || displayGroups.reduce((count, group) => count + group.rows.length, 0) >= 10
     );
     const normalizedPrintResourceColumnCount = normalizePrintMapResourceColumnCount(printResourceColumnCount);
+    const normalizedPrintSideResourceColumnCount = normalizePrintMapSideResourceColumnCount(
+        printSideResourceColumnCount,
+    );
     const printResourceColumns = useMemo(
         () => splitPrintResourceGroups(displayGroups, normalizedPrintResourceColumnCount),
         [displayGroups, normalizedPrintResourceColumnCount],
@@ -3648,6 +3682,7 @@ export default function SharedMapDirectoryList({
                         showPrintNumberBadges={showPrintNumberBadges}
                         printNumberBadgePosition="end"
                         printLabelDetail={printLabelDetail}
+                        printColumnCount={normalizedPrintSideResourceColumnCount}
                         afterContent={shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && leftUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={leftUnmappedRows}
@@ -3753,6 +3788,7 @@ export default function SharedMapDirectoryList({
                         showPrintNumberBadges={showPrintNumberBadges}
                         printNumberBadgePosition="start"
                         printLabelDetail={printLabelDetail}
+                        printColumnCount={normalizedPrintSideResourceColumnCount}
                         afterContent={shouldRenderUnmappedSections && useAdaptiveDesktopUnmapped && desktopUnmappedPlacement === 'side-lanes' && rightUnmappedRows.length ? (
                             <DirectoryUnmappedSection
                                 rows={rightUnmappedRows}

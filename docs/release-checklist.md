@@ -249,9 +249,11 @@ shows a contextual helper and can be completed or cancelled explicitly. Check
 `Undo last point`, in-shape notes, custom shape and font colours, font size,
 and backward/forward layer ordering. Confirm input and slider changes do not
 trigger a save on every movement, reload to verify persistence, and verify
-PNG/PDF parity. Switch to Balanced and Side focus and confirm annotations and
-the editor are absent. Standalone text, arrow, freehand/lasso, and road-snap
-tools are intentionally unsupported.
+PNG/PDF parity. Switch to Balanced and Side map and confirm the same saved
+annotations remain visible while the editing toolbar stays Full-only. Returning
+to Balanced after Side map must restore its one-column resource layout.
+Standalone text, arrow, freehand/lasso, and road-snap tools are intentionally
+unsupported.
 
 Then run the release aggregate:
 

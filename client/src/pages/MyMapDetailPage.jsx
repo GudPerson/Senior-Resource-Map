@@ -2724,7 +2724,7 @@ export default function MyMapDetailPage() {
                                 className="w-full text-xs font-semibold text-slate-500"
                                 data-print-annotation-full-map-help="true"
                             >
-                                Annotations open in Full map.
+                                Annotations appear in every layout. Editing opens in Full map.
                             </p>
                         ) : null}
                         {printLayoutOpen ? (

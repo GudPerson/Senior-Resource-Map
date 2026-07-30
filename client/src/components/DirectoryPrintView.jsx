@@ -32,6 +32,7 @@ import {
     normalizePrintMapHiddenLayerKeys,
     normalizePrintMapResourceColumnCount,
     normalizePrintMapResourceLayer,
+    normalizePrintMapSideResourceColumnCount,
 } from '../lib/printMapState.js';
 import {
     buildPrintMapResourceLayers,
@@ -904,13 +905,20 @@ export default function DirectoryPrintView({
         presentationMode: useV2OwnerPrint ? 'v2-cards' : 'default',
     });
     const printLayoutConfig = getOwnerPrintLayoutConfig(printMapState);
-    const annotationsEnabledForLayout = useV2OwnerPrint
+    const annotationsVisibleForLayout = useV2OwnerPrint;
+    const annotationsEditableForLayout = annotationsVisibleForLayout
         && printLayoutConfig.layoutPreset === PRINT_MAP_LAYOUT_FULL;
     const labelDetail = normalizePrintMapLabelDetail(printMapState?.labelDetail);
     const resourceColumnCount = normalizePrintMapResourceColumnCount(printMapState?.resourceColumnCount);
+    const sideResourceColumnCount = normalizePrintMapSideResourceColumnCount(
+        printMapState?.sideResourceColumnCount,
+    );
     const resourceLayer = normalizePrintMapResourceLayer(printMapState?.resourceLayer);
     const showResourcePins = resourceLayer === PRINT_MAP_RESOURCE_LAYER_SHOW;
     const printResourcesBelow = Boolean(printLayoutConfig.resourcesBelow);
+    const effectiveSideResourceColumnCount = printLayoutConfig.layoutPreset === PRINT_MAP_LAYOUT_FOCUS
+        ? sideResourceColumnCount
+        : 1;
     const ownerPrintPresentation = useV2OwnerPrint ? withOwnerPrintBadgePins(basePresentation) : basePresentation;
     const presentation = useV2OwnerPrint
         ? withOwnerPrintLayout(ownerPrintPresentation, printLayoutConfig)
@@ -927,7 +935,7 @@ export default function DirectoryPrintView({
     const visibleResourcePins = useV2OwnerPrint
         ? filterPrintMapResourcePins(presentation.pins, visibleResourcePlaceKeys)
         : presentation.pins;
-    const visiblePrintAnnotations = annotationsEnabledForLayout
+    const visiblePrintAnnotations = annotationsVisibleForLayout
         ? filterPrintMapAnnotations(printAnnotations, {
             annotationLayer: normalizePrintMapAnnotationLayer(printMapState?.annotationLayer),
             hiddenAnnotationIds: printMapState?.hiddenAnnotationIds,
@@ -1075,7 +1083,8 @@ export default function DirectoryPrintView({
             data-print-map-side={printLayoutConfig.mapSide}
             data-print-map-width={printLayoutConfig.mapWidth}
             data-print-label-detail={labelDetail}
-            data-print-resource-columns={resourceColumnCount}
+            data-print-resource-columns={printResourcesBelow ? resourceColumnCount : effectiveSideResourceColumnCount}
+            data-print-side-resource-columns={effectiveSideResourceColumnCount}
             data-print-resources-below={printResourcesBelow ? 'true' : 'false'}
             data-print-resource-layer={resourceLayer}
             className={`text-slate-900 ${paddingClass} flex-shrink-0`}
@@ -1147,17 +1156,17 @@ export default function DirectoryPrintView({
                         mobileControlPortalTarget={useV2OwnerPrint && variant === 'screen'
                             ? mobileControlPortalTarget
                             : null}
-                        printAnnotations={annotationsEnabledForLayout ? printAnnotations : []}
+                        printAnnotations={annotationsVisibleForLayout ? printAnnotations : []}
                         visiblePrintAnnotations={visiblePrintAnnotations}
                         mapLayersEnabled={mapLayersEnabled
-                            && annotationsEnabledForLayout
+                            && annotationsEditableForLayout
                             && variant === 'screen'}
                         resourceLayerGroups={resourceLayerModel.groups}
-                        annotationEditing={annotationsEnabledForLayout
+                        annotationEditing={annotationsEditableForLayout
                             && variant === 'screen'
                             && annotationEditing}
-                        annotationStatus={annotationsEnabledForLayout ? annotationStatus : 'idle'}
-                        annotationError={annotationsEnabledForLayout ? annotationError : ''}
+                        annotationStatus={annotationsEditableForLayout ? annotationStatus : 'idle'}
+                        annotationError={annotationsEditableForLayout ? annotationError : ''}
                         onPrintAnnotationsChange={onPrintAnnotationsChange}
                         onSavePrintAnnotations={onSavePrintAnnotations}
                         onUndoPrintAnnotations={onUndoPrintAnnotations}
@@ -1173,6 +1182,7 @@ export default function DirectoryPrintView({
                 printLabelDetail={labelDetail}
                 printResourcesBelow={printResourcesBelow}
                 printResourceColumnCount={resourceColumnCount}
+                printSideResourceColumnCount={effectiveSideResourceColumnCount}
                 printResourcePageHeader={printResourcesBelow ? (
                     <PrintResourcePageHeader
                         directory={directory}

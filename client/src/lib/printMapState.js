@@ -42,6 +42,7 @@ export const PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES = 'names-addresses';
 export const PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS = 'names-descriptions';
 export const PRINT_MAP_LABEL_DETAIL_FULL = 'full';
 export const PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT = 2;
+export const PRINT_MAP_SIDE_RESOURCE_COLUMN_COUNT_DEFAULT = 1;
 
 export function normalizePrintMapPageLayout(value) {
     return value === PRINT_MAP_PAGE_LAYOUT_FULL
@@ -128,9 +129,16 @@ export function normalizePrintMapLabelDetail(value) {
 
 export function normalizePrintMapResourceColumnCount(value) {
     const count = Number(value);
-    return [2, 3, 4].includes(count)
+    return [2, 3, 4, 5, 6].includes(count)
         ? count
         : PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT;
+}
+
+export function normalizePrintMapSideResourceColumnCount(value) {
+    const count = Number(value);
+    return [1, 2].includes(count)
+        ? count
+        : PRINT_MAP_SIDE_RESOURCE_COLUMN_COUNT_DEFAULT;
 }
 
 function getPrintResourceCategoryRunKey(group) {
@@ -141,8 +149,7 @@ function getPrintResourceCategoryRunKey(group) {
     return `${group?.isUnmappedGroup ? 'unmapped' : 'mapped'}:${categoryKey}`;
 }
 
-export function splitPrintResourceGroups(groups = [], requestedColumnCount = PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT) {
-    const columnCount = normalizePrintMapResourceColumnCount(requestedColumnCount);
+function splitPrintResourceGroupsByCount(groups, columnCount) {
     const columns = Array.from({ length: columnCount }, () => []);
     const weightedGroups = (groups || []).map((group) => ({
         group,
@@ -213,6 +220,23 @@ export function splitPrintResourceGroups(groups = [], requestedColumnCount = PRI
     return columns;
 }
 
+export function splitPrintResourceGroups(groups = [], requestedColumnCount = PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT) {
+    return splitPrintResourceGroupsByCount(
+        groups,
+        normalizePrintMapResourceColumnCount(requestedColumnCount),
+    );
+}
+
+export function splitPrintSideResourceGroups(
+    groups = [],
+    requestedColumnCount = PRINT_MAP_SIDE_RESOURCE_COLUMN_COUNT_DEFAULT,
+) {
+    return splitPrintResourceGroupsByCount(
+        groups,
+        normalizePrintMapSideResourceColumnCount(requestedColumnCount),
+    );
+}
+
 export function getOwnerPrintLayoutConfig(state = {}) {
     const pageLayout = normalizePrintMapPageLayout(state.pageLayout);
     const resourcePlacement = normalizePrintMapResourcePlacement(state.resourcePlacement);
@@ -250,18 +274,32 @@ export function getOwnerPrintLayoutConfig(state = {}) {
 
     const mapSide = normalizePrintMapSide(state.mapSide);
     const extraWide = mapWidth === PRINT_MAP_WIDTH_EXTRA_WIDE;
+    const sideResourceColumnCount = normalizePrintMapSideResourceColumnCount(
+        state.sideResourceColumnCount,
+    );
+    const twoResourceColumns = sideResourceColumnCount === 2;
     return {
         layoutPreset,
         mapSide,
         mapWidth,
-        mapMaxWidthPx: extraWide ? 1020 : 940,
+        mapMaxWidthPx: twoResourceColumns
+            ? (extraWide ? 800 : 740)
+            : (extraWide ? 1020 : 940),
         gridClassName: mapSide === PRINT_MAP_SIDE_RIGHT
-            ? (extraWide
-                ? 'grid-cols-[320px_minmax(0,1fr)_0px]'
-                : 'grid-cols-[400px_minmax(0,1fr)_0px]')
-            : (extraWide
-                ? 'grid-cols-[0px_minmax(0,1fr)_320px]'
-                : 'grid-cols-[0px_minmax(0,1fr)_400px]'),
+            ? (twoResourceColumns
+                ? (extraWide
+                    ? 'grid-cols-[560px_minmax(0,1fr)_0px]'
+                    : 'grid-cols-[620px_minmax(0,1fr)_0px]')
+                : (extraWide
+                    ? 'grid-cols-[320px_minmax(0,1fr)_0px]'
+                    : 'grid-cols-[400px_minmax(0,1fr)_0px]'))
+            : (twoResourceColumns
+                ? (extraWide
+                    ? 'grid-cols-[0px_minmax(0,1fr)_560px]'
+                    : 'grid-cols-[0px_minmax(0,1fr)_620px]')
+                : (extraWide
+                    ? 'grid-cols-[0px_minmax(0,1fr)_320px]'
+                    : 'grid-cols-[0px_minmax(0,1fr)_400px]')),
     };
 }
 
@@ -340,6 +378,7 @@ export function createOwnerPrintMapState(mapStyle, {
         mapWidth: PRINT_MAP_WIDTH_WIDE,
         labelDetail: PRINT_MAP_LABEL_DETAIL_FULL,
         resourceColumnCount: PRINT_MAP_RESOURCE_COLUMN_COUNT_DEFAULT,
+        sideResourceColumnCount: PRINT_MAP_SIDE_RESOURCE_COLUMN_COUNT_DEFAULT,
         resetVersion: 0,
     };
 }
@@ -371,6 +410,7 @@ export function buildPrintMapCaptureKey(state) {
         normalizePrintMapWidth(state?.mapWidth),
         normalizePrintMapLabelDetail(state?.labelDetail),
         normalizePrintMapResourceColumnCount(state?.resourceColumnCount),
+        normalizePrintMapSideResourceColumnCount(state?.sideResourceColumnCount),
         Number(state?.resetVersion || 0),
     ].join('|');
 }

@@ -15,6 +15,45 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-30 Owner Print View annotation continuity and card columns
+
+- Current behavior: saved owner annotations render from the same annotation
+  layer in Balanced, Side map, and Full map. Full map remains the only editing
+  canvas; choosing `Annotate` from another layout opens Full map instead of
+  creating a second layout-specific annotation state. Full map supports 2-6
+  category-aware resource columns. Side map supports 1 or 2 category-aware
+  card columns beside the map. Balanced remains one column even after returning
+  from a two-column Side map.
+- Known-good reference: branch
+  `codex/print-layout-annotation-continuity`. The change is limited to owner
+  Print View presentation and print-state normalization. It does not alter
+  annotation persistence, coordinates, layering, interactive-map continuity,
+  resource ownership, numbering, Detailed-map surfaces, API behavior,
+  production data, or personal-place privacy.
+- Reproduction steps: sign in as an owner and open map 258 in Print View at
+  displayed zoom 14. Confirm a saved annotation is visible in Balanced. Open
+  `Print layout`, choose Side map and Card columns `2`, then choose Full map
+  and Card columns `6`, and finally return to Balanced. At each step inspect
+  the same annotation, resource order, category grouping, map zoom, and
+  Detailed-map surface. Repeat with the map on either side in Side map.
+- Acceptance criteria: the same saved annotations remain visible in all three
+  layouts and exports; annotation editing remains Full-only; Side map exposes
+  only 1 or 2 columns; Full map exposes 2-6 columns; categories stay together
+  unless a long category must flow to the next column; numbers and ordering do
+  not change; returning to Balanced restores one column; displayed zoom 14
+  retains fixed Detailed image layers, zero live tile-pane images, and visible
+  Singapore Land Authority attribution.
+- Verification result before deploy: focused Print View, annotation, and layer
+  tests passed 36/36. The map-lockdown suite passed 72/72, server tests passed
+  490/490, and the production-style six-root client build passed with only the
+  established large-chunk advisory. Authenticated Chrome UAT on local map 258
+  using the production API confirmed Side map with 2 columns, Full map with 6
+  columns, and Balanced restored to 1 column. The same saved annotation pane
+  remained present in every layout; displayed zoom stayed at 14; fixed Detailed
+  image layers remained active; and the live Leaflet tile pane stayed empty.
+  No CareAround browser errors were recorded. This branch has not been pushed
+  or deployed.
+
 ## 2026-07-30 Zoom-14 Detailed continuous atlas release
 
 - Current behavior: owner My Map and Print View use the established native

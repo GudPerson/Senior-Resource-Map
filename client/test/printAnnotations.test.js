@@ -252,7 +252,18 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(ownerSource, /printAnnotations=\{printAnnotations\.annotations\}/);
     assert.match(printSource, /<PrintAnnotationLayer/);
     assert.match(printSource, /annotationEditing/);
-    assert.match(printSource, /annotationsEnabledForLayout/);
+    assert.match(printSource, /const annotationsVisibleForLayout = useV2OwnerPrint/);
+    assert.match(
+        printSource,
+        /const annotationsEditableForLayout = annotationsVisibleForLayout[\s\S]*PRINT_MAP_LAYOUT_FULL/,
+    );
+    assert.match(printSource, /visiblePrintAnnotations = annotationsVisibleForLayout/);
+    assert.match(printSource, /printAnnotations=\{annotationsVisibleForLayout \? printAnnotations : \[\]\}/);
+    assert.match(printSource, /annotationEditing=\{annotationsEditableForLayout/);
+    assert.doesNotMatch(
+        printSource,
+        /visiblePrintAnnotations = annotationsEditableForLayout/,
+    );
     assert.match(printSource, /PRINT_MAP_LAYOUT_FULL/);
     assert.match(exportSource, /getPrintAnnotationCaptureKey/);
     assert.match(exportSource, /printAnnotations=\{printAnnotations\}/);
