@@ -153,6 +153,31 @@ test('authenticated form uploads do not fall through to fallback bases after an 
     assert.deepEqual(calls, ['https://api.example/api/soft-assets/import/collateral/preview']);
 });
 
+test('personal place image uploads stay on the cookie-scoped API base', async () => {
+    const calls = [];
+    const fetchImpl = async (url) => {
+        calls.push(url);
+        return new Response('<html>Temporary edge response</html>', {
+            status: 500,
+            headers: { 'content-type': 'text/html' },
+        });
+    };
+
+    await assert.rejects(
+        () => requestFormDataWithBaseCandidates(
+            '/upload/personal-place-image',
+            new FormData(),
+            {
+                baseCandidates: ['https://api.example/api', 'https://fallback.example/api'],
+                fetchImpl,
+            },
+        ),
+        /Upload API returned an unexpected response/,
+    );
+
+    assert.deepEqual(calls, ['https://api.example/api/upload/personal-place-image']);
+});
+
 test('form upload network failures use a user-safe error message', async () => {
     await assert.rejects(
         () => requestFormDataWithBaseCandidates(

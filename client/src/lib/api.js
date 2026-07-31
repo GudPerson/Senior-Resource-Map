@@ -22,6 +22,7 @@ const COOKIE_SCOPED_AUTH_PATH_PREFIXES = [
     '/soft-asset-parents',
     '/soft-assets',
     '/subregions',
+    '/upload',
     '/users',
 ];
 

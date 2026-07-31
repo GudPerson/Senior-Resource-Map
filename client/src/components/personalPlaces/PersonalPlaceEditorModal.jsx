@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapPin, Search, Settings2, X } from 'lucide-react';
 
 import ImageUpload from '../ImageUpload.jsx';
@@ -14,6 +14,12 @@ function formatCoordinate(value) {
 
 function extractPostalCode(value) {
     return String(value || '').match(/\b(\d{6})\b/)?.[1] || '';
+}
+
+function getPersonalPlaceDraftKey(open, draft) {
+    if (!open) return '';
+    if (draft?.id) return `place:${draft.id}`;
+    return `new:${formatCoordinate(draft?.lat)}:${formatCoordinate(draft?.lng)}`;
 }
 
 export default function PersonalPlaceEditorModal({
@@ -44,9 +50,16 @@ export default function PersonalPlaceEditorModal({
     const [lookupQuery, setLookupQuery] = useState('');
     const [lookupBusy, setLookupBusy] = useState(false);
     const [lookupError, setLookupError] = useState('');
+    const initializedDraftKeyRef = useRef('');
+    const draftKey = getPersonalPlaceDraftKey(open, draft);
 
     useEffect(() => {
-        if (!open) return;
+        if (!open) {
+            initializedDraftKeyRef.current = '';
+            return;
+        }
+        if (initializedDraftKeyRef.current === draftKey) return;
+        initializedDraftKeyRef.current = draftKey;
         const fallbackCategory = activeCategories.find(
             (category) => category.name === draft?.categoryLabel
         );
@@ -62,7 +75,19 @@ export default function PersonalPlaceEditorModal({
         });
         setLookupQuery(draft?.postalCode || draft?.address || '');
         setLookupError('');
-    }, [activeCategories, draft, open]);
+    }, [activeCategories, draft, draftKey, open]);
+
+    useEffect(() => {
+        if (!open || form.categoryId || activeCategories.length === 0) return;
+        const fallbackCategory = activeCategories.find(
+            (category) => category.name === draft?.categoryLabel
+        );
+        const nextCategoryId = String(draft?.categoryId || draft?.category?.id || fallbackCategory?.id || activeCategories[0]?.id || '');
+        if (!nextCategoryId) return;
+        setForm((current) => (
+            current.categoryId ? current : { ...current, categoryId: nextCategoryId }
+        ));
+    }, [activeCategories, draft?.category?.id, draft?.categoryId, draft?.categoryLabel, form.categoryId, open]);
 
     if (!open) return null;
 

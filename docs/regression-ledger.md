@@ -15,6 +15,37 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-31 Owner personal-place image upload draft preservation
+
+- Current behavior: adding or changing a personal-place image from the owner My
+  Map personal-place editor keeps the in-progress form values intact. The
+  editor initializes from the selected draft only once per open create/edit
+  session; late category-list refreshes can fill an empty category selection
+  without rebuilding the rest of the draft. Personal-place image uploads also
+  stay on the cookie-scoped API base instead of trying fallback API bases.
+- Known-good reference: branch
+  `codex/personal-place-image-draft-preserve`. The change is client-only and
+  scoped to `PersonalPlaceEditorModal` plus the API client upload base guard.
+  It does not change Personal Places visibility, public Discover resources,
+  Shared Maps, map geometry, Print View export, schemas, or server upload
+  validation.
+- Reproduction steps: sign in as a map owner, open an owned My Map, start
+  adding a personal place from the map, fill a name and location fields, then
+  choose a PNG/JPEG/WebP image. Confirm the image preview appears and the
+  existing name, category, postal code, address, latitude, longitude, and short
+  description remain. Repeat after editing an existing personal place.
+- Acceptance criteria: image upload success or failure must not blank the
+  editor form; category data refreshes must not reset in-progress edits;
+  authenticated upload requests must not fall through to fallback API bases;
+  save still creates or updates an owner-only personal place; existing My
+  Places library, map placement, reusable-place attachment, Print View, and
+  Detailed-map behavior remain unchanged.
+- Verification result before deploy: focused client coverage passed 19/19 with
+  `node --test client/test/apiRequest.test.js
+  client/test/myMapPersonalPlacesSource.test.js`; `npm run build:client`,
+  `git diff --check`, and `npm run verify:map-lockdown` passed, including the
+  74/74 locked map tests and exact six-root production client build.
+
 ## 2026-07-31 Owner My Map duplicate action
 
 - Current behavior: authenticated non-guest map owners can duplicate one of

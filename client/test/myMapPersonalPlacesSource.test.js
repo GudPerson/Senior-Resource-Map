@@ -107,6 +107,18 @@ test('personal place categories expose curated icons, colours, and global editin
     assert.doesNotMatch(resourceRowIconSource, /getPersonalPlaceIconComponent/);
 });
 
+test('personal place image upload does not reset an in-progress editor draft', () => {
+    const editorSource = readSource('../src/components/personalPlaces/PersonalPlaceEditorModal.jsx');
+    const apiSource = readSource('../src/lib/api.js');
+
+    assert.match(editorSource, /function getPersonalPlaceDraftKey/);
+    assert.match(editorSource, /initializedDraftKeyRef/);
+    assert.match(editorSource, /initializedDraftKeyRef\.current === draftKey/);
+    assert.match(editorSource, /current\.categoryId \? current : \{ \.\.\.current, categoryId: nextCategoryId \}/);
+    assert.doesNotMatch(editorSource, /\}, \[activeCategories, draft, open\]\);/);
+    assert.match(apiSource, /'\/upload'/);
+});
+
 test('My Map short descriptions stay separate from Map Notes and suppress repeated card names', () => {
     const detailSource = readSource('../src/pages/MyMapDetailPage.jsx');
     const printViewSource = readSource('../src/components/DirectoryPrintView.jsx');
