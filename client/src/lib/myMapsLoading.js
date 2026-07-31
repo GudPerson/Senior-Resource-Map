@@ -7,7 +7,8 @@ function wait(ms) {
 }
 
 function shouldRetryMyMapsLoad(err) {
-    const message = String(err?.message || err || '').toLowerCase();
+    const rawMessage = err?.message || err || '';
+    const message = String(rawMessage).toLowerCase();
     if (!message) return true;
 
     return ![
