@@ -525,7 +525,14 @@ test('visible preview and hidden image export consume the same frozen print map 
     assert.match(exportButtonSource, /querySelector\('\[data-print-export-page="map"\]'\)/);
     assert.match(exportButtonSource, /querySelector\('\[data-print-export-page="resources"\]'\)/);
     assert.match(exportButtonSource, /buildFileName\(directory\?\.name, name\)/);
-    assert.match(exportButtonSource, /exportAsSeparatePages \? 'saveAsImages' : 'saveAsImage'/);
+    assert.match(exportButtonSource, /data-print-export-page-action="resources"/);
+    assert.match(exportButtonSource, /data-print-export-page-action="map"/);
+    assert.match(exportButtonSource, /handleImageExport\('resources'\)/);
+    assert.match(exportButtonSource, /handleImageExport\('map'\)/);
+    assert.match(exportButtonSource, /t\('saveResourcePng'\)/);
+    assert.match(exportButtonSource, /t\('saveMapPng'\)/);
+    assert.match(exportButtonSource, /t\('saveAsImage'\)/);
+    assert.doesNotMatch(exportButtonSource, /saveAsImages/);
     assert.match(exportButtonSource, /captureExportPages\(\{ forceHighQuality: true \}\)/);
     assert.match(exportButtonSource, /downloadPrintMapPdf\(\{ pages, directoryName: directory\?\.name \}\)/);
     assert.match(exportButtonSource, /data-print-pdf-export="a3"/);
@@ -539,7 +546,8 @@ test('visible preview and hidden image export consume the same frozen print map 
     assert.match(exportButtonSource, /printMapState=\{printMapState\}/);
     assert.match(exportButtonSource, /printMapCaptureKey/);
     assert.match(exportButtonSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);
-    assert.match(exportButtonSource, /await mountExportSurface\('image'\)/);
+    assert.match(exportButtonSource, /const exportFormat = pageName \? `\$\{pageName\}-image` : 'image'/);
+    assert.match(exportButtonSource, /await mountExportSurface\(exportFormat\)/);
     assert.match(exportButtonSource, /await mountExportSurface\('pdf'\)/);
     assert.match(exportButtonSource, /\{exporting && exportRoot \? createPortal\(/);
     assert.match(exportButtonSource, /<div ref=\{handleExportNodeRef\}>/);
@@ -624,10 +632,39 @@ test('image capture readiness survives harmless map rerenders and cached tile lo
     assert.match(directoryMapSource, /const capturePinSignature = useMemo/);
     assert.match(directoryMapSource, /load: handleCaptureTilesLoaded/);
     assert.match(directoryMapSource, /mapSettledRef\.current = true;\s+tryNotifyReady\(\);/);
+    assert.match(directoryMapSource, /DIRECTORY_CAPTURE_READY_TIMEOUT_MS = 10000/);
+    assert.match(directoryMapSource, /waitForFixedTownSurfaceCapturePaint/);
+    assert.match(directoryMapSource, /img\.fixed-town-surface__chunk/);
+    assert.match(directoryMapSource, /image\.decode\(\)/);
     assert.doesNotMatch(
         directoryMapSource,
         /\[anchorPoint, captureReadyKey[^\]]*\bpins\b[^\]]*\bplaceNumberByKey\b/,
     );
+});
+
+test('map image export rejects blank map captures and saves large PNGs as blobs', () => {
+    assert.match(exportButtonSource, /MAP_CAPTURE_RETRY_DELAY_MS = 750/);
+    assert.match(exportButtonSource, /isMapCaptureVisiblyBlank/);
+    assert.match(exportButtonSource, /MAP_CAPTURE_BLANK_MAX_AVERAGE_DISTANCE/);
+    assert.match(exportButtonSource, /querySelector\('\[data-print-export-map-frame="true"\]'\)/);
+    assert.match(exportButtonSource, /cacheBust: Boolean\(mapFrameNode\)/);
+    assert.match(exportButtonSource, /Image export failed because the map image was still blank/);
+    assert.match(exportButtonSource, /async function savePngDataUrl/);
+    assert.match(exportButtonSource, /const blob = await response\.blob\(\)/);
+    assert.match(exportButtonSource, /waitForExportSurface\(\{ waitForMap: pageName !== 'resources' \}\)/);
+    assert.match(exportButtonSource, /captureExportPages\(\{ pageName \}\)/);
+    assert.match(exportButtonSource, /style=\{\{ zIndex: -1, opacity: 0\.01 \}\}/);
+});
+
+test('separate map and resource PNG labels are available in every locale', () => {
+    assert.match(i18nSource, /saveMapPng: 'Save Map PNG'/);
+    assert.match(i18nSource, /saveResourcePng: 'Save Resource PNG'/);
+    assert.match(i18nSource, /saveMapPng: '保存地图 PNG'/);
+    assert.match(i18nSource, /saveResourcePng: '保存资源 PNG'/);
+    assert.match(i18nSource, /saveMapPng: 'Simpan PNG peta'/);
+    assert.match(i18nSource, /saveResourcePng: 'Simpan PNG sumber'/);
+    assert.match(i18nSource, /saveMapPng: 'வரைபட PNG ஆக சேமி'/);
+    assert.match(i18nSource, /saveResourcePng: 'வள PNG ஆக சேமி'/);
 });
 
 test('local print-master client keeps the existing Detailed map runtime enabled', () => {

@@ -15,6 +15,43 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-31 Owner Print View blank export recovery
+
+- Current behavior: owner Full-map Print View splits the former combined image
+  action into `Save Resource PNG` and `Save Map PNG`. Resource PNG captures only
+  the resource page and does not wait on map readiness. Map PNG and PDF export
+  wait for the hidden Detailed fixed-surface map images to complete and decode
+  before declaring the capture map ready. Map pages are captured with
+  cache-busted image fetches, checked for a near-uniform blank map frame,
+  retried once after an additional paint wait, and then rejected with a visible
+  export error instead of creating a finished PNG/PDF with an empty map. PNG
+  downloads are saved from blobs. The hidden export surface remains mounted
+  only during a save, but is kept paintable instead of being placed far
+  offscreen.
+- Known-good reference: branch `codex/print-export-blank-recovery`. The change
+  is client-only and limited to the owner Print View export readiness/download
+  path plus focused source coverage. It does not alter visible map data, map
+  camera controls, Detailed-map selection, annotations, resource cards, PDF
+  layout, sharing, ownership, APIs, schemas, or production data.
+- Reproduction steps: sign in as a map owner and open an owned map in Print
+  View. Choose `Full map`, confirm Detailed is visible, and choose `Save
+  Resource PNG`; confirm only the resource page downloads. Then choose `Save
+  Map PNG`; confirm the map image downloads with the rendered map. Repeat with
+  `Save PDF` and inspect that the map page contains the map rather than a plain
+  empty rectangle. On a slower browser, move or resize the map before export
+  and retry immediately.
+- Acceptance criteria: hidden export maps wait for fixed-surface image decode
+  and paint readiness; map capture retries once when the sampled map frame is
+  blank; a still-blank capture surfaces an export error instead of saving an
+  empty map; Full-map PNG export is split into independent map/resource blob
+  downloads; existing regular Print View layout and interactive My Map
+  behavior remain unchanged.
+- Verification result before deploy: focused Print View source coverage passed
+  24/24 with `node --test client/test/printMapWorkspace.test.js`; complete
+  locked-map coverage passed 74/74 with `npm run verify:map-lockdown`; the
+  production-style six-root client build completed with only the established
+  large-chunk advisory; and `git diff --check` passed.
+
 ## 2026-07-31 Owner Print View floating layout settings panel
 
 - Current behavior: the sticky owner Print View toolbar remains a compact
@@ -336,7 +373,8 @@ Rules:
 ## 2026-07-30 Owner Print View image-export readiness recovery
 
 - Current behavior: the high-resolution offscreen export surface is mounted
-  only after an owner chooses `Save PNG`, `Save 2 PNGs`, or `Save PDF`, and it
+  only after an owner chooses `Save PNG`, `Save Map PNG`, `Save Resource PNG`,
+  or `Save PDF`, and it
   is released as soon as that export finishes or fails. Idle Print View keeps
   only the visible map surface in memory. Each save starts from a fresh capture
   readiness state while retaining the existing cached-image load handling and
@@ -350,16 +388,16 @@ Rules:
   numbering, PDFs, owner privacy, API behavior, or production data.
 - Reproduction steps: sign in as an owner, open an owned map in Print View,
   choose `Full map`, and leave the map at displayed zoom 15 with the Detailed
-  fixed surface visible. Choose `Save 2 PNGs`. Confirm that the fresh export
-  surface finishes loading and that both the map and resources images download
-  without the message `Image export failed because the directory map did not
-  finish loading`.
+  fixed surface visible. Choose `Save Map PNG`, then `Save Resource PNG`.
+  Confirm that the fresh export surface finishes loading and that both the map
+  and resources images download without the message `Image export failed
+  because the directory map did not finish loading`.
 - Acceptance criteria: Print View does not keep a duplicate offscreen Detailed
-  map mounted while idle; save actions mount a fresh high-resolution surface
-  and wait for its real map readiness; Full-map save produces both PNGs; the
-  map PNG contains the Detailed basemap, resource pins, and annotations; the
-  resources PNG retains the selected layout; no readiness error is shown; and
-  the offscreen surface unmounts after completion.
+  map mounted while idle; save actions mount a fresh high-resolution surface;
+  Map PNG waits for real map readiness; Resource PNG remains independent of map
+  readiness; the map PNG contains the Detailed basemap, resource pins, and
+  annotations; the resources PNG retains the selected layout; no readiness
+  error is shown; and the offscreen surface unmounts after completion.
 - Verification result before deploy: authenticated local owner UAT on map 269
   at Full-map zoom 15 downloaded
   `iccp-queenstown-4-map.png` at 5920 x 4432 and
@@ -1523,9 +1561,9 @@ Rules:
   resources on the next page. Map position appears only for Side, while map
   width appears only for Balanced and Side. The user-facing image-quality,
   page-format, resource-placement, and Print Master controls are removed. The
-  two supported downloads are labelled `Save PNG` or `Save 2 PNGs`, depending
-  on layout, and `Save PDF`. The PDF continues to use the existing A3 output
-  format. Existing map colour, Standard/Detailed,
+  supported image downloads are labelled `Save PNG`, or `Save Map PNG` and
+  `Save Resource PNG` in Full map, plus `Save PDF`. The PDF continues to use
+  the existing A3 output format. Existing map colour, Standard/Detailed,
   camera, zoom, height, pins, label detail, QR, and attribution behavior remain
   available.
 - Known-good reference: commit

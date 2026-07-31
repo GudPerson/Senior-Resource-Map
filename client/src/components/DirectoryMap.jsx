@@ -91,6 +91,59 @@ const DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS = 140;
 const DIRECTORY_PRINT_BADGE_COLLISION_SCHEDULE_DELAYS = [0, 40, 120, 260, 520, 960, 1500, 2400];
 const DIRECTORY_BUBBLE_MARKER_CORE_SELECTOR = '.directory-print-badge-marker__core, .directory-category-bubble-marker__core';
 const DIRECTORY_BUBBLE_MARKER_LOBE_SELECTOR = '.directory-print-badge-marker__lobe, .directory-category-bubble-marker__lobe';
+const DIRECTORY_CAPTURE_READY_TIMEOUT_MS = 10000;
+const DIRECTORY_CAPTURE_PAINT_SETTLE_FRAMES = 3;
+
+function waitForAnimationFrames(frameCount = 1) {
+    return new Promise((resolve) => {
+        const tick = (remaining) => {
+            if (remaining <= 0) {
+                resolve();
+                return;
+            }
+            window.requestAnimationFrame(() => tick(remaining - 1));
+        };
+        tick(frameCount);
+    });
+}
+
+function waitForImageElementReady(image) {
+    if (!image) return Promise.resolve(false);
+    if (image.complete && image.naturalWidth > 0 && image.naturalHeight > 0) {
+        if (typeof image.decode === 'function') {
+            return image.decode()
+                .then(() => true)
+                .catch(() => true);
+        }
+        return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+        const cleanup = () => {
+            image.removeEventListener('load', handleLoad);
+            image.removeEventListener('error', handleError);
+        };
+        const handleLoad = () => {
+            cleanup();
+            resolve(image.naturalWidth > 0 && image.naturalHeight > 0);
+        };
+        const handleError = () => {
+            cleanup();
+            resolve(false);
+        };
+        image.addEventListener('load', handleLoad, { once: true });
+        image.addEventListener('error', handleError, { once: true });
+    });
+}
+
+async function waitForFixedTownSurfaceCapturePaint(mapFrameNode) {
+    const fixedSurfaceImages = [...(mapFrameNode?.querySelectorAll('img.fixed-town-surface__chunk') || [])];
+    if (!fixedSurfaceImages.length) return false;
+    const readyResults = await Promise.all(fixedSurfaceImages.map(waitForImageElementReady));
+    if (!readyResults.every(Boolean)) return false;
+    await waitForAnimationFrames(DIRECTORY_CAPTURE_PAINT_SETTLE_FRAMES);
+    return true;
+}
 
 function getBounds(points) {
     return L.latLngBounds(points.map((point) => [point.lat, point.lng]));
@@ -2752,7 +2805,7 @@ export default function DirectoryMap({
                 captureErrorRef.current = error;
                 onMapCaptureError?.(error);
             }
-        }, 5000);
+        }, DIRECTORY_CAPTURE_READY_TIMEOUT_MS);
 
         return () => {
             if (readyTimeoutRef.current) {
@@ -2762,13 +2815,19 @@ export default function DirectoryMap({
         };
     }, [anchorPoint?.lat, anchorPoint?.lng, capturePinSignature, captureReadyKey, clusterMarkerMode, effectiveBasemapMode, mapViewState?.center?.[0], mapViewState?.center?.[1], mapViewState?.zoom, markerMode, onMapCaptureError, onMapReadyForCapture, pinBadgeMode, pinCategoryIconMode, resolvedBasemapUrl, resolvedMapHeightPx, resolvedMapStyle, spreadCoincidentPins]);
 
+    const fixedTownCapturePaintTokenRef = useRef(0);
     const handleFixedTownSurfaceMetricsChange = useCallback((metrics) => {
         onFixedTownSurfaceMetricsChange?.(metrics);
         if (!onMapReadyForCapture) return;
         const visibleChunkCount = Number(metrics?.visibleChunkCount || 0);
         const loadedChunkCount = Number(metrics?.loadedChunkCount || 0);
         if (visibleChunkCount > 0 && loadedChunkCount >= visibleChunkCount) {
-            handleCaptureTilesLoaded();
+            const paintToken = fixedTownCapturePaintTokenRef.current + 1;
+            fixedTownCapturePaintTokenRef.current = paintToken;
+            waitForFixedTownSurfaceCapturePaint(mapFrameRef.current).then((paintReady) => {
+                if (!paintReady || fixedTownCapturePaintTokenRef.current !== paintToken) return;
+                handleCaptureTilesLoaded();
+            });
         }
     }, [handleCaptureTilesLoaded, onFixedTownSurfaceMetricsChange, onMapReadyForCapture]);
 
