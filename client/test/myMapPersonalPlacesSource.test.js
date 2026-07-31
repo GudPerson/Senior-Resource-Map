@@ -73,8 +73,9 @@ test('personal-place map mutations keep visible progress through the map refresh
     assert.match(detailSource, /directoryMapInteractionSuspended = suspendMapInteraction && !personalPlacePickerActive/);
     assert.match(detailSource, /suspendMapInteraction=\{directoryMapInteractionSuspended\}/);
     assert.match(detailSource, /interactive=\{!directoryMapInteractionSuspended\}/);
-    assert.match(detailSource, /mapSurfaceStatus=\{personalPlaceActionStatus/);
-    assert.match(detailSource, /surfaceStatus=\{personalPlaceActionStatus/);
+    assert.match(detailSource, /mapSurfaceStatus=\{personalPlaceMapSurfaceStatus\}/);
+    assert.match(detailSource, /surfaceStatus=\{personalPlaceMapSurfaceStatus\}/);
+    assert.match(detailSource, /personalPlaceActionStatus \? \(\s*<PersonalPlaceActionStatus/);
     assert.doesNotMatch(detailSource, /fixed inset-x-4 bottom-4/);
     assert.match(mapSource, /surfaceStatus = null/);
     assert.match(mapSource, /data-map-surface-status="true"/);
@@ -117,6 +118,21 @@ test('personal place image upload does not reset an in-progress editor draft', (
     assert.match(editorSource, /current\.categoryId \? current : \{ \.\.\.current, categoryId: nextCategoryId \}/);
     assert.doesNotMatch(editorSource, /\}, \[activeCategories, draft, open\]\);/);
     assert.match(apiSource, /'\/upload'/);
+});
+
+test('new personal-place flow makes the map-location step explicit', () => {
+    const detailSource = readSource('../src/pages/MyMapDetailPage.jsx');
+    const chooserSource = readSource('../src/components/personalPlaces/AddPersonalPlaceChooserModal.jsx');
+    const i18nSource = readSource('../src/lib/i18n.js');
+
+    assert.match(chooserSource, /Choose map location/);
+    assert.doesNotMatch(chooserSource, />\s*Create new\s*</);
+    assert.match(detailSource, /function PersonalPlacePlacementPrompt/);
+    assert.match(detailSource, /data-personal-place-placement-prompt="true"/);
+    assert.match(detailSource, /personalPlacePickerActive \? \(/);
+    assert.match(detailSource, /mapSurfaceStatus=\{personalPlaceMapSurfaceStatus\}/);
+    assert.match(detailSource, /surfaceStatus=\{personalPlaceMapSurfaceStatus\}/);
+    assert.match(i18nSource, /The place details form opens next\./);
 });
 
 test('My Map short descriptions stay separate from Map Notes and suppress repeated card names', () => {

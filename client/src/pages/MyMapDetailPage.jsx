@@ -156,6 +156,20 @@ function PersonalPlaceActionStatus({ status }) {
     );
 }
 
+function PersonalPlacePlacementPrompt({ message }) {
+    return (
+        <div
+            role="status"
+            aria-live="polite"
+            data-personal-place-placement-prompt="true"
+            className="pointer-events-none flex min-h-12 w-full items-center gap-3 rounded-xl border border-brand-200 bg-white/95 px-4 py-3 text-sm font-bold text-slate-800 shadow-lg backdrop-blur-sm"
+        >
+            <MapPin size={18} className="flex-shrink-0 text-brand-700" aria-hidden="true" />
+            <span>{message}</span>
+        </div>
+    );
+}
+
 function OwnerHeader({
     directory,
     query,
@@ -1207,6 +1221,11 @@ export default function MyMapDetailPage() {
         || personalPlaceCategoryManagerOpen
         || Boolean(shortDescriptionRow);
     const directoryMapInteractionSuspended = suspendMapInteraction && !personalPlacePickerActive;
+    const personalPlaceMapSurfaceStatus = personalPlacePickerActive ? (
+        <PersonalPlacePlacementPrompt message={t('personalPlaceMapHint')} />
+    ) : personalPlaceActionStatus ? (
+        <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
+    ) : null;
     const isPrintView = searchParams.get('view') === 'print';
     const previousPrintViewRef = useRef(isPrintView);
     const myMapUiMode = getMyMapUiMode(searchParams);
@@ -2947,9 +2966,7 @@ export default function MyMapDetailPage() {
                     onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                     mapModeControl={mapModeControl}
                     preserveMobileMapFrameInFlow={TOWN_MAP_PROOF_ENABLED}
-                    mapSurfaceStatus={personalPlaceActionStatus ? (
-                        <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
-                    ) : null}
+                    mapSurfaceStatus={personalPlaceMapSurfaceStatus}
                 />
 
                 <CreateMapModal
@@ -3150,9 +3167,7 @@ export default function MyMapDetailPage() {
                                     onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                     mapModeControl={mapModeControl}
                                     mapOverlay={ownerInteractiveAnnotationOverlay}
-                                    surfaceStatus={personalPlaceActionStatus ? (
-                                        <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
-                                    ) : null}
+                                    surfaceStatus={personalPlaceMapSurfaceStatus}
                                 />
                             ) : null}
                             <EmptyOwnerDirectory
@@ -3225,9 +3240,7 @@ export default function MyMapDetailPage() {
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                         mapModeControl={mapModeControl}
                                         mapOverlay={ownerInteractiveAnnotationOverlay}
-                                        surfaceStatus={personalPlaceActionStatus ? (
-                                            <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
-                                        ) : null}
+                                        surfaceStatus={personalPlaceMapSurfaceStatus}
                                     />
                                 )}
                                 renderMobileMap={() => (
@@ -3275,9 +3288,7 @@ export default function MyMapDetailPage() {
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                         mapModeControl={mapModeControl}
                                         mapOverlay={ownerInteractiveAnnotationOverlay}
-                                        surfaceStatus={personalPlaceActionStatus ? (
-                                            <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
-                                        ) : null}
+                                        surfaceStatus={personalPlaceMapSurfaceStatus}
                                     />
                                 )}
                                 mobileMapStickyClassName="sticky top-[56px] sm:top-[64px] z-[1090] -mx-4 bg-slate-50 px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate"

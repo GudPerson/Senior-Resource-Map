@@ -15,36 +15,43 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-07-31 Owner personal-place image upload draft preservation
+## 2026-07-31 Owner personal-place creation guidance and image upload draft preservation
 
-- Current behavior: adding or changing a personal-place image from the owner My
-  Map personal-place editor keeps the in-progress form values intact. The
-  editor initializes from the selected draft only once per open create/edit
+- Current behavior: starting a new personal place labels the map-first step as
+  `Choose map location`, then keeps a prominent prompt inside the map explaining
+  that the details form opens after the owner clicks or taps a location. Adding
+  or changing an image in that editor keeps the in-progress form values intact.
+  The editor initializes from the selected draft only once per open create/edit
   session; late category-list refreshes can fill an empty category selection
   without rebuilding the rest of the draft. Personal-place image uploads also
   stay on the cookie-scoped API base instead of trying fallback API bases.
 - Known-good reference: branch
-  `codex/personal-place-image-draft-preserve`. The change is client-only and
-  scoped to `PersonalPlaceEditorModal` plus the API client upload base guard.
-  It does not change Personal Places visibility, public Discover resources,
-  Shared Maps, map geometry, Print View export, schemas, or server upload
-  validation.
-- Reproduction steps: sign in as a map owner, open an owned My Map, start
-  adding a personal place from the map, fill a name and location fields, then
-  choose a PNG/JPEG/WebP image. Confirm the image preview appears and the
+  `codex/personal-place-create-guidance`, building on the image draft
+  preservation release. The change is client-only and scoped to the personal
+  place chooser, placement guidance, editor initialization, translations, and
+  the API client upload base guard. It does not change Personal Places
+  visibility, public Discover resources, Shared Maps, map geometry, Print View
+  export, schemas, or server upload validation.
+- Reproduction steps: sign in as a map owner, open an owned My Map, choose `Add
+  personal place`, then select `Choose map location`. Confirm the chooser closes
+  into a prominent in-map prompt that says the details form opens next. Click
+  or tap the map and confirm the editor opens. Fill a name and location fields,
+  then choose a PNG/JPEG/WebP image. Confirm the image preview appears and the
   existing name, category, postal code, address, latitude, longitude, and short
   description remain. Repeat after editing an existing personal place.
-- Acceptance criteria: image upload success or failure must not blank the
-  editor form; category data refreshes must not reset in-progress edits;
-  authenticated upload requests must not fall through to fallback API bases;
-  save still creates or updates an owner-only personal place; existing My
-  Places library, map placement, reusable-place attachment, Print View, and
-  Detailed-map behavior remain unchanged.
-- Verification result before deploy: focused client coverage passed 19/19 with
+- Acceptance criteria: the map-location step must be explicit before and after
+  the chooser closes; selecting a location must open the editor; image upload
+  success or failure must not blank the editor form; category data refreshes
+  must not reset in-progress edits; authenticated upload requests must not fall
+  through to fallback API bases; save still creates or updates an owner-only
+  personal place; existing My Places library, map placement, reusable-place
+  attachment, Print View, and Detailed-map behavior remain unchanged.
+- Verification result before deploy: focused client coverage passed 23/23 with
   `node --test client/test/apiRequest.test.js
-  client/test/myMapPersonalPlacesSource.test.js`; `npm run build:client`,
-  `git diff --check`, and `npm run verify:map-lockdown` passed, including the
-  74/74 locked map tests and exact six-root production client build.
+  client/test/i18nCoverage.test.js
+  client/test/myMapPersonalPlacesSource.test.js`; `git diff --check` and
+  `npm run verify:map-lockdown` passed, including the 74/74 locked map tests and
+  exact six-root production client build.
 
 ## 2026-07-31 Owner My Map duplicate action
 

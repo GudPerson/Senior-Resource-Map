@@ -81,7 +81,7 @@ export default function AddPersonalPlaceChooserModal({
                     </div>
                     <button type="button" onClick={onCreateNew} disabled={submitting} className="btn-ghost min-h-11 flex-shrink-0 justify-center border border-slate-200 px-4 disabled:opacity-50">
                         <Plus size={16} />
-                        Create new
+                        Choose map location
                     </button>
                 </div>
 
@@ -98,7 +98,7 @@ export default function AddPersonalPlaceChooserModal({
                             </p>
                             <button type="button" onClick={onCreateNew} disabled={submitting} className="btn-primary mx-auto mt-5 disabled:opacity-50">
                                 <Plus size={16} />
-                                Create new
+                                Choose map location
                             </button>
                         </div>
                     ) : (
