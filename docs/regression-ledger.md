@@ -15,6 +15,38 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-31 Owner Print View floating layout settings panel
+
+- Current behavior: the sticky owner Print View toolbar remains a compact
+  command surface while `Print layout` opens as a floating right-side settings
+  panel on desktop. The panel is anchored below the toolbar, is 400 px wide,
+  stays within the viewport with independent vertical scrolling, and closes
+  through its existing close button or the Escape key. On smaller screens the
+  controls retain the established full-width touch layout.
+- Known-good reference: branch `codex/print-layout-side-panel`. The change is
+  limited to presentation and keyboard dismissal for the existing
+  `PrintLayoutControls`; it does not alter print state, layout choices, map
+  geometry, annotations, descriptors, exports, APIs, schemas, or ownership.
+- Reproduction steps: sign in as a map owner and open map 258 in Print View on
+  desktop. Scroll the preview, open `Print layout`, and confirm the toolbar
+  height does not grow. Scroll the settings panel independently, change layout
+  and card-column options, close it with Escape, reopen and close with the X
+  button, then repeat at a compact viewport.
+- Acceptance criteria: the desktop panel floats at the right below the sticky
+  toolbar without moving the preview down; it does not overlap the global
+  navigation or extend beyond the viewport; panel controls remain keyboard
+  accessible and internally scrollable; Escape and X close it; layout changes
+  still update the preview; compact view retains the full-width touch layout;
+  the toolbar and panel remain absent from print and saved image/PDF output;
+  all locked map behavior remains unchanged.
+- Verification result before deploy: `node --test
+  client/test/printMapWorkspace.test.js` passed 22/22, `npm run
+  verify:map-lockdown` passed 72/72 plus the exact six-root production client
+  build, `npm run build:client` passed, and `git diff --check` passed. Owner
+  desktop UAT on map 258 confirmed the floating panel no longer expands the
+  sticky toolbar or obscures most of the map. The compact fallback remains
+  covered by the responsive implementation and focused source assertions.
+
 ## 2026-07-31 Owner Print View sticky workspace toolbar
 
 - Current behavior: the owner Print View workspace toolbar remains visible

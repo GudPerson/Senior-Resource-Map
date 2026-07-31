@@ -1316,6 +1316,19 @@ export default function MyMapDetailPage() {
     }, [isPrintView, mapStyle]);
 
     useEffect(() => {
+        if (!isPrintView || !printLayoutOpen) return undefined;
+
+        const handlePrintLayoutKeyDown = (event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            setPrintLayoutOpen(false);
+        };
+
+        window.addEventListener('keydown', handlePrintLayoutKeyDown);
+        return () => window.removeEventListener('keydown', handlePrintLayoutKeyDown);
+    }, [isPrintView, printLayoutOpen]);
+
+    useEffect(() => {
         if (isPrintView && canEditPrintAnnotations) return;
         setPrintAnnotationEditorOpen(false);
     }, [canEditPrintAnnotations, isPrintView]);
@@ -2646,7 +2659,7 @@ export default function MyMapDetailPage() {
                     className="sticky top-[56px] z-[1150] border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur print:hidden sm:top-[64px]"
                     data-owner-print-toolbar="true"
                 >
-                    <div className="flex w-full flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
+                    <div className="relative flex w-full flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
                         <div
                             className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-start"
                             data-print-toolbar-actions="true"
@@ -2662,7 +2675,11 @@ export default function MyMapDetailPage() {
                             <button
                                 type="button"
                                 onClick={() => setPrintLayoutOpen((current) => !current)}
-                                className="btn-ghost min-h-11 w-full justify-center border border-slate-200 px-3 text-xs text-slate-700 sm:w-auto sm:text-sm"
+                                className={`btn-ghost min-h-11 w-full justify-center border px-3 text-xs sm:w-auto sm:text-sm ${
+                                    printLayoutOpen
+                                        ? 'border-brand-600 bg-brand-50 text-brand-800'
+                                        : 'border-slate-200 text-slate-700'
+                                }`}
                                 aria-expanded={printLayoutOpen}
                                 aria-controls="owner-print-layout-controls"
                                 data-print-layout-trigger="true"
@@ -2754,7 +2771,11 @@ export default function MyMapDetailPage() {
                             </p>
                         ) : null}
                         {printLayoutOpen ? (
-                            <div id="owner-print-layout-controls" className="w-full">
+                            <div
+                                id="owner-print-layout-controls"
+                                className="w-full lg:absolute lg:right-4 lg:top-[calc(100%+12px)] lg:z-20 lg:max-h-[calc(100dvh-12rem)] lg:w-[400px] lg:max-w-[calc(100vw-2rem)] lg:overflow-y-auto lg:overscroll-contain lg:rounded-2xl lg:bg-white lg:shadow-2xl"
+                                data-print-layout-panel="true"
+                            >
                                 <PrintLayoutControls
                                     value={printMapState}
                                     onChange={setPrintMapState}

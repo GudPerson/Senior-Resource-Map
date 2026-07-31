@@ -556,6 +556,14 @@ test('visible preview and hidden image export consume the same frozen print map 
     );
     assert.match(ownerPageSource, /data-owner-print-toolbar="true"/);
     assert.match(ownerPageSource, /data-print-toolbar-actions="true"/);
+    assert.match(ownerPageSource, /data-print-layout-panel="true"/);
+    assert.match(
+        ownerPageSource,
+        /lg:absolute lg:right-4 lg:top-\[calc\(100%\+12px\)\][^"]*lg:max-h-\[calc\(100dvh-12rem\)\][^"]*lg:w-\[400px\][^"]*lg:overflow-y-auto/,
+    );
+    assert.match(ownerPageSource, /if \(!isPrintView \|\| !printLayoutOpen\) return undefined/);
+    assert.match(ownerPageSource, /event\.key !== 'Escape'/);
+    assert.match(ownerPageSource, /window\.addEventListener\('keydown', handlePrintLayoutKeyDown\)/);
     assert.match(ownerPageSource, /Your saved image will match this preview/);
     assert.doesNotMatch(ownerPageSource, /onClick=\{\(\) => window\.print\(\)\}/);
     assert.match(directoryMapSource, /right-\[13px\] top-3 z-\[1002\] lg:right-3/);
