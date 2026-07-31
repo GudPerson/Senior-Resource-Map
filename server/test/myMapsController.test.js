@@ -17,6 +17,9 @@ import {
     unpublishMyMap,
 } from '../src/controllers/myMapsController.js';
 import {
+    duplicateMyMap,
+} from '../src/controllers/myMapCopiesController.js';
+import {
     attachPersonalPlaceToMap,
     createPersonalPlaceCategory,
     deletePersonalPlace,
@@ -30,6 +33,7 @@ import {
     myMapAssets,
     myMapPersonalPlaceLinks,
     myMapPersonalPlaces,
+    myMapPrintAnnotationDocuments,
     myMapShareSnapshots,
     myMaps,
     userPersonalPlaceCategories,
@@ -197,6 +201,8 @@ function attachAssets(state, map) {
                     personalPlace: personalPlace ? { ...personalPlace, category } : null,
                 };
             }),
+        printAnnotationDocument: state.printAnnotationDocuments
+            .find((document) => document.mapId === map.id) || null,
     };
 }
 
@@ -209,6 +215,7 @@ function createFakeDb({
     personalPlaces = [],
     personalPlaceCategories = [],
     personalPlaceLinks = [],
+    printAnnotationDocuments = [],
     legacyPersonalPlaces = [],
     shareSnapshots = [],
     hardAsset = null,
@@ -223,6 +230,7 @@ function createFakeDb({
         personalPlaces: personalPlaces.map((item) => ({ ...item })),
         personalPlaceCategories: personalPlaceCategories.map((item) => ({ ...item })),
         personalPlaceLinks: personalPlaceLinks.map((item) => ({ ...item })),
+        printAnnotationDocuments: printAnnotationDocuments.map((item) => ({ ...item })),
         legacyPersonalPlaces: legacyPersonalPlaces.map((item) => ({ ...item })),
         shareSnapshots: shareSnapshots.map((item) => ({ ...item })),
         hardAsset,
@@ -233,6 +241,7 @@ function createFakeDb({
         nextPersonalPlaceId: personalPlaces.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextPersonalPlaceCategoryId: personalPlaceCategories.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextPersonalPlaceLinkId: personalPlaceLinks.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
+        nextPrintAnnotationDocumentId: printAnnotationDocuments.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextShareSnapshotId: shareSnapshots.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
     };
 
@@ -463,12 +472,29 @@ function createFakeDb({
             if (table === myMapPersonalPlaceLinks) {
                 return {
                     values(value) {
-                        const row = {
+                        const rows = (Array.isArray(value) ? value : [value]).map((item) => ({
                             id: state.nextPersonalPlaceLinkId++,
                             addedAt: new Date('2026-03-14T11:07:30.000Z'),
+                            ...item,
+                        }));
+                        state.personalPlaceLinks.push(...rows);
+                        return {
+                            returning: async () => rows,
+                        };
+                    },
+                };
+            }
+
+            if (table === myMapPrintAnnotationDocuments) {
+                return {
+                    values(value) {
+                        const row = {
+                            id: state.nextPrintAnnotationDocumentId++,
+                            createdAt: new Date('2026-03-14T11:07:45.000Z'),
+                            updatedAt: new Date('2026-03-14T11:07:45.000Z'),
                             ...value,
                         };
-                        state.personalPlaceLinks.push(row);
+                        state.printAnnotationDocuments.push(row);
                         return {
                             returning: async () => [row],
                         };
@@ -704,6 +730,182 @@ test('createMyMap creates a named map and can seed it from saved assets', async 
     assert.equal(db.state.maps.length, 1);
     assert.equal(db.state.mapAssets.length, 1);
     assert.equal(db.state.mapAssets[0].snapshot.name, 'Saved centre snapshot');
+});
+
+test('duplicateMyMap creates a private owner copy with independent map child rows', async () => {
+    const db = createFakeDb({
+        maps: [createMap({
+            description: 'Planning around Teck Whye.',
+            isShared: true,
+            shareToken: 'live-token',
+            shareIncludesHandoffNotes: true,
+            shareUpdatedAt: new Date('2026-03-14T10:20:00.000Z'),
+        })],
+        mapAssets: [createMapAsset({
+            shortDescriptor: 'Use the side entrance.',
+            shortDescriptorTextColor: '#0F766E',
+            shortDescriptorHighlightColor: '#FEF3C7',
+            privateNote: 'Internal reminder.',
+            handoffNote: 'Bring referral letter.',
+            notesUpdatedAt: new Date('2026-03-14T10:30:00.000Z'),
+        })],
+        mapAssetNotes: [
+            {
+                id: 20,
+                mapAssetId: 9,
+                noteText: 'Bring referral letter.',
+                isShared: true,
+                sortOrder: 0,
+                createdAt: new Date('2026-03-14T10:31:00.000Z'),
+                updatedAt: new Date('2026-03-14T10:31:00.000Z'),
+            },
+            {
+                id: 21,
+                mapAssetId: 9,
+                noteText: 'Internal reminder.',
+                isShared: false,
+                sortOrder: 1,
+                createdAt: new Date('2026-03-14T10:32:00.000Z'),
+                updatedAt: new Date('2026-03-14T10:32:00.000Z'),
+            },
+        ],
+        mapAssetShortDescriptors: [{
+            id: 30,
+            mapAssetId: 9,
+            descriptorText: 'Use the side entrance.',
+            textColor: '#0F766E',
+            highlightColor: '#FEF3C7',
+            sortOrder: 0,
+            createdAt: new Date('2026-03-14T10:33:00.000Z'),
+            updatedAt: new Date('2026-03-14T10:33:00.000Z'),
+        }],
+        personalPlaces: [createPersonalPlace()],
+        personalPlaceCategories: [createPersonalPlaceCategoryFixture()],
+        personalPlaceLinks: [createPersonalPlaceLink()],
+        printAnnotationDocuments: [{
+            mapId: 3,
+            schemaVersion: 1,
+            annotations: [{
+                id: 'annotation_pin_1',
+                type: 'pin',
+                points: [[1.381, 103.741]],
+                text: 'Meet here',
+                style: {
+                    color: '#0F766E',
+                    fillColor: '#14B8A6',
+                    fillOpacity: 0.14,
+                    weight: 3,
+                    dashed: false,
+                    textColor: '#0F172A',
+                    fontSize: 14,
+                },
+            }],
+            revision: 4,
+            createdAt: new Date('2026-03-14T10:34:00.000Z'),
+            updatedAt: new Date('2026-03-14T10:34:00.000Z'),
+        }],
+        shareSnapshots: [{
+            id: 40,
+            mapId: 3,
+            shareToken: 'live-token',
+            snapshot: { name: 'Published copy' },
+            createdAt: new Date('2026-03-14T10:35:00.000Z'),
+            updatedAt: new Date('2026-03-14T10:35:00.000Z'),
+        }],
+    });
+
+    const copied = await duplicateMyMap(db, DEFAULT_USER, 3);
+    const sourceAsset = db.state.mapAssets.find((asset) => asset.mapId === 3);
+    const copiedAsset = db.state.mapAssets.find((asset) => asset.mapId === copied.id);
+    const copiedNotes = db.state.mapAssetNotes
+        .filter((note) => note.mapAssetId === copiedAsset.id)
+        .sort((left, right) => left.sortOrder - right.sortOrder);
+    const copiedDescriptors = db.state.mapAssetShortDescriptors
+        .filter((descriptor) => descriptor.mapAssetId === copiedAsset.id);
+    const copiedLinks = db.state.personalPlaceLinks.filter((link) => link.mapId === copied.id);
+    const copiedAnnotationDocument = db.state.printAnnotationDocuments
+        .find((document) => document.mapId === copied.id);
+
+    assert.equal(copied.name, 'Copy of Community planning');
+    assert.equal(copied.description, 'Planning around Teck Whye.');
+    assert.equal(copied.isShared, false);
+    assert.equal(copied.shareToken, null);
+    assert.equal(copied.sharePath, null);
+    assert.equal(copied.assetCount, 2);
+    assert.equal(copied.savedResourceCount, 1);
+    assert.equal(copied.personalPlaceCount, 1);
+    assert.equal(db.state.maps.length, 2);
+    assert.equal(copiedAsset.resourceType, 'hard');
+    assert.equal(copiedAsset.resourceId, 29);
+    assert.equal(copiedAsset.shortDescriptor, 'Use the side entrance.');
+    assert.notEqual(copiedAsset.id, sourceAsset.id);
+    copiedAsset.snapshot.name = 'Changed copied snapshot';
+    assert.equal(sourceAsset.snapshot.name, 'Saved centre snapshot');
+    assert.deepEqual(
+        copiedNotes.map((note) => ({ text: note.noteText, isShared: note.isShared, sortOrder: note.sortOrder })),
+        [
+            { text: 'Bring referral letter.', isShared: true, sortOrder: 0 },
+            { text: 'Internal reminder.', isShared: false, sortOrder: 1 },
+        ],
+    );
+    assert.deepEqual(
+        copiedDescriptors.map((descriptor) => ({
+            text: descriptor.descriptorText,
+            textColor: descriptor.textColor,
+            highlightColor: descriptor.highlightColor,
+        })),
+        [{
+            text: 'Use the side entrance.',
+            textColor: '#0F766E',
+            highlightColor: '#FEF3C7',
+        }],
+    );
+    assert.equal(copiedLinks.length, 1);
+    assert.equal(copiedLinks[0].personalPlaceId, 5);
+    assert.equal(db.state.personalPlaces.length, 1);
+    assert.deepEqual(copiedAnnotationDocument.annotations[0].points, [[1.381, 103.741]]);
+    assert.equal(copiedAnnotationDocument.revision, 1);
+    assert.equal(db.state.shareSnapshots.length, 1);
+    assert.equal(db.state.shareSnapshots[0].mapId, 3);
+});
+
+test('duplicateMyMap creates a unique private copy name', async () => {
+    const db = createFakeDb({
+        maps: [
+            createMap({ id: 3, name: 'Community planning' }),
+            createMap({ id: 4, name: 'Copy of Community planning' }),
+            createMap({ id: 5, name: 'Copy of Community planning (2)' }),
+        ],
+    });
+
+    const copied = await duplicateMyMap(db, DEFAULT_USER, 3);
+
+    assert.equal(copied.name, 'Copy of Community planning (3)');
+});
+
+test('duplicateMyMap rejects guests and maps not owned by the user', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+    });
+    const foreignDb = createFakeDb({
+        maps: [createMap()],
+        denyOwnedMaps: true,
+    });
+
+    await assert.rejects(
+        () => duplicateMyMap(db, { id: 11, role: 'guest' }, 3),
+        (err) => {
+            assert.equal(err.status, 403);
+            return true;
+        },
+    );
+    await assert.rejects(
+        () => duplicateMyMap(foreignDb, { id: 99, role: 'standard' }, 3),
+        (err) => {
+            assert.equal(err.status, 404);
+            return true;
+        },
+    );
 });
 
 test('getMyMapDetail falls back to snapshot data for unavailable assets', async () => {

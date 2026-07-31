@@ -18,6 +18,9 @@ import {
     postMyMapShare,
 } from '../controllers/myMapsController.js';
 import {
+    postMyMapDuplicate,
+} from '../controllers/myMapCopiesController.js';
+import {
     getMyMapPrintAnnotations,
     putMyMapPrintAnnotations,
 } from '../controllers/printAnnotationsController.js';
@@ -29,6 +32,7 @@ router.post('/', authenticateToken, postMyMap);
 router.get('/:id', authenticateToken, getMyMap);
 router.patch('/:id', authenticateToken, patchMyMap);
 router.delete('/:id', authenticateToken, deleteMyMap);
+router.post('/:id/duplicate', authenticateToken, postMyMapDuplicate);
 router.post('/:id/share', authenticateToken, postMyMapShare);
 router.delete('/:id/share', authenticateToken, deleteMyMapShare);
 router.get('/:id/print-annotations', authenticateToken, getMyMapPrintAnnotations);

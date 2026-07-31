@@ -241,6 +241,7 @@ export default function MyDirectoryPage() {
     const [renameTarget, setRenameTarget] = useState(null);
     const [renameSubmitting, setRenameSubmitting] = useState(false);
     const [renameError, setRenameError] = useState('');
+    const [duplicatingMapId, setDuplicatingMapId] = useState(null);
     const [deletingMapId, setDeletingMapId] = useState(null);
     const [mobileSavedControlsOpen, setMobileSavedControlsOpen] = useState(false);
     const [mobileMapControlsOpen, setMobileMapControlsOpen] = useState(false);
@@ -384,6 +385,21 @@ export default function MyDirectoryPage() {
             setRenameError(err.message || t('failedRenameMap'));
         } finally {
             setRenameSubmitting(false);
+        }
+    }
+
+    async function handleDuplicateMap(map) {
+        setDuplicatingMapId(map.id);
+        setMapsError('');
+        try {
+            const copied = await api.duplicateMyMap(map.id);
+            setMaps((items) => [copied, ...items.filter((item) => item.id !== copied.id)]);
+            navigate(`/my-directory/maps/${copied.id}`);
+        } catch (err) {
+            console.error(err);
+            setMapsError(err.message || t('failedDuplicateMap'));
+        } finally {
+            setDuplicatingMapId(null);
         }
     }
 
@@ -680,7 +696,9 @@ export default function MyDirectoryPage() {
                                             <MyMapCard
                                                 key={map.id}
                                                 map={map}
+                                                duplicating={duplicatingMapId === map.id}
                                                 deleting={deletingMapId === map.id}
+                                                onDuplicate={handleDuplicateMap}
                                                 onRename={(item) => {
                                                     setRenameError('');
                                                     setRenameTarget(item);

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Clock3, Map, Pencil, Trash2 } from 'lucide-react';
+import { ArrowRight, Copy, Map, Pencil, Trash2 } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getIntlLocale } from '../lib/i18n.js';
 
@@ -17,8 +17,10 @@ function formatUpdatedAt(value, locale) {
 
 export default function MyMapCard({
     map,
+    onDuplicate,
     onRename,
     onDelete,
+    duplicating = false,
     deleting = false,
 }) {
     const { locale, t } = useLocale();
@@ -65,6 +67,15 @@ export default function MyMapCard({
                     <ArrowRight size={18} />
                     {t('openMap')}
                 </Link>
+                <button
+                    type="button"
+                    onClick={() => onDuplicate?.(map)}
+                    disabled={duplicating || deleting}
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 disabled:cursor-wait disabled:opacity-50 active:scale-[0.98]"
+                >
+                    <Copy size={14} />
+                    {duplicating ? t('duplicatingMap') : t('duplicateMap')}
+                </button>
                 <div className="grid grid-cols-2 gap-2">
                     <button
                         type="button"

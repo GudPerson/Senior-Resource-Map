@@ -15,6 +15,43 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-07-31 Owner My Map duplicate action
+
+- Current behavior: authenticated non-guest map owners can duplicate one of
+  their own My Maps from the My Maps card list. The copy is created as a new
+  private map named `Copy of ...`, with a numeric suffix when needed. It opens
+  immediately after creation. Managed-resource rows, saved snapshots, private
+  and share-marked map notes, map-only short descriptions, reusable
+  personal-place links, and Print View annotation documents are copied into
+  independent rows for the new map. The new map does not inherit the source
+  map's shared status, share token, share snapshot, or public URL.
+- Known-good reference: branch `codex/duplicate-my-map`. The change is scoped
+  to the owner-only My Maps duplicate endpoint and My Directory card action. It
+  does not alter Discover visibility, public shared-map snapshots, saved
+  resource ownership rules, Personal Places library records, map geometry,
+  Detailed-map rendering, Print View export, schemas, or auth/session policy.
+- Reproduction steps: sign in as a map owner, open My Directory, choose the My
+  Maps tab, and select `Duplicate` on an existing map. Confirm the newly opened
+  map is named `Copy of <source name>`, includes the same managed resources and
+  reusable personal places, and remains private even if the source map was
+  shared. Repeat when an existing copy already exists and confirm the new copy
+  receives the next numeric suffix.
+- Acceptance criteria: guests and non-owners cannot duplicate a map; the new
+  map has its own resource, note, short-description, and annotation rows; the
+  Personal Places library record is not cloned or exposed publicly; source
+  share tokens and frozen share snapshots are never copied; and existing
+  create, rename, delete, share, Print View, and Detailed-map behavior remains
+  unchanged.
+- Verification result before deploy: full server coverage passed 496/496 with
+  `npm run test:server`; client source and i18n coverage passed 10/10 with
+  `node --test client/test/myMapsLoading.test.js
+  client/test/i18nCoverage.test.js`; the owner My Map/Print View lockdown gate
+  passed 74/74 plus the exact six-root production client build with
+  `npm run verify:map-lockdown`; the default client production build and
+  `git diff --check` passed. Production smoke credentials were unavailable in
+  this shell, so post-deploy verification uses API health, public route, bundle,
+  and unauthenticated endpoint checks.
+
 ## 2026-07-31 Owner Print View blank export recovery
 
 - Current behavior: owner Full-map Print View splits the former combined image

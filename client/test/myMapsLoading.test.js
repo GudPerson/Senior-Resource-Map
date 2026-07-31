@@ -20,6 +20,18 @@ const mobileMyMapEntryScrollResetSource = readFileSync(
     new URL('../src/components/MobileMyMapEntryScrollReset.jsx', import.meta.url),
     'utf8',
 );
+const myMapCardSource = readFileSync(
+    new URL('../src/components/MyMapCard.jsx', import.meta.url),
+    'utf8',
+);
+const apiSource = readFileSync(
+    new URL('../src/lib/api.js', import.meta.url),
+    'utf8',
+);
+const i18nSource = readFileSync(
+    new URL('../src/lib/i18n.js', import.meta.url),
+    'utf8',
+);
 const appSource = readFileSync(
     new URL('../src/App.jsx', import.meta.url),
     'utf8',
@@ -115,6 +127,20 @@ test('my maps pages use resilient loading helpers', () => {
     assert.match(myMapDetailPageSource, /return `\$\{userId\}:\$\{resolvedMapId\}`/);
     assert.match(myMapDetailPageSource, /const cachedDirectory = getCachedMyMapDetail\(user, mapId\)/);
     assert.match(myMapDetailPageSource, /cacheMyMapDetail\(user, mapId, nextDirectory\)/);
+});
+
+test('my maps list exposes an owner-only duplicate action that opens the copied map', () => {
+    assert.match(apiSource, /duplicateMyMap: \(id\) => request\('POST', `\/my-maps\/\$\{id\}\/duplicate`\)/);
+    assert.match(myDirectoryPageSource, /const \[duplicatingMapId, setDuplicatingMapId\] = useState\(null\)/);
+    assert.match(myDirectoryPageSource, /const copied = await api\.duplicateMyMap\(map\.id\)/);
+    assert.match(myDirectoryPageSource, /navigate\(`\/my-directory\/maps\/\$\{copied\.id\}`\)/);
+    assert.match(myDirectoryPageSource, /onDuplicate=\{handleDuplicateMap\}/);
+    assert.match(myMapCardSource, /import \{ ArrowRight, Copy, Map, Pencil, Trash2 \} from 'lucide-react'/);
+    assert.match(myMapCardSource, /onDuplicate,\s+onRename,/);
+    assert.match(myMapCardSource, /onClick=\{\(\) => onDuplicate\?\.\(map\)\}/);
+    assert.match(myMapCardSource, /duplicating \? t\('duplicatingMap'\) : t\('duplicateMap'\)/);
+    assert.match(i18nSource, /duplicateMap: 'Duplicate'/);
+    assert.match(i18nSource, /failedDuplicateMap: 'Failed to duplicate this map\.'/);
 });
 
 test('mobile My Map entry resets restored card-list scroll before showing the map', () => {
