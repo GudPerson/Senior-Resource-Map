@@ -12,6 +12,7 @@ test('V2 schema separates private library places, categories, and map links', ()
     assert.match(schemaSource, /user_personal_place_categories/);
     assert.match(schemaSource, /user_personal_places/);
     assert.match(schemaSource, /my_map_personal_place_links/);
+    assert.match(schemaSource, /shortDescriptors: jsonb\('short_descriptors'\)/);
     assert.match(schemaSource, /iconUrl: text\('icon_url'\)/);
     assert.match(schemaSource, /logoUrl: text\('logo_url'\)/);
     assert.match(schemaSource, /shortDescription: varchar\('short_description'/);
@@ -33,6 +34,8 @@ test('boundary bootstrap backfills V1 places idempotently', () => {
     assert.match(boundarySource, /ON CONFLICT \(legacy_map_personal_place_id\) DO NOTHING/);
     assert.match(boundarySource, /INSERT INTO my_map_personal_place_links/);
     assert.match(boundarySource, /ON CONFLICT \(map_id, personal_place_id\) DO NOTHING/);
+    assert.match(boundarySource, /ADD COLUMN IF NOT EXISTS short_descriptors JSONB/);
+    assert.match(boundarySource, /AND links\.short_descriptors IS NULL/);
     assert.match(boundarySource, /ADD COLUMN IF NOT EXISTS icon_url TEXT/);
     assert.match(boundarySource, /ADD COLUMN IF NOT EXISTS logo_url TEXT/);
     assert.match(boundarySource, /ADD COLUMN IF NOT EXISTS short_description VARCHAR\(240\)/);

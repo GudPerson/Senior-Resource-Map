@@ -572,6 +572,7 @@ export const api = {
     removeMyMapAsset: (id, resourceType, resourceId) => request('DELETE', `/my-maps/${id}/assets/${resourceType}/${resourceId}`),
     createMyMapPersonalPlace: (id, body) => request('POST', `/my-maps/${id}/personal-places`, body),
     updateMyMapPersonalPlace: (id, placeId, body) => request('PATCH', `/my-maps/${id}/personal-places/${placeId}`, body),
+    updateMyMapPersonalPlaceShortDescriptor: (id, placeId, body) => request('PATCH', `/my-maps/${id}/personal-places/${placeId}/short-description`, body),
     deleteMyMapPersonalPlace: (id, placeId) => request('DELETE', `/my-maps/${id}/personal-places/${placeId}`),
     attachMyMapPersonalPlace: (id, placeId) => request('POST', `/my-maps/${id}/personal-places`, { personalPlaceId: placeId }),
     getPersonalPlaces: () => request('GET', '/personal-places'),

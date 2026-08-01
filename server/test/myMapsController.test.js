@@ -12,6 +12,7 @@ import {
     publishMyMap,
     renameMyMap,
     updateMyMapPersonalPlace,
+    updateMyMapPersonalPlaceShortDescriptor,
     updateMyMapAssetNotes,
     updateMyMapAssetShortDescriptor,
     unpublishMyMap,
@@ -573,6 +574,28 @@ function createFakeDb({
                 };
             }
 
+            if (table === myMapPersonalPlaceLinks) {
+                return {
+                    set(values) {
+                        return {
+                            where: async (where) => {
+                                const whereValues = getWhereParamValues(where);
+                                const linkIndex = state.personalPlaceLinks.findIndex((link) => (
+                                    whereValues.includes(link.mapId)
+                                    && whereValues.includes(link.personalPlaceId)
+                                ));
+                                if (linkIndex < 0) return [];
+                                state.personalPlaceLinks[linkIndex] = {
+                                    ...state.personalPlaceLinks[linkIndex],
+                                    ...values,
+                                };
+                                return [state.personalPlaceLinks[linkIndex]];
+                            },
+                        };
+                    },
+                };
+            }
+
             if (table === userPersonalPlaceCategories) {
                 return {
                     set(values) {
@@ -781,7 +804,14 @@ test('duplicateMyMap creates a private owner copy with independent map child row
         }],
         personalPlaces: [createPersonalPlace()],
         personalPlaceCategories: [createPersonalPlaceCategoryFixture()],
-        personalPlaceLinks: [createPersonalPlaceLink()],
+        personalPlaceLinks: [createPersonalPlaceLink({
+            shortDescriptors: [{
+                text: 'Meet beside the sheltered entrance.',
+                textColor: '#1D4ED8',
+                highlightColor: '#DBEAFE',
+                sortOrder: 0,
+            }],
+        })],
         printAnnotationDocuments: [{
             mapId: 3,
             schemaVersion: 1,
@@ -862,6 +892,12 @@ test('duplicateMyMap creates a private owner copy with independent map child row
     );
     assert.equal(copiedLinks.length, 1);
     assert.equal(copiedLinks[0].personalPlaceId, 5);
+    assert.deepEqual(copiedLinks[0].shortDescriptors, [{
+        text: 'Meet beside the sheltered entrance.',
+        textColor: '#1D4ED8',
+        highlightColor: '#DBEAFE',
+        sortOrder: 0,
+    }]);
     assert.equal(db.state.personalPlaces.length, 1);
     assert.deepEqual(copiedAnnotationDocument.annotations[0].points, [[1.381, 103.741]]);
     assert.equal(copiedAnnotationDocument.revision, 1);
@@ -1181,6 +1217,40 @@ test('map owners can keep multiple independently styled short descriptions in or
     assert.equal(detail.assets[0].shortDescriptors.length, 2);
     assert.equal(detail.places[0].rows[0].mapShortDescriptors.length, 2);
     assert.equal(detail.places[0].rows[0].mapShortDescriptors[1].text, 'Registration is on level two.');
+});
+
+test('personal place short descriptions use the general editor data without changing other maps', async () => {
+    const db = createFakeDb({
+        maps: [createMap({ id: 3 }), createMap({ id: 4 })],
+        personalPlaces: [createPersonalPlace({ shortDescription: 'Legacy library description.' })],
+        personalPlaceCategories: [createPersonalPlaceCategoryFixture()],
+        personalPlaceLinks: [
+            createPersonalPlaceLink({ id: 4, mapId: 3, shortDescriptors: [] }),
+            createPersonalPlaceLink({ id: 5, mapId: 4, shortDescriptors: [] }),
+        ],
+    });
+
+    const updated = await updateMyMapPersonalPlaceShortDescriptor(db, DEFAULT_USER, 3, 5, {
+        shortDescriptors: [{
+            text: 'Meet beside the sheltered entrance.',
+            textColor: '#1d4ed8',
+            highlightColor: '#dbeafe',
+        }],
+    });
+    const firstMap = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+    const secondMap = await getMyMapDetail(db, DEFAULT_USER, 4, DEFAULT_CONTEXT);
+    const firstRow = firstMap.places.flatMap((place) => place.rows)
+        .find((row) => row.resourceType === 'personal_place');
+    const secondRow = secondMap.places.flatMap((place) => place.rows)
+        .find((row) => row.resourceType === 'personal_place');
+
+    assert.equal(updated.shortDescriptor, 'Meet beside the sheltered entrance.');
+    assert.equal(updated.shortDescriptorTextColor, '#1D4ED8');
+    assert.equal(updated.shortDescriptorHighlightColor, '#DBEAFE');
+    assert.equal(firstRow.mapShortDescriptor, 'Meet beside the sheltered entrance.');
+    assert.equal(firstRow.mapShortDescriptors.length, 1);
+    assert.equal(secondRow.mapShortDescriptor, null);
+    assert.equal(db.state.personalPlaces[0].shortDescription, 'Legacy library description.');
 });
 
 test('map descriptor updates preserve existing colours when an older client omits style fields', async () => {

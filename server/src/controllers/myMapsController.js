@@ -91,6 +91,13 @@ const updateMyMapAssetShortDescriptorBodySchema = z.object({
     shortDescriptors: z.array(mapAssetShortDescriptorInputSchema).max(20).optional(),
 });
 
+const updateMyMapPersonalPlaceShortDescriptorBodySchema = z.object({
+    shortDescriptor: optionalOneLineTextSchema(MY_MAP_SHORT_DESCRIPTOR_MAX_LENGTH),
+    shortDescriptorTextColor: optionalHexColorSchema,
+    shortDescriptorHighlightColor: optionalHexColorSchema,
+    shortDescriptors: z.array(mapAssetShortDescriptorInputSchema).max(20).optional(),
+});
+
 const shareMyMapBodySchema = z.object({
     includeHandoffNotes: z.boolean().optional(),
 });
@@ -246,6 +253,54 @@ function serializeMapAssetShortDescriptorItems(mapAsset) {
     }];
 }
 
+function normalizeNextShortDescriptors(body, existingShortDescriptors = []) {
+    if (Array.isArray(body.shortDescriptors)) {
+        return body.shortDescriptors
+            .map((descriptor, index) => ({
+                text: String(descriptor?.text || '').trim(),
+                textColor: normalizeHexColor(descriptor?.textColor),
+                highlightColor: normalizeHexColor(descriptor?.highlightColor),
+                sortOrder: index,
+            }))
+            .filter((descriptor) => descriptor.text);
+    }
+
+    const legacyText = String(body.shortDescriptor || '').trim();
+    const remainingDescriptors = existingShortDescriptors.slice(1);
+    return legacyText
+        ? [{
+            text: legacyText,
+            textColor: body.shortDescriptorTextColor === undefined
+                ? (existingShortDescriptors[0]?.textColor || null)
+                : normalizeHexColor(body.shortDescriptorTextColor),
+            highlightColor: body.shortDescriptorHighlightColor === undefined
+                ? (existingShortDescriptors[0]?.highlightColor || null)
+                : normalizeHexColor(body.shortDescriptorHighlightColor),
+            sortOrder: 0,
+        }, ...remainingDescriptors.map((descriptor, index) => ({
+            text: descriptor.text,
+            textColor: descriptor.textColor,
+            highlightColor: descriptor.highlightColor,
+            sortOrder: index + 1,
+        }))]
+        : remainingDescriptors.map((descriptor, index) => ({
+            text: descriptor.text,
+            textColor: descriptor.textColor,
+            highlightColor: descriptor.highlightColor,
+            sortOrder: index,
+        }));
+}
+
+function serializeShortDescriptorUpdate(shortDescriptors) {
+    const firstShortDescriptor = shortDescriptors[0] || null;
+    return {
+        shortDescriptor: firstShortDescriptor?.text || null,
+        shortDescriptorTextColor: firstShortDescriptor?.textColor || null,
+        shortDescriptorHighlightColor: firstShortDescriptor?.highlightColor || null,
+        shortDescriptors,
+    };
+}
+
 function serializeMyMapAssetRecord(mapAsset) {
     const shortDescriptors = serializeMapAssetShortDescriptorItems(mapAsset);
     const firstShortDescriptor = shortDescriptors[0] || null;
@@ -347,6 +402,7 @@ async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
                         id: true,
                         mapId: true,
                         personalPlaceId: true,
+                        shortDescriptors: true,
                         addedAt: true,
                     },
                     with: {
@@ -370,6 +426,7 @@ async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
                 ...link.personalPlace,
                 mapId: map.id,
                 linkId: link.id,
+                shortDescriptors: link.shortDescriptors,
                 addedAt: link.addedAt,
             }))
         : (map.personalPlaces || []);
@@ -795,42 +852,7 @@ export async function updateMyMapAssetShortDescriptor(db, user, mapId, body) {
     }
 
     const existingShortDescriptors = serializeMapAssetShortDescriptorItems(existing);
-    let nextShortDescriptors;
-    if (Array.isArray(body.shortDescriptors)) {
-        nextShortDescriptors = body.shortDescriptors
-            .map((descriptor, index) => ({
-                text: String(descriptor?.text || '').trim(),
-                textColor: normalizeHexColor(descriptor?.textColor),
-                highlightColor: normalizeHexColor(descriptor?.highlightColor),
-                sortOrder: index,
-            }))
-            .filter((descriptor) => descriptor.text);
-    } else {
-        const legacyText = String(body.shortDescriptor || '').trim();
-        const remainingDescriptors = existingShortDescriptors.slice(1);
-        nextShortDescriptors = legacyText
-            ? [{
-                text: legacyText,
-                textColor: body.shortDescriptorTextColor === undefined
-                    ? (existingShortDescriptors[0]?.textColor || null)
-                    : normalizeHexColor(body.shortDescriptorTextColor),
-                highlightColor: body.shortDescriptorHighlightColor === undefined
-                    ? (existingShortDescriptors[0]?.highlightColor || null)
-                    : normalizeHexColor(body.shortDescriptorHighlightColor),
-                sortOrder: 0,
-            }, ...remainingDescriptors.map((descriptor, index) => ({
-                text: descriptor.text,
-                textColor: descriptor.textColor,
-                highlightColor: descriptor.highlightColor,
-                sortOrder: index + 1,
-            }))]
-            : remainingDescriptors.map((descriptor, index) => ({
-                text: descriptor.text,
-                textColor: descriptor.textColor,
-                highlightColor: descriptor.highlightColor,
-                sortOrder: index,
-            }));
-    }
+    const nextShortDescriptors = normalizeNextShortDescriptors(body, existingShortDescriptors);
 
     const firstShortDescriptor = nextShortDescriptors[0] || null;
     const shortDescriptor = firstShortDescriptor?.text || null;
@@ -883,6 +905,41 @@ export async function updateMyMapAssetShortDescriptor(db, user, mapId, body) {
     });
 }
 
+export async function updateMyMapPersonalPlaceShortDescriptor(db, user, mapId, personalPlaceId, body) {
+    assertDirectoryUser(user);
+    await requireOwnedMap(db, user.id, mapId);
+
+    const link = await db.query.myMapPersonalPlaceLinks.findFirst({
+        where: and(
+            eq(myMapPersonalPlaceLinks.personalPlaceId, personalPlaceId),
+            eq(myMapPersonalPlaceLinks.mapId, mapId)
+        ),
+    });
+    if (!link) {
+        throw createHttpError(404, 'Personal place is not on this map');
+    }
+
+    const existingShortDescriptors = serializeMapAssetShortDescriptorItems({
+        shortDescriptors: link.shortDescriptors,
+    });
+    const nextShortDescriptors = normalizeNextShortDescriptors(body, existingShortDescriptors);
+    await db.update(myMapPersonalPlaceLinks)
+        .set({ shortDescriptors: nextShortDescriptors })
+        .where(and(
+            eq(myMapPersonalPlaceLinks.personalPlaceId, personalPlaceId),
+            eq(myMapPersonalPlaceLinks.mapId, mapId)
+        ));
+    await touchMap(db, mapId);
+
+    return {
+        mapId,
+        resourceType: 'personal_place',
+        resourceId: personalPlaceId,
+        personalPlaceId,
+        ...serializeShortDescriptorUpdate(nextShortDescriptors),
+    };
+}
+
 export async function removeAssetFromMyMap(db, user, mapId, resourceType, resourceId) {
     assertDirectoryUser(user);
     await requireOwnedMap(db, user.id, mapId);
@@ -915,7 +972,15 @@ export async function createMyMapPersonalPlace(db, user, mapId, body) {
     }
 
     const created = await createPersonalPlace(db, user, body);
-    return attachPersonalPlaceToMap(db, user, mapId, created.id);
+    const initialShortDescriptors = created.shortDescription ? [{
+        text: created.shortDescription,
+        textColor: null,
+        highlightColor: null,
+        sortOrder: 0,
+    }] : [];
+    return attachPersonalPlaceToMap(db, user, mapId, created.id, {
+        shortDescriptors: initialShortDescriptors,
+    });
 }
 
 export async function updateMyMapPersonalPlace(db, user, mapId, personalPlaceId, body) {
@@ -1133,6 +1198,35 @@ export const patchMyMapPersonalPlace = async (c) => {
     } catch (err) {
         console.error('patchMyMapPersonalPlace Error:', err);
         return c.json({ error: err.message || 'Failed to update personal place' }, err.status || 500);
+    }
+};
+
+export const patchMyMapPersonalPlaceShortDescriptor = async (c) => {
+    try {
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const mapId = parseMapId(c.req.param('id'));
+        const personalPlaceId = parsePersonalPlaceId(c.req.param('placeId'));
+        if (!mapId || !personalPlaceId) {
+            return c.json({ error: 'Map id and personal place id are required' }, 400);
+        }
+        const body = validateRequestBody(
+            await c.req.json(),
+            updateMyMapPersonalPlaceShortDescriptorBodySchema,
+            'Personal place short description'
+        );
+        const place = await updateMyMapPersonalPlaceShortDescriptor(
+            db,
+            user,
+            mapId,
+            personalPlaceId,
+            body
+        );
+        return c.json(place);
+    } catch (err) {
+        console.error('patchMyMapPersonalPlaceShortDescriptor Error:', err);
+        return c.json({ error: err.message || 'Failed to update personal place short description' }, err.status || 500);
     }
 };
 

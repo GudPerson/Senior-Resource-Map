@@ -15,6 +15,43 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-01 Unified personal-place short descriptions in owner Print View
+
+- Current behavior: the personal-place create/edit form no longer includes a
+  separate short-description field. In owner Print View, `Add short
+  description` and the existing multi-description formatting editor now apply
+  to managed resources and personal-place cards alike. Personal-place
+  descriptions are stored on that map's reusable-place link, so editing one
+  map does not change another map that uses the same private library place.
+  Existing library descriptions are migrated once into every current map link;
+  new links start with an explicit empty map-description list.
+- Known-good reference: branch
+  `codex/personal-place-map-short-descriptions`. The change is limited to the
+  owner-only My Map personal-place link, its authenticated update endpoint,
+  Print View description controls, duplicate-map copying, and compatibility
+  migration. It does not add personal places to Discover, shared snapshots, or
+  guest routes, and it does not change Leaflet geometry, Print View export, map
+  notes, the reusable library record, or public resource data.
+- Reproduction steps: sign in as a map owner, open an owned map with a personal
+  place, and enter Print View. Choose `Add short description`, select the
+  personal-place card, add two independently styled descriptions, save, and
+  refresh. Open another owned map using the same personal place and confirm its
+  descriptions are unchanged. Duplicate the first map and confirm its
+  personal-place descriptions are retained. Start creating or editing a
+  personal place and confirm the duplicate short-description field is absent.
+- Acceptance criteria: every owner Print View personal-place card exposes the
+  same add/edit description action as managed-resource cards; up to 20 ordered
+  descriptions retain text and highlight colours after save and refresh;
+  removing all descriptions remains empty; descriptions stay private and
+  map-specific; duplicate maps copy the values independently; old personal
+  descriptions are preserved by the idempotent boundary migration; personal
+  place create/edit, image upload, reuse, detach, shared-map privacy, and map
+  rendering remain unchanged.
+- Verification result before deploy: focused client/schema/controller coverage
+  passed 46/46; full server coverage passed 497/497; the owner My Map/Print View
+  lockdown gate passed 74/74 and its exact six-root production client build;
+  `git diff --check` and JavaScript syntax checks passed.
+
 ## 2026-07-31 Owner personal-place creation guidance and image upload draft preservation
 
 - Current behavior: starting a new personal place labels the map-first step as

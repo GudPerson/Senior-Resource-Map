@@ -465,7 +465,7 @@ export async function deletePersonalPlace(db, user, personalPlaceId) {
     return { success: true, personalPlaceId, removedFromMapIds: mapIds };
 }
 
-export async function attachPersonalPlaceToMap(db, user, mapId, personalPlaceId) {
+export async function attachPersonalPlaceToMap(db, user, mapId, personalPlaceId, options = {}) {
     assertPersonalPlacesUser(user);
     const map = await db.query.myMaps.findFirst({
         where: and(eq(myMaps.id, mapId), eq(myMaps.userId, user.id)),
@@ -485,6 +485,7 @@ export async function attachPersonalPlaceToMap(db, user, mapId, personalPlaceId)
         await db.insert(myMapPersonalPlaceLinks).values({
             mapId,
             personalPlaceId,
+            shortDescriptors: Array.isArray(options.shortDescriptors) ? options.shortDescriptors : [],
             addedAt: new Date(),
         });
         await db.update(myMaps).set({ updatedAt: new Date() }).where(eq(myMaps.id, mapId));

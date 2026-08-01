@@ -45,7 +45,6 @@ export default function PersonalPlaceEditorModal({
         postalCode: '',
         lat: '',
         lng: '',
-        shortDescription: '',
     });
     const [lookupQuery, setLookupQuery] = useState('');
     const [lookupBusy, setLookupBusy] = useState(false);
@@ -71,7 +70,6 @@ export default function PersonalPlaceEditorModal({
             postalCode: draft?.postalCode || '',
             lat: formatCoordinate(draft?.lat),
             lng: formatCoordinate(draft?.lng),
-            shortDescription: draft?.shortDescription || draft?.note || '',
         });
         setLookupQuery(draft?.postalCode || draft?.address || '');
         setLookupError('');
@@ -147,7 +145,6 @@ export default function PersonalPlaceEditorModal({
             postalCode: form.postalCode.trim(),
             lat: parsedLat,
             lng: parsedLng,
-            shortDescription: form.shortDescription.trim(),
         });
     }
 
@@ -332,17 +329,6 @@ export default function PersonalPlaceEditorModal({
                                 />
                             </label>
 
-                            <label className="space-y-1.5 sm:col-span-2">
-                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlaceShortDescription')}</span>
-                                <textarea
-                                    value={form.shortDescription}
-                                    onChange={(event) => updateField('shortDescription', event.target.value)}
-                                    maxLength={240}
-                                    rows={2}
-                                    className="input-field min-h-[76px] resize-y"
-                                    placeholder={t('personalPlaceShortDescriptionPlaceholder')}
-                                />
-                            </label>
                         </div>
 
                         {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}

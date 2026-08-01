@@ -777,6 +777,7 @@ export const myMapPersonalPlaceLinks = pgTable('my_map_personal_place_links', {
   id: serial('id').primaryKey(),
   mapId: integer('map_id').references(() => myMaps.id, { onDelete: 'cascade' }).notNull(),
   personalPlaceId: integer('personal_place_id').references(() => userPersonalPlaces.id, { onDelete: 'cascade' }).notNull(),
+  shortDescriptors: jsonb('short_descriptors'),
   addedAt: timestamp('added_at').defaultNow(),
 }, (table) => ({
   mapPlaceUnique: uniqueIndex('my_map_personal_place_links_map_place_unique').on(table.mapId, table.personalPlaceId),

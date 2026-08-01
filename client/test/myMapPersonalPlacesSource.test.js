@@ -178,11 +178,15 @@ test('My Map short descriptions stay separate from Map Notes and suppress repeat
         (detailSource.match(/setPrintShortDescriptionMode\(false\)/g) || []).length >= 4,
         'save, cancel, print close, and competing print tools should leave description mode',
     );
-    assert.match(editorSource, /personalPlaceShortDescription/);
+    assert.doesNotMatch(editorSource, /personalPlaceShortDescription/);
+    assert.doesNotMatch(editorSource, /shortDescription/);
     assert.match(editorSource, /personalPlaceImage/);
     assert.match(editorSource, /uploadFile=\{api\.uploadPersonalPlaceImage\}/);
     assert.match(editorSource, /logoUrl: form\.logoUrl\.trim\(\)/);
     assert.doesNotMatch(editorSource, /personalPlaceNote/);
     assert.match(apiSource, /updateMyMapAssetShortDescriptor/);
+    assert.match(apiSource, /updateMyMapPersonalPlaceShortDescriptor/);
+    assert.match(detailSource, /shortDescriptionRow\.resourceType === 'personal_place'/);
+    assert.doesNotMatch(listSource, /canManageShortDescription = mode === 'owner'[\s\S]{0,80}!personalPlace/);
     assert.match(apiSource, /uploadPersonalPlaceImage/);
 });

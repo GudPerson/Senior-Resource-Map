@@ -1109,16 +1109,6 @@ function hasRowShortDescription(row) {
 }
 
 function getRowShortDescriptionItems(row) {
-    if (isPersonalPlaceRow(row)) {
-        const text = String(row?.descriptor || '').trim();
-        return text ? [{
-            id: null,
-            text,
-            textColor: null,
-            highlightColor: null,
-            sortOrder: 0,
-        }] : [];
-    }
     return normalizeMapShortDescriptorItems(row);
 }
 
@@ -1347,7 +1337,6 @@ function DirectoryResourceRow({
     const personalPlace = isPersonalPlaceRow(row);
     const canManagePersonalPlace = mode === 'owner' && personalPlace;
     const canManageShortDescription = mode === 'owner'
-        && !personalPlace
         && Boolean(onEditResourceShortDescription);
     const shortDescriptionItems = getRowShortDescriptionItems(row);
     const hasShortDescription = shortDescriptionItems.length > 0;

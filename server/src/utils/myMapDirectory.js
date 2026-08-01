@@ -508,8 +508,20 @@ function buildMapAssetNotes(mapAsset, map, mode) {
 function buildMapAssetShortDescriptors(mapAsset, mode) {
     if (mode !== 'owner') return [];
 
-    const explicitDescriptors = Array.isArray(mapAsset?.shortDescriptors)
-        ? mapAsset.shortDescriptors.map((descriptor, index) => ({
+    return normalizeStoredShortDescriptors(mapAsset?.shortDescriptors, {
+        legacyText: mapAsset?.shortDescriptor,
+        legacyTextColor: mapAsset?.shortDescriptorTextColor,
+        legacyHighlightColor: mapAsset?.shortDescriptorHighlightColor,
+    });
+}
+
+function normalizeStoredShortDescriptors(shortDescriptors, {
+    legacyText = null,
+    legacyTextColor = null,
+    legacyHighlightColor = null,
+} = {}) {
+    const explicitDescriptors = Array.isArray(shortDescriptors)
+        ? shortDescriptors.map((descriptor, index) => ({
             id: Number.isInteger(descriptor?.id) ? descriptor.id : null,
             text: normalizeText(descriptor?.descriptorText ?? descriptor?.text),
             textColor: normalizeText(descriptor?.textColor),
@@ -524,13 +536,13 @@ function buildMapAssetShortDescriptors(mapAsset, mode) {
         ));
     }
 
-    const legacyText = normalizeText(mapAsset?.shortDescriptor);
-    if (!legacyText) return [];
+    const normalizedLegacyText = normalizeText(legacyText);
+    if (!normalizedLegacyText) return [];
     return [{
         id: null,
-        text: legacyText,
-        textColor: normalizeText(mapAsset?.shortDescriptorTextColor),
-        highlightColor: normalizeText(mapAsset?.shortDescriptorHighlightColor),
+        text: normalizedLegacyText,
+        textColor: normalizeText(legacyTextColor),
+        highlightColor: normalizeText(legacyHighlightColor),
         sortOrder: 0,
     }];
 }
@@ -770,6 +782,13 @@ function buildPersonalPlaceDirectoryEntry(personalPlace, categoryLookup) {
     const categoryKey = normalizeCategoryKey(categoryLabel);
     const categoryMeta = categoryKey ? categoryLookup.get(categoryKey) || null : null;
     const placeKey = buildPersonalPlaceKey(id);
+    const shortDescriptors = normalizeStoredShortDescriptors(
+        personalPlace?.shortDescriptors,
+        Array.isArray(personalPlace?.shortDescriptors)
+            ? {}
+            : { legacyText: personalPlace?.shortDescription || personalPlace?.note },
+    );
+    const firstShortDescriptor = shortDescriptors[0] || null;
     const row = {
         rowKey: placeKey,
         resourceType: 'personal_place',
@@ -791,7 +810,11 @@ function buildPersonalPlaceDirectoryEntry(personalPlace, categoryLookup) {
         categoryIconUrl: normalizeText(personalCategory?.iconUrl) || categoryMeta?.iconUrl || null,
         categoryIconKey: normalizeText(personalCategory?.iconKey) || 'map-pin',
         categoryColor: normalizeText(personalCategory?.color) || categoryMeta?.color || '#64748b',
-        descriptor: normalizeText(personalPlace?.shortDescription) || normalizeText(personalPlace?.note),
+        descriptor: firstShortDescriptor?.text || null,
+        mapShortDescriptors: shortDescriptors,
+        mapShortDescriptor: firstShortDescriptor?.text || null,
+        mapShortDescriptorTextColor: firstShortDescriptor?.textColor || null,
+        mapShortDescriptorHighlightColor: firstShortDescriptor?.highlightColor || null,
         address: normalizeText(personalPlace?.address),
         postalCode: normalizeText(personalPlace?.postalCode),
         lat,
@@ -999,7 +1022,11 @@ export async function buildMyMapDirectory(db, {
                 postalCode: entry.row.postalCode,
                 lat: entry.place.lat,
                 lng: entry.place.lng,
-                shortDescription: entry.row.descriptor,
+                shortDescription: entry.row.mapShortDescriptor,
+                shortDescriptor: entry.row.mapShortDescriptor,
+                shortDescriptorTextColor: entry.row.mapShortDescriptorTextColor,
+                shortDescriptorHighlightColor: entry.row.mapShortDescriptorHighlightColor,
+                shortDescriptors: entry.row.mapShortDescriptors,
                 addedAt: entry.row.addedAt,
                 updatedAt: entry.row.updatedAt,
             });

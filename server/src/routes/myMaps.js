@@ -12,6 +12,7 @@ import {
     patchMyMapAssetShortDescriptor,
     patchMyMapAssetNotes,
     patchMyMapPersonalPlace,
+    patchMyMapPersonalPlaceShortDescriptor,
     postMyMap,
     postMyMapAsset,
     postMyMapPersonalPlace,
@@ -39,6 +40,7 @@ router.get('/:id/print-annotations', authenticateToken, getMyMapPrintAnnotations
 router.put('/:id/print-annotations', authenticateToken, putMyMapPrintAnnotations);
 router.post('/:id/personal-places', authenticateToken, postMyMapPersonalPlace);
 router.patch('/:id/personal-places/:placeId', authenticateToken, patchMyMapPersonalPlace);
+router.patch('/:id/personal-places/:placeId/short-description', authenticateToken, patchMyMapPersonalPlaceShortDescriptor);
 router.delete('/:id/personal-places/:placeId', authenticateToken, deleteMyMapPersonalPlaceRoute);
 router.post('/:id/assets', authenticateToken, postMyMapAsset);
 router.patch('/:id/assets/:resourceType/:resourceId/short-description', authenticateToken, patchMyMapAssetShortDescriptor);

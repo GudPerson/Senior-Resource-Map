@@ -265,9 +265,11 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     id SERIAL PRIMARY KEY,
                     map_id INTEGER NOT NULL REFERENCES my_maps(id) ON DELETE CASCADE,
                     personal_place_id INTEGER NOT NULL REFERENCES user_personal_places(id) ON DELETE CASCADE,
+                    short_descriptors JSONB,
                     added_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.execute(sql`ALTER TABLE my_map_personal_place_links ADD COLUMN IF NOT EXISTS short_descriptors JSONB`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_personal_place_categories_user_name_unique ON user_personal_place_categories (user_id, normalized_name)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS user_personal_places_legacy_place_unique ON user_personal_places (legacy_map_personal_place_id)`);
             await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS my_map_personal_place_links_map_place_unique ON my_map_personal_place_links (map_id, personal_place_id)`);
@@ -345,6 +347,22 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                 INNER JOIN user_personal_places library_places
                     ON library_places.legacy_map_personal_place_id = places.id
                 ON CONFLICT (map_id, personal_place_id) DO NOTHING
+            `);
+            await db.execute(sql`
+                UPDATE my_map_personal_place_links links
+                SET short_descriptors = CASE
+                    WHEN NULLIF(BTRIM(places.short_description), '') IS NOT NULL THEN
+                        jsonb_build_array(jsonb_build_object(
+                            'text', BTRIM(places.short_description),
+                            'textColor', NULL,
+                            'highlightColor', NULL,
+                            'sortOrder', 0
+                        ))
+                    ELSE '[]'::jsonb
+                END
+                FROM user_personal_places places
+                WHERE places.id = links.personal_place_id
+                    AND links.short_descriptors IS NULL
             `);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_map_share_snapshots (

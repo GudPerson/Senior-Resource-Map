@@ -733,6 +733,16 @@ function applyResourceShortDescriptorToDirectory(directory, resourceType, resour
                 shortDescriptors,
             } : asset
         )),
+        personalPlaces: (directory.personalPlaces || []).map((place) => (
+            matchesResource(place) ? {
+                ...place,
+                shortDescription: shortDescriptor,
+                shortDescriptor,
+                shortDescriptorTextColor,
+                shortDescriptorHighlightColor,
+                shortDescriptors,
+            } : place
+        )),
         places: (directory.places || []).map((place) => ({
             ...place,
             rows: (place.rows || []).map((row) => (
@@ -2210,7 +2220,6 @@ export default function MyMapDetailPage() {
             postalCode: '',
             lat,
             lng,
-            shortDescription: '',
         });
         setPersonalPlaceError('');
         setPersonalPlacePickerActive(false);
@@ -2232,7 +2241,6 @@ export default function MyMapDetailPage() {
             postalCode: row.postalCode || '',
             lat: row.lat ?? row.placeLat ?? null,
             lng: row.lng ?? row.placeLng ?? null,
-            shortDescription: row.descriptor || row.shortDescription || row.note || '',
         });
         setPersonalPlaceModalOpen(true);
     }
@@ -2429,7 +2437,7 @@ export default function MyMapDetailPage() {
     }
 
     function handleEditResourceShortDescription(row) {
-        if (!row || row.resourceType === 'personal_place') return;
+        if (!row) return;
         setShortDescriptionError('');
         setShortDescriptionRow(row);
     }
@@ -2446,12 +2454,18 @@ export default function MyMapDetailPage() {
         setShortDescriptionSubmitting(true);
         setShortDescriptionError('');
         try {
-            const updated = await api.updateMyMapAssetShortDescriptor(
-                directory.id,
-                shortDescriptionRow.resourceType,
-                shortDescriptionRow.resourceId,
-                descriptorPatch
-            );
+            const updated = shortDescriptionRow.resourceType === 'personal_place'
+                ? await api.updateMyMapPersonalPlaceShortDescriptor(
+                    directory.id,
+                    shortDescriptionRow.personalPlaceId || shortDescriptionRow.resourceId,
+                    descriptorPatch
+                )
+                : await api.updateMyMapAssetShortDescriptor(
+                    directory.id,
+                    shortDescriptionRow.resourceType,
+                    shortDescriptionRow.resourceId,
+                    descriptorPatch
+                );
             setDirectory((current) => applyResourceShortDescriptorToDirectory(
                 current,
                 shortDescriptionRow.resourceType,

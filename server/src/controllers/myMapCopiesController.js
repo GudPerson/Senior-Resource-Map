@@ -114,6 +114,7 @@ async function loadOwnedMapForDuplicate(db, userId, mapId) {
                     id: true,
                     mapId: true,
                     personalPlaceId: true,
+                    shortDescriptors: true,
                     addedAt: true,
                 },
                 with: {
@@ -177,6 +178,7 @@ function getOwnedPersonalPlaceLinks(map, userId) {
         if (link?.personalPlace?.userId !== userId) return;
         uniqueLinks.set(personalPlaceId, {
             personalPlaceId,
+            shortDescriptors: cloneJson(link.shortDescriptors) || [],
         });
     });
     return [...uniqueLinks.values()];
@@ -240,6 +242,7 @@ export async function duplicateMyMap(db, user, mapId) {
             personalPlaceLinks.map((link) => ({
                 mapId: createdMap.id,
                 personalPlaceId: link.personalPlaceId,
+                shortDescriptors: link.shortDescriptors,
                 addedAt: timestamp,
             })),
         );
