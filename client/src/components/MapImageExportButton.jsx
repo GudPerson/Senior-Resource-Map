@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileDown, ImageDown } from 'lucide-react';
+import {
+    AlertTriangle,
+    CheckCircle2,
+    FileDown,
+    ImageDown,
+    LoaderCircle,
+    RefreshCw,
+} from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { toPng } from 'html-to-image';
 
@@ -22,6 +29,9 @@ const MAP_CAPTURE_RETRY_DELAY_MS = 750;
 const MAP_CAPTURE_BLANK_SAMPLE_SIZE = 96;
 const MAP_CAPTURE_BLANK_MAX_AVERAGE_DISTANCE = 3;
 const MAP_CAPTURE_BLANK_MAX_CHANNEL_RANGE = 24;
+const MAP_READINESS_PROBE_MAX_ATTEMPTS = 4;
+const MAP_READINESS_PROBE_RETRY_DELAY_MS = 900;
+const MAP_READINESS_PROBE_CANVAS_WIDTH = 320;
 
 function buildFileName(directoryName, pageName = 'summary') {
     const slug = String(directoryName || 'carearound-directory')
@@ -214,8 +224,13 @@ export default function MapImageExportButton({
     const mapViewportSnapshotRef = useRef(null);
     const readyWaitersRef = useRef([]);
     const exportNodeWaitersRef = useRef([]);
+    const readinessGenerationRef = useRef(0);
     const [exportingFormat, setExportingFormat] = useState('');
     const [error, setError] = useState('');
+    const [mapDownloadStatus, setMapDownloadStatus] = useState('preparing');
+    const [mapDownloadProgress, setMapDownloadProgress] = useState(12);
+    const [preparationAttempt, setPreparationAttempt] = useState(0);
+    const [verifiedPreparationKey, setVerifiedPreparationKey] = useState('');
     const exportRoot = typeof document !== 'undefined' ? document.body : null;
     const exportWidth = PRINT_MAP_CANVAS_WIDTH_PX;
     const printMapCaptureKey = printMapState ? buildPrintMapCaptureKey(printMapState) : '';
@@ -223,30 +238,42 @@ export default function MapImageExportButton({
     const printMapQuality = normalizePrintMapQuality(printMapState?.mapQuality);
     const exportAsSeparatePages = shouldExportPrintMapAsSeparatePages(printMapState);
     const exporting = Boolean(exportingFormat);
-
-    const resetExportReadiness = useCallback(() => {
-        exportReadyRef.current = false;
-        mapErrorRef.current = null;
-        mapViewportSnapshotRef.current = null;
-        readyWaitersRef.current = [];
-    }, []);
-
-    useEffect(() => {
-        resetExportReadiness();
-    }, [
+    const exportPreparationKey = [
+        directory?.id,
+        directory?.summary?.resourceCount,
+        directory?.updatedAt,
         activeAnchor?.address,
         activeAnchor?.kind,
         activeAnchor?.lat,
         activeAnchor?.lng,
         activeAnchor?.postalCode,
-        directory?.id,
-        directory?.summary?.resourceCount,
-        directory?.updatedAt,
         printMapCaptureKey,
         printAnnotationCaptureKey,
-        resetExportReadiness,
         shareUrl,
-    ]);
+    ].map((value) => String(value ?? '')).join('|');
+    const mapDownloadReady = mapDownloadStatus === 'ready'
+        && verifiedPreparationKey === exportPreparationKey;
+
+    const resetExportReadiness = useCallback(() => {
+        readinessGenerationRef.current += 1;
+        exportReadyRef.current = false;
+        mapErrorRef.current = null;
+        mapViewportSnapshotRef.current = null;
+        readyWaitersRef.current = [];
+        setVerifiedPreparationKey('');
+        setMapDownloadStatus('preparing');
+        setMapDownloadProgress(12);
+        setError('');
+    }, []);
+
+    useEffect(() => {
+        resetExportReadiness();
+        setPreparationAttempt((current) => current + 1);
+    }, [exportPreparationKey, resetExportReadiness]);
+
+    useEffect(() => () => {
+        readinessGenerationRef.current += 1;
+    }, []);
 
     const handleExportNodeRef = useCallback((node) => {
         exportRef.current = node;
@@ -256,7 +283,6 @@ export default function MapImageExportButton({
     }, []);
 
     async function mountExportSurface(format) {
-        resetExportReadiness();
         setExportingFormat(format);
         if (exportRef.current) return exportRef.current;
 
@@ -276,16 +302,81 @@ export default function MapImageExportButton({
         });
     }
 
+    const verifyMapDownloadReadiness = useCallback(async () => {
+        const readinessGeneration = readinessGenerationRef.current;
+        setMapDownloadStatus('checking');
+        setMapDownloadProgress(68);
+
+        try {
+            for (let attempt = 0; attempt < MAP_READINESS_PROBE_MAX_ATTEMPTS; attempt += 1) {
+                if (readinessGeneration !== readinessGenerationRef.current) return;
+
+                await waitForPaintStabilization(3);
+                const mapFrameNode = exportRef.current?.querySelector('[data-print-export-map-frame="true"]');
+                if (!mapFrameNode) {
+                    throw new Error('Map download preparation failed because the export map is unavailable.');
+                }
+
+                const { width, height } = getExportNodeDimensions(mapFrameNode);
+                const probeScale = Math.min(1, MAP_READINESS_PROBE_CANVAS_WIDTH / width);
+                const dataUrl = await toPng(mapFrameNode, {
+                    cacheBust: true,
+                    imagePlaceholder: TRANSPARENT_IMAGE_PLACEHOLDER,
+                    pixelRatio: 1,
+                    backgroundColor: '#ffffff',
+                    width,
+                    height,
+                    canvasWidth: Math.max(1, Math.round(width * probeScale)),
+                    canvasHeight: Math.max(1, Math.round(height * probeScale)),
+                });
+                const mapIsBlank = await isMapCaptureVisiblyBlank({
+                    dataUrl,
+                    pageNode: mapFrameNode,
+                    mapFrameNode,
+                });
+
+                if (readinessGeneration !== readinessGenerationRef.current) return;
+                if (!mapIsBlank) {
+                    exportReadyRef.current = true;
+                    mapErrorRef.current = null;
+                    setVerifiedPreparationKey(exportPreparationKey);
+                    setMapDownloadStatus('ready');
+                    setMapDownloadProgress(100);
+                    const waiters = readyWaitersRef.current.splice(0);
+                    waiters.forEach(({ resolve }) => resolve());
+                    return;
+                }
+
+                setMapDownloadProgress(76 + (attempt * 6));
+                if (attempt < MAP_READINESS_PROBE_MAX_ATTEMPTS - 1) {
+                    await delay(MAP_READINESS_PROBE_RETRY_DELAY_MS);
+                }
+            }
+
+            throw new Error('Map download preparation did not produce a usable map image.');
+        } catch (captureError) {
+            if (readinessGeneration !== readinessGenerationRef.current) return;
+            mapErrorRef.current = captureError;
+            exportReadyRef.current = false;
+            setVerifiedPreparationKey('');
+            setMapDownloadStatus('error');
+            setMapDownloadProgress(0);
+            const waiters = readyWaitersRef.current.splice(0);
+            waiters.forEach(({ reject }) => reject(captureError));
+        }
+    }, [exportPreparationKey]);
+
     const handleMapReadyForCapture = useCallback(() => {
-        exportReadyRef.current = true;
-        mapErrorRef.current = null;
-        const waiters = readyWaitersRef.current.splice(0);
-        waiters.forEach(({ resolve }) => resolve());
-    }, []);
+        void verifyMapDownloadReadiness();
+    }, [verifyMapDownloadReadiness]);
 
     const handleMapCaptureError = useCallback((captureError) => {
+        readinessGenerationRef.current += 1;
         mapErrorRef.current = captureError;
         exportReadyRef.current = false;
+        setVerifiedPreparationKey('');
+        setMapDownloadStatus('error');
+        setMapDownloadProgress(0);
         const waiters = readyWaitersRef.current.splice(0);
         waiters.forEach(({ reject }) => reject(captureError));
     }, []);
@@ -427,7 +518,12 @@ export default function MapImageExportButton({
     }
 
     async function handleImageExport(pageName = '') {
+        const requiresMap = pageName !== 'resources';
         if (exporting) return;
+        if (requiresMap && !mapDownloadReady) {
+            setError(t('mapDownloadUnavailable'));
+            return;
+        }
         setError('');
         const exportFormat = pageName ? `${pageName}-image` : 'image';
 
@@ -448,6 +544,10 @@ export default function MapImageExportButton({
 
     async function handlePdfExport() {
         if (exporting) return;
+        if (!mapDownloadReady) {
+            setError(t('mapDownloadUnavailable'));
+            return;
+        }
         setError('');
 
         try {
@@ -462,6 +562,19 @@ export default function MapImageExportButton({
             setExportingFormat('');
         }
     }
+
+    function retryMapDownloadPreparation() {
+        resetExportReadiness();
+        setPreparationAttempt((current) => current + 1);
+    }
+
+    const mapDownloadStatusLabel = mapDownloadStatus === 'ready'
+        ? t('mapDownloadReady')
+        : mapDownloadStatus === 'checking'
+            ? t('mapDownloadChecking')
+            : mapDownloadStatus === 'error'
+                ? t('mapDownloadUnavailable')
+                : t('mapDownloadPreparing');
 
     return (
         <>
@@ -481,7 +594,8 @@ export default function MapImageExportButton({
                     <button
                         type="button"
                         onClick={() => handleImageExport('map')}
-                        disabled={exporting}
+                        disabled={exporting || !mapDownloadReady}
+                        aria-describedby="map-download-readiness"
                         data-print-export-quality={printMapQuality}
                         data-print-export-page-action="map"
                         className={`btn-ghost justify-center border border-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
@@ -494,7 +608,8 @@ export default function MapImageExportButton({
                 <button
                     type="button"
                     onClick={() => handleImageExport()}
-                    disabled={exporting}
+                    disabled={exporting || !mapDownloadReady}
+                    aria-describedby="map-download-readiness"
                     data-print-export-quality={printMapQuality}
                     className={`btn-ghost justify-center border border-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
                 >
@@ -505,18 +620,69 @@ export default function MapImageExportButton({
             <button
                 type="button"
                 onClick={handlePdfExport}
-                disabled={exporting}
+                disabled={exporting || !mapDownloadReady}
+                aria-describedby="map-download-readiness"
                 data-print-pdf-export="a3"
                 className={`btn-ghost justify-center border border-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
             >
                 <FileDown size={16} />
                 {exportingFormat === 'pdf' ? t('preparingPdf') : t('savePrintPdf')}
             </button>
+            <div
+                id="map-download-readiness"
+                role="status"
+                aria-live="polite"
+                data-print-export-readiness={mapDownloadStatus}
+                className={`col-span-2 flex min-h-11 min-w-0 items-center gap-2 rounded border px-3 py-2 text-xs font-semibold sm:w-auto sm:min-w-[220px] ${
+                    mapDownloadStatus === 'ready'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                        : mapDownloadStatus === 'error'
+                            ? 'border-amber-200 bg-amber-50 text-amber-900'
+                            : 'border-slate-200 bg-slate-50 text-slate-700'
+                }`}
+            >
+                {mapDownloadStatus === 'ready' ? (
+                    <CheckCircle2 size={16} className="shrink-0" aria-hidden="true" />
+                ) : mapDownloadStatus === 'error' ? (
+                    <AlertTriangle size={16} className="shrink-0" aria-hidden="true" />
+                ) : (
+                    <LoaderCircle size={16} className="shrink-0 animate-spin" aria-hidden="true" />
+                )}
+                <div className="min-w-0 flex-1">
+                    <span className="block leading-4">{mapDownloadStatusLabel}</span>
+                    {mapDownloadStatus === 'preparing' || mapDownloadStatus === 'checking' ? (
+                        <span
+                            role="progressbar"
+                            aria-label={mapDownloadStatusLabel}
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                            aria-valuenow={mapDownloadProgress}
+                            className="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-slate-200"
+                        >
+                            <span
+                                className="block h-full rounded-full bg-brand-600 transition-[width] duration-300"
+                                style={{ width: `${mapDownloadProgress}%` }}
+                            />
+                        </span>
+                    ) : null}
+                </div>
+                {mapDownloadStatus === 'error' ? (
+                    <button
+                        type="button"
+                        onClick={retryMapDownloadPreparation}
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded border border-amber-300 bg-white text-amber-900 hover:bg-amber-100"
+                        aria-label={t('retryMapDownloadPreparation')}
+                        title={t('retryMapDownloadPreparation')}
+                    >
+                        <RefreshCw size={15} aria-hidden="true" />
+                    </button>
+                ) : null}
+            </div>
             {error ? (
-                <p className="text-sm font-medium text-red-600">{error}</p>
+                <p className="col-span-2 text-sm font-medium text-red-600">{error}</p>
             ) : null}
 
-            {exporting && exportRoot ? createPortal(
+            {exportRoot ? createPortal(
                 <div
                     className="pointer-events-none fixed left-0 top-0 overflow-visible p-8"
                     style={{ zIndex: -1, opacity: 0.01 }}
@@ -524,6 +690,7 @@ export default function MapImageExportButton({
                 >
                     <div ref={handleExportNodeRef}>
                         <MapDirectoryExportPanel
+                            key={`${exportPreparationKey}:${preparationAttempt}`}
                             directory={directory}
                             activeAnchor={activeAnchor}
                             shareUrl={shareUrl}

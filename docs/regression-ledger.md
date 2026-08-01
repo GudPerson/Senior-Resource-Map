@@ -160,6 +160,43 @@ Rules:
   this shell, so post-deploy verification uses API health, public route, bundle,
   and unauthenticated endpoint checks.
 
+## 2026-08-01 Owner Print View verified download readiness
+
+- Current behavior: owner Print View prepares its hidden export map as soon as
+  the workspace opens. `Save Map PNG`, combined `Save PNG`, and `Save PDF` stay
+  disabled while the actual export surface loads and while a low-resolution
+  capture probe checks that the map frame is not blank. The toolbar shows
+  preparation/checking progress, confirms when the map is ready, and exposes a
+  retry action when preparation fails. In Full map, `Save Resource PNG` remains
+  available independently because it does not contain a map. Final exports
+  retain the existing full-resolution blank-frame check and retry.
+- Known-good reference: branch `codex/print-export-readiness-indicator`. The
+  change is client-only and limited to the owner Print View hidden export
+  lifecycle, download controls, localized readiness feedback, and focused
+  coverage. It does not alter map data, map cameras, Detailed-map selection,
+  annotations, resource cards, export composition, sharing, ownership, APIs,
+  schemas, or production data.
+- Reproduction steps: sign in as a map owner and open an owned map in Print
+  View on a slow or cold browser session. Move or resize the preview map while
+  the hidden export map is loading. Confirm the map-dependent download buttons
+  remain disabled while the progress indicator is visible, then become enabled
+  only after `Map ready to download` appears. In Full map, confirm `Save
+  Resource PNG` remains usable during map preparation. Force or encounter a
+  preparation failure and confirm the retry control restarts preparation.
+- Acceptance criteria: no map-dependent download can start before a nonblank
+  capture from the hidden export map has been verified; readiness resets after
+  map, layout, annotation, directory, or anchor changes; failure leaves map
+  downloads disabled with clear retryable feedback; Resource PNG remains
+  independent; existing final blank rejection and all locked map behavior stay
+  unchanged.
+- Verification result before release: focused Print View coverage passed 25/25
+  with `node --test client/test/printMapWorkspace.test.js`; complete locked-map
+  coverage passed 75/75 with `npm run verify:map-lockdown`; both the default and
+  exact six-root production client builds completed with only the established
+  large-chunk advisory. Full client/source coverage passed 523/524; the sole
+  failure is the existing date-expired Care Calendar planning-conflict fixture,
+  outside this Print View change.
+
 ## 2026-07-31 Owner Print View blank export recovery
 
 - Current behavior: owner Full-map Print View splits the former combined image

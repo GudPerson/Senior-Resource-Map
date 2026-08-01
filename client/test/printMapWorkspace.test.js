@@ -549,7 +549,7 @@ test('visible preview and hidden image export consume the same frozen print map 
     assert.match(exportButtonSource, /const exportFormat = pageName \? `\$\{pageName\}-image` : 'image'/);
     assert.match(exportButtonSource, /await mountExportSurface\(exportFormat\)/);
     assert.match(exportButtonSource, /await mountExportSurface\('pdf'\)/);
-    assert.match(exportButtonSource, /\{exporting && exportRoot \? createPortal\(/);
+    assert.match(exportButtonSource, /\{exportRoot \? createPortal\(/);
     assert.match(exportButtonSource, /<div ref=\{handleExportNodeRef\}>/);
     assert.match(exportPanelSource, /printMapState=\{printMapState\}/);
     assert.match(exportPanelSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);
@@ -654,6 +654,18 @@ test('map image export rejects blank map captures and saves large PNGs as blobs'
     assert.match(exportButtonSource, /waitForExportSurface\(\{ waitForMap: pageName !== 'resources' \}\)/);
     assert.match(exportButtonSource, /captureExportPages\(\{ pageName \}\)/);
     assert.match(exportButtonSource, /style=\{\{ zIndex: -1, opacity: 0\.01 \}\}/);
+});
+
+test('map downloads wait for a verified export surface while resource PNG stays available', () => {
+    assert.match(exportButtonSource, /MAP_READINESS_PROBE_MAX_ATTEMPTS/);
+    assert.match(exportButtonSource, /verifyMapDownloadReadiness/);
+    assert.match(exportButtonSource, /await isMapCaptureVisiblyBlank/);
+    assert.match(exportButtonSource, /data-print-export-readiness=\{mapDownloadStatus\}/);
+    assert.match(exportButtonSource, /role="progressbar"/);
+    assert.match(exportButtonSource, /disabled=\{exporting \|\| !mapDownloadReady\}/g);
+    assert.match(exportButtonSource, /onClick=\{\(\) => handleImageExport\('resources'\)\}[\s\S]*?disabled=\{exporting\}[\s\S]*?data-print-export-page-action="resources"/);
+    assert.match(exportButtonSource, /t\('retryMapDownloadPreparation'\)/);
+    assert.match(exportButtonSource, /\{exportRoot \? createPortal\(/);
 });
 
 test('separate map and resource PNG labels are available in every locale', () => {
