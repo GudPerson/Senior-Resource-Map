@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-02 (Asia/Singapore)
 
-## High-Detail Town Maps release gate (2026-08-02, production approved)
+## High-Detail Town Maps production release (2026-08-02, verified)
 
 - Isolated worktree:
   `/Users/sweetbuns/CareAroundSG-high-detail-town-maps`; branch
@@ -48,8 +48,25 @@ Last updated: 2026-08-02 (Asia/Singapore)
   `v4/town-map-downloads-20260801/default`. Keep this partial root untouched as
   forensic evidence. Keep the verified
   `v4/town-map-downloads-20260801-r2/default` root immutable and do not rerun its
-  uploader. The user approved the CareAround SG production client release on
-  2026-08-02; deployment and authenticated custom-domain UAT are pending.
+  uploader.
+- Production code commit `485910dc0` is pushed on
+  `codex/high-detail-town-map-downloads`. The exact six-root production build
+  deployed to `https://ff9d8d64.senior-resource-map.pages.dev`; the preview and
+  `https://app.carearound.sg` matched local HTML, entry, CSS, Town Maps, My Map,
+  and map-export bytes. Entry SHA-256:
+  `c48e51ec19627ad9093176d0549465c9342bb6646fb582202fb9f6002c0989de`;
+  Town Maps chunk SHA-256:
+  `eea095a9b25bec046e006df1b78485c54efbe59fc84c3fe1dd30c91f2020ac2e`.
+- Authenticated custom-domain UAT passed desktop `1440 x 900`, mobile
+  `390 x 844`, 32-map completeness, three-preview initial lazy loading, no
+  preselected PNG/PDF DOM URLs, `S01` search, real Southern Islands PNG/PDF
+  download starts, attribution, mobile Wi-Fi guidance, no horizontal overflow,
+  and complete English/Chinese/Malay/Tamil presentation. A fresh My Map route
+  loaded no download-library URL or app-origin console error. The authenticated
+  owner had zero saved My Maps, so no production test map was created; local
+  authenticated existing-map UAT remains the interaction-level network proof.
+  Production API health returned OK. No Worker, schema, auth, permission,
+  secret, or production-data change was deployed.
 
 ## Map stable baseline lock (2026-07-23)
 

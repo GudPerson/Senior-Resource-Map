@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-01 Authenticated High-Detail Town Maps download library (production release approved)
+## 2026-08-01 Authenticated High-Detail Town Maps download library (production released)
 
 - Current behavior: signed-in users with My Directory access can open
   `/my-directory/town-maps`, search all 32 validated Default-colour town maps
@@ -86,8 +86,31 @@ Rules:
   5,220,043 bytes and the exact
   `b1d00e1f656c706ba5d7b513c10e5fb49288574a7260b674f69d7f7f84422b40`
   hash, with `application/pdf`, the attachment filename, byte ranges, and
-  one-year immutable caching. The user approved the CareAround SG production
-  client release on 2026-08-02; deployment is pending.
+  one-year immutable caching.
+- Production release follow-up: the user approved the CareAround SG production
+  client release on 2026-08-02. Code commit `485910dc0` was pushed on
+  `codex/high-detail-town-map-downloads`, and the exact validated six-root
+  `client/dist` deployed to Cloudflare Pages at
+  `https://ff9d8d64.senior-resource-map.pages.dev`. The preview and
+  `https://app.carearound.sg` matched the local bytes for HTML, entry JS, CSS,
+  Town Maps, My Map, and map-export chunks. The entry SHA-256 is
+  `c48e51ec19627ad9093176d0549465c9342bb6646fb582202fb9f6002c0989de`;
+  the Town Maps chunk SHA-256 is
+  `eea095a9b25bec046e006df1b78485c54efbe59fc84c3fe1dd30c91f2020ac2e`.
+  Authenticated production UAT passed at `1440 x 900` and `390 x 844`: the
+  catalogue showed all 32 maps, loaded only three initial visible previews,
+  rendered no PNG/PDF DOM URLs before selection, searched `S01`, started the
+  exact Southern Islands PNG and PDF downloads without an error, retained
+  attribution, displayed the mobile Wi-Fi warning without horizontal overflow,
+  and showed translated module strings in English, Chinese, Malay, and Tamil.
+  A fresh My Map route load exposed no download-catalogue, thumbnail, PNG, or
+  PDF URL and no app-origin console error. The authenticated owner had zero
+  saved My Maps, so an existing-map production navigation was not fabricated;
+  the earlier local authenticated existing-map network-isolation UAT remains
+  the stronger interaction proof. Production API health returned OK at
+  `2026-08-01T18:05:49.362Z`. No Worker, schema, auth, permission, secret,
+  production-data, Leaflet, My Map, Print View, or existing export change was
+  deployed.
 
 ## 2026-08-01 Discover Save These Results recovery
 
