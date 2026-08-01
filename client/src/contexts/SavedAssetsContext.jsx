@@ -1,7 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { api } from '../lib/api.js';
-import { buildOptimisticSavedAsset, buildSavedAssetKey } from '../lib/savedAssets.js';
+import {
+    buildOptimisticSavedAsset,
+    buildSavedAssetKey,
+    selectBulkSavedAssetTargets,
+} from '../lib/savedAssets.js';
 import { loadSavedAssetsWithRetry } from '../lib/savedAssetsLoading.js';
 import { useAuth } from './AuthContext.jsx';
 
@@ -22,7 +26,9 @@ export function SavedAssetsProvider({ children }) {
     const [savedAssetsLoading, setSavedAssetsLoading] = useState(false);
     const [savedAssetsLoadError, setSavedAssetsLoadError] = useState('');
     const [pendingKeys, setPendingKeys] = useState([]);
+    const [bulkPending, setBulkPending] = useState(false);
     const pendingKeysRef = useRef(new Set());
+    const bulkPendingRef = useRef(false);
 
     const savedAssetKeys = useMemo(
         () => new Set(savedAssets.map((item) => buildSavedAssetKey(item.resourceType, item.resourceId))),
@@ -152,6 +158,58 @@ export function SavedAssetsProvider({ children }) {
         }
     }, [savedAssetKeys, savedAssets, savedAssetsLoadError, savedAssetsLoading, syncPendingKeys, user]);
 
+    const runBulkSavedAssetAction = useCallback(async (items, shouldSave) => {
+        if (!user || savedAssetsLoading || savedAssetsLoadError || bulkPendingRef.current) return [];
+
+        const targets = selectBulkSavedAssetTargets(items, savedAssetKeys, shouldSave);
+        if (targets.length === 0) return [];
+
+        bulkPendingRef.current = true;
+        setBulkPending(true);
+
+        const results = new Array(targets.length);
+        const failures = [];
+        let nextIndex = 0;
+
+        async function runWorker() {
+            while (nextIndex < targets.length) {
+                const currentIndex = nextIndex;
+                nextIndex += 1;
+                const target = targets[currentIndex];
+
+                try {
+                    results[currentIndex] = await toggleSavedAsset(target.resourceType, target.resourceId);
+                } catch (err) {
+                    failures.push(err);
+                }
+            }
+        }
+
+        try {
+            const workerCount = Math.min(4, targets.length);
+            await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
+
+            if (failures.length > 0) {
+                throw failures[0];
+            }
+
+            return results.filter(Boolean);
+        } finally {
+            bulkPendingRef.current = false;
+            setBulkPending(false);
+        }
+    }, [savedAssetKeys, savedAssetsLoadError, savedAssetsLoading, toggleSavedAsset, user]);
+
+    const bulkSaveSavedAssets = useCallback(
+        (items) => runBulkSavedAssetAction(items, true),
+        [runBulkSavedAssetAction],
+    );
+
+    const bulkRemoveSavedAssets = useCallback(
+        (items) => runBulkSavedAssetAction(items, false),
+        [runBulkSavedAssetAction],
+    );
+
     return (
         <SavedAssetsContext.Provider
             value={{
@@ -160,10 +218,13 @@ export function SavedAssetsProvider({ children }) {
                 savedAssetsLoadError,
                 savedAssetKeys,
                 pendingKeys,
+                bulkPending,
                 refreshSavedAssets,
                 isSaved,
                 isSavedAssetPending,
                 toggleSavedAsset,
+                bulkSaveSavedAssets,
+                bulkRemoveSavedAssets,
             }}
         >
             {children}

@@ -15,6 +15,39 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-01 Discover Save These Results recovery
+
+- Current behavior: the signed-in Discover `Save these results` checkbox uses
+  callable bulk save/remove actions from the shared Saved Resources provider.
+  The provider deduplicates result references, skips resources already in the
+  requested state, and processes at most four existing favorite-toggle requests
+  concurrently. Each resource retains the established optimistic update and
+  rollback behavior, while the control remains pending until every attempted
+  update settles.
+- Known-good reference: branch `codex/fix-discover-save-all`, recovering the
+  missing provider contract reported as `Kr is not a function` on production
+  Discover. The change is client-only and does not alter the favorites API,
+  saved-resource hydration/order, resource visibility, Discover search or
+  ranking, My Directory filtering, My Maps, Care Calendar, auth, schema, or
+  production data.
+- Reproduction steps: sign in, open `/discover?q=st+andrews`, and choose `Save
+  these results`. Confirm the matching unsaved resource becomes saved without
+  an error banner and appears in My Directory. Choose the checkbox again and
+  confirm it is removed. Repeat with a search containing a mixture of saved and
+  unsaved Places and Offerings, then confirm only rows whose state must change
+  issue requests.
+- Acceptance criteria: Discover never calls an undefined bulk action; duplicate
+  result references are updated once; save skips already-saved rows and remove
+  skips unsaved rows; one failed resource rolls back only that resource and
+  surfaces the existing error notice after the remaining requests settle;
+  individual save/remove controls and My Directory's bounded saved-resource
+  hydration remain unchanged.
+- Verification result before deploy: focused Saved Resources and Discover
+  coverage passed 12/12. Broad client/source coverage passed 534/535; its sole
+  failure is the established date-expired Care Calendar planning fixture on
+  untouched code. `npm run build:client` passed with only the established
+  Browserslist age and large-chunk advisories.
+
 ## 2026-08-01 Unified personal-place short descriptions in owner Print View
 
 - Current behavior: the personal-place create/edit form no longer includes a

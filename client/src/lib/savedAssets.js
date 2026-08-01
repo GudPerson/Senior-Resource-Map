@@ -17,6 +17,29 @@ export function buildSavedAssetDetailPath(resourceType, resourceId) {
     return `/resource/${resourceType}/${resourceId}`;
 }
 
+export function selectBulkSavedAssetTargets(items, savedAssetKeys, shouldSave) {
+    const currentKeys = savedAssetKeys instanceof Set ? savedAssetKeys : new Set();
+    const desiredSavedState = Boolean(shouldSave);
+    const seenKeys = new Set();
+
+    return (Array.isArray(items) ? items : []).reduce((targets, item) => {
+        const resourceType = String(item?.resourceType || '').trim().toLowerCase();
+        const resourceId = Number(item?.resourceId);
+        if (!['hard', 'soft'].includes(resourceType) || !Number.isInteger(resourceId) || resourceId <= 0) {
+            return targets;
+        }
+
+        const assetKey = buildSavedAssetKey(resourceType, resourceId);
+        if (seenKeys.has(assetKey)) return targets;
+        seenKeys.add(assetKey);
+
+        if (currentKeys.has(assetKey) !== desiredSavedState) {
+            targets.push({ resourceType, resourceId });
+        }
+        return targets;
+    }, []);
+}
+
 export function buildOptimisticSavedAsset(resourceType, resourceId, summary = {}) {
     return {
         id: null,

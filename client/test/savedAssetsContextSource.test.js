@@ -24,3 +24,10 @@ test('My Directory shows a load failure instead of an empty saved-resource state
     assert.match(myDirectoryPageSource, /savedResourcesLoadFailedTitle/);
     assert.match(myDirectoryPageSource, /savedResourcesLoadFailedAction/);
 });
+
+test('SavedAssetsProvider exposes the bulk actions consumed by Discover', () => {
+    assert.match(savedAssetsContextSource, /bulkPending/);
+    assert.match(savedAssetsContextSource, /bulkSaveSavedAssets/);
+    assert.match(savedAssetsContextSource, /bulkRemoveSavedAssets/);
+    assert.match(savedAssetsContextSource, /selectBulkSavedAssetTargets/);
+});
