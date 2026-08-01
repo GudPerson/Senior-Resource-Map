@@ -24,6 +24,7 @@ server/*.db-wal
 # build output
 dist/
 client/dist/
+output/town-map-downloads/
 
 # OS/editor
 .DS_Store

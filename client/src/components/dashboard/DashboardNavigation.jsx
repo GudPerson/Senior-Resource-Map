@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Activity, BookOpen, Building2, CalendarDays, Files, LayoutDashboard, LogOut, Map, Menu, ScrollText, Shield, User } from 'lucide-react';
+import { Activity, BookOpen, Building2, CalendarDays, Files, LayoutDashboard, LogOut, Map, MapPinned, Menu, ScrollText, Shield, User } from 'lucide-react';
 
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import {
@@ -44,6 +44,7 @@ export function getDashboardSectionLabel(pathname, t) {
     if (pathname.startsWith('/dashboard/admin')) return label(t, 'overviewAdminTitle', 'Admin');
     if (pathname.startsWith('/dashboard/audit')) return label(t, 'auditTrailTitle', 'Audit Trail');
     if (pathname.startsWith('/dashboard/organization')) return label(t, 'organisationWorkspaceTitle', 'Organisation');
+    if (pathname.startsWith('/my-directory/town-maps')) return label(t, 'townMapsTitle', 'High-Detail Town Maps');
     if (pathname.startsWith('/my-directory/maps/')) return label(t, 'myMaps', 'My Maps');
     if (pathname.startsWith('/my-directory')) return label(t, 'myDirectory', 'My Directory');
     if (pathname.startsWith('/dashboard/calendar')) return label(t, 'careCalendar', 'Care Calendar');
@@ -98,6 +99,13 @@ export function DashboardSidebar({
                 icon={BookOpen}
                 label={t('myDirectory')}
                 id="dash-directory"
+                onNavigate={onNavigate}
+            />
+            <SidebarLink
+                to="/my-directory/town-maps"
+                icon={MapPinned}
+                label={t('townMapsNav')}
+                id="dash-town-maps"
                 onNavigate={onNavigate}
             />
             <SidebarLink

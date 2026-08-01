@@ -76,6 +76,14 @@ test('recent user-facing UI labels do not fall back to English in supported tran
         'printLabelNamesLogos',
         'printLabelNamesAddresses',
         'printLabelFullDetails',
+        'townMapsTitle',
+        'townMapsIntro',
+        'townMapsSearchPlaceholder',
+        'townMapsMobileDownloadHelp',
+        'townMapsUnavailableTitle',
+        'townMapsPngDetails',
+        'townMapsPdfDetails',
+        'townMapsDownloadFailed',
     ];
 
     for (const { code } of LOCALES.filter((locale) => locale.code !== 'en')) {

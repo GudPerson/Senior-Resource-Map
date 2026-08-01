@@ -237,3 +237,102 @@ sanitized manifests, and one small collection index. Immediate client rollback
 is a rebuild without both print-master environment variables; this hides the
 Print Master PDF action while retaining interactive Detailed maps and all
 versioned R2 objects.
+
+## High-Detail Town Maps download library
+
+This is a separate authenticated download catalogue. It does not feed Leaflet,
+My Map, Print View, the personalised PNG/PDF exports, or the PWA cache. The
+client loads the catalogue only on `/my-directory/town-maps`, and the published
+PNG/PDF objects download directly from `maps.carearound.sg` rather than through
+the CareAround Worker.
+
+Read-only source collections:
+
+```text
+PDF: /Users/sweetbuns/Documents/SG MAP/output/pdf/default-native-scale-readability-175-clean
+PNG: /Users/sweetbuns/Documents/SG MAP/output/png/default-native-scale-readability-175-clean-powerpoint
+```
+
+`output/compression-pilot` is forbidden. The validator reads but never modifies
+the source collections. It independently verifies all 32 SHA-256 hashes and
+byte sizes, PNG signatures/dimensions/RGB density metadata, PDF page geometry
+and embedded attribution text, thumbnail geometry, source-to-PNG provenance,
+and the exact map-code set.
+
+Prepare the deterministic catalogue, validation, and provenance metadata under
+the ignored CareAround output root:
+
+```sh
+npm run town-map:downloads:prepare
+```
+
+Run the upload command without `--apply` to produce the release plan. Dry-run is
+the default:
+
+```sh
+npm run town-map:downloads:r2:plan
+```
+
+The approved second publication prefix is:
+
+```text
+v4/town-map-downloads-20260801-r2/default
+```
+
+The first prefix, `v4/town-map-downloads-20260801/default`, is an abandoned
+partial publication whose catalogue was never published. Never resume,
+overwrite, delete, or finalize it.
+
+The approved second prefix was published and completely remote-verified on
+2026-08-02. All 99 objects are immutable and the catalogue was published last;
+do not rerun the uploader against this occupied prefix.
+
+After explicit release approval only:
+
+```sh
+npm run town-map:downloads:r2:upload
+npm run town-map:downloads:r2:verify:full
+```
+
+Operational verification requests `Accept-Encoding: identity` so Cloudflare
+compression cannot remove the authoritative object `Content-Length` or weaken
+the R2 ETag. Full hashes are read in bounded ranges with timeouts and retries;
+PDF range delivery is checked independently. To audit an interrupted root whose
+catalogue was never published, use the read-only command:
+
+```bash
+npm run town-map:downloads:r2:verify:partial
+```
+
+This command requires every planned non-catalogue object to exist and match and
+requires `catalogue.json` to remain 404. It never writes, resumes, overwrites, or
+deletes. A failed or interrupted apply must use a newly approved immutable
+prefix; do not finalize the partial root.
+
+The apply path first verifies Cloudflare authentication and then requires every
+planned key to return 404. If any key exists, publication aborts before the
+first PUT. Every individual PUT attempt repeats its key-specific 404 check, so
+an ambiguous failed PUT aborts instead of retrying over an object that became
+visible. The tool has no delete path and never resumes into or overwrites a
+partial root; use a new versioned prefix after an interrupted publication. It
+uploads the C08 PNG first and requires a query-free public GET to match its
+exact byte size and SHA-256 before proceeding. It then publishes the remaining
+31 PNGs, all 32 PDFs, and all 32 lightweight thumbnails, then immutable
+validation/provenance metadata, and the short-revalidation
+`catalogue.json` last. All other objects use one-year immutable caching. PNG
+and PDF metadata includes an attachment filename; PDFs are verified with range
+requests.
+
+For local authenticated UAT, start the read-only source server and normal
+client in separate terminals:
+
+```sh
+npm run dev:town-map-downloads
+npm run dev:client
+```
+
+Vite proxies only `/__carearound-town-map-downloads` to the local source server.
+No catalogue, thumbnail, PNG, or PDF is requested unless the town-map route is
+opened. The published R2 objects are intentionally public at their exact URLs;
+the CareAround module is access-protected, but object-level authentication
+would require a separately approved signed-URL or gateway design.

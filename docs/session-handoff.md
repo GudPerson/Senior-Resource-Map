@@ -1,6 +1,55 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-07-24 (Asia/Singapore)
+Last updated: 2026-08-02 (Asia/Singapore)
+
+## High-Detail Town Maps release gate (2026-08-02, production approved)
+
+- Isolated worktree:
+  `/Users/sweetbuns/CareAroundSG-high-detail-town-maps`; branch
+  `codex/high-detail-town-map-downloads`; exact production base
+  `548829758bd58b040073199cafc2a6a1da4d8387`.
+- New protected route: `/my-directory/town-maps`. It is a separate lazy-loaded
+  download catalogue and has no My Map shortcut. My Map, Print View,
+  personalised `Save Map PNG` / `Save PDF`, Leaflet, map modes, six fixed-map
+  roots, zoom behavior, cameras, markers, privacy, APIs, schemas, and Worker
+  code remain unchanged.
+- Published and remotely verified immutable R2 prefix:
+  `v4/town-map-downloads-20260801-r2/default`; 99 objects and 2,862,256,987 bytes.
+  Catalogue SHA-256:
+  `fbf2bb7cecdb70399db9548520e2b0c91f8a4ba45002bfc03dd0b9247994a955`.
+  The tool is dry-run by default, preflights all object keys as absent, has no
+  overwrite/delete path, proves C08 through a query-free exact custom-domain
+  download before continuing, and publishes `catalogue.json` last.
+- The user approved this second exact prefix on 2026-08-02. Both the independent
+  preflight and the `--apply` path confirmed all 99 keys were vacant before the
+  first write.
+- Local gates passed: source/library validation for all 32 PNG/PDF pairs,
+  focused module/publisher 20/20, town-map R2 16/16, locked map/print 75/75,
+  exact six-root build, desktop/mobile authenticated UAT, representative real
+  PNG/PDF download hashes, and My Map network isolation. Broad client tests are
+  532/533 with only the known date-expired Care Calendar fixture failing on
+  untouched production-baseline code.
+- The approved first R2 apply wrote 96 binaries/thumbnails and two metadata
+  objects but failed closed before `catalogue.json`. The catalogue remains 404
+  and the client has not been deployed. S01's real public PNG URL downloads at
+  the exact size/hash and all 32 PDF leading ranges pass, while direct R2
+  retrieval proves C08 is stored at its exact size/hash. C08's custom-domain
+  path is not release-ready: the query-free full GET transferred only 6.4 MB in
+  120 seconds and some mid-file ranges returned `206` headers without a body.
+- The approved second apply passed the 52,677,239-byte C08 query-free public
+  canary with its exact SHA-256, uploaded all 99 planned objects, verified the
+  assets and metadata, and published `catalogue.json` last. The complete remote
+  verifier passed 99/99 HEAD checks, 98/98 non-catalogue hashes, 64/64 PNG/PDF
+  download hashes, 32/32 thumbnail hashes, and 32/32 PDF range requests. A
+  separate normal S01 PDF download returned the exact 5,220,043 bytes and
+  SHA-256 with the correct MIME, attachment filename, immutable cache policy,
+  range support, and CareAround CORS.
+- Do not resume, overwrite, delete, or finalize
+  `v4/town-map-downloads-20260801/default`. Keep this partial root untouched as
+  forensic evidence. Keep the verified
+  `v4/town-map-downloads-20260801-r2/default` root immutable and do not rerun its
+  uploader. The user approved the CareAround SG production client release on
+  2026-08-02; deployment and authenticated custom-domain UAT are pending.
 
 ## Map stable baseline lock (2026-07-23)
 

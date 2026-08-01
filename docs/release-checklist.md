@@ -2,7 +2,7 @@
 
 This checklist is the pre-ship gate for launch-safe changes. Use it together with `docs/regression-ledger.md`; the ledger is the source of truth for locked surfaces and behavior-specific acceptance criteria.
 
-Last refreshed: 2026-07-23 (Asia/Singapore)
+Last refreshed: 2026-08-01 (Asia/Singapore)
 
 ## When To Use This Checklist
 
@@ -136,6 +136,52 @@ preview. The deployed bundle must preserve:
 If any of those markers drift, stop and fix before continuing with unrelated
 work. The local stable reference is tag `map-stable-2026-07-23` at
 `97118d4919cda77f1be581b0489eaf327e2ef098`.
+
+### High-Detail Town Maps download-library gate
+
+The authenticated download library is separate from the interactive Detailed
+map and its personalised Print View exports. For any release that touches
+`/my-directory/town-maps` or its publishing scripts:
+
+```bash
+npm run test:town-map-downloads
+npm run town-map:r2:test
+npm run town-map:downloads:r2:plan
+npm run verify:map-lockdown
+```
+
+The approved immutable publication root is
+`v4/town-map-downloads-20260801-r2/default`. The upload plan must contain exactly
+32 PNGs, 32 PDFs, 32 thumbnails, two supporting metadata objects, and one
+catalogue. Do not run `npm run town-map:downloads:r2:upload` without the user's
+explicit release approval. The uploader must prove the entire prefix is vacant
+before writing, repeat the object-specific vacancy check before every PUT
+attempt, never overwrite or delete an object, prove the C08 PNG with a
+query-free exact public download before continuing, publish the remaining
+binaries and thumbnails before metadata, and publish `catalogue.json` last. If
+an apply run is interrupted, use a newly approved immutable prefix instead of resuming the
+partial root.
+
+After publication, run the full remote verifier:
+
+```bash
+npm run town-map:downloads:r2:verify:full
+```
+
+Publication evidence on 2026-08-02: the approved root published all 99 objects
+with the catalogue last; the full verifier passed 99 object HEAD checks, 98
+non-catalogue hashes, all 32 thumbnail hashes, all 64 PNG/PDF hashes, and all 32
+PDF range checks. Do not rerun the uploader against this occupied immutable
+root.
+
+It must verify all object sizes, hashes, MIME types, cache policy, read-only
+CareAround CORS, reliable download filenames, and PDF byte-range responses.
+Then deploy the client with the unchanged six-root interactive-map environment
+above. Authenticated desktop and mobile UAT must confirm that the library loads
+only its small catalogue and visible thumbnails until a download is chosen,
+and that visiting My Map fetches none of this download collection. Do not add
+the binary collection to Git, the client bundle, the Worker, the service worker,
+or PWA precache.
 
 ## 2. Browser Smoke Gate
 

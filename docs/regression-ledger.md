@@ -15,6 +15,80 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-01 Authenticated High-Detail Town Maps download library (production release approved)
+
+- Current behavior: signed-in users with My Directory access can open
+  `/my-directory/town-maps`, search all 32 validated Default-colour town maps
+  by name, code, or planning area, preview lightweight lazy-loaded thumbnails,
+  and download a lossless `10,000 x 7,000` PNG with 300-DPI metadata or a clean
+  175% single-page PDF. The catalogue displays file sizes and the exact
+  `OneMap (c) contributors | Singapore Land Authority` attribution. Large
+  downloads go directly to the versioned map asset host; they are not bundled,
+  Worker-buffered, or cached by the PWA.
+- Known-good reference: branch `codex/high-detail-town-map-downloads`, based on
+  production commit `548829758bd58b040073199cafc2a6a1da4d8387`. The change is
+  isolated to a new protected, lazy client route and a new R2 publishing and
+  validation toolchain. It does not change Leaflet, My Map, Print View,
+  Standard/Detailed switching, zoom thresholds, cameras, pins, annotations,
+  clustering, existing exports, fixed-surface assets, auth policy, schema,
+  Worker code, or production data.
+- Reproduction steps: sign in with Directory access and open
+  `/my-directory/town-maps`. Confirm 32 cards, search `S01` and a town name,
+  switch through all four languages, and download Southern Islands in both
+  formats. Repeat at a 390 x 844 viewport and confirm the large-download
+  guidance. In a fresh navigation timing window, confirm the library initially
+  fetches only `catalogue.json` and visible thumbnails. Open an existing My Map
+  and confirm it makes no request under
+  `/v4/town-map-downloads-20260801-r2/default`.
+- Acceptance criteria: the strict catalogue contains exactly the canonical 32
+  map codes and 96 unique asset URLs; every source and prepared object matches
+  its SHA-256 and byte size; PNGs are lossless RGB `10000 x 7000` with 300-DPI
+  metadata; PDFs are one `1750 x 1225 mm` page at the approved 175% profile;
+  every file retains the exact attribution; thumbnails are intersection-gated;
+  loading, unavailable, no-results, preview-error, and download-error states
+  are accessible; filenames, MIME types, CORS, immutable caching, catalogue
+  revalidation, and PDF byte ranges match the publishing contract. The uploader
+  remains dry-run by default, rejects any non-vacant prefix, has no delete path,
+  repeats the object-specific vacancy check before every PUT attempt, uploads
+  binaries and thumbnails first, and publishes the catalogue last.
+- Verification result before deploy: source validation and preparation passed
+  for all 32 PNGs, 32 PDFs, and 32 thumbnails. The approved second-root plan
+  contains 99 R2 objects and 2,862,256,987 bytes; its catalogue SHA-256 is
+  `fbf2bb7cecdb70399db9548520e2b0c91f8a4ba45002bfc03dd0b9247994a955`.
+  Focused module/publisher coverage passed 20/20; all town-map R2 coverage passed
+  16/16; `npm run verify:map-lockdown` passed 75/75 plus its exact six-root
+  build. Broad client coverage passed 532/533; its sole failure is the existing
+  date-expired Care Calendar planning fixture on untouched code. Desktop and
+  mobile authenticated UAT passed, including matching hashes for representative
+  downloaded PNG/PDF files and zero download-library requests from My Map. The
+  second dry-run targets exact approved prefix
+  `v4/town-map-downloads-20260801-r2/default` and requires a query-free exact
+  public C08 download canary before uploading the remaining objects. The first
+  R2 apply at `v4/town-map-downloads-20260801/default` uploaded all 96
+  binaries/thumbnails and both supporting
+  metadata objects, but stopped safely before `catalogue.json`. Cloudflare's
+  compressed Node HEAD response initially hid JSON `Content-Length`; the tools
+  now request identity encoding and retry bounded checks. The query-free S01
+  PNG downloaded at its exact 5,875,064 bytes and catalogue hash, all 32 PDF
+  leading-byte range probes passed, and direct authenticated R2 retrieval
+  proved the stored C08 PNG matches its exact 52,677,239 bytes and SHA-256.
+  However, C08 custom-domain delivery is not release-ready: a full public GET
+  transferred only 6.4 MB in 120 seconds, and multiple mid-file PNG ranges
+  returned correct `206` headers without bodies before timeout. The catalogue
+  remains 404, so no client can discover the partial root. Do not resume,
+  overwrite, delete, or publish that root. The approved second apply at
+  `v4/town-map-downloads-20260801-r2/default` passed its query-free full C08
+  canary at 52,677,239 bytes and exact SHA-256, then published all 99 objects
+  with `catalogue.json` last. The complete remote verifier passed 99/99 object
+  HEAD checks, 98/98 non-catalogue hashes, 64/64 PNG/PDF download hashes,
+  32/32 thumbnail hashes, and 32/32 PDF range checks with the CareAround CORS
+  origin. A separate normal query-free S01 PDF download returned HTTP 200,
+  5,220,043 bytes and the exact
+  `b1d00e1f656c706ba5d7b513c10e5fb49288574a7260b674f69d7f7f84422b40`
+  hash, with `application/pdf`, the attachment filename, byte ranges, and
+  one-year immutable caching. The user approved the CareAround SG production
+  client release on 2026-08-02; deployment is pending.
+
 ## 2026-08-01 Discover Save These Results recovery
 
 - Current behavior: the signed-in Discover `Save these results` checkbox uses

@@ -23,6 +23,7 @@ const OrganizationWorkspacePage = lazy(() => import('./pages/dashboard/Organizat
 const ResourcePage = lazy(() => import('./pages/ResourcePage.jsx'));
 const AuthTransitionPage = lazy(() => import('./pages/AuthTransitionPage.jsx'));
 const MyDirectoryPage = lazy(() => import('./pages/MyDirectoryPage.jsx'));
+const TownMapDownloadsPage = lazy(() => import('./pages/TownMapDownloadsPage.jsx'));
 const MyMapDetailPage = lazy(() => import('./pages/MyMapDetailPage.jsx'));
 const SharedMapPage = lazy(() => import('./pages/SharedMapPage.jsx'));
 const MembershipLinkPage = lazy(() => import('./pages/MembershipLinkPage.jsx'));
@@ -194,6 +195,7 @@ function AppShell() {
                         <Route path="/resource/:type/:id" element={<ResourcePage />} />
                         <Route path="/shared/maps/:token" element={<SharedMapPage />} />
                         <Route path="/my-directory" element={<ProtectedRoute requireDirectoryAccess><MyDirectoryPage /></ProtectedRoute>} />
+                        <Route path="/my-directory/town-maps" element={<ProtectedRoute requireDirectoryAccess><TownMapDownloadsPage /></ProtectedRoute>} />
                         <Route path="/my-directory/maps/:mapId" element={<ProtectedRoute requireDirectoryAccess><MyMapDetailPage /></ProtectedRoute>} />
                         <Route path="/login" element={<AuthPage isPartner={false} />} />
                         <Route path="/partner-login" element={<AuthPage isPartner={true} />} />
