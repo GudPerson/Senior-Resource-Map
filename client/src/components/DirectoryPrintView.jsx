@@ -699,7 +699,6 @@ function PrintDirectoryMap({
                 onMapClick={onMapClick}
                 mapModeControl={printMapState && interactive ? mapModeControl : null}
                 showMapStyleControl={interactive}
-                surfaceStatus={surfaceStatus}
                 mapOverlay={visiblePrintAnnotations.length || annotationEditing ? (
                     <PrintAnnotationLayer
                         annotations={visiblePrintAnnotations}
@@ -720,7 +719,7 @@ function PrintDirectoryMap({
                         onCancel={cancelAnnotationTool}
                     />
                 ) : null}
-                surfaceStatus={!annotationEditing && ['loading', 'saving', 'unsaved', 'error'].includes(annotationStatus) ? (
+                surfaceStatus={surfaceStatus || (!annotationEditing && ['loading', 'saving', 'unsaved', 'error'].includes(annotationStatus) ? (
                     <div
                         className={`rounded-md border px-3 py-2 text-center text-xs font-bold shadow-sm ${
                             annotationStatus === 'error'
@@ -744,7 +743,7 @@ function PrintDirectoryMap({
                             </div>
                         ) : null}
                     </div>
-                ) : null}
+                ) : null)}
             />
             {mapLayersEnabled && printMapState ? (
                 <div data-print-map-layers-enabled="true">

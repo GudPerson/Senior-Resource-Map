@@ -511,6 +511,8 @@ test('owner Print View reuses personal-place add, placement, edit, and remove fl
     assert.match(ownerPageSource, /onRemovePersonalPlace=\{handleRemoveResource\}/);
     assert.match(ownerPageSource, /<AddPersonalPlaceChooserModal[\s\S]*<PersonalPlaceEditorModal[\s\S]*<PersonalPlaceCategoryManagerModal/);
     assert.match(printViewSource, /onMapClick=\{personalPlacePickerActive \? onPersonalPlaceMapClick : null\}/);
+    assert.match(printViewSource, /surfaceStatus=\{surfaceStatus \|\| \(!annotationEditing/);
+    assert.doesNotMatch(printViewSource, /showMapStyleControl=\{interactive\}\s*surfaceStatus=\{surfaceStatus\}/);
     assert.match(printViewSource, /surfaceStatus=\{personalPlaceSurfaceStatus\}/);
     assert.match(printViewSource, /onEditPersonalPlace=\{variant === 'screen'[\s\S]*\? onEditPersonalPlace[\s\S]*: null\}/);
     assert.match(printViewSource, /onRemoveResource=\{variant === 'screen'[\s\S]*\? onRemovePersonalPlace[\s\S]*: null\}/);

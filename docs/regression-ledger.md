@@ -53,7 +53,12 @@ Rules:
   annotation, resource-layer, shared-map, server privacy, and personal-place
   coverage passed 171/171. The full client suite passed 549/549, the full server
   suite passed 497/497, and the locked map suite passed 76/76 together with its
-  six-root production build. `git diff --check` passed.
+  six-root production build. A signed-in production probe then exposed that the
+  existing annotation status prop could hide the new placement guidance; a
+  red-first contract reproduced the collision, the statuses were merged, and
+  focused 35/35, full client 549/549, full server 497/497, and locked map 76/76
+  coverage passed again before the corrective client deploy. `git diff --check`
+  passed.
 
 ## 2026-08-04 selected My Map category pin geographic-anchor recovery
 
