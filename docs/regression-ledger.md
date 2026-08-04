@@ -15,6 +15,44 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-04 Detailed-map production artifact recovery
+
+- Current behavior: owner My Map and Print View retain the Detailed/Live map
+  source control, the Detailed fixed surface, Default/Gray appearance choices,
+  zoom-14 overview support, zoom-15 native detail, and the retained Print
+  Master export roots alongside the newly released Print View personal-place
+  controls.
+- Root cause and known-good reference: after `npm run verify:map-lockdown`
+  produced the correct six-root client, a later ordinary
+  `VITE_API_URL=... npm run build:client` rebuilt `client/dist` without
+  `VITE_TOWN_MAP_PROOF_ENABLED` or the six required map roots. The direct Pages
+  upload then published that smaller artifact, compiling the Detailed-map
+  control out without changing source, R2 assets, Leaflet, or map data. The
+  recovery uses unchanged commit `3bdc4ad0d` and only the existing
+  `npm run verify:map-lockdown` production build contract.
+- Reproduction steps: open an owned map in Print View, open Map settings, and
+  observe that the regressed build shows only Map colour while the Detailed/
+  Live source control is absent. Inspect the published bundle and confirm the
+  native-scale, zoom-14 atlas, and Print Master root markers are all absent.
+- Acceptance criteria: the production entry, CSS, My Map, and shared directory
+  chunks match the validated six-root `client/dist` byte-for-byte; all six
+  Default/Gray roots, `The regular map is still shown.`, and `Save PDF` are
+  present; `Standard map is still on` and `Save A3 PDF` remain absent. No
+  Worker, schema, auth, R2, API, database, coordinate, personal-place, or
+  production-data change is included.
+- Verification and deployment: locked map coverage passed 76/76 and its exact
+  six-root production build passed. The corrected Pages deployment is
+  `https://475a68f8.senior-resource-map.pages.dev`. Preview and custom-domain
+  CSS, My Map, entry, and shared directory artifacts matched local bytes; entry
+  SHA-256 is `c77615858c62489deb3f216c8c145944cb6dd42ef9a57cc8a41d3a12d32c4053`,
+  My Map SHA-256 is
+  `70ab3e64a2141dc49741e63b5afa1d8302214856fcf18c0ea6ca940a2cdc36b2`,
+  and shared directory SHA-256 is
+  `10a281c292b4146b0460b58e47b7c4c4863f4ad36379eaed8e5d9efe9a196912`.
+  All six root markers and required/forbidden copy markers passed on
+  `app.carearound.sg`; production API health returned OK. `git diff --check`
+  passed.
+
 ## 2026-08-04 owner Print View personal-place controls and persistent description mode
 
 - Current behavior: authenticated map owners can add or attach a personal place
