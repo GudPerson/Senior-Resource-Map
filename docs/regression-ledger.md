@@ -15,6 +15,46 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-04 owner Print View personal-place controls and persistent description mode
+
+- Current behavior: authenticated map owners can add or attach a personal place
+  from the Print View toolbar, choose a new location directly on the print map,
+  and edit or remove an attached personal place from its visible print card.
+  The controls reuse the established private My Places chooser, editor,
+  categories, map-link mutations, and progress states. `Add short description`
+  remains active after saving or cancelling an individual description editor
+  and while using other print tools; it turns off only when the owner presses
+  the toolbar action again or exits Print View.
+- Known-good reference: branch `codex/print-personal-place-controls`, based on
+  deployed selected-pin anchor commit `b94199aae`. The change is client-only and
+  limited to owner Print View wiring, screen-only personal-place card actions,
+  focused source contracts, and this ledger entry. Existing authenticated APIs
+  remain the only mutation path.
+- Reproduction steps: sign in as a map owner and open an owned map in Print
+  View. Choose `Add personal place`, attach an existing My Places entry, and
+  confirm the preview refreshes. Choose it again, select `Choose map location`,
+  click an unoccupied map point, complete or cancel the existing editor, and
+  confirm the print route remains active. Use the card edit action, then remove
+  a personal place from the map. Turn on `Add short description`, save or cancel
+  two card edits in succession, and confirm the toolbar mode stays active until
+  it is pressed again; exit and reopen Print View and confirm it starts off.
+- Acceptance criteria: add, attach, location placement, edit, and remove use the
+  existing owner-only personal-place API and refresh the same Print View;
+  placement mode suppresses print-pin selection while accepting background map
+  clicks and shows the existing placement/progress status; edit/remove controls
+  appear only in the screen preview and are absent from PNG/PDF export renders
+  and browser printing. Personal places remain excluded from shared maps,
+  snapshots, Discover, guest views, and public payloads. Annotation, map-layer,
+  Detailed-map, selection, export, QR, auth, schema, Worker, and production-data
+  behavior remain unchanged.
+- Verification result before deploy: red-first focused coverage failed on the
+  missing controls and one-shot description reset, then the focused Print View
+  and personal-place contracts passed 35/35. Broader owner My Map, Print View,
+  annotation, resource-layer, shared-map, server privacy, and personal-place
+  coverage passed 171/171. The full client suite passed 549/549, the full server
+  suite passed 497/497, and the locked map suite passed 76/76 together with its
+  six-root production build. `git diff --check` passed.
+
 ## 2026-08-04 selected My Map category pin geographic-anchor recovery
 
 - Current behavior: on owner My Map and interactive Shared Map category-bubble

@@ -174,9 +174,10 @@ test('My Map short descriptions stay separate from Map Notes and suppress repeat
     assert.match(shortDescriptionModalSource, /addAnotherShortDescription/);
     assert.match(shortDescriptionModalSource, /shortDescriptors/);
     assert.match(listSource, /const printShortDescriptionEditing = !interactive/);
-    assert.ok(
-        (detailSource.match(/setPrintShortDescriptionMode\(false\)/g) || []).length >= 4,
-        'save, cancel, print close, and competing print tools should leave description mode',
+    assert.equal(
+        (detailSource.match(/setPrintShortDescriptionMode\(false\)/g) || []).length,
+        3,
+        'description mode should reset only when entering or exiting Print View',
     );
     assert.doesNotMatch(editorSource, /personalPlaceShortDescription/);
     assert.doesNotMatch(editorSource, /shortDescription/);

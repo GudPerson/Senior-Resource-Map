@@ -459,7 +459,7 @@ test('print label detail choices retain the numbered map key while controlling a
     assert.match(printViewSource, /printSideResourceColumnCount=\{effectiveSideResourceColumnCount\}/);
 });
 
-test('Print View owns one-shot short-description editing without leaking controls into exports', () => {
+test('Print View keeps short-description editing active until it is turned off or exited', () => {
     const nestedMapPropsStart = printViewSource.indexOf('function PrintDirectoryMap({');
     const nestedMapProps = printViewSource.slice(
         nestedMapPropsStart,
@@ -479,10 +479,43 @@ test('Print View owns one-shot short-description editing without leaking control
     assert.match(printViewSource, /onEditResourceShortDescription=\{variant === 'screen'[\s\S]*\? onEditResourceShortDescription[\s\S]*: null\}/);
     assert.match(sharedMapDirectorySource, /data-print-short-description-action="true"/);
     assert.match(sharedMapDirectorySource, /printShortDescriptionEditing \|\| hasRowShortDescription\(row\)/);
-    assert.ok(
-        (ownerPageSource.match(/setPrintShortDescriptionMode\(false\)/g) || []).length >= 4,
-        'the one-shot mode should close after save, cancel, navigation, and competing tools',
+    const closeEditorSource = ownerPageSource.slice(
+        ownerPageSource.indexOf('function closeResourceShortDescription()'),
+        ownerPageSource.indexOf('async function handleSaveResourceShortDescription'),
     );
+    const saveEditorSource = ownerPageSource.slice(
+        ownerPageSource.indexOf('async function handleSaveResourceShortDescription'),
+        ownerPageSource.indexOf('async function handleUnpublishShare'),
+    );
+    const annotationToggleSource = ownerPageSource.slice(
+        ownerPageSource.indexOf('function togglePrintAnnotationEditor()'),
+        ownerPageSource.indexOf('function openPrintView()'),
+    );
+    assert.doesNotMatch(closeEditorSource, /setPrintShortDescriptionMode\(false\)/);
+    assert.doesNotMatch(saveEditorSource, /setPrintShortDescriptionMode\(false\)/);
+    assert.doesNotMatch(annotationToggleSource, /setPrintShortDescriptionMode\(false\)/);
+    assert.equal(
+        (ownerPageSource.match(/setPrintShortDescriptionMode\(false\)/g) || []).length,
+        3,
+        'description mode should reset only when entering or exiting Print View',
+    );
+});
+
+test('owner Print View reuses personal-place add, placement, edit, and remove flows without exporting controls', () => {
+    assert.match(ownerPageSource, /data-print-personal-place-trigger="true"/);
+    assert.match(ownerPageSource, /personalPlacePickerActive \? t\('cancelAddPersonalPlace'\) : t\('addPersonalPlace'\)/);
+    assert.match(ownerPageSource, /personalPlacePickerActive=\{personalPlacePickerActive\}/);
+    assert.match(ownerPageSource, /onPersonalPlaceMapClick=\{handlePersonalPlaceMapClick\}/);
+    assert.match(ownerPageSource, /personalPlaceSurfaceStatus=\{personalPlaceMapSurfaceStatus\}/);
+    assert.match(ownerPageSource, /onEditPersonalPlace=\{handleEditPersonalPlace\}/);
+    assert.match(ownerPageSource, /onRemovePersonalPlace=\{handleRemoveResource\}/);
+    assert.match(ownerPageSource, /<AddPersonalPlaceChooserModal[\s\S]*<PersonalPlaceEditorModal[\s\S]*<PersonalPlaceCategoryManagerModal/);
+    assert.match(printViewSource, /onMapClick=\{personalPlacePickerActive \? onPersonalPlaceMapClick : null\}/);
+    assert.match(printViewSource, /surfaceStatus=\{personalPlaceSurfaceStatus\}/);
+    assert.match(printViewSource, /onEditPersonalPlace=\{variant === 'screen'[\s\S]*\? onEditPersonalPlace[\s\S]*: null\}/);
+    assert.match(printViewSource, /onRemoveResource=\{variant === 'screen'[\s\S]*\? onRemovePersonalPlace[\s\S]*: null\}/);
+    assert.match(sharedMapDirectorySource, /data-print-personal-place-edit="true"/);
+    assert.match(sharedMapDirectorySource, /data-print-personal-place-remove="true"/);
 });
 
 test('owner print preview exposes controlled zoom, detail, colour, camera, and height controls', () => {

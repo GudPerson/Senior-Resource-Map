@@ -1336,6 +1336,8 @@ function DirectoryResourceRow({
     const canOpenDetail = Boolean(detailPath) && row.status !== 'unavailable';
     const personalPlace = isPersonalPlaceRow(row);
     const canManagePersonalPlace = mode === 'owner' && personalPlace;
+    const canManagePersonalPlaceActions = canManagePersonalPlace
+        && Boolean(onEditPersonalPlace || onRemoveResource);
     const canManageShortDescription = mode === 'owner'
         && Boolean(onEditResourceShortDescription);
     const shortDescriptionItems = getRowShortDescriptionItems(row);
@@ -1361,7 +1363,7 @@ function DirectoryResourceRow({
 
         return (
             <div className="border-b border-slate-100 pb-1 last:border-b-0 last:pb-0">
-                {printRowTitle || hasShortDescription || row.status === 'unavailable' || canManageShortDescription ? (
+                {printRowTitle || hasShortDescription || row.status === 'unavailable' || canManageShortDescription || canManagePersonalPlaceActions ? (
                     <div className="flex items-start gap-1.5">
                         <span className="mt-[0.45em] h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
                         <div className="min-w-0 flex-1">
@@ -1406,6 +1408,34 @@ function DirectoryResourceRow({
                                 </button>
                             ) : null}
                         </div>
+                        {canManagePersonalPlaceActions ? (
+                            <div className="print:hidden flex shrink-0 items-center gap-0.5" data-print-personal-place-actions="true">
+                                {onEditPersonalPlace ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => onEditPersonalPlace(row)}
+                                        className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-brand-700"
+                                        aria-label={`${t('edit')}: ${row.name}`}
+                                        title={t('edit')}
+                                        data-print-personal-place-edit="true"
+                                    >
+                                        <Pencil size={12} aria-hidden="true" />
+                                    </button>
+                                ) : null}
+                                {onRemoveResource ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => onRemoveResource(row)}
+                                        className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                                        aria-label={`${t('remove')}: ${row.name}`}
+                                        title={t('remove')}
+                                        data-print-personal-place-remove="true"
+                                    >
+                                        <Trash2 size={12} aria-hidden="true" />
+                                    </button>
+                                ) : null}
+                            </div>
+                        ) : null}
                     </div>
                 ) : null}
                 {mode === 'shared' ? <SharedResourceNotes notes={sharedNotes} print /> : null}

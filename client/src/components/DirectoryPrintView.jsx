@@ -435,6 +435,8 @@ function PrintDirectoryMap({
     canRedoPrintAnnotations = false,
     onReloadPrintAnnotations = null,
     onCloseAnnotationEditor = null,
+    onMapClick = null,
+    surfaceStatus = null,
 }) {
     const { t } = useLocale();
     const [annotationTool, setAnnotationTool] = useState(PRINT_ANNOTATION_TOOL_SELECT);
@@ -694,8 +696,10 @@ function PrintDirectoryMap({
                 fixedTownSurfaceFallbackScope="local"
                 onFixedTownSurfaceViewportChange={interactive ? onFixedTownSurfaceViewportChange : null}
                 mobileControlPortalTarget={mobileControlPortalTarget}
+                onMapClick={onMapClick}
                 mapModeControl={printMapState && interactive ? mapModeControl : null}
                 showMapStyleControl={interactive}
+                surfaceStatus={surfaceStatus}
                 mapOverlay={visiblePrintAnnotations.length || annotationEditing ? (
                     <PrintAnnotationLayer
                         annotations={visiblePrintAnnotations}
@@ -897,6 +901,11 @@ export default function DirectoryPrintView({
     onReloadPrintAnnotations = null,
     onCloseAnnotationEditor = null,
     onEditResourceShortDescription = null,
+    personalPlacePickerActive = false,
+    onPersonalPlaceMapClick = null,
+    personalPlaceSurfaceStatus = null,
+    onEditPersonalPlace = null,
+    onRemovePersonalPlace = null,
     mapLayersEnabled = false,
 }) {
     const useV2OwnerPrint = mode === 'owner';
@@ -1107,6 +1116,12 @@ export default function DirectoryPrintView({
                 onEditResourceShortDescription={variant === 'screen'
                     ? onEditResourceShortDescription
                     : null}
+                onEditPersonalPlace={variant === 'screen'
+                    ? onEditPersonalPlace
+                    : null}
+                onRemoveResource={variant === 'screen'
+                    ? onRemovePersonalPlace
+                    : null}
                 highlightPlaceKeys={activePrintPlaceKeys}
                 // Keep Balanced exact, while Map focus swaps to a constrained single label rail.
                 desktopGridClassName={printLayoutConfig.gridClassName}
@@ -1124,15 +1139,15 @@ export default function DirectoryPrintView({
                         onMapCaptureError={onMapCaptureError}
                         onMapViewportSnapshot={onMapViewportSnapshot}
                         interactive={printMapInteractive}
-                        focusedPlaceKey={focusedPrintPlaceKey}
-                        activePlaceKey={activePrintPlaceKey}
-                        activePlaceKeys={activePrintPlaceKeys}
-                        onViewSection={handlePrintPlaceSelect}
-                        onHoverPlaceStart={handlePrintPlaceHoverStart}
-                        onHoverPlaceEnd={handlePrintPlaceHoverEnd}
-                        onHoverClusterStart={handlePrintClusterHoverStart}
-                        onHoverClusterEnd={handlePrintClusterHoverEnd}
-                        onClusterSelect={handlePrintClusterSelect}
+                        focusedPlaceKey={personalPlacePickerActive ? null : focusedPrintPlaceKey}
+                        activePlaceKey={personalPlacePickerActive ? null : activePrintPlaceKey}
+                        activePlaceKeys={personalPlacePickerActive ? [] : activePrintPlaceKeys}
+                        onViewSection={personalPlacePickerActive ? null : handlePrintPlaceSelect}
+                        onHoverPlaceStart={personalPlacePickerActive ? null : handlePrintPlaceHoverStart}
+                        onHoverPlaceEnd={personalPlacePickerActive ? null : handlePrintPlaceHoverEnd}
+                        onHoverClusterStart={personalPlacePickerActive ? null : handlePrintClusterHoverStart}
+                        onHoverClusterEnd={personalPlacePickerActive ? null : handlePrintClusterHoverEnd}
+                        onClusterSelect={personalPlacePickerActive ? null : handlePrintClusterSelect}
                         onFocusHandled={handlePrintFocusHandled}
                         onResetView={clearPrintMapSelection}
                         useV2Format={useV2OwnerPrint}
@@ -1175,6 +1190,8 @@ export default function DirectoryPrintView({
                         canRedoPrintAnnotations={canRedoPrintAnnotations}
                         onReloadPrintAnnotations={onReloadPrintAnnotations}
                         onCloseAnnotationEditor={onCloseAnnotationEditor}
+                        onMapClick={personalPlacePickerActive ? onPersonalPlaceMapClick : null}
+                        surfaceStatus={personalPlaceSurfaceStatus}
                     />
                 )}
                 cardBadgeMode={useV2OwnerPrint ? (showPrintLogos ? 'logo' : 'none') : 'number'}

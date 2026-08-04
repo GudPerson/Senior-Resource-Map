@@ -2446,7 +2446,6 @@ export default function MyMapDetailPage() {
         if (shortDescriptionSubmitting) return;
         setShortDescriptionRow(null);
         setShortDescriptionError('');
-        setPrintShortDescriptionMode(false);
     }
 
     async function handleSaveResourceShortDescription(descriptorPatch) {
@@ -2478,7 +2477,6 @@ export default function MyMapDetailPage() {
                 }
             ));
             setShortDescriptionRow(null);
-            setPrintShortDescriptionMode(false);
         } catch (err) {
             console.error(err);
             setShortDescriptionError(err.message || 'Failed to update short description.');
@@ -2639,7 +2637,6 @@ export default function MyMapDetailPage() {
         }
 
         printAnnotations.reload();
-        setPrintShortDescriptionMode(false);
         setPrintLayoutOpen(false);
         setPrintMapState((current) => ({
             ...current,
@@ -2720,6 +2717,24 @@ export default function MyMapDetailPage() {
                                 <LayoutTemplate size={16} aria-hidden="true" />
                                 {t('printLayout')}
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setPrintLayoutOpen(false);
+                                    setPrintAnnotationEditorOpen(false);
+                                    openPersonalPlacePicker();
+                                }}
+                                className={`btn-ghost min-h-11 w-full justify-center border px-3 text-xs sm:w-auto sm:text-sm ${
+                                    personalPlacePickerActive
+                                        ? 'border-brand-600 bg-brand-50 text-brand-800'
+                                        : 'border-slate-200 text-slate-700'
+                                }`}
+                                aria-pressed={personalPlacePickerActive}
+                                data-print-personal-place-trigger="true"
+                            >
+                                <MapPin size={16} aria-hidden="true" />
+                                {personalPlacePickerActive ? t('cancelAddPersonalPlace') : t('addPersonalPlace')}
+                            </button>
                             {canEditPrintAnnotations ? (
                                 <button
                                     type="button"
@@ -2795,6 +2810,11 @@ export default function MyMapDetailPage() {
                         <p className="w-full text-left text-sm font-semibold text-slate-600 lg:ml-auto lg:w-auto lg:text-right">
                             Your saved image will match this preview.
                         </p>
+                        {actionError ? (
+                            <p role="alert" className="w-full text-sm font-semibold text-red-700">
+                                {actionError}
+                            </p>
+                        ) : null}
                         {canEditPrintAnnotations && !isFullMapPrintLayout ? (
                             <p
                                 className="w-full text-xs font-semibold text-slate-500"
@@ -2859,6 +2879,11 @@ export default function MyMapDetailPage() {
                         onEditResourceShortDescription={printShortDescriptionMode
                             ? handleEditResourceShortDescription
                             : null}
+                        personalPlacePickerActive={personalPlacePickerActive}
+                        onPersonalPlaceMapClick={handlePersonalPlaceMapClick}
+                        personalPlaceSurfaceStatus={personalPlaceMapSurfaceStatus}
+                        onEditPersonalPlace={handleEditPersonalPlace}
+                        onRemovePersonalPlace={handleRemoveResource}
                     />
                 </div>
 
@@ -2869,6 +2894,46 @@ export default function MyMapDetailPage() {
                     error={shortDescriptionError}
                     onClose={closeResourceShortDescription}
                     onSubmit={handleSaveResourceShortDescription}
+                />
+
+                <AddPersonalPlaceChooserModal
+                    open={personalPlaceChooserOpen}
+                    mapId={directory.id}
+                    places={personalPlacesLibrary}
+                    submitting={personalPlaceChooserSubmitting}
+                    error={personalPlaceChooserError}
+                    onClose={() => {
+                        if (personalPlaceChooserSubmitting) return;
+                        setPersonalPlaceChooserOpen(false);
+                        setPersonalPlaceChooserError('');
+                    }}
+                    onAttach={handleAttachPersonalPlaces}
+                    onCreateNew={startCreatingPersonalPlaceOnMap}
+                />
+
+                <PersonalPlaceEditorModal
+                    open={personalPlaceModalOpen}
+                    draft={personalPlaceDraft}
+                    categories={personalPlaceCategories}
+                    submitting={personalPlaceSubmitting}
+                    error={personalPlaceError}
+                    onClose={closePersonalPlaceModal}
+                    onManageCategories={() => setPersonalPlaceCategoryManagerOpen(true)}
+                    onSubmit={handleSavePersonalPlace}
+                />
+
+                <PersonalPlaceCategoryManagerModal
+                    open={personalPlaceCategoryManagerOpen}
+                    categories={personalPlaceCategories}
+                    busy={personalPlaceCategoryBusy}
+                    error={personalPlaceCategoryError}
+                    onClose={() => {
+                        if (personalPlaceCategoryBusy) return;
+                        setPersonalPlaceCategoryManagerOpen(false);
+                        setPersonalPlaceCategoryError('');
+                    }}
+                    onCreate={handleCreatePersonalPlaceCategory}
+                    onUpdate={handleUpdatePersonalPlaceCategory}
                 />
             </div>
         );
