@@ -39,6 +39,7 @@ import {
     getFocusedDirectoryCameraPins,
     shouldRefitDirectoryCameraAfterResize,
 } from '../lib/directoryMapCamera.js';
+import { getCollisionPushDistances } from '../lib/mapCollisionPolicy.js';
 import {
     FIXED_TOWN_OVERVIEW_MIN_ZOOM,
     areWsenBoundsContained,
@@ -1136,6 +1137,7 @@ function settlePrintBadgeBubbleOffset(item, offset, mapBounds) {
 function resolvePrintBadgeBubbleLayout(items, mapBounds = null) {
     const states = items.map((item) => ({
         item,
+        fixed: Boolean(item.fixed),
         mass: Math.max(1, item.lobes.length * 1.45),
         offset: {
             x: item.layoutOffsetX ?? item.initialOffsetX,
@@ -1165,11 +1167,14 @@ function resolvePrintBadgeBubbleLayout(items, mapBounds = null) {
                             ? { x: dx / distance, y: dy / distance }
                             : getPrintBadgeBubbleFallbackVector(leftState.item, rightState.item);
                         const overlap = minimumDistance - Math.max(distance, 0.01);
-                        const leftInverseMass = 1 / leftState.mass;
-                        const rightInverseMass = 1 / rightState.mass;
-                        const inverseMassTotal = leftInverseMass + rightInverseMass;
-                        const leftPush = overlap * (leftInverseMass / inverseMassTotal);
-                        const rightPush = overlap * (rightInverseMass / inverseMassTotal);
+                        const { leftPush, rightPush } = getCollisionPushDistances({
+                            overlap,
+                            leftMass: leftState.mass,
+                            rightMass: rightState.mass,
+                            leftFixed: leftState.fixed,
+                            rightFixed: rightState.fixed,
+                        });
+                        if (!leftPush && !rightPush) return;
 
                         leftState.offset.x -= (vector.x * leftPush) / leftState.item.scaleX;
                         leftState.offset.y -= (vector.y * leftPush) / leftState.item.scaleY;
@@ -1182,6 +1187,7 @@ function resolvePrintBadgeBubbleLayout(items, mapBounds = null) {
         }
 
         states.forEach((state) => {
+            if (state.fixed) return;
             state.offset = settlePrintBadgeBubbleOffset(state.item, state.offset, mapBounds);
         });
 
@@ -1253,14 +1259,34 @@ function hasAnyPrintBadgeStoredOffsetDrift(markerPane, solvedOffsets) {
     });
 }
 
-function restorePrintBadgeStoredOffsets(markerPane, solvedOffsets) {
-    if (!markerPane || !solvedOffsets?.size) return;
+function isCategoryBubbleFixedToAnchor(coreElement, fixedPlaceKeys = new Set()) {
+    if (!coreElement || !fixedPlaceKeys?.size) return false;
+
+    return [...coreElement.querySelectorAll('.directory-category-bubble-marker__lobe[data-category-bubble-place-key]')]
+        .some((lobeElement) => fixedPlaceKeys.has(String(lobeElement.dataset.categoryBubblePlaceKey || '')));
+}
+
+function restorePrintBadgeStoredOffsets(markerPane, solvedOffsets, fixedPlaceKeys = new Set()) {
+    if (!markerPane || (!solvedOffsets?.size && !fixedPlaceKeys?.size)) return;
 
     [...markerPane.querySelectorAll(DIRECTORY_BUBBLE_MARKER_CORE_SELECTOR)].forEach((coreElement) => {
         const markerElement = coreElement.closest('.leaflet-marker-icon');
         if (!markerElement) return;
 
         const markerKey = coreElement.dataset.printMarkerKey || coreElement.dataset.printNumber || '';
+        if (isCategoryBubbleFixedToAnchor(coreElement, fixedPlaceKeys)) {
+            solvedOffsets.delete(markerKey);
+            const baseMargins = ensurePrintBadgeBaseMargins(markerElement);
+            const initialOffsetX = normalizeMarkerOffset(coreElement.dataset.printOffsetX);
+            const initialOffsetY = normalizeMarkerOffset(coreElement.dataset.printOffsetY);
+            markerElement.style.marginLeft = `${baseMargins.left + initialOffsetX}px`;
+            markerElement.style.marginTop = `${baseMargins.top + initialOffsetY}px`;
+            markerElement.dataset.printCollisionSolved = 'true';
+            coreElement.style.setProperty('--print-badge-offset-x', '0px');
+            coreElement.style.setProperty('--print-badge-offset-y', '0px');
+            return;
+        }
+
         const storedOffset = getPrintBadgeStoredOffset(markerKey, solvedOffsets);
         if (!storedOffset) return;
 
@@ -1317,7 +1343,12 @@ function DirectoryCategoryBubbleZoomClassSync({ enabled, onCompactChange }) {
     return null;
 }
 
-function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSolvedOffsets = false }) {
+function DirectoryPrintBadgeCollisionSync({
+    enabled,
+    fixedPlaceKeys = [],
+    refreshKey = '',
+    preserveSolvedOffsets = false,
+}) {
     const map = useMap();
     const mapTransitionUntilRef = useRef(0);
     const solvedOffsetsRef = useRef(new Map());
@@ -1327,6 +1358,8 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSo
 
         const markerPane = map.getPanes?.()?.markerPane;
         if (!markerPane) return undefined;
+        const fixedPlaceKeySet = new Set((fixedPlaceKeys || []).map((value) => String(value)).filter(Boolean));
+        restorePrintBadgeStoredOffsets(markerPane, solvedOffsetsRef.current, fixedPlaceKeySet);
 
         const timeouts = new Set();
         const markMapTransitioning = () => {
@@ -1347,9 +1380,13 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSo
                     const initialOffsetX = normalizeMarkerOffset(coreElement.dataset.printOffsetX);
                     const initialOffsetY = normalizeMarkerOffset(coreElement.dataset.printOffsetY);
                     const markerKey = coreElement.dataset.printMarkerKey || coreElement.dataset.printNumber || '';
-                    const storedOffset = getPrintBadgeStoredOffset(markerKey, solvedOffsetsRef.current);
+                    const fixed = isCategoryBubbleFixedToAnchor(coreElement, fixedPlaceKeySet);
+                    if (fixed) solvedOffsetsRef.current.delete(markerKey);
+                    const storedOffset = fixed
+                        ? null
+                        : getPrintBadgeStoredOffset(markerKey, solvedOffsetsRef.current);
                     const isFocusedZoom = typeof map.getZoom === 'function' && map.getZoom() >= DIRECTORY_PRINT_BADGE_COLLISION_FOCUS_ZOOM;
-                    if (isFocusedZoom && storedOffset) {
+                    if (isFocusedZoom && storedOffset && !fixedPlaceKeySet.size) {
                         markerElement.style.marginLeft = `${baseMargins.left + storedOffset.x}px`;
                         markerElement.style.marginTop = `${baseMargins.top + storedOffset.y}px`;
                         markerElement.dataset.printCollisionSolved = 'true';
@@ -1377,9 +1414,10 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSo
                         baseMargins,
                         initialOffsetX,
                         initialOffsetY,
-                        layoutOffsetX: preserveSolvedOffsets ? (storedOffset?.x ?? initialOffsetX) : initialOffsetX,
-                        layoutOffsetY: preserveSolvedOffsets ? (storedOffset?.y ?? initialOffsetY) : initialOffsetY,
+                        layoutOffsetX: fixed ? initialOffsetX : (preserveSolvedOffsets ? (storedOffset?.x ?? initialOffsetX) : initialOffsetX),
+                        layoutOffsetY: fixed ? initialOffsetY : (preserveSolvedOffsets ? (storedOffset?.y ?? initialOffsetY) : initialOffsetY),
                         markerKey,
+                        fixed,
                     };
                 })
                 .filter(Boolean);
@@ -1395,6 +1433,7 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSo
                         layoutOffsetX,
                         layoutOffsetY,
                         markerKey,
+                        fixed,
                     } = markerElement;
 
                     const markerRect = markerNode.getBoundingClientRect();
@@ -1435,6 +1474,7 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSo
                         baseMarginTop: baseMargins.top,
                         scaleX,
                         scaleY,
+                        fixed,
                     };
                 })
                 .filter(Boolean)
@@ -1450,7 +1490,7 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSo
             const timeout = window.setTimeout(() => {
                 timeouts.delete(timeout);
                 if (!force && isMapTransitioning()) {
-                    restorePrintBadgeStoredOffsets(markerPane, solvedOffsetsRef.current);
+                    restorePrintBadgeStoredOffsets(markerPane, solvedOffsetsRef.current, fixedPlaceKeySet);
                     const remainingDelay = Math.max(40, mapTransitionUntilRef.current - Date.now() + 40);
                     scheduleCollisionPass(Math.min(remainingDelay, DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS));
                     return;
@@ -1463,7 +1503,7 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSo
             if (!preserveSolvedOffsets) return false;
             if (!hasAnyPrintBadgeStoredOffsetDrift(markerPane, solvedOffsetsRef.current)) return false;
 
-            restorePrintBadgeStoredOffsets(markerPane, solvedOffsetsRef.current);
+            restorePrintBadgeStoredOffsets(markerPane, solvedOffsetsRef.current, fixedPlaceKeySet);
             return true;
         };
         const handleMapSettled = () => {
@@ -1507,7 +1547,7 @@ function DirectoryPrintBadgeCollisionSync({ enabled, refreshKey = '', preserveSo
             map.off('zoomend', handleMapSettled);
             map.off('layeradd', scheduleCollisionPass);
         };
-    }, [enabled, map, preserveSolvedOffsets, refreshKey]);
+    }, [enabled, fixedPlaceKeys, map, preserveSolvedOffsets, refreshKey]);
 
     return null;
 }
@@ -2727,6 +2767,13 @@ export default function DirectoryMap({
         const focusedKeys = (focusedPlaceKeys || []).map((value) => String(value)).sort().join('|');
         return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${focusedKeys}::${activeKeys}::${compactCategoryBubbles ? 'compact' : 'full'}::${markerKeys}`;
     }, [activePlaceKey, activePlaceKeySet, compactCategoryBubbles, displayMarkerPins, focusedPlaceKey, focusedPlaceKeys, markerMode]);
+    const collisionFixedPlaceKeys = useMemo(() => {
+        if (markerMode !== 'category-bubble') return [];
+
+        const selectedPlaceKey = activePlaceKey ?? focusedPlaceKey;
+        const normalizedPlaceKey = String(selectedPlaceKey || '').replace(/:zoom$/, '');
+        return normalizedPlaceKey ? [normalizedPlaceKey] : [];
+    }, [activePlaceKey, focusedPlaceKey, markerMode]);
     const capturePinSignature = useMemo(() => displayMarkerPins.map((pin) => {
         const point = getDirectoryPinMapPoint(pin);
         return [
@@ -2995,7 +3042,9 @@ export default function DirectoryMap({
                                 key={pin.pinKey || pin.placeKey}
                                 position={[pin.displayLat, pin.displayLng]}
                                 icon={icon}
-                                zIndexOffset={markerMode === 'print-badge' ? 100000 + ((Number(pin.number) || 0) * 1000) : undefined}
+                                zIndexOffset={markerMode === 'print-badge'
+                                    ? 100000 + ((Number(pin.number) || 0) * 1000)
+                                    : (markerMode === 'category-bubble' && isMatched ? 100000 : undefined)}
                                 eventHandlers={interactive ? {
                                     mousedown: (event) => handleMarkerActivate(event, pin),
                                     click: (event) => handleMarkerActivate(event, pin),
@@ -3077,7 +3126,9 @@ export default function DirectoryMap({
                     key={pin.pinKey || pin.placeKey}
                     position={[pin.displayLat, pin.displayLng]}
                     icon={icon}
-                    zIndexOffset={markerMode === 'print-badge' ? 100000 + ((Number(pin.number) || 0) * 1000) : undefined}
+                    zIndexOffset={markerMode === 'print-badge'
+                        ? 100000 + ((Number(pin.number) || 0) * 1000)
+                        : (markerMode === 'category-bubble' && isMatched ? 100000 : undefined)}
                     eventHandlers={interactive ? {
                         mousedown: (event) => handleMarkerActivate(event, pin),
                         click: (event) => handleMarkerActivate(event, pin),
@@ -3305,6 +3356,7 @@ export default function DirectoryMap({
                 />
                 <DirectoryPrintBadgeCollisionSync
                     enabled={markerMode === 'print-badge' || markerMode === 'category-bubble'}
+                    fixedPlaceKeys={collisionFixedPlaceKeys}
                     preserveSolvedOffsets={markerMode === 'category-bubble'}
                     refreshKey={printBadgeLayoutRefreshKey}
                 />

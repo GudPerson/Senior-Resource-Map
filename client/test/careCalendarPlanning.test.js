@@ -120,7 +120,12 @@ test('changed unmatched plans wait in Updates until acknowledgement archives the
     assert.equal(partitioned.history.length, 1);
 });
 
-test('planning conflicts identify exact overlaps and same-start uncertain events', () => {
+test('planning conflicts identify exact overlaps and same-start uncertain events', (t) => {
+    t.mock.timers.enable({
+        apis: ['Date'],
+        now: new Date('2026-07-18T00:00:00.000Z'),
+    });
+
     const candidate = {
         id: 'new',
         startsAt: '2026-07-20T02:00:00.000Z',

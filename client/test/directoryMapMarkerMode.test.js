@@ -75,9 +75,9 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /data-print-marker-key="\$\{escapeHtml\(markerKey\)\}"/);
     assert.match(directoryMapSource, /markerElement\.dataset\.printCollisionSolved = 'true'/);
     assert.match(directoryMapSource, /const solvedOffsetsRef = useRef\(new Map\(\)\)/);
-    assert.match(directoryMapSource, /const storedOffset = getPrintBadgeStoredOffset\(markerKey, solvedOffsetsRef\.current\)/);
-    assert.match(directoryMapSource, /if \(isFocusedZoom && storedOffset\) \{/);
-    assert.match(directoryMapSource, /restorePrintBadgeStoredOffsets\(markerPane, solvedOffsetsRef\.current\)/);
+    assert.match(directoryMapSource, /const storedOffset = fixed[\s\S]*getPrintBadgeStoredOffset\(markerKey, solvedOffsetsRef\.current\)/);
+    assert.match(directoryMapSource, /if \(isFocusedZoom && storedOffset && !fixedPlaceKeySet\.size\) \{/);
+    assert.match(directoryMapSource, /restorePrintBadgeStoredOffsets\(markerPane, solvedOffsetsRef\.current, fixedPlaceKeySet\)/);
     assert.match(directoryMapSource, /const hasSolvedOffset = markerElement\.dataset\.printCollisionSolved === 'true'/);
     assert.match(directoryMapSource, /if \(hasSolvedOffset && !isPrintBadgeAnchorNearMap\(\{ centerX: markerCenterX, centerY: markerCenterY \}, mapBounds\)\) \{/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_BUBBLE_ITERATIONS/);
@@ -98,9 +98,9 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /activePlaceKeySet/);
     assert.match(directoryMapSource, /printBadgeItems/);
     assert.match(directoryMapSource, /<DirectoryPrintBadgeCollisionSync[\s\S]*enabled=\{markerMode === 'print-badge' \|\| markerMode === 'category-bubble'\}[\s\S]*refreshKey=\{printBadgeLayoutRefreshKey\}/);
-    assert.match(directoryMapSource, /function DirectoryPrintBadgeCollisionSync\(\{ enabled, refreshKey = '', preserveSolvedOffsets = false \}\)/);
+    assert.match(directoryMapSource, /function DirectoryPrintBadgeCollisionSync\(\{[\s\S]*fixedPlaceKeys = \[\],[\s\S]*refreshKey = '',[\s\S]*preserveSolvedOffsets = false,[\s\S]*\}\)/);
     assert.match(directoryMapSource, /const mapTransitionUntilRef = useRef\(0\)/);
-    assert.match(directoryMapSource, /\}, \[enabled, map, preserveSolvedOffsets, refreshKey\]\)/);
+    assert.match(directoryMapSource, /\}, \[enabled, fixedPlaceKeys, map, preserveSolvedOffsets, refreshKey\]\)/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_COLLISION_SCHEDULE_DELAYS\.forEach\(scheduleCollisionPass\)/);
     assert.match(directoryMapSource, /if \(!force && isMapTransitioning\(\)\) \{/);
     assert.match(directoryMapSource, /scheduleCollisionPass\(DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS \+ 360, \{ force: true \}\)/);
@@ -111,7 +111,7 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /map\.on\('moveend', handleMapSettled\)/);
     assert.match(directoryMapSource, /map\.on\('zoomend', handleMapSettled\)/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_LOBE_SPACING/);
-    assert.match(directoryMapSource, /zIndexOffset=\{markerMode === 'print-badge' \? 100000 \+ \(\(Number\(pin\.number\) \|\| 0\) \* 1000\) : undefined\}/);
+    assert.match(directoryMapSource, /markerMode === 'category-bubble' && isMatched \? 100000 : undefined/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_DIAMETER = 25\.5/);
     assert.match(directoryMapSource, /className: 'directory-print-badge-leaflet-icon'/);
     assert.match(directoryMapSource, /iconSize: \[lobeLayout\.width, lobeLayout\.height\]/);
@@ -172,8 +172,8 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*style="border-color:\$\{item\.color\};"/);
     assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*background:#ffffff/);
     assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*color:\$\{item\.color\}/);
-    assert.match(directoryMapSource, /layoutOffsetX: preserveSolvedOffsets \? \(storedOffset\?\.x \?\? initialOffsetX\) : initialOffsetX/);
-    assert.match(directoryMapSource, /layoutOffsetY: preserveSolvedOffsets \? \(storedOffset\?\.y \?\? initialOffsetY\) : initialOffsetY/);
+    assert.match(directoryMapSource, /layoutOffsetX: fixed \? initialOffsetX : \(preserveSolvedOffsets \? \(storedOffset\?\.x \?\? initialOffsetX\) : initialOffsetX\)/);
+    assert.match(directoryMapSource, /layoutOffsetY: fixed \? initialOffsetY : \(preserveSolvedOffsets \? \(storedOffset\?\.y \?\? initialOffsetY\) : initialOffsetY\)/);
     assert.match(directoryMapSource, /x: item\.layoutOffsetX \?\? item\.initialOffsetX/);
     assert.match(directoryMapSource, /y: item\.layoutOffsetY \?\? item\.initialOffsetY/);
     assert.match(directoryMapSource, /function hasPrintBadgeStoredOffsetDrift/);
@@ -183,6 +183,12 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(directoryMapSource, /observer\.observe\(markerPane, \{\s*attributes: true,\s*attributeFilter: \['style', 'class'\],\s*childList: true,\s*subtree: true,\s*\}\)/);
     assert.match(directoryMapSource, /hasAnyPrintBadgeStoredOffsetDrift\(markerPane, solvedOffsetsRef\.current\)/);
     assert.match(directoryMapSource, /preserveSolvedOffsets=\{markerMode === 'category-bubble'\}/);
+    assert.match(directoryMapSource, /function isCategoryBubbleFixedToAnchor/);
+    assert.match(directoryMapSource, /fixedPlaceKeys=\{collisionFixedPlaceKeys\}/);
+    assert.match(directoryMapSource, /const fixed = isCategoryBubbleFixedToAnchor\(coreElement, fixedPlaceKeySet\)/);
+    assert.match(directoryMapSource, /fixed \? initialOffsetX/);
+    assert.match(directoryMapSource, /fixed \? initialOffsetY/);
+    assert.match(directoryMapSource, /if \(state\.fixed\) return/);
     assert.match(directoryMapSource, /<DirectoryPrintBadgeCollisionSync[\s\S]*enabled=\{markerMode === 'print-badge' \|\| markerMode === 'category-bubble'\}[\s\S]*refreshKey=\{printBadgeLayoutRefreshKey\}/);
     assert.match(appCssSource, /\.leaflet-marker-icon\.directory-category-bubble-leaflet-icon[\s\S]*pointer-events: none !important/);
     assert.match(appCssSource, /\.leaflet-marker-icon\.directory-category-bubble-leaflet-icon \.directory-category-bubble-marker__lobe[\s\S]*pointer-events: auto !important/);

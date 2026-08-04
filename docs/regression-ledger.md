@@ -15,6 +15,42 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-04 selected My Map category pin geographic-anchor recovery
+
+- Current behavior: on owner My Map and interactive Shared Map category-bubble
+  views, the explicitly selected or focused resource marker stays on its real
+  Leaflet geographic anchor and renders above neighbouring markers. The shared
+  collision solver continues to spread only the unselected neighbouring
+  category bubbles for readability. Print View retains its existing numeric
+  badge collision behavior and every unselected interactive marker retains the
+  established weighted spreading behavior.
+- Known-good reference: branch `codex/fix-selected-map-pin-anchor`, based on
+  current `origin/main` commit `26d3163c9`. Production resource `hard-17882`
+  uses postal code `600308` and coordinates near the official OneMap Block 308
+  point. Read-only production inspection showed its selected Leaflet icon being
+  visually displaced by a preserved collision margin even though its map
+  coordinate was correct; no resource-data correction is required.
+- Reproduction steps: open owner My Map `258`, select `Jurong Central Zone E
+  RN`, and zoom to the Block 308 area. Inspect the selected category bubble
+  against the building footprint and nearby category bubbles. Deselect it and
+  select a neighbouring resource. Repeat after a pan, zoom, and reload, then
+  check owner Print View and an interactive Shared Map.
+- Acceptance criteria: the selected/focused category bubble has zero collision
+  displacement from its Leaflet anchor, remains above nearby bubbles, and stays
+  anchored after delayed layout passes, map movement, and redraws. Unselected
+  bubbles may move to avoid overlap; Print View badge layout, saved coordinates,
+  postal validation, camera behavior, clustering, Detailed-map alignment,
+  exports, notes, sharing, auth, API, schema, permissions, and production data
+  remain unchanged.
+- Verification result before deploy: red-first collision-policy coverage failed
+  before the new helper existed, then passed 3/3. Focused category-bubble,
+  My Map, Shared Map, Detailed-map, Print View, and annotation coverage passed
+  158/158. Full client coverage passed 548/548 after carrying forward the
+  previously approved deterministic Care Calendar test-clock correction; no
+  Calendar production logic changed. Full server coverage passed 497/497.
+  The exact six-root production client build passed with only the established
+  bundle-size advisory, and `git diff --check` passed.
+
 ## 2026-08-01 Authenticated High-Detail Town Maps download library (production released)
 
 - Current behavior: signed-in users with My Directory access can open
