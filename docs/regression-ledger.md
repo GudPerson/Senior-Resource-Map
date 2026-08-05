@@ -15,6 +15,42 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-05 owner Print View personal-place description font recovery
+
+- Current behavior: every saved Print View short description renders at the
+  same type size as the visible resource or personal-place name on its card,
+  in both the on-screen preview and PNG/PDF export surfaces. Text colour,
+  highlight colour, ordering, edit/remove actions, and persistent description
+  mode are unchanged.
+- Root cause and known-good reference: repeated-name personal places remain in
+  the nested resource-row path so their Print View edit/remove actions can stay
+  directly on the card. That path correctly suppresses the duplicate inner
+  name, but still assigned the smaller nested-row type class to the
+  description. Production inspection on owner map 258 measured 6.6 px for the
+  affected Ivory Heights and Upcoming descriptions beside 9 px visible card
+  names; ordinary resource descriptions correctly measured 9 px. Branch
+  `codex/print-description-font-consistency` resolves the description class
+  from the visible title: the existing nested-row size when its own name is
+  shown, or the existing group-title size when the duplicate name is hidden.
+- Reproduction steps: sign in as the owner of map 258, open Print View with
+  `Add short description` active, and compare Ivory Heights and the two
+  Upcoming personal-place descriptions with their card names. Compare those
+  cards with IMM Building and Community Plaza, then save Resource PNG and PDF
+  outputs and inspect the same cards.
+- Acceptance criteria: computed description and visible-name font sizes match
+  for repeated-name personal places and ordinary resources in compact and
+  regular Print View layouts; no duplicate name is introduced; personal-place
+  edit/remove actions remain screen-only; colours and highlights remain
+  independent; resource ordering, cards, columns, map geometry, pins,
+  annotations, Detailed/Live maps, QR, auth, API, schema, Worker, and production
+  data remain unchanged.
+- Verification result before deploy: the focused source regression failed
+  before the patch and passed afterward. Focused personal-place, descriptor,
+  and Print View coverage passed 39/39; the full client suite passed 549/549;
+  the full server suite passed 497/497; and the locked map suite passed 76/76
+  together with the exact six-root production client build. `git diff --check`
+  passed. Deployed artifact evidence is recorded with the release commit.
+
 ## 2026-08-04 Detailed-map production artifact recovery
 
 - Current behavior: owner My Map and Print View retain the Detailed/Live map

@@ -1360,6 +1360,9 @@ function DirectoryResourceRow({
         ) : showResourceName ? (
             <p className={`font-semibold leading-snug text-slate-800 ${rowTitleClassName}`}>{row.name}</p>
         ) : null;
+        const printShortDescriptionClassName = printRowTitle
+            ? rowTitleClassName
+            : (compactPrint ? 'text-[0.9375rem]' : 'text-base');
 
         return (
             <div className="border-b border-slate-100 pb-1 last:border-b-0 last:pb-0">
@@ -1377,7 +1380,7 @@ function DirectoryResourceRow({
                                     <div className="min-w-0 flex-1 space-y-0.5">
                                         {shortDescriptionItems.map((item, index) => (
                                             <p key={item.id || `${item.text}-${index}`} className="leading-snug">
-                                                <MapShortDescriptionText item={item} textClassName={rowTitleClassName}>
+                                                <MapShortDescriptionText item={item} textClassName={printShortDescriptionClassName}>
                                                     {item.text}
                                                 </MapShortDescriptionText>
                                             </p>

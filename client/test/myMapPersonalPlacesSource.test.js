@@ -165,6 +165,16 @@ test('My Map short descriptions stay separate from Map Notes and suppress repeat
     assert.match(listSource, /data-print-address-text="true"/);
     assert.match(listSource, /getMapShortDescriptorPrintStyle/);
     assert.match(listSource, /compactPrint \? 'text-\[0\.9375rem\]' : 'text-base'/);
+    assert.match(
+        listSource,
+        /const printShortDescriptionClassName = printRowTitle[\s\S]*?\? rowTitleClassName[\s\S]*?: \(compactPrint \? 'text-\[0\.9375rem\]' : 'text-base'\)/,
+        'a repeated personal-place description should match its visible group title size',
+    );
+    assert.match(
+        listSource,
+        /<MapShortDescriptionText item=\{item\} textClassName=\{printShortDescriptionClassName\}>/,
+        'the Print View row should use the resolved visible-title size for descriptions',
+    );
     assert.match(shortDescriptionModalSource, /MAP_SHORT_DESCRIPTOR_TEXT_COLORS/);
     assert.match(shortDescriptionModalSource, /MAP_SHORT_DESCRIPTOR_HIGHLIGHT_COLORS/);
     assert.match(shortDescriptionModalSource, /shortDescriptionCustomTextColour/);
