@@ -45,14 +45,27 @@ Rules:
   Numbering, colours, list/card order, personal-place controls, descriptions,
   annotations, map layers, Detailed/Live behavior, exports, QR, auth, API,
   schema, Worker, and production data remain unchanged.
-- Verification result before deploy: focused collision and Directory Map
+- Verification and deployment: focused collision and Directory Map
   coverage passed 17/17, including the new deterministic contract that settled
   passes cannot bypass the solver with a focused-zoom stored offset. Full
   client/source coverage passed 550/550. Locked map coverage passed 76/76 and
   the exact six-root production client build completed with only the established
-  Browserslist and large-chunk advisories. `git diff --check` passed. No server,
-  database, schema, API, Worker, R2, coordinate, or production-data change is
-  included, and no deployment has been made from this branch.
+  Browserslist and large-chunk advisories. `git diff --check` passed. Commit
+  `c605d4937` was pushed on `codex/print-pin-number-visibility`, and the unchanged
+  validated artifact deployed to
+  `https://1b8c637e.senior-resource-map.pages.dev`. The preview and
+  `https://app.carearound.sg` matched local HTML, entry, CSS, My Map, and shared
+  Directory Map bytes with correct MIME types. HTML SHA-256 is
+  `a26d7e1b8abaaa654e40656bb92b2781c06fcc20d5b7868eead2696e06b3a14b`,
+  entry SHA-256 is
+  `9899feba2e21a7279beb73c74e8fcb87bc78eebd3ab9fd5e7f696fe0a3d817d0`,
+  My Map SHA-256 is
+  `cc8c5aabc31d11d4efbdfbc9dfa9e6c6a9bd9a1f957529544386a1d6ca9c6fad`,
+  and shared Directory Map SHA-256 is
+  `06329ba37b2abf6c241d4501c59522506cb9a108e41e87acdc36548028d3119c`.
+  The production bundle retained all six map roots and required copy, excluded
+  the retired copy, and API health returned 200. No server, database, schema,
+  API, Worker, R2, coordinate, or production-data change was deployed.
 
 ## 2026-08-05 owner Print View personal-place description font recovery
 
