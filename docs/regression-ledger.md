@@ -50,9 +50,29 @@ Rules:
   reset, capture-key invalidation, scaled geometry, and control contracts.
   Full client coverage passed 552/552, full server coverage passed 497/497,
   `npm run verify:map-lockdown` passed 77/77 and completed the required
-  six-root production client build, and `git diff --check` passed. Authenticated
-  visual UAT of all three exported sizes remains a release check. Production
-  deployment evidence is recorded after the release completes.
+  six-root production client build, and `git diff --check` passed.
+- Production release: implementation commit `561e63c1` was pushed on
+  `codex/print-pin-size-control` and the validated client artifact was deployed
+  to `https://123af0bd.senior-resource-map.pages.dev`. The preview and
+  `https://app.carearound.sg` served byte-identical HTML, entry, CSS, My Map,
+  and map-export artifacts with correct MIME types after normal edge
+  propagation. Entry SHA-256 was
+  `1e37c8bc5fba6254dc8f3d21c201ffe430207fe8897680e4ab53f89cfd1850f2`;
+  My Map SHA-256 was
+  `04d57a74af2d75903d9ac33a9c604ddf38e19e24266ef90ef3b6a5bb07f710dc`;
+  map-export SHA-256 was
+  `bca2fd623008254e1de1c07d8d7c8c48a86e8ab2ca5ba20a5f8ffe084e0ff296`.
+  All six map roots and required map markers were present, forbidden legacy
+  labels were absent, `/discover`, `/login`, and `/privacy` returned 200, and
+  the production API health endpoint returned 200/OK.
+- Authenticated production UAT: owner map 258 exposed the localized Standard,
+  Large, and Extra large controls. Live marker evidence confirmed scales 1,
+  1.25, and 1.5 with the expected pin and numeral growth. Full-map Extra large
+  returned to `Map ready to download` without an alert, proving the shared
+  hidden export surface re-prepared successfully. Standard remained the reset
+  value. No download was triggered during UAT, so final PowerPoint legibility
+  remains a user-side output check. No Worker, API, schema, auth, permission,
+  R2, or production-data change was deployed.
 
 ## 2026-08-05 owner Print View redraw collision and full-height follow-up
 
