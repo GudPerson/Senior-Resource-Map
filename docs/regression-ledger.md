@@ -49,7 +49,21 @@ Rules:
   and Print View coverage passed 39/39; the full client suite passed 549/549;
   the full server suite passed 497/497; and the locked map suite passed 76/76
   together with the exact six-root production client build. `git diff --check`
-  passed. Deployed artifact evidence is recorded with the release commit.
+  passed. Commit `f06dc783a` deployed the unchanged validated artifact to
+  `https://b69ee0fc.senior-resource-map.pages.dev`. Preview and custom-domain
+  HTML, entry, CSS, My Map, and shared-directory assets matched local bytes;
+  index SHA-256 is
+  `767a208f08540718e11d2639a9b676985f8368a5f56e33ddedcc4f54ea5ba9b0`,
+  entry SHA-256 is
+  `0cec3b6bd0e6eaa2e5498ab8e958d4eef2c1b769748ddf19dda57bfb53d37aab`,
+  and My Map SHA-256 is
+  `6df9cb15bc2b3e8001514c408b99aa4d4789bda1f16f1f6579408cbed029585b`.
+  The custom bundle retained all six required map roots, `The regular map is
+  still shown.`, and `Save PDF`, with the retired labels absent. Signed-in
+  production UAT on map 258 measured 9 px for Ivory Heights, both Upcoming
+  descriptions, and their visible 9 px names; ordinary IMM and Town Council
+  cards remained 9 px. Production API health returned OK. No Worker, schema,
+  API, database, map-data, or personal-place-data deployment was made.
 
 ## 2026-08-04 Detailed-map production artifact recovery
 
