@@ -15,6 +15,45 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-05 owner Print View adjustable pin and number size
+
+- Current behavior: the existing Print layout panel exposes Standard, Large,
+  and Extra large pin-and-number sizes whenever resource pins are shown. The
+  selected size scales the coloured badge circle, grouped badge spacing, and
+  numeric label together in both the visible preview and the hidden PNG/PDF
+  export surface. Standard remains the default and reset value.
+- Architecture and blast radius: the session-only `printMapState` stores a
+  normalized size token and maps it to bounded 1x, 1.25x, or 1.5x rendering.
+  `DirectoryPrintView` supplies that scale only to Print badge markers; ordinary
+  My Map pins, category bubbles, Shared Maps, and saved coordinates are
+  unchanged. The size token participates in the capture-readiness key so a
+  changed size invalidates an earlier prepared export. The existing collision
+  solver receives the scaled marker and lobe dimensions rather than estimating
+  from the Standard badge.
+- Reproduction steps: sign in as the owner of map 258, open Print View and the
+  Print layout panel, keep resource pins visible, and switch Pin and number size
+  between Standard, Large, and Extra large. Confirm the map preview updates,
+  nearby and grouped numbers remain legible after the map settles, and saved
+  Map PNG/PDF output matches the selected preview size. Hide resource pins and
+  confirm the size choices are progressively hidden; reset Print View and
+  confirm Standard returns.
+- Acceptance criteria: the three size choices are keyboard-accessible 44 px
+  controls with localized labels and helper copy; Standard output is unchanged;
+  pin circles and numbers scale together; visible and exported maps use the same
+  setting; changing size re-prepares map-dependent exports. Pin numbering,
+  colours, collision handling, grouped-place association, coordinates, camera,
+  Detailed/Live layers, annotations, map height, cards, descriptions, personal
+  places, QR, auth, API, schema, Worker, R2, and production data remain
+  unchanged.
+- Verification result before release: focused Print View, Directory Map, and
+  collision coverage passed 45/45, including deterministic size normalization,
+  reset, capture-key invalidation, scaled geometry, and control contracts.
+  Full client coverage passed 552/552, full server coverage passed 497/497,
+  `npm run verify:map-lockdown` passed 77/77 and completed the required
+  six-root production client build, and `git diff --check` passed. Authenticated
+  visual UAT of all three exported sizes remains a release check. Production
+  deployment evidence is recorded after the release completes.
+
 ## 2026-08-05 owner Print View redraw collision and full-height follow-up
 
 - Current behavior: Print View collision offsets are restored whenever Leaflet

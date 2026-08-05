@@ -19,6 +19,9 @@ export const PRINT_MAP_QUALITY_STANDARD = 'standard';
 export const PRINT_MAP_QUALITY_HIGH = 'high';
 export const PRINT_MAP_RESOURCE_LAYER_SHOW = 'show';
 export const PRINT_MAP_RESOURCE_LAYER_HIDE = 'hide';
+export const PRINT_MAP_PIN_SIZE_STANDARD = 'standard';
+export const PRINT_MAP_PIN_SIZE_LARGE = 'large';
+export const PRINT_MAP_PIN_SIZE_EXTRA_LARGE = 'extra-large';
 export const PRINT_MAP_ANNOTATION_LAYER_SHOW = 'show';
 export const PRINT_MAP_ANNOTATION_LAYER_HIDE = 'hide';
 export const PRINT_MAP_MAX_HIDDEN_LAYER_KEYS = 200;
@@ -72,6 +75,22 @@ export function normalizePrintMapResourceLayer(value) {
     return value === PRINT_MAP_RESOURCE_LAYER_HIDE
         ? PRINT_MAP_RESOURCE_LAYER_HIDE
         : PRINT_MAP_RESOURCE_LAYER_SHOW;
+}
+
+export function normalizePrintMapPinSize(value) {
+    return [
+        PRINT_MAP_PIN_SIZE_LARGE,
+        PRINT_MAP_PIN_SIZE_EXTRA_LARGE,
+    ].includes(value)
+        ? value
+        : PRINT_MAP_PIN_SIZE_STANDARD;
+}
+
+export function getPrintMapPinScale(value) {
+    const pinSize = normalizePrintMapPinSize(value);
+    if (pinSize === PRINT_MAP_PIN_SIZE_EXTRA_LARGE) return 1.5;
+    if (pinSize === PRINT_MAP_PIN_SIZE_LARGE) return 1.25;
+    return 1;
 }
 
 export function normalizePrintMapAnnotationLayer(value) {
@@ -370,6 +389,7 @@ export function createOwnerPrintMapState(mapStyle, {
         resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
         mapQuality: PRINT_MAP_QUALITY_STANDARD,
         resourceLayer: PRINT_MAP_RESOURCE_LAYER_SHOW,
+        pinSize: PRINT_MAP_PIN_SIZE_STANDARD,
         annotationLayer: PRINT_MAP_ANNOTATION_LAYER_SHOW,
         hiddenResourceLayerKeys: [],
         hiddenAnnotationIds: [],
@@ -402,6 +422,7 @@ export function buildPrintMapCaptureKey(state) {
         normalizePrintMapResourcePlacement(state?.resourcePlacement),
         normalizePrintMapQuality(state?.mapQuality),
         normalizePrintMapResourceLayer(state?.resourceLayer),
+        normalizePrintMapPinSize(state?.pinSize),
         normalizePrintMapAnnotationLayer(state?.annotationLayer),
         JSON.stringify(normalizePrintMapHiddenLayerKeys(state?.hiddenResourceLayerKeys)),
         JSON.stringify(normalizePrintMapHiddenLayerKeys(state?.hiddenAnnotationIds)),

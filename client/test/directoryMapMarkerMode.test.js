@@ -76,6 +76,7 @@ test('print badge collision offsets survive Leaflet marker redraws', () => {
 
 test('directory map supports print badge markers without moving marker coordinates', () => {
     assert.match(directoryMapSource, /function createPrintResourceBadgeMarker/);
+    assert.match(directoryMapSource, /function normalizePrintBadgeScale/);
     assert.match(directoryMapSource, /function normalizePrintBadgeItems/);
     assert.match(directoryMapSource, /function getPrintBadgeLobeLayout/);
     assert.match(directoryMapSource, /function DirectoryPrintBadgeCollisionSync/);
@@ -124,6 +125,12 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_LOBE_SPACING = DIRECTORY_PRINT_BADGE_DIAMETER \* 0\.9/);
     assert.match(directoryMapSource, /markerMode === 'category-bubble' && isMatched \? 100000 : undefined/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_DIAMETER = 25\.5/);
+    assert.match(directoryMapSource, /printBadgeScale = 1/);
+    assert.match(directoryMapSource, /const badgeDiameter = DIRECTORY_PRINT_BADGE_DIAMETER \* badgeScale/);
+    assert.match(directoryMapSource, /const fontSize = baseFontSize \* badgeScale/);
+    assert.match(directoryMapSource, /data-print-badge-scale="\$\{badgeScale\}"/);
+    assert.match(directoryMapSource, /scale: printBadgeScale/);
+    assert.match(directoryMapSource, /markerMode, printBadgeScale/);
     assert.match(directoryMapSource, /className: 'directory-print-badge-leaflet-icon'/);
     assert.match(directoryMapSource, /iconSize: \[lobeLayout\.width, lobeLayout\.height\]/);
     assert.match(directoryMapSource, /iconAnchor: \[lobeLayout\.width \/ 2, lobeLayout\.height \/ 2\]/);

@@ -234,6 +234,12 @@ function normalizeMarkerOffset(value) {
     return Number.isFinite(number) ? number : 0;
 }
 
+function normalizePrintBadgeScale(value) {
+    const scale = Number(value);
+    if (!Number.isFinite(scale)) return 1;
+    return Math.min(Math.max(scale, 1), 1.5);
+}
+
 function normalizeStylePixel(value) {
     const number = Number.parseFloat(String(value || '0').replace('px', ''));
     return Number.isFinite(number) ? number : 0;
@@ -341,8 +347,13 @@ function getBubbleLobeLayout(count, {
     };
 }
 
-function getPrintBadgeLobeLayout(count) {
-    return getBubbleLobeLayout(count);
+function getPrintBadgeLobeLayout(count, scale = 1) {
+    const badgeScale = normalizePrintBadgeScale(scale);
+    const diameter = DIRECTORY_PRINT_BADGE_DIAMETER * badgeScale;
+    return getBubbleLobeLayout(count, {
+        diameter,
+        spacing: diameter * 0.9,
+    });
 }
 
 function getCategoryBubbleLobeLayout(count, compact = false) {
@@ -479,6 +490,7 @@ function createPrintResourceBadgeMarker(number, {
     items = null,
     offsetX = 0,
     offsetY = 0,
+    scale = 1,
 } = {}) {
     const isSelected = emphasis === 'primary';
     const badgeColor = normalizeMarkerColor(color);
@@ -487,12 +499,15 @@ function createPrintResourceBadgeMarker(number, {
     const label = String(number || '?').trim() || '?';
     const badgeItems = normalizePrintBadgeItems(number, items, badgeColor);
     const markerKey = badgeItems.map((item) => `${item.placeKey || ''}:${item.label}`).join('|') || placeKey || label;
-    const lobeLayout = getPrintBadgeLobeLayout(badgeItems.length);
+    const badgeScale = normalizePrintBadgeScale(scale);
+    const badgeDiameter = DIRECTORY_PRINT_BADGE_DIAMETER * badgeScale;
+    const lobeLayout = getPrintBadgeLobeLayout(badgeItems.length, badgeScale);
     const shadowColor = isSelected ? '0 10px 18px rgba(194, 65, 12, 0.28)' : '0 6px 12px rgba(15, 23, 42, 0.18)';
     const focusGlow = isSelected ? ', 0 0 0 5px rgba(249,115,22,0.24)' : '';
     const lobeHtml = badgeItems.map((item, index) => {
         const lobe = lobeLayout.lobes[index] || { left: 0, top: 0 };
-        const fontSize = item.label.length > 2 ? 8.5 : (item.label.length > 1 ? 10 : 11.5);
+        const baseFontSize = item.label.length > 2 ? 8.5 : (item.label.length > 1 ? 10 : 11.5);
+        const fontSize = baseFontSize * badgeScale;
         return `
             <span
                 class="directory-print-badge-marker__lobe"
@@ -501,8 +516,8 @@ function createPrintResourceBadgeMarker(number, {
                     position:absolute;
                     left:${lobe.left}px;
                     top:${lobe.top}px;
-                    width:${DIRECTORY_PRINT_BADGE_DIAMETER}px;
-                    height:${DIRECTORY_PRINT_BADGE_DIAMETER}px;
+                    width:${badgeDiameter}px;
+                    height:${badgeDiameter}px;
                     box-sizing:border-box;
                     display:flex;
                     align-items:center;
@@ -544,6 +559,7 @@ function createPrintResourceBadgeMarker(number, {
                     data-print-marker-key="${escapeHtml(markerKey)}"
                     data-print-number="${escapeHtml(label)}"
                     data-print-lobe-count="${badgeItems.length}"
+                    data-print-badge-scale="${badgeScale}"
                     data-print-icon-width="${lobeLayout.width}"
                     data-print-icon-height="${lobeLayout.height}"
                     data-print-offset-x="${x}"
@@ -2438,6 +2454,7 @@ export default function DirectoryMap({
     className = '',
     emptyLabel = 'This directory does not have any mappable places yet.',
     markerMode = 'count',
+    printBadgeScale = 1,
     pinBadgeMode = 'count',
     pinCategoryIconMode = 'auto',
     clusterMarkerMode = 'bubble',
@@ -2753,8 +2770,8 @@ export default function DirectoryMap({
         }).join(';');
 
         const focusedKeys = (focusedPlaceKeys || []).map((value) => String(value)).sort().join('|');
-        return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${focusedKeys}::${activeKeys}::${compactCategoryBubbles ? 'compact' : 'full'}::${markerKeys}`;
-    }, [activePlaceKey, activePlaceKeySet, compactCategoryBubbles, displayMarkerPins, focusedPlaceKey, focusedPlaceKeys, markerMode]);
+        return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${focusedKeys}::${activeKeys}::${compactCategoryBubbles ? 'compact' : 'full'}::${normalizePrintBadgeScale(printBadgeScale)}::${markerKeys}`;
+    }, [activePlaceKey, activePlaceKeySet, compactCategoryBubbles, displayMarkerPins, focusedPlaceKey, focusedPlaceKeys, markerMode, printBadgeScale]);
     const collisionFixedPlaceKeys = useMemo(() => {
         if (markerMode !== 'category-bubble') return [];
 
@@ -2979,6 +2996,7 @@ export default function DirectoryMap({
                                     items: pin.printBadgeItems || null,
                                     offsetX: pin.printOffsetX || 0,
                                     offsetY: pin.printOffsetY || 0,
+                                    scale: printBadgeScale,
                                 }
                             )
                             : markerMode === 'category-bubble'
@@ -3063,6 +3081,7 @@ export default function DirectoryMap({
                         items: pin.printBadgeItems || null,
                         offsetX: pin.printOffsetX || 0,
                         offsetY: pin.printOffsetY || 0,
+                        scale: printBadgeScale,
                     }
                 )
                 : markerMode === 'category-bubble'
@@ -3126,7 +3145,7 @@ export default function DirectoryMap({
                 />
             );
         });
-    }, [shouldCluster, showPins, displayMarkerPins, markerMode, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
+    }, [shouldCluster, showPins, displayMarkerPins, markerMode, printBadgeScale, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
     const mapClickEnabled = interactive && typeof onMapClick === 'function';
     const currentAnchorPlacementHandlers = mapClickEnabled && anchorPoint?.kind === 'current'

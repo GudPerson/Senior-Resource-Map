@@ -15,6 +15,9 @@ import {
     PRINT_MAP_MAX_HEIGHT_PX,
     PRINT_MAP_PAGE_LAYOUT_FULL,
     PRINT_MAP_PAGE_LAYOUT_STANDARD,
+    PRINT_MAP_PIN_SIZE_EXTRA_LARGE,
+    PRINT_MAP_PIN_SIZE_LARGE,
+    PRINT_MAP_PIN_SIZE_STANDARD,
     PRINT_MAP_RESOURCE_LAYER_HIDE,
     PRINT_MAP_RESOURCE_LAYER_SHOW,
     PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
@@ -25,6 +28,7 @@ import {
     PRINT_MAP_WIDTH_WIDE,
     normalizePrintMapLabelDetail,
     normalizePrintMapLayoutPreset,
+    normalizePrintMapPinSize,
     normalizePrintMapResourceColumnCount,
     normalizePrintMapResourceLayer,
     normalizePrintMapSide,
@@ -53,6 +57,7 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
     const { t } = useLocale();
     const layoutPreset = normalizePrintMapLayoutPreset(value?.layoutPreset);
     const resourceLayer = normalizePrintMapResourceLayer(value?.resourceLayer);
+    const pinSize = normalizePrintMapPinSize(value?.pinSize);
     const mapSide = normalizePrintMapSide(value?.mapSide);
     const mapWidth = normalizePrintMapWidth(value?.mapWidth);
     const labelDetail = normalizePrintMapLabelDetail(value?.labelDetail);
@@ -239,6 +244,33 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
                     <p className="mt-1.5 text-xs font-medium leading-4 text-slate-500">
                         {t('printResourcePinsHelp')}
                     </p>
+                    {resourceLayer === PRINT_MAP_RESOURCE_LAYER_SHOW ? (
+                        <div className="mt-3" data-print-pin-size-controls="true">
+                            <span className="text-sm font-bold text-slate-800">
+                                {t('printPinSize')}
+                            </span>
+                            <div className="mt-2 grid grid-cols-3 gap-2">
+                                <ChoiceButton
+                                    selected={pinSize === PRINT_MAP_PIN_SIZE_STANDARD}
+                                    label={t('printPinSizeStandard')}
+                                    onClick={() => patchState({ pinSize: PRINT_MAP_PIN_SIZE_STANDARD })}
+                                />
+                                <ChoiceButton
+                                    selected={pinSize === PRINT_MAP_PIN_SIZE_LARGE}
+                                    label={t('printPinSizeLarge')}
+                                    onClick={() => patchState({ pinSize: PRINT_MAP_PIN_SIZE_LARGE })}
+                                />
+                                <ChoiceButton
+                                    selected={pinSize === PRINT_MAP_PIN_SIZE_EXTRA_LARGE}
+                                    label={t('printPinSizeExtraLarge')}
+                                    onClick={() => patchState({ pinSize: PRINT_MAP_PIN_SIZE_EXTRA_LARGE })}
+                                />
+                            </div>
+                            <p className="mt-1.5 text-xs font-medium leading-4 text-slate-500">
+                                {t('printPinSizeHelp')}
+                            </p>
+                        </div>
+                    ) : null}
                 </fieldset>
                 <fieldset>
                     <legend className="text-sm font-bold text-slate-800">{t('printLabelDetail')}</legend>

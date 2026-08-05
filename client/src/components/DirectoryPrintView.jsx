@@ -27,6 +27,7 @@ import {
     getOwnerPrintLayoutConfig,
     getPrintMapPreviewScale,
     getPrintMapHeightBounds,
+    getPrintMapPinScale,
     normalizePrintMapLabelDetail,
     normalizePrintMapAnnotationLayer,
     normalizePrintMapHiddenLayerKeys,
@@ -649,6 +650,7 @@ function PrintDirectoryMap({
                 onResetView={onResetView}
                 interactive={interactive}
                 markerMode={useV2Format ? 'print-badge' : 'number'}
+                printBadgeScale={getPrintMapPinScale(printMapState?.pinSize)}
                 pinBadgeMode={useV2Format ? 'none' : 'count'}
                 pinCategoryIconMode={useV2Format ? 'none' : 'auto'}
                 clusterMarkerMode={useV2Format ? 'none' : 'bubble'}

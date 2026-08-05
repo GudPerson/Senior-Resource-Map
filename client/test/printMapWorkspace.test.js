@@ -20,6 +20,9 @@ import {
     PRINT_MAP_MIN_HEIGHT_PX,
     PRINT_MAP_PAGE_LAYOUT_FULL,
     PRINT_MAP_PAGE_LAYOUT_STANDARD,
+    PRINT_MAP_PIN_SIZE_EXTRA_LARGE,
+    PRINT_MAP_PIN_SIZE_LARGE,
+    PRINT_MAP_PIN_SIZE_STANDARD,
     PRINT_MAP_QUALITY_HIGH,
     PRINT_MAP_QUALITY_STANDARD,
     PRINT_MAP_ANNOTATION_LAYER_SHOW,
@@ -37,9 +40,11 @@ import {
     clampPrintMapHeight,
     createOwnerPrintMapState,
     getPrintMapExportConfig,
+    getPrintMapPinScale,
     getOwnerPrintLayoutConfig,
     getPrintMapPreviewScale,
     normalizePrintMapLabelDetail,
+    normalizePrintMapPinSize,
     normalizePrintMapResourceColumnCount,
     normalizePrintMapSideResourceColumnCount,
     resetOwnerPrintMapState,
@@ -68,6 +73,7 @@ test('owner print map starts from a safe baseline while carrying only the global
         resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
         mapQuality: PRINT_MAP_QUALITY_STANDARD,
         resourceLayer: PRINT_MAP_RESOURCE_LAYER_SHOW,
+        pinSize: PRINT_MAP_PIN_SIZE_STANDARD,
         annotationLayer: PRINT_MAP_ANNOTATION_LAYER_SHOW,
         hiddenResourceLayerKeys: [],
         hiddenAnnotationIds: [],
@@ -93,6 +99,23 @@ test('owner print map starts from a safe baseline while carrying only the global
     assert.equal(PRINT_MAP_CANVAS_WIDTH_PX, 1480);
 });
 
+test('owner print pin sizing is bounded, deterministic, and invalidates map capture readiness', () => {
+    assert.equal(normalizePrintMapPinSize('unknown'), PRINT_MAP_PIN_SIZE_STANDARD);
+    assert.equal(normalizePrintMapPinSize(PRINT_MAP_PIN_SIZE_LARGE), PRINT_MAP_PIN_SIZE_LARGE);
+    assert.equal(normalizePrintMapPinSize(PRINT_MAP_PIN_SIZE_EXTRA_LARGE), PRINT_MAP_PIN_SIZE_EXTRA_LARGE);
+    assert.equal(getPrintMapPinScale(PRINT_MAP_PIN_SIZE_STANDARD), 1);
+    assert.equal(getPrintMapPinScale(PRINT_MAP_PIN_SIZE_LARGE), 1.25);
+    assert.equal(getPrintMapPinScale(PRINT_MAP_PIN_SIZE_EXTRA_LARGE), 1.5);
+
+    const standardKey = buildPrintMapCaptureKey(createOwnerPrintMapState('default'));
+    const largeKey = buildPrintMapCaptureKey({
+        ...createOwnerPrintMapState('default'),
+        pinSize: PRINT_MAP_PIN_SIZE_LARGE,
+    });
+    assert.notEqual(standardKey, largeKey);
+    assert.match(printViewSource, /printBadgeScale=\{getPrintMapPinScale\(printMapState\?\.pinSize\)\}/);
+});
+
 test('owner print map can request Detailed automatically without changing the safe helper default', () => {
     assert.equal(createOwnerPrintMapState('default').basemapMode, 'live');
     assert.equal(createOwnerPrintMapState('default', { basemapMode: 'auto' }).basemapMode, 'auto');
@@ -112,6 +135,7 @@ test('owner print reset clears camera and detail changes without losing the devi
         resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
         mapQuality: PRINT_MAP_QUALITY_HIGH,
         resourceLayer: PRINT_MAP_RESOURCE_LAYER_HIDE,
+        pinSize: PRINT_MAP_PIN_SIZE_EXTRA_LARGE,
         annotationLayer: 'hide',
         hiddenResourceLayerKeys: ['resource:carearound'],
         hiddenAnnotationIds: ['annotation_1'],
@@ -132,6 +156,7 @@ test('owner print reset clears camera and detail changes without losing the devi
     assert.equal(reset.resourcePlacement, PRINT_MAP_RESOURCE_PLACEMENT_BESIDE);
     assert.equal(reset.mapQuality, PRINT_MAP_QUALITY_STANDARD);
     assert.equal(reset.resourceLayer, PRINT_MAP_RESOURCE_LAYER_SHOW);
+    assert.equal(reset.pinSize, PRINT_MAP_PIN_SIZE_STANDARD);
     assert.equal(reset.annotationLayer, PRINT_MAP_ANNOTATION_LAYER_SHOW);
     assert.deepEqual(reset.hiddenResourceLayerKeys, []);
     assert.deepEqual(reset.hiddenAnnotationIds, []);
@@ -156,6 +181,7 @@ test('capture key changes for every visual print map setting', () => {
         buildPrintMapCaptureKey({ ...baseline, resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE }),
         buildPrintMapCaptureKey({ ...baseline, mapQuality: PRINT_MAP_QUALITY_HIGH }),
         buildPrintMapCaptureKey({ ...baseline, resourceLayer: PRINT_MAP_RESOURCE_LAYER_HIDE }),
+        buildPrintMapCaptureKey({ ...baseline, pinSize: PRINT_MAP_PIN_SIZE_LARGE }),
         buildPrintMapCaptureKey({ ...baseline, annotationLayer: 'hide' }),
         buildPrintMapCaptureKey({ ...baseline, hiddenResourceLayerKeys: ['resource:carearound'] }),
         buildPrintMapCaptureKey({ ...baseline, hiddenAnnotationIds: ['annotation_1'] }),
@@ -167,7 +193,7 @@ test('capture key changes for every visual print map setting', () => {
         buildPrintMapCaptureKey({ ...baseline, resourceColumnCount: 4 }),
         buildPrintMapCaptureKey({ ...baseline, sideResourceColumnCount: 2 }),
     ]);
-    assert.equal(keys.size, 19);
+    assert.equal(keys.size, 20);
 });
 
 test('Full layout exports the map and resources as separate image pages', () => {
@@ -410,6 +436,12 @@ test('print layout controls use a compact mobile-safe three-mode layout with pro
     assert.match(printLayoutControlsSource, /t\('printLayout'\)/);
     assert.match(printLayoutControlsSource, /t\('printPageFullMap'\)/);
     assert.match(printLayoutControlsSource, /t\('printResourcePinsHide'\)/);
+    assert.match(printLayoutControlsSource, /t\('printPinSize'\)/);
+    assert.match(printLayoutControlsSource, /t\('printPinSizeStandard'\)/);
+    assert.match(printLayoutControlsSource, /t\('printPinSizeLarge'\)/);
+    assert.match(printLayoutControlsSource, /t\('printPinSizeExtraLarge'\)/);
+    assert.match(printLayoutControlsSource, /data-print-pin-size-controls="true"/);
+    assert.match(printLayoutControlsSource, /pinSize: PRINT_MAP_PIN_SIZE_EXTRA_LARGE/);
     assert.match(printLayoutControlsSource, /t\('printLayoutBalanced'\)/);
     assert.match(printLayoutControlsSource, /t\('printLayoutMapFocus'\)/);
     assert.match(printLayoutControlsSource, /t\('printMapPosition'\)/);
