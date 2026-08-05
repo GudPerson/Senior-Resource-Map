@@ -50,12 +50,33 @@ Rules:
   caps. Numbering, colours, cards, descriptions, personal places, annotations,
   map layers, Detailed/Live behavior, QR, auth, API, schema, Worker, R2, and
   production data remain unchanged.
-- Verification result before deploy: focused collision and Print View coverage
+- Verification and deployment: focused collision and Print View coverage
   passed 44/44, full client/source coverage passed 551/551, full server coverage
   passed 497/497, and locked map coverage passed 76/76 together with the exact
-  six-root production client build. `git diff --check` passed. Only the client
-  Print badge presentation, Full-map height bound, focused contracts, and this
-  ledger entry changed; deployment evidence will be added after release.
+  six-root production client build. `git diff --check` passed. Commit
+  `9691b28c9` was pushed on `codex/print-pin-spacing-height-followup`, and the
+  unchanged validated artifact deployed to
+  `https://1b86effd.senior-resource-map.pages.dev`. The preview and
+  `https://app.carearound.sg` serve the exact local entry, CSS, My Map, and
+  shared Directory Map bytes with correct JavaScript/CSS MIME types. The
+  custom-domain HTML references the same entry and CSS and differs only by the
+  expected Cloudflare Web Analytics beacon. HTML SHA-256 is
+  `119d75fb31c1eddb793d2e744fbfffd06b29a792c00067e2465266ca2a8e3b05`, entry
+  SHA-256 is
+  `f50edbea05efdcbe87ef1255d6833395c54c199215d8d477995f5c99117b538e`, My Map
+  SHA-256 is
+  `2d3cd1efdb0f392168c9ec9d40ea6acdb3319e07cb211a8a286e7b4bca1414f8`, and
+  shared Directory Map SHA-256 is
+  `b18e3f5b4b619f0e8c508ae9595314f190584d6fcccc3b3f5c9a2fa9642d4a5f`.
+  The production bundle retained all six map roots and required copy, excluded
+  the retired copy, and API health returned 200. Authenticated post-deploy
+  browser measurement was attempted but not recorded because the already-open
+  Chrome tab could not be claimed before the control timeout; the pre-deploy
+  authenticated reproduction, deterministic redraw contract, artifact parity,
+  and locked-map gates remain the release evidence. Only the client Print badge
+  presentation, Full-map height bound, focused contracts, and this ledger entry
+  changed; no server, database, schema, API, Worker, R2, coordinate, or
+  production-data change was deployed.
 
 ## 2026-08-05 owner Print View pin-number visibility recovery
 
