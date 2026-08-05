@@ -9,7 +9,7 @@ export const PRINT_MAP_MAX_HEIGHT_PX = 720;
 export const PRINT_MAP_HEIGHT_STEP_PX = 40;
 export const PRINT_MAP_FULL_PAGE_DEFAULT_HEIGHT_PX = 900;
 export const PRINT_MAP_FULL_PAGE_MIN_HEIGHT_PX = 720;
-export const PRINT_MAP_FULL_PAGE_MAX_HEIGHT_PX = 1080;
+export const PRINT_MAP_FULL_PAGE_MAX_HEIGHT_PX = 1440;
 
 export const PRINT_MAP_PAGE_LAYOUT_STANDARD = 'standard';
 export const PRINT_MAP_PAGE_LAYOUT_FULL = 'full-map-page';

@@ -67,6 +67,13 @@ test('settled print badge passes recompute collisions instead of reusing stale p
     assert.match(directoryMapSource, /resolvePrintBadgeBubbleLayout\(badgeItems, mapBounds\)\.forEach/);
 });
 
+test('print badge collision offsets survive Leaflet marker redraws', () => {
+    assert.doesNotMatch(directoryMapSource, /if \(!preserveSolvedOffsets\) return false/);
+    assert.match(directoryMapSource, /if \(typeof MutationObserver !== 'undefined'\) \{/);
+    assert.match(directoryMapSource, /hasAnyPrintBadgeStoredOffsetDrift\(markerPane, solvedOffsetsRef\.current\)/);
+    assert.match(directoryMapSource, /restorePrintBadgeStoredOffsets\(markerPane, solvedOffsetsRef\.current, fixedPlaceKeySet\)/);
+});
+
 test('directory map supports print badge markers without moving marker coordinates', () => {
     assert.match(directoryMapSource, /function createPrintResourceBadgeMarker/);
     assert.match(directoryMapSource, /function normalizePrintBadgeItems/);
@@ -92,7 +99,7 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS/);
     assert.doesNotMatch(directoryMapSource, /doesPrintBadgeLabelStayVisible/);
     assert.doesNotMatch(directoryMapSource, /const placedTopRects = \[\]/);
-    assert.match(directoryMapSource, /preserveSolvedOffsets && typeof MutationObserver !== 'undefined'/);
+    assert.match(directoryMapSource, /if \(typeof MutationObserver !== 'undefined'\) \{/);
     assert.match(directoryMapSource, /printCollisionBaseMarginLeft/);
     assert.match(directoryMapSource, /markerElement\.style\.marginLeft = `\$\{item\.baseMarginLeft \+ offset\.x\}px`/);
     assert.match(directoryMapSource, /markerElement\.style\.marginTop = `\$\{item\.baseMarginTop \+ offset\.y\}px`/);
@@ -114,7 +121,7 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /map\.on\('zoom', markMapTransitioning\)/);
     assert.match(directoryMapSource, /map\.on\('moveend', handleMapSettled\)/);
     assert.match(directoryMapSource, /map\.on\('zoomend', handleMapSettled\)/);
-    assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_LOBE_SPACING/);
+    assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_LOBE_SPACING = DIRECTORY_PRINT_BADGE_DIAMETER \* 0\.9/);
     assert.match(directoryMapSource, /markerMode === 'category-bubble' && isMatched \? 100000 : undefined/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_DIAMETER = 25\.5/);
     assert.match(directoryMapSource, /className: 'directory-print-badge-leaflet-icon'/);
@@ -183,7 +190,7 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(directoryMapSource, /function hasPrintBadgeStoredOffsetDrift/);
     assert.match(directoryMapSource, /function hasAnyPrintBadgeStoredOffsetDrift/);
     assert.match(directoryMapSource, /new MutationObserver/);
-    assert.match(directoryMapSource, /preserveSolvedOffsets && typeof MutationObserver !== 'undefined'/);
+    assert.match(directoryMapSource, /if \(typeof MutationObserver !== 'undefined'\) \{/);
     assert.match(directoryMapSource, /observer\.observe\(markerPane, \{\s*attributes: true,\s*attributeFilter: \['style', 'class'\],\s*childList: true,\s*subtree: true,\s*\}\)/);
     assert.match(directoryMapSource, /hasAnyPrintBadgeStoredOffsetDrift\(markerPane, solvedOffsetsRef\.current\)/);
     assert.match(directoryMapSource, /preserveSolvedOffsets=\{markerMode === 'category-bubble'\}/);

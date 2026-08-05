@@ -75,7 +75,7 @@ const DIRECTORY_MOBILE_MAP_LAYOUT_TRANSITION_MS = 300;
 const DIRECTORY_ASSET_SPREAD_CLUSTER_MAX_VISIBLE = 8;
 const DIRECTORY_PRINT_BADGE_ICON_SIZE = 112;
 const DIRECTORY_PRINT_BADGE_DIAMETER = 25.5;
-const DIRECTORY_PRINT_BADGE_LOBE_SPACING = DIRECTORY_PRINT_BADGE_DIAMETER * 0.76;
+const DIRECTORY_PRINT_BADGE_LOBE_SPACING = DIRECTORY_PRINT_BADGE_DIAMETER * 0.9;
 const DIRECTORY_CATEGORY_BUBBLE_DIAMETER = 28;
 const DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DIAMETER * 0.74;
 const DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD = 12.25;
@@ -1489,7 +1489,6 @@ function DirectoryPrintBadgeCollisionSync({
             timeouts.add(timeout);
         };
         const restoreDriftedStoredOffsets = () => {
-            if (!preserveSolvedOffsets) return false;
             if (!hasAnyPrintBadgeStoredOffsetDrift(markerPane, solvedOffsetsRef.current)) return false;
 
             restorePrintBadgeStoredOffsets(markerPane, solvedOffsetsRef.current, fixedPlaceKeySet);
@@ -1504,7 +1503,7 @@ function DirectoryPrintBadgeCollisionSync({
         let observer = null;
 
         DIRECTORY_PRINT_BADGE_COLLISION_SCHEDULE_DELAYS.forEach(scheduleCollisionPass);
-        if (preserveSolvedOffsets && typeof MutationObserver !== 'undefined') {
+        if (typeof MutationObserver !== 'undefined') {
             observer = new MutationObserver(() => {
                 if (!restoreDriftedStoredOffsets()) return;
                 scheduleCollisionPass(80);

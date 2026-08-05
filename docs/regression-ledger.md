@@ -15,6 +15,48 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-05 owner Print View redraw collision and full-height follow-up
+
+- Current behavior: Print View collision offsets are restored whenever Leaflet
+  redraws or replaces numeric marker icons after a solved layout, so badges do
+  not fall back onto their geographic-anchor margins after zoom, map-detail,
+  colour, camera, height, or layout updates. Same-coordinate grouped badge
+  lobes remain visibly associated but use 90% rather than 76% centre spacing
+  so their numbers have more separation. In Full-map layout, the bottom resize
+  handle now extends the map from the existing 720 px minimum up to 1440 px;
+  the 900 px default and ordinary-layout 300-720 px bounds are unchanged.
+- Root cause and known-good reference: authenticated production inspection on
+  owner map 258 confirmed the current six-root release bundle was loaded. The
+  supplied state displayed zoom 15 and retained five separate-icon overlaps,
+  including approximately 13.1 px for 14/30, 12.8 px for 6/19, 12.6 px for
+  16/26, and 8.6 px for 3/12. At actual zoom 16 only 14/30 retained a small
+  1.4 px overlap. Every affected icon was marked solved but its margin had
+  returned to the original Leaflet anchor value. The existing drift observer
+  deliberately protected interactive category bubbles only; Print badges
+  could therefore be reset after the scheduled solver passes. The Full-map
+  resize state also exposed a fixed 1080 px maximum, which the user's handle
+  had already reached.
+- Reproduction steps: sign in as the owner of map 258, open Print View in Full
+  layout, and inspect the northwest and Jurong East badge groups at displayed
+  zoom 15 and 16. Wait for the map to settle, change zoom and map appearance,
+  then confirm separated badges remain separated. Drag the bottom resize handle
+  beyond the previous limit and confirm its value can reach 1440 px; repeat
+  with Map PNG and PDF export readiness.
+- Acceptance criteria: separate Print badges retain solved display-only offsets
+  after Leaflet redraws; grouped same-coordinate lobes remain one composite pin
+  with clearer numerals; no saved latitude/longitude or geographic anchor is
+  changed. Full-map height can reach 1440 px without changing its default,
+  minimum, ordinary layout bounds, fixed 1480 px export width, or export safety
+  caps. Numbering, colours, cards, descriptions, personal places, annotations,
+  map layers, Detailed/Live behavior, QR, auth, API, schema, Worker, R2, and
+  production data remain unchanged.
+- Verification result before deploy: focused collision and Print View coverage
+  passed 44/44, full client/source coverage passed 551/551, full server coverage
+  passed 497/497, and locked map coverage passed 76/76 together with the exact
+  six-root production client build. `git diff --check` passed. Only the client
+  Print badge presentation, Full-map height bound, focused contracts, and this
+  ledger entry changed; deployment evidence will be added after release.
+
 ## 2026-08-05 owner Print View pin-number visibility recovery
 
 - Current behavior: every settled owner Print View map reruns the existing

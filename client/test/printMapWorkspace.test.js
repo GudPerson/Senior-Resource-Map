@@ -89,6 +89,7 @@ test('owner print map starts from a safe baseline while carrying only the global
         clampPrintMapHeight(2000, { pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL }),
         PRINT_MAP_FULL_PAGE_MAX_HEIGHT_PX,
     );
+    assert.equal(PRINT_MAP_FULL_PAGE_MAX_HEIGHT_PX, 1440);
     assert.equal(PRINT_MAP_CANVAS_WIDTH_PX, 1480);
 });
 
