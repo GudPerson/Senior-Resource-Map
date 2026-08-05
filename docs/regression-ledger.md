@@ -15,6 +15,45 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-05 owner Print View pin-number visibility recovery
+
+- Current behavior: every settled owner Print View map reruns the existing
+  numeric-badge collision layout against the marker positions produced by the
+  final map camera. Nearby badges may still move within the established
+  44-pixel display-offset limit, but a zero offset cached during an earlier
+  render no longer prevents the final collision pass from separating them.
+- Root cause and known-good reference: production map 258 showed five pairs of
+  separate marker icons overlapping after every icon had been marked collision
+  solved. Read-only browser measurements found approximate penetrations of
+  9.5 px for 3/12, 15.1 px for 6/19, 2.3 px for 10/29, 14.5 px for 14/30, and
+  13.9 px for 16/26 on the visible Print map, with the hidden export surface
+  showing the same pattern at its scale. Their CSS margins remained at the
+  original anchor values. An early render could therefore cache a zero offset;
+  at the later focused zoom, a stored-offset shortcut restored that stale value
+  and returned before `resolvePrintBadgeBubbleLayout`. Branch
+  `codex/print-pin-number-visibility` removes only that short-circuit so the
+  existing scheduled settled passes reach the existing solver.
+- Reproduction steps: sign in as the owner of map 258, open Print View with the
+  Detailed map, and inspect the close badge pairs around the northwest group
+  and Jurong East group after the camera settles. Confirm each number remains
+  readable on the visible preview and on saved Map PNG/PDF output. Repeat after
+  changing zoom, map detail, map colour, and print layout.
+- Acceptance criteria: separate numeric marker badges are recomputed after the
+  Print camera settles and do not retain a stale pre-fit zero offset; map
+  coordinates and the existing bounded display-only offsets remain unchanged;
+  same-location multi-lobe badges retain their established grouped artwork.
+  Numbering, colours, list/card order, personal-place controls, descriptions,
+  annotations, map layers, Detailed/Live behavior, exports, QR, auth, API,
+  schema, Worker, and production data remain unchanged.
+- Verification result before deploy: focused collision and Directory Map
+  coverage passed 17/17, including the new deterministic contract that settled
+  passes cannot bypass the solver with a focused-zoom stored offset. Full
+  client/source coverage passed 550/550. Locked map coverage passed 76/76 and
+  the exact six-root production client build completed with only the established
+  Browserslist and large-chunk advisories. `git diff --check` passed. No server,
+  database, schema, API, Worker, R2, coordinate, or production-data change is
+  included, and no deployment has been made from this branch.
+
 ## 2026-08-05 owner Print View personal-place description font recovery
 
 - Current behavior: every saved Print View short description renders at the

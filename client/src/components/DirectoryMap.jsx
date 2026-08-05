@@ -87,7 +87,6 @@ const DIRECTORY_PRINT_BADGE_BUBBLE_ITERATIONS = 56;
 const DIRECTORY_PRINT_BADGE_BUBBLE_MAX_OFFSET = 44;
 const DIRECTORY_PRINT_BADGE_BUBBLE_EDGE_PADDING = 6;
 const DIRECTORY_PRINT_BADGE_BUBBLE_EDGE_ANCHOR_TOLERANCE = DIRECTORY_PRINT_BADGE_BUBBLE_MAX_OFFSET + DIRECTORY_PRINT_BADGE_DIAMETER;
-const DIRECTORY_PRINT_BADGE_COLLISION_FOCUS_ZOOM = DIRECTORY_FOCUS_ZOOM - 0.25;
 const DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS = 140;
 const DIRECTORY_PRINT_BADGE_COLLISION_SCHEDULE_DELAYS = [0, 40, 120, 260, 520, 960, 1500, 2400];
 const DIRECTORY_BUBBLE_MARKER_CORE_SELECTOR = '.directory-print-badge-marker__core, .directory-category-bubble-marker__core';
@@ -1385,16 +1384,6 @@ function DirectoryPrintBadgeCollisionSync({
                     const storedOffset = fixed
                         ? null
                         : getPrintBadgeStoredOffset(markerKey, solvedOffsetsRef.current);
-                    const isFocusedZoom = typeof map.getZoom === 'function' && map.getZoom() >= DIRECTORY_PRINT_BADGE_COLLISION_FOCUS_ZOOM;
-                    if (isFocusedZoom && storedOffset && !fixedPlaceKeySet.size) {
-                        markerElement.style.marginLeft = `${baseMargins.left + storedOffset.x}px`;
-                        markerElement.style.marginTop = `${baseMargins.top + storedOffset.y}px`;
-                        markerElement.dataset.printCollisionSolved = 'true';
-                        coreElement.style.setProperty('--print-badge-offset-x', '0px');
-                        coreElement.style.setProperty('--print-badge-offset-y', '0px');
-                        return null;
-                    }
-
                     const markerRect = markerElement.getBoundingClientRect();
                     const markerCenterX = markerRect.left + (markerRect.width / 2);
                     const markerCenterY = markerRect.top + (markerRect.height / 2);

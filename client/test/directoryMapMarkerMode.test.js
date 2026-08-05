@@ -61,6 +61,12 @@ test('directory map can hide individual pin count badges without changing the de
     assert.match(directoryMapSource, /showBadge: pinBadgeMode !== 'none'/);
 });
 
+test('settled print badge passes recompute collisions instead of reusing stale pre-fit offsets', () => {
+    assert.match(directoryMapSource, /const storedOffset = fixed[\s\S]*getPrintBadgeStoredOffset\(markerKey, solvedOffsetsRef\.current\)/);
+    assert.doesNotMatch(directoryMapSource, /if \(isFocusedZoom && storedOffset/);
+    assert.match(directoryMapSource, /resolvePrintBadgeBubbleLayout\(badgeItems, mapBounds\)\.forEach/);
+});
+
 test('directory map supports print badge markers without moving marker coordinates', () => {
     assert.match(directoryMapSource, /function createPrintResourceBadgeMarker/);
     assert.match(directoryMapSource, /function normalizePrintBadgeItems/);
@@ -76,14 +82,12 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /markerElement\.dataset\.printCollisionSolved = 'true'/);
     assert.match(directoryMapSource, /const solvedOffsetsRef = useRef\(new Map\(\)\)/);
     assert.match(directoryMapSource, /const storedOffset = fixed[\s\S]*getPrintBadgeStoredOffset\(markerKey, solvedOffsetsRef\.current\)/);
-    assert.match(directoryMapSource, /if \(isFocusedZoom && storedOffset && !fixedPlaceKeySet\.size\) \{/);
     assert.match(directoryMapSource, /restorePrintBadgeStoredOffsets\(markerPane, solvedOffsetsRef\.current, fixedPlaceKeySet\)/);
     assert.match(directoryMapSource, /const hasSolvedOffset = markerElement\.dataset\.printCollisionSolved === 'true'/);
     assert.match(directoryMapSource, /if \(hasSolvedOffset && !isPrintBadgeAnchorNearMap\(\{ centerX: markerCenterX, centerY: markerCenterY \}, mapBounds\)\) \{/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_BUBBLE_ITERATIONS/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_BUBBLE_MAX_OFFSET/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_BUBBLE_EDGE_ANCHOR_TOLERANCE/);
-    assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_COLLISION_FOCUS_ZOOM/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_COLLISION_SCHEDULE_DELAYS/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_COLLISION_MAP_SETTLE_MS/);
     assert.doesNotMatch(directoryMapSource, /doesPrintBadgeLabelStayVisible/);
