@@ -445,10 +445,20 @@ async function requireOwnedMap(db, userId, mapId, includeAssets = false) {
 }
 
 async function persistSnapshotUpdates(db, updates) {
-    for (const update of updates || []) {
-        await db.update(myMapAssets)
+    const statements = (updates || []).map((update) => (
+        db.update(myMapAssets)
             .set({ snapshot: update.snapshot })
-            .where(eq(myMapAssets.id, update.mapAssetId));
+            .where(eq(myMapAssets.id, update.mapAssetId))
+    ));
+    if (statements.length === 0) return;
+
+    if (typeof db.batch === 'function') {
+        await db.batch(statements);
+        return;
+    }
+
+    for (const statement of statements) {
+        await statement;
     }
 }
 

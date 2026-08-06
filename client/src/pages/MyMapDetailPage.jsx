@@ -51,6 +51,10 @@ import {
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
 import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
 import {
+    buildMyMapAssetMutationPlan,
+    isMyMapAssetSelectionReconciled,
+} from '../lib/myMapResourceSelection.js';
+import {
     CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM,
     CAREAROUND_MAP_STYLE_DEFAULT,
     CAREAROUND_MAP_STYLE_GRAY,
@@ -1155,7 +1159,11 @@ export default function MyMapDetailPage() {
     const { user } = useAuth();
     const { t } = useLocale();
     const { mapStyle } = useMapStyle();
-    const { savedAssets } = useSavedAssets();
+    const {
+        savedAssets,
+        savedAssetsLoading,
+        savedAssetsLoadError,
+    } = useSavedAssets();
     const currentMapCacheKey = getMyMapDetailCacheKey(user, mapId);
     const [directory, setDirectory] = useState(() => getCachedMyMapDetail(user, mapId));
     const [loading, setLoading] = useState(() => !getCachedMyMapDetail(user, mapId));
@@ -1177,6 +1185,8 @@ export default function MyMapDetailPage() {
     const [shareSubmitting, setShareSubmitting] = useState(false);
     const [shareError, setShareError] = useState('');
     const [addOpen, setAddOpen] = useState(false);
+    const [addLoading, setAddLoading] = useState(false);
+    const [addReady, setAddReady] = useState(false);
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
     const [personalPlacePickerActive, setPersonalPlacePickerActive] = useState(false);
@@ -1216,6 +1226,7 @@ export default function MyMapDetailPage() {
     const townMapManifestState = townMapManifestStates[mapStyle]
         || createTownMapManifestState();
     const townMapAssetBaseUrl = townMapManifestState.activeAssetBaseUrl || townMapRootAssetBaseUrl;
+    const mapAssetMutationInFlightRef = useRef(false);
     const personalPlaceMutationInFlightRef = useRef(false);
     const pendingFocusFrameRef = useRef(null);
     const townMapFocusSurfaceClearTimerRef = useRef(null);
@@ -1268,7 +1279,7 @@ export default function MyMapDetailPage() {
     });
 
     const loadMap = useCallback(async () => {
-        if (!mapId) return false;
+        if (!mapId) return null;
         const cachedDirectory = getCachedMyMapDetail(user, mapId);
         if (cachedDirectory) {
             directoryCacheKeyRef.current = currentMapCacheKey;
@@ -1295,13 +1306,13 @@ export default function MyMapDetailPage() {
             cacheMyMapDetail(user, mapId, nextDirectory);
             directoryCacheKeyRef.current = currentMapCacheKey;
             setDirectory(nextDirectory);
-            return true;
+            return nextDirectory;
         } catch (err) {
             console.error(err);
             if (!cachedDirectory) {
                 setError(err.message || t('failedLoadMap'));
             }
-            return false;
+            return null;
         } finally {
             setLoading(false);
         }
@@ -1423,6 +1434,10 @@ export default function MyMapDetailPage() {
     const existingAssetKeys = useMemo(
         () => new Set((directory?.assets || []).map((asset) => asset.assetKey || `${asset.resourceType}-${asset.resourceId}`)),
         [directory?.assets]
+    );
+    const existingAssetKeyList = useMemo(
+        () => [...existingAssetKeys].sort(),
+        [existingAssetKeys],
     );
     const activeAnchor = anchorState.activeAnchor;
     const interactivePresentation = useMemo(() => (
@@ -2148,35 +2163,57 @@ export default function MyMapDetailPage() {
     }
 
     async function handleManageAssets({ assets }) {
-        if (!directory) return;
+        if (!directory || mapAssetMutationInFlightRef.current) return;
+        mapAssetMutationInFlightRef.current = true;
         setAddSubmitting(true);
         setAddError('');
         try {
-            const targetKeys = new Set(assets.map(a => `${a.resourceType}-${a.resourceId}`));
-            const toAdd = assets.filter(a => !existingAssetKeys.has(`${a.resourceType}-${a.resourceId}`));
-            const toRemove = directory.assets.filter(a => {
-                const k = a.assetKey || `${a.resourceType}-${a.resourceId}`;
-                return !targetKeys.has(k);
-            });
-
-            await Promise.all([
+            const { targetKeys, toAdd, toRemove } = buildMyMapAssetMutationPlan(
+                directory.assets,
+                assets,
+            );
+            await Promise.allSettled([
                 ...toAdd.map((asset) => api.addMyMapAsset(directory.id, asset)),
                 ...toRemove.map((asset) => api.removeMyMapAsset(directory.id, asset.resourceType, asset.resourceId))
             ]);
 
+            const refreshedDirectory = await loadMap();
+            if (!refreshedDirectory) {
+                setAddReady(false);
+                setAddError(t('failedLoadMap'));
+                return;
+            }
+
+            setAddReady(true);
+            if (!isMyMapAssetSelectionReconciled(refreshedDirectory.assets, targetKeys)) {
+                setAddError(t('failedUpdateMapResources'));
+                return;
+            }
+
             setAddOpen(false);
-            await loadMap();
         } catch (err) {
             console.error(err);
             setAddError(err.message || t('failedUpdateMapResources'));
         } finally {
+            mapAssetMutationInFlightRef.current = false;
             setAddSubmitting(false);
         }
     }
 
-    function openManageAssets() {
+    async function openManageAssets() {
+        if (addLoading || addSubmitting) return;
         setPersonalPlacePickerActive(false);
+        setAddError('');
+        setAddReady(false);
         setAddOpen(true);
+        setAddLoading(true);
+        const refreshedDirectory = await loadMap();
+        setAddLoading(false);
+        if (!refreshedDirectory) {
+            setAddError(t('failedLoadMap'));
+            return;
+        }
+        setAddReady(true);
     }
 
     function openPersonalPlacePicker() {
@@ -3052,12 +3089,15 @@ export default function MyMapDetailPage() {
                     isOpen={addOpen}
                     mode="manage-assets"
                     savedAssets={savedAssets}
-                    initialAssetKeys={[...existingAssetKeys]}
+                    initialAssetKeys={existingAssetKeyList}
+                    loading={addLoading || savedAssetsLoading}
+                    interactionDisabled={!addReady || Boolean(savedAssetsLoadError)}
                     submitting={addSubmitting}
-                    error={addError}
+                    error={addError || savedAssetsLoadError}
                     onClose={() => {
-                        if (addSubmitting) return;
+                        if (addLoading || addSubmitting) return;
                         setAddOpen(false);
+                        setAddReady(false);
                         setAddError('');
                     }}
                     onSubmit={handleManageAssets}
@@ -3381,12 +3421,15 @@ export default function MyMapDetailPage() {
                 isOpen={addOpen}
                 mode="manage-assets"
                 savedAssets={savedAssets}
-                initialAssetKeys={[...existingAssetKeys]}
+                initialAssetKeys={existingAssetKeyList}
+                loading={addLoading || savedAssetsLoading}
+                interactionDisabled={!addReady || Boolean(savedAssetsLoadError)}
                 submitting={addSubmitting}
-                error={addError}
+                error={addError || savedAssetsLoadError}
                 onClose={() => {
-                    if (addSubmitting) return;
+                    if (addLoading || addSubmitting) return;
                     setAddOpen(false);
+                    setAddReady(false);
                     setAddError('');
                 }}
                 onSubmit={handleManageAssets}

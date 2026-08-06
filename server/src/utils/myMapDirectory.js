@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { hardAssets, softAssets, subCategories } from '../db/schema.js';
 import {
@@ -428,6 +428,49 @@ async function loadLiveAsset(db, resourceType, resourceId) {
     }
 
     return null;
+}
+
+async function loadLiveAssetsByKey(db, mapAssets = []) {
+    const assetsByKey = new Map();
+    const hardIds = [...new Set(mapAssets
+        .filter((asset) => asset?.resourceType === 'hard' && Number.isInteger(asset?.resourceId))
+        .map((asset) => asset.resourceId))];
+    const softIds = [...new Set(mapAssets
+        .filter((asset) => asset?.resourceType === 'soft' && Number.isInteger(asset?.resourceId))
+        .map((asset) => asset.resourceId))];
+
+    if (hardIds.length > 0 && typeof db.query?.hardAssets?.findMany === 'function') {
+        const assets = await db.query.hardAssets.findMany({
+            ...hardAssetQuery,
+            where: inArray(hardAssets.id, hardIds),
+        });
+        assets.forEach((asset) => assetsByKey.set(buildAssetKey('hard', asset.id), asset));
+    }
+
+    if (softIds.length > 0 && typeof db.query?.softAssets?.findMany === 'function') {
+        const assets = await db.query.softAssets.findMany({
+            ...softAssetQuery,
+            where: inArray(softAssets.id, softIds),
+        });
+        assets.forEach((asset) => assetsByKey.set(buildAssetKey('soft', asset.id), asset));
+    }
+
+    const missingAssets = mapAssets.filter((asset) => (
+        !assetsByKey.has(buildAssetKey(asset?.resourceType, asset?.resourceId))
+        && (
+            (asset?.resourceType === 'hard' && typeof db.query?.hardAssets?.findMany !== 'function')
+            || (asset?.resourceType === 'soft' && typeof db.query?.softAssets?.findMany !== 'function')
+        )
+    ));
+
+    for (const asset of missingAssets) {
+        const liveAsset = await loadLiveAsset(db, asset.resourceType, asset.resourceId);
+        if (liveAsset) {
+            assetsByKey.set(buildAssetKey(asset.resourceType, asset.resourceId), liveAsset);
+        }
+    }
+
+    return assetsByKey;
 }
 
 export async function buildLiveMyMapAssetSnapshotFromDb(db, resourceType, resourceId) {
@@ -866,10 +909,11 @@ export async function buildMyMapDirectory(db, {
         allowedAudienceZoneIds: new Set(),
     };
     const preparedAssets = [];
+    const liveAssetsByKey = await loadLiveAssetsByKey(db, map?.assets || []);
 
     for (const mapAsset of map?.assets || []) {
         const snapshot = normalizeMyMapAssetSnapshot(mapAsset.resourceType, mapAsset.resourceId, mapAsset.snapshot);
-        const liveAsset = await loadLiveAsset(db, mapAsset.resourceType, mapAsset.resourceId);
+        const liveAsset = liveAssetsByKey.get(buildAssetKey(mapAsset.resourceType, mapAsset.resourceId)) || null;
         const liveSnapshot = liveAsset ? buildMyMapAssetSnapshot(mapAsset.resourceType, liveAsset) : null;
 
         if (liveSnapshot && snapshotNeedsRefresh(mapAsset.snapshot, liveSnapshot)) {

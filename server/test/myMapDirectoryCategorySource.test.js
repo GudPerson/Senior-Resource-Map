@@ -20,6 +20,73 @@ test('My Map directory snapshots expose category color with category icons', () 
     assert.match(source, /categoryColor: categoryMeta\.color/);
 });
 
+test('large My Maps batch live Place hydration instead of issuing one query per resource', async () => {
+    const liveAssets = Array.from({ length: 60 }, (_, index) => ({
+        id: index + 1,
+        name: `Resource ${index + 1}`,
+        subCategory: 'Community place',
+        address: `${index + 1} Example Street`,
+        lat: String(1.3 + index / 10000),
+        lng: String(103.7 + index / 10000),
+        hours: null,
+        logoUrl: null,
+        isHidden: false,
+        hideFrom: null,
+        hideUntil: null,
+        isDeleted: false,
+        partner: null,
+    }));
+    let batchReads = 0;
+    let perAssetReads = 0;
+    const db = {
+        query: {
+            subCategories: { findMany: async () => [] },
+            hardAssets: {
+                findMany: async () => {
+                    batchReads += 1;
+                    return liveAssets;
+                },
+                findFirst: async () => {
+                    perAssetReads += 1;
+                    return null;
+                },
+            },
+            softAssets: {
+                findMany: async () => [],
+                findFirst: async () => null,
+            },
+        },
+    };
+    const map = {
+        id: 258,
+        name: 'Large planning map',
+        userId: 5,
+        assets: liveAssets.map((asset) => ({
+            id: asset.id,
+            resourceType: 'hard',
+            resourceId: asset.id,
+            snapshot: null,
+            addedAt: new Date('2026-08-06T00:00:00.000Z'),
+        })),
+    };
+
+    const { directory, snapshotUpdates } = await buildMyMapDirectory(db, {
+        map,
+        viewerUser: { id: 5, role: 'standard' },
+        visibilityUser: { id: 5, role: 'standard' },
+        resolutionContext: {
+            allowedPartnerAudienceIds: new Set(),
+            allowedAudienceZoneIds: new Set(),
+        },
+        mode: 'owner',
+    });
+
+    assert.equal(directory.summary.savedResourceCount, 60);
+    assert.equal(snapshotUpdates.length, 60);
+    assert.equal(batchReads, 1);
+    assert.equal(perAssetReads, 0);
+});
+
 test('hosted programme rows expose the host place category for My Map V2 presentation', async () => {
     const liveSoftAsset = {
         id: 701,

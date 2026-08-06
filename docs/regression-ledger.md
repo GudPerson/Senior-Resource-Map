@@ -15,6 +15,59 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-06 owner My Map resource membership and loading recovery
+
+- Current behavior: opening Choose map resources first refreshes the
+  authoritative map membership and shows a visible, accessible loading
+  indicator while that refresh is in progress. Selection controls remain
+  disabled until membership is known. Updating the map keeps the busy
+  indicator visible through both the resource mutations and the final map
+  refresh; it closes only when the refreshed server membership exactly matches
+  the user's selected resources. The server still rejects a true duplicate.
+- Root cause and known-good reference: authenticated production inspection of
+  owner map 258 reproduced the authoritative `GET /api/my-maps/258` failure as
+  Cloudflare's `Too many subrequests by single Worker invocation` error. My Map
+  detail hydrated every saved resource with a separate live-asset query and
+  could also write refreshed snapshots one by one. The client retained its
+  cached directory when that refresh failed, while the saved-resource picker
+  could hold newer data. A successful add followed by the failed refresh then
+  looked unchecked and a retry correctly hit the server's duplicate guard.
+  The picker also rebuilt its initial selection Set from a new array reference
+  during unrelated parent renders, allowing in-progress checkbox state to be
+  reset.
+- Architecture and blast radius: My Map detail now batch-loads all live Places
+  and Offerings in at most one query per resource type, while production D1
+  snapshot refresh writes use the existing database batch capability. Mocks
+  without relational batch methods retain the old compatibility fallback. The
+  client uses a small pure membership-diff helper, a one-operation in-flight
+  guard, `Promise.allSettled`, and an authoritative post-mutation refresh. A
+  duplicate response is treated as recovered only when the final key set is an
+  exact match; partial or failed updates keep the modal open with an error.
+- Reproduction steps: sign in as the owner of a map containing several saved
+  resources, add another saved Place or Offering, reopen Choose map resources,
+  and confirm the new resource is checked and appears in the map after refresh.
+  Repeat from a stale client snapshot whose server already contains the
+  selected resource and confirm Update map reconciles without presenting a
+  false duplicate error. Observe the loading indicator while opening and
+  updating the picker. Load a map with at least 60 resources and confirm detail
+  hydration uses a batched resource read rather than one read per resource.
+- Acceptance criteria: authoritative membership drives checkbox state and map
+  rendering; the modal cannot submit while membership is loading or unavailable;
+  refresh failure never closes the modal as though the update succeeded; true
+  duplicates remain blocked; large maps stay below the Worker subrequest limit;
+  the spinner is announced through `role=status` and `aria-busy`. Saved-resource
+  eligibility, map coordinates, pins, personal places, descriptions, notes,
+  sharing, Print View, Detailed/Live surfaces, auth, schema, and production data
+  remain unchanged.
+- Verification result before release: focused client and server coverage passed
+  47/47, including deterministic stale-duplicate reconciliation and a 60-resource
+  one-batch hydration fixture. Full client coverage passed 540/540 and full
+  server coverage passed 498/498. `npm run verify:map-lockdown` passed 77/77 and
+  completed the required six-root production client build. `git diff --check`
+  passed. The fix remains local on `codex/my-map-resource-sync-recovery`; no
+  commit, push, Worker deploy, Pages deploy, schema change, or production-data
+  mutation has been performed.
+
 ## 2026-08-05 owner Print View adjustable pin and number size
 
 - Current behavior: the existing Print layout panel exposes Standard, Large,

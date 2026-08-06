@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Map, Search, X } from 'lucide-react';
+import { LoaderCircle, Map, Search, X } from 'lucide-react';
 
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
@@ -19,6 +19,8 @@ export default function CreateMapModal({
     mode = 'create',
     savedAssets = [],
     initialAssetKeys = EMPTY_ASSET_KEYS,
+    loading = false,
+    interactionDisabled = false,
     submitting = false,
     error = '',
     onClose,
@@ -32,7 +34,10 @@ export default function CreateMapModal({
     const [validationError, setValidationError] = useState('');
 
     const isCreateMode = mode === 'create';
-    const initialKeysSet = useMemo(() => new Set(initialAssetKeys), [initialAssetKeys]);
+    const busy = loading || submitting;
+    const initialAssetKeySignature = useMemo(() => JSON.stringify(
+        [...new Set(initialAssetKeys.map((key) => String(key)))].sort(),
+    ), [initialAssetKeys]);
 
     const filteredAssets = useMemo(() => {
         let assets = savedAssets;
@@ -58,14 +63,15 @@ export default function CreateMapModal({
         setQuery('');
         setFilter('all');
         setValidationError('');
-        setSelectedKeys(new Set(initialKeysSet));
-    }, [isOpen, initialKeysSet]);
+        setSelectedKeys(new Set(JSON.parse(initialAssetKeySignature)));
+    }, [isOpen, initialAssetKeySignature]);
 
     if (!isOpen) return null;
 
     const hasSelectableAssets = savedAssets.length > 0;
     const selectedAssets = savedAssets.filter((asset) => selectedKeys.has(buildSavedAssetKey(asset.resourceType, asset.resourceId)));
-    const canSubmit = !submitting
+    const canSubmit = !busy
+        && !interactionDisabled
         && (isCreateMode ? (Boolean(name.trim()) && selectedAssets.length > 0) : true);
 
     function toggleAsset(asset) {
@@ -154,14 +160,31 @@ export default function CreateMapModal({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                        disabled={busy}
+                        className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
                         aria-label={t('close')}
                     >
                         <X size={20} />
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="px-5 py-5 sm:px-6">
+                <form
+                    onSubmit={handleSubmit}
+                    className="px-5 py-5 sm:px-6"
+                    aria-busy={busy}
+                >
+                    {busy ? (
+                        <div
+                            role="status"
+                            aria-live="polite"
+                            className="mb-5 flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-900"
+                            data-testid="create-map-loading-status"
+                        >
+                            <LoaderCircle size={18} className="flex-shrink-0 animate-spin" aria-hidden="true" />
+                            <span>{submitting ? t('saving') : t('loadingResources')}</span>
+                        </div>
+                    ) : null}
+
                     {isCreateMode ? (
                         <div className="mb-5">
                             <label htmlFor="create-map-name" className="block text-sm font-semibold text-slate-700">
@@ -172,6 +195,7 @@ export default function CreateMapModal({
                                 type="text"
                                 value={name}
                                 onChange={(event) => setName(event.target.value)}
+                                disabled={busy || interactionDisabled}
                                 placeholder={t('mapNamePlaceholder')}
                                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                                 maxLength={255}
@@ -192,6 +216,7 @@ export default function CreateMapModal({
                                     type="search"
                                     value={query}
                                     onChange={(event) => setQuery(event.target.value)}
+                                    disabled={busy || interactionDisabled}
                                     placeholder={t('searchYourSavedResources')}
                                     className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                                 />
@@ -202,6 +227,7 @@ export default function CreateMapModal({
                                         key={f}
                                         type="button"
                                         onClick={() => setFilter(f)}
+                                        disabled={busy || interactionDisabled}
                                         className={`flex-1 rounded-lg px-4 py-1.5 text-xs font-semibold capitalize transition ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
                                         {f === 'hard' ? t('placeType') : f === 'soft' ? t('offeringType') : t('all')}
@@ -238,12 +264,13 @@ export default function CreateMapModal({
                                     <label
                                         key={key}
                                         data-testid={`create-map-row-${key}`}
-                                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${checked ? 'border-brand-300 bg-brand-50/60' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                                        className={`flex items-start gap-3 rounded-2xl border px-4 py-3 transition ${busy || interactionDisabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${checked ? 'border-brand-300 bg-brand-50/60' : 'border-slate-200 bg-white hover:border-slate-300'}`}
                                     >
                                         <input
                                             type="checkbox"
                                             checked={checked}
                                             onChange={() => toggleAsset(asset)}
+                                            disabled={busy || interactionDisabled}
                                             className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                             data-testid={`create-map-asset-${key}`}
                                         />
@@ -295,7 +322,12 @@ export default function CreateMapModal({
                             })}
                         </p>
                         <div className="flex flex-col gap-3 sm:flex-row">
-                            <button type="button" onClick={onClose} className="btn-ghost justify-center">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                disabled={busy}
+                                className="btn-ghost justify-center disabled:cursor-not-allowed disabled:opacity-60"
+                            >
                                 {t('cancel')}
                             </button>
                             <button
@@ -304,7 +336,12 @@ export default function CreateMapModal({
                                 className="btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60"
                                 data-testid="create-map-submit"
                             >
-                                {submitting ? (isCreateMode ? t('creating') : t('saving')) : (isCreateMode ? t('createMap') : t('updateMap'))}
+                                {busy ? (
+                                    <>
+                                        <LoaderCircle size={17} className="animate-spin" aria-hidden="true" />
+                                        <span>{submitting ? (isCreateMode ? t('creating') : t('saving')) : t('loadingResources')}</span>
+                                    </>
+                                ) : (isCreateMode ? t('createMap') : t('updateMap'))}
                             </button>
                         </div>
                     </div>

@@ -24,6 +24,10 @@ const myMapCardSource = readFileSync(
     new URL('../src/components/MyMapCard.jsx', import.meta.url),
     'utf8',
 );
+const createMapModalSource = readFileSync(
+    new URL('../src/components/CreateMapModal.jsx', import.meta.url),
+    'utf8',
+);
 const apiSource = readFileSync(
     new URL('../src/lib/api.js', import.meta.url),
     'utf8',
@@ -127,6 +131,17 @@ test('my maps pages use resilient loading helpers', () => {
     assert.match(myMapDetailPageSource, /return `\$\{userId\}:\$\{resolvedMapId\}`/);
     assert.match(myMapDetailPageSource, /const cachedDirectory = getCachedMyMapDetail\(user, mapId\)/);
     assert.match(myMapDetailPageSource, /cacheMyMapDetail\(user, mapId, nextDirectory\)/);
+});
+
+test('map resource management refreshes authoritative membership and exposes busy feedback', () => {
+    assert.match(myMapDetailPageSource, /const refreshedDirectory = await loadMap\(\)/);
+    assert.match(myMapDetailPageSource, /await Promise\.allSettled\(\[/);
+    assert.match(myMapDetailPageSource, /isMyMapAssetSelectionReconciled\(refreshedDirectory\.assets, targetKeys\)/);
+    assert.match(myMapDetailPageSource, /loading=\{addLoading \|\| savedAssetsLoading\}/);
+    assert.match(createMapModalSource, /initialAssetKeySignature/);
+    assert.match(createMapModalSource, /data-testid="create-map-loading-status"/);
+    assert.match(createMapModalSource, /aria-busy=\{busy\}/);
+    assert.match(createMapModalSource, /<LoaderCircle size=\{17\} className="animate-spin"/);
 });
 
 test('my maps list exposes an owner-only duplicate action that opens the copied map', () => {
