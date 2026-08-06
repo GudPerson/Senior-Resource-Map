@@ -2842,6 +2842,20 @@ export default function MyMapDetailPage() {
                                 onClick={() => {
                                     setPrintLayoutOpen(false);
                                     setPrintAnnotationEditorOpen(false);
+                                    openCategoryOrder();
+                                }}
+                                disabled={categoryOrderOptions.length < 2}
+                                className="btn-ghost min-h-11 w-full justify-center border border-slate-200 px-3 text-xs text-slate-700 disabled:cursor-not-allowed disabled:opacity-45 sm:w-auto sm:text-sm"
+                                data-print-category-order-trigger="true"
+                            >
+                                <ListOrdered size={16} aria-hidden="true" />
+                                {t('arrangeCategories')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setPrintLayoutOpen(false);
+                                    setPrintAnnotationEditorOpen(false);
                                     openPersonalPlacePicker();
                                 }}
                                 className={`btn-ghost min-h-11 w-full justify-center border px-3 text-xs sm:w-auto sm:text-sm ${
@@ -3006,6 +3020,20 @@ export default function MyMapDetailPage() {
                         onRemovePersonalPlace={handleRemoveResource}
                     />
                 </div>
+
+                <MyMapCategoryOrderModal
+                    open={categoryOrderOpen}
+                    categories={categoryOrderOptions}
+                    initialOrder={directory.categoryOrder}
+                    submitting={categoryOrderSubmitting}
+                    error={categoryOrderError}
+                    onClose={() => {
+                        if (categoryOrderSubmitting) return;
+                        setCategoryOrderOpen(false);
+                        setCategoryOrderError('');
+                    }}
+                    onSubmit={handleUpdateCategoryOrder}
+                />
 
                 <MapAssetShortDescriptionModal
                     open={Boolean(shortDescriptionRow)}

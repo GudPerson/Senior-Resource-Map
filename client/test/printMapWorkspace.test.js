@@ -58,6 +58,10 @@ const printLayoutControlsSource = readFileSync(new URL('../src/components/PrintL
 const exportButtonSource = readFileSync(new URL('../src/components/MapImageExportButton.jsx', import.meta.url), 'utf8');
 const exportPanelSource = readFileSync(new URL('../src/components/MapDirectoryExportPanel.jsx', import.meta.url), 'utf8');
 const ownerPageSource = readFileSync(new URL('../src/pages/MyMapDetailPage.jsx', import.meta.url), 'utf8');
+const ownerPrintViewSource = ownerPageSource.slice(
+    ownerPageSource.indexOf('if (isPrintView) {'),
+    ownerPageSource.indexOf('if (isV2View) {'),
+);
 const directoryMapSource = readFileSync(new URL('../src/components/DirectoryMap.jsx', import.meta.url), 'utf8');
 const sharedMapDirectorySource = readFileSync(new URL('../src/components/SharedMapDirectoryList.jsx', import.meta.url), 'utf8');
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
@@ -649,6 +653,17 @@ test('visible preview and hidden image export consume the same frozen print map 
     assert.match(ownerPageSource, /printTownMapSurfacePending/);
     assert.match(ownerPageSource, /fixedTownSurfacePending=\{printTownMapSurfacePending\}/);
     assert.match(ownerPageSource, /onFixedTownSurfaceViewportChange=\{setTownMapViewportBounds\}/);
+});
+
+test('owner Print View exposes the persistent category arrangement without adding print-only order state', () => {
+    assert.match(ownerPrintViewSource, /data-print-category-order-trigger="true"/);
+    assert.match(ownerPrintViewSource, /disabled=\{categoryOrderOptions\.length < 2\}/);
+    assert.match(ownerPrintViewSource, /openCategoryOrder\(\)/);
+    assert.match(ownerPrintViewSource, /\{t\('arrangeCategories'\)\}/);
+    assert.match(ownerPrintViewSource, /<MyMapCategoryOrderModal/);
+    assert.match(ownerPrintViewSource, /initialOrder=\{directory\.categoryOrder\}/);
+    assert.match(ownerPrintViewSource, /onSubmit=\{handleUpdateCategoryOrder\}/);
+    assert.doesNotMatch(ownerPrintViewSource, /printCategoryOrder|sessionCategoryOrder/);
 });
 
 test('DirectoryMap controlled print hooks stay optional for Shared Maps and existing callers', () => {

@@ -96,10 +96,12 @@ Rules:
 
 - Current behavior: an owner using the current My Map experience can open
   Arrange categories and move whole resource categories earlier or later. The
-  saved sequence is applied to the owner directory, shared-map directory,
-  Print View, and PDF ledger. Resource cards remain alphabetically ordered by
-  name within each category; this enhancement does not expose or persist any
-  resource-level sequence.
+  owner Print View toolbar exposes the same Arrange categories action, so the
+  sequence can be changed without returning to the interactive map. The saved
+  sequence is applied to the owner directory, shared-map directory, Print View,
+  and PDF ledger. Resource cards remain alphabetically ordered by name within
+  each category; this enhancement does not expose or persist any resource-level
+  sequence.
 - Known-good reference: the released My Map and Print View behavior at
   `27237aab1` remains the baseline for map rendering, pins, filters, notes,
   personal places, sharing, and export behavior. The enhancement is additive
@@ -117,23 +119,32 @@ Rules:
 - Reproduction steps: sign in, open an owner map with at least two resource
   categories in the current My Map interface, choose Arrange categories, move
   a category, and save. Confirm category sections change position while every
-  resource inside each section remains A-Z. Refresh the page, open Print View,
+  resource inside each section remains A-Z. Open Print View, choose Arrange
+  categories from its screen-only toolbar, change the sequence, and save;
+  confirm the Print View directory refreshes to that saved order and the
+  arrangement control is absent from print/export output. Refresh the page,
   generate the PDF ledger, and publish or republish a shared map; confirm the
-  same category sequence appears in each surface. Open the map with
-  `?ui=stable` and confirm the classic fallback is unchanged.
+  same category sequence appears in each surface. Open the map with `?ui=stable`
+  and confirm the classic fallback is unchanged.
 - Acceptance criteria: only an authenticated map owner can save the category
   sequence; invalid, duplicate, oversized, and mixed-case inputs normalize to
   a bounded canonical list; unranked categories append A-Z; resources never
-  gain sequence controls or stored positions; copied and newly published maps
-  preserve category order. Existing My Map selection, filters, map/list modes,
-  Leaflet pins, annotations, personal places, sharing privacy, Print View,
-  Detailed/Live controls, exports, and authorization remain intact.
+  gain sequence controls or stored positions; owner Print View reuses the same
+  persistent modal and owner-only endpoint instead of keeping a session-only
+  print sequence; copied and newly published maps preserve category order.
+  Existing My Map selection, filters, map/list modes, Leaflet pins, annotations,
+  personal places, sharing privacy, Print View, Detailed/Live controls, exports,
+  and authorization remain intact.
 - Verification result before release: focused category-order, controller,
   copy/share, directory-presentation, PDF-ledger, schema, i18n, and source
   contract coverage passed. Full server coverage passed 502/502 and full client
   coverage passed 562/562. `npm run verify:map-lockdown` passed 77/77 and
   completed the required six-root production client build. `git diff --check`
-  passed.
+  passed. For the follow-up Print View access enhancement, focused category,
+  directory, i18n, V2, and Print View coverage passed 68/68; the full client
+  suite passed 566/566; `npm run build:client` passed; and
+  `npm run verify:map-lockdown` passed 78/78 and completed the required exact
+  six-root production client build.
 
 ## 2026-08-06 owner My Map resource membership and loading recovery
 
