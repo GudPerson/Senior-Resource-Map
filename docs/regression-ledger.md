@@ -53,9 +53,30 @@ Rules:
   confirmation, Shared Map directory, personal-place, V2, and Print View
   coverage passed 91/91. Full client coverage passed 564/564 and full server
   coverage passed 502/502. `npm run verify:map-lockdown` passed 77/77 and
-  completed the required six-root production client build. Custom-domain
-  artifact, smoke, and authenticated disposable-map checks remain release
-  gates.
+  completed the required six-root production client build. `git diff --check`
+  passed. Custom-domain artifact, smoke, and authenticated disposable-map
+  release gates also passed as recorded below.
+- Production release: implementation commit `83dabe03` was pushed on
+  `codex/my-map-card-remove-action`, fast-forwarded to `main`, and deployed as
+  the exact validated client artifact to
+  `https://b2837a2f.senior-resource-map.pages.dev`. The preview and
+  `https://app.carearound.sg` served byte-identical HTML, entry, CSS, and My Map
+  chunks with correct MIME types. Their SHA-256 values were
+  `9fbd86c3a4ad619d2fe7dd8b9cfd150d86abe13caca457a72c4807da734079d7`,
+  `fe3f07cae6a2f8f5099527ab4022bd821d7102c866b16dee6e03a1ca167edfab`,
+  `409ba9ac3df8e5e9554757073689b53c74888a618abe55d27d4fe6851c6d0b0b`,
+  and `22a1ed0aef5f78f9e79c5f53a385337ce04b2c0c5f0de5da5039e83aee389816`.
+  `/`, `/login`, `/discover`, and `/my-directory/maps` returned 200, and
+  production API health returned 200/OK. The six-flow production smoke suite
+  exited successfully; its dashboard login check passed on the built-in retry
+  after one slow first attempt, with the other five flows passing directly.
+  Authenticated disposable-map UAT then proved cancel sent no DELETE, confirm
+  sent exactly one successful DELETE, saved-resource membership changed from
+  12 to 11, the removed Offering remained saved in My Directory, the refreshed
+  owner UI removed its row, and Print View exposed zero card-removal actions.
+  Disposable maps 277 and 278 were deleted after verification. This was a
+  client-only Pages release; no Worker, schema, secret, permission, or lasting
+  production-resource change was made.
 
 ## 2026-08-06 owner My Map custom category sequence
 
