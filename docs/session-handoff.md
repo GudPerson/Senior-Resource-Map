@@ -2,10 +2,11 @@
 
 Last updated: 2026-08-07 (Asia/Singapore)
 
-## Print View annotation transform tools (2026-08-07, local candidate)
+## Print View annotation transform tools (2026-08-07, production release)
 
-- Local branch `codex/annotation-drawing-ux` now has an uncommitted client-only
-  candidate for Move, Rotate, and Duplicate. Move translates pins, lines,
+- Branch `codex/annotation-drawing-ux` contains client-only implementation
+  commit `d0f7662c052154127b08cd399b7e1ad64012c791` for Move, Rotate, and
+  Duplicate. Move translates pins, lines,
   boxes, circles, and boundaries as whole items. Rotate is deliberately limited
   to lines and boundaries so the existing two-corner box model and saved
   annotation schema stay unchanged. Duplicate inserts one slightly offset copy
@@ -19,9 +20,19 @@ Last updated: 2026-08-07 (Asia/Singapore)
   A disposable real-Leaflet harness proved one commit each for Duplicate, Move,
   and Rotate, live pre-commit SVG changes, 44-pixel transform handles, and zero
   browser warnings/errors. The harness was removed.
-- This candidate has not been committed, pushed, deployed, or authenticated-
-  production-UATed. The next gate is owner UAT on a disposable annotation;
-  production and Worker remain unchanged.
+- The branch preview is `https://0611ba33.senior-resource-map.pages.dev`; the
+  explicit production deployment is
+  `https://00082b30.senior-resource-map.pages.dev`. Local, immutable
+  production, and custom-domain HTML, entry, CSS, My Map, map-export, Shared
+  Map, and shared-runtime artifacts are byte-identical with correct MIME types.
+  Core routes and API health passed, and authenticated production smoke passed
+  6/6 with its temporary map cleaned up. The custom domain briefly returned SPA
+  HTML for two new JavaScript paths during propagation, then recovered to exact
+  artifact parity before the release gate continued.
+- No Worker, schema, auth, permission, secret, map asset, Shared Map visibility,
+  or production-resource deployment occurred. The next gate is owner UAT on a
+  disposable annotation covering Move, Rotate, Duplicate, Undo/Redo, reload
+  persistence, and Map PNG/PDF parity.
 
 ## Print View annotation umbrella release (2026-08-07, stabilized)
 

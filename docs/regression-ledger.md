@@ -15,9 +15,9 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-07 owner Print View annotation transform tools candidate
+## 2026-08-07 owner Print View annotation transform tools release
 
-- Current candidate behavior: owner Full-map Print View annotation editing adds
+- Released behavior: owner Full-map Print View annotation editing adds
   dedicated Move and Rotate modes plus a one-click Duplicate action. Move
   translates a selected pin, line, box, circle, or boundary as one item without
   changing its internal geometry. Shapes use a highlighted 44-pixel centre
@@ -61,7 +61,7 @@ Rules:
   drawing modes still suppress existing-shape hit testing; Select control-point
   editing, layer ordering, deletion, Undo/Redo, persistence, exports, private
   ownership, and map behavior remain unchanged.
-- Verification result before user UAT: geometry and source coverage passed
+- Release verification: geometry and source coverage passed
   15/15; focused annotation, layer, and Print View coverage passed 47/47; full
   client/source coverage passed 571/571; full server coverage passed 502/502;
   map-lockdown coverage passed 83/83; and the exact six-root production client
@@ -72,10 +72,31 @@ Rules:
   live while the count stayed at two, then mouse-up changed it to three. Move
   and Rotate handles were both 44 by 44 pixels, and the final browser console
   had zero warnings/errors. The harness and Vite process were removed.
-- Release state: implementation is local and uncommitted on
-  `codex/annotation-drawing-ux`. It has not been pushed, deployed, or exercised
-  against authenticated production data. No Cloudflare Pages or Worker action
-  is authorized by this candidate entry.
+- Release state: implementation commit
+  `d0f7662c052154127b08cd399b7e1ad64012c791` was pushed to
+  `codex/annotation-drawing-ux`. The exact validated `client/dist` deployed to
+  branch preview `https://0611ba33.senior-resource-map.pages.dev` and was then
+  explicitly published to the Pages production branch at
+  `https://00082b30.senior-resource-map.pages.dev`. The immutable production
+  deployment and `https://app.carearound.sg` are byte-identical to local HTML,
+  entry JavaScript, CSS, My Map, map-export, Shared Map, and shared-runtime
+  artifacts with correct MIME types. Their SHA-256 values are respectively
+  `cd74b329fdb09ce7435ceefc12c0ff794f87681ffd83cbcbf5f88ec86656454a`,
+  `a74f7b732d2eba2d1f16758ba8404c9059ee4a88b8d3346cecf9f56a58c92712`,
+  `5b514c320796df984cc22e19b072a6c68ae0c3acd0769c72f6b53a0f1e9c665b`,
+  `358c6f6a0d2f4ceb6a4089ead959b4ed7f9d8f7d4abd4de0fb89aa92b0572543`,
+  `4ad361dbb3b5f45ac0036b339844126532519b46037cba5cc30329baffec4876`,
+  `a599faa2d433d1e2ca8c10553d3c4b0066f401f9f276bf22899b711f5cf32d97`,
+  and `f250af9caef27464359f50f80a6b7177284149abdd2c4b308a76121fe75beecc`.
+  The custom domain briefly served SPA HTML for two new JavaScript paths during
+  edge propagation; both recovered to exact JavaScript bytes before the gate
+  continued. Core app routes returned 200, API health returned `status: ok`,
+  required six-root and annotation markers passed, forbidden rollback markers
+  stayed absent, and authenticated production smoke passed 6/6 with its
+  temporary map cleaned up. No Worker, schema, auth, secret, map-asset, Shared
+  Map visibility, or production-resource deployment was performed.
+  Product-specific owner UAT of Move, Rotate, Duplicate, Undo/Redo,
+  persistence, and export parity remains the next acceptance gate.
 
 ## 2026-08-07 owner Print View annotation umbrella stabilization gate
 
