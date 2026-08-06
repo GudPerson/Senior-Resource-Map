@@ -17,10 +17,14 @@ import {
     useMap,
 } from 'react-leaflet';
 import L from 'leaflet';
+import PrintAnnotationTransformHandle from './PrintAnnotationTransformHandle.jsx';
 
 import {
+    PRINT_ANNOTATION_DRAW_TOOLS,
+    PRINT_ANNOTATION_TRANSFORM_TOOLS,
     PRINT_ANNOTATION_TOOL_CIRCLE,
     PRINT_ANNOTATION_TOOL_LINE,
+    PRINT_ANNOTATION_TOOL_MOVE,
     PRINT_ANNOTATION_TOOL_PIN,
     PRINT_ANNOTATION_TOOL_POLYGON,
     PRINT_ANNOTATION_TOOL_RECTANGLE,
@@ -160,15 +164,19 @@ function areAnnotationPointsEqual(left = [], right = []) {
     ));
 }
 
+function getEditableAnnotationPoints(annotation) {
+    return annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
+        ? annotation.controlPoints || annotation.points
+        : annotation.points;
+}
+
 function AnnotationVertexHandles({
     annotation,
     layerIndex,
     onPreview,
     onUpdate,
 }) {
-    const editablePoints = annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
-        ? annotation.controlPoints || annotation.points
-        : annotation.points;
+    const editablePoints = getEditableAnnotationPoints(annotation);
     const latestEditablePointsRef = useRef(editablePoints);
     const dragBasePointsRef = useRef(null);
     const pendingCommittedPointsRef = useRef(null);
@@ -322,6 +330,7 @@ function AnnotationShape({
     selected,
     interactive,
     layerIndex,
+    tool,
     onSelect,
     onUpdate,
 }) {
@@ -444,10 +453,19 @@ function AnnotationShape({
                     onSelect={onSelect}
                 />
             ) : null}
-            {selected && interactive ? (
+            {selected && interactive && tool === PRINT_ANNOTATION_TOOL_SELECT ? (
                 <AnnotationVertexHandles
                     annotation={annotation}
                     layerIndex={layerIndex}
+                    onPreview={handleVertexPreview}
+                    onUpdate={onUpdate}
+                />
+            ) : null}
+            {selected && interactive && PRINT_ANNOTATION_TRANSFORM_TOOLS.has(tool) ? (
+                <PrintAnnotationTransformHandle
+                    annotation={annotation}
+                    layerIndex={layerIndex}
+                    tool={tool}
                     onPreview={handleVertexPreview}
                     onUpdate={onUpdate}
                 />
@@ -461,6 +479,7 @@ function PinAnnotation({
     selected,
     interactive,
     layerIndex,
+    tool,
     onSelect,
     onUpdate,
 }) {
@@ -468,7 +487,10 @@ function PinAnnotation({
         <Marker
             position={annotation.points[0]}
             icon={createPinIcon(annotation, selected)}
-            draggable={selected && interactive}
+            draggable={selected && interactive && [
+                PRINT_ANNOTATION_TOOL_SELECT,
+                PRINT_ANNOTATION_TOOL_MOVE,
+            ].includes(tool)}
             interactive={interactive}
             zIndexOffset={2000 + (layerIndex * 10)}
             eventHandlers={interactive ? {
@@ -729,7 +751,9 @@ export default function PrintAnnotationLayer({
     onCancel,
 }) {
     const [draftPreviewPoint, setDraftPreviewPoint] = useState(null);
-    const annotationInteractionEnabled = editable && tool === PRINT_ANNOTATION_TOOL_SELECT;
+    const annotationInteractionEnabled = editable && (
+        tool === PRINT_ANNOTATION_TOOL_SELECT || PRINT_ANNOTATION_TRANSFORM_TOOLS.has(tool)
+    );
 
     useEffect(() => {
         setDraftPreviewPoint(null);
@@ -755,6 +779,7 @@ export default function PrintAnnotationLayer({
                                 selected={selected}
                                 interactive={annotationInteractionEnabled}
                                 layerIndex={layerIndex}
+                                tool={tool}
                                 onSelect={onSelect}
                                 onUpdate={handleUpdate}
                             />
@@ -772,6 +797,7 @@ export default function PrintAnnotationLayer({
                             selected={selected}
                             interactive={annotationInteractionEnabled}
                             layerIndex={layerIndex}
+                            tool={tool}
                             onSelect={onSelect}
                             onUpdate={handleUpdate}
                         />
@@ -789,7 +815,7 @@ export default function PrintAnnotationLayer({
                         />
                     </Pane>
                     <DrawInteractionController
-                        enabled
+                        enabled={PRINT_ANNOTATION_DRAW_TOOLS.has(tool)}
                         tool={tool}
                         draftPoints={draftPoints}
                         draftText={draftText}

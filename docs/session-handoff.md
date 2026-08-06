@@ -2,6 +2,27 @@
 
 Last updated: 2026-08-07 (Asia/Singapore)
 
+## Print View annotation transform tools (2026-08-07, local candidate)
+
+- Local branch `codex/annotation-drawing-ux` now has an uncommitted client-only
+  candidate for Move, Rotate, and Duplicate. Move translates pins, lines,
+  boxes, circles, and boundaries as whole items. Rotate is deliberately limited
+  to lines and boundaries so the existing two-corner box model and saved
+  annotation schema stay unchanged. Duplicate inserts one slightly offset copy
+  immediately above the source and selects it.
+- Transform previews use local request-animation-frame Leaflet updates and
+  commit once on mouse-up. Duplicate performs one document update. Existing
+  Undo/Redo, serialized autosave, private persistence, export preparation,
+  PNG/PDF parity, map modes/assets, and Shared Map privacy are unchanged.
+- Verification passed: focused annotation/Print View 47/47, full client/source
+  571/571, server 502/502, map lockdown 83/83, and exact six-root client build.
+  A disposable real-Leaflet harness proved one commit each for Duplicate, Move,
+  and Rotate, live pre-commit SVG changes, 44-pixel transform handles, and zero
+  browser warnings/errors. The harness was removed.
+- This candidate has not been committed, pushed, deployed, or authenticated-
+  production-UATed. The next gate is owner UAT on a disposable annotation;
+  production and Worker remain unchanged.
+
 ## Print View annotation umbrella release (2026-08-07, stabilized)
 
 - The two-release annotation improvement is live and the final stabilization

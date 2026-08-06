@@ -43,12 +43,16 @@ import {
 } from '../lib/printMapLayers.js';
 import {
     DEFAULT_PRINT_ANNOTATION_STYLE,
+    PRINT_ANNOTATION_DRAW_TOOLS,
+    PRINT_ANNOTATION_MAX_COUNT,
+    PRINT_ANNOTATION_TRANSFORM_TOOLS,
     PRINT_ANNOTATION_TOOL_CIRCLE,
     PRINT_ANNOTATION_TOOL_PIN,
     PRINT_ANNOTATION_TOOL_POLYGON,
     PRINT_ANNOTATION_TOOL_RECTANGLE,
     PRINT_ANNOTATION_TOOL_SELECT,
     createPrintAnnotation,
+    duplicatePrintAnnotation,
     getPrintAnnotationMinimumPointCount,
     normalizePrintAnnotationStyle,
 } from '../lib/printAnnotations.js';
@@ -475,7 +479,9 @@ function PrintDirectoryMap({
 
     const handleAnnotationToolChange = useCallback((tool) => {
         setAnnotationTool(tool);
-        setSelectedAnnotationId(null);
+        if (PRINT_ANNOTATION_DRAW_TOOLS.has(tool)) {
+            setSelectedAnnotationId(null);
+        }
         setAnnotationDraftPoints([]);
     }, []);
 
@@ -538,6 +544,23 @@ function PrintDirectoryMap({
         ));
         setSelectedAnnotationId(null);
     }, [onPrintAnnotationsChange, selectedAnnotationId]);
+
+    const handleDuplicateSelectedAnnotation = useCallback(() => {
+        if (!selectedAnnotation || printAnnotations.length >= PRINT_ANNOTATION_MAX_COUNT) return;
+        const duplicate = duplicatePrintAnnotation(selectedAnnotation);
+        if (!duplicate) return;
+        onPrintAnnotationsChange?.((current) => {
+            if (current.length >= PRINT_ANNOTATION_MAX_COUNT) return current;
+            const sourceIndex = current.findIndex(
+                (annotation) => annotation.id === selectedAnnotation.id,
+            );
+            if (sourceIndex < 0) return current;
+            const next = [...current];
+            next.splice(sourceIndex + 1, 0, duplicate);
+            return next;
+        });
+        setSelectedAnnotationId(duplicate.id);
+    }, [onPrintAnnotationsChange, printAnnotations.length, selectedAnnotation]);
 
     const handleFinishDrawing = useCallback(() => {
         const minimumPointCount = getPrintAnnotationMinimumPointCount(annotationTool);
@@ -712,7 +735,9 @@ function PrintDirectoryMap({
                         draftStyle={annotationDraftStyle}
                         onSelect={(annotationId) => {
                             setSelectedAnnotationId(annotationId);
-                            setAnnotationTool(PRINT_ANNOTATION_TOOL_SELECT);
+                            if (!PRINT_ANNOTATION_TRANSFORM_TOOLS.has(annotationTool)) {
+                                setAnnotationTool(PRINT_ANNOTATION_TOOL_SELECT);
+                            }
                             setAnnotationDraftPoints([]);
                         }}
                         onUpdate={handleUpdateAnnotation}
@@ -817,6 +842,11 @@ function PrintDirectoryMap({
                     onUndoDraftPoint={undoLastAnnotationDraftPoint}
                     onCancelDraft={cancelAnnotationTool}
                     onMoveSelected={handleMoveSelectedAnnotation}
+                    canDuplicateSelected={Boolean(
+                        selectedAnnotation
+                        && printAnnotations.length < PRINT_ANNOTATION_MAX_COUNT
+                    )}
+                    onDuplicateSelected={handleDuplicateSelectedAnnotation}
                     onDeleteSelected={handleDeleteSelectedAnnotation}
                     onUndo={onUndoPrintAnnotations}
                     onRedo={onRedoPrintAnnotations}

@@ -15,6 +15,68 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-07 owner Print View annotation transform tools candidate
+
+- Current candidate behavior: owner Full-map Print View annotation editing adds
+  dedicated Move and Rotate modes plus a one-click Duplicate action. Move
+  translates a selected pin, line, box, circle, or boundary as one item without
+  changing its internal geometry. Shapes use a highlighted 44-pixel centre
+  handle; pins remain directly draggable. Rotate gives selected lines and
+  boundaries a highlighted 44-pixel rotation handle with a live guide. Boxes
+  remain axis-aligned, circles have no visible orientation, and pins have no
+  rotation contract, so the toolbar explains that those types do not rotate.
+  Duplicate creates one slightly offset private copy directly above the source
+  layer and selects it for immediate adjustment.
+- Architecture and blast radius: translation and rotation operate only on the
+  existing annotation point arrays. Boundary transforms keep `points` and
+  `controlPoints` identical, and every live drag preview remains local Leaflet
+  state until mouse-up performs one existing annotation-document replacement.
+  Duplicate creates a new existing-shape record with a new annotation id and
+  performs one document replacement. There is no new document field, API,
+  schema, ownership, permission, autosave, export, Shared Map, map-asset,
+  category-order, resource-removal, or production-data path. Rotation is
+  intentionally limited instead of changing the two-corner rectangle model.
+- Known-good reference: this candidate starts from the locked Release 2
+  implementation `9915de2a8ac924d101003d8506492529264fcfcf` and final evidence
+  branch commit `4bdeade6ffe0d400b59a051eec4420d73702ae07`. Existing drawing
+  previews, control-point adjustment, one-step Undo, serialized autosave,
+  private persistence, frozen export preparation, PNG/PDF parity, map behavior,
+  six Detailed roots, and Shared Map privacy remain the comparison baseline.
+- Reproduction steps: sign in as a map owner, open Full-map Print View and
+  Annotate, select each annotation type, choose Move, and drag the highlighted
+  centre handle or selected pin. Confirm the whole annotation follows live and
+  one Undo restores its exact prior geometry. Select a line and boundary,
+  choose Rotate, and drag the rotation handle around the centre; confirm the
+  shape and any in-shape note follow live and one Undo reverses only that
+  rotation. Select a box, circle, or pin in Rotate and confirm the explicit
+  unsupported guidance with no transform handle. Choose Duplicate on each
+  selected type; confirm one offset copy appears immediately above the source,
+  becomes selected, preserves its content/style, and disappears with one Undo.
+  Wait for Saved, close the editor, reload, and verify visible/export parity.
+- Acceptance criteria: Move supports all five saved annotation types without
+  point distortion; Rotate supports lines and boundaries without adding saved
+  rotation metadata; live transform paths update before document commits;
+  every completed transform and duplicate action produces exactly one history
+  and autosave step; duplicate ids are new and its geometry is visibly offset;
+  drawing modes still suppress existing-shape hit testing; Select control-point
+  editing, layer ordering, deletion, Undo/Redo, persistence, exports, private
+  ownership, and map behavior remain unchanged.
+- Verification result before user UAT: geometry and source coverage passed
+  15/15; focused annotation, layer, and Print View coverage passed 47/47; full
+  client/source coverage passed 571/571; full server coverage passed 502/502;
+  map-lockdown coverage passed 83/83; and the exact six-root production client
+  build passed. A disposable real-Leaflet harness proved Duplicate increased
+  the document commit count from zero to one and rendered two independent
+  paths. During Move, the selected SVG path changed while the count stayed at
+  one, then mouse-up changed it to two. During Rotate, the path again changed
+  live while the count stayed at two, then mouse-up changed it to three. Move
+  and Rotate handles were both 44 by 44 pixels, and the final browser console
+  had zero warnings/errors. The harness and Vite process were removed.
+- Release state: implementation is local and uncommitted on
+  `codex/annotation-drawing-ux`. It has not been pushed, deployed, or exercised
+  against authenticated production data. No Cloudflare Pages or Worker action
+  is authorized by this candidate entry.
+
 ## 2026-08-07 owner Print View annotation umbrella stabilization gate
 
 - Stable behavior: Product Release 1 and Product Release 2 now form one locked

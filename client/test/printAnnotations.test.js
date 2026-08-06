@@ -8,12 +8,17 @@ import {
     buildRoundedPrintAnnotationPolygon,
     createPrintAnnotation,
     DEFAULT_PRINT_ANNOTATION_STYLE,
+    duplicatePrintAnnotation,
     getAnnotationLocalDraftKey,
+    getPrintAnnotationPointBoundsCenter,
     getPrintAnnotationCaptureKey,
+    isPrintAnnotationRotationSupported,
     movePrintAnnotationControlPoint,
     normalizePrintAnnotation,
     normalizePrintAnnotations,
     PRINT_ANNOTATION_MAX_CONTROL_POINTS,
+    rotatePrintAnnotationPoints,
+    translatePrintAnnotationPoints,
 } from '../src/lib/printAnnotations.js';
 
 const POLYGON_POINTS = [
@@ -100,6 +105,66 @@ test('annotation control-point moves preserve the latest geometry and translate 
         [1.382, 103.743],
         [1.383, 103.745],
     ]);
+});
+
+test('whole-annotation transforms translate every point and rotate only supported geometry', () => {
+    const square = [
+        [1, 103],
+        [1, 104],
+        [2, 104],
+        [2, 103],
+    ];
+    assert.deepEqual(getPrintAnnotationPointBoundsCenter(square), [1.5, 103.5]);
+    assert.deepEqual(translatePrintAnnotationPoints(
+        square,
+        [1.5, 103.5],
+        [1.75, 103.25],
+    ), [
+        [1.25, 102.75],
+        [1.25, 103.75],
+        [2.25, 103.75],
+        [2.25, 102.75],
+    ]);
+
+    const rotatedLine = rotatePrintAnnotationPoints(
+        [[1.5, 103], [1.5, 104]],
+        [1.5, 103.5],
+        90,
+    );
+    assert.ok(Math.abs(rotatedLine[0][0] - 1) < 1e-12);
+    assert.ok(Math.abs(rotatedLine[0][1] - 103.5) < 1e-12);
+    assert.ok(Math.abs(rotatedLine[1][0] - 2) < 1e-12);
+    assert.ok(Math.abs(rotatedLine[1][1] - 103.5) < 1e-12);
+    assert.equal(isPrintAnnotationRotationSupported('line'), true);
+    assert.equal(isPrintAnnotationRotationSupported('polygon'), true);
+    assert.equal(isPrintAnnotationRotationSupported('rectangle'), false);
+    assert.equal(isPrintAnnotationRotationSupported('circle'), false);
+    assert.equal(isPrintAnnotationRotationSupported('pin'), false);
+});
+
+test('annotation duplication preserves content, offsets geometry, and creates a new id', () => {
+    const source = normalizePrintAnnotation({
+        id: 'annotation_source',
+        type: 'polygon',
+        points: POLYGON_POINTS,
+        controlPoints: POLYGON_POINTS,
+        text: 'Walking area',
+        style: DEFAULT_PRINT_ANNOTATION_STYLE,
+    });
+    const duplicate = duplicatePrintAnnotation(source, {
+        id: 'annotation_copy',
+        offset: [0.001, -0.002],
+    });
+
+    assert.equal(duplicate.id, 'annotation_copy');
+    assert.equal(duplicate.type, source.type);
+    assert.equal(duplicate.text, source.text);
+    assert.deepEqual(duplicate.style, source.style);
+    assert.deepEqual(duplicate.points, POLYGON_POINTS.map(([lat, lng]) => (
+        [lat + 0.001, lng - 0.002]
+    )));
+    assert.deepEqual(duplicate.controlPoints, duplicate.points);
+    assert.notEqual(duplicate, source);
 });
 
 test('two-point drawing completes on the second click while polygon drafts stay open', () => {
@@ -300,6 +365,10 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
         new URL('../src/components/PrintAnnotationToolbar.jsx', import.meta.url),
         'utf8',
     );
+    const transformSource = fs.readFileSync(
+        new URL('../src/components/PrintAnnotationTransformHandle.jsx', import.meta.url),
+        'utf8',
+    );
 
     assert.match(
         ownerSource,
@@ -355,7 +424,13 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(layerSource, /draftPreviewPoint/);
     assert.match(layerSource, /previewPoint=\{draftPreviewPoint\}/);
     assert.match(layerSource, /event\.key === 'Enter'/);
-    assert.match(layerSource, /annotationInteractionEnabled = editable && tool === PRINT_ANNOTATION_TOOL_SELECT/);
+    assert.match(layerSource, /PrintAnnotationTransformHandle/);
+    assert.match(transformSource, /data-annotation-transform-handle/);
+    assert.match(transformSource, /translatePrintAnnotationPoints/);
+    assert.match(transformSource, /rotatePrintAnnotationPoints/);
+    assert.match(transformSource, /iconSize: \[44, 44\]/);
+    assert.match(layerSource, /PRINT_ANNOTATION_TRANSFORM_TOOLS\.has\(tool\)/);
+    assert.match(layerSource, /PRINT_ANNOTATION_DRAW_TOOLS\.has\(tool\)/);
     assert.equal((layerSource.match(/interactive=\{annotationInteractionEnabled\}/g) || []).length, 2);
     assert.match(layerSource, /dashArray: style\.dashed \? '9 7' : null/);
     assert.doesNotMatch(layerSource, /dashArray: '7 6'/);
@@ -367,6 +442,12 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(toolbarSource, /Move the pointer to preview/);
     assert.match(toolbarSource, /press Enter/);
     assert.match(toolbarSource, /Drag the highlighted control points/);
+    assert.match(toolbarSource, /label: 'Move annotation'/);
+    assert.match(toolbarSource, /label: 'Rotate annotation'/);
+    assert.match(toolbarSource, /Duplicate annotation/);
+    assert.match(toolbarSource, /Drag the highlighted centre handle/);
+    assert.match(toolbarSource, /Rotation is available for lines and boundaries/);
+    assert.match(toolbarSource, /max-h-\[calc\(100%-1\.5rem\)\]/);
     assert.match(toolbarSource, /Choose custom shape colour/);
     assert.match(toolbarSource, /aria-label="Shape colour picker"/);
     assert.match(toolbarSource, /data-print-annotation-shape-color-picker="true"/);
@@ -378,6 +459,7 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(printSource, /undoLastAnnotationDraftPoint/);
     assert.match(printSource, /setAnnotationDraftPoints\(\(current\) => current\.slice\(0, -1\)\)/);
     assert.match(printSource, /handleMoveSelectedAnnotation/);
+    assert.match(printSource, /handleDuplicateSelectedAnnotation/);
     assert.doesNotMatch(
         toolbarSource,
         /label: 'Text callout'|label: 'Arrow'|PRINT_ANNOTATION_TOOL_TEXT|PRINT_ANNOTATION_TOOL_ARROW/,

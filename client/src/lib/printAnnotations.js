@@ -10,6 +10,8 @@ export const PRINT_ANNOTATION_TOOL_LINE = 'line';
 export const PRINT_ANNOTATION_TOOL_RECTANGLE = 'rectangle';
 export const PRINT_ANNOTATION_TOOL_CIRCLE = 'circle';
 export const PRINT_ANNOTATION_TOOL_POLYGON = 'polygon';
+export const PRINT_ANNOTATION_TOOL_MOVE = 'move';
+export const PRINT_ANNOTATION_TOOL_ROTATE = 'rotate';
 
 export const PRINT_ANNOTATION_DRAW_TOOLS = new Set([
     PRINT_ANNOTATION_TOOL_PIN,
@@ -17,6 +19,11 @@ export const PRINT_ANNOTATION_DRAW_TOOLS = new Set([
     PRINT_ANNOTATION_TOOL_RECTANGLE,
     PRINT_ANNOTATION_TOOL_CIRCLE,
     PRINT_ANNOTATION_TOOL_POLYGON,
+]);
+
+export const PRINT_ANNOTATION_TRANSFORM_TOOLS = new Set([
+    PRINT_ANNOTATION_TOOL_MOVE,
+    PRINT_ANNOTATION_TOOL_ROTATE,
 ]);
 
 export const PRINT_ANNOTATION_COLORS = [
@@ -229,6 +236,35 @@ export function createPrintAnnotation({
     });
 }
 
+export function duplicatePrintAnnotation(
+    annotation,
+    {
+        id = createPrintAnnotationId(),
+        offset = [0.00035, 0.00035],
+    } = {},
+) {
+    const source = normalizePrintAnnotation(annotation);
+    if (!source) return null;
+    const latDelta = clamp(offset?.[0], -0.02, 0.02, 0.00035);
+    const lngDelta = clamp(offset?.[1], -0.02, 0.02, 0.00035);
+    const sourcePoints = source.type === PRINT_ANNOTATION_TOOL_POLYGON
+        ? source.controlPoints || source.points
+        : source.points;
+    const translatedPoints = translatePrintAnnotationPoints(
+        sourcePoints,
+        sourcePoints[0],
+        [sourcePoints[0][0] + latDelta, sourcePoints[0][1] + lngDelta],
+    );
+    return normalizePrintAnnotation({
+        ...source,
+        id,
+        points: translatedPoints,
+        ...(source.type === PRINT_ANNOTATION_TOOL_POLYGON
+            ? { controlPoints: translatedPoints }
+            : {}),
+    });
+}
+
 export function getPrintAnnotationCaptureKey(annotations = []) {
     return JSON.stringify(normalizePrintAnnotations(annotations));
 }
@@ -310,6 +346,56 @@ export function movePrintAnnotationControlPoint(type, points, pointIndex, point)
         ];
     }
     return nextPoints;
+}
+
+export function getPrintAnnotationPointBoundsCenter(points = []) {
+    const currentPoints = normalizePointList(points, PRINT_ANNOTATION_MAX_POINTS);
+    if (!currentPoints.length) return null;
+    const latitudes = currentPoints.map(([lat]) => lat);
+    const longitudes = currentPoints.map(([, lng]) => lng);
+    return [
+        (Math.min(...latitudes) + Math.max(...latitudes)) / 2,
+        (Math.min(...longitudes) + Math.max(...longitudes)) / 2,
+    ];
+}
+
+export function translatePrintAnnotationPoints(points, fromPoint, toPoint) {
+    const currentPoints = normalizePointList(points, PRINT_ANNOTATION_MAX_POINTS);
+    const from = normalizePrintAnnotationPoint(fromPoint);
+    const to = normalizePrintAnnotationPoint(toPoint);
+    if (!currentPoints.length || !from || !to) return currentPoints;
+    const latDelta = to[0] - from[0];
+    const lngDelta = to[1] - from[1];
+    const translated = currentPoints.map(([lat, lng]) => (
+        normalizePrintAnnotationPoint([lat + latDelta, lng + lngDelta])
+    ));
+    return translated.every(Boolean) ? translated : currentPoints;
+}
+
+export function rotatePrintAnnotationPoints(points, centerPoint, angleDegrees) {
+    const currentPoints = normalizePointList(points, PRINT_ANNOTATION_MAX_POINTS);
+    const center = normalizePrintAnnotationPoint(centerPoint);
+    const angle = Number(angleDegrees);
+    if (!currentPoints.length || !center || !Number.isFinite(angle)) return currentPoints;
+    const radians = angle * (Math.PI / 180);
+    const cosine = Math.cos(radians);
+    const sine = Math.sin(radians);
+    const rotated = currentPoints.map(([lat, lng]) => {
+        const latDelta = lat - center[0];
+        const lngDelta = lng - center[1];
+        return normalizePrintAnnotationPoint([
+            center[0] + (latDelta * cosine) + (lngDelta * sine),
+            center[1] + (lngDelta * cosine) - (latDelta * sine),
+        ]);
+    });
+    return rotated.every(Boolean) ? rotated : currentPoints;
+}
+
+export function isPrintAnnotationRotationSupported(type) {
+    return [
+        PRINT_ANNOTATION_TOOL_LINE,
+        PRINT_ANNOTATION_TOOL_POLYGON,
+    ].includes(String(type || ''));
 }
 
 export function getAnnotationLocalDraftKey(userId, mapId) {

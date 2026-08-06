@@ -298,7 +298,16 @@ at three or more points; repeated Enter after completion must be inert. Drawing
 over an existing annotation must not select it or leave a stray draft. Return
 to Select, drag several highlighted control points rapidly, and confirm each
 path follows its 44-pixel logical target without an accepted point reverting;
-one Undo must reverse only the latest completed drag. Check `Undo last point`,
+one Undo must reverse only the latest completed drag. Choose Move, select every
+annotation type, and confirm the highlighted centre handle or selected pin
+moves the whole annotation live without distorting its geometry; mouse-up must
+create one Undo step. Choose Rotate for a line and boundary, confirm the
+highlighted rotation handle and guide update the geometry live, and confirm one
+Undo reverses only that rotation. A selected box, circle, or pin must explain
+that rotation is unavailable and show no rotation handle. Duplicate each
+selected type and confirm one offset copy appears directly above the source,
+preserves its text/style, becomes selected, and disappears with one Undo. Check
+`Undo last point`,
 in-shape notes, custom shape and font colours, font size, and backward/forward
 layer ordering. Confirm input and slider changes do not trigger a save on every
 movement. During editing, Resource PNG stays independent while Map PNG/PDF wait

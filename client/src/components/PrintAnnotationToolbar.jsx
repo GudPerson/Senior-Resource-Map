@@ -6,12 +6,15 @@ import {
     Check,
     Circle,
     CircleDot,
+    Copy,
     CornerUpLeft,
     MapPin,
     Minus,
+    Move,
     MousePointer2,
     Pentagon,
     Redo2,
+    RotateCw,
     Square,
     Trash2,
     Undo2,
@@ -20,18 +23,25 @@ import {
 
 import {
     PRINT_ANNOTATION_COLORS,
+    PRINT_ANNOTATION_DRAW_TOOLS,
     PRINT_ANNOTATION_MAX_CONTROL_POINTS,
+    PRINT_ANNOTATION_TRANSFORM_TOOLS,
     PRINT_ANNOTATION_TOOL_CIRCLE,
     PRINT_ANNOTATION_TOOL_LINE,
+    PRINT_ANNOTATION_TOOL_MOVE,
     PRINT_ANNOTATION_TOOL_PIN,
     PRINT_ANNOTATION_TOOL_POLYGON,
     PRINT_ANNOTATION_TOOL_RECTANGLE,
+    PRINT_ANNOTATION_TOOL_ROTATE,
     PRINT_ANNOTATION_TOOL_SELECT,
     getPrintAnnotationMinimumPointCount,
+    isPrintAnnotationRotationSupported,
 } from '../lib/printAnnotations.js';
 
 const TOOL_OPTIONS = [
-    { value: PRINT_ANNOTATION_TOOL_SELECT, label: 'Select or move', Icon: MousePointer2 },
+    { value: PRINT_ANNOTATION_TOOL_SELECT, label: 'Select or adjust', Icon: MousePointer2 },
+    { value: PRINT_ANNOTATION_TOOL_MOVE, label: 'Move annotation', Icon: Move },
+    { value: PRINT_ANNOTATION_TOOL_ROTATE, label: 'Rotate annotation', Icon: RotateCw },
     { value: PRINT_ANNOTATION_TOOL_PIN, label: 'Label pin', Icon: MapPin },
     { value: PRINT_ANNOTATION_TOOL_LINE, label: 'Draw line', Icon: Minus },
     { value: PRINT_ANNOTATION_TOOL_RECTANGLE, label: 'Draw box', Icon: Square },
@@ -39,9 +49,27 @@ const TOOL_OPTIONS = [
     { value: PRINT_ANNOTATION_TOOL_POLYGON, label: 'Draw boundary', Icon: Pentagon },
 ];
 
-function getToolHelp(tool, draftPointCount) {
+function getToolHelp(tool, draftPointCount, selectedAnnotation = null) {
     if (tool === PRINT_ANNOTATION_TOOL_SELECT) {
         return 'Select an annotation to edit it or change its layer.';
+    }
+    if (tool === PRINT_ANNOTATION_TOOL_MOVE) {
+        if (!selectedAnnotation) {
+            return 'Click an annotation, then drag its highlighted centre handle to move the whole item.';
+        }
+        if (selectedAnnotation.type === PRINT_ANNOTATION_TOOL_PIN) {
+            return 'Drag the selected pin to move it. Undo reverses the completed move.';
+        }
+        return 'Drag the highlighted centre handle to move the whole annotation. Undo reverses the completed move.';
+    }
+    if (tool === PRINT_ANNOTATION_TOOL_ROTATE) {
+        if (!selectedAnnotation) {
+            return 'Click a line or boundary, then drag its highlighted rotation handle.';
+        }
+        if (!isPrintAnnotationRotationSupported(selectedAnnotation.type)) {
+            return 'Rotation is available for lines and boundaries. Boxes stay axis-aligned, while circles and pins have no visible rotation.';
+        }
+        return 'Drag the highlighted rotation handle around the annotation centre. Undo reverses the completed rotation.';
     }
     if (tool === PRINT_ANNOTATION_TOOL_PIN) {
         return 'Enter a label, then click the map to place the pin.';
@@ -111,6 +139,7 @@ export default function PrintAnnotationToolbar({
     canRedo = false,
     canMoveSelectedBackward = false,
     canMoveSelectedForward = false,
+    canDuplicateSelected = false,
     onToolChange,
     onDraftTextChange,
     onDraftStyleChange,
@@ -119,6 +148,7 @@ export default function PrintAnnotationToolbar({
     onUndoDraftPoint,
     onCancelDraft,
     onMoveSelected,
+    onDuplicateSelected,
     onDeleteSelected,
     onUndo,
     onRedo,
@@ -166,7 +196,7 @@ export default function PrintAnnotationToolbar({
         ? labelledTypes.includes(selectedAnnotation.type)
         : labelledTypes.includes(tool);
     const activeAnnotationType = selectedAnnotation?.type || tool;
-    const showStyleControls = activeAnnotationType !== PRINT_ANNOTATION_TOOL_SELECT;
+    const showStyleControls = Boolean(selectedAnnotation || PRINT_ANNOTATION_DRAW_TOOLS.has(tool));
     const showLineControls = [
         PRINT_ANNOTATION_TOOL_LINE,
         PRINT_ANNOTATION_TOOL_RECTANGLE,
@@ -180,15 +210,17 @@ export default function PrintAnnotationToolbar({
     ].includes(activeAnnotationType);
     const isPinLabel = selectedAnnotation?.type === PRINT_ANNOTATION_TOOL_PIN
         || (!selectedAnnotation && tool === PRINT_ANNOTATION_TOOL_PIN);
-    const helperText = selectedAnnotation
-        ? selectedAnnotation.type === PRINT_ANNOTATION_TOOL_PIN
-            ? 'Drag the selected pin to move it. Edit its label or use the layer controls below.'
-            : 'Drag the highlighted control points to adjust this shape. Undo reverses one adjustment at a time.'
-        : getToolHelp(tool, draftPointCount);
+    const helperText = PRINT_ANNOTATION_TRANSFORM_TOOLS.has(tool)
+        ? getToolHelp(tool, draftPointCount, selectedAnnotation)
+        : (selectedAnnotation
+            ? selectedAnnotation.type === PRINT_ANNOTATION_TOOL_PIN
+                ? 'Drag the selected pin to move it. Edit its label or use the layer controls below.'
+                : 'Drag the highlighted control points to adjust this shape. Undo reverses one adjustment at a time.'
+            : getToolHelp(tool, draftPointCount, selectedAnnotation));
 
     return (
         <div
-            className="absolute left-3 top-3 z-[1100] w-[320px] rounded-lg border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur"
+            className="absolute left-3 top-3 z-[1100] max-h-[calc(100%-1.5rem)] w-[320px] overflow-y-auto overscroll-contain rounded-lg border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur"
             data-print-annotation-toolbar="true"
         >
             <div className="flex items-center justify-between gap-2">
@@ -201,7 +233,7 @@ export default function PrintAnnotationToolbar({
                 </IconButton>
             </div>
 
-            <div className="mt-3 grid grid-cols-6 gap-1">
+            <div className="mt-3 grid grid-cols-4 gap-1">
                 {TOOL_OPTIONS.map(({ value, label, Icon }) => (
                     <IconButton
                         key={value}
@@ -497,6 +529,13 @@ export default function PrintAnnotationToolbar({
                 ) : null}
                 {selectedAnnotation ? (
                     <>
+                        <IconButton
+                            label="Duplicate annotation"
+                            disabled={!canDuplicateSelected}
+                            onClick={onDuplicateSelected}
+                        >
+                            <Copy size={16} />
+                        </IconButton>
                         <IconButton
                             label="Send backward"
                             disabled={!canMoveSelectedBackward}
