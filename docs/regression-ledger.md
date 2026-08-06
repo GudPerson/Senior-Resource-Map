@@ -64,9 +64,25 @@ Rules:
   one-batch hydration fixture. Full client coverage passed 540/540 and full
   server coverage passed 498/498. `npm run verify:map-lockdown` passed 77/77 and
   completed the required six-root production client build. `git diff --check`
-  passed. The fix remains local on `codex/my-map-resource-sync-recovery`; no
-  commit, push, Worker deploy, Pages deploy, schema change, or production-data
-  mutation has been performed.
+  passed.
+- Production release: implementation commit `b6dc916a` was pushed on
+  `codex/my-map-resource-sync-recovery`. The Worker dry-run passed and production
+  version `0ded8dbb-45c2-4b91-bd00-4424b3b526bf` was deployed; `/api/health`
+  returned `200` and authenticated owner map 258 loaded 42 resources without the
+  earlier Worker subrequest error. The already-validated six-root client artifact
+  was deployed without rebuilding to
+  `https://c7b6bf26.senior-resource-map.pages.dev`. The preview and
+  `https://app.carearound.sg` served the exact local entry, CSS, and My Map chunk:
+  `c77bfd333934f430239c10d5075d0fa60822d222ce5e15071682ae82a87fbdf3`,
+  `b20754b2e1b782d63a5dea0371e8b7a131f3e5a1f294148652b9ecbd9ce36851`,
+  and `208e846e9afffd68d7b989eb2754b9ea72f588db1c4bb426910bc80cc8dfc507`.
+  Signed-in custom-domain UAT confirmed the released map loads with no
+  subrequest error, opening Manage resources shows the loading status, and the
+  settled picker reports 41 selected saved resources with 41 checked rows and
+  no false duplicate error. The map contains one additional personal place,
+  explaining its total of 42 resources. No picker selection was changed and no
+  schema, secret, permission, or production-data mutation was introduced by the
+  verification.
 
 ## 2026-08-05 owner Print View adjustable pin and number size
 
