@@ -145,6 +145,22 @@ Rules:
   suite passed 566/566; `npm run build:client` passed; and
   `npm run verify:map-lockdown` passed 78/78 and completed the required exact
   six-root production client build.
+- Follow-up production release: implementation commit `234ff092a` was pushed
+  to `codex/print-view-category-arrangement` and fast-forwarded to `main`. The
+  exact validated six-root `client/dist` was published directly to Cloudflare
+  Pages production at `https://b3d33883.senior-resource-map.pages.dev`. The
+  preview and `https://app.carearound.sg` matched local HTML, entry JavaScript,
+  CSS, My Map, and Shared Map bytes with the correct MIME types. HTML SHA-256
+  was `eee43f3b6491d4bb09232a2e4cca654d92f34bf389423fa3ccb457452799f80d`;
+  entry JavaScript was
+  `12dc8392e0d61dcadf06733c4d1851dbd78c3ee6645e3be2c17318fbe4ba638d`;
+  CSS was `409ba9ac3df8e5e9554757073689b53c74888a618abe55d27d4fe6851c6d0b0b`;
+  and the My Map chunk was
+  `c49ca7499d545e30c78cbeaecaabc42de9fdf77448eec24a019dc641437fa68e`.
+  The deployed My Map chunk contains the Print View category-order trigger and
+  retains the six Detailed/Live asset roots. Public app routes returned the app
+  shell, production API health returned OK, and no Worker, schema, secret,
+  permission, or production-data change was deployed.
 
 ## 2026-08-06 owner My Map resource membership and loading recovery
 
