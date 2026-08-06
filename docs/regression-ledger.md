@@ -17,38 +17,43 @@ Rules:
 
 ## 2026-08-06 owner My Map resource-card removal
 
-- Current behavior: an owner can remove an individual saved Place or Offering
-  directly from its interactive My Map resource row. The visible 44 px action
-  names the selected resource in a shared confirmation dialog, explains that
-  the saved resource will remain in My Directory, disables repeated submission
-  while pending, and refreshes authoritative map membership after the API
-  succeeds. Manage resources remains available for bulk membership changes.
+- Current behavior: an owner can remove an individual saved Place directly
+  from the ordinary My Map card shell, in the same card-level action area used
+  by a personal place. A nested Offering keeps its own row-level Remove action
+  so a multi-resource location card never has an ambiguous delete target. The
+  confirmation names the selected resource, explains that it remains saved in
+  My Directory, blocks repeated submission, and refreshes authoritative map
+  membership after the API succeeds. Manage resources remains available for
+  bulk membership changes.
 - Known-good reference: the released My Map category-sequence baseline at
   `fda0ce681` remains the reference for category ordering, resource ordering,
   V2 and classic owner layouts, personal places, notes, map focus, Shared Maps,
   Print View, exports, Detailed/Live layers, and authentication.
 - Architecture and blast radius: this is a client-only presentation path over
-  the existing owner-protected resource-removal endpoint. The ordinary resource
-  row exposes the action only when the directory is interactive and in owner
-  mode. The existing parent handler performs the mutation and authoritative
-  reload; a shared confirmation and a dedicated in-flight guard were added
-  without changing the API, schema, map-card grouping, resource records, or
-  saved-resource state. Personal-place removal retains its established flow.
-- Reproduction steps: sign in, open an owner My Map containing an ordinary
-  resource, and select Remove on that resource row. Cancel the named prompt and
-  confirm no membership changes. Repeat and confirm removal; verify only that
-  resource leaves the map, the resource remains saved in My Directory, and a
-  refresh preserves the new membership. Open a Shared Map and Print View and
-  confirm the action is absent. Confirm Manage resources still supports bulk
-  selection.
-- Acceptance criteria: the action is visible only on interactive owner resource
-  rows; each click targets the exact Place or Offering rather than every
-  resource in the containing location card; cancellation makes no API mutation;
-  repeated submission is blocked; API or refresh failure remains visible and
-  does not imply success. Saved resources, category sequence, personal places,
-  notes, map pins and focus, filters, sharing, Print View, exports, Detailed/Live
-  controls, authorization, Worker behavior, schema, and production data remain
-  unchanged.
+  the existing owner-protected resource-removal endpoint. Ordinary Place cards
+  intentionally suppress a repeated underlying Place row because the card
+  title already represents it; the corrected implementation renders that
+  primary Place's action on the card shell. Non-primary Offerings retain their
+  precise row action. Both paths are owner-only and interactive-only. The
+  existing parent handler performs the mutation and authoritative reload;
+  confirmation and in-flight guards remain unchanged. There is no API, schema,
+  card grouping, resource record, saved-resource, or personal-place change.
+- Reproduction steps: sign in and open an owner My Map with an ordinary Place
+  card such as the Place cards beside the map. Select the card-level Remove,
+  cancel the named prompt, and confirm no membership changes. Repeat and
+  confirm removal; verify only that Place and its pin leave the map and that the
+  Place remains saved in My Directory. On a card with nested Offerings, verify
+  each nested Remove targets only its named Offering. Open a Shared Map and
+  Print View and confirm the actions are absent. Confirm Manage resources still
+  supports bulk selection.
+- Acceptance criteria: a repeated primary Place exposes Remove on its
+  interactive owner card shell; nested Offerings expose their own row action;
+  no card-level action appears when there is no exact primary Place target;
+  cancellation makes no API mutation; repeated submission is blocked; API or
+  refresh failure remains visible and does not imply success. Saved resources,
+  category sequence, personal places, notes, map pins and focus, filters,
+  sharing, Print View, exports, Detailed/Live controls, authorization, Worker
+  behavior, schema, and production data remain unchanged.
 - Verification result before release: focused card-removal, i18n, shared
   confirmation, Shared Map directory, personal-place, V2, and Print View
   coverage passed 91/91. Full client coverage passed 564/564 and full server
@@ -56,7 +61,7 @@ Rules:
   completed the required six-root production client build. `git diff --check`
   passed. Custom-domain artifact, smoke, and authenticated disposable-map
   release gates also passed as recorded below.
-- Production release: implementation commit `83dabe03` was pushed on
+- Initial production release: implementation commit `83dabe03` was pushed on
   `codex/my-map-card-remove-action`, fast-forwarded to `main`, and deployed as
   the exact validated client artifact to
   `https://b2837a2f.senior-resource-map.pages.dev`. The preview and
@@ -77,6 +82,15 @@ Rules:
   Disposable maps 277 and 278 were deleted after verification. This was a
   client-only Pages release; no Worker, schema, secret, permission, or lasting
   production-resource change was made.
+- Clarification and correction: the user's card screenshot confirmed that the
+  primary Place action must live on the ordinary card shell like the personal
+  place action. The initial release attached removal to visible nested rows;
+  because the repeated primary Place row is intentionally suppressed, ordinary
+  Place-only cards did not show it. Focused correction coverage passed 83/83;
+  full client coverage passed 565/565 and full server coverage passed 502/502.
+  `npm run verify:map-lockdown` passed 77/77 and completed the required six-root
+  production client build. Artifact parity and primary-Place disposable-map UAT
+  remain release gates.
 
 ## 2026-08-06 owner My Map custom category sequence
 

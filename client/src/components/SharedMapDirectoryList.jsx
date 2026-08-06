@@ -1333,7 +1333,6 @@ function DirectoryResourceRow({
     compactPrint = false,
 }) {
     const { t } = useLocale();
-    const [removePending, setRemovePending] = useState(false);
     const detailPath = useDirectoryDetailPath(row.detailPath);
     const canOpenDetail = Boolean(detailPath) && row.status !== 'unavailable';
     const personalPlace = isPersonalPlaceRow(row);
@@ -1357,16 +1356,6 @@ function DirectoryResourceRow({
     const rowTitleClassName = interactive
         ? (compactInteractive ? 'text-[0.75rem]' : 'text-[0.875rem]')
         : (compactPrint ? 'text-[0.6875rem]' : 'text-[0.75rem]');
-
-    async function handleRemoveMapResource() {
-        if (!canRemoveMapResource || removePending) return;
-        setRemovePending(true);
-        try {
-            await onRemoveResource(row);
-        } finally {
-            setRemovePending(false);
-        }
-    }
 
     if (!interactive) {
         const printRowTitle = showResourceName && canOpenDetail && allowPrintLinks ? (
@@ -1514,31 +1503,11 @@ function DirectoryResourceRow({
                                     ) : null}
                                 </div>
                                 {!personalPlace ? (
-                                    <div className="flex flex-shrink-0 items-center gap-1">
-                                        <MapNoteIconButton
-                                            row={row}
-                                            onOpenResourceNotes={onOpenResourceNotes}
-                                            compact={compactInteractive}
-                                        />
-                                        {canRemoveMapResource ? (
-                                            <button
-                                                type="button"
-                                                onClick={handleRemoveMapResource}
-                                                disabled={removePending}
-                                                className="inline-flex h-11 flex-shrink-0 items-center justify-center gap-1 rounded-xl px-2 text-xs font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-wait disabled:opacity-60"
-                                                aria-label={`${t('removeFromMap')}: ${row.name}`}
-                                                title={t('removeFromMap')}
-                                                data-my-map-resource-remove="true"
-                                            >
-                                                {removePending ? (
-                                                    <LoaderCircle size={13} className="animate-spin" aria-hidden="true" />
-                                                ) : (
-                                                    <Trash2 size={13} aria-hidden="true" />
-                                                )}
-                                                {t(removePending ? 'removingFromMap' : 'remove')}
-                                            </button>
-                                        ) : null}
-                                    </div>
+                                    <MapNoteIconButton
+                                        row={row}
+                                        onOpenResourceNotes={onOpenResourceNotes}
+                                        compact={compactInteractive}
+                                    />
                                 ) : null}
                             </div>
                             {row.resourceType === 'soft' && row.availabilityEnabled ? (
@@ -1560,6 +1529,14 @@ function DirectoryResourceRow({
                 {mode === 'shared' ? (
                     <div className="ml-2 flex flex-shrink-0 items-start">
                         <SaveResourceAction row={row} place={place} enabled={canSaveResources} />
+                    </div>
+                ) : null}
+                {canRemoveMapResource ? (
+                    <div className="ml-2 flex flex-shrink-0 items-start">
+                        <OwnerMapResourceRemoveAction
+                            row={row}
+                            onRemoveResource={onRemoveResource}
+                        />
                     </div>
                 ) : null}
                 {canManagePersonalPlace ? (
@@ -1584,6 +1561,45 @@ function DirectoryResourceRow({
                 ) : null}
             </div>
         </div>
+    );
+}
+
+function OwnerMapResourceRemoveAction({
+    row,
+    onRemoveResource,
+    card = false,
+}) {
+    const { t } = useLocale();
+    const [removePending, setRemovePending] = useState(false);
+
+    async function handleRemove() {
+        if (!row || !onRemoveResource || removePending) return;
+        setRemovePending(true);
+        try {
+            await onRemoveResource(row);
+        } finally {
+            setRemovePending(false);
+        }
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={handleRemove}
+            disabled={removePending}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 transition hover:text-red-600 disabled:cursor-wait disabled:opacity-60"
+            aria-label={`${t('removeFromMap')}: ${row?.name || t('resource')}`}
+            title={t('removeFromMap')}
+            data-my-map-resource-remove="true"
+            data-my-map-card-remove={card ? 'true' : undefined}
+        >
+            {removePending ? (
+                <LoaderCircle size={13} className="animate-spin" aria-hidden="true" />
+            ) : (
+                <Trash2 size={13} aria-hidden="true" />
+            )}
+            {t(removePending ? 'removingFromMap' : 'remove')}
+        </button>
     );
 }
 
@@ -1874,6 +1890,8 @@ function DirectoryNestedPlaceSection({
     const titleClassName = compactInteractive ? 'text-[0.9375rem]' : 'text-[1.0625rem]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(nestedPlace);
     const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(nestedPlace);
+    const canRemovePrimaryResource = mode === 'owner'
+        && Boolean(primaryManagedPlaceRow && onRemoveResource);
 
     return (
         <div className={compactInteractive ? 'space-y-1.5' : 'space-y-2'}>
@@ -1900,6 +1918,16 @@ function DirectoryNestedPlaceSection({
                 compact={compactInteractive}
                 onEditResourceShortDescription={onEditResourceShortDescription}
             />
+
+            {canRemovePrimaryResource ? (
+                <div className="flex justify-end">
+                    <OwnerMapResourceRemoveAction
+                        row={primaryManagedPlaceRow}
+                        onRemoveResource={onRemoveResource}
+                        card
+                    />
+                </div>
+            ) : null}
 
             {visibleRows.length ? (
                 <div className={`border-l border-slate-100 ${compactInteractive ? 'space-y-1.5 pl-2.5' : 'space-y-2.5 pl-3.5'}`}>
@@ -1984,6 +2012,9 @@ function DirectoryPlaceGroupCard({
     const printHighlightClassName = 'border-orange-400 ring-2 ring-orange-300 shadow-[0_0_0_3px_rgba(249,115,22,0.16)]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
     const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(group);
+    const canRemovePrimaryResource = interactive
+        && mode === 'owner'
+        && Boolean(primaryManagedPlaceRow && onRemoveResource);
     const canFocusCardOnMap = Boolean(interactive && onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
 
     function handleCardClick(event) {
@@ -2362,6 +2393,16 @@ function DirectoryPlaceGroupCard({
                         onEditResourceShortDescription={onEditResourceShortDescription}
                     />
 
+                    {canRemovePrimaryResource ? (
+                        <div className="flex justify-end">
+                            <OwnerMapResourceRemoveAction
+                                row={primaryManagedPlaceRow}
+                                onRemoveResource={onRemoveResource}
+                                card
+                            />
+                        </div>
+                    ) : null}
+
                     {visibleRows.length ? (
                         <div className={`border-t border-l border-slate-100 ${compactInteractive ? 'mt-2 space-y-1.5 pl-2.5 pt-2' : 'mt-3 space-y-2.5 pl-3.5 pt-3'}`}>
                             {visibleRows.map((row, index) => (
@@ -2387,7 +2428,7 @@ function DirectoryPlaceGroupCard({
         </>
     );
 
-    if (placeDetailPath && fullCardLink && !isPostalGroup && !canFocusCardOnMap) {
+    if (placeDetailPath && fullCardLink && !isPostalGroup && !canFocusCardOnMap && !canRemovePrimaryResource) {
         return (
             <Link
                 to={placeDetailPath}

@@ -17,9 +17,19 @@ test('owner interactive resource rows expose a guarded remove-from-map action', 
         /const canRemoveMapResource = interactive\s*&& mode === 'owner'\s*&& !personalPlace\s*&& Boolean\(onRemoveResource\)/,
     );
     assert.match(directoryListSource, /data-my-map-resource-remove="true"/);
-    assert.match(directoryListSource, /className="inline-flex h-11/);
     assert.match(directoryListSource, /disabled=\{removePending\}/);
     assert.match(directoryListSource, /removePending \? 'removingFromMap' : 'remove'/);
+});
+
+test('the repeated primary Place exposes removal on the ordinary card shell', () => {
+    assert.match(directoryListSource, /const primaryManagedPlaceRow = getPrimaryManagedPlaceRow\(group\)/);
+    assert.match(
+        directoryListSource,
+        /const canRemovePrimaryResource = interactive\s*&& mode === 'owner'\s*&& Boolean\(primaryManagedPlaceRow && onRemoveResource\)/,
+    );
+    assert.match(directoryListSource, /row=\{primaryManagedPlaceRow\}[\s\S]*onRemoveResource=\{onRemoveResource\}[\s\S]*card/);
+    assert.match(directoryListSource, /data-my-map-card-remove=\{card \? 'true' : undefined\}/);
+    assert.match(directoryListSource, /!canFocusCardOnMap && !canRemovePrimaryResource/);
 });
 
 test('resource-card removal confirms the named resource and reloads authoritative membership', () => {
