@@ -1,6 +1,7 @@
 import {
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
 } from 'react';
@@ -26,6 +27,7 @@ import {
     PRINT_ANNOTATION_TOOL_SELECT,
     appendBoundedAnnotationPoint,
     buildRoundedPrintAnnotationPolygon,
+    movePrintAnnotationControlPoint,
 } from '../lib/printAnnotations.js';
 
 function escapeMarkup(value) {
@@ -94,16 +96,23 @@ function createVertexIcon(color) {
     return L.divIcon({
         className: 'carearound-print-annotation-vertex',
         html: `<span style="
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            width:44px;
+            height:44px;
+        "><span style="
+            box-sizing:border-box;
             display:block;
-            width:14px;
-            height:14px;
+            width:20px;
+            height:20px;
             border:3px solid #ffffff;
             border-radius:50%;
             background:${color};
             box-shadow:0 1px 5px rgba(15,23,42,.35);
-        "></span>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7],
+        "></span></span>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
     });
 }
 
@@ -125,61 +134,134 @@ function stopAnnotationEvent(event) {
     event?.originalEvent?.stopPropagation?.();
 }
 
+function areAnnotationPointsEqual(left = [], right = []) {
+    return left.length === right.length && left.every((point, index) => (
+        point[0] === right[index]?.[0] && point[1] === right[index]?.[1]
+    ));
+}
+
 function AnnotationVertexHandles({
     annotation,
     layerIndex,
+    onPreview,
     onUpdate,
 }) {
     const editablePoints = annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
         ? annotation.controlPoints || annotation.points
         : annotation.points;
+    const latestEditablePointsRef = useRef(editablePoints);
+    const dragBasePointsRef = useRef(null);
+    const pendingCommittedPointsRef = useRef(null);
+    const pendingPreviewRef = useRef(null);
+    const previewFrameRef = useRef(null);
+    const markerRefs = useRef([]);
+    const vertexIcon = useMemo(
+        () => createVertexIcon(annotation.style.color),
+        [annotation.style.color],
+    );
+
+    useEffect(() => {
+        if (dragBasePointsRef.current) return;
+        const pendingCommittedPoints = pendingCommittedPointsRef.current;
+        if (pendingCommittedPoints && !areAnnotationPointsEqual(
+            editablePoints,
+            pendingCommittedPoints,
+        )) return;
+        pendingCommittedPointsRef.current = null;
+        latestEditablePointsRef.current = editablePoints;
+    }, [editablePoints]);
+
+    useEffect(() => () => {
+        if (previewFrameRef.current) {
+            window.cancelAnimationFrame(previewFrameRef.current);
+        }
+    }, []);
+
+    const queuePreview = useCallback((nextPoints) => {
+        latestEditablePointsRef.current = nextPoints;
+        pendingPreviewRef.current = nextPoints;
+        if (annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE && nextPoints.length === 2) {
+            markerRefs.current[1]?.setLatLng(nextPoints[1]);
+        }
+        if (previewFrameRef.current) return;
+        previewFrameRef.current = window.requestAnimationFrame(() => {
+            previewFrameRef.current = null;
+            const pendingPoints = pendingPreviewRef.current;
+            pendingPreviewRef.current = null;
+            if (pendingPoints) onPreview?.(pendingPoints);
+        });
+    }, [annotation.type, onPreview]);
+
+    const finishDrag = useCallback((index, event) => {
+        const latLng = event.target.getLatLng();
+        const basePoints = dragBasePointsRef.current || latestEditablePointsRef.current;
+        const nextPoints = movePrintAnnotationControlPoint(
+            annotation.type,
+            basePoints,
+            index,
+            [latLng.lat, latLng.lng],
+        );
+        if (previewFrameRef.current) {
+            window.cancelAnimationFrame(previewFrameRef.current);
+            previewFrameRef.current = null;
+        }
+        pendingPreviewRef.current = null;
+        latestEditablePointsRef.current = nextPoints;
+        pendingCommittedPointsRef.current = areAnnotationPointsEqual(nextPoints, editablePoints)
+            ? null
+            : nextPoints;
+        if (annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE && nextPoints.length === 2) {
+            markerRefs.current[1]?.setLatLng(nextPoints[1]);
+        }
+        onPreview?.(nextPoints);
+        dragBasePointsRef.current = null;
+        onUpdate?.(annotation.id, annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
+            ? {
+                points: nextPoints,
+                controlPoints: nextPoints,
+            }
+            : { points: nextPoints });
+    }, [annotation.id, annotation.type, editablePoints, onPreview, onUpdate]);
 
     return editablePoints.map((point, index) => (
         <Marker
             key={`${annotation.id}:vertex:${index}`}
+            ref={(marker) => {
+                markerRefs.current[index] = marker;
+            }}
             position={point}
-            icon={createVertexIcon(annotation.style.color)}
+            icon={vertexIcon}
             pane="markerPane"
             draggable
             interactive
             zIndexOffset={3000 + (layerIndex * 10)}
             eventHandlers={{
-                dragend: (event) => {
-                    const latLng = event.target.getLatLng();
-                    let nextPoints = editablePoints.map((current, pointIndex) => (
-                        pointIndex === index ? [latLng.lat, latLng.lng] : current
-                    ));
-                    if (
-                        annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE
-                        && index === 0
-                        && editablePoints.length === 2
-                    ) {
-                        const latDelta = latLng.lat - editablePoints[0][0];
-                        const lngDelta = latLng.lng - editablePoints[0][1];
-                        nextPoints = [
-                            [latLng.lat, latLng.lng],
-                            [
-                                editablePoints[1][0] + latDelta,
-                                editablePoints[1][1] + lngDelta,
-                            ],
-                        ];
-                    }
-                    onUpdate?.(annotation.id, annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
-                        ? {
-                            points: nextPoints,
-                            controlPoints: nextPoints,
-                        }
-                        : { points: nextPoints });
+                dragstart: () => {
+                    dragBasePointsRef.current = latestEditablePointsRef.current.map(
+                        (current) => [...current],
+                    );
                 },
+                drag: (event) => {
+                    const latLng = event.target.getLatLng();
+                    const basePoints = dragBasePointsRef.current
+                        || latestEditablePointsRef.current;
+                    queuePreview(movePrintAnnotationControlPoint(
+                        annotation.type,
+                        basePoints,
+                        index,
+                        [latLng.lat, latLng.lng],
+                    ));
+                },
+                dragend: (event) => finishDrag(index, event),
                 click: stopAnnotationEvent,
             }}
         />
     ));
 }
 
-function getShapeTextPosition(annotation, displayPoints) {
-    if (annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE) {
-        return annotation.points[0];
+function getShapeTextPosition(annotationType, points, displayPoints) {
+    if (annotationType === PRINT_ANNOTATION_TOOL_CIRCLE) {
+        return points[0];
     }
     const bounds = L.latLngBounds(displayPoints.map(([lat, lng]) => [lat, lng]));
     return bounds.getCenter();
@@ -190,6 +272,7 @@ function ShapeTextMarker({
     position,
     interactive,
     layerIndex,
+    markerRef,
     onSelect,
 }) {
     const icon = useMemo(
@@ -199,6 +282,7 @@ function ShapeTextMarker({
 
     return (
         <Marker
+            ref={markerRef}
             position={position}
             icon={icon}
             interactive={interactive}
@@ -222,6 +306,9 @@ function AnnotationShape({
     onUpdate,
 }) {
     const map = useMap();
+    const shapeRef = useRef(null);
+    const shapeTextRef = useRef(null);
+    const previewPointsRef = useRef(null);
     const eventHandlers = interactive ? {
         click: (event) => {
             stopAnnotationEvent(event);
@@ -232,11 +319,49 @@ function AnnotationShape({
     const displayPoints = annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
         ? buildRoundedPrintAnnotationPolygon(annotation.controlPoints || annotation.points)
         : annotation.points;
+    const applyVertexPreview = useCallback((nextPoints) => {
+        const nextDisplayPoints = annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
+            ? buildRoundedPrintAnnotationPolygon(nextPoints)
+            : nextPoints;
+        if (annotation.type === PRINT_ANNOTATION_TOOL_LINE) {
+            shapeRef.current?.setLatLngs(nextPoints);
+        } else if (annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE) {
+            shapeRef.current?.setBounds(nextPoints);
+        } else if (annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE) {
+            shapeRef.current?.setLatLng(nextPoints[0]);
+            shapeRef.current?.setRadius(Math.max(1, map.distance(nextPoints[0], nextPoints[1])));
+        } else {
+            shapeRef.current?.setLatLngs(nextDisplayPoints);
+        }
+        shapeTextRef.current?.setLatLng(getShapeTextPosition(
+            annotation.type,
+            nextPoints,
+            nextDisplayPoints,
+        ));
+    }, [annotation.type, map]);
+    const handleVertexPreview = useCallback((nextPoints) => {
+        previewPointsRef.current = nextPoints;
+        applyVertexPreview(nextPoints);
+    }, [applyVertexPreview]);
+
+    useLayoutEffect(() => {
+        const previewPoints = previewPointsRef.current;
+        if (!previewPoints) return;
+        const currentPoints = annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
+            ? annotation.controlPoints || annotation.points
+            : annotation.points;
+        if (areAnnotationPointsEqual(currentPoints, previewPoints)) {
+            previewPointsRef.current = null;
+            return;
+        }
+        applyVertexPreview(previewPoints);
+    }, [annotation.controlPoints, annotation.points, annotation.type, applyVertexPreview]);
     let shape = null;
 
     if (annotation.type === PRINT_ANNOTATION_TOOL_LINE) {
         shape = (
             <Polyline
+                ref={shapeRef}
                 positions={annotation.points}
                 pathOptions={{ ...pathOptions, fill: false }}
                 eventHandlers={eventHandlers}
@@ -246,6 +371,7 @@ function AnnotationShape({
     } else if (annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE) {
         shape = (
             <Rectangle
+                ref={shapeRef}
                 bounds={annotation.points}
                 pathOptions={pathOptions}
                 eventHandlers={eventHandlers}
@@ -255,6 +381,7 @@ function AnnotationShape({
     } else if (annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE) {
         shape = (
             <Circle
+                ref={shapeRef}
                 center={annotation.points[0]}
                 radius={Math.max(1, map.distance(annotation.points[0], annotation.points[1]))}
                 pathOptions={pathOptions}
@@ -265,6 +392,7 @@ function AnnotationShape({
     } else {
         shape = (
             <Polygon
+                ref={shapeRef}
                 positions={displayPoints}
                 pathOptions={pathOptions}
                 eventHandlers={eventHandlers}
@@ -285,9 +413,14 @@ function AnnotationShape({
             {annotation.text && supportsInsideText ? (
                 <ShapeTextMarker
                     annotation={annotation}
-                    position={getShapeTextPosition(annotation, displayPoints)}
+                    position={getShapeTextPosition(
+                        annotation.type,
+                        annotation.points,
+                        displayPoints,
+                    )}
                     interactive={interactive}
                     layerIndex={layerIndex}
+                    markerRef={shapeTextRef}
                     onSelect={onSelect}
                 />
             ) : null}
@@ -295,6 +428,7 @@ function AnnotationShape({
                 <AnnotationVertexHandles
                     annotation={annotation}
                     layerIndex={layerIndex}
+                    onPreview={handleVertexPreview}
                     onUpdate={onUpdate}
                 />
             ) : null}

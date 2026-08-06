@@ -749,6 +749,11 @@ test('map downloads wait for a verified export surface while resource PNG stays 
     assert.match(exportButtonSource, /onClick=\{\(\) => handleImageExport\('resources'\)\}[\s\S]*?disabled=\{exporting\}[\s\S]*?data-print-export-page-action="resources"/);
     assert.match(exportButtonSource, /t\('retryMapDownloadPreparation'\)/);
     assert.match(exportButtonSource, /\{exportRoot \? createPortal\(/);
+    assert.match(ownerPageSource, /deferPreparation=\{printAnnotationEditorOpen\}/);
+    assert.match(exportButtonSource, /deferPreparation = false/);
+    assert.match(exportButtonSource, /preparedPrintAnnotations/);
+    assert.match(exportButtonSource, /annotationPreparationPending/);
+    assert.match(exportButtonSource, /printAnnotations=\{preparedPrintAnnotations\}/);
 });
 
 test('separate map and resource PNG labels are available in every locale', () => {

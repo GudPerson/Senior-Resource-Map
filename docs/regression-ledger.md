@@ -15,6 +15,77 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-07 owner Print View annotation interaction performance
+
+- Current behavior: in owner Full-map Print View annotation editing, line,
+  rectangle, circle, and polygon control points update the selected Leaflet
+  shape continuously during a drag. Each completed drag commits exactly one
+  annotation-document change, so undo remains one step per adjustment. A
+  latest-geometry reference carries a rapid second drag forward from the first
+  drag's committed coordinates instead of allowing an older React render to
+  restore a point. Control-point hit targets are 44 by 44 pixels while their
+  visible dots remain compact. While the annotation editor is open, the hidden
+  map-export surface holds its last prepared annotation snapshot instead of
+  regenerating after every edit; map-dependent downloads become unready until
+  the editor closes and one preparation uses the latest saved document.
+  Resource PNG remains independently usable throughout.
+- Known-good reference: the current production owner annotation and export
+  behavior at `234ff092a` remains the baseline for private annotation
+  persistence, one
+  document and revision, undo/redo, sparse polygon anchors, rounded render-only
+  paths, resource PNG independence, nonblank hidden-export readiness, and
+  PNG/PDF parity. The implementation is isolated on
+  `codex/annotation-interaction-performance`; its release commit is pending the
+  explicit Release 1 gate.
+- Architecture and blast radius: this is a client-only interaction and export
+  scheduling change. Drag previews are transient local Leaflet mutations;
+  persistence still passes through the existing normalized annotation document
+  only on drag end. The hidden export panel remains mounted with a frozen
+  prepared snapshot, then advances to the latest annotation document when the
+  editor closes. There is no API, schema, ownership, sharing, autosave format,
+  annotation-document shape, map mode, pin, Detailed/Live asset-root, PDF
+  generator, or production-data change. Shared Maps still expose no annotation
+  editor or private annotation data.
+- Reproduction steps: sign in as a map owner, open Print View in Full-map mode,
+  open Annotate, select a polygon, and drag multiple control points rapidly.
+  Confirm the path follows each handle, earlier points do not revert, and each
+  drag creates one undo step. Repeat with a line, rectangle, and circle; for a
+  circle, moving its centre must carry the radius handle with it. Confirm the
+  hit area is usable without visually oversized dots. While editing, confirm
+  Resource PNG remains available and map-dependent exports wait; close the
+  editor, wait for nonblank readiness, and compare the latest annotations in
+  PNG and PDF output. Confirm shared and classic map surfaces are unchanged.
+- Acceptance criteria: shape geometry follows every handle without visible
+  lag or stale-point reversion; rapid sequential edits preserve all accepted
+  coordinates; exactly one persistent change and undo entry is produced per
+  drag; circle centre/radius geometry remains coherent; control targets meet
+  the 44-pixel touch-target size; annotation edits do not continuously rebuild
+  the hidden export map; closing the editor prepares the exact latest private
+  document; export readiness never implies a stale map image. Existing privacy,
+  autosave, undo/redo, sparse-anchor persistence, rounded display geometry,
+  Resource PNG independence, map pins/camera/modes, Detailed/Live layers,
+  category order, card removal, sharing, authentication, and exports remain
+  intact.
+- Verification result before release: focused annotation and Print View export
+  coverage passed 39/39. Full client/source coverage passed 587/587; full
+  server coverage passed 502/502; map-lockdown coverage passed 79/79; and the
+  exact six-root production client build completed successfully. A temporary
+  local runtime harness imported the production annotation layer into a real
+  Leaflet map: all four polygon handles measured 44 by 44 pixels, 30 rapid
+  alternating vertex drags produced exactly 30 commits, and every final handle
+  centre matched its expected position with no reversion or console error.
+  `git diff --check` passed before this ledger update. The pre-release custom
+  domain baseline returned 200 with the expected MIME types for HTML, entry
+  JavaScript, CSS, My Map, and map-export assets. Their SHA-256 values were
+  `eee43f3b6491d4bb09232a2e4cca654d92f34bf389423fa3ccb457452799f80d`,
+  `12dc8392e0d61dcadf06733c4d1851dbd78c3ee6645e3be2c17318fbe4ba638d`,
+  `409ba9ac3df8e5e9554757073689b53c74888a618abe55d27d4fe6851c6d0b0b`,
+  `c49ca7499d545e30c78cbeaecaabc42de9fdf77448eec24a019dc641437fa68e`,
+  and `3fafceefcd63a8942c9245eb6c7321060c7c11c1787b127505d32e5d7131975d`.
+  Production API health also returned 200. Authenticated owner UAT, export
+  parity, deployed artifact parity, custom-domain route/API smoke, and the
+  exact Release 1 commit/push/Pages deployment remain release gates.
+
 ## 2026-08-06 owner My Map resource-card removal
 
 - Current behavior: an owner can remove an individual saved Place directly

@@ -8,6 +8,7 @@ import {
     DEFAULT_PRINT_ANNOTATION_STYLE,
     getAnnotationLocalDraftKey,
     getPrintAnnotationCaptureKey,
+    movePrintAnnotationControlPoint,
     normalizePrintAnnotation,
     normalizePrintAnnotations,
     PRINT_ANNOTATION_MAX_CONTROL_POINTS,
@@ -66,6 +67,37 @@ test('print annotation normalization supports pins, lines, area shapes, and cont
         type: 'polygon',
         points: POLYGON_POINTS.slice(0, 2),
     }), null);
+});
+
+test('annotation control-point moves preserve the latest geometry and translate circle centres', () => {
+    const firstPolygonMove = movePrintAnnotationControlPoint(
+        'polygon',
+        POLYGON_POINTS,
+        0,
+        [1.382, 103.742],
+    );
+    const secondPolygonMove = movePrintAnnotationControlPoint(
+        'polygon',
+        firstPolygonMove,
+        1,
+        [1.385, 103.747],
+    );
+
+    assert.deepEqual(secondPolygonMove, [
+        [1.382, 103.742],
+        [1.385, 103.747],
+        POLYGON_POINTS[2],
+    ]);
+
+    assert.deepEqual(movePrintAnnotationControlPoint(
+        'circle',
+        [[1.38, 103.74], [1.381, 103.742]],
+        0,
+        [1.382, 103.743],
+    ), [
+        [1.382, 103.743],
+        [1.383, 103.745],
+    ]);
 });
 
 test('new annotation lines default to solid while dashed remains optional', () => {
@@ -266,11 +298,17 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     );
     assert.match(printSource, /PRINT_MAP_LAYOUT_FULL/);
     assert.match(exportSource, /getPrintAnnotationCaptureKey/);
-    assert.match(exportSource, /printAnnotations=\{printAnnotations\}/);
+    assert.match(exportSource, /printAnnotations=\{preparedPrintAnnotations\}/);
     assert.match(layerSource, /data-annotation-shape-text/);
     assert.match(layerSource, /buildRoundedPrintAnnotationPolygon/);
     assert.match(layerSource, /PRINT_ANNOTATION_TOOL_CIRCLE/);
     assert.match(layerSource, /PRINT_ANNOTATION_TOOL_LINE/);
+    assert.match(layerSource, /dragstart:/);
+    assert.match(layerSource, /drag: \(event\) =>/);
+    assert.match(layerSource, /window\.requestAnimationFrame/);
+    assert.match(layerSource, /shapeRef\.current\?\.setLatLngs/);
+    assert.match(layerSource, /latestEditablePointsRef/);
+    assert.match(layerSource, /iconSize: \[44, 44\]/);
     assert.match(layerSource, /dashArray: style\.dashed \? '9 7' : null/);
     assert.doesNotMatch(layerSource, /dashArray: '7 6'/);
     assert.match(toolbarSource, /Undo last point/);

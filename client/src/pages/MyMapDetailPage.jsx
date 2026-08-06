@@ -2937,6 +2937,7 @@ export default function MyMapDetailPage() {
                                     fixedTownOverviewSurfaceAvailable={printTownMapOverviewAvailable}
                                     fixedTownOverviewSurfacePending={printTownMapOverviewSurfacePending}
                                     printAnnotations={printAnnotations.annotations}
+                                    deferPreparation={printAnnotationEditorOpen}
                                     className="min-h-11 w-full px-3 text-xs sm:w-auto sm:text-sm"
                                 />
                             </Suspense>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     AlertTriangle,
@@ -32,6 +32,7 @@ const MAP_CAPTURE_BLANK_MAX_CHANNEL_RANGE = 24;
 const MAP_READINESS_PROBE_MAX_ATTEMPTS = 4;
 const MAP_READINESS_PROBE_RETRY_DELAY_MS = 900;
 const MAP_READINESS_PROBE_CANVAS_WIDTH = 320;
+const MemoizedMapDirectoryExportPanel = memo(MapDirectoryExportPanel);
 
 function buildFileName(directoryName, pageName = 'summary') {
     const slug = String(directoryName || 'carearound-directory')
@@ -216,6 +217,7 @@ export default function MapImageExportButton({
     fixedTownOverviewSurfaceAvailable = false,
     fixedTownOverviewSurfacePending = false,
     printAnnotations = [],
+    deferPreparation = false,
 }) {
     const { t } = useLocale();
     const exportRef = useRef(null);
@@ -231,10 +233,16 @@ export default function MapImageExportButton({
     const [mapDownloadProgress, setMapDownloadProgress] = useState(12);
     const [preparationAttempt, setPreparationAttempt] = useState(0);
     const [verifiedPreparationKey, setVerifiedPreparationKey] = useState('');
+    const [preparedPrintAnnotations, setPreparedPrintAnnotations] = useState(
+        () => printAnnotations,
+    );
     const exportRoot = typeof document !== 'undefined' ? document.body : null;
     const exportWidth = PRINT_MAP_CANVAS_WIDTH_PX;
     const printMapCaptureKey = printMapState ? buildPrintMapCaptureKey(printMapState) : '';
     const printAnnotationCaptureKey = getPrintAnnotationCaptureKey(printAnnotations);
+    const preparedPrintAnnotationCaptureKey = getPrintAnnotationCaptureKey(
+        preparedPrintAnnotations,
+    );
     const printMapQuality = normalizePrintMapQuality(printMapState?.mapQuality);
     const exportAsSeparatePages = shouldExportPrintMapAsSeparatePages(printMapState);
     const exporting = Boolean(exportingFormat);
@@ -248,10 +256,13 @@ export default function MapImageExportButton({
         activeAnchor?.lng,
         activeAnchor?.postalCode,
         printMapCaptureKey,
-        printAnnotationCaptureKey,
+        preparedPrintAnnotationCaptureKey,
         shareUrl,
     ].map((value) => String(value ?? '')).join('|');
+    const annotationPreparationPending = printAnnotationCaptureKey
+        !== preparedPrintAnnotationCaptureKey;
     const mapDownloadReady = mapDownloadStatus === 'ready'
+        && !annotationPreparationPending
         && verifiedPreparationKey === exportPreparationKey;
 
     const resetExportReadiness = useCallback(() => {
@@ -265,6 +276,21 @@ export default function MapImageExportButton({
         setMapDownloadProgress(12);
         setError('');
     }, []);
+
+    useEffect(() => {
+        if (!annotationPreparationPending) return;
+        if (deferPreparation) {
+            resetExportReadiness();
+            return;
+        }
+        setPreparedPrintAnnotations(printAnnotations);
+    }, [
+        annotationPreparationPending,
+        deferPreparation,
+        printAnnotationCaptureKey,
+        printAnnotations,
+        resetExportReadiness,
+    ]);
 
     useEffect(() => {
         resetExportReadiness();
@@ -689,7 +715,7 @@ export default function MapImageExportButton({
                     aria-hidden="true"
                 >
                     <div ref={handleExportNodeRef}>
-                        <MapDirectoryExportPanel
+                        <MemoizedMapDirectoryExportPanel
                             key={`${exportPreparationKey}:${preparationAttempt}`}
                             directory={directory}
                             activeAnchor={activeAnchor}
@@ -708,7 +734,7 @@ export default function MapImageExportButton({
                             fixedTownOverviewAssetBaseUrl={fixedTownOverviewAssetBaseUrl}
                             fixedTownOverviewSurfaceAvailable={fixedTownOverviewSurfaceAvailable}
                             fixedTownOverviewSurfacePending={fixedTownOverviewSurfacePending}
-                            printAnnotations={printAnnotations}
+                            printAnnotations={preparedPrintAnnotations}
                         />
                     </div>
                 </div>
