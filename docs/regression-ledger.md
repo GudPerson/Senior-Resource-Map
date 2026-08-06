@@ -80,6 +80,50 @@ Rules:
   errors and zero warnings. The disposable harness and browser artifacts were
   removed after inspection. Release 2 has not been committed, pushed,
   deployed, or production-UATed at this ledger entry.
+- Production release: implementation commit
+  `9915de2a8ac924d101003d8506492529264fcfcf` was pushed to
+  `codex/annotation-drawing-ux` and fast-forwarded to `main`. The final exact
+  six-root artifact was published to Cloudflare Pages production at
+  `https://8f9840b9.senior-resource-map.pages.dev`. One otherwise exact direct
+  upload was discarded as release evidence because its expanded commit
+  metadata was mistyped; the final deployment carries the Git-confirmed full
+  SHA above. A concurrent Git-triggered production build briefly won the custom
+  domain and returned SPA HTML for the new My Map and Shared Map JavaScript
+  paths. The final exact publish and propagation restored byte-identical HTML,
+  entry, CSS, My Map, map-export, Shared Map, and shared map-runtime assets on
+  both the immutable preview and `https://app.carearound.sg`, with correct MIME
+  types. Their SHA-256 values were
+  `bdb158c0567820bbe6b1eafe6fb8316a2e2f81c26149af7c9d5ffbaf32d89db7`,
+  `e663e6daa352ea3d070d71d97cb8effc21a7a7f476fa1dd2b278f846c958b2a9`,
+  `409ba9ac3df8e5e9554757073689b53c74888a618abe55d27d4fe6851c6d0b0b`,
+  `573e2d78a6071c536f3225c78dd31f569dfd3ae84adf724a3b7e8c7e98cd41d6`,
+  `1c6cd69b4681188b7116b8a069e34e25a8eb3d4543555d1d5143d8c573c689f0`,
+  `9f9cd830ac7678d7084dd5af9f67ef90784391109cde9a07a3e6e4f441fa8ceb`,
+  and `89d46223f343e2691f4bd3041ec8749e76b694770938de470cdab707aae70243`.
+  The deployed build retained all six map roots, `resize moveend zoomend`, the
+  regular-map fallback, `Save PDF`, the Release 2 helper copy, and
+  request-animation-frame preview scheduling; retired Standard-map wording and
+  `Save A3 PDF` remained absent. Core app routes and production API health
+  returned 200/OK. No Worker, schema, auth, permission, secret, map asset, or
+  production-resource release was made.
+- Authenticated production UAT: owner map 258 began with its existing private
+  boundary. Line preview geometry changed at two pointer positions before
+  click two created one selected two-point line with two handles and no Done
+  action. Box and circle each rendered a live preview, completed on click two,
+  exposed two handles, and left no residual draft. Each temporary two-point
+  shape was removed and autosaved. A temporary boundary then started directly
+  on the existing saved boundary without selecting it or leaving a stray
+  draft. Its next edge previewed after points one and two, Done was disabled at
+  two points and enabled at three, and Enter created one selected three-point
+  polygon; a repeated Enter left the pane count unchanged. The polygon reached
+  Saved, survived a full reload, reselected with three handles, and was deleted.
+  A final reload proved the original boundary remained in visible and export
+  surfaces while every temporary annotation was absent and the map reached
+  `Map ready to download`. One session-check timeout occurred during the earlier
+  repeated reload sequence but the signed-in map remained usable; a clean
+  time-bounded final reload reproduced no application warning or error. The
+  authorized UAT advanced the private annotation revision but left no temporary
+  annotation content behind.
 
 ## 2026-08-07 owner Print View annotation interaction performance
 
