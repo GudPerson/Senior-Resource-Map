@@ -15,6 +15,48 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-06 owner My Map resource-card removal
+
+- Current behavior: an owner can remove an individual saved Place or Offering
+  directly from its interactive My Map resource row. The visible 44 px action
+  names the selected resource in a shared confirmation dialog, explains that
+  the saved resource will remain in My Directory, disables repeated submission
+  while pending, and refreshes authoritative map membership after the API
+  succeeds. Manage resources remains available for bulk membership changes.
+- Known-good reference: the released My Map category-sequence baseline at
+  `fda0ce681` remains the reference for category ordering, resource ordering,
+  V2 and classic owner layouts, personal places, notes, map focus, Shared Maps,
+  Print View, exports, Detailed/Live layers, and authentication.
+- Architecture and blast radius: this is a client-only presentation path over
+  the existing owner-protected resource-removal endpoint. The ordinary resource
+  row exposes the action only when the directory is interactive and in owner
+  mode. The existing parent handler performs the mutation and authoritative
+  reload; a shared confirmation and a dedicated in-flight guard were added
+  without changing the API, schema, map-card grouping, resource records, or
+  saved-resource state. Personal-place removal retains its established flow.
+- Reproduction steps: sign in, open an owner My Map containing an ordinary
+  resource, and select Remove on that resource row. Cancel the named prompt and
+  confirm no membership changes. Repeat and confirm removal; verify only that
+  resource leaves the map, the resource remains saved in My Directory, and a
+  refresh preserves the new membership. Open a Shared Map and Print View and
+  confirm the action is absent. Confirm Manage resources still supports bulk
+  selection.
+- Acceptance criteria: the action is visible only on interactive owner resource
+  rows; each click targets the exact Place or Offering rather than every
+  resource in the containing location card; cancellation makes no API mutation;
+  repeated submission is blocked; API or refresh failure remains visible and
+  does not imply success. Saved resources, category sequence, personal places,
+  notes, map pins and focus, filters, sharing, Print View, exports, Detailed/Live
+  controls, authorization, Worker behavior, schema, and production data remain
+  unchanged.
+- Verification result before release: focused card-removal, i18n, shared
+  confirmation, Shared Map directory, personal-place, V2, and Print View
+  coverage passed 91/91. Full client coverage passed 564/564 and full server
+  coverage passed 502/502. `npm run verify:map-lockdown` passed 77/77 and
+  completed the required six-root production client build. Custom-domain
+  artifact, smoke, and authenticated disposable-map checks remain release
+  gates.
+
 ## 2026-08-06 owner My Map custom category sequence
 
 - Current behavior: an owner using the current My Map experience can open

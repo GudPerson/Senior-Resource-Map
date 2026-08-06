@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
+import { useConfirmDialog } from '../components/ConfirmDialog.jsx';
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
 import DirectoryMap from '../components/DirectoryMap.jsx';
 import DirectoryPrintView from '../components/DirectoryPrintView.jsx';
@@ -1187,6 +1188,7 @@ export default function MyMapDetailPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const { t } = useLocale();
+    const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const { mapStyle } = useMapStyle();
     const {
         savedAssets,
@@ -1259,6 +1261,7 @@ export default function MyMapDetailPage() {
         || createTownMapManifestState();
     const townMapAssetBaseUrl = townMapManifestState.activeAssetBaseUrl || townMapRootAssetBaseUrl;
     const mapAssetMutationInFlightRef = useRef(false);
+    const mapCardRemovalInFlightRef = useRef(false);
     const personalPlaceMutationInFlightRef = useRef(false);
     const pendingFocusFrameRef = useRef(null);
     const townMapFocusSurfaceClearTimerRef = useRef(null);
@@ -2462,15 +2465,30 @@ export default function MyMapDetailPage() {
     }
 
     async function handleRemoveResource(row) {
-        if (!directory) return;
+        if (!directory) return false;
         const personalPlace = row?.resourceType === 'personal_place';
-        if (personalPlace && personalPlaceMutationInFlightRef.current) return;
+        if (personalPlace && personalPlaceMutationInFlightRef.current) return false;
+        if (!personalPlace && mapCardRemovalInFlightRef.current) return false;
         if (personalPlace) {
             personalPlaceMutationInFlightRef.current = true;
             setPersonalPlaceActionStatus({
                 phase: 'pending',
                 message: t('personalPlaceRemovingFromMap'),
             });
+        } else {
+            mapCardRemovalInFlightRef.current = true;
+            const confirmed = await requestConfirmation({
+                title: t('removeMapResourceTitle'),
+                message: t('removeMapResourceMessage', { name: row?.name || t('resource') }),
+                details: [t('removeMapResourceDetail')],
+                tone: 'danger',
+                confirmLabel: t('removeFromMap'),
+                cancelLabel: t('cancel'),
+            });
+            if (!confirmed) {
+                mapCardRemovalInFlightRef.current = false;
+                return false;
+            }
         }
         setActionError('');
         try {
@@ -2489,7 +2507,7 @@ export default function MyMapDetailPage() {
             if (!refreshed) {
                 if (personalPlace) setPersonalPlaceActionStatus(null);
                 setActionError(t('failedLoadMap'));
-                return;
+                return false;
             }
             if (personalPlace) {
                 setPersonalPlaceActionStatus({
@@ -2497,12 +2515,15 @@ export default function MyMapDetailPage() {
                     message: t('personalPlaceRemovedFromMap'),
                 });
             }
+            return true;
         } catch (err) {
             console.error(err);
             if (personalPlace) setPersonalPlaceActionStatus(null);
             setActionError(err.message || (personalPlace ? t('personalPlaceDeleteFailed') : t('failedRemoveMapResource')));
+            return false;
         } finally {
             if (personalPlace) personalPlaceMutationInFlightRef.current = false;
+            if (!personalPlace) mapCardRemovalInFlightRef.current = false;
         }
     }
 
@@ -3258,6 +3279,7 @@ export default function MyMapDetailPage() {
                     onCreate={handleCreatePersonalPlaceCategory}
                     onUpdate={handleUpdatePersonalPlaceCategory}
                 />
+                {confirmDialog}
             </>
         );
     }
@@ -3590,6 +3612,7 @@ export default function MyMapDetailPage() {
                 onCreate={handleCreatePersonalPlaceCategory}
                 onUpdate={handleUpdatePersonalPlaceCategory}
             />
+            {confirmDialog}
         </>
     );
 }

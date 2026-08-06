@@ -92,6 +92,11 @@ test('recent user-facing UI labels do not fall back to English in supported tran
         'resetCategoryOrder',
         'saveCategoryOrder',
         'failedUpdateCategoryOrder',
+        'removeFromMap',
+        'removingFromMap',
+        'removeMapResourceTitle',
+        'removeMapResourceMessage',
+        'removeMapResourceDetail',
     ];
 
     for (const { code } of LOCALES.filter((locale) => locale.code !== 'en')) {

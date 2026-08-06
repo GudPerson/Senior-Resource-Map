@@ -32,6 +32,7 @@ import {
     Link2,
     List,
     ListOrdered,
+    LoaderCircle,
     Maximize2,
     Minimize2,
     Pencil,
@@ -1332,10 +1333,15 @@ function DirectoryResourceRow({
     compactPrint = false,
 }) {
     const { t } = useLocale();
+    const [removePending, setRemovePending] = useState(false);
     const detailPath = useDirectoryDetailPath(row.detailPath);
     const canOpenDetail = Boolean(detailPath) && row.status !== 'unavailable';
     const personalPlace = isPersonalPlaceRow(row);
     const canManagePersonalPlace = mode === 'owner' && personalPlace;
+    const canRemoveMapResource = interactive
+        && mode === 'owner'
+        && !personalPlace
+        && Boolean(onRemoveResource);
     const canManagePersonalPlaceActions = canManagePersonalPlace
         && Boolean(onEditPersonalPlace || onRemoveResource);
     const canManageShortDescription = mode === 'owner'
@@ -1351,6 +1357,16 @@ function DirectoryResourceRow({
     const rowTitleClassName = interactive
         ? (compactInteractive ? 'text-[0.75rem]' : 'text-[0.875rem]')
         : (compactPrint ? 'text-[0.6875rem]' : 'text-[0.75rem]');
+
+    async function handleRemoveMapResource() {
+        if (!canRemoveMapResource || removePending) return;
+        setRemovePending(true);
+        try {
+            await onRemoveResource(row);
+        } finally {
+            setRemovePending(false);
+        }
+    }
 
     if (!interactive) {
         const printRowTitle = showResourceName && canOpenDetail && allowPrintLinks ? (
@@ -1498,11 +1514,31 @@ function DirectoryResourceRow({
                                     ) : null}
                                 </div>
                                 {!personalPlace ? (
-                                    <MapNoteIconButton
-                                        row={row}
-                                        onOpenResourceNotes={onOpenResourceNotes}
-                                        compact={compactInteractive}
-                                    />
+                                    <div className="flex flex-shrink-0 items-center gap-1">
+                                        <MapNoteIconButton
+                                            row={row}
+                                            onOpenResourceNotes={onOpenResourceNotes}
+                                            compact={compactInteractive}
+                                        />
+                                        {canRemoveMapResource ? (
+                                            <button
+                                                type="button"
+                                                onClick={handleRemoveMapResource}
+                                                disabled={removePending}
+                                                className="inline-flex h-11 flex-shrink-0 items-center justify-center gap-1 rounded-xl px-2 text-xs font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-wait disabled:opacity-60"
+                                                aria-label={`${t('removeFromMap')}: ${row.name}`}
+                                                title={t('removeFromMap')}
+                                                data-my-map-resource-remove="true"
+                                            >
+                                                {removePending ? (
+                                                    <LoaderCircle size={13} className="animate-spin" aria-hidden="true" />
+                                                ) : (
+                                                    <Trash2 size={13} aria-hidden="true" />
+                                                )}
+                                                {t(removePending ? 'removingFromMap' : 'remove')}
+                                            </button>
+                                        ) : null}
+                                    </div>
                                 ) : null}
                             </div>
                             {row.resourceType === 'soft' && row.availabilityEnabled ? (
