@@ -15,6 +15,79 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-07 owner Print View annotation umbrella stabilization gate
+
+- Stable behavior: Product Release 1 and Product Release 2 now form one locked
+  owner Print View annotation baseline. Selected line, rectangle, circle, and
+  polygon control points follow the pointer during a drag, preserve rapid
+  sequential edits, and commit one annotation-document change per completed
+  drag. Line, box, and circle show request-animation-frame-throttled live
+  previews and create on click two; boundary drawing previews each next edge
+  and completes once through Done or Enter after three points. Existing shapes
+  receive input only in Select mode. Private persistence, revision ordering,
+  autosave, undo/redo, the frozen hidden-export snapshot, Resource PNG
+  independence, latest-document PNG/PDF readiness, owner-only editing, and
+  Shared Map privacy remain unchanged.
+- Known-good release chain: the pre-enhancement comparison baseline is
+  `234ff092a`. Release 1 is implementation commit `295ebfd4b` with evidence
+  commit `6fbb049d` and immutable Pages deployment
+  `https://f2f6179a.senior-resource-map.pages.dev`. Release 2 is implementation
+  commit `9915de2a8ac924d101003d8506492529264fcfcf` on production `main`, with
+  evidence commit `1bf49939cf448cad688dbcc6b7d6001d3c62d079` on
+  `codex/annotation-drawing-ux` and immutable Pages deployment
+  `https://8f9840b9.senior-resource-map.pages.dev`. Release 2 contains Release 1
+  in its Git ancestry. Each release remains independently reversible: redeploy
+  Release 1 to remove only the drawing-UX slice, or redeploy `234ff092a` to
+  remove both interaction slices without a Worker or schema rollback.
+- Final quantitative performance evidence: a disposable real-Leaflet browser
+  harness imported the current combined production component. All four polygon
+  targets retained logical `44px` by `44px` dimensions; one drag produced eight
+  distinct live SVG paths. That drag plus 30 rapid alternating vertex drags
+  produced exactly 31 committed snapshots. Both final handle centres matched
+  their accepted endpoints with zero-pixel drift, and the browser reported no
+  warning or error. The harness and its Vite process were removed, and the
+  worktree returned to its prior unrelated-untracked-only state.
+- Final regression evidence: focused annotation and Print View coverage passed
+  41/41; combined client/source and town-map coverage passed 585/585; full
+  server coverage passed 502/502; map-lockdown coverage passed 81/81; the
+  map-lockdown aggregate and exact six-root production client build passed;
+  and `git diff --check` passed. The build retained native Default/Gray,
+  zoom-14 atlas Default/Gray, and Print Master Default/Gray roots. Only the
+  existing browsers-data and large-chunk advisories were emitted.
+- Final artifact verification: fresh local `client/dist`, the immutable Release
+  2 deployment, and `https://app.carearound.sg` were byte-identical with the
+  correct MIME type for HTML, entry JavaScript, CSS, My Map, map export, Shared
+  Map, and the shared map runtime. Their SHA-256 values remained
+  `bdb158c0567820bbe6b1eafe6fb8316a2e2f81c26149af7c9d5ffbaf32d89db7`,
+  `e663e6daa352ea3d070d71d97cb8effc21a7a7f476fa1dd2b278f846c958b2a9`,
+  `409ba9ac3df8e5e9554757073689b53c74888a618abe55d27d4fe6851c6d0b0b`,
+  `573e2d78a6071c536f3225c78dd31f569dfd3ae84adf724a3b7e8c7e98cd41d6`,
+  `1c6cd69b4681188b7116b8a069e34e25a8eb3d4543555d1d5143d8c573c689f0`,
+  `9f9cd830ac7678d7084dd5af9f67ef90784391109cde9a07a3e6e4f441fa8ceb`,
+  and `89d46223f343e2691f4bd3041ec8749e76b694770938de470cdab707aae70243`.
+  `/`, `/login`, `/discover`, and `/my-directory/maps` returned 200 app shells,
+  and `https://api.carearound.sg/api/health` returned 200 with JSON `status: ok`.
+- Final authenticated production UAT: owner map 258 started with only its
+  established private annotation. A temporary boundary showed two different
+  live next-edge paths before a second point was saved; Done stayed disabled at
+  two points and enabled at three; Enter completed one selected three-point
+  boundary, and a repeated Enter did not add a pane. Its three logical 44-pixel
+  handles accepted two consecutive drags; the second path differed from the
+  first, and one Undo restored exactly the first accepted geometry. Autosave
+  reached Saved. After the editor closed, Map PNG and PDF became ready and the
+  temporary annotation appeared on both visible and hidden-export surfaces. It
+  survived a full reload, was reselected and deleted, and autosave again reached
+  Saved. A final clean reload retained the original annotation on both surfaces,
+  contained no temporary annotation, reached `Map ready to download`, and
+  produced no new application warning or error. The authorized UAT advanced the
+  private annotation revision but left no temporary content behind.
+- Final acceptance: the umbrella annotation goal is technically stabilized and
+  has no remaining runtime, production, data-cleanup, or UAT gap. Standalone
+  text, arrow, freehand/lasso, road-snap, and touch-only editing remain
+  intentionally unsupported. This final gate changes documentation only; it
+  does not deploy a Worker, schema, auth, permission, secret, map asset, or
+  production-resource change.
+
 ## 2026-08-07 owner Print View annotation drawing UX
 
 - Current candidate behavior: on branch `codex/annotation-drawing-ux`, owner

@@ -290,16 +290,24 @@ as unavailable must also be checked for a successful same-origin
 changed.
 
 For Print annotation changes, first choose the desktop `Full map` layout.
-Exercise the pin, line, rectangle, circle, and polygon tools; confirm each tool
-shows a contextual helper and can be completed or cancelled explicitly. Check
-`Undo last point`, in-shape notes, custom shape and font colours, font size,
-and backward/forward layer ordering. Confirm input and slider changes do not
-trigger a save on every movement, reload to verify persistence, and verify
-PNG/PDF parity. Switch to Balanced and Side map and confirm the same saved
-annotations remain visible while the editing toolbar stays Full-only. Returning
-to Balanced after Side map must restore its one-column resource layout.
-Standalone text, arrow, freehand/lasso, and road-snap tools are intentionally
-unsupported.
+Exercise the pin, line, rectangle, circle, and polygon tools. Line, box, and
+circle must show a live pointer preview after click one and create exactly once
+on click two without a Done action. Boundary must preview each next edge, keep
+Done disabled below three points, and complete exactly once with Done or Enter
+at three or more points; repeated Enter after completion must be inert. Drawing
+over an existing annotation must not select it or leave a stray draft. Return
+to Select, drag several highlighted control points rapidly, and confirm each
+path follows its 44-pixel logical target without an accepted point reverting;
+one Undo must reverse only the latest completed drag. Check `Undo last point`,
+in-shape notes, custom shape and font colours, font size, and backward/forward
+layer ordering. Confirm input and slider changes do not trigger a save on every
+movement. During editing, Resource PNG stays independent while Map PNG/PDF wait
+for the frozen hidden-export surface; after closing the editor, reload to verify
+latest-document persistence and PNG/PDF parity. Switch to Balanced and Side map
+and confirm the same saved annotations remain visible while the editing toolbar
+stays Full-only. Returning to Balanced after Side map must restore its
+one-column resource layout. Standalone text, arrow, freehand/lasso, and
+road-snap tools are intentionally unsupported.
 
 Then run the release aggregate:
 

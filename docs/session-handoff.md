@@ -1,6 +1,48 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-08-02 (Asia/Singapore)
+Last updated: 2026-08-07 (Asia/Singapore)
+
+## Print View annotation umbrella release (2026-08-07, stabilized)
+
+- The two-release annotation improvement is live and the final stabilization
+  gate has passed. Release 1 implementation `295ebfd4b` fixed live
+  control-point dragging, stale-point reversion, one-commit-per-drag undo, 44px
+  targets, and hidden-export rebuild churn. Release 2 implementation
+  `9915de2a8ac924d101003d8506492529264fcfcf` added live drawing previews,
+  two-click line/box/circle creation, multi-point boundary Done/Enter, contextual
+  guidance, and drawing-mode hit-test isolation. Production `main` is the
+  Release 2 implementation commit.
+- The accepted immutable production deployment is
+  `https://8f9840b9.senior-resource-map.pages.dev`. Fresh final verification
+  proved local `client/dist`, the immutable deployment, and
+  `https://app.carearound.sg` byte-identical for HTML, entry, CSS, My Map,
+  map-export, Shared Map, and shared runtime assets with correct MIME types.
+  Core routes returned 200 and production API health returned JSON `status: ok`.
+- Fresh final gates passed: annotation/Print View 41/41, combined
+  client/source/town-map 585/585, server 502/502, map lockdown 81/81, the
+  map-lockdown aggregate, and the exact six-root production build. A real
+  Leaflet performance probe produced eight distinct live paths during one
+  drag, exactly 31 commits for 31 completed drags, zero endpoint drift, and no
+  browser warning/error.
+- Final signed-in production UAT on owner map 258 covered live next-edge
+  previews, boundary Done/Enter gating, inert repeated Enter, two consecutive
+  control-point drags, one-step Undo, autosave, visible/export parity, and full
+  reload persistence. The temporary boundary was deleted. A clean reload left
+  only the original private annotation on both visible and export surfaces,
+  reached map-ready state, and produced no new application warning or error.
+- Stable source of truth:
+  `docs/stable-baselines/print-view-annotations-2026-08-07.md`, plus the two
+  2026-08-07 annotation entries and umbrella stabilization entry at the top of
+  `docs/regression-ledger.md`. Evidence commit
+  `1bf49939cf448cad688dbcc6b7d6001d3c62d079` is already pushed on
+  `codex/annotation-drawing-ux`; the final documentation lock belongs on that
+  feature branch only and must not be pushed to `main` or trigger a production
+  deployment.
+- No Worker, schema, auth, permission, secret, map asset, Shared Map visibility,
+  or production-resource change belongs to this umbrella release. Do not reopen
+  annotation product work unless a new regression or a separately approved tool
+  is requested. Standalone text, arrow, freehand/lasso, road-snap, and
+  touch-only editing remain intentionally unsupported.
 
 ## High-Detail Town Maps production release (2026-08-02, verified)
 
