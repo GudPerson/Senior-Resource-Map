@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 import {
+    advancePrintAnnotationDraft,
+    buildPrintAnnotationDraftPreviewPoints,
     buildRoundedPrintAnnotationPolygon,
     createPrintAnnotation,
     DEFAULT_PRINT_ANNOTATION_STYLE,
@@ -98,6 +100,45 @@ test('annotation control-point moves preserve the latest geometry and translate 
         [1.382, 103.743],
         [1.383, 103.745],
     ]);
+});
+
+test('two-point drawing completes on the second click while polygon drafts stay open', () => {
+    const start = [1.38, 103.74];
+    const end = [1.382, 103.745];
+    const firstLineClick = advancePrintAnnotationDraft('line', [], start);
+    const secondLineClick = advancePrintAnnotationDraft('line', firstLineClick.points, end);
+
+    assert.deepEqual(firstLineClick, {
+        completed: false,
+        points: [start],
+    });
+    assert.deepEqual(secondLineClick, {
+        completed: true,
+        points: [start, end],
+    });
+
+    const polygonClick = advancePrintAnnotationDraft('polygon', POLYGON_POINTS.slice(0, 2), end);
+    assert.equal(polygonClick.completed, false);
+    assert.deepEqual(polygonClick.points, [...POLYGON_POINTS.slice(0, 2), end]);
+});
+
+test('draft preview geometry follows the pointer without persisting it', () => {
+    const start = [1.38, 103.74];
+    const cursor = [1.382, 103.745];
+
+    assert.deepEqual(buildPrintAnnotationDraftPreviewPoints('rectangle', [start], cursor), [
+        start,
+        cursor,
+    ]);
+    assert.deepEqual(buildPrintAnnotationDraftPreviewPoints(
+        'polygon',
+        POLYGON_POINTS.slice(0, 2),
+        cursor,
+    ), [
+        ...POLYGON_POINTS.slice(0, 2),
+        cursor,
+    ]);
+    assert.deepEqual(buildPrintAnnotationDraftPreviewPoints('line', [start], null), [start]);
 });
 
 test('new annotation lines default to solid while dashed remains optional', () => {
@@ -309,13 +350,23 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(layerSource, /shapeRef\.current\?\.setLatLngs/);
     assert.match(layerSource, /latestEditablePointsRef/);
     assert.match(layerSource, /iconSize: \[44, 44\]/);
+    assert.match(layerSource, /map\.on\('mousemove', handleMouseMove\)/);
+    assert.match(layerSource, /advancePrintAnnotationDraft/);
+    assert.match(layerSource, /draftPreviewPoint/);
+    assert.match(layerSource, /previewPoint=\{draftPreviewPoint\}/);
+    assert.match(layerSource, /event\.key === 'Enter'/);
+    assert.match(layerSource, /annotationInteractionEnabled = editable && tool === PRINT_ANNOTATION_TOOL_SELECT/);
+    assert.equal((layerSource.match(/interactive=\{annotationInteractionEnabled\}/g) || []).length, 2);
     assert.match(layerSource, /dashArray: style\.dashed \? '9 7' : null/);
     assert.doesNotMatch(layerSource, /dashArray: '7 6'/);
     assert.match(toolbarSource, /Undo last point/);
     assert.match(toolbarSource, /Done drawing/);
     assert.match(toolbarSource, /Cancel tool/);
     assert.match(toolbarSource, /data-print-annotation-helper/);
-    assert.match(toolbarSource, /up to \$\{PRINT_ANNOTATION_MAX_CONTROL_POINTS\} boundary points/);
+    assert.match(toolbarSource, /Step 1 of 2/);
+    assert.match(toolbarSource, /Move the pointer to preview/);
+    assert.match(toolbarSource, /press Enter/);
+    assert.match(toolbarSource, /Drag the highlighted control points/);
     assert.match(toolbarSource, /Choose custom shape colour/);
     assert.match(toolbarSource, /aria-label="Shape colour picker"/);
     assert.match(toolbarSource, /data-print-annotation-shape-color-picker="true"/);

@@ -39,14 +39,39 @@ const TOOL_OPTIONS = [
     { value: PRINT_ANNOTATION_TOOL_POLYGON, label: 'Draw boundary', Icon: Pentagon },
 ];
 
-const TOOL_HELP = {
-    [PRINT_ANNOTATION_TOOL_SELECT]: 'Select an annotation to edit it or change its layer.',
-    [PRINT_ANNOTATION_TOOL_PIN]: 'Enter a label, then click the map to place the pin.',
-    [PRINT_ANNOTATION_TOOL_LINE]: 'Click once to start, click the end point, then choose Done.',
-    [PRINT_ANNOTATION_TOOL_RECTANGLE]: 'Click one corner, click the opposite corner, then choose Done.',
-    [PRINT_ANNOTATION_TOOL_CIRCLE]: 'Click the centre, click the outer edge, then choose Done.',
-    [PRINT_ANNOTATION_TOOL_POLYGON]: `Click to add up to ${PRINT_ANNOTATION_MAX_CONTROL_POINTS} boundary points. Choose Done when the shape is complete.`,
-};
+function getToolHelp(tool, draftPointCount) {
+    if (tool === PRINT_ANNOTATION_TOOL_SELECT) {
+        return 'Select an annotation to edit it or change its layer.';
+    }
+    if (tool === PRINT_ANNOTATION_TOOL_PIN) {
+        return 'Enter a label, then click the map to place the pin.';
+    }
+    if (tool === PRINT_ANNOTATION_TOOL_LINE) {
+        return draftPointCount
+            ? 'Step 2 of 2 — Move the pointer to preview the line, then click its end point. Drag either handle afterward to adjust it.'
+            : 'Step 1 of 2 — Click the line start point. Move the pointer to preview before placing its end.';
+    }
+    if (tool === PRINT_ANNOTATION_TOOL_RECTANGLE) {
+        return draftPointCount
+            ? 'Step 2 of 2 — Move the pointer to preview the box, then click its opposite corner. Drag either handle afterward to adjust it.'
+            : 'Step 1 of 2 — Click the first box corner. Move the pointer to preview its size and position.';
+    }
+    if (tool === PRINT_ANNOTATION_TOOL_CIRCLE) {
+        return draftPointCount
+            ? 'Step 2 of 2 — Move the pointer to preview the circle, then click its outer edge. Drag its handles afterward to adjust it.'
+            : 'Step 1 of 2 — Click the circle centre. Move the pointer to preview its radius.';
+    }
+    if (tool === PRINT_ANNOTATION_TOOL_POLYGON) {
+        if (draftPointCount >= 3) {
+            return `${draftPointCount} points set — Move the pointer to preview the next edge. Click to add it, or press Enter or choose Done to finish.`;
+        }
+        if (draftPointCount > 0) {
+            return `Point ${draftPointCount + 1} — Move the pointer to preview the next edge, then click to add it.`;
+        }
+        return `Click the first boundary point, then move the pointer to preview each next edge. Add up to ${PRINT_ANNOTATION_MAX_CONTROL_POINTS} points.`;
+    }
+    return '';
+}
 
 function IconButton({
     label,
@@ -128,7 +153,8 @@ export default function PrintAnnotationToolbar({
         PRINT_ANNOTATION_TOOL_CIRCLE,
         PRINT_ANNOTATION_TOOL_POLYGON,
     ].includes(tool);
-    const canFinishDrawing = isDrawingShape && draftPointCount >= activeMinimumPointCount;
+    const canFinishDrawing = tool === PRINT_ANNOTATION_TOOL_POLYGON
+        && draftPointCount >= activeMinimumPointCount;
     const canUndoDraftPoint = isDrawingShape && draftPointCount > 0;
     const labelledTypes = [
         PRINT_ANNOTATION_TOOL_PIN,
@@ -155,8 +181,10 @@ export default function PrintAnnotationToolbar({
     const isPinLabel = selectedAnnotation?.type === PRINT_ANNOTATION_TOOL_PIN
         || (!selectedAnnotation && tool === PRINT_ANNOTATION_TOOL_PIN);
     const helperText = selectedAnnotation
-        ? 'Edit the selected annotation, or use the layer controls below.'
-        : TOOL_HELP[tool];
+        ? selectedAnnotation.type === PRINT_ANNOTATION_TOOL_PIN
+            ? 'Drag the selected pin to move it. Edit its label or use the layer controls below.'
+            : 'Drag the highlighted control points to adjust this shape. Undo reverses one adjustment at a time.'
+        : getToolHelp(tool, draftPointCount);
 
     return (
         <div
@@ -453,7 +481,7 @@ export default function PrintAnnotationToolbar({
                         <CornerUpLeft size={16} />
                     </IconButton>
                 ) : null}
-                {isDrawingShape ? (
+                {tool === PRINT_ANNOTATION_TOOL_POLYGON ? (
                     <IconButton
                         label="Done drawing"
                         disabled={!canFinishDrawing}

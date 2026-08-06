@@ -15,6 +15,72 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-07 owner Print View annotation drawing UX
+
+- Current candidate behavior: on branch `codex/annotation-drawing-ux`, owner
+  Full-map Print View drawing tools show live geometry after the first click.
+  Line, box, and circle preview the pointer position and create immediately on
+  the second click; they no longer require a separate Done action. Boundary
+  drawing keeps its multi-point workflow, previews each next edge, and can
+  finish with Done or Enter after three points. The toolbar gives step-specific
+  guidance, and a selected shape tells the owner to drag its highlighted
+  control points. Existing annotations accept selection and drag input only in
+  Select mode, so they do not intercept clicks while a drawing tool is active.
+- Known-good reference: this Release 2 candidate is based on Release 1 evidence
+  commit `6fbb049d`, whose production implementation is `295ebfd4b`. Release 1
+  remains the reference for responsive control-point dragging, one commit per
+  drag, private persistence, undo/autosave, frozen hidden-export scheduling,
+  PNG/PDF parity, map pins and camera, Detailed/Live layers, and Shared Map
+  privacy.
+- Architecture and blast radius: pointer previews are request-animation-frame
+  throttled and held only in local annotation-layer state. Preview coordinates
+  are normalized for rendering but never enter the annotation document. Only
+  the existing final `onCreate` path creates an annotation. The two-point tools
+  complete through that path on click two; polygon retains the same bounded
+  control-point document and existing Done callback, with Enter as an additive
+  shortcut. Existing annotation hit testing is disabled only while a drawing
+  tool is active and returns unchanged in Select mode. There is no API, schema,
+  owner/privacy, annotation-document, autosave, export, PDF, resource pin,
+  category order, resource-card removal, map asset, Shared Map, or production
+  data change.
+- Reproduction steps: sign in as a map owner, open Full-map Print View, and
+  open Annotate. Choose Draw line, click its start, and move the pointer;
+  confirm the unfinished line follows the pointer and the helper advances from
+  step 1 to step 2. Click its end and confirm one selected line appears without
+  choosing Done. Repeat for Draw box and Draw circle. Choose Draw boundary,
+  add two points, confirm the next edge previews, add a third point, and finish
+  once with Enter; repeat with Done. Start a new boundary directly on top of an
+  existing shape and confirm drawing continues instead of selecting that
+  shape. Return to Select and confirm saved shapes can still be selected and
+  adjusted with their control points.
+- Acceptance criteria: live line, box, circle, and boundary previews track the
+  pointer without adding saved points or annotation revisions; line, box, and
+  circle create exactly once on click two; their Done action is absent;
+  boundary Done remains disabled below three points and Enter/Done create
+  exactly once at or above three; repeated Enter after completion is inert;
+  drawing over an existing annotation does not change tools or leave a stray
+  draft point; Select-mode shape editing remains available. Existing private
+  persistence, revision ordering, autosave, undo/redo, exports, map behavior,
+  and sharing boundaries remain intact.
+- Verification result before the Release 2 gate: focused annotation and Print
+  View coverage passed 41/41; full client/source coverage passed 569/569, and
+  the same suite plus town-map script coverage passed 585/585; full server
+  coverage passed 502/502; map-lockdown coverage passed 81/81; and the exact
+  six-root production client build completed successfully. A disposable local
+  harness rendered the production annotation layer and toolbar in a real
+  Leaflet map. Before the second click, a line preview changed from
+  `M625 233L775 333` to `M625 233L825 383` while commit count remained zero;
+  click two produced one selected two-point line and two edit handles. Box and
+  circle previews rendered before click two and each then produced one selected
+  two-point annotation without residual draft geometry. A boundary started on
+  top of an existing circle without selecting it, previewed its next edge,
+  enabled Done only after point three, and Enter produced one three-point
+  polygon; a repeated Enter did not increment the commit count. The final
+  selected polygon rendered three control handles. The browser reported zero
+  errors and zero warnings. The disposable harness and browser artifacts were
+  removed after inspection. Release 2 has not been committed, pushed,
+  deployed, or production-UATed at this ledger entry.
+
 ## 2026-08-07 owner Print View annotation interaction performance
 
 - Current behavior: in owner Full-map Print View annotation editing, line,

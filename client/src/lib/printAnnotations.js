@@ -249,6 +249,41 @@ export function appendBoundedAnnotationPoint(points, point, maximum = PRINT_ANNO
     return [...(points || []), normalizedPoint].slice(0, maximum);
 }
 
+export function advancePrintAnnotationDraft(type, points, point) {
+    const maximum = type === PRINT_ANNOTATION_TOOL_POLYGON
+        ? PRINT_ANNOTATION_MAX_CONTROL_POINTS
+        : 2;
+    const currentPoints = normalizePointList(points, maximum);
+    const nextPoint = normalizePrintAnnotationPoint(point);
+    if (!nextPoint || currentPoints.length >= maximum) {
+        return { completed: false, points: currentPoints };
+    }
+
+    const nextPoints = [...currentPoints, nextPoint];
+    return {
+        completed: [
+            PRINT_ANNOTATION_TOOL_LINE,
+            PRINT_ANNOTATION_TOOL_RECTANGLE,
+            PRINT_ANNOTATION_TOOL_CIRCLE,
+        ].includes(type) && nextPoints.length === 2,
+        points: nextPoints,
+    };
+}
+
+export function buildPrintAnnotationDraftPreviewPoints(type, points, previewPoint) {
+    const maximum = type === PRINT_ANNOTATION_TOOL_POLYGON
+        ? PRINT_ANNOTATION_MAX_CONTROL_POINTS
+        : 2;
+    const currentPoints = normalizePointList(points, maximum);
+    const normalizedPreviewPoint = normalizePrintAnnotationPoint(previewPoint);
+    if (
+        !normalizedPreviewPoint
+        || !currentPoints.length
+        || currentPoints.length >= maximum
+    ) return currentPoints;
+    return [...currentPoints, normalizedPreviewPoint];
+}
+
 export function movePrintAnnotationControlPoint(type, points, pointIndex, point) {
     const maximum = type === PRINT_ANNOTATION_TOOL_POLYGON
         ? PRINT_ANNOTATION_MAX_CONTROL_POINTS

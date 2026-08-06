@@ -4,6 +4,7 @@ import {
     useLayoutEffect,
     useMemo,
     useRef,
+    useState,
 } from 'react';
 import {
     Circle,
@@ -18,14 +19,14 @@ import {
 import L from 'leaflet';
 
 import {
-    PRINT_ANNOTATION_MAX_CONTROL_POINTS,
     PRINT_ANNOTATION_TOOL_CIRCLE,
     PRINT_ANNOTATION_TOOL_LINE,
     PRINT_ANNOTATION_TOOL_PIN,
     PRINT_ANNOTATION_TOOL_POLYGON,
     PRINT_ANNOTATION_TOOL_RECTANGLE,
     PRINT_ANNOTATION_TOOL_SELECT,
-    appendBoundedAnnotationPoint,
+    advancePrintAnnotationDraft,
+    buildPrintAnnotationDraftPreviewPoints,
     buildRoundedPrintAnnotationPolygon,
     movePrintAnnotationControlPoint,
 } from '../lib/printAnnotations.js';
@@ -113,6 +114,25 @@ function createVertexIcon(color) {
         "></span></span>`,
         iconSize: [44, 44],
         iconAnchor: [22, 22],
+    });
+}
+
+function createDraftPreviewIcon(color) {
+    return L.divIcon({
+        className: 'carearound-print-annotation-draft-preview',
+        html: `<span style="
+            box-sizing:border-box;
+            display:block;
+            width:18px;
+            height:18px;
+            border:3px solid #ffffff;
+            border-radius:50%;
+            background:${color};
+            box-shadow:0 1px 5px rgba(15,23,42,.28);
+            opacity:.72;
+        "></span>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
     });
 }
 
@@ -488,6 +508,7 @@ function DrawInteractionController({
     draftPoints,
     draftText,
     onDraftPointsChange,
+    onPreviewPointChange,
     onCreate,
     onCancel,
 }) {
@@ -497,6 +518,7 @@ function DrawInteractionController({
         draftPoints,
         draftText,
         onDraftPointsChange,
+        onPreviewPointChange,
         onCreate,
         onCancel,
     });
@@ -505,6 +527,7 @@ function DrawInteractionController({
         draftPoints,
         draftText,
         onDraftPointsChange,
+        onPreviewPointChange,
         onCreate,
         onCancel,
     };
@@ -528,19 +551,47 @@ function DrawInteractionController({
                 return;
             }
 
-            const maximum = current.tool === PRINT_ANNOTATION_TOOL_POLYGON
-                ? PRINT_ANNOTATION_MAX_CONTROL_POINTS
-                : 2;
-            if (current.draftPoints.length >= maximum) return;
-            current.onDraftPointsChange?.(
-                appendBoundedAnnotationPoint(current.draftPoints, point, maximum),
+            const nextDraft = advancePrintAnnotationDraft(
+                current.tool,
+                current.draftPoints,
+                point,
             );
+            current.draftPoints = nextDraft.points;
+            current.onPreviewPointChange?.(null);
+            if (nextDraft.completed) {
+                current.draftPoints = [];
+                current.onCreate?.(current.tool, nextDraft.points);
+                return;
+            }
+            current.onDraftPointsChange?.(nextDraft.points);
         };
 
+        let previewFrame = null;
+        let pendingPreviewPoint = null;
+        const flushPreviewPoint = () => {
+            previewFrame = null;
+            interactionRef.current.onPreviewPointChange?.(pendingPreviewPoint);
+        };
+        const queuePreviewPoint = (point) => {
+            pendingPreviewPoint = point;
+            if (previewFrame !== null) return;
+            previewFrame = window.requestAnimationFrame(flushPreviewPoint);
+        };
+        const handleMouseMove = (event) => {
+            if (!interactionRef.current.draftPoints.length) return;
+            queuePreviewPoint([Number(event.latlng.lat), Number(event.latlng.lng)]);
+        };
+        const handleMouseOut = () => queuePreviewPoint(null);
+
         map.on('click', handleClick);
+        map.on('mousemove', handleMouseMove);
+        map.on('mouseout', handleMouseOut);
 
         return () => {
             map.off('click', handleClick);
+            map.off('mousemove', handleMouseMove);
+            map.off('mouseout', handleMouseOut);
+            if (previewFrame !== null) window.cancelAnimationFrame(previewFrame);
             container.style.cursor = previousCursor;
             if (draggingWasEnabled) map.dragging.enable();
             if (doubleClickWasEnabled) map.doubleClickZoom.enable();
@@ -556,6 +607,18 @@ function DrawInteractionController({
                 current.onCancel?.();
             }
             if (
+                event.key === 'Enter'
+                && current.tool === PRINT_ANNOTATION_TOOL_POLYGON
+                && current.draftPoints.length >= 3
+                && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)
+            ) {
+                event.preventDefault();
+                current.onPreviewPointChange?.(null);
+                const completedPoints = current.draftPoints;
+                current.draftPoints = [];
+                current.onCreate?.(current.tool, completedPoints);
+            }
+            if (
                 event.key === 'Backspace'
                 && current.tool !== PRINT_ANNOTATION_TOOL_SELECT
                 && current.tool !== PRINT_ANNOTATION_TOOL_PIN
@@ -563,7 +626,10 @@ function DrawInteractionController({
                 && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)
             ) {
                 event.preventDefault();
-                current.onDraftPointsChange?.(current.draftPoints.slice(0, -1));
+                const nextDraftPoints = current.draftPoints.slice(0, -1);
+                current.draftPoints = nextDraftPoints;
+                current.onPreviewPointChange?.(null);
+                current.onDraftPointsChange?.(nextDraftPoints);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -576,10 +642,18 @@ function DrawInteractionController({
 function DraftShape({
     tool,
     points,
+    previewPoint,
     style,
 }) {
     const map = useMap();
     if (!points.length) return null;
+    const previewPoints = buildPrintAnnotationDraftPreviewPoints(
+        tool,
+        points,
+        previewPoint,
+    );
+    const hasPreviewPoint = previewPoints.length > points.length;
+    const geometryPoints = hasPreviewPoint ? previewPoints : points;
     const pathOptions = {
         color: style.color,
         fillColor: style.fillColor,
@@ -590,39 +664,54 @@ function DraftShape({
         lineJoin: 'round',
     };
 
-    if (points.length === 1) {
-        return (
-            <Marker
-                position={points[0]}
-                icon={createVertexIcon(style.color)}
-                interactive={false}
-                zIndexOffset={2900}
-            />
-        );
-    }
+    let shape = null;
     if (tool === PRINT_ANNOTATION_TOOL_RECTANGLE) {
-        return <Rectangle bounds={points.slice(0, 2)} pathOptions={pathOptions} interactive={false} />;
-    }
-    if (tool === PRINT_ANNOTATION_TOOL_CIRCLE) {
-        return (
+        shape = geometryPoints.length >= 2 ? (
+            <Rectangle bounds={geometryPoints.slice(0, 2)} pathOptions={pathOptions} interactive={false} />
+        ) : null;
+    } else if (tool === PRINT_ANNOTATION_TOOL_CIRCLE) {
+        shape = geometryPoints.length >= 2 ? (
             <Circle
-                center={points[0]}
-                radius={Math.max(1, map.distance(points[0], points[1]))}
+                center={geometryPoints[0]}
+                radius={Math.max(1, map.distance(geometryPoints[0], geometryPoints[1]))}
                 pathOptions={pathOptions}
                 interactive={false}
             />
-        );
-    }
-    if (tool === PRINT_ANNOTATION_TOOL_POLYGON && points.length >= 3) {
-        return (
+        ) : null;
+    } else if (tool === PRINT_ANNOTATION_TOOL_POLYGON && geometryPoints.length >= 3) {
+        shape = (
             <Polygon
-                positions={buildRoundedPrintAnnotationPolygon(points)}
+                positions={buildRoundedPrintAnnotationPolygon(geometryPoints)}
                 pathOptions={pathOptions}
                 interactive={false}
             />
         );
+    } else if (geometryPoints.length >= 2) {
+        shape = <Polyline positions={geometryPoints} pathOptions={pathOptions} interactive={false} />;
     }
-    return <Polyline positions={points} pathOptions={pathOptions} interactive={false} />;
+
+    return (
+        <>
+            {shape}
+            {points.map((point, index) => (
+                <Marker
+                    key={`draft-anchor:${index}`}
+                    position={point}
+                    icon={createVertexIcon(style.color)}
+                    interactive={false}
+                    zIndexOffset={2900 + index}
+                />
+            ))}
+            {hasPreviewPoint ? (
+                <Marker
+                    position={previewPoint}
+                    icon={createDraftPreviewIcon(style.color)}
+                    interactive={false}
+                    zIndexOffset={2950}
+                />
+            ) : null}
+        </>
+    );
 }
 
 export default function PrintAnnotationLayer({
@@ -639,6 +728,13 @@ export default function PrintAnnotationLayer({
     onCreate,
     onCancel,
 }) {
+    const [draftPreviewPoint, setDraftPreviewPoint] = useState(null);
+    const annotationInteractionEnabled = editable && tool === PRINT_ANNOTATION_TOOL_SELECT;
+
+    useEffect(() => {
+        setDraftPreviewPoint(null);
+    }, [draftPoints.length, editable, tool]);
+
     const handleUpdate = useCallback((annotationId, patch) => {
         onUpdate?.(annotationId, patch);
     }, [onUpdate]);
@@ -657,7 +753,7 @@ export default function PrintAnnotationLayer({
                             <PinAnnotation
                                 annotation={annotation}
                                 selected={selected}
-                                interactive={editable}
+                                interactive={annotationInteractionEnabled}
                                 layerIndex={layerIndex}
                                 onSelect={onSelect}
                                 onUpdate={handleUpdate}
@@ -674,7 +770,7 @@ export default function PrintAnnotationLayer({
                         <AnnotationShape
                             annotation={annotation}
                             selected={selected}
-                            interactive={editable}
+                            interactive={annotationInteractionEnabled}
                             layerIndex={layerIndex}
                             onSelect={onSelect}
                             onUpdate={handleUpdate}
@@ -685,7 +781,12 @@ export default function PrintAnnotationLayer({
             {editable ? (
                 <>
                     <Pane name="print-annotation-draft" style={{ zIndex: 690 }}>
-                        <DraftShape tool={tool} points={draftPoints} style={draftStyle} />
+                        <DraftShape
+                            tool={tool}
+                            points={draftPoints}
+                            previewPoint={draftPreviewPoint}
+                            style={draftStyle}
+                        />
                     </Pane>
                     <DrawInteractionController
                         enabled
@@ -693,6 +794,7 @@ export default function PrintAnnotationLayer({
                         draftPoints={draftPoints}
                         draftText={draftText}
                         onDraftPointsChange={onDraftPointsChange}
+                        onPreviewPointChange={setDraftPreviewPoint}
                         onCreate={onCreate}
                         onCancel={onCancel}
                     />
