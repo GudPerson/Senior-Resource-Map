@@ -359,7 +359,10 @@ test('getSharedMapDirectory returns a clean unavailable error when a token is in
 
 test('copySharedMapToMyMaps creates a new private copy for logged-in recipients', async () => {
     const db = createFakeDb({
-        maps: [createSharedMap({ shareIncludesHandoffNotes: true })],
+        maps: [createSharedMap({
+            shareIncludesHandoffNotes: true,
+            categoryOrder: ['home care', 'befriending'],
+        })],
         mapAssets: [createMapAsset({
             privateNote: 'Owner-only note.',
             handoffNote: 'Bring referral letter.',
@@ -373,6 +376,7 @@ test('copySharedMapToMyMaps creates a new private copy for logged-in recipients'
     assert.equal(db.state.maps[0].userId, RECIPIENT_USER.id);
     assert.equal(db.state.maps[0].isShared, false);
     assert.equal(db.state.maps[0].shareIncludesHandoffNotes, false);
+    assert.deepEqual(db.state.maps[0].categoryOrder, ['home care', 'befriending']);
     assert.equal(db.state.mapAssets.length, 2);
     assert.equal(db.state.mapAssets[1].privateNote, null);
     assert.equal(db.state.mapAssets[1].handoffNote, null);

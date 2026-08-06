@@ -9,6 +9,7 @@ import {
     getMyMap,
     getMyMaps,
     patchMyMap,
+    patchMyMapCategoryOrder,
     patchMyMapAssetShortDescriptor,
     patchMyMapAssetNotes,
     patchMyMapPersonalPlace,
@@ -32,6 +33,7 @@ router.get('/', authenticateToken, getMyMaps);
 router.post('/', authenticateToken, postMyMap);
 router.get('/:id', authenticateToken, getMyMap);
 router.patch('/:id', authenticateToken, patchMyMap);
+router.patch('/:id/category-order', authenticateToken, patchMyMapCategoryOrder);
 router.delete('/:id', authenticateToken, deleteMyMap);
 router.post('/:id/duplicate', authenticateToken, postMyMapDuplicate);
 router.post('/:id/share', authenticateToken, postMyMapShare);

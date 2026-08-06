@@ -8,6 +8,7 @@ import {
 } from './eligibility.js';
 import { getSoftAssetLocations, isChildSoftAsset } from './softAssetHierarchy.js';
 import { groupPublicGroupMembers } from './softAssetGroups.js';
+import { normalizeMyMapCategoryOrder } from './myMapCategoryOrder.js';
 import { isAssetVisible } from './visibility.js';
 
 function normalizeText(value) {
@@ -1087,6 +1088,7 @@ export async function buildMyMapDirectory(db, {
             id: map.id,
             name: map.name,
             description: map.description || null,
+            categoryOrder: normalizeMyMapCategoryOrder(map.categoryOrder),
             createdAt: map.createdAt || null,
             updatedAt: map.updatedAt || null,
             summary: {

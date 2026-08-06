@@ -560,6 +560,7 @@ export const api = {
     createMyMap: (body) => request('POST', '/my-maps', body),
     getMyMap: (id) => request('GET', `/my-maps/${id}`),
     updateMyMap: (id, body) => request('PATCH', `/my-maps/${id}`, body),
+    updateMyMapCategoryOrder: (id, body) => request('PATCH', `/my-maps/${id}/category-order`, body),
     deleteMyMap: (id) => request('DELETE', `/my-maps/${id}`),
     duplicateMyMap: (id) => request('POST', `/my-maps/${id}/duplicate`),
     getMyMapPrintAnnotations: (id) => request('GET', `/my-maps/${id}/print-annotations`),

@@ -1,5 +1,6 @@
 import { getRowAssetKey, normalizeNoteItems } from './mapNotes.js';
 import { MAP_NOTE_MAX_LENGTH } from './mapNotesAutosave.js';
+import { buildMyMapCategoryRank, normalizeMyMapCategoryKey } from './myMapCategoryOrder.js';
 
 const LIST_ONLY_LABEL = 'List only';
 const FALLBACK_MAP_NAME = 'CareAround map';
@@ -303,6 +304,7 @@ export function buildMyMapPdfLedger({
         categoriesByName.get(resource.category).push(resource);
     }
 
+    const categoryRank = buildMyMapCategoryRank(directory?.categoryOrder);
     const categories = [...categoriesByName.entries()]
         .map(([name, resources]) => ({
             name,
@@ -311,7 +313,15 @@ export function buildMyMapPdfLedger({
                 || compareText(left.assetKey, right.assetKey, locale)
             )),
         }))
-        .sort((left, right) => compareText(left.name, right.name, locale));
+        .sort((left, right) => {
+            const leftRank = categoryRank.get(normalizeMyMapCategoryKey(left.name));
+            const rightRank = categoryRank.get(normalizeMyMapCategoryKey(right.name));
+            const leftHasRank = Number.isInteger(leftRank);
+            const rightHasRank = Number.isInteger(rightRank);
+            if (leftHasRank !== rightHasRank) return leftHasRank ? -1 : 1;
+            if (leftHasRank && leftRank !== rightRank) return leftRank - rightRank;
+            return compareText(left.name, right.name, locale);
+        });
 
     const resources = [...resourcesByKey.values()];
     const noteCount = resources.reduce((count, resource) => count + resource.notes.length, 0);

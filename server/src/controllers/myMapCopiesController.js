@@ -10,6 +10,7 @@ import {
     myMaps,
 } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { normalizeMyMapCategoryOrder } from '../utils/myMapCategoryOrder.js';
 import { normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
 import { normalizeRole } from '../utils/roles.js';
 
@@ -198,6 +199,7 @@ export async function duplicateMyMap(db, user, mapId) {
         shareToken: null,
         shareIncludesHandoffNotes: false,
         shareUpdatedAt: null,
+        categoryOrder: normalizeMyMapCategoryOrder(sourceMap.categoryOrder),
         createdAt: timestamp,
         updatedAt: timestamp,
     }).returning();

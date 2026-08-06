@@ -135,6 +135,33 @@ test('buildMyMapPdfLedger collects, deduplicates, groups, and sorts map resource
     assert.equal(buildMyMapPdfFileName(''), 'carearound-map-ledger.pdf');
 });
 
+test('buildMyMapPdfLedger applies category order while keeping resources alphabetical', () => {
+    const ledger = buildMyMapPdfLedger({
+        directory: {
+            name: 'Ordered categories',
+            categoryOrder: ['home care', 'befriending'],
+        },
+        presentation: {
+            unmappedRows: [
+                row({ resourceId: 1, resourceType: 'soft', name: 'Zulu visit', subCategory: 'Home care' }),
+                row({ resourceId: 2, resourceType: 'soft', name: 'Alpha visit', subCategory: 'Home care' }),
+                row({ resourceId: 3, resourceType: 'soft', name: 'Friendly call', subCategory: 'Befriending' }),
+                row({ resourceId: 4, resourceType: 'soft', name: 'AAC', subCategory: 'Active Ageing' }),
+            ],
+        },
+    });
+
+    assert.deepEqual(ledger.categories.map((category) => category.name), [
+        'Home care',
+        'Befriending',
+        'Active Ageing',
+    ]);
+    assert.deepEqual(ledger.categories[0].resources.map((resource) => resource.name), [
+        'Alpha visit',
+        'Zulu visit',
+    ]);
+});
+
 test('buildMyMapPdfLedger uses raw structured note timestamps instead of container fallback', () => {
     const ledger = buildMyMapPdfLedger({
         directory: { name: 'Timestamp Map' },

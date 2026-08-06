@@ -18,6 +18,10 @@ const myMapV2ScaffoldSource = readFileSync(
     new URL('../src/components/MyMapV2PreviewScaffold.jsx', import.meta.url),
     'utf8',
 );
+const myMapCategoryOrderModalSource = readFileSync(
+    new URL('../src/components/MyMapCategoryOrderModal.jsx', import.meta.url),
+    'utf8',
+);
 const directoryPrintViewSource = readFileSync(
     new URL('../src/components/DirectoryPrintView.jsx', import.meta.url),
     'utf8',
@@ -187,6 +191,19 @@ test('my map v2 uses the dedicated V2 card-ordering presentation', () => {
     assert.match(myMapDetailPageSource, /ownerPresentation\.hoverPlaceKeysByKey/);
     assert.match(myMapDetailPageSource, /focusPlaceOnMap\(placeKey\)[\s\S]*ownerPresentation\.groupKeyByPlaceKey/);
     assert.match(myMapDetailPageSource, /<SharedMapDirectoryList[\s\S]*onHoverPlaceStart=\{handleMapHoverStart\}[\s\S]*onHoverPlaceEnd=\{handleMapHoverEnd\}/);
+});
+
+test('owner My Map arranges category sequence without exposing resource-level ordering', () => {
+    assert.match(myMapDetailPageSource, /import MyMapCategoryOrderModal/);
+    assert.match(myMapDetailPageSource, /collectMyMapCategoryOptions\(townMapCoveragePresentation\)/);
+    assert.match(myMapDetailPageSource, /api\.updateMyMapCategoryOrder\(directory\.id, \{ categoryOrder \}\)/);
+    assert.match(myMapDetailPageSource, /<MyMapCategoryOrderModal/);
+    assert.match(myMapCategoryOrderModalSource, /moveMyMapCategory/);
+    assert.match(myMapCategoryOrderModalSource, /aria-modal="true"/);
+    assert.match(myMapCategoryOrderModalSource, /moveCategoryEarlier/);
+    assert.match(myMapCategoryOrderModalSource, /moveCategoryLater/);
+    assert.match(myMapCategoryOrderModalSource, /resetCategoryOrder/);
+    assert.doesNotMatch(myMapCategoryOrderModalSource, /resourceOrder|resource sequence|draggable/i);
 });
 
 test('my map v2 enriches directory rows with configured category colors from the shared category metadata', () => {

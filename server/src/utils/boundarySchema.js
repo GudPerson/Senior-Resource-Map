@@ -138,6 +138,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     share_token VARCHAR(64),
                     share_includes_handoff_notes BOOLEAN NOT NULL DEFAULT FALSE,
                     share_updated_at TIMESTAMP,
+                    category_order JSONB NOT NULL DEFAULT '[]'::jsonb,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
@@ -147,6 +148,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS share_token VARCHAR(64)`);
             await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS share_includes_handoff_notes BOOLEAN NOT NULL DEFAULT FALSE`);
             await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS share_updated_at TIMESTAMP`);
+            await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS category_order JSONB NOT NULL DEFAULT '[]'::jsonb`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_map_assets (
                     id SERIAL PRIMARY KEY,

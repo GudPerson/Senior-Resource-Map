@@ -8,6 +8,7 @@ import {
     CheckCircle2,
     LayoutTemplate,
     Link2,
+    ListOrdered,
     LoaderCircle,
     MapPin,
     Menu,
@@ -28,6 +29,7 @@ import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
 import EditMapDetailsModal from '../components/EditMapDetailsModal.jsx';
 import { FIXED_TOWN_SURFACE_MIN_ZOOM } from '../components/FixedTownSurfaceLayer.jsx';
 import MyMapPdfExportButton from '../components/MyMapPdfExportButton.jsx';
+import MyMapCategoryOrderModal from '../components/MyMapCategoryOrderModal.jsx';
 import MyMapV2PreviewScaffold from '../components/MyMapV2PreviewScaffold.jsx';
 import MapAssetShortDescriptionModal from '../components/MapAssetShortDescriptionModal.jsx';
 import PrintLayoutControls from '../components/PrintLayoutControls.jsx';
@@ -50,6 +52,7 @@ import {
 } from '../lib/directoryGroupFocus.js';
 import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
 import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
+import { collectMyMapCategoryOptions } from '../lib/myMapCategoryOrder.js';
 import {
     buildMyMapAssetMutationPlan,
     isMyMapAssetSelectionReconciled,
@@ -181,6 +184,8 @@ function OwnerHeader({
     anchorState,
     actionError,
     onAddAssets,
+    onArrangeCategories,
+    categoryCount = 0,
     onAddPersonalPlace,
     personalPlacePickerActive = false,
     onEditDetails,
@@ -212,6 +217,17 @@ function OwnerHeader({
                             <Plus size={16} />
                             {t('manageResources')}
                         </button>
+                        {onArrangeCategories ? (
+                            <button
+                                type="button"
+                                onClick={onArrangeCategories}
+                                disabled={categoryCount < 2}
+                                className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-45`}
+                            >
+                                <ListOrdered size={16} />
+                                {t('arrangeCategories')}
+                            </button>
+                        ) : null}
                         <button type="button" onClick={onAddPersonalPlace} className={`btn-ghost min-w-[172px] ${compactActionClassName} border border-slate-200 text-slate-700`}>
                             <MapPin size={16} />
                             {personalPlacePickerActive ? t('cancelAddPersonalPlace') : t('addPersonalPlace')}
@@ -271,6 +287,8 @@ function MyMapMobileControls({
     onQueryChange,
     anchorState,
     onAddAssets,
+    onArrangeCategories,
+    categoryCount = 0,
     onAddPersonalPlace,
     personalPlacePickerActive = false,
     onEditDetails,
@@ -359,6 +377,17 @@ function MyMapMobileControls({
                                     <Plus size={16} />
                                     {t('manageResources')}
                                 </button>
+                                {onArrangeCategories ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => runDrawerAction(onArrangeCategories)}
+                                        disabled={categoryCount < 2}
+                                        className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-45"
+                                    >
+                                        <ListOrdered size={16} />
+                                        {t('arrangeCategories')}
+                                    </button>
+                                ) : null}
                                 <button type="button" onClick={() => runDrawerAction(onAddPersonalPlace)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <MapPin size={16} />
                                     {personalPlacePickerActive ? t('cancelAddPersonalPlace') : t('addPersonalPlace')}
@@ -1189,6 +1218,9 @@ export default function MyMapDetailPage() {
     const [addReady, setAddReady] = useState(false);
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
+    const [categoryOrderOpen, setCategoryOrderOpen] = useState(false);
+    const [categoryOrderSubmitting, setCategoryOrderSubmitting] = useState(false);
+    const [categoryOrderError, setCategoryOrderError] = useState('');
     const [personalPlacePickerActive, setPersonalPlacePickerActive] = useState(false);
     const [personalPlaceModalOpen, setPersonalPlaceModalOpen] = useState(false);
     const [personalPlaceDraft, setPersonalPlaceDraft] = useState(null);
@@ -1237,6 +1269,7 @@ export default function MyMapDetailPage() {
     const suspendMapInteraction = shareOpen
         || editOpen
         || addOpen
+        || categoryOrderOpen
         || personalPlaceModalOpen
         || personalPlaceChooserOpen
         || personalPlaceCategoryManagerOpen
@@ -1449,6 +1482,9 @@ export default function MyMapDetailPage() {
     const townMapCoveragePresentation = useMemo(() => (
         buildDirectoryPresentation(directory, { activeAnchor, presentationMode: 'v2-cards' })
     ), [activeAnchor, directory]);
+    const categoryOrderOptions = useMemo(() => (
+        collectMyMapCategoryOptions(townMapCoveragePresentation)
+    ), [townMapCoveragePresentation]);
     const ownerPresentation = isV2View ? v2Presentation : interactivePresentation;
     const pdfPresentation = useMemo(() => (
         buildDirectoryPresentation(directory)
@@ -2159,6 +2195,32 @@ export default function MyMapDetailPage() {
             setEditError(err.message || t('failedUpdateMap'));
         } finally {
             setEditSubmitting(false);
+        }
+    }
+
+    function openCategoryOrder() {
+        if (categoryOrderOptions.length < 2) return;
+        setCategoryOrderError('');
+        setCategoryOrderOpen(true);
+    }
+
+    async function handleUpdateCategoryOrder({ categoryOrder }) {
+        if (!directory || categoryOrderSubmitting) return;
+        setCategoryOrderSubmitting(true);
+        setCategoryOrderError('');
+        try {
+            await api.updateMyMapCategoryOrder(directory.id, { categoryOrder });
+            const refreshedDirectory = await loadMap();
+            if (!refreshedDirectory) {
+                setCategoryOrderError(t('failedLoadMap'));
+                return;
+            }
+            setCategoryOrderOpen(false);
+        } catch (err) {
+            console.error(err);
+            setCategoryOrderError(err.message || t('failedUpdateCategoryOrder'));
+        } finally {
+            setCategoryOrderSubmitting(false);
         }
     }
 
@@ -3017,6 +3079,8 @@ export default function MyMapDetailPage() {
                             anchorState={anchorState}
                             actionError={actionError}
                             onAddAssets={openManageAssets}
+                            onArrangeCategories={openCategoryOrder}
+                            categoryCount={categoryOrderOptions.length}
                             onAddPersonalPlace={openPersonalPlacePicker}
                             personalPlacePickerActive={personalPlacePickerActive}
                             onEditDetails={() => {
@@ -3037,6 +3101,8 @@ export default function MyMapDetailPage() {
                             onQueryChange={setQuery}
                             anchorState={anchorState}
                             onAddAssets={openManageAssets}
+                            onArrangeCategories={openCategoryOrder}
+                            categoryCount={categoryOrderOptions.length}
                             onAddPersonalPlace={openPersonalPlacePicker}
                             personalPlacePickerActive={personalPlacePickerActive}
                             onEditDetails={() => {
@@ -3101,6 +3167,20 @@ export default function MyMapDetailPage() {
                         setAddError('');
                     }}
                     onSubmit={handleManageAssets}
+                />
+
+                <MyMapCategoryOrderModal
+                    open={categoryOrderOpen}
+                    categories={categoryOrderOptions}
+                    initialOrder={directory.categoryOrder}
+                    submitting={categoryOrderSubmitting}
+                    error={categoryOrderError}
+                    onClose={() => {
+                        if (categoryOrderSubmitting) return;
+                        setCategoryOrderOpen(false);
+                        setCategoryOrderError('');
+                    }}
+                    onSubmit={handleUpdateCategoryOrder}
                 />
 
                 <EditMapDetailsModal

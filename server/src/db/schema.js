@@ -657,6 +657,7 @@ export const myMaps = pgTable('my_maps', {
   shareToken: varchar('share_token', { length: 64 }),
   shareIncludesHandoffNotes: boolean('share_includes_handoff_notes').notNull().default(false),
   shareUpdatedAt: timestamp('share_updated_at'),
+  categoryOrder: jsonb('category_order').notNull().default([]),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({

@@ -3,6 +3,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { hardAssets, myMapAssetNotes, myMapAssets, myMaps } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { normalizeMyMapCategoryOrder } from '../utils/myMapCategoryOrder.js';
 import { buildMyMapDirectory, normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
 import { normalizeRole } from '../utils/roles.js';
 import { translateSharedMapNotes } from '../utils/sharedNoteTranslations.js';
@@ -260,6 +261,9 @@ export async function copySharedMapToMyMaps(db, viewerUser, token) {
         shareToken: null,
         shareIncludesHandoffNotes: false,
         shareUpdatedAt: null,
+        categoryOrder: normalizeMyMapCategoryOrder(
+            snapshotDirectory?.categoryOrder ?? map.categoryOrder
+        ),
     }).returning();
 
     if (snapshotAssets?.length > 0) {

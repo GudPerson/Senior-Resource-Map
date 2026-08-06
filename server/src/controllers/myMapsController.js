@@ -28,6 +28,10 @@ import {
     buildMyMapDirectory,
     normalizeMyMapAssetSnapshot,
 } from '../utils/myMapDirectory.js';
+import {
+    MY_MAP_CATEGORY_ORDER_LIMIT,
+    normalizeMyMapCategoryOrder,
+} from '../utils/myMapCategoryOrder.js';
 import { normalizeRole } from '../utils/roles.js';
 import { createShareToken } from '../utils/shareTokens.js';
 import {
@@ -58,6 +62,12 @@ const createMyMapBodySchema = z.object({
 const updateMyMapBodySchema = z.object({
     name: requiredOneLineTextSchema('Map name', 160),
     description: optionalTextSchema(2000),
+});
+
+const updateMyMapCategoryOrderBodySchema = z.object({
+    categoryOrder: z.array(
+        z.string().trim().min(1).max(160),
+    ).max(MY_MAP_CATEGORY_ORDER_LIMIT),
 });
 
 const mapAssetNoteInputSchema = z.object({
@@ -631,6 +641,31 @@ export async function renameMyMap(db, user, mapId, body) {
     return formatMyMapSummary(updated);
 }
 
+export async function updateMyMapCategoryOrder(db, user, mapId, body) {
+    assertDirectoryUser(user);
+    await requireOwnedMap(db, user.id, mapId);
+
+    const categoryOrder = normalizeMyMapCategoryOrder(body?.categoryOrder);
+    const updatedAt = new Date();
+    await db.update(myMaps)
+        .set({
+            categoryOrder,
+            updatedAt,
+        })
+        .where(
+            and(
+                eq(myMaps.id, mapId),
+                eq(myMaps.userId, user.id)
+            )
+        );
+
+    return {
+        mapId,
+        categoryOrder,
+        updatedAt,
+    };
+}
+
 export async function publishMyMap(db, user, mapId, resolutionContext = null, options = {}) {
     assertDirectoryUser(user);
     const map = await requireOwnedMap(db, user.id, mapId, true);
@@ -1078,6 +1113,28 @@ export const patchMyMap = async (c) => {
     } catch (err) {
         console.error('patchMyMap Error:', err);
         return c.json({ error: err.message || 'Failed to update map' }, err.status || 500);
+    }
+};
+
+export const patchMyMapCategoryOrder = async (c) => {
+    try {
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const mapId = parseMapId(c.req.param('id'));
+        if (!mapId) {
+            return c.json({ error: 'Map id is required' }, 400);
+        }
+        const body = validateRequestBody(
+            await c.req.json(),
+            updateMyMapCategoryOrderBodySchema,
+            'Map category order'
+        );
+        const result = await updateMyMapCategoryOrder(db, user, mapId, body);
+        return c.json(result);
+    } catch (err) {
+        console.error('patchMyMapCategoryOrder Error:', err);
+        return c.json({ error: err.message || 'Failed to update map category order' }, err.status || 500);
     }
 };
 

@@ -1,4 +1,5 @@
 import { getDistance } from './geo.js';
+import { buildMyMapCategoryRank, normalizeMyMapCategoryKey } from './myMapCategoryOrder.js';
 import {
     computePostalGroupAnchor,
     groupItemsByPostalCode,
@@ -596,15 +597,35 @@ function decorateV2MappedGroup(group) {
     };
 }
 
-function compareV2DisplayGroups(left, right) {
-    const leftMapRank = left.hasCoordinates ? 0 : 1;
-    const rightMapRank = right.hasCoordinates ? 0 : 1;
-    if (leftMapRank !== rightMapRank) {
-        return leftMapRank - rightMapRank;
-    }
+function compareV2DisplayGroups(left, right, categoryRank = new Map()) {
+    const leftCategoryKey = normalizeMyMapCategoryKey(left.categorySortKey || left.categoryLabel);
+    const rightCategoryKey = normalizeMyMapCategoryKey(right.categorySortKey || right.categoryLabel);
+    const leftCategoryRank = categoryRank.get(leftCategoryKey);
+    const rightCategoryRank = categoryRank.get(rightCategoryKey);
+    const leftHasCategoryRank = Number.isInteger(leftCategoryRank);
+    const rightHasCategoryRank = Number.isInteger(rightCategoryRank);
+    const hasCustomCategoryOrder = categoryRank.size > 0;
 
-    const categoryCompare = compareText(left.categorySortKey || left.categoryLabel, right.categorySortKey || right.categoryLabel);
-    if (categoryCompare !== 0) return categoryCompare;
+    if (hasCustomCategoryOrder) {
+        if (leftHasCategoryRank !== rightHasCategoryRank) {
+            return leftHasCategoryRank ? -1 : 1;
+        }
+        if (leftHasCategoryRank && leftCategoryRank !== rightCategoryRank) {
+            return leftCategoryRank - rightCategoryRank;
+        }
+
+        const categoryCompare = compareText(leftCategoryKey, rightCategoryKey);
+        if (categoryCompare !== 0) return categoryCompare;
+    } else {
+        const leftMapRank = left.hasCoordinates ? 0 : 1;
+        const rightMapRank = right.hasCoordinates ? 0 : 1;
+        if (leftMapRank !== rightMapRank) {
+            return leftMapRank - rightMapRank;
+        }
+
+        const categoryCompare = compareText(leftCategoryKey, rightCategoryKey);
+        if (categoryCompare !== 0) return categoryCompare;
+    }
 
     const resourceCompare = compareText(left.resourceSortKey || left.name, right.resourceSortKey || right.name);
     if (resourceCompare !== 0) return resourceCompare;
@@ -612,7 +633,9 @@ function compareV2DisplayGroups(left, right) {
     return compareText(left.placeKey, right.placeKey);
 }
 
-function buildMobileDisplayGroups(groups = []) {
+function buildMobileDisplayGroups(groups = [], preserveCategoryOrder = false) {
+    if (preserveCategoryOrder) return [...groups];
+
     const listOnlyGroups = [];
     const otherGroups = [];
 
@@ -668,10 +691,17 @@ function buildHoverPlaceKeysByKey(groups = [], pinGroups = []) {
     return hoverPlaceKeysByKey;
 }
 
-function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], activeAnchor = null }) {
+function buildV2DirectoryPresentation({
+    mappedGroups = [],
+    unmappedRows = [],
+    activeAnchor = null,
+    categoryOrder = [],
+}) {
+    const categoryRank = buildMyMapCategoryRank(categoryOrder);
+    const compareDisplayGroups = (left, right) => compareV2DisplayGroups(left, right, categoryRank);
     const orderedMappedGroups = mappedGroups
         .map(decorateV2MappedGroup)
-        .sort(compareV2DisplayGroups);
+        .sort(compareDisplayGroups);
     const mappedPlaceKeys = new Set(orderedMappedGroups.map((group) => group.placeKey).filter(Boolean));
     const hardCategoryEntriesByPostal = buildHardCategoryEntriesByPostal(orderedMappedGroups);
     const orderedUnmappedRows = [...unmappedRows].sort((left, right) => {
@@ -683,12 +713,12 @@ function buildV2DirectoryPresentation({ mappedGroups = [], unmappedRows = [], ac
         buildUnmappedDisplayGroup(row, index, mappedPlaceKeys)
     ));
     const displayGroups = [...orderedMappedGroups, ...unmappedDisplayGroups]
-        .sort(compareV2DisplayGroups)
+        .sort(compareDisplayGroups)
         .map((group, index) => ({
             ...group,
             number: index + 1,
         }));
-    const mobileDisplayGroups = buildMobileDisplayGroups(displayGroups);
+    const mobileDisplayGroups = buildMobileDisplayGroups(displayGroups, categoryRank.size > 0);
     const displayGroupByKey = displayGroups.reduce((accumulator, group) => {
         accumulator[group.placeKey] = group;
         return accumulator;
@@ -834,6 +864,7 @@ export function buildDirectoryPresentation(directory, {
             mappedGroups,
             unmappedRows,
             activeAnchor,
+            categoryOrder: directory?.categoryOrder,
         });
     }
 

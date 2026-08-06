@@ -128,6 +128,43 @@ test('v2 card presentation orders by mapped status, category, and resource name'
     ]);
 });
 
+test('v2 card presentation applies a map category sequence without reordering resources inside a category', () => {
+    const presentation = buildDirectoryPresentation({
+        ...directory,
+        categoryOrder: [
+            'senior care centre (scc)',
+            'active ageing centre (aac)',
+            'home base services',
+        ],
+    }, { presentationMode: 'v2-cards' });
+
+    assert.deepEqual(presentation.displayGroups.map((group) => group.name), [
+        'Zoo Senior Care',
+        'Alpha Active Ageing',
+        'Beta Active Ageing',
+        'Alpha Meals Support',
+    ]);
+    assert.deepEqual(presentation.displayGroups.map((group) => group.number), [1, 2, 3, 4]);
+});
+
+test('v2 category sequence can move a whole list-only category ahead of mapped categories', () => {
+    const presentation = buildDirectoryPresentation({
+        ...directory,
+        categoryOrder: ['home base services', 'senior care centre (scc)'],
+    }, { presentationMode: 'v2-cards' });
+
+    assert.deepEqual(presentation.displayGroups.map((group) => group.name), [
+        'Alpha Meals Support',
+        'Zoo Senior Care',
+        'Alpha Active Ageing',
+        'Beta Active Ageing',
+    ]);
+    assert.deepEqual(
+        presentation.mobileDisplayGroups.map((group) => group.name),
+        presentation.displayGroups.map((group) => group.name),
+    );
+});
+
 test('personal place rows participate in search, cards, and pins', () => {
     const personalDirectory = {
         places: [

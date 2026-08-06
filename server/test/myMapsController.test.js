@@ -11,6 +11,7 @@ import {
     listMyMaps,
     publishMyMap,
     renameMyMap,
+    updateMyMapCategoryOrder,
     updateMyMapPersonalPlace,
     updateMyMapPersonalPlaceShortDescriptor,
     updateMyMapAssetNotes,
@@ -77,6 +78,7 @@ function createMap(overrides = {}) {
         shareToken: null,
         shareIncludesHandoffNotes: false,
         shareUpdatedAt: null,
+        categoryOrder: [],
         createdAt: new Date('2026-03-14T10:00:00.000Z'),
         updatedAt: new Date('2026-03-14T10:00:00.000Z'),
         ...overrides,
@@ -763,6 +765,7 @@ test('duplicateMyMap creates a private owner copy with independent map child row
             shareToken: 'live-token',
             shareIncludesHandoffNotes: true,
             shareUpdatedAt: new Date('2026-03-14T10:20:00.000Z'),
+            categoryOrder: ['home care', 'active ageing centre'],
         })],
         mapAssets: [createMapAsset({
             shortDescriptor: 'Use the side entrance.',
@@ -865,6 +868,10 @@ test('duplicateMyMap creates a private owner copy with independent map child row
     assert.equal(copied.savedResourceCount, 1);
     assert.equal(copied.personalPlaceCount, 1);
     assert.equal(db.state.maps.length, 2);
+    assert.deepEqual(db.state.maps.find((map) => map.id === copied.id).categoryOrder, [
+        'home care',
+        'active ageing centre',
+    ]);
     assert.equal(copiedAsset.resourceType, 'hard');
     assert.equal(copiedAsset.resourceId, 29);
     assert.equal(copiedAsset.shortDescriptor, 'Use the side entrance.');
@@ -946,7 +953,7 @@ test('duplicateMyMap rejects guests and maps not owned by the user', async () =>
 
 test('getMyMapDetail falls back to snapshot data for unavailable assets', async () => {
     const db = createFakeDb({
-        maps: [createMap()],
+        maps: [createMap({ categoryOrder: ['home care', 'active ageing centre'] })],
         mapAssets: [createMapAsset()],
         hardAsset: null,
     });
@@ -954,6 +961,7 @@ test('getMyMapDetail falls back to snapshot data for unavailable assets', async 
     const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
 
     assert.equal(detail.name, 'Community planning');
+    assert.deepEqual(detail.categoryOrder, ['home care', 'active ageing centre']);
     assert.equal(detail.summary.resourceCount, 1);
     assert.equal(detail.assets[0].status, 'unavailable');
     assert.equal(detail.places[0].rows[0].name, 'Saved centre snapshot');
@@ -1364,9 +1372,39 @@ test('renameMyMap updates description when provided', async () => {
     assert.equal(updated.description, 'Curated support options around Teck Whye.');
 });
 
+test('updateMyMapCategoryOrder persists only normalized category keys for the owner', async () => {
+    const db = createFakeDb({ maps: [createMap()] });
+
+    const result = await updateMyMapCategoryOrder(db, DEFAULT_USER, 3, {
+        categoryOrder: [
+            ' Home care ',
+            'ACTIVE AGEING CENTRE',
+            'home care',
+        ],
+    });
+
+    assert.deepEqual(result.categoryOrder, [
+        'home care',
+        'active ageing centre',
+    ]);
+    assert.deepEqual(db.state.maps[0].categoryOrder, result.categoryOrder);
+    assert.ok(db.state.maps[0].updatedAt instanceof Date);
+});
+
+test('updateMyMapCategoryOrder keeps owner authorization intact', async () => {
+    const db = createFakeDb({ maps: [createMap()] });
+
+    await assert.rejects(
+        () => updateMyMapCategoryOrder(db, { id: 9, role: 'guest' }, 3, {
+            categoryOrder: ['home care'],
+        }),
+        (error) => error.status === 403,
+    );
+});
+
 test('publishMyMap enables a reusable share link', async () => {
     const db = createFakeDb({
-        maps: [createMap()],
+        maps: [createMap({ categoryOrder: ['home care', 'active ageing centre'] })],
         mapAssets: [createMapAsset()],
     });
 
@@ -1376,6 +1414,10 @@ test('publishMyMap enables a reusable share link', async () => {
     assert.equal(published.shareIncludesHandoffNotes, false);
     assert.equal(typeof published.shareToken, 'string');
     assert.match(published.sharePath, /^\/shared\/maps\//);
+    assert.deepEqual(db.state.shareSnapshots[0].snapshot.categoryOrder, [
+        'home care',
+        'active ageing centre',
+    ]);
 });
 
 test('publishMyMap snapshots only notes marked for sharing', async () => {

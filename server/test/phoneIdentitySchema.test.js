@@ -114,6 +114,13 @@ test('runtime schema bootstrap includes My Map note columns', async () => {
         'expected My Map share handoff-note toggle column bootstrap SQL',
     );
     assert.ok(
+        statements.some((statement) => (
+            statement.includes('alter table my_maps add column if not exists category_order')
+            && statement.includes("default '[]'::jsonb")
+        )),
+        'expected My Map category order column bootstrap SQL',
+    );
+    assert.ok(
         statements.some((statement) => statement.includes('alter table my_map_assets add column if not exists private_note')),
         'expected private note column bootstrap SQL',
     );
