@@ -90,7 +90,29 @@ Rules:
   full client coverage passed 565/565 and full server coverage passed 502/502.
   `npm run verify:map-lockdown` passed 77/77 and completed the required six-root
   production client build. Artifact parity and primary-Place disposable-map UAT
-  remain release gates.
+  also passed as recorded below.
+- Correction production release: correction commit `9828a021` was pushed on
+  `codex/my-map-card-remove-action`, fast-forwarded to `main`, and released as
+  the exact validated artifact at
+  `https://751db176.senior-resource-map.pages.dev`. A later-finishing automatic
+  Git build briefly superseded the first direct upload, so the validated dist
+  was republished only after that build settled. The final preview and
+  `https://app.carearound.sg` served byte-identical HTML, entry, CSS, and My Map
+  chunks with correct MIME. Their SHA-256 values were
+  `054d79b414a32e4129f800d85f785036dfacb27d33e94d31e742a5494755e33d`,
+  `7f24d7b8ceed206620b746f65e8514c9ce591db833559fe4457e1dcc03216e4e`,
+  `409ba9ac3df8e5e9554757073689b53c74888a618abe55d27d4fe6851c6d0b0b`,
+  and `77bcf366deb7e5caee8ae509ac934895ab123998dc3877d51e767ecc01c484fa`.
+  `/`, `/login`, `/discover`, and `/my-directory/maps` returned 200; API health
+  returned 200/OK; and production smoke passed 6/6 without retry. Authenticated
+  hard-Place-only UAT on disposable map 280 proved ordinary cards exposed two
+  card-level actions and zero nested-row actions, cancel sent no DELETE,
+  confirm sent exactly one hard-Place DELETE, saved membership changed 2 to 1,
+  mappable pins changed 2 to 1, and card actions changed 2 to 1 after the
+  authoritative refresh. The removed Place remained saved, Print View exposed
+  zero card actions, the disposable map was deleted, and the one temporarily
+  seeded favorite was restored to its original unsaved state. No Worker,
+  schema, secret, permission, or lasting production-resource change was made.
 
 ## 2026-08-06 owner My Map custom category sequence
 
