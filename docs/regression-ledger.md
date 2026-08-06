@@ -57,6 +57,25 @@ Rules:
   coverage passed 562/562. `npm run verify:map-lockdown` passed 77/77 and
   completed the required six-root production client build. `git diff --check`
   passed.
+- Production release: implementation commit `fda0ce68` was pushed on
+  `codex/my-map-category-sequence`, fast-forwarded to `main`, and followed by
+  the explicit boundary-schema bootstrap. Worker version
+  `70e553ed-26b4-4a74-9825-6bdc833313ca` was deployed from clean,
+  origin-matching `main`; the custom-domain health endpoint returned `200` and
+  the unauthenticated category-order PATCH returned `401`. The unchanged
+  map-lockdown artifact was deployed directly to
+  `https://b75d22c9.senior-resource-map.pages.dev`. Preview and
+  `https://app.carearound.sg` served the exact local entry, My Map chunk, and
+  CSS hashes: `9ab5e81cba63383b4afa5221f685f89694739bfd62ecc2399689b65d68e3924a`,
+  `c25f6fa4d032b7d7cf5c1daca425c0717c3f42f941f0feba26a32b0597d0fcdb`,
+  and `409ba9ac3df8e5e9554757073689b53c74888a618abe55d27d4fe6851c6d0b0b`,
+  with the expected JavaScript and CSS MIME types. All six authenticated
+  production smoke scenarios passed; the login/dashboard scenario needed its
+  built-in retry after one transient first attempt. Disposable production UAT
+  moved and saved one of four whole categories, confirmed the authoritative
+  order after reload, exposed no resource-sequence control, and deleted the
+  temporary map successfully. No existing map or saved-resource selection was
+  changed.
 
 ## 2026-08-06 owner My Map resource membership and loading recovery
 
