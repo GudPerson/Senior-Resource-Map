@@ -29,14 +29,12 @@ Rules:
   regenerating after every edit; map-dependent downloads become unready until
   the editor closes and one preparation uses the latest saved document.
   Resource PNG remains independently usable throughout.
-- Known-good reference: the current production owner annotation and export
-  behavior at `234ff092a` remains the baseline for private annotation
-  persistence, one
-  document and revision, undo/redo, sparse polygon anchors, rounded render-only
-  paths, resource PNG independence, nonblank hidden-export readiness, and
-  PNG/PDF parity. The implementation is isolated on
-  `codex/annotation-interaction-performance`; its release commit is pending the
-  explicit Release 1 gate.
+- Known-good reference: production Release 1 is implementation commit
+  `295ebfd4b` on `codex/annotation-interaction-performance` and `main`. The
+  prior production behavior at `234ff092a` remains the comparison baseline for
+  private annotation persistence, one document and revision, undo/redo, sparse
+  polygon anchors, rounded render-only paths, Resource PNG independence,
+  nonblank hidden-export readiness, and PNG/PDF parity.
 - Architecture and blast radius: this is a client-only interaction and export
   scheduling change. Drag previews are transient local Leaflet mutations;
   persistence still passes through the existing normalized annotation document
@@ -82,9 +80,51 @@ Rules:
   `409ba9ac3df8e5e9554757073689b53c74888a618abe55d27d4fe6851c6d0b0b`,
   `c49ca7499d545e30c78cbeaecaabc42de9fdf77448eec24a019dc641437fa68e`,
   and `3fafceefcd63a8942c9245eb6c7321060c7c11c1787b127505d32e5d7131975d`.
-  Production API health also returned 200. Authenticated owner UAT, export
-  parity, deployed artifact parity, custom-domain route/API smoke, and the
-  exact Release 1 commit/push/Pages deployment remain release gates.
+  Production API health also returned 200.
+- Production release: implementation commit `295ebfd4b` was pushed to
+  `codex/annotation-interaction-performance` and fast-forwarded to `main`. The
+  exact validated six-root `client/dist` was published directly to Cloudflare
+  Pages production at `https://f2f6179a.senior-resource-map.pages.dev`. The
+  first exact preview at `https://5ac3f945.senior-resource-map.pages.dev` was
+  correct, but a concurrent Git-triggered production build briefly won the
+  custom domain with different HTML and a Shared Map lazy-chunk request that
+  returned SPA HTML. The second exact publish restored full parity. The final
+  preview and `https://app.carearound.sg` served byte-identical HTML, entry,
+  CSS, My Map, map-export, and Shared Map assets with correct MIME types. Their
+  SHA-256 values were
+  `d1989cec367cfe0342a461c627f552903e314d36351f1344649d54a1194718f0`,
+  `da06aef58f70876acbbce9b5f75b67b7f1480cbbb05cf0b088017cfefc998429`,
+  `409ba9ac3df8e5e9554757073689b53c74888a618abe55d27d4fe6851c6d0b0b`,
+  `053a263e285dbf4ea028320c5ec891e946809d641024bbeadfabee247491fea5`,
+  `7ebddac269bec04cde9fea3bb53b82d6b7032ed5a0036bb6f08a9cc00c01754f`,
+  and `a6535a1ac552a1dc5a8ea64cf034911b0b099352e7e5d8113e82e283cdc6b5d7`.
+  The deployed build retained all six Detailed/overview/Print Master roots,
+  `resize moveend zoomend`, the regular-map fallback, and `Save PDF`; it kept
+  the retired Standard-map wording and `Save A3 PDF` absent. `/`, `/login`,
+  `/discover`, and `/my-directory/maps` returned the app shell, and production
+  API health returned 200/OK. No Worker, schema, auth, permission, secret, map
+  asset, or production-resource release was made.
+- Authenticated production UAT: owner map 258 began with its existing private
+  annotation document. A temporary four-point polygon exposed four compact
+  control dots with the intended 44-pixel logical hit targets. Two rapid
+  consecutive vertex drags preserved both accepted positions and updated the
+  rounded path; one Undo reverted only the second drag while the first remained
+  applied. During editing, Resource PNG remained enabled, Map PNG and PDF
+  remained disabled, and the hidden export surface intentionally omitted the
+  temporary polygon. Closing the editor moved the exact latest polygon path
+  into the hidden surface and enabled both map-dependent downloads after the
+  nonblank readiness probe. The resulting 5920 by 3644 Map PNG was 5,267,993
+  bytes with SHA-256
+  `ee2de23deffa7cb070248bb0eea9e6f171dc5131c7dd69935e1e393fa279ccb5`.
+  The two-page A3 PDF was 8,050,869 bytes with SHA-256
+  `317471f7a0790df7831d3f3b5443a5ab4d6cf8c31c34f2af06018b3aa93c1981`.
+  Visual rendering confirmed the same temporary-polygon geometry, map state,
+  pins, attribution, and nonblank Detailed surface in Map PNG and PDF page 1,
+  without clipping or layout defects. The temporary polygon was then deleted,
+  autosave reached Saved, and a fresh reload proved it remained absent while
+  the original private annotation rehydrated in the visible and export
+  surfaces. The authorized UAT advanced the private annotation revision but
+  left no temporary annotation content behind.
 
 ## 2026-08-06 owner My Map resource-card removal
 
