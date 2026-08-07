@@ -208,6 +208,11 @@ test('town map proof is owner-only, local-flagged, and uses viewport coverage fo
     assert.match(ownerPageSource, /VITE_TOWN_MAP_OVERVIEW_ASSET_BASE_URL/);
     assert.match(ownerPageSource, /VITE_TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL/);
     assert.match(ownerPageSource, /useTownMapOverviewManifestStates/);
+    assert.match(ownerPageSource, /reloadVersion = 0/);
+    assert.match(ownerPageSource, /townMapManifestReloadVersion/);
+    assert.match(ownerPageSource, /setTownMapManifestReloadVersion\(\(current\) => current \+ 1\)/);
+    assert.match(ownerPageSource, /\[enabled, reloadVersion\]/);
+    assert.match(ownerPageSource, /\[townMapManifestReloadVersion\]/);
     assert.match(ownerPageSource, /fixedTownOverviewSurfaceManifest=\{townMapOverviewManifestState\.manifest\}/);
     assert.match(ownerPageSource, /fixedTownOverviewSurfaceManifest=\{printTownMapOverviewManifestState\.manifest\}/);
     assert.match(ownerPageSource, /mapStyle === CAREAROUND_MAP_STYLE_GRAY/);
@@ -274,6 +279,8 @@ test('owner mode control keeps layman labels and accessible guidance inside map 
     assert.match(ownerPageSource, /townPending = false/);
     assert.match(ownerPageSource, /townPending \? 'Loading detailed map…'/);
     assert.match(ownerPageSource, /regular map is still shown/);
+    assert.match(ownerPageSource, /retryLabel=\{activeManifestError \? 'Retry detailed map' : ''\}/);
+    assert.match(ownerPageSource, /onRetry=\{retryTownMapManifests\}/);
     assert.doesNotMatch(ownerPageSource, /Standard map is still on/);
     assert.doesNotMatch(townMapControlSource, /easy[- ]read/i);
     assert.doesNotMatch(ownerPageSource, /easy[- ]read/i);

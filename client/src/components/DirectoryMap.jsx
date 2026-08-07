@@ -3261,6 +3261,7 @@ export default function DirectoryMap({
                 <DirectoryMapMobileControlDock
                     target={mobileControlPortalTarget}
                     showZoomControls={showZoomControl}
+                    preserveContainmentStep={fixedTownSurfaceContainOnResize}
                     settingsControl={hasMapSettingsControl ? (
                         <MapSettingsControl
                             detailedMinZoom={resolvedFixedTownTransitionMinZoom}

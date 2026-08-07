@@ -65,6 +65,9 @@ test('map choices use full-width panel variants without changing their state han
     assert.match(townMapControlSource, /onClick=\{handleLiveSelect\}/);
     assert.match(townMapControlSource, /onClick=\{handleTownSelect\}/);
     assert.match(townMapControlSource, /aria-live="polite"/);
+    assert.match(townMapControlSource, /retryLabel = ''/);
+    assert.match(townMapControlSource, /onRetry = null/);
+    assert.match(townMapControlSource, />\s*\{retryLabel\}\s*</);
 });
 
 test('Directory Map and Discover share settings placement while preserving map internals', () => {
@@ -112,6 +115,10 @@ test('mobile owner Print View uses an unscaled compact accessible map-control do
     assert.match(mobilePrintControlsSource, /min-h-\[60px\]/);
     assert.match(mobilePrintControlsSource, /gap-2/);
     assert.match(mobilePrintControlsSource, /text-\[15px\] font-black tabular-nums/);
+    assert.match(mobilePrintControlsSource, /resolveFixedTownDisplayZoomStep/);
+    assert.match(mobilePrintControlsSource, /preserveContainmentStep = false/);
+    assert.doesNotMatch(mobilePrintControlsSource, /Math\.round\(zoomState\.zoom\)/);
+    assert.match(directoryMapSource, /preserveContainmentStep=\{fixedTownSurfaceContainOnResize\}/);
     assert.match(mapSettingsSource, /triggerSize = 'compact'/);
     assert.match(mapSettingsSource, /triggerSize === 'touch'/);
     assert.match(mapSettingsSource, /triggerSize === 'compactTouch'/);

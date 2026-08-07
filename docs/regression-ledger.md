@@ -15,6 +15,62 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-07 owner Print View Detailed-map transient-load stabilization
+
+- Candidate behavior: owner My Map Print View uses the same locked fractional
+  zoom-step resolver in both the Leaflet counter and the external print control
+  dock. A contained raw camera at `13.9` is therefore displayed as level `13`,
+  not rounded up to a misleading level `14`. Exact zoom 14 continues to select
+  the v3 overview atlas and exact zoom 15 continues to select the v2 native
+  surface.
+- A terminal source or selected-surface manifest error now exposes one explicit
+  `Retry detailed map` action inside Map appearance. The action clears only the
+  local fallback notice and increments one reload generation, aborting any
+  superseded source requests and restarting the existing bounded loaders for
+  the four Default/Gray native/overview source roots. It does not introduce an
+  autonomous retry loop, change the camera, rewrite fixed-map selection, or
+  alter R2 assets. While the reload is pending the retry action disappears; on
+  success the existing Detailed auto-mode resumes.
+- Tier-status boundary: the Map detail control now evaluates the manifest,
+  asset root, availability, and outside-coverage state for the active zoom
+  tier supplied by `DirectoryMap`. A native-tier error cannot falsely label a
+  healthy zoom-14 overview tier unavailable, and an overview-tier error cannot
+  hide a healthy zoom-15 native tier.
+- Known-good reference and blast radius: this candidate starts from annotation
+  release evidence commit `699568b4a` and accepted production Pages deployment
+  `https://6c8562eb.senior-resource-map.pages.dev`. The patch is limited to the
+  external print zoom label, existing Map detail status/action control, and the
+  owner page's existing fixed-map source effects. It does not change zoom/tier
+  thresholds, containment, camera fitting, chunk pruning or memory caps,
+  manifests/chunks, attribution, map colour, resource pins/cards, annotations,
+  Print layout, PNG/PDF export, Shared Maps, auth, permissions, API/Worker,
+  schema, secrets, R2 objects, or production data.
+- Reproduction and acceptance: open an owned map in Print View with Detailed
+  compiled in. At a contained raw zoom `13.9`, confirm both visible zoom
+  counters say `13`. At exact zoom 14, confirm only v3 overview chunks render;
+  at exact zoom 15, confirm only v2 native chunks render; at both tiers confirm
+  no OneMap live tiles remain under the Detailed surface. Force all four root
+  source requests through their bounded terminal failure, open Map appearance,
+  confirm the regular-map fallback and `Retry detailed map` action, restore the
+  source responses, select Retry once, and confirm the action disappears,
+  Detailed becomes available/selected, fixed layers render, and no full-page
+  reload is required.
+- Pre-deploy verification: new source guards first failed against the rounded
+  external label and missing reload/action path, then passed after the patch.
+  Focused map/print coverage passed 68/68; the locked map aggregate passed
+  84/84; full client/source coverage passed 572/572; full server coverage passed
+  502/502; `git diff --check` passed; and the exact six-root production client
+  build passed with only the existing browsers-data and large-chunk advisories.
+  Mocked-auth real-Leaflet built-app
+  UAT forced four retryable 503 responses for each native/overview Default/Gray
+  root until terminal fallback, then restored the sources and confirmed the
+  explicit retry recovered to Detailed with fixed layers and zero live tiles.
+  The same browser proved raw zoom `13.9` displayed `13` in both counters,
+  zoom 15 rendered 18 native v2 layers and zero overview/live-tile layers, and
+  zoom 14 rendered 48 overview v3 layers and zero native/live-tile layers
+  across the visible and hidden export maps. Production commit, deployment,
+  artifact parity, and authenticated custom-domain UAT remain the release gate.
+
 ## 2026-08-07 owner Print View annotation-tool refinement release
 
 - Released behavior: the owner Full-map Print View annotation toolbar no

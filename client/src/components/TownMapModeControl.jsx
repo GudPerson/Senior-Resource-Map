@@ -9,6 +9,8 @@ export default function TownMapModeControl({
     townUnavailableCompactMessage = townUnavailableMessage,
     onModeChange,
     onUnavailableTownSelect,
+    retryLabel = '',
+    onRetry = null,
     variant = 'overlay',
 }) {
     const [showTownUnavailableMessage, setShowTownUnavailableMessage] = useState(false);
@@ -104,6 +106,17 @@ export default function TownMapModeControl({
                         </>
                     )}
                 </p>
+            ) : null}
+            {retryLabel && onRetry ? (
+                <button
+                    type="button"
+                    onClick={onRetry}
+                    className={isPanel
+                        ? 'inline-flex min-h-10 items-center justify-center rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm font-bold text-brand-700 shadow-sm transition hover:border-brand-300 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2'
+                        : 'inline-flex shrink-0 items-center justify-center rounded-full border border-brand-200 bg-white/95 px-2.5 py-1 text-[11px] font-bold text-brand-700 shadow-sm transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2'}
+                >
+                    {retryLabel}
+                </button>
             ) : null}
         </div>
     );

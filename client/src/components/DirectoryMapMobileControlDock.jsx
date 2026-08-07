@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Minus, Plus } from 'lucide-react';
 import { useMap } from 'react-leaflet';
 
+import { resolveFixedTownDisplayZoomStep } from '../lib/fixedTownSurface.js';
+
 function readZoomState(map) {
     const zoom = Number(map?.getZoom?.());
     const minZoom = Number(map?.getMinZoom?.());
@@ -25,6 +27,7 @@ export default function DirectoryMapMobileControlDock({
     target = null,
     settingsControl = null,
     showZoomControls = true,
+    preserveContainmentStep = false,
 }) {
     const map = useMap();
     const [zoomState, setZoomState] = useState(() => readZoomState(map));
@@ -48,8 +51,11 @@ export default function DirectoryMapMobileControlDock({
 
     if (!target || (!settingsControl && !showZoomControls)) return null;
 
-    const roundedZoom = Math.round(zoomState.zoom);
-    const zoomLabel = Number.isFinite(roundedZoom) ? String(roundedZoom) : '—';
+    const displayedZoom = resolveFixedTownDisplayZoomStep({
+        zoom: zoomState.zoom,
+        preserveContainmentStep,
+    });
+    const zoomLabel = Number.isFinite(displayedZoom) ? String(displayedZoom) : '—';
     const controlButtonClassName = 'inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white p-0 text-slate-700 shadow-sm transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300';
 
     return createPortal(

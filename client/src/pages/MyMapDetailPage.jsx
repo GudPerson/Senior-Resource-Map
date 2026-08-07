@@ -71,6 +71,7 @@ import {
     normalizeFixedTownAssetBaseUrl,
     resolveFixedTownSurfaceAssetBaseUrl,
     resolveFixedTownSurfaceManifestPath,
+    resolveFixedTownSurfaceTier,
     selectFixedTownSurfaceForViewport,
 } from '../lib/fixedTownSurface.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
@@ -959,6 +960,14 @@ function createTownMapManifestState(status = 'idle') {
     };
 }
 
+function isTownMapManifestStateError(state) {
+    return state?.status === 'error' || state?.activeManifestStatus === 'error';
+}
+
+function isTownMapManifestStateLoading(state) {
+    return state?.status === 'loading' || state?.activeManifestStatus === 'loading';
+}
+
 function isTownMapPointCoveredByState(point, state) {
     if (!point || !state) return false;
     if (state.index?.surfaces?.length) {
@@ -986,6 +995,7 @@ function useTownMapOverviewManifestStates({
     viewportBounds,
     coveragePoints,
     focusSurfaceId,
+    reloadVersion = 0,
 }) {
     const [states, setStates] = useState({
         [CAREAROUND_MAP_STYLE_DEFAULT]: createTownMapManifestState(),
@@ -996,6 +1006,7 @@ function useTownMapOverviewManifestStates({
     useEffect(() => {
         if (!enabled) return undefined;
 
+        selectionKeyRef.current = {};
         const controller = new AbortController();
         const assetBaseUrls = {
             [CAREAROUND_MAP_STYLE_DEFAULT]: TOWN_MAP_OVERVIEW_ASSET_BASE_URL,
@@ -1041,7 +1052,7 @@ function useTownMapOverviewManifestStates({
         });
 
         return () => controller.abort();
-    }, [enabled]);
+    }, [enabled, reloadVersion]);
 
     useEffect(() => {
         if (!enabled) return undefined;
@@ -1251,6 +1262,7 @@ export default function MyMapDetailPage() {
         [CAREAROUND_MAP_STYLE_DEFAULT]: createTownMapManifestState(),
         [CAREAROUND_MAP_STYLE_GRAY]: createTownMapManifestState(),
     });
+    const [townMapManifestReloadVersion, setTownMapManifestReloadVersion] = useState(0);
     const [townMapViewportBounds, setTownMapViewportBounds] = useState(null);
     const [townMapFocusSurfaceId, setTownMapFocusSurfaceId] = useState('');
     const [townMapFallbackReason, setTownMapFallbackReason] = useState('');
@@ -1419,6 +1431,7 @@ export default function MyMapDetailPage() {
             return undefined;
         }
 
+        townMapSelectionKeyRef.current = {};
         const controller = new AbortController();
         const assetBaseUrls = {
             [CAREAROUND_MAP_STYLE_DEFAULT]: TOWN_MAP_ASSET_BASE_URL,
@@ -1465,7 +1478,7 @@ export default function MyMapDetailPage() {
         });
 
         return () => controller.abort();
-    }, []);
+    }, [townMapManifestReloadVersion]);
 
     const existingAssetKeys = useMemo(
         () => new Set((directory?.assets || []).map((asset) => asset.assetKey || `${asset.resourceType}-${asset.resourceId}`)),
@@ -1527,6 +1540,7 @@ export default function MyMapDetailPage() {
         viewportBounds: townMapViewportBounds,
         coveragePoints: townMapCoveragePoints,
         focusSurfaceId: townMapFocusSurfaceId,
+        reloadVersion: townMapManifestReloadVersion,
     });
     const townMapOverviewRootAssetBaseUrl = mapStyle === CAREAROUND_MAP_STYLE_GRAY
         ? TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL
@@ -1989,58 +2003,65 @@ export default function MyMapDetailPage() {
 
     const handleBasemapModeChange = useCallback((nextMode) => {
         if (nextMode !== 'town') return;
-        if (!townMapAvailable) {
+        if (!townMapAvailable && !townMapOverviewAvailable) {
             return;
         }
         setTownMapFallbackReason('');
         setBasemapMode('auto');
-    }, [townMapAvailable]);
+    }, [townMapAvailable, townMapOverviewAvailable]);
 
     const handleFixedTownSurfaceFallback = useCallback(({ reason } = {}) => {
         setBasemapMode('live');
         setTownMapFallbackReason(reason || 'surface-unavailable');
     }, []);
 
-    const townMapStatus = useMemo(() => {
-        if (
-            townMapManifestState.status === 'loading'
-            || townMapManifestState.activeManifestStatus === 'loading'
-        ) {
-            return {
-                message: 'Preparing the detailed map…',
-                compactMessage: 'Loading detailed…',
-            };
-        }
-        if (
-            townMapManifestState.status === 'error'
-            || townMapManifestState.activeManifestStatus === 'error'
-            || !townMapAssetBaseUrl
-        ) {
-            return {
-                message: 'Detailed map is unavailable. The regular map is still shown.',
-                compactMessage: 'Detailed unavailable',
-            };
-        }
-        if (townMapFallbackReason) {
-            return {
-                message: 'Detailed map could not load. The regular map is still shown.',
-                compactMessage: 'Detailed unavailable',
-            };
-        }
-        return { message: '', compactMessage: '' };
-    }, [townMapAssetBaseUrl, townMapFallbackReason, townMapManifestState.activeManifestStatus, townMapManifestState.status]);
+    const retryTownMapManifests = useCallback(() => {
+        setTownMapFallbackReason('');
+        setTownMapManifestReloadVersion((current) => current + 1);
+    }, []);
 
     const renderTownMapModeControl = useCallback(({
         mode = 'live',
+        townAvailable: activeTownMapAvailable = false,
         townPending = false,
         townViewportEligible = true,
         townZoomEligible = false,
+        zoom = null,
         fallbackReason = '',
         onModeChange,
         controlVariant = 'overlay',
     } = {}) => {
+        const usingOverview = resolveFixedTownSurfaceTier({
+            zoom,
+            nativeMinZoom: FIXED_TOWN_SURFACE_MIN_ZOOM,
+            overviewConfigured: TOWN_MAP_OVERVIEW_ENABLED,
+        }) === 'overview';
+        const activeManifestState = usingOverview
+            ? townMapOverviewManifestState
+            : townMapManifestState;
+        const activeAssetBaseUrl = usingOverview
+            ? townMapOverviewAssetBaseUrl
+            : townMapAssetBaseUrl;
+        const activeManifestError = isTownMapManifestStateError(activeManifestState);
+        const activeManifestLoading = isTownMapManifestStateLoading(activeManifestState);
+        const activeStatus = activeManifestLoading
+            ? {
+                message: 'Preparing the detailed map…',
+                compactMessage: 'Loading detailed…',
+            }
+            : activeManifestError || !activeAssetBaseUrl
+                ? {
+                    message: 'Detailed map is unavailable. The regular map is still shown.',
+                    compactMessage: 'Detailed unavailable',
+                }
+                : townMapFallbackReason
+                    ? {
+                        message: 'Detailed map could not load. The regular map is still shown.',
+                        compactMessage: 'Detailed unavailable',
+                    }
+                    : { message: '', compactMessage: '' };
         const townUnavailableMessage = basemapMode === 'auto'
-            && townMapAvailable
+            && activeTownMapAvailable
             && townViewportEligible
             && !townZoomEligible
             ? `Zoom in to level ${FIXED_TOWN_SURFACE_MIN_ZOOM}. Detailed map will turn on automatically.`
@@ -2056,10 +2077,10 @@ export default function MyMapDetailPage() {
             : '';
         const pendingStatusMessage = townPending
             ? 'Loading detailed map…'
-            : townMapStatus.message;
+            : activeStatus.message;
         const pendingCompactStatusMessage = townPending
             ? 'Loading detailed…'
-            : townMapStatus.compactMessage;
+            : activeStatus.compactMessage;
         const fallbackStatusMessage = fallbackReason === 'outside-surface'
             ? 'Detailed map is not ready for this area. The regular map is still shown here.'
             : 'Detailed map could not load. The regular map is still shown.';
@@ -2072,42 +2093,69 @@ export default function MyMapDetailPage() {
         return (
             <TownMapModeControl
                 mode={mode}
-                townAvailable={townMapAvailable && townViewportEligible && townZoomEligible}
+                townAvailable={activeTownMapAvailable && townViewportEligible && townZoomEligible}
                 statusMessage={statusMessage}
                 compactStatusMessage={compactStatusMessage}
                 townUnavailableMessage={townUnavailableMessage}
                 townUnavailableCompactMessage={townUnavailableCompactMessage}
                 onModeChange={onModeChange}
+                retryLabel={activeManifestError ? 'Retry detailed map' : ''}
+                onRetry={retryTownMapManifests}
                 variant={controlVariant}
             />
         );
-    }, [basemapMode, townMapAvailable, townMapStatus]);
+    }, [
+        basemapMode,
+        retryTownMapManifests,
+        townMapAssetBaseUrl,
+        townMapFallbackReason,
+        townMapManifestState,
+        townMapOverviewAssetBaseUrl,
+        townMapOverviewManifestState,
+    ]);
     const mapModeControl = TOWN_MAP_PROOF_ENABLED ? renderTownMapModeControl : null;
     const renderPrintTownMapModeControl = useCallback(({
         mode = 'live',
+        townAvailable: activeTownMapAvailable = false,
         townPending = false,
         townZoomEligible = false,
+        zoom = null,
         fallbackReason = '',
         onModeChange,
         controlVariant = 'overlay',
     } = {}) => {
+        const usingOverview = resolveFixedTownSurfaceTier({
+            zoom,
+            nativeMinZoom: FIXED_TOWN_SURFACE_MIN_ZOOM,
+            overviewConfigured: TOWN_MAP_OVERVIEW_ENABLED,
+        }) === 'overview';
+        const activeManifestState = usingOverview
+            ? printTownMapOverviewManifestState
+            : printTownMapManifestState;
+        const activeAssetBaseUrl = usingOverview
+            ? printTownMapOverviewAssetBaseUrl
+            : printTownMapAssetBaseUrl;
+        const activeOutsidePointCount = usingOverview
+            ? printTownMapOverviewOutsidePointCount
+            : printTownMapOutsidePointCount;
+        const activeManifestError = isTownMapManifestStateError(activeManifestState);
         const wantsDetailed = printMapState.basemapMode === 'auto';
-        const townUnavailableMessage = wantsDetailed && printTownMapAvailable && !townZoomEligible
+        const townUnavailableMessage = wantsDetailed && activeTownMapAvailable && !townZoomEligible
             ? `Zoom in to level ${FIXED_TOWN_SURFACE_MIN_ZOOM}. Detailed map will turn on automatically.`
             : '';
-        const unavailable = printTownMapManifestState.status === 'error'
-            || !printTownMapAssetBaseUrl
-            || printTownMapOutsidePointCount > 0
+        const unavailable = activeManifestError
+            || !activeAssetBaseUrl
+            || activeOutsidePointCount > 0
             || fallbackReason;
         const statusMessage = unavailable
-            ? (printTownMapOutsidePointCount > 0
+            ? (activeOutsidePointCount > 0
                 ? 'Some places are outside the detailed map area. The regular map is still shown.'
                 : 'Detailed map is unavailable. The regular map is still shown.')
             : (townPending ? 'Loading detailed map…' : '');
         const compactStatusMessage = unavailable
             ? statusMessage
             : (townPending ? 'Loading detailed…' : '');
-        const canRequestDetailed = printTownMapAvailable || townPending;
+        const canRequestDetailed = activeTownMapAvailable || townPending;
         const handleModeChange = (nextMode) => {
             setPrintMapState((current) => ({
                 ...current,
@@ -2118,7 +2166,7 @@ export default function MyMapDetailPage() {
         return (
             <TownMapModeControl
                 mode={mode}
-                townAvailable={printTownMapAvailable && townZoomEligible}
+                townAvailable={activeTownMapAvailable && townZoomEligible}
                 statusMessage={statusMessage}
                 compactStatusMessage={compactStatusMessage}
                 townUnavailableMessage={townUnavailableMessage}
@@ -2128,15 +2176,20 @@ export default function MyMapDetailPage() {
                     if (!canRequestDetailed) return;
                     setPrintMapState((current) => ({ ...current, basemapMode: 'auto' }));
                 }}
+                retryLabel={activeManifestError ? 'Retry detailed map' : ''}
+                onRetry={retryTownMapManifests}
                 variant={controlVariant}
             />
         );
     }, [
         printMapState.basemapMode,
         printTownMapAssetBaseUrl,
-        printTownMapAvailable,
-        printTownMapManifestState.status,
+        printTownMapManifestState,
+        printTownMapOverviewAssetBaseUrl,
+        printTownMapOverviewManifestState,
+        printTownMapOverviewOutsidePointCount,
         printTownMapOutsidePointCount,
+        retryTownMapManifests,
     ]);
     const printMapModeControl = TOWN_MAP_PROOF_ENABLED ? renderPrintTownMapModeControl : null;
 

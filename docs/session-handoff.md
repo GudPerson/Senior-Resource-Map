@@ -2,6 +2,35 @@
 
 Last updated: 2026-08-07 (Asia/Singapore)
 
+## Print View Detailed-map transient-load stabilization (2026-08-07, release candidate)
+
+- Branch `codex/annotation-drawing-ux` contains a client-only stabilization for
+  the owner My Map Print View. The external print zoom dock now uses the same
+  containment-aware displayed-step resolver as the locked Leaflet counter, so
+  raw `13.9` displays `13` instead of a false `14`.
+- Terminal native/overview manifest failures expose one explicit
+  `Retry detailed map` action. It restarts the four existing bounded
+  Default/Gray source loaders through a reload generation and abort cleanup;
+  there is no autonomous retry loop, page reload, camera change, threshold
+  change, R2 mutation, or new network endpoint. Map appearance status now
+  follows the active overview/native tier instead of always reading native.
+- Red-first regression coverage passed focused map/print 68/68, map lockdown
+  84/84, full client/source 572/572, and full server 502/502. The exact six-root
+  production build passed with only the established warnings. Mocked-auth
+  built-app Leaflet UAT
+  proved terminal failure to user-triggered recovery, raw `13.9` to displayed
+  `13`, native-only zoom 15, overview-only zoom 14, and zero live OneMap tiles
+  under both Detailed tiers.
+- The current production reference remains annotation evidence commit
+  `699568b4a` and Pages deployment
+  `https://6c8562eb.senior-resource-map.pages.dev`. No commit, push, or deploy
+  for this stabilization has occurred yet. Before release, rerun the remaining
+  checklist gates, commit and push only the tracked stabilization files, deploy
+  the exact validated `client/dist` to Cloudflare Pages, verify immutable/custom
+  artifact parity, and run authenticated production UAT. No Worker/API, schema,
+  auth, permission, secret, R2 asset, Shared Map, or production-data change is
+  included.
+
 ## Print View annotation-tool refinement (2026-08-07, production release)
 
 - The annotation toolbar removes only the `Label pin` creation option;
