@@ -48,6 +48,7 @@ const printAnnotationSchema = z.object({
         .min(3)
         .max(PRINT_ANNOTATION_MAX_CONTROL_POINTS)
         .optional(),
+    rotationDegrees: z.number().finite().min(-180).max(180).optional(),
     text: z.string().trim().max(PRINT_ANNOTATION_MAX_TEXT_LENGTH).default(''),
     style: annotationStyleSchema,
 }).superRefine((annotation, context) => {
@@ -81,6 +82,17 @@ const printAnnotationSchema = z.object({
             code: z.ZodIssueCode.custom,
             path: ['controlPoints'],
             message: 'Control points are only supported for polygon annotations',
+        });
+    }
+
+    if (
+        annotation.rotationDegrees !== undefined
+        && !['rectangle', 'circle', 'polygon'].includes(annotation.type)
+    ) {
+        context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['rotationDegrees'],
+            message: 'Rotation angles are only supported for area-shape annotations',
         });
     }
 

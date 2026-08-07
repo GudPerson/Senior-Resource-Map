@@ -8,7 +8,6 @@ import {
     CircleDot,
     Copy,
     CornerUpLeft,
-    MapPin,
     Minus,
     Move,
     MousePointer2,
@@ -42,7 +41,6 @@ const TOOL_OPTIONS = [
     { value: PRINT_ANNOTATION_TOOL_SELECT, label: 'Select or adjust', Icon: MousePointer2 },
     { value: PRINT_ANNOTATION_TOOL_MOVE, label: 'Move annotation', Icon: Move },
     { value: PRINT_ANNOTATION_TOOL_ROTATE, label: 'Rotate annotation', Icon: RotateCw },
-    { value: PRINT_ANNOTATION_TOOL_PIN, label: 'Label pin', Icon: MapPin },
     { value: PRINT_ANNOTATION_TOOL_LINE, label: 'Draw line', Icon: Minus },
     { value: PRINT_ANNOTATION_TOOL_RECTANGLE, label: 'Draw box', Icon: Square },
     { value: PRINT_ANNOTATION_TOOL_CIRCLE, label: 'Draw circle', Icon: Circle },
@@ -64,10 +62,13 @@ function getToolHelp(tool, draftPointCount, selectedAnnotation = null) {
     }
     if (tool === PRINT_ANNOTATION_TOOL_ROTATE) {
         if (!selectedAnnotation) {
-            return 'Click a line or boundary, then drag its highlighted rotation handle.';
+            return 'Click a line, box, circle, or boundary, then drag its highlighted rotation handle.';
         }
         if (!isPrintAnnotationRotationSupported(selectedAnnotation.type)) {
-            return 'Rotation is available for lines and boundaries. Boxes stay axis-aligned, while circles and pins have no visible rotation.';
+            return 'Rotation is available for lines and area shapes. Saved pins can still be moved, duplicated, or removed.';
+        }
+        if (selectedAnnotation.type === PRINT_ANNOTATION_TOOL_CIRCLE) {
+            return 'Drag the highlighted rotation handle to turn the note; the circle outline stays unchanged. Undo reverses the completed rotation.';
         }
         return 'Drag the highlighted rotation handle around the annotation centre. Undo reverses the completed rotation.';
     }

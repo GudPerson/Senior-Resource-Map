@@ -31,8 +31,11 @@ import {
     PRINT_ANNOTATION_TOOL_SELECT,
     advancePrintAnnotationDraft,
     buildPrintAnnotationDraftPreviewPoints,
+    buildPrintAnnotationRectanglePoints,
     buildRoundedPrintAnnotationPolygon,
     movePrintAnnotationControlPoint,
+    movePrintAnnotationRectangleControlPoint,
+    normalizePrintAnnotationRotation,
 } from '../lib/printAnnotations.js';
 
 function escapeMarkup(value) {
@@ -71,6 +74,7 @@ function createPinIcon(annotation, selected) {
 
 function createShapeTextIcon(annotation) {
     const { fontSize, textColor } = annotation.style;
+    const rotationDegrees = normalizePrintAnnotationRotation(annotation.rotationDegrees);
     return L.divIcon({
         className: 'carearound-print-annotation-marker',
         html: `<div data-annotation-shape-text="true" style="
@@ -90,6 +94,8 @@ function createShapeTextIcon(annotation) {
             pointer-events:auto;
             text-align:center;
             text-shadow:0 1px 2px rgba(255,255,255,.95),0 0 5px rgba(255,255,255,.8);
+            transform:rotate(${-rotationDegrees}deg);
+            transform-origin:50% 50%;
             white-space:pre-wrap;
         ">${escapeMarkup(annotation.text)}</div>`,
         iconSize: [240, 70],
@@ -170,6 +176,24 @@ function getEditableAnnotationPoints(annotation) {
         : annotation.points;
 }
 
+function getVisibleAnnotationControlPoints(annotation, points) {
+    if (annotation.type !== PRINT_ANNOTATION_TOOL_RECTANGLE) return points;
+    const corners = buildPrintAnnotationRectanglePoints(points, annotation.rotationDegrees);
+    return corners.length === 4 ? [corners[0], corners[2]] : points;
+}
+
+function moveAnnotationControlPoint(annotation, points, pointIndex, point) {
+    if (annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE) {
+        return movePrintAnnotationRectangleControlPoint(
+            points,
+            pointIndex,
+            point,
+            annotation.rotationDegrees,
+        );
+    }
+    return movePrintAnnotationControlPoint(annotation.type, points, pointIndex, point);
+}
+
 function AnnotationVertexHandles({
     annotation,
     layerIndex,
@@ -183,6 +207,7 @@ function AnnotationVertexHandles({
     const pendingPreviewRef = useRef(null);
     const previewFrameRef = useRef(null);
     const markerRefs = useRef([]);
+    const visiblePoints = getVisibleAnnotationControlPoints(annotation, editablePoints);
     const vertexIcon = useMemo(
         () => createVertexIcon(annotation.style.color),
         [annotation.style.color],
@@ -205,12 +230,15 @@ function AnnotationVertexHandles({
         }
     }, []);
 
+    const syncControlMarkers = useCallback((nextPoints) => {
+        const nextVisiblePoints = getVisibleAnnotationControlPoints(annotation, nextPoints);
+        nextVisiblePoints.forEach((point, index) => markerRefs.current[index]?.setLatLng(point));
+    }, [annotation]);
+
     const queuePreview = useCallback((nextPoints) => {
         latestEditablePointsRef.current = nextPoints;
         pendingPreviewRef.current = nextPoints;
-        if (annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE && nextPoints.length === 2) {
-            markerRefs.current[1]?.setLatLng(nextPoints[1]);
-        }
+        syncControlMarkers(nextPoints);
         if (previewFrameRef.current) return;
         previewFrameRef.current = window.requestAnimationFrame(() => {
             previewFrameRef.current = null;
@@ -218,13 +246,13 @@ function AnnotationVertexHandles({
             pendingPreviewRef.current = null;
             if (pendingPoints) onPreview?.(pendingPoints);
         });
-    }, [annotation.type, onPreview]);
+    }, [onPreview, syncControlMarkers]);
 
     const finishDrag = useCallback((index, event) => {
         const latLng = event.target.getLatLng();
         const basePoints = dragBasePointsRef.current || latestEditablePointsRef.current;
-        const nextPoints = movePrintAnnotationControlPoint(
-            annotation.type,
+        const nextPoints = moveAnnotationControlPoint(
+            annotation,
             basePoints,
             index,
             [latLng.lat, latLng.lng],
@@ -238,9 +266,7 @@ function AnnotationVertexHandles({
         pendingCommittedPointsRef.current = areAnnotationPointsEqual(nextPoints, editablePoints)
             ? null
             : nextPoints;
-        if (annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE && nextPoints.length === 2) {
-            markerRefs.current[1]?.setLatLng(nextPoints[1]);
-        }
+        syncControlMarkers(nextPoints);
         onPreview?.(nextPoints);
         dragBasePointsRef.current = null;
         onUpdate?.(annotation.id, annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
@@ -249,9 +275,9 @@ function AnnotationVertexHandles({
                 controlPoints: nextPoints,
             }
             : { points: nextPoints });
-    }, [annotation.id, annotation.type, editablePoints, onPreview, onUpdate]);
+    }, [annotation, editablePoints, onPreview, onUpdate, syncControlMarkers]);
 
-    return editablePoints.map((point, index) => (
+    return visiblePoints.map((point, index) => (
         <Marker
             key={`${annotation.id}:vertex:${index}`}
             ref={(marker) => {
@@ -273,8 +299,8 @@ function AnnotationVertexHandles({
                     const latLng = event.target.getLatLng();
                     const basePoints = dragBasePointsRef.current
                         || latestEditablePointsRef.current;
-                    queuePreview(movePrintAnnotationControlPoint(
-                        annotation.type,
+                    queuePreview(moveAnnotationControlPoint(
+                        annotation,
                         basePoints,
                         index,
                         [latLng.lat, latLng.lng],
@@ -325,6 +351,12 @@ function ShapeTextMarker({
     );
 }
 
+function setShapeTextRotation(marker, rotationDegrees) {
+    const element = marker?.getElement?.()?.querySelector?.('[data-annotation-shape-text="true"]');
+    if (!element) return;
+    element.style.transform = `rotate(${-normalizePrintAnnotationRotation(rotationDegrees)}deg)`;
+}
+
 function AnnotationShape({
     annotation,
     selected,
@@ -337,7 +369,7 @@ function AnnotationShape({
     const map = useMap();
     const shapeRef = useRef(null);
     const shapeTextRef = useRef(null);
-    const previewPointsRef = useRef(null);
+    const previewTransformRef = useRef(null);
     const eventHandlers = interactive ? {
         click: (event) => {
             stopAnnotationEvent(event);
@@ -345,17 +377,22 @@ function AnnotationShape({
         },
     } : undefined;
     const pathOptions = getPathOptions(annotation, selected);
-    const displayPoints = annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
-        ? buildRoundedPrintAnnotationPolygon(annotation.controlPoints || annotation.points)
-        : annotation.points;
-    const applyVertexPreview = useCallback((nextPoints) => {
-        const nextDisplayPoints = annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
-            ? buildRoundedPrintAnnotationPolygon(nextPoints)
-            : nextPoints;
+    const rotationDegrees = normalizePrintAnnotationRotation(annotation.rotationDegrees);
+    const displayPoints = annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE
+        ? buildPrintAnnotationRectanglePoints(annotation.points, rotationDegrees)
+        : annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
+            ? buildRoundedPrintAnnotationPolygon(annotation.controlPoints || annotation.points)
+            : annotation.points;
+    const applyTransformPreview = useCallback((nextPoints, nextRotationDegrees) => {
+        const nextDisplayPoints = annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE
+            ? buildPrintAnnotationRectanglePoints(nextPoints, nextRotationDegrees)
+            : annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
+                ? buildRoundedPrintAnnotationPolygon(nextPoints)
+                : nextPoints;
         if (annotation.type === PRINT_ANNOTATION_TOOL_LINE) {
             shapeRef.current?.setLatLngs(nextPoints);
         } else if (annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE) {
-            shapeRef.current?.setBounds(nextPoints);
+            shapeRef.current?.setLatLngs(nextDisplayPoints);
         } else if (annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE) {
             shapeRef.current?.setLatLng(nextPoints[0]);
             shapeRef.current?.setRadius(Math.max(1, map.distance(nextPoints[0], nextPoints[1])));
@@ -367,24 +404,44 @@ function AnnotationShape({
             nextPoints,
             nextDisplayPoints,
         ));
+        setShapeTextRotation(shapeTextRef.current, nextRotationDegrees);
     }, [annotation.type, map]);
     const handleVertexPreview = useCallback((nextPoints) => {
-        previewPointsRef.current = nextPoints;
-        applyVertexPreview(nextPoints);
-    }, [applyVertexPreview]);
+        previewTransformRef.current = { points: nextPoints, rotationDegrees };
+        applyTransformPreview(nextPoints, rotationDegrees);
+    }, [applyTransformPreview, rotationDegrees]);
+    const handleTransformPreview = useCallback((nextPoints, nextRotationDegrees) => {
+        previewTransformRef.current = {
+            points: nextPoints,
+            rotationDegrees: nextRotationDegrees,
+        };
+        applyTransformPreview(nextPoints, nextRotationDegrees);
+    }, [applyTransformPreview]);
 
     useLayoutEffect(() => {
-        const previewPoints = previewPointsRef.current;
-        if (!previewPoints) return;
+        const previewTransform = previewTransformRef.current;
+        if (!previewTransform) return;
         const currentPoints = annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
             ? annotation.controlPoints || annotation.points
             : annotation.points;
-        if (areAnnotationPointsEqual(currentPoints, previewPoints)) {
-            previewPointsRef.current = null;
+        if (
+            areAnnotationPointsEqual(currentPoints, previewTransform.points)
+            && rotationDegrees === previewTransform.rotationDegrees
+        ) {
+            previewTransformRef.current = null;
             return;
         }
-        applyVertexPreview(previewPoints);
-    }, [annotation.controlPoints, annotation.points, annotation.type, applyVertexPreview]);
+        applyTransformPreview(
+            previewTransform.points,
+            previewTransform.rotationDegrees,
+        );
+    }, [
+        annotation.controlPoints,
+        annotation.points,
+        annotation.type,
+        applyTransformPreview,
+        rotationDegrees,
+    ]);
     let shape = null;
 
     if (annotation.type === PRINT_ANNOTATION_TOOL_LINE) {
@@ -399,9 +456,9 @@ function AnnotationShape({
         );
     } else if (annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE) {
         shape = (
-            <Rectangle
+            <Polygon
                 ref={shapeRef}
-                bounds={annotation.points}
+                positions={displayPoints}
                 pathOptions={pathOptions}
                 eventHandlers={eventHandlers}
                 interactive={interactive}
@@ -466,7 +523,7 @@ function AnnotationShape({
                     annotation={annotation}
                     layerIndex={layerIndex}
                     tool={tool}
-                    onPreview={handleVertexPreview}
+                    onPreview={handleTransformPreview}
                     onUpdate={onUpdate}
                 />
             ) : null}

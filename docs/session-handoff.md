@@ -2,6 +2,32 @@
 
 Last updated: 2026-08-07 (Asia/Singapore)
 
+## Print View annotation-tool refinement (2026-08-07, local candidate)
+
+- The annotation toolbar locally removes only the `Label pin` creation option;
+  existing saved pins retain all compatibility paths. On-map Move and Rotate
+  handles now use clear four-arrow and single-clockwise-arrow SVG icons with the
+  existing 44-pixel targets.
+- Rotate now supports lines, boxes, circles, and boundaries. Boxes keep their
+  two-corner saved geometry and add one optional bounded `rotationDegrees`
+  value; their outline and note turn together. Boundaries turn their geometry
+  and note. Circles retain their outline, centre, and radius while their inside
+  note turns. Rotated-box adjustment handles remain attached to its visible
+  opposite corners, and Duplicate preserves the angle.
+- The field is an additive schema-version-1 JSON property. Client normalization
+  and the Worker request validator both bound it; no database migration,
+  table/API-route, auth, permission, Shared Map, resource-pin, map-asset, or
+  production-data change is included.
+- Verification passed focused client/server annotation coverage 23/23, full
+  client/source 572/572, full server 502/502, map lockdown 84/84, and the exact
+  six-root production build. Mocked-auth built-app Leaflet UAT confirmed both
+  refined icons, live box rotation, circle-text-only rotation, Saved/Undo state,
+  and visible rotated-box control handles.
+- This candidate is uncommitted, unpushed, and undeployed on
+  `codex/annotation-drawing-ux`. A future authorized release must deploy and
+  verify the compatible Worker validator before the Pages client. Production
+  remains on implementation `d0f7662c052154127b08cd399b7e1ad64012c791`.
+
 ## Print View annotation transform tools (2026-08-07, production release)
 
 - Branch `codex/annotation-drawing-ux` contains client-only implementation

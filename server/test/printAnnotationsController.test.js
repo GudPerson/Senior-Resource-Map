@@ -138,6 +138,7 @@ test('print annotation validation accepts bounded lines, circles, and typography
         ],
         controlPoints: undefined,
         text: 'Meeting zone',
+        rotationDegrees: -45,
         style: {
             ...createPolygon().style,
             textColor: '#123456',
@@ -166,6 +167,26 @@ test('print annotation validation accepts bounded lines, circles, and typography
             annotations: [{
                 ...circleAnnotation,
                 style: { ...circleAnnotation.style, fontSize: 40 },
+            }],
+        }),
+        /Print annotations is invalid/,
+    );
+    assert.throws(
+        () => validatePrintAnnotationDocumentInput({
+            schemaVersion: 1,
+            annotations: [{
+                ...circleAnnotation,
+                rotationDegrees: 181,
+            }],
+        }),
+        /Print annotations is invalid/,
+    );
+    assert.throws(
+        () => validatePrintAnnotationDocumentInput({
+            schemaVersion: 1,
+            annotations: [{
+                ...lineAnnotation,
+                rotationDegrees: 20,
             }],
         }),
         /Print annotations is invalid/,

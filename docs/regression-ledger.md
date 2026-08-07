@@ -15,6 +15,55 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-07 owner Print View annotation-tool refinement candidate
+
+- Candidate behavior: the owner Full-map Print View annotation toolbar no
+  longer offers the location-style `Label pin` creation tool. Existing saved
+  pins remain compatible. The on-map Move and Rotate handles replace ambiguous
+  text glyphs with clean four-arrow and single-clockwise-arrow SVG icons while
+  retaining their 44-pixel drag targets.
+- Shape rotation now supports lines, boxes, circles, and boundaries. Lines and
+  boundaries rotate their geometry; boundaries also rotate their inside note.
+  Boxes render from their existing two opposite corners plus one bounded saved
+  angle, so their outline and note rotate together without converting their
+  stored geometry. Circles keep the same centre and radius while only their
+  inside note rotates. Rotated boxes retain visible opposite-corner adjustment
+  handles and one completed drag remains one Undo/autosave step.
+- Architecture and compatibility boundary: optional `rotationDegrees` metadata
+  is normalized to `[-180, 180)` only for box, circle, and boundary annotations.
+  It is an additive schema-version-1 JSON field accepted by the Worker
+  validator; there is no database migration or table/API-route change. Old
+  documents remain valid, zero-degree annotations keep their existing shape,
+  Duplicate preserves the angle, and invalid or unsupported rotation metadata
+  is rejected or removed. Pin normalization, persistence, rendering, export,
+  selection, relabelling, Move, Duplicate, Delete, Undo/Redo, and layer order
+  remain intact. Shared Map, auth, permissions, map assets, resource pins, and
+  production data are unchanged.
+- Reproduction and acceptance: open an owned map in Full-map Print View and
+  choose Annotate. Confirm no `Label pin` creation option appears and the
+  remaining seven tools do. Select Move and Rotate and confirm the new icons
+  are recognisable. Rotate a line, box, circle with an inside note, and boundary;
+  confirm live pointer-following updates, the circle outline remains fixed,
+  the box outline follows its note, and Undo reverses exactly one completed
+  drag. Return to Select and resize the rotated box from either visible corner.
+  Duplicate each rotated area shape, wait for Saved, reload, and confirm visible
+  and PNG/PDF export parity. Confirm any previously saved pin still renders and
+  retains its non-creation actions.
+- Verification before user UAT: the new client and server contracts failed
+  before implementation, then passed. Focused client/server annotation coverage
+  passed 23/23; full client/source coverage passed 572/572; full server coverage
+  passed 502/502; map-lockdown coverage passed 84/84; and the exact six-root
+  production client build passed with only the existing browsers-data and
+  large-chunk advisories. A mocked-auth real-Leaflet built-app check confirmed
+  the refined icons, live box rotation, circle-text-only rotation, Saved state,
+  Undo availability, and correctly attached rotated-box adjustment handles.
+- Release state and gate: this candidate is local and uncommitted on
+  `codex/annotation-drawing-ux`; it has not been pushed or deployed. A future
+  authorized release must deploy and verify the additive Worker validator
+  before deploying the Pages client so new angles persist on first use.
+  Production still serves implementation
+  `d0f7662c052154127b08cd399b7e1ad64012c791` until that separate authorization.
+
 ## 2026-08-07 owner Print View annotation transform tools release
 
 - Released behavior: owner Full-map Print View annotation editing adds

@@ -97,6 +97,14 @@ export function normalizePrintAnnotationPoint(point) {
     return [lat, lng];
 }
 
+export function normalizePrintAnnotationRotation(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    const wrapped = ((((numeric + 180) % 360) + 360) % 360) - 180;
+    if (Math.abs(wrapped) < 0.001) return 0;
+    return Math.round(wrapped * 1000) / 1000;
+}
+
 function normalizePointList(points, maximum) {
     return (points || [])
         .map(normalizePrintAnnotationPoint)
@@ -176,6 +184,13 @@ export function normalizePrintAnnotation(annotation) {
     const polygonPoints = type === PRINT_ANNOTATION_TOOL_POLYGON && controlPoints.length >= 3
         ? controlPoints
         : points;
+    const rotationDegrees = [
+        PRINT_ANNOTATION_TOOL_RECTANGLE,
+        PRINT_ANNOTATION_TOOL_CIRCLE,
+        PRINT_ANNOTATION_TOOL_POLYGON,
+    ].includes(type)
+        ? normalizePrintAnnotationRotation(annotation?.rotationDegrees)
+        : 0;
     return {
         id,
         type,
@@ -191,6 +206,7 @@ export function normalizePrintAnnotation(annotation) {
         ...(type === PRINT_ANNOTATION_TOOL_POLYGON ? {
             controlPoints: polygonPoints.slice(0, PRINT_ANNOTATION_MAX_CONTROL_POINTS),
         } : {}),
+        ...(rotationDegrees ? { rotationDegrees } : {}),
         text,
         style: normalizePrintAnnotationStyle(annotation?.style),
     };
@@ -391,9 +407,66 @@ export function rotatePrintAnnotationPoints(points, centerPoint, angleDegrees) {
     return rotated.every(Boolean) ? rotated : currentPoints;
 }
 
+export function buildPrintAnnotationRectanglePoints(points, rotationDegrees = 0) {
+    const currentPoints = normalizePointList(points, 2);
+    if (currentPoints.length < 2) return currentPoints;
+    const [first, second] = currentPoints;
+    const corners = [
+        [first[0], first[1]],
+        [first[0], second[1]],
+        [second[0], second[1]],
+        [second[0], first[1]],
+    ];
+    const rotation = normalizePrintAnnotationRotation(rotationDegrees);
+    if (!rotation) return corners;
+    return rotatePrintAnnotationPoints(
+        corners,
+        getPrintAnnotationPointBoundsCenter(currentPoints),
+        rotation,
+    );
+}
+
+export function movePrintAnnotationRectangleControlPoint(
+    points,
+    pointIndex,
+    point,
+    rotationDegrees = 0,
+) {
+    const currentPoints = normalizePointList(points, 2);
+    const nextPoint = normalizePrintAnnotationPoint(point);
+    if (currentPoints.length < 2 || !nextPoint || ![0, 1].includes(pointIndex)) {
+        return currentPoints;
+    }
+    const rotation = normalizePrintAnnotationRotation(rotationDegrees);
+    if (!rotation) {
+        return movePrintAnnotationControlPoint(
+            PRINT_ANNOTATION_TOOL_RECTANGLE,
+            currentPoints,
+            pointIndex,
+            nextPoint,
+        );
+    }
+
+    const center = getPrintAnnotationPointBoundsCenter(currentPoints);
+    const displayedOpposites = rotatePrintAnnotationPoints(currentPoints, center, rotation);
+    const fixedPoint = displayedOpposites[pointIndex === 0 ? 1 : 0];
+    const nextCenter = [
+        (nextPoint[0] + fixedPoint[0]) / 2,
+        (nextPoint[1] + fixedPoint[1]) / 2,
+    ];
+    const nextOpposites = rotatePrintAnnotationPoints(
+        pointIndex === 0 ? [nextPoint, fixedPoint] : [fixedPoint, nextPoint],
+        nextCenter,
+        -rotation,
+    );
+    return nextOpposites.length === 2 ? nextOpposites : currentPoints;
+}
+
 export function isPrintAnnotationRotationSupported(type) {
     return [
         PRINT_ANNOTATION_TOOL_LINE,
+        PRINT_ANNOTATION_TOOL_RECTANGLE,
+        PRINT_ANNOTATION_TOOL_CIRCLE,
         PRINT_ANNOTATION_TOOL_POLYGON,
     ].includes(String(type || ''));
 }

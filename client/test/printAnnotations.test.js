@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
     advancePrintAnnotationDraft,
     buildPrintAnnotationDraftPreviewPoints,
+    buildPrintAnnotationRectanglePoints,
     buildRoundedPrintAnnotationPolygon,
     createPrintAnnotation,
     DEFAULT_PRINT_ANNOTATION_STYLE,
@@ -13,6 +14,7 @@ import {
     getPrintAnnotationPointBoundsCenter,
     getPrintAnnotationCaptureKey,
     isPrintAnnotationRotationSupported,
+    movePrintAnnotationRectangleControlPoint,
     movePrintAnnotationControlPoint,
     normalizePrintAnnotation,
     normalizePrintAnnotations,
@@ -107,7 +109,7 @@ test('annotation control-point moves preserve the latest geometry and translate 
     ]);
 });
 
-test('whole-annotation transforms translate every point and rotate only supported geometry', () => {
+test('whole-annotation transforms translate every point and rotate supported geometry and shape text', () => {
     const square = [
         [1, 103],
         [1, 104],
@@ -137,9 +139,68 @@ test('whole-annotation transforms translate every point and rotate only supporte
     assert.ok(Math.abs(rotatedLine[1][1] - 103.5) < 1e-12);
     assert.equal(isPrintAnnotationRotationSupported('line'), true);
     assert.equal(isPrintAnnotationRotationSupported('polygon'), true);
-    assert.equal(isPrintAnnotationRotationSupported('rectangle'), false);
-    assert.equal(isPrintAnnotationRotationSupported('circle'), false);
+    assert.equal(isPrintAnnotationRotationSupported('rectangle'), true);
+    assert.equal(isPrintAnnotationRotationSupported('circle'), true);
     assert.equal(isPrintAnnotationRotationSupported('pin'), false);
+
+    const rotatedRectangle = buildPrintAnnotationRectanglePoints(
+        [[1, 103], [2, 104]],
+        90,
+    );
+    assert.equal(rotatedRectangle.length, 4);
+    assert.ok(Math.abs(rotatedRectangle[0][0] - 1) < 1e-12);
+    assert.ok(Math.abs(rotatedRectangle[0][1] - 104) < 1e-12);
+    assert.ok(Math.abs(rotatedRectangle[2][0] - 2) < 1e-12);
+    assert.ok(Math.abs(rotatedRectangle[2][1] - 103) < 1e-12);
+
+    const adjustedRectangle = movePrintAnnotationRectangleControlPoint(
+        [[1, 103], [2, 104]],
+        0,
+        [1, 104],
+        90,
+    );
+    const adjustedDisplayPoints = buildPrintAnnotationRectanglePoints(
+        adjustedRectangle,
+        90,
+    );
+    assert.ok(Math.abs(adjustedDisplayPoints[0][0] - 1) < 1e-12);
+    assert.ok(Math.abs(adjustedDisplayPoints[0][1] - 104) < 1e-12);
+    assert.ok(Math.abs(adjustedDisplayPoints[2][0] - 2) < 1e-12);
+    assert.ok(Math.abs(adjustedDisplayPoints[2][1] - 103) < 1e-12);
+});
+
+test('shape rotation is normalized, persisted only for supported area shapes, and duplicated', () => {
+    const source = normalizePrintAnnotation({
+        id: 'annotation_rotated_box',
+        type: 'rectangle',
+        points: POLYGON_POINTS.slice(0, 2),
+        rotationDegrees: 450,
+        text: 'Rotated box',
+        style: DEFAULT_PRINT_ANNOTATION_STYLE,
+    });
+    const circle = normalizePrintAnnotation({
+        id: 'annotation_rotated_circle',
+        type: 'circle',
+        points: POLYGON_POINTS.slice(0, 2),
+        rotationDegrees: -45,
+        text: 'Rotated note',
+        style: DEFAULT_PRINT_ANNOTATION_STYLE,
+    });
+    const line = normalizePrintAnnotation({
+        id: 'annotation_line_rotation_ignored',
+        type: 'line',
+        points: POLYGON_POINTS.slice(0, 2),
+        rotationDegrees: 30,
+        style: DEFAULT_PRINT_ANNOTATION_STYLE,
+    });
+    const duplicate = duplicatePrintAnnotation(source, {
+        id: 'annotation_rotated_box_copy',
+    });
+
+    assert.equal(source.rotationDegrees, 90);
+    assert.equal(circle.rotationDegrees, -45);
+    assert.equal(Object.hasOwn(line, 'rotationDegrees'), false);
+    assert.equal(duplicate.rotationDegrees, 90);
 });
 
 test('annotation duplication preserves content, offsets geometry, and creates a new id', () => {
@@ -426,8 +487,12 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(layerSource, /event\.key === 'Enter'/);
     assert.match(layerSource, /PrintAnnotationTransformHandle/);
     assert.match(transformSource, /data-annotation-transform-handle/);
+    assert.match(transformSource, /<svg/);
+    assert.match(transformSource, /stroke-linecap="round"/);
+    assert.doesNotMatch(transformSource, /&#8635;|&#10021;/);
     assert.match(transformSource, /translatePrintAnnotationPoints/);
     assert.match(transformSource, /rotatePrintAnnotationPoints/);
+    assert.match(transformSource, /rotationDegrees/);
     assert.match(transformSource, /iconSize: \[44, 44\]/);
     assert.match(layerSource, /PRINT_ANNOTATION_TRANSFORM_TOOLS\.has\(tool\)/);
     assert.match(layerSource, /PRINT_ANNOTATION_DRAW_TOOLS\.has\(tool\)/);
@@ -444,9 +509,17 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(toolbarSource, /Drag the highlighted control points/);
     assert.match(toolbarSource, /label: 'Move annotation'/);
     assert.match(toolbarSource, /label: 'Rotate annotation'/);
+    assert.doesNotMatch(
+        toolbarSource,
+        /\{ value: PRINT_ANNOTATION_TOOL_PIN, label: 'Label pin'/,
+    );
+    assert.match(toolbarSource, /selectedAnnotation\.type === PRINT_ANNOTATION_TOOL_PIN/);
+    assert.match(layerSource, /function PinAnnotation/);
     assert.match(toolbarSource, /Duplicate annotation/);
     assert.match(toolbarSource, /Drag the highlighted centre handle/);
-    assert.match(toolbarSource, /Rotation is available for lines and boundaries/);
+    assert.match(toolbarSource, /circle outline stays unchanged/);
+    assert.match(layerSource, /buildPrintAnnotationRectanglePoints/);
+    assert.match(layerSource, /transform:rotate\(\$\{-rotationDegrees\}deg\)/);
     assert.match(toolbarSource, /max-h-\[calc\(100%-1\.5rem\)\]/);
     assert.match(toolbarSource, /Choose custom shape colour/);
     assert.match(toolbarSource, /aria-label="Shape colour picker"/);

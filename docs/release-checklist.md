@@ -290,23 +290,29 @@ as unavailable must also be checked for a successful same-origin
 changed.
 
 For Print annotation changes, first choose the desktop `Full map` layout.
-Exercise the pin, line, rectangle, circle, and polygon tools. Line, box, and
-circle must show a live pointer preview after click one and create exactly once
-on click two without a Done action. Boundary must preview each next edge, keep
+Confirm the toolbar does not offer new pin creation, then exercise the line,
+rectangle, circle, and polygon tools. If the map already contains a saved pin,
+confirm it still renders and can be selected, relabelled, moved, duplicated,
+deleted, undone, persisted, and exported. Line, box, and circle must show a live
+pointer preview after click one and create exactly once on click two without a
+Done action. Boundary must preview each next edge, keep
 Done disabled below three points, and complete exactly once with Done or Enter
 at three or more points; repeated Enter after completion must be inert. Drawing
 over an existing annotation must not select it or leave a stray draft. Return
+to Select and verify a rotated box still exposes control points on its visible
+opposite corners. Exercise Move and Rotate with their on-map SVG handles. A box
+must rotate its outline and inside note together; a circle must rotate only its
+inside note while its outline, centre, and radius remain unchanged; a boundary
+must rotate its geometry and note together. Each completed drag must produce
+one Undo/autosave step, Duplicate must preserve the saved angle, and reload plus
+PNG/PDF export must match the visible result. Because saved shape rotation adds
+an optional Worker-validated annotation field, deploy and verify the compatible
+Worker validator before deploying a client that can save the field. Return
 to Select, drag several highlighted control points rapidly, and confirm each
 path follows its 44-pixel logical target without an accepted point reverting;
-one Undo must reverse only the latest completed drag. Choose Move, select every
-annotation type, and confirm the highlighted centre handle or selected pin
-moves the whole annotation live without distorting its geometry; mouse-up must
-create one Undo step. Choose Rotate for a line and boundary, confirm the
-highlighted rotation handle and guide update the geometry live, and confirm one
-Undo reverses only that rotation. A selected box, circle, or pin must explain
-that rotation is unavailable and show no rotation handle. Duplicate each
-selected type and confirm one offset copy appears directly above the source,
-preserves its text/style, becomes selected, and disappears with one Undo. Check
+one Undo must reverse only the latest completed drag. Duplicate each supported
+type and confirm one offset copy appears directly above the source, preserves
+its text, style, and angle, becomes selected, and disappears with one Undo. Check
 `Undo last point`,
 in-shape notes, custom shape and font colours, font size, and backward/forward
 layer ordering. Confirm input and slider changes do not trigger a save on every

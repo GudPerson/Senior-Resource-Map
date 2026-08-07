@@ -13,18 +13,30 @@ import L from 'leaflet';
 
 import {
     PRINT_ANNOTATION_TOOL_CIRCLE,
+    PRINT_ANNOTATION_TOOL_LINE,
     PRINT_ANNOTATION_TOOL_MOVE,
     PRINT_ANNOTATION_TOOL_POLYGON,
+    PRINT_ANNOTATION_TOOL_RECTANGLE,
     PRINT_ANNOTATION_TOOL_ROTATE,
+    buildPrintAnnotationRectanglePoints,
     getPrintAnnotationPointBoundsCenter,
     isPrintAnnotationRotationSupported,
+    normalizePrintAnnotationRotation,
     rotatePrintAnnotationPoints,
     translatePrintAnnotationPoints,
 } from '../lib/printAnnotations.js';
 
 function createTransformIcon(tool, color) {
     const label = tool === PRINT_ANNOTATION_TOOL_ROTATE ? 'Rotate annotation' : 'Move annotation';
-    const glyph = tool === PRINT_ANNOTATION_TOOL_ROTATE ? '&#8635;' : '&#10021;';
+    const glyph = tool === PRINT_ANNOTATION_TOOL_ROTATE
+        ? `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 11a8 8 0 1 0-2.35 5.65" />
+            <path d="M20 4v7h-7" />
+        </svg>`
+        : `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M2 12h20" />
+            <path d="m8 6 4-4 4 4M8 18l4 4 4-4M6 8l-4 4 4 4M18 8l4 4-4 4" />
+        </svg>`;
     return L.divIcon({
         className: 'carearound-print-annotation-transform',
         html: `<span
@@ -42,14 +54,12 @@ function createTransformIcon(tool, color) {
             display:flex;
             align-items:center;
             justify-content:center;
-            width:30px;
-            height:30px;
+            width:32px;
+            height:32px;
             border:3px solid #ffffff;
             border-radius:50%;
             background:${color};
             color:#ffffff;
-            font-size:18px;
-            font-weight:900;
             line-height:1;
             box-shadow:0 2px 7px rgba(15,23,42,.38);
         ">${glyph}</span></span>`,
@@ -81,6 +91,21 @@ function buildPointsPatch(annotation, points) {
         : { points };
 }
 
+function storesRotation(annotationType) {
+    return [
+        PRINT_ANNOTATION_TOOL_RECTANGLE,
+        PRINT_ANNOTATION_TOOL_CIRCLE,
+        PRINT_ANNOTATION_TOOL_POLYGON,
+    ].includes(annotationType);
+}
+
+function buildTransformPatch(annotation, points, rotationDegrees) {
+    return {
+        ...buildPointsPatch(annotation, points),
+        ...(storesRotation(annotation.type) ? { rotationDegrees } : {}),
+    };
+}
+
 function getTransformCenter(annotation, points) {
     if (annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE) {
         return points[0] || null;
@@ -93,12 +118,23 @@ function getRotationAngle(center, point) {
     return Math.atan2(point[0] - center[0], point[1] - center[1]) * (180 / Math.PI);
 }
 
-function getRotationHandlePosition(map, points, center) {
+function getRotationHandlePosition(map, annotation, points, center) {
     if (!center || !points.length) return center;
-    const projectedPoints = points.map(([lat, lng]) => map.latLngToContainerPoint([lat, lng]));
     const centerPoint = map.latLngToContainerPoint(center);
     const mapSize = map.getSize();
-    const top = Math.min(...projectedPoints.map((point) => point.y));
+    let top;
+    if (annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE && points.length === 2) {
+        const edgePoint = map.latLngToContainerPoint(points[1]);
+        top = centerPoint.y - centerPoint.distanceTo(edgePoint);
+    } else {
+        const displayPoints = annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE
+            ? buildPrintAnnotationRectanglePoints(points, annotation.rotationDegrees)
+            : points;
+        const projectedPoints = displayPoints.map(
+            ([lat, lng]) => map.latLngToContainerPoint([lat, lng]),
+        );
+        top = Math.min(...projectedPoints.map((point) => point.y));
+    }
     const handlePoint = L.point(
         Math.min(mapSize.x - 22, Math.max(22, centerPoint.x)),
         Math.min(mapSize.y - 22, Math.max(22, top - 46)),
@@ -116,16 +152,18 @@ export default function PrintAnnotationTransformHandle({
 }) {
     const map = useMap();
     const editablePoints = getEditablePoints(annotation);
+    const rotationDegrees = normalizePrintAnnotationRotation(annotation.rotationDegrees);
     const latestEditablePointsRef = useRef(editablePoints);
+    const latestRotationRef = useRef(rotationDegrees);
     const dragRef = useRef(null);
-    const pendingCommittedPointsRef = useRef(null);
+    const pendingCommittedTransformRef = useRef(null);
     const pendingPreviewRef = useRef(null);
     const previewFrameRef = useRef(null);
     const guideRef = useRef(null);
     const center = getTransformCenter(annotation, editablePoints);
     const rotationSupported = isPrintAnnotationRotationSupported(annotation.type);
     const handlePosition = tool === PRINT_ANNOTATION_TOOL_ROTATE
-        ? getRotationHandlePosition(map, editablePoints, center)
+        ? getRotationHandlePosition(map, annotation, editablePoints, center)
         : center;
     const transformIcon = useMemo(
         () => createTransformIcon(tool, annotation.style.color),
@@ -134,14 +172,15 @@ export default function PrintAnnotationTransformHandle({
 
     useEffect(() => {
         if (dragRef.current) return;
-        const pendingCommittedPoints = pendingCommittedPointsRef.current;
-        if (pendingCommittedPoints && !arePointsEqual(
-            editablePoints,
-            pendingCommittedPoints,
+        const pendingTransform = pendingCommittedTransformRef.current;
+        if (pendingTransform && (
+            !arePointsEqual(editablePoints, pendingTransform.points)
+            || rotationDegrees !== pendingTransform.rotationDegrees
         )) return;
-        pendingCommittedPointsRef.current = null;
+        pendingCommittedTransformRef.current = null;
         latestEditablePointsRef.current = editablePoints;
-    }, [editablePoints]);
+        latestRotationRef.current = rotationDegrees;
+    }, [editablePoints, rotationDegrees]);
 
     useEffect(() => () => {
         if (previewFrameRef.current) {
@@ -149,25 +188,42 @@ export default function PrintAnnotationTransformHandle({
         }
     }, []);
 
-    const buildNextPoints = useCallback((event) => {
+    const buildNextTransform = useCallback((event) => {
         const drag = dragRef.current;
-        if (!drag) return latestEditablePointsRef.current;
+        if (!drag) {
+            return {
+                points: latestEditablePointsRef.current,
+                rotationDegrees: latestRotationRef.current,
+            };
+        }
         const latLng = event.target.getLatLng();
         const target = [latLng.lat, latLng.lng];
         if (tool === PRINT_ANNOTATION_TOOL_MOVE) {
-            return translatePrintAnnotationPoints(drag.points, drag.center, target);
+            return {
+                points: translatePrintAnnotationPoints(drag.points, drag.center, target),
+                rotationDegrees: drag.rotationDegrees,
+            };
         }
         const nextAngle = getRotationAngle(drag.center, target);
-        return rotatePrintAnnotationPoints(
-            drag.points,
-            drag.center,
-            nextAngle - drag.startAngle,
-        );
-    }, [tool]);
+        const angleDelta = nextAngle - drag.startAngle;
+        const rotatesStoredGeometry = [
+            PRINT_ANNOTATION_TOOL_LINE,
+            PRINT_ANNOTATION_TOOL_POLYGON,
+        ].includes(annotation.type);
+        return {
+            points: rotatesStoredGeometry
+                ? rotatePrintAnnotationPoints(drag.points, drag.center, angleDelta)
+                : drag.points,
+            rotationDegrees: storesRotation(annotation.type)
+                ? normalizePrintAnnotationRotation(drag.rotationDegrees + angleDelta)
+                : drag.rotationDegrees,
+        };
+    }, [annotation.type, tool]);
 
-    const queuePreview = useCallback((nextPoints, event) => {
-        latestEditablePointsRef.current = nextPoints;
-        pendingPreviewRef.current = nextPoints;
+    const queuePreview = useCallback((nextTransform, event) => {
+        latestEditablePointsRef.current = nextTransform.points;
+        latestRotationRef.current = nextTransform.rotationDegrees;
+        pendingPreviewRef.current = nextTransform;
         if (tool === PRINT_ANNOTATION_TOOL_ROTATE) {
             const latLng = event.target.getLatLng();
             guideRef.current?.setLatLngs([
@@ -178,29 +234,43 @@ export default function PrintAnnotationTransformHandle({
         if (previewFrameRef.current) return;
         previewFrameRef.current = window.requestAnimationFrame(() => {
             previewFrameRef.current = null;
-            const pendingPoints = pendingPreviewRef.current;
+            const pendingTransform = pendingPreviewRef.current;
             pendingPreviewRef.current = null;
-            if (pendingPoints) onPreview?.(pendingPoints);
+            if (pendingTransform) {
+                onPreview?.(pendingTransform.points, pendingTransform.rotationDegrees);
+            }
         });
     }, [center, onPreview, tool]);
 
     const finishDrag = useCallback((event) => {
-        const nextPoints = buildNextPoints(event);
+        const nextTransform = buildNextTransform(event);
         if (previewFrameRef.current) {
             window.cancelAnimationFrame(previewFrameRef.current);
             previewFrameRef.current = null;
         }
         pendingPreviewRef.current = null;
-        latestEditablePointsRef.current = nextPoints;
-        pendingCommittedPointsRef.current = arePointsEqual(nextPoints, editablePoints)
-            ? null
-            : nextPoints;
-        onPreview?.(nextPoints);
+        latestEditablePointsRef.current = nextTransform.points;
+        latestRotationRef.current = nextTransform.rotationDegrees;
+        const changed = !arePointsEqual(nextTransform.points, editablePoints)
+            || nextTransform.rotationDegrees !== rotationDegrees;
+        pendingCommittedTransformRef.current = changed ? nextTransform : null;
+        onPreview?.(nextTransform.points, nextTransform.rotationDegrees);
         dragRef.current = null;
-        if (!arePointsEqual(nextPoints, editablePoints)) {
-            onUpdate?.(annotation.id, buildPointsPatch(annotation, nextPoints));
+        if (changed) {
+            onUpdate?.(annotation.id, buildTransformPatch(
+                annotation,
+                nextTransform.points,
+                nextTransform.rotationDegrees,
+            ));
         }
-    }, [annotation, buildNextPoints, editablePoints, onPreview, onUpdate]);
+    }, [
+        annotation,
+        buildNextTransform,
+        editablePoints,
+        onPreview,
+        onUpdate,
+        rotationDegrees,
+    ]);
 
     if (!center || (tool === PRINT_ANNOTATION_TOOL_ROTATE && !rotationSupported)) {
         return null;
@@ -237,10 +307,11 @@ export default function PrintAnnotationTransformHandle({
                         dragRef.current = {
                             center: dragCenter,
                             points,
+                            rotationDegrees: latestRotationRef.current,
                             startAngle: getRotationAngle(dragCenter, startPoint),
                         };
                     },
-                    drag: (event) => queuePreview(buildNextPoints(event), event),
+                    drag: (event) => queuePreview(buildNextTransform(event), event),
                     dragend: finishDrag,
                     click: stopTransformEvent,
                 }}
