@@ -15,9 +15,9 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-07 owner Print View annotation-tool refinement candidate
+## 2026-08-07 owner Print View annotation-tool refinement release
 
-- Candidate behavior: the owner Full-map Print View annotation toolbar no
+- Released behavior: the owner Full-map Print View annotation toolbar no
   longer offers the location-style `Label pin` creation tool. Existing saved
   pins remain compatible. The on-map Move and Rotate handles replace ambiguous
   text glyphs with clean four-arrow and single-clockwise-arrow SVG icons while
@@ -49,7 +49,7 @@ Rules:
   Duplicate each rotated area shape, wait for Saved, reload, and confirm visible
   and PNG/PDF export parity. Confirm any previously saved pin still renders and
   retains its non-creation actions.
-- Verification before user UAT: the new client and server contracts failed
+- Release verification: the new client and server contracts failed
   before implementation, then passed. Focused client/server annotation coverage
   passed 23/23; full client/source coverage passed 572/572; full server coverage
   passed 502/502; map-lockdown coverage passed 84/84; and the exact six-root
@@ -57,12 +57,32 @@ Rules:
   large-chunk advisories. A mocked-auth real-Leaflet built-app check confirmed
   the refined icons, live box rotation, circle-text-only rotation, Saved state,
   Undo availability, and correctly attached rotated-box adjustment handles.
-- Release state and gate: this candidate is local and uncommitted on
-  `codex/annotation-drawing-ux`; it has not been pushed or deployed. A future
-  authorized release must deploy and verify the additive Worker validator
-  before deploying the Pages client so new angles persist on first use.
-  Production still serves implementation
-  `d0f7662c052154127b08cd399b7e1ad64012c791` until that separate authorization.
+- Release state: implementation commit
+  `61182bf52f3760f052414cf0519c6ffa4388342b` is pushed on
+  `codex/annotation-drawing-ux`. Compatible Worker version
+  `9b06d6b5-e94e-4342-8ec2-8e3002d9c6e3` deployed first to
+  `api.carearound.sg`; its production health endpoint returned 200 JSON
+  `status: ok`. The exact validated `client/dist` then deployed to the Pages
+  production branch at `https://6c8562eb.senior-resource-map.pages.dev`.
+- Artifact verification: local, immutable Pages, and
+  `https://app.carearound.sg` copies returned 200 with matching bytes, SHA-256,
+  and MIME for `index.html` (`607ab090292079e4ae853d2b08cb267051583b1f4b1d6d027a66374ce8a9109c`),
+  entry JavaScript (`0bb6c16a0eb5a76af03f1d6d07f39c384fe08ee0e8d8f8a0f46feef09853098b`),
+  CSS (`5b514c320796df984cc22e19b072a6c68ae0c3acd0769c72f6b53a0f1e9c665b`),
+  My Map (`2029c510b0002739196356f0eddb0970cee3abcf975e21cb4e3930a8b7c162c2`),
+  map export (`55bdcad6ecb2006dea931d519e3a343822d894ff9655cc522096a3efa295352a`),
+  Shared Map (`18459689022a1273762214ac6b152bc6f4683756d2ae49ba5ffc6d7b096ce541`),
+  and shared distance runtime
+  (`762e6287fadc07932ed9b623dd1e027f952258ef7bf00b5de8653bd95a775cb6`).
+- Production acceptance: authenticated custom-domain smoke passed 6/6 across
+  login, resources, postal import, disposable-map creation/cleanup,
+  saved-resource navigation, and schedule editing. A second authenticated
+  disposable-map check saved rectangle angle 31, circle-note angle -42, and
+  polygon angle 76 through the deployed Worker; all three reloaded exactly as
+  revision advanced from 0 to 1. The temporary map was deleted in `finally`.
+  No UAT data remains. No database migration, table/API-route, auth,
+  permission, secret, map-asset, Shared Map visibility, or production-resource
+  change was deployed.
 
 ## 2026-08-07 owner Print View annotation transform tools release
 

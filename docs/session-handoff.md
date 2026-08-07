@@ -2,9 +2,9 @@
 
 Last updated: 2026-08-07 (Asia/Singapore)
 
-## Print View annotation-tool refinement (2026-08-07, local candidate)
+## Print View annotation-tool refinement (2026-08-07, production release)
 
-- The annotation toolbar locally removes only the `Label pin` creation option;
+- The annotation toolbar removes only the `Label pin` creation option;
   existing saved pins retain all compatibility paths. On-map Move and Rotate
   handles now use clear four-arrow and single-clockwise-arrow SVG icons with the
   existing 44-pixel targets.
@@ -23,10 +23,18 @@ Last updated: 2026-08-07 (Asia/Singapore)
   six-root production build. Mocked-auth built-app Leaflet UAT confirmed both
   refined icons, live box rotation, circle-text-only rotation, Saved/Undo state,
   and visible rotated-box control handles.
-- This candidate is uncommitted, unpushed, and undeployed on
-  `codex/annotation-drawing-ux`. A future authorized release must deploy and
-  verify the compatible Worker validator before the Pages client. Production
-  remains on implementation `d0f7662c052154127b08cd399b7e1ad64012c791`.
+- Implementation `61182bf52f3760f052414cf0519c6ffa4388342b` is pushed on
+  `codex/annotation-drawing-ux`. Compatible Worker version
+  `9b06d6b5-e94e-4342-8ec2-8e3002d9c6e3` deployed before the exact Pages build
+  at `https://6c8562eb.senior-resource-map.pages.dev`. Local, immutable Pages,
+  and `https://app.carearound.sg` HTML, entry, CSS, My Map, export, Shared Map,
+  and shared-runtime artifacts are byte-identical with correct MIME types.
+- Authenticated production smoke passed 6/6. A narrower disposable-map check
+  then saved and reloaded rotated rectangle, circle, and polygon annotations,
+  advanced revision 0 to 1, and deleted the temporary map. API health passed.
+  No temporary UAT data, database migration, table/API-route, auth, permission,
+  secret, map-asset, Shared Map visibility, or production-resource change
+  remains.
 
 ## Print View annotation transform tools (2026-08-07, production release)
 
