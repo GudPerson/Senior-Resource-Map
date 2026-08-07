@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-07 owner Print View Detailed-map transient-load stabilization
+## 2026-08-07 owner Print View Detailed-map transient-load stabilization release
 
 - Candidate behavior: owner My Map Print View uses the same locked fractional
   zoom-step resolver in both the Leaflet counter and the external print control
@@ -68,8 +68,39 @@ Rules:
   The same browser proved raw zoom `13.9` displayed `13` in both counters,
   zoom 15 rendered 18 native v2 layers and zero overview/live-tile layers, and
   zoom 14 rendered 48 overview v3 layers and zero native/live-tile layers
-  across the visible and hidden export maps. Production commit, deployment,
-  artifact parity, and authenticated custom-domain UAT remain the release gate.
+  across the visible and hidden export maps.
+- Release state: implementation commit `fd098c980` is pushed on
+  `codex/annotation-drawing-ux`. The feature-branch Pages preview deployed at
+  `https://5ecf7da4.senior-resource-map.pages.dev`; the identical validated
+  `client/dist` was explicitly published to the production branch at
+  `https://6ee1710f.senior-resource-map.pages.dev`.
+- Artifact verification: local, immutable production, and
+  `https://app.carearound.sg` copies returned 200 with matching bytes, SHA-256,
+  and MIME for `index.html`
+  (`42fb3394e86e29871a61d703e648d841474dff25b7e2ab1f86432ce18aefa243`),
+  entry JavaScript
+  (`77cde00bf4a761008cd1a78396176f52f0b213d1a5c84356d075f7ae5457255f`),
+  CSS (`5b514c320796df984cc22e19b072a6c68ae0c3acd0769c72f6b53a0f1e9c665b`),
+  My Map (`0b48c038b74f3072e489efb24d6393baf3a19ffb0f146e190a8ac719f5f1ae55`),
+  map export (`863ebe6062a9862b40cdf6be19f50ce2ef8219a97d70e85eed8f40890c2bc9f5`),
+  Shared Map (`92bd2d47beb400ba785acab3731aec9756432adf86ed51c5f0527106461be2c5`),
+  and shared distance runtime
+  (`bf7d312e2967c884cbbc0ff2751f0f133058fddbb5b5625fb7f18fa9918e7e97`).
+  The deployed bundle retained all six fixed-map roots and the locked map/export
+  markers; core routes returned 200 and the production API health endpoint
+  returned JSON `status: ok`.
+- Production acceptance: authenticated custom-domain smoke passed 6/6 across
+  public load, partner login/resources, postal import, disposable-map
+  creation/cleanup, saved-resource navigation, and schedule editing. Signed-in
+  Chrome UAT on the real 35-resource owner map 258 opened Print View at the
+  corrected contained level 13, then confirmed displayed zoom 14 in `town` /
+  `overview` mode with 12 v3 chunks and zero native/live tiles, and displayed
+  zoom 15 in `town` / `native` mode with 8 v2 chunks and zero overview/live
+  tiles. Map appearance showed Detailed selected and available, with no
+  unavailable notice or retry action in the healthy state. No production
+  failure was injected and no map content was mutated. No Worker/API, schema,
+  auth, permission, secret, R2 asset, Shared Map visibility, or production-data
+  change was deployed.
 
 ## 2026-08-07 owner Print View annotation-tool refinement release
 

@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-07 (Asia/Singapore)
 
-## Print View Detailed-map transient-load stabilization (2026-08-07, release candidate)
+## Print View Detailed-map transient-load stabilization (2026-08-07, production release)
 
 - Branch `codex/annotation-drawing-ux` contains a client-only stabilization for
   the owner My Map Print View. The external print zoom dock now uses the same
@@ -21,15 +21,21 @@ Last updated: 2026-08-07 (Asia/Singapore)
   proved terminal failure to user-triggered recovery, raw `13.9` to displayed
   `13`, native-only zoom 15, overview-only zoom 14, and zero live OneMap tiles
   under both Detailed tiers.
-- The current production reference remains annotation evidence commit
-  `699568b4a` and Pages deployment
-  `https://6c8562eb.senior-resource-map.pages.dev`. No commit, push, or deploy
-  for this stabilization has occurred yet. Before release, rerun the remaining
-  checklist gates, commit and push only the tracked stabilization files, deploy
-  the exact validated `client/dist` to Cloudflare Pages, verify immutable/custom
-  artifact parity, and run authenticated production UAT. No Worker/API, schema,
-  auth, permission, secret, R2 asset, Shared Map, or production-data change is
-  included.
+- Implementation `fd098c980` is pushed on `codex/annotation-drawing-ux`.
+  Feature preview `https://5ecf7da4.senior-resource-map.pages.dev` and explicit
+  production deployment `https://6ee1710f.senior-resource-map.pages.dev` use
+  the same validated build. Local, immutable production, and custom-domain
+  HTML, entry, CSS, My Map, export, Shared Map, and shared-runtime artifacts are
+  byte-identical with correct MIME types; all six map roots and locked bundle
+  markers remain present. Core routes and API health passed.
+- Authenticated production smoke passed 6/6 with its disposable map cleaned up.
+  Signed-in Chrome UAT on owner map 258 confirmed corrected contained level 13,
+  v3 overview-only Detailed at displayed zoom 14, v2 native-only Detailed at
+  displayed zoom 15, zero live OneMap tiles beneath both, and a healthy Detailed
+  selected state with no unavailable/retry UI. No production failure was
+  injected and no map content was mutated. No Worker/API, schema, auth,
+  permission, secret, R2 asset, Shared Map visibility, or production-data
+  change was deployed.
 
 ## Print View annotation-tool refinement (2026-08-07, production release)
 
