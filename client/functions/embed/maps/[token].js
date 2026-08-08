@@ -107,7 +107,7 @@ export async function buildEmbeddedMapResponse(context, fetchImpl = globalThis.f
         const configUrl = `${resolveApiBaseUrl(context.env)}/shared-maps/${encodeURIComponent(token)}/embed-config`;
         configResponse = await fetchImpl(configUrl, {
             headers: { Accept: 'application/json' },
-            redirect: 'error',
+            redirect: 'manual',
         });
     } catch {
         return buildUnavailableResponse(503);

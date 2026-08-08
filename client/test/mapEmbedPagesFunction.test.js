@@ -61,8 +61,8 @@ test('buildEmbedContentSecurityPolicy permits only self and approved ancestors',
 test('buildEmbeddedMapResponse serves the SPA with route-specific framing headers', async () => {
     const { context, assetRequests } = createContext();
     const apiRequests = [];
-    const response = await buildEmbeddedMapResponse(context, async (url) => {
-        apiRequests.push(String(url));
+    const response = await buildEmbeddedMapResponse(context, async (url, options) => {
+        apiRequests.push({ url: String(url), redirect: options?.redirect });
         return Response.json({
             allowedOrigins: ['https://www.example.org.sg'],
         });
@@ -71,7 +71,10 @@ test('buildEmbeddedMapResponse serves the SPA with route-specific framing header
     assert.equal(response.status, 200);
     assert.equal(await response.text(), '<!doctype html><div id="root"></div>');
     assert.deepEqual(apiRequests, [
-        'https://api.example.test/api/shared-maps/shared-token/embed-config',
+        {
+            url: 'https://api.example.test/api/shared-maps/shared-token/embed-config',
+            redirect: 'manual',
+        },
     ]);
     assert.deepEqual(assetRequests, ['https://app.carearound.sg/index.html']);
     assert.match(response.headers.get('content-security-policy') || '', /frame-ancestors 'self' https:\/\/www\.example\.org\.sg/);
