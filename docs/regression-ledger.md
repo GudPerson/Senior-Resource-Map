@@ -47,7 +47,7 @@ Rules:
   `Open resource` remain available. See `design-qa.md`.
 - Production release: implementation commit `1202b6938` is on
   `codex/owner-focus-card-surface-refinement` and `main`. The validated exact
-  six-root publication is `ef29dac0-8689-451a-935a-e4eb673e130f` at
+  six-root publication is `ef29dac0-1c82-4181-974f-491299a4bd00` at
   `https://ef29dac0.senior-resource-map.pages.dev`. All 80 public files match
   local, immutable Pages, and `https://app.carearound.sg` by MIME, bytes, and
   SHA-256 with aggregate

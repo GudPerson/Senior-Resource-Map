@@ -42,7 +42,7 @@ Date: 2026-08-08 (Asia/Singapore)
 - First controlled exact publication:
   `efd5f7ed-16d9-4018-99df-e39ea6d2c211`.
 - Accepted exact publication after the custom-domain alias converged:
-  `ef29dac0-8689-451a-935a-e4eb673e130f`.
+  `ef29dac0-1c82-4181-974f-491299a4bd00`.
 - Validated immutable URL: `https://ef29dac0.senior-resource-map.pages.dev`.
 - Production URL: `https://app.carearound.sg`.
 - No Worker deployment was performed because server behavior did not change.
