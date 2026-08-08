@@ -232,8 +232,9 @@ The release evidence proves:
     six-root production build, `git diff --check`, and secret/privacy review
     pass; and
 11. preview, immutable Pages/Worker artifacts, custom-domain artifact parity,
-    API health, external-host UAT, and authenticated production smoke pass
-    after explicit release approval.
+    API health, the inherited framing boundary, public smoke, and signed-in
+    focused UAT pass after explicit release approval; any unavailable
+    credentialed smoke cases are recorded rather than treated as passing.
 
 This goal document alone did not authorize deployment. The 2026-08-08 release
 was separately approved and passed the CareAround release checklist gates,
