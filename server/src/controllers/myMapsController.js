@@ -35,6 +35,7 @@ import {
 import { normalizeRole } from '../utils/roles.js';
 import { createShareToken } from '../utils/shareTokens.js';
 import { MAX_MAP_EMBED_ORIGINS, normalizeMapEmbedOrigins } from '../utils/mapEmbed.js';
+import { buildEmbeddedPrintAnnotationSnapshot } from './printAnnotationsController.js';
 import {
     optionalOneLineTextSchema,
     optionalTextSchema,
@@ -432,6 +433,7 @@ async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
                     },
                     orderBy: [asc(myMapPersonalPlaceLinks.addedAt), asc(myMapPersonalPlaceLinks.id)],
                 },
+                printAnnotationDocument: true,
             }
             : undefined,
     });
@@ -771,7 +773,12 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
                 eq(myMaps.userId, user.id)
             )
         );
-    await persistShareSnapshot(db, mapId, shareToken, sharedSnapshot, sharedAt);
+    await persistShareSnapshot(db, mapId, shareToken, {
+        ...sharedSnapshot,
+        embeddedAnnotations: buildEmbeddedPrintAnnotationSnapshot(
+            map.printAnnotationDocument?.annotations,
+        ),
+    }, sharedAt);
 
     const updated = await requireOwnedMap(db, user.id, mapId, true);
     return formatMyMapSummary(updated);

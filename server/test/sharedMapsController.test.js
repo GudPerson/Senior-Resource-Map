@@ -365,6 +365,21 @@ test('getSharedMapDirectory returns a clean unavailable error when a token is in
 });
 
 test('embedded map config and directory require live opt-in settings', async () => {
+    const embeddedAnnotation = {
+        id: 'annotation_shared',
+        type: 'pin',
+        points: [[1.38123, 103.75001]],
+        text: 'Public meeting point',
+        style: {
+            color: '#0F766E',
+            fillColor: '#14B8A6',
+            fillOpacity: 0.14,
+            weight: 3,
+            dashed: false,
+            textColor: '#0F172A',
+            fontSize: 14,
+        },
+    };
     const db = createFakeDb({
         maps: [createSharedMap({
             embedEnabled: true,
@@ -374,7 +389,10 @@ test('embedded map config and directory require live opt-in settings', async () 
         shareSnapshots: [{
             mapId: 3,
             shareToken: 'shared-token',
-            snapshot: createSnapshotDirectory(),
+            snapshot: createSnapshotDirectory({
+                embeddedAnnotations: [embeddedAnnotation],
+                printAnnotations: [{ id: 'untrusted-alias' }],
+            }),
         }],
         hardAsset: createHardAsset(),
     });
@@ -392,11 +410,15 @@ test('embedded map config and directory require live opt-in settings', async () 
     assert.equal(directory.share.embedEnabled, undefined);
     assert.equal(directory.share.embedAllowedOrigins, undefined);
     assert.equal(directory.personalPlaces, undefined);
-    assert.equal(directory.printAnnotations, undefined);
+    assert.deepEqual(directory.printAnnotations, [embeddedAnnotation]);
     assert.equal(directory.assets, undefined);
     assert.equal(directory.places[0].rows[0].notes, undefined);
     assert.equal(directory.places[0].rows[0].saveEligible, undefined);
     assert.equal(directory.places[0].rows[0].access, undefined);
+
+    const ordinarySharedDirectory = await getSharedMapDirectory(db, 'shared-token', GUEST_USER);
+    assert.equal(ordinarySharedDirectory.printAnnotations, undefined);
+    assert.equal(ordinarySharedDirectory.embeddedAnnotations, undefined);
 });
 
 test('embedded map stays unavailable while the normal shared map remains readable', async () => {

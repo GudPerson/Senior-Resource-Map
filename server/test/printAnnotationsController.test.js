@@ -3,12 +3,14 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 import {
+    buildEmbeddedPrintAnnotationSnapshot,
     getPrintAnnotationDocument,
+    normalizeEmbeddedPrintAnnotationSnapshot,
     PRINT_ANNOTATION_MAX_CONTROL_POINTS,
     replacePrintAnnotationDocument,
     validatePrintAnnotationDocumentInput,
 } from '../src/controllers/printAnnotationsController.js';
-import { myMapPrintAnnotationDocuments } from '../src/db/schema.js';
+import { myMapPrintAnnotationDocuments, myMaps } from '../src/db/schema.js';
 
 const OWNER = { id: 7, role: 'standard' };
 const MAP_ID = 3;
@@ -41,6 +43,7 @@ function createPolygon(overrides = {}) {
 function createFakeDb({ ownsMap = true } = {}) {
     const state = {
         document: null,
+        mapUpdatedAt: null,
     };
     return {
         state,
@@ -64,11 +67,15 @@ function createFakeDb({ ownsMap = true } = {}) {
             };
         },
         update(table) {
-            assert.equal(table, myMapPrintAnnotationDocuments);
+            assert.ok([myMapPrintAnnotationDocuments, myMaps].includes(table));
             return {
                 set(value) {
                     return {
                         where() {
+                            if (table === myMaps) {
+                                state.mapUpdatedAt = value.updatedAt;
+                                return Promise.resolve();
+                            }
                             state.document = { ...state.document, ...value };
                             return {
                                 returning: async () => [state.document],
@@ -267,6 +274,54 @@ test('owners can fetch and revision-save private print annotation documents', as
     );
 });
 
+test('embedded annotation snapshots are explicit, sanitized, and fail closed', () => {
+    const shared = createPolygon({
+        id: 'annotation_shared',
+        isShared: true,
+        text: 'Public meeting point',
+    });
+    const privateAnnotation = createPolygon({
+        id: 'annotation_private',
+        isShared: false,
+        text: 'Private planning note',
+    });
+
+    const snapshot = buildEmbeddedPrintAnnotationSnapshot([shared, privateAnnotation]);
+    assert.equal(snapshot.length, 1);
+    assert.equal(snapshot[0].id, 'annotation_shared');
+    assert.equal(Object.hasOwn(snapshot[0], 'isShared'), false);
+    assert.deepEqual(normalizeEmbeddedPrintAnnotationSnapshot(snapshot), snapshot);
+    assert.deepEqual(normalizeEmbeddedPrintAnnotationSnapshot([{ id: 'tampered' }]), []);
+});
+
+test('public annotation changes mark the shared snapshot stale while private-only edits do not', async () => {
+    const db = createFakeDb();
+    const sharedBody = validatePrintAnnotationDocumentInput({
+        schemaVersion: 1,
+        revision: 0,
+        annotations: [createPolygon({ isShared: true })],
+    });
+
+    await replacePrintAnnotationDocument(db, OWNER, MAP_ID, sharedBody);
+    assert.ok(db.state.mapUpdatedAt instanceof Date);
+
+    db.state.mapUpdatedAt = null;
+    const privateOnlyBody = validatePrintAnnotationDocumentInput({
+        schemaVersion: 1,
+        revision: 1,
+        annotations: [
+            createPolygon({ isShared: true }),
+            createPolygon({
+                id: 'annotation_private',
+                isShared: false,
+                text: 'Internal planning note',
+            }),
+        ],
+    });
+    await replacePrintAnnotationDocument(db, OWNER, MAP_ID, privateOnlyBody);
+    assert.equal(db.state.mapUpdatedAt, null);
+});
+
 test('guests and non-owners cannot read or mutate print annotations', async () => {
     const db = createFakeDb();
     await assert.rejects(
@@ -293,7 +348,7 @@ test('guests and non-owners cannot read or mutate print annotations', async () =
     );
 });
 
-test('shared map generation has no print annotation dependency and map deletion cascades', () => {
+test('shared map generation snapshots annotations without changing cascade or road-refinement boundaries', () => {
     const schemaSource = fs.readFileSync(new URL('../src/db/schema.js', import.meta.url), 'utf8');
     const sharedControllerSource = fs.readFileSync(
         new URL('../src/controllers/myMapsController.js', import.meta.url),
@@ -309,5 +364,7 @@ test('shared map generation has no print annotation dependency and map deletion 
         /my_map_print_annotation_documents[\s\S]*references\(\(\) => myMaps\.id, \{ onDelete: 'cascade' \}\)/,
     );
     assert.doesNotMatch(routeSource, /print-annotations\/refine-roads/);
-    assert.doesNotMatch(sharedControllerSource, /myMapPrintAnnotationDocuments|printAnnotationDocument/);
+    assert.match(sharedControllerSource, /buildEmbeddedPrintAnnotationSnapshot/);
+    assert.match(sharedControllerSource, /map\.printAnnotationDocument\?\.annotations/);
+    assert.doesNotMatch(sharedControllerSource, /refineBoundaryToRoad|openstreetmap-overpass/);
 });

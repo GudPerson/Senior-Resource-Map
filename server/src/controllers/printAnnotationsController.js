@@ -43,6 +43,7 @@ const annotationStyleSchema = z.object({
 const printAnnotationSchema = z.object({
     id: z.string().trim().min(1).max(80).regex(/^[a-z0-9_-]+$/i),
     type: z.enum(annotationTypes),
+    isShared: z.boolean().optional(),
     points: z.array(coordinateSchema).min(1).max(PRINT_ANNOTATION_MAX_POINTS),
     controlPoints: z.array(coordinateSchema)
         .min(3)
@@ -133,6 +134,31 @@ export function validatePrintAnnotationDocumentInput(body) {
     );
 }
 
+function normalizePrintAnnotationSnapshot(annotations) {
+    const parsed = replacePrintAnnotationsBodySchema.safeParse({
+        schemaVersion: PRINT_ANNOTATION_SCHEMA_VERSION,
+        annotations: Array.isArray(annotations) ? annotations : [],
+    });
+    return parsed.success ? parsed.data.annotations : [];
+}
+
+export function buildEmbeddedPrintAnnotationSnapshot(annotations) {
+    return normalizePrintAnnotationSnapshot(annotations)
+        .filter((annotation) => Boolean(annotation.isShared))
+        .map(({ isShared, ...annotation }) => {
+            void isShared;
+            return annotation;
+        });
+}
+
+export function normalizeEmbeddedPrintAnnotationSnapshot(annotations) {
+    return normalizePrintAnnotationSnapshot(annotations)
+        .map(({ isShared, ...annotation }) => {
+            void isShared;
+            return annotation;
+        });
+}
+
 function createHttpError(status, message) {
     const error = new Error(message);
     error.status = status;
@@ -199,6 +225,16 @@ export async function replacePrintAnnotationDocument(db, user, mapId, body) {
 
     const timestamp = new Date();
     const nextRevision = currentRevision + 1;
+    const publicSnapshotChanged = JSON.stringify(
+        buildEmbeddedPrintAnnotationSnapshot(current?.annotations),
+    ) !== JSON.stringify(
+        buildEmbeddedPrintAnnotationSnapshot(body.annotations),
+    );
+    if (publicSnapshotChanged) {
+        await db.update(myMaps)
+            .set({ updatedAt: timestamp })
+            .where(eq(myMaps.id, mapId));
+    }
     let saved;
     if (current) {
         [saved] = await db.update(myMapPrintAnnotationDocuments)

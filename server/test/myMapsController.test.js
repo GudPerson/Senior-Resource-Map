@@ -1492,6 +1492,48 @@ test('publishMyMap enables a reusable share link', async () => {
         'home care',
         'active ageing centre',
     ]);
+    assert.deepEqual(db.state.shareSnapshots[0].snapshot.embeddedAnnotations, []);
+});
+
+test('publishMyMap freezes only annotations explicitly marked for sharing', async () => {
+    const sharedAnnotation = {
+        id: 'annotation_shared',
+        type: 'pin',
+        isShared: true,
+        points: [[1.38123, 103.75001]],
+        text: 'Public meeting point',
+        style: {
+            color: '#0F766E',
+            fillColor: '#14B8A6',
+            fillOpacity: 0.14,
+            weight: 3,
+            dashed: false,
+            textColor: '#0F172A',
+            fontSize: 14,
+        },
+    };
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset()],
+        hardAsset: createHardAsset(),
+        printAnnotationDocuments: [{
+            id: 91,
+            mapId: 3,
+            schemaVersion: 1,
+            revision: 2,
+            annotations: [
+                sharedAnnotation,
+                { ...sharedAnnotation, id: 'annotation_private', isShared: false, text: 'Private note' },
+            ],
+        }],
+    });
+
+    await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+
+    const annotations = db.state.shareSnapshots[0].snapshot.embeddedAnnotations;
+    assert.equal(annotations.length, 1);
+    assert.equal(annotations[0].id, 'annotation_shared');
+    assert.equal(Object.hasOwn(annotations[0], 'isShared'), false);
 });
 
 test('publishMyMap snapshots only notes marked for sharing', async () => {

@@ -9,6 +9,7 @@ import { buildMyMapDirectory, normalizeMyMapAssetSnapshot } from '../utils/myMap
 import { normalizeRole } from '../utils/roles.js';
 import { translateSharedMapNotes } from '../utils/sharedNoteTranslations.js';
 import { isAssetVisible } from '../utils/visibility.js';
+import { normalizeEmbeddedPrintAnnotationSnapshot } from './printAnnotationsController.js';
 
 function createHttpError(status, message) {
     const error = new Error(message);
@@ -125,16 +126,25 @@ function createSnapshotViewerSummary(viewerUser, ownerUserId, mapName) {
     };
 }
 
-function normalizeSnapshotDirectory(map, viewerUser) {
+function normalizeSnapshotDirectory(map, viewerUser, { includeEmbeddedAnnotations = false } = {}) {
     const snapshot = map?.shareSnapshot?.snapshot;
     if (!snapshot || typeof snapshot !== 'object') return null;
+    const {
+        embeddedAnnotations,
+        printAnnotations,
+        ...sharedSnapshot
+    } = snapshot;
+    void printAnnotations;
     return {
-        ...snapshot,
+        ...sharedSnapshot,
+        ...(includeEmbeddedAnnotations ? {
+            printAnnotations: normalizeEmbeddedPrintAnnotationSnapshot(embeddedAnnotations),
+        } : {}),
         share: {
-            ...(snapshot.share || {}),
+            ...(sharedSnapshot.share || {}),
             isShared: true,
-            shareToken: map.shareToken || snapshot.share?.shareToken || null,
-            sharePath: map.shareToken ? `/shared/maps/${map.shareToken}` : snapshot.share?.sharePath || null,
+            shareToken: map.shareToken || sharedSnapshot.share?.shareToken || null,
+            sharePath: map.shareToken ? `/shared/maps/${map.shareToken}` : sharedSnapshot.share?.sharePath || null,
             shareIncludesHandoffNotes: false,
             shareUpdatedAt: map.shareUpdatedAt || snapshot.share?.shareUpdatedAt || null,
         },
@@ -240,9 +250,9 @@ function getSharedSnapshotAssets(directory) {
         .filter((asset) => asset.resourceType && Number.isInteger(asset.resourceId));
 }
 
-export async function getSharedMapDirectory(db, token, viewerUser) {
+export async function getSharedMapDirectory(db, token, viewerUser, options = {}) {
     const map = await requireSharedMap(db, token, true);
-    const snapshotDirectory = normalizeSnapshotDirectory(map, viewerUser);
+    const snapshotDirectory = normalizeSnapshotDirectory(map, viewerUser, options);
     if (snapshotDirectory) {
         return filterSnapshotDirectoryByLiveVisibility(db, snapshotDirectory);
     }
@@ -272,7 +282,9 @@ export async function getEmbeddedMapConfig(db, token) {
 
 export async function getEmbeddedMapDirectory(db, token) {
     await requireEmbeddedMap(db, token);
-    const directory = await getSharedMapDirectory(db, token, { role: 'guest' });
+    const directory = await getSharedMapDirectory(db, token, { role: 'guest' }, {
+        includeEmbeddedAnnotations: true,
+    });
     const places = (directory.places || []).map((place) => ({
         ...place,
         rows: (place.rows || []).map((row) => {
@@ -316,6 +328,7 @@ export async function getEmbeddedMapDirectory(db, token) {
             shareUpdatedAt: directory.share?.shareUpdatedAt || null,
         },
         places,
+        printAnnotations: directory.printAnnotations || [],
         viewer: {
             isAuthenticated: false,
             isOwner: false,
