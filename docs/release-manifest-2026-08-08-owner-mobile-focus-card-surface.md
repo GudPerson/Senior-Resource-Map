@@ -73,3 +73,22 @@ Rebuild prior source `19e3a191c` with the exact six production map roots and
 republish that validated `client/dist` to Pages `main`. Do not roll back the
 Worker, database, schema, or map assets because this release changes none of
 them.
+
+## 2026-08-09 Pages Function packaging recovery
+
+- The accepted static artifact remained correct, but the direct exact
+  republishes had been invoked from the repository root. Wrangler therefore
+  uploaded `client/dist` without discovering the route-specific Function in
+  `client/functions`, causing `/embed/maps/*` to inherit the ordinary app's
+  deliberate XFO DENY and `frame-ancestors 'none'` headers.
+- The unchanged artifact was first republished as preview
+  `7c1f67de-8ee6-47a8-9288-60696bf38808`, then as production
+  `0d2f2e51-72a1-4a2b-b1b2-f70cc78de56a`, with Wrangler rooted at `client`.
+  Final immutable URL: `https://0d2f2e51.senior-resource-map.pages.dev`.
+- The production embed route now has no XFO and sends exact
+  `frame-ancestors 'self' https://gudauth.app https://carearound.sg`; ordinary
+  routes still send XFO DENY and `frame-ancestors 'none'`. The 80 local,
+  immutable, and custom-domain static files match by MIME, bytes, and SHA-256.
+- Signed-in owner UAT on map 25 confirms the Share preview and pin-to-resource
+  interaction. Focused tests pass 10/10. No Worker, source, schema, auth,
+  share-settings, or data change was required.

@@ -15,6 +15,38 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-09 owner embed-preview Pages Function deployment recovery
+
+- Current behavior: the signed-in owner Share dialog again renders its
+  same-origin embedded-map preview. The embed document removes
+  `X-Frame-Options` only on `/embed/maps/*` and sends exact
+  `frame-ancestors 'self' https://gudauth.app https://carearound.sg`; ordinary
+  app routes retain `X-Frame-Options: DENY` and `frame-ancestors 'none'`.
+- Cause and blast radius: the client implementation and live map allowlist were
+  correct. The controlled static republishes ran `wrangler pages deploy
+  client/dist` from the repository root, so Wrangler uploaded the validated 80
+  assets but did not discover `client/functions`. The embed route then fell
+  through to ordinary SPA HTML and was correctly refused by the global
+  anti-framing headers. Recovery changes only Pages deployment packaging; no
+  source, Worker, schema, auth, map, share snapshot, allowlist, or resource data
+  changed.
+- Release-process lock: the standard `npm run deploy:client` remains correct
+  because it changes into `client` before invoking Wrangler. Any manual exact
+  artifact republish must likewise run from `client` or pass `--cwd client`;
+  successful output must include `Compiled Worker successfully`, `Uploading
+  Functions bundle`, and `Uploading _routes.json`. Do not republish
+  `client/dist` from the repository root without that Functions context.
+- Verification: the framing/function suite passes 10/10. Preview deployment
+  `7c1f67de-8ee6-47a8-9288-60696bf38808` proves the narrow embed headers and
+  unchanged ordinary-route anti-framing policy before production. Production
+  deployment `0d2f2e51-72a1-4a2b-b1b2-f70cc78de56a` serves all 80 static files
+  byte-for-byte with matching MIME and SHA-256 against local and the custom
+  domain. Signed-in Chrome UAT on map 25 confirms the Share preview renders the
+  map and a pin selection opens `Open resource`; no CareAround browser error is
+  recorded. The only console failures come from an unrelated Chrome extension.
+  API health and public routes return 200; no Worker was deployed. Evidence:
+  `output/release-logs/owner-embed-preview-function-recovery.png`.
+
 ## 2026-08-08 owner mobile focus-card surface refinement production release
 
 - Current behavior: the owner My Map mobile `complete-preview` focus state no

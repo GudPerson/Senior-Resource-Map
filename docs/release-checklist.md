@@ -99,6 +99,28 @@ The two print-master roots remain retained build-contract roots; the current
 stable UX does not expose a Print Master button. Omitting any of the six map
 roots is a rollback or dormant-contract change, not the normal production
 build, and `npm run deploy:client` rejects omission.
+
+CareAround Pages also contains the file-routed embed Function under
+`client/functions`. The standard `npm run deploy:client` is safe because it
+changes into `client` before running Wrangler. For a manual exact-artifact
+republish, use the same working-directory contract, for example:
+
+```bash
+npx wrangler pages deploy dist --cwd client \
+  --project-name senior-resource-map \
+  --branch=main \
+  --skip-caching
+```
+
+Do not run `wrangler pages deploy client/dist` from the repository root by
+itself. That uploads the static assets but omits `client/functions`. Before
+accepting the deploy, require Wrangler output for `Compiled Worker
+successfully`, `Uploading Functions bundle`, and `Uploading _routes.json`.
+Then verify an enabled `/embed/maps/:token` response has no
+`X-Frame-Options`, uses `no-store`, and has its exact route-specific
+`frame-ancestors` allowlist, while an ordinary app route still sends
+`X-Frame-Options: DENY` and `frame-ancestors 'none'`.
+
 For immediate asset rollback, rebuild with the retained islandwide v1 roots
 `/v1/islandwide` and `/v1/islandwide/gray` and set
 `VITE_ALLOW_TOWN_MAP_ROLLBACK=true`. The older W01-only roots `/v1/w01` and

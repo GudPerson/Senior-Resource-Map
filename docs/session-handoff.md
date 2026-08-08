@@ -1,6 +1,31 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-08-08 (Asia/Singapore)
+Last updated: 2026-08-09 (Asia/Singapore)
+
+## Owner embed-preview Pages Function recovery (2026-08-09, production)
+
+- The owner Share dialog preview briefly showed `app.carearound.sg refused to
+  connect`. The map and approved origins were intact; direct exact static
+  republishes had uploaded `client/dist` from the repository root and omitted
+  the file-routed Pages Function under `client/functions`. `/embed/maps/*`
+  therefore received ordinary SPA anti-framing headers.
+- Recovery was deployment-only. The unchanged 80-file artifact and the Pages
+  Function bundle were republished with Wrangler rooted at `client`. Preview
+  `7c1f67de-8ee6-47a8-9288-60696bf38808` passed first, followed by production
+  `0d2f2e51-72a1-4a2b-b1b2-f70cc78de56a` at
+  `https://0d2f2e51.senior-resource-map.pages.dev`.
+- Production `/embed/maps/*` now sends no XFO, `no-store`, and exact
+  `frame-ancestors 'self' https://gudauth.app https://carearound.sg`. Ordinary
+  routes retain XFO DENY and `frame-ancestors 'none'`. All 80 local,
+  immutable, and custom-domain files match by MIME, bytes, and SHA-256.
+- Signed-in Chrome UAT on existing map 25 confirms the Share preview renders
+  and selecting a pin opens its resource preview. The screenshot is
+  `output/release-logs/owner-embed-preview-function-recovery.png`. Focused
+  framing coverage passes 10/10; no CareAround browser error, source change,
+  Worker deploy, schema change, or map/data mutation occurred.
+- Manual exact republishes must run from `client` or pass `--cwd client` and
+  must show that Wrangler compiled and uploaded the Functions bundle and route
+  manifest. `npm run deploy:client` already follows this contract.
 
 ## Owner mobile focus-card surface refinement (2026-08-08, production release)
 
