@@ -2,6 +2,29 @@
 
 Last updated: 2026-08-08 (Asia/Singapore)
 
+## Embedded bubbles and owner mobile focus card (2026-08-08, release candidate)
+
+- On `codex/embed-bubbles-owner-focus-card`, the map-only embed now uses the
+  current category-bubble collision mode rather than the legacy numeric cluster
+  bubble. The owner V2 My Map mobile focus tray opts into the complete compact
+  resource card already proven by the embed.
+- The extracted card preserves logo/fallback, identity, optional public
+  Programme/Service count, hours or schedule, Website, phone, supported social
+  channels, and `Open resource`; the owner tray also retains the resource-note
+  action and SPA return path. Its full-map variant can scroll vertically inside
+  the existing 30svh safety bound.
+- The rollout is explicitly owner-mobile-only. Ordinary Shared Map focus
+  trays, desktop cards, Print View, frozen snapshots, Detailed surfaces, auth,
+  API, schema, membership, annotations, and exports are unchanged.
+- Gates pass: focused map/focus coverage 79/79, full client/source 590/590,
+  server 521/521, ordinary client build, map lockdown 84/84 plus the exact
+  six-root build, and `git diff --check`. Implementation commit `b9a750ec` is
+  ready for the Pages release gate; production UAT and artifact parity are not
+  yet claimed.
+- Preserve all unrelated untracked workspace files when continuing this
+  release. See
+  `docs/release-manifest-2026-08-08-embed-bubbles-owner-focus-card.md`.
+
 ## Embedded preview WWW and label refinement (2026-08-08, production release)
 
 - On `codex/embed-preview-www-refinement`, the embedded Website action uses a

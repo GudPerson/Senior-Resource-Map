@@ -15,6 +15,38 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-08 embedded bubble clustering and owner mobile focus-card release candidate
+
+- Current behavior: the map-only embed uses the same category-bubble collision
+  behavior as the current interactive My Map instead of the legacy numeric
+  cluster bubble. Selecting a pin in the signed-in owner My Map mobile view
+  opens the complete compact preview card: logo/fallback, name, address,
+  optional public Programme/Service count, hours or schedule, Website, phone,
+  supported social channels, `Open resource`, and the existing note action.
+- Architecture and blast radius: the clustering change is one embed-only
+  `DirectoryMap` prop. The complete focus card is a shared presentation
+  component with an explicit `complete-preview` variant enabled only by the
+  owner V2 My Map scaffold. Ordinary Shared Maps retain the established focus
+  card, desktop cards are unchanged, and Print View remains on its locked
+  layout. There is no Worker, API, schema, auth, snapshot, map-membership,
+  annotation, export, R2, or Detailed-map asset change.
+- Reproduction and acceptance: open an approved embed containing nearby pins
+  and confirm it renders category bubbles/collision spreading without legacy
+  numeric cluster markers. At a mobile viewport, open owned My Map 25, select a
+  mapped resource in normal and full-map modes, and confirm the complete card
+  and its available actions are visible without losing map-focus or note
+  behavior. Confirm an ordinary Shared Map and owner Print View keep their
+  existing card contracts.
+- Verification before deploy: focused map and focus-card coverage passes
+  79/79; full client/source coverage passes 590/590; full server coverage
+  passes 521/521; the ordinary client build passes; map lockdown passes 84/84
+  followed by the exact six-root production build; and `git diff --check`
+  passes. The only build advisory is the established stale browsers-data
+  notice. Production deployment and signed-in/mobile UAT remain release gates.
+- Candidate reference: implementation commit `b9a750ec` on
+  `codex/embed-bubbles-owner-focus-card`. See
+  `docs/release-manifest-2026-08-08-embed-bubbles-owner-focus-card.md`.
+
 ## 2026-08-08 embedded preview WWW and label refinement production release
 
 - Current behavior: the compact embedded-resource Website action now uses a
