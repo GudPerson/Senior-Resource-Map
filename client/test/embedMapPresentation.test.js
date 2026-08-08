@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import {
     buildEmbedCategoryOptions,
     buildEmbeddedMapPresentation,
+    filterEmbedDirectoryByCategories,
     findEmbedPreviewGroup,
     getEmbedListOnlyResourceCount,
+    shouldShowEmbedResourceName,
 } from '../src/lib/embedMapPresentation.js';
 
 function createDirectory() {
@@ -83,6 +85,67 @@ test('embedded map presentation filters pins by category and text query', () => 
     assert.equal(findEmbedPreviewGroup(presentation, 'mapped-1')?.rows[0]?.resourceId, 1);
 });
 
+test('selecting a Group category reveals its mapped member resources', () => {
+    const directory = createDirectory();
+    directory.places.push({
+        placeKey: 'unmapped-group-9',
+        name: 'ICCP CCK3',
+        hasCoordinates: false,
+        lat: null,
+        lng: null,
+        rows: [{
+            rowKey: 'soft-9',
+            assetKey: 'soft-9',
+            resourceType: 'soft',
+            resourceId: 9,
+            name: 'ICCP CCK3',
+            subCategory: 'Integrated Community Care Provider (ICCP)',
+            assetMode: 'group',
+            groupMemberAssetKeys: ['hard-1', 'hard-2', 'soft-404'],
+            mapFocusPlaceKeys: ['mapped-1', 'mapped-2', 'mapped-404'],
+        }],
+    });
+    directory.places[0].rows[0].assetKey = 'hard-1';
+    directory.places[1].rows[0].assetKey = 'hard-2';
+
+    const filtered = filterEmbedDirectoryByCategories(directory, [
+        'Integrated Community Care Provider (ICCP)',
+    ]);
+    const presentation = buildEmbeddedMapPresentation(directory, {
+        selectedCategoryKeys: ['Integrated Community Care Provider (ICCP)'],
+    });
+
+    assert.deepEqual(
+        filtered.places.map((place) => place.placeKey),
+        ['mapped-1', 'mapped-2', 'unmapped-group-9'],
+    );
+    assert.deepEqual(
+        presentation.mappedGroups.flatMap((group) => group.rows.map((row) => row.assetKey)).sort(),
+        ['hard-1', 'hard-2'],
+    );
+    assert.equal(presentation.pins.length, 2);
+});
+
 test('map-only presentation reports resources without coordinates separately', () => {
     assert.equal(getEmbedListOnlyResourceCount(createDirectory()), 1);
+});
+
+test('resource preview suppresses only a redundant single resource name', () => {
+    const singleGroup = {
+        name: 'Mapped care centre',
+        rows: [{ name: 'Mapped care centre' }],
+    };
+    assert.equal(shouldShowEmbedResourceName(singleGroup, singleGroup.rows[0]), false);
+
+    const hostedGroup = {
+        name: 'Mapped care centre',
+        rows: [{ name: 'Falls prevention workshop' }],
+    };
+    assert.equal(shouldShowEmbedResourceName(hostedGroup, hostedGroup.rows[0]), true);
+
+    const multiGroup = {
+        name: 'Mapped care centre',
+        rows: [{ name: 'Mapped care centre' }, { name: 'Meals service' }],
+    };
+    assert.equal(shouldShowEmbedResourceName(multiGroup, multiGroup.rows[0]), true);
 });

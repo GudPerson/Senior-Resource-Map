@@ -2,6 +2,33 @@
 
 Last updated: 2026-08-08 (Asia/Singapore)
 
+## Embedded-map contacts and Group filters (2026-08-08, local candidate)
+
+- On `codex/map-only-embed-v1`, the embed-only resource preview now removes a
+  redundant one-resource name/category repeat while preserving names that
+  distinguish hosted or multi-resource pins. It keeps the asset logo/fallback,
+  adds a compact website icon, visible tap-to-call phone number, brand-icon
+  social links, and the explicit resource link. The compact card uses available
+  map height at the documented 400x520 minimum instead of clipping its actions.
+- Contact data is a sanitized frozen snapshot created only by `Update shared
+  link`. It is applied only by the embed endpoint; ordinary Shared Map payloads
+  remain contact-free. Existing tokens require an intentional share update.
+  Email, WhatsApp, private notes, personal places, owner data, and unsafe URLs
+  are excluded.
+- Selecting a Group category now includes public Group members that are also
+  in the frozen shared map. New snapshots carry exact hard/soft member asset
+  keys; legacy hard-Place focus keys remain compatible. This does not add
+  out-of-map members or unrelated resources sharing a location.
+- Gates pass: focused client/server 9/9, server 520/520, client/source 574/574,
+  map lockdown 84/84, and the exact six-root production build. Mocked built-app
+  UAT at 400x520 confirms two Group-member pins remain visible and the compact
+  Website, phone, Facebook, and resource actions are accessible. Local
+  cross-origin Detailed-manifest CORS errors are expected preview-environment
+  noise; the regular map fallback remained usable.
+- This is an undeployed local candidate. It has not been staged, committed,
+  pushed, or released; use `docs/release-checklist.md` before any authorized
+  production deployment. Preserve the unrelated untracked workspace files.
+
 ## Embedded-map presentation enrichment (2026-08-08, production release)
 
 - Branch `codex/map-only-embed-v1` now contains compatible server commit

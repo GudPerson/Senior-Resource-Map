@@ -1480,6 +1480,15 @@ test('publishMyMap enables a reusable share link', async () => {
     const db = createFakeDb({
         maps: [createMap({ categoryOrder: ['home care', 'active ageing centre'] })],
         mapAssets: [createMapAsset()],
+        hardAsset: createHardAsset({
+            website: 'care.example.org',
+            phone: '+65 6000 1234',
+            socialLinks: {
+                facebook: 'https://facebook.com/care-example',
+                instagram: 'javascript:alert(1)',
+                linkedin: 'https://example.org/not-linkedin',
+            },
+        }),
     });
 
     const published = await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
@@ -1493,6 +1502,17 @@ test('publishMyMap enables a reusable share link', async () => {
         'active ageing centre',
     ]);
     assert.deepEqual(db.state.shareSnapshots[0].snapshot.embeddedAnnotations, []);
+    assert.deepEqual(db.state.shareSnapshots[0].snapshot.embeddedResourceContacts, {
+        'hard:29': {
+            website: 'https://care.example.org/',
+            contactPhone: '+65 6000 1234',
+            socialLinks: {
+                facebook: 'https://facebook.com/care-example',
+            },
+        },
+    });
+    assert.equal(db.state.shareSnapshots[0].snapshot.places[0].rows[0].website, undefined);
+    assert.equal(db.state.shareSnapshots[0].snapshot.places[0].rows[0].socialLinks, undefined);
 });
 
 test('publishMyMap freezes only annotations explicitly marked for sharing', async () => {

@@ -3,6 +3,10 @@ import { and, asc, eq } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { hardAssets, myMapAssetNotes, myMapAssets, myMaps } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import {
+    applyEmbeddedResourceContactSnapshot,
+    stripEmbeddedResourceContactsFromDirectory,
+} from '../utils/embeddedResourceContacts.js';
 import { normalizeMyMapCategoryOrder } from '../utils/myMapCategoryOrder.js';
 import { normalizeMapEmbedOrigins } from '../utils/mapEmbed.js';
 import { buildMyMapDirectory, normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
@@ -126,16 +130,20 @@ function createSnapshotViewerSummary(viewerUser, ownerUserId, mapName) {
     };
 }
 
-function normalizeSnapshotDirectory(map, viewerUser, { includeEmbeddedAnnotations = false } = {}) {
+function normalizeSnapshotDirectory(map, viewerUser, {
+    includeEmbeddedAnnotations = false,
+    includeEmbeddedResourceContacts = false,
+} = {}) {
     const snapshot = map?.shareSnapshot?.snapshot;
     if (!snapshot || typeof snapshot !== 'object') return null;
     const {
         embeddedAnnotations,
+        embeddedResourceContacts,
         printAnnotations,
         ...sharedSnapshot
     } = snapshot;
     void printAnnotations;
-    return {
+    const directory = {
         ...sharedSnapshot,
         ...(includeEmbeddedAnnotations ? {
             printAnnotations: normalizeEmbeddedPrintAnnotationSnapshot(embeddedAnnotations),
@@ -150,6 +158,9 @@ function normalizeSnapshotDirectory(map, viewerUser, { includeEmbeddedAnnotation
         },
         viewer: createSnapshotViewerSummary(viewerUser, map.userId, map.name),
     };
+    return includeEmbeddedResourceContacts
+        ? applyEmbeddedResourceContactSnapshot(directory, embeddedResourceContacts)
+        : stripEmbeddedResourceContactsFromDirectory(directory);
 }
 
 async function filterSnapshotDirectoryByLiveVisibility(db, directory) {
@@ -272,7 +283,9 @@ export async function getSharedMapDirectory(db, token, viewerUser, options = {})
         await persistSnapshotUpdates(db, snapshotUpdates);
     }
 
-    return directory;
+    return options.includeEmbeddedResourceContacts
+        ? directory
+        : stripEmbeddedResourceContactsFromDirectory(directory);
 }
 
 export async function getEmbeddedMapConfig(db, token) {
@@ -284,6 +297,7 @@ export async function getEmbeddedMapDirectory(db, token) {
     await requireEmbeddedMap(db, token);
     const directory = await getSharedMapDirectory(db, token, { role: 'guest' }, {
         includeEmbeddedAnnotations: true,
+        includeEmbeddedResourceContacts: true,
     });
     const places = (directory.places || []).map((place) => ({
         ...place,

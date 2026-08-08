@@ -391,6 +391,16 @@ test('embedded map config and directory require live opt-in settings', async () 
             shareToken: 'shared-token',
             snapshot: createSnapshotDirectory({
                 embeddedAnnotations: [embeddedAnnotation],
+                embeddedResourceContacts: {
+                    'hard:29': {
+                        website: 'https://care.example.org',
+                        contactPhone: '+65 6000 1234',
+                        socialLinks: {
+                            facebook: 'https://facebook.com/care-example',
+                            instagram: 'javascript:alert(1)',
+                        },
+                    },
+                },
                 printAnnotations: [{ id: 'untrusted-alias' }],
             }),
         }],
@@ -415,10 +425,19 @@ test('embedded map config and directory require live opt-in settings', async () 
     assert.equal(directory.places[0].rows[0].notes, undefined);
     assert.equal(directory.places[0].rows[0].saveEligible, undefined);
     assert.equal(directory.places[0].rows[0].access, undefined);
+    assert.equal(directory.places[0].rows[0].website, 'https://care.example.org/');
+    assert.equal(directory.places[0].rows[0].contactPhone, '+65 6000 1234');
+    assert.deepEqual(directory.places[0].rows[0].socialLinks, {
+        facebook: 'https://facebook.com/care-example',
+    });
 
     const ordinarySharedDirectory = await getSharedMapDirectory(db, 'shared-token', GUEST_USER);
     assert.equal(ordinarySharedDirectory.printAnnotations, undefined);
     assert.equal(ordinarySharedDirectory.embeddedAnnotations, undefined);
+    assert.equal(ordinarySharedDirectory.embeddedResourceContacts, undefined);
+    assert.equal(ordinarySharedDirectory.places[0].rows[0].website, undefined);
+    assert.equal(ordinarySharedDirectory.places[0].rows[0].contactPhone, undefined);
+    assert.equal(ordinarySharedDirectory.places[0].rows[0].socialLinks, undefined);
 });
 
 test('embedded map stays unavailable while the normal shared map remains readable', async () => {

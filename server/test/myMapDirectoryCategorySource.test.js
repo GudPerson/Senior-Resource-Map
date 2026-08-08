@@ -334,4 +334,5 @@ test('Group rows expose only direct public Place member keys for My Map focus', 
 
     assert.equal(groupRow.status, 'list_only');
     assert.deepEqual(groupRow.mapFocusPlaceKeys, ['hard-10']);
+    assert.deepEqual(groupRow.groupMemberAssetKeys, ['hard-10', 'soft-20']);
 });

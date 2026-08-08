@@ -21,6 +21,10 @@ import {
 } from './personalPlacesController.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
+    buildEmbeddedResourceContactSnapshot,
+    stripEmbeddedResourceContactsFromDirectory,
+} from '../utils/embeddedResourceContacts.js';
+import {
     createSavedAssetResolutionContext,
 } from '../utils/savedAssets.js';
 import {
@@ -773,11 +777,14 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
                 eq(myMaps.userId, user.id)
             )
         );
+    const embeddedResourceContacts = buildEmbeddedResourceContactSnapshot(sharedSnapshot);
+    const publicSharedSnapshot = stripEmbeddedResourceContactsFromDirectory(sharedSnapshot);
     await persistShareSnapshot(db, mapId, shareToken, {
-        ...sharedSnapshot,
+        ...publicSharedSnapshot,
         embeddedAnnotations: buildEmbeddedPrintAnnotationSnapshot(
             map.printAnnotationDocument?.annotations,
         ),
+        embeddedResourceContacts,
     }, sharedAt);
 
     const updated = await requireOwnedMap(db, user.id, mapId, true);

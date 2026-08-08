@@ -8,6 +8,7 @@ import {
 } from './eligibility.js';
 import { getSoftAssetLocations, isChildSoftAsset } from './softAssetHierarchy.js';
 import { groupPublicGroupMembers } from './softAssetGroups.js';
+import { normalizeEmbeddedResourceContact } from './embeddedResourceContacts.js';
 import { normalizeMyMapCategoryOrder } from './myMapCategoryOrder.js';
 import { isAssetVisible } from './visibility.js';
 
@@ -84,6 +85,10 @@ function normalizePlaceKeyList(values = []) {
     return keys;
 }
 
+function normalizeGroupMemberAssetKeys(values = []) {
+    return normalizePlaceKeyList(values).filter((key) => /^(?:hard|soft)-[1-9]\d*$/.test(key));
+}
+
 function hasCoordinates(source) {
     return parseCoordinate(source?.lat) !== null && parseCoordinate(source?.lng) !== null;
 }
@@ -124,6 +129,7 @@ function normalizePlaceSnapshot(place, fallbackIndex = 0) {
 
 function normalizeLegacySnapshot(resourceType, resourceId, snapshot) {
     const detailPath = normalizeText(snapshot?.detailPath) || buildDetailPath(resourceType, resourceId);
+    const contact = normalizeEmbeddedResourceContact(snapshot);
     return {
         version: 2,
         resourceType,
@@ -134,6 +140,9 @@ function normalizeLegacySnapshot(resourceType, resourceId, snapshot) {
         detailPath,
         descriptor: normalizeText(snapshot?.descriptor),
         logoUrl: normalizeText(snapshot?.logoUrl),
+        website: contact.website || null,
+        contactPhone: contact.contactPhone || null,
+        socialLinks: contact.socialLinks || {},
         availabilityEnabled: normalizeAvailabilityEnabled(snapshot?.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(snapshot?.availabilityCount),
         availabilityUnit: normalizeAvailabilityUnit(snapshot?.availabilityUnit),
@@ -147,6 +156,8 @@ export function normalizeMyMapAssetSnapshot(resourceType, resourceId, snapshot) 
     }
 
     if (Number(snapshot?.version) === 2 && Array.isArray(snapshot?.places)) {
+        const contact = normalizeEmbeddedResourceContact(snapshot);
+        const groupMemberAssetKeys = normalizeGroupMemberAssetKeys(snapshot?.groupMemberAssetKeys);
         return {
             version: 2,
             resourceType,
@@ -157,10 +168,14 @@ export function normalizeMyMapAssetSnapshot(resourceType, resourceId, snapshot) 
             detailPath: normalizeText(snapshot?.detailPath) || buildDetailPath(resourceType, resourceId),
             descriptor: normalizeText(snapshot?.descriptor),
             logoUrl: normalizeText(snapshot?.logoUrl),
+            website: contact.website || null,
+            contactPhone: contact.contactPhone || null,
+            socialLinks: contact.socialLinks || {},
             availabilityEnabled: normalizeAvailabilityEnabled(snapshot?.availabilityEnabled),
             availabilityCount: normalizeAvailabilityCount(snapshot?.availabilityCount),
             availabilityUnit: normalizeAvailabilityUnit(snapshot?.availabilityUnit),
             mapFocusPlaceKeys: normalizePlaceKeyList(snapshot?.mapFocusPlaceKeys),
+            ...(groupMemberAssetKeys.length ? { groupMemberAssetKeys } : {}),
             places: snapshot.places.map((place, index) => normalizePlaceSnapshot(place, index)),
         };
     }
@@ -194,12 +209,23 @@ function buildGroupMapFocusPlaceKeys(asset) {
         .filter(Boolean);
 }
 
+function buildGroupMemberAssetKeys(asset) {
+    const grouped = groupPublicGroupMembers(asset);
+    return normalizeGroupMemberAssetKeys([
+        ...grouped.places.map((member) => buildAssetKey('hard', member.id)),
+        ...grouped.programmes.map((member) => buildAssetKey('soft', member.id)),
+        ...grouped.services.map((member) => buildAssetKey('soft', member.id)),
+        ...grouped.promotions.map((member) => buildAssetKey('soft', member.id)),
+    ]);
+}
+
 export function buildMyMapAssetSnapshot(resourceType, asset) {
     if (!asset) {
         return normalizeLegacySnapshot(resourceType, 0, null);
     }
 
     if (resourceType === 'hard') {
+        const contact = normalizeEmbeddedResourceContact(asset);
         return {
             version: 2,
             resourceType,
@@ -210,6 +236,9 @@ export function buildMyMapAssetSnapshot(resourceType, asset) {
             detailPath: buildDetailPath('hard', asset.id),
             descriptor: getResourceDescriptor('hard', asset),
             logoUrl: normalizeText(asset.logoUrl),
+            website: contact.website || null,
+            contactPhone: contact.contactPhone || null,
+            socialLinks: contact.socialLinks || {},
             availabilityEnabled: false,
             availabilityCount: 0,
             availabilityUnit: null,
@@ -219,6 +248,8 @@ export function buildMyMapAssetSnapshot(resourceType, asset) {
 
     const places = getSoftAssetLocations(asset).map((place, index) => buildPlaceSnapshot(place, index));
     const mapFocusPlaceKeys = buildGroupMapFocusPlaceKeys(asset);
+    const groupMemberAssetKeys = buildGroupMemberAssetKeys(asset);
+    const contact = normalizeEmbeddedResourceContact(asset);
     return {
         version: 2,
         resourceType,
@@ -229,10 +260,14 @@ export function buildMyMapAssetSnapshot(resourceType, asset) {
         detailPath: buildDetailPath('soft', asset.id),
         descriptor: getResourceDescriptor('soft', asset),
         logoUrl: normalizeText(asset.logoUrl),
+        website: contact.website || null,
+        contactPhone: contact.contactPhone || null,
+        socialLinks: contact.socialLinks || {},
         availabilityEnabled: normalizeAvailabilityEnabled(asset.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(asset.availabilityCount),
         availabilityUnit: normalizeAvailabilityUnit(asset.availabilityUnit),
         mapFocusPlaceKeys,
+        ...(groupMemberAssetKeys.length ? { groupMemberAssetKeys } : {}),
         places: places.length > 0 ? places : [createFallbackPlace('soft', asset.id, null)],
     };
 }
@@ -252,6 +287,9 @@ const hardAssetQuery = {
         lat: true,
         lng: true,
         hours: true,
+        phone: true,
+        website: true,
+        socialLinks: true,
         logoUrl: true,
         isHidden: true,
         hideFrom: true,
@@ -301,6 +339,9 @@ const softAssetQuery = {
         description: true,
         schedule: true,
         venueNote: true,
+        contactPhone: true,
+        website: true,
+        socialLinks: true,
         logoUrl: true,
         audienceMode: true,
         isMemberOnly: true,
@@ -636,6 +677,9 @@ function buildRow({
         mapShortDescriptorHighlightColor: normalizeText(mapShortDescriptorHighlightColor),
         address: place.address || null,
         logoUrl: snapshot.logoUrl || fallbackLogoUrl || null,
+        website: snapshot.website || null,
+        contactPhone: snapshot.contactPhone || null,
+        socialLinks: snapshot.socialLinks || {},
         availabilityEnabled: normalizeAvailabilityEnabled(snapshot.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(snapshot.availabilityCount),
         availabilityUnit: normalizeAvailabilityUnit(snapshot.availabilityUnit),
@@ -645,6 +689,7 @@ function buildRow({
         access: status === 'unavailable' ? null : (snapshot.access || null),
         missingProfileFields: Array.isArray(snapshot.missingProfileFields) ? snapshot.missingProfileFields : [],
         ...(snapshot.mapFocusPlaceKeys?.length ? { mapFocusPlaceKeys: snapshot.mapFocusPlaceKeys } : {}),
+        ...(snapshot.groupMemberAssetKeys?.length ? { groupMemberAssetKeys: snapshot.groupMemberAssetKeys } : {}),
         assetKey: buildAssetKey(mapAsset.resourceType, mapAsset.resourceId),
         addedAt: mapAsset.addedAt ?? null,
         ...(notes ? { notes } : {}),

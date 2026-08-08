@@ -15,6 +15,57 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-08 embedded-map contact and Group-filter candidate
+
+- Candidate behavior: a selected embedded-map pin shows the place name and
+  address once. A one-resource preview no longer repeats that same name or its
+  category inside the card; multi-resource or differently named hosted rows
+  retain their distinguishing names. The row keeps its resource logo/fallback,
+  a compact website icon, a visible tap-to-call number, recognizable Facebook,
+  Instagram, TikTok, YouTube, and LinkedIn icon actions, and the explicit
+  `Open resource` link. At the documented 400x520 minimum, the preview may use
+  the available map height and scroll internally rather than clipping actions.
+- Group-filter behavior: selecting a Group category retains the Group's
+  list-only row and reveals each public member resource that is also present in
+  the frozen shared-map directory. Exact frozen `groupMemberAssetKeys` support
+  Place and Offering members after the next share update; legacy
+  `mapFocusPlaceKeys` continue to recover mapped Place members. Members absent
+  from the shared map and unrelated resources at the same location are not
+  added.
+- Snapshot and privacy boundary: website, public contact phone, and supported
+  social links are sanitized and frozen only when the owner uses `Update shared
+  link`. Existing live share tokens keep their prior snapshot until updated.
+  The fields are applied only to the embed response; the ordinary Shared Map
+  response remains contact-free. Email, WhatsApp, private notes, personal
+  places, owner tools, and live resource reads are not added. Unsafe URL
+  schemes, credentials, control characters, and malformed phone values are
+  removed.
+- Architecture and blast radius: the change is limited to My Map snapshot
+  normalization, the existing publish/update snapshot path, the embed-only
+  guest response, and embed presentation/filter helpers. There is no database
+  schema, route, auth, permission, framing, R2, Print View, annotation, export,
+  map membership, or ordinary Shared Map behavior change.
+- Reproduction and acceptance: update an owned shared link containing one
+  public Group and its mapped member resources, then open its approved iframe
+  at 400x520. Select the Group category and confirm the mapped count and pins
+  contain its in-map members rather than zero. Select one pin and confirm the
+  name/address appear once, the logo/fallback is present, the phone number is
+  visible and uses `tel:`, website/social actions use compact recognizable
+  icons, and `Open resource` remains available. Confirm an ordinary Shared Map
+  response does not contain the frozen contact fields.
+- Verification: focused red-to-green client/server coverage passes 9/9; full
+  server coverage passes 520/520; full client/source coverage passes 574/574;
+  map lockdown passes 84/84; and the exact six-root production build passes
+  with only the established browsers-data advisory. Mocked built-app UAT at
+  400x520 confirms a Group filter retains two mapped member pins and the
+  compact preview exposes Website, `tel:+6567695070`, Facebook, and `Open
+  resource` through accessible links. Local Detailed-manifest CORS failures
+  are expected in this cross-origin preview and did not affect the live-map
+  fallback or the asserted behavior.
+- Release state: local candidate only on `codex/map-only-embed-v1`; not staged,
+  committed, pushed, or deployed. A production release still requires the
+  normal release checklist and explicit deployment authorization.
+
 ## 2026-08-08 embedded-map presentation enrichment production release
 
 - Current behavior: the website embed reuses the production Detailed-map

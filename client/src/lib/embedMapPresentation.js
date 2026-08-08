@@ -13,6 +13,24 @@ function getRowCategoryKey(row = {}) {
     return normalizeMyMapCategoryKey(getRowCategoryLabel(row));
 }
 
+function getRowAssetKey(row = {}) {
+    const explicitKey = String(row.assetKey || '').trim();
+    if (explicitKey) return explicitKey;
+
+    const resourceType = String(row.resourceType || '').trim();
+    const resourceId = Number(row.resourceId);
+    return /^(?:hard|soft)$/.test(resourceType) && Number.isInteger(resourceId) && resourceId > 0
+        ? `${resourceType}-${resourceId}`
+        : '';
+}
+
+function addNormalizedKeys(target, values = []) {
+    (Array.isArray(values) ? values : []).forEach((value) => {
+        const key = String(value || '').trim();
+        if (key) target.add(key);
+    });
+}
+
 export function buildEmbedCategoryOptions(directory) {
     const categoryRank = buildMyMapCategoryRank(directory?.categoryOrder || []);
     const byKey = new Map();
@@ -44,13 +62,35 @@ export function filterEmbedDirectoryByCategories(directory, selectedCategoryKeys
     );
     if (!directory || selected.size === 0) return directory;
 
+    const groupMemberAssetKeys = new Set();
+    const groupMemberPlaceKeys = new Set();
+    for (const place of directory.places || []) {
+        for (const row of place.rows || []) {
+            if (!selected.has(getRowCategoryKey(row))) continue;
+            addNormalizedKeys(groupMemberAssetKeys, row.groupMemberAssetKeys);
+            addNormalizedKeys(groupMemberPlaceKeys, row.mapFocusPlaceKeys);
+        }
+    }
+
+    groupMemberPlaceKeys.forEach((key) => {
+        if (/^(?:hard|soft)-[1-9]\d*$/.test(key)) groupMemberAssetKeys.add(key);
+    });
+
     return {
         ...directory,
         places: (directory.places || [])
-            .map((place) => ({
-                ...place,
-                rows: (place.rows || []).filter((row) => selected.has(getRowCategoryKey(row))),
-            }))
+            .map((place) => {
+                const rows = (place.rows || []).filter((row) => (
+                    selected.has(getRowCategoryKey(row))
+                    || groupMemberAssetKeys.has(getRowAssetKey(row))
+                    || (
+                        groupMemberPlaceKeys.has(String(place.placeKey || '').trim())
+                        && row.resourceType === 'hard'
+                        && getRowAssetKey(row) === String(place.placeKey || '').trim()
+                    )
+                ));
+                return { ...place, rows };
+            })
             .filter((place) => place.rows.length > 0),
     };
 }
@@ -87,4 +127,13 @@ export function findEmbedPreviewGroup(presentation, placeKey) {
         String(group?.placeKey || '') === String(resolvedKey)
         || (group?.memberPlaceKeys || []).some((key) => String(key) === normalizedKey)
     )) || null;
+}
+
+export function shouldShowEmbedResourceName(group, row) {
+    const rows = Array.isArray(group?.rows) ? group.rows : [];
+    if (rows.length !== 1) return true;
+
+    const groupName = String(group?.name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    const resourceName = String(row?.name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    return !groupName || !resourceName || groupName !== resourceName;
 }
