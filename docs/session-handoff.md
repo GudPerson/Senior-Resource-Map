@@ -2,10 +2,10 @@
 
 Last updated: 2026-08-08 (Asia/Singapore)
 
-## Map-only website embed V1 (2026-08-08, local candidate)
+## Map-only website embed V1 (2026-08-08, production release)
 
 - Branch `codex/map-only-embed-v1` starts from deployed source base
-  `967cf183d`. The owner Share dialog now has opt-in Website embed settings for
+  `967cf183d`. The owner Share dialog has opt-in Website embed settings for
   exact approved origins, a live enable/disable switch, preview, and generated
   lazy iframe code. The frozen Shared Map snapshot remains authoritative;
   embedding fails closed without a matching snapshot, while ordinary Shared
@@ -17,35 +17,31 @@ Last updated: 2026-08-08 (Asia/Singapore)
   annotations, and embed settings. It keeps map name, category-bubble
   pins/clusters, search/categories, zoom/reset, selected resource preview,
   list-only disclosure, external-tab links, and attribution.
-- Global anti-framing headers remain locked. A Pages Function handles only
+- Global anti-framing remains locked. A Pages Function handles only
   `/embed/maps/*`, obtains the minimum live origin configuration, supplies a
   route-specific CSP and full Function-response security headers, removes XFO
   only there, and fails to a no-data unavailable document. Production origins
   are exact HTTPS origins; only loopback HTTP is allowed for UAT.
-- Current gates pass: focused 96/96, full server 517/517, full client 572/572,
-  map lockdown 84/84, and exact six-root build. Built-artifact browser UAT
-  passed desktop, mobile touch release, 900x520 layout, 399-pixel warning,
-  selected resource, list-only disclosure, and zero-error approved-parent
-  framing. A second origin was blocked by the expected `frame-ancestors` CSP.
-- Wrangler 4.120.0 compiled the Pages Function from `client/functions` and
-  generated only `/embed/maps/*`. The release manifest uses a server/schema
-  Commit A followed by client/docs Commit B so a possible main-branch Pages
-  build cannot expose the embed client before the compatible Worker is healthy.
-- The schema gate now has a narrow `bootstrap:map-embed-schema` command. It
-  reuses the full boundary bootstrap's two-column helper, applies only the
-  embed columns, and verifies them through `information_schema`.
-- Fresh rollback evidence confirms production API health and byte-identical
-  custom/immutable HTML at deployment `6ee1710f`, SHA-256
-  `42fb3394e86e29871a61d703e648d841474dff25b7e2ab1f86432ce18aefa243`;
-  the ordinary custom-domain shell still has CSP `frame-ancestors 'none'` and
-  XFO DENY.
-- This is not released. No schema apply, commit, push, Worker/Pages deployment,
-  or production mutation has occurred. Production schema bootstrap is disabled,
-  so the approved release order is explicit schema apply, compatible Worker,
-  exact Pages artifact, parity checks, authenticated owner UAT, external-host
-  UAT, and disposable cleanup. Preserve unrelated untracked files.
-  See `docs/release-manifest-2026-08-08-map-only-embed-v1.md` for the exact
-  main-line reconciliation, deployment, acceptance, and rollback order.
+- The narrow production schema gate verified exactly `embed_enabled` and
+  `embed_allowed_origins`. Server commit `0720e206d` deployed first as Worker
+  version `5604c307-7c70-45ec-98eb-1470d1e51576`; client commit `3d4c1a66b`
+  followed. Edge recovery `d57fdf35a` uses Cloudflare-supported manual redirect
+  handling, and owner-preview recovery `eaf06c32c` permits only same-origin
+  preview frames while ordinary pages keep `frame-ancestors 'none'` and XFO
+  DENY.
+- Final gates pass: server 517/517, client 587/587, map lockdown 84/84, exact
+  six-root build, and production smoke 6/6. Authenticated production UAT passes
+  owner preview, approved desktop, blocked unapproved origin, mobile touch
+  release, height warning, private-field exclusion, session parity, live origin
+  removal, disable/unpublish revocation, token rotation, and cleanup.
+- Exact Pages production is
+  `https://990a7047.senior-resource-map.pages.dev`. Its 80-file static manifest
+  and `https://app.carearound.sg` match the controlled build byte-for-byte at
+  SHA-256 `0302b635f630e85dfdf41955c47d86ea0a3e125aacbe18f8ab7a53cac604dc89`
+  with correct JS/CSS MIME types. Unknown embeds fail closed with 404/no-store.
+  All disposable maps were deleted and the mapped source fixture remained
+  private and unchanged. Preserve unrelated untracked files and see
+  `docs/release-manifest-2026-08-08-map-only-embed-v1.md` for rollback details.
 
 ## Print View Detailed-map transient-load stabilization (2026-08-07, production release)
 

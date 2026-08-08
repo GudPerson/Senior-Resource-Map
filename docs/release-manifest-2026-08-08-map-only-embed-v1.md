@@ -3,8 +3,27 @@
 - Date: 2026-08-08
 - Branch: `codex/map-only-embed-v1`
 - Candidate base: `967cf183dd5edaf42d2cdc21b5c04cc5a1ed4b3c`
-- Status: locally verified; commit, schema apply, push, deploy, and production
-  UAT remain approval-gated.
+- Status: released to production and verified.
+
+## Released sequence
+
+- Commit A `0720e206df60f513502b570aa91ab5073e719705` added the compatible
+  server/API and narrow schema helper.
+- Commit B `3d4c1a66beba84b8577f11d6e78403661b4a813d` added the owner UI,
+  guest-only map page, Pages Function, and candidate documentation.
+- Recovery `d57fdf35a011ae86615b4372fc9b6fd30cae3c8d` changed the Pages
+  Function config fetch from unsupported `redirect: error` to supported manual
+  redirect handling while preserving fail-closed responses.
+- Recovery `eaf06c32ccd8d43f42cfd1f5d9afc3d9dacb651a` added only `'self'`
+  to the existing `frame-src` directive so the owner Share preview can load;
+  ordinary `frame-ancestors 'none'` and XFO DENY remain unchanged.
+- Production schema verification found exactly the two approved embed columns.
+  Worker version `5604c307-7c70-45ec-98eb-1470d1e51576` deployed before the
+  embed client.
+- Exact Pages production is
+  `https://990a7047.senior-resource-map.pages.dev`; the custom domain and
+  immutable deployment match the controlled 80-file static manifest at
+  SHA-256 `0302b635f630e85dfdf41955c47d86ea0a3e125aacbe18f8ab7a53cac604dc89`.
 
 ## Release outcome
 
@@ -95,9 +114,10 @@ the rest of the boundary-schema catalogue.
 
 Do not print, copy, rotate, or summarize database credentials.
 
-## Deployment order
+## Executed deployment order
 
-All steps below require the user's explicit release approval.
+The approved release followed this server-first order. Two narrow recovery
+commits were then validated and deployed through the same Pages gate.
 
 1. Create Commit A and Commit B on `codex/map-only-embed-v1`, then push the
    feature branch for a durable reviewed reference.
@@ -143,26 +163,32 @@ All steps below require the user's explicit release approval.
 - Core production smoke and the locked owner My Map, Shared Map, Print View,
   Detailed map, annotation, export, auth, and resource flows remain healthy.
 
-## Current evidence
+## Production evidence
 
-- Focused embed/client/server/header coverage: 96/96.
-- Full client/source coverage: 572/572.
+- Full client/source coverage: 587/587.
 - Full server coverage: 517/517.
 - Map-lockdown coverage: 84/84.
 - Exact six-root production build: pass with only established advisories.
-- Built-artifact approved-parent browser check: pass with zero console output.
-- Built-artifact unapproved-parent check: blocked by exact CSP as expected.
-- `git diff --check` and scoped secret/privacy scan: pass.
-- Wrangler 4.120.0 Pages Function compilation: pass; generated routes include
-  only `/embed/maps/*`, and the bundle contains the config fetch, exact CSP,
-  asset binding, and fail-closed handler.
-- Fresh rollback baseline: production API health returned `status: ok`;
-  `https://app.carearound.sg` HTML was byte-identical to accepted immutable
-  deployment `https://6ee1710f.senior-resource-map.pages.dev` at SHA-256
-  `42fb3394e86e29871a61d703e648d841474dff25b7e2ab1f86432ce18aefa243`.
-  The live shell referenced `assets/index-Dk78yPIY.js` and
-  `assets/index-BltMdYHn.css` with correct JavaScript/CSS MIME, and ordinary
-  HTML retained `frame-ancestors 'none'` plus `X-Frame-Options: DENY`.
+- Production smoke: 6/6.
+- Authenticated owner and external-host UAT: pass for Share preview, embed code,
+  approved 900x520 desktop interaction, unapproved-parent CSP block, mobile
+  guard/Done/Escape, minimum-height warning, and mapped pin/resource preview.
+- Guest boundary and revocation UAT: pass for private-field exclusion,
+  authenticated/guest parity, exact response headers, live origin removal,
+  disablement while ordinary Shared Map remains readable, unpublish revocation,
+  republish token rotation, and disabled-by-default republish.
+- Exact static parity: all 80 files match local, immutable production, and
+  custom domain by MIME, bytes, and SHA-256. Aggregate manifest SHA-256 is
+  `0302b635f630e85dfdf41955c47d86ea0a3e125aacbe18f8ab7a53cac604dc89`.
+- Edge failure state: an unknown embed token returns Function-generated 404,
+  `Cache-Control: no-store`, and no XFO. Ordinary HTML retains
+  `frame-ancestors 'none'`, XFO DENY, and permits only same-origin plus Google
+  within `frame-src`.
+- Cleanup: all disposable map IDs used by release UAT return 404. The private
+  mapped source fixture remains private with the same one asset and one pin.
+  Temporary TLS and diagnostic files were moved to Trash. No existing user map,
+  resource, Shared Map snapshot, R2 object, auth setting, permission, or secret
+  changed.
 
 ## Rollback
 
