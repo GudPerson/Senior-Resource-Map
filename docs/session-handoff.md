@@ -25,8 +25,10 @@ Last updated: 2026-08-08 (Asia/Singapore)
   passes 1/1; five authenticated smoke cases lacked configured credentials and
   are not claimed as passed.
 - Implementation `b9a750ec` is pushed on the feature branch and `main`. After
-  the expected Git-build race, the exact six-root artifact was republished at
-  `https://f74778c3.senior-resource-map.pages.dev`. All 80 local, immutable,
+  the expected Git-build race, the exact six-root artifact was accepted at
+  `https://f74778c3.senior-resource-map.pages.dev`. A docs-only Git deployment
+  followed, so the identical artifact was finally republished at
+  `https://0f9629e7.senior-resource-map.pages.dev`. All 80 local, immutable,
   and custom-domain files match by MIME, bytes, and SHA-256 at aggregate
   `99468f3e9a667ed5f383c3eef6400d28e7a4b1f9fdc256396ac8b224cd500cb9`.
   API health, embed API/document, and Discover return 200. No Worker changed.

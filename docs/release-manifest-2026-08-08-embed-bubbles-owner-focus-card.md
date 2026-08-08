@@ -37,7 +37,10 @@ Date: 2026-08-08 (Asia/Singapore)
   `667d0f59-f04b-4ddb-bf04-650749d9d3fa`.
 - Accepted controlled six-root publication after the Git-build race settled:
   `f74778c3-d4b3-4451-8eb9-3141907b446c`.
-- Immutable URL: `https://f74778c3.senior-resource-map.pages.dev`.
+- Docs-only Git deployment: `ebfc3be0-a886-4c19-8619-5fe9823d2bc1`.
+- Final identical six-root republication after the release record was pushed:
+  `0f9629e7-2f72-4205-a26d-7dd996d66509`.
+- Final immutable URL: `https://0f9629e7.senior-resource-map.pages.dev`.
 - Production URL: `https://app.carearound.sg`.
 - No Worker deployment was performed because server behavior did not change.
 

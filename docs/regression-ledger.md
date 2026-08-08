@@ -50,9 +50,11 @@ Rules:
   credentialed cases were unavailable because the configured smoke username
   and password were absent and are not claimed as passed.
 - Production release: implementation commit `b9a750ec` is on
-  `codex/embed-bubbles-owner-focus-card` and `main`. The final controlled Pages
-  deployment is `f74778c3-d4b3-4451-8eb9-3141907b446c` at
-  `https://f74778c3.senior-resource-map.pages.dev`. All 80 public files match
+  `codex/embed-bubbles-owner-focus-card` and `main`. The accepted controlled
+  publication is `f74778c3-d4b3-4451-8eb9-3141907b446c`; after the release
+  record's docs-only Git build, the identical artifact was finally republished
+  as `0f9629e7-2f72-4205-a26d-7dd996d66509` at
+  `https://0f9629e7.senior-resource-map.pages.dev`. All 80 public files match
   local, immutable Pages, and `https://app.carearound.sg` by MIME, bytes, and
   SHA-256 with aggregate
   `99468f3e9a667ed5f383c3eef6400d28e7a4b1f9fdc256396ac8b224cd500cb9`.
