@@ -22,6 +22,18 @@ test('every supported UI locale defines the same keys as English', () => {
     }
 });
 
+test('embedded resource availability uses the compact Programmes / Services label', () => {
+    const dictionaries = readDictionaries();
+
+    assert.equal(
+        dictionaries.en.embedMapOpenProgrammeServiceCount,
+        '{{count}} Programmes / Services',
+    );
+    for (const { code } of LOCALES) {
+        assert.match(dictionaries[code].embedMapOpenProgrammeServiceCount, /\//);
+    }
+});
+
 test('recent user-facing UI labels do not fall back to English in supported translated locales', () => {
     const recentUiKeys = [
         'authHandoffTitle',

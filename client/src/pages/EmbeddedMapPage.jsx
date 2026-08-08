@@ -158,6 +158,15 @@ function EmbedSocialPlatformIcon({ platform, size = 19 }) {
     }
 }
 
+function WebsiteIconMark() {
+    return (
+        <span aria-hidden="true" className="inline-flex items-center gap-0.5 leading-none">
+            <Globe2 size={16} strokeWidth={2.1} className="shrink-0" />
+            <span className="text-[7px] font-black tracking-[0.03em]">WWW</span>
+        </span>
+    );
+}
+
 function ResourceContactLinks({ row, detailPath }) {
     const { t } = useLocale();
     const websiteHref = normalizeContactHref(row?.website);
@@ -169,7 +178,7 @@ function ResourceContactLinks({ row, detailPath }) {
     if (!websiteHref && !contactPhone && socialEntries.length === 0 && !detailPath) return null;
 
     return (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {websiteHref ? (
                 <a
                     href={websiteHref}
@@ -177,9 +186,9 @@ function ResourceContactLinks({ row, detailPath }) {
                     rel="noopener noreferrer"
                     aria-label={t('website')}
                     title={t('website')}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-brand-200 bg-brand-50 text-brand-700 transition hover:border-brand-300 hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:ring-offset-2"
+                    className="inline-flex h-11 w-[52px] items-center justify-center rounded-full border border-brand-200 bg-brand-50 px-1 text-brand-700 transition hover:border-brand-300 hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:ring-offset-2"
                 >
-                    <Globe2 size={19} aria-hidden="true" />
+                    <WebsiteIconMark />
                     <span className="sr-only">{t('website')}</span>
                 </a>
             ) : null}
