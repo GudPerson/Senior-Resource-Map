@@ -2,6 +2,35 @@
 
 Last updated: 2026-08-08 (Asia/Singapore)
 
+## Owner mobile focus-card surface refinement (2026-08-08, production release)
+
+- The owner My Map mobile `complete-preview` focus state now removes the
+  category icon/label and coloured outer tray. A single selected resource card
+  becomes the full-width visible focus surface; multi-resource focus retains
+  its horizontal card rail.
+- The rollout is guarded by the existing owner-only variant. Ordinary Shared
+  Maps retain their category pill and tray. Desktop cards, owner Print View,
+  embedded maps, pins, notes, actions, auth, API, snapshots, membership,
+  annotations, exports, and Detailed-map assets are unchanged.
+- Gates pass: focused map/focus coverage 79/79, full client/source 575/575,
+  full server 521/521, production smoke 6/6, ordinary client build, map
+  lockdown 84/84 plus the exact six-root build, and `git diff --check`.
+- Signed-in production Chrome UAT at 390 × 844 passes normal and full-map
+  modes. Both contain zero category elements, the card and tray each measure
+  370.8125 pixels wide, and client/scroll widths are both 371 pixels. The card
+  retains resource details, notes, and `Open resource` without horizontal
+  overflow. Production evidence is recorded in `design-qa.md`.
+- Implementation `1202b6938` is pushed on
+  `codex/owner-focus-card-surface-refinement` and `main`. The validated exact
+  artifact is `https://ef29dac0.senior-resource-map.pages.dev`; all 80 local,
+  immutable, and custom-domain files match by MIME, bytes, and SHA-256 at
+  aggregate
+  `a7841175b8b8e9f1fe2ddddf5f8b4dfd1edebd864460187354bf3ff0a18c7ec4`.
+  API health and Discover return 200. No Worker changed. See
+  `docs/release-manifest-2026-08-08-owner-mobile-focus-card-surface.md`.
+- Preserve unrelated untracked workspace files when continuing this release
+  line.
+
 ## Embedded bubbles and owner mobile focus card (2026-08-08, production release)
 
 - On `codex/embed-bubbles-owner-focus-card`, the map-only embed now uses the

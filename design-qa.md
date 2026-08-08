@@ -47,47 +47,45 @@ final result: passed
 
 - Source visual truth: `/Users/sweetbuns/Downloads/WhatsApp Image 2026-08-08 at 22.54.06.jpeg`
 - Requested delta: remove the category badge/label above the focused resource and remove the tinted outer tray so the resource preview card becomes the visible surface.
-- Browser-rendered implementation evidence: `/Users/sweetbuns/CareAroundSG/output/design-qa/owner-mobile-focus-card-local-auth-blocked.png`
+- Production normal-view evidence: `/Users/sweetbuns/CareAroundSG/output/release-logs/owner-focus-card-surface-production-390x844.png`
+- Production full-map evidence: `/Users/sweetbuns/CareAroundSG/output/release-logs/owner-focus-card-surface-production-full-map-390x844.png`
 - Target viewport: 390 × 844 CSS pixels.
 - Source pixels: 945 × 2048. The source is a higher-density Android capture and was assessed as a mobile reference, not resampled for pixel comparison.
 - Implementation pixels: 390 × 844 at the browser viewport's native capture density.
 - Target state: signed-in owner My Map with one selected mapped resource in the mobile focus tray.
-- Captured implementation state: local sign-in screen. The protected owner map redirected to `/login`, so the requested focused-resource state could not be rendered without a new authentication action.
+- Captured implementation states: signed-in production owner My Map 258 in normal and full-map modes with `Loving Heart Active Ageing Centre (229 Jurong East)` selected.
 
 ## Full-view comparison evidence
 
-The source clearly shows the redundant category header and tinted rounded tray around the complete resource preview. The implementation capture does not reach the owner map, so a visual before/after comparison of the requested state is unavailable. Source-level regression coverage confirms that the complete-preview variant now omits `DirectoryCategoryPill`, uses a visually neutral outer section, and stretches a single compact resource card to the available tray width, but this is not a substitute for rendered visual evidence.
+The source clearly shows the redundant category header and tinted rounded tray around the complete resource preview. Both production captures show the selected resource card directly against the page background with no intervening category header or coloured outer tray. Normal view keeps Map notes immediately below the card; full-map mode expands the map while preserving the same direct card surface below it.
 
 ## Focused-region comparison evidence
 
-Blocked for the same authentication reason: the local browser could not render the mobile focus-card region. No typography, spacing, token, asset, or copy fidelity claim is made from the sign-in capture.
+Production DOM measurement reports a 370.8125-pixel tray and a 370.8125-pixel card at the 390-pixel viewport. The tray reports `clientWidth: 371` and `scrollWidth: 371` in both normal and full-map modes, so the single card uses the available width without horizontal overflow. No category badge or category label element is present. The resource identity, address, hours, note affordance, and `Open resource` action remain visible.
 
 ## Findings
 
-- [P2] Protected focus-card state is not visually verified.
-  - Location: owner My Map mobile focus tray, normal and full-map modes.
-  - Evidence: the source visual contains the target region, while the local implementation capture is the sign-in screen.
-  - Impact: automated source and build checks cannot rule out a responsive spacing or overflow mismatch in the final rendered state.
-  - Fix: complete authenticated mobile UAT at 390 × 844, select a mapped resource, and capture both normal and full-map focus-card states.
+- No P0, P1, or P2 visual, accessibility, spacing, overflow, or content-hierarchy issue remains in the tested owner mobile states.
 
 ## Required fidelity surfaces
 
-- Fonts and typography: blocked in the target state.
-- Spacing and layout rhythm: code contract updated; rendered comparison blocked.
-- Colors and visual tokens: the complete-preview wrapper is neutral by contract; rendered comparison blocked.
-- Image quality and asset fidelity: existing resource logo behavior is unchanged; rendered comparison blocked.
-- Copy and content: the category label is removed by contract; resource-preview copy is unchanged; rendered comparison blocked.
+- Fonts and typography: existing resource-preview hierarchy remains legible at 390 × 844.
+- Spacing and layout rhythm: the preview card is the only focus surface and spans the available content width.
+- Colors and visual tokens: the redundant tinted outer surface is absent; existing card and action tokens are retained.
+- Image quality and asset fidelity: existing resource-logo behavior is unchanged and crisp at the tested viewport.
+- Copy and content: the category label is absent; resource identity, address, hours, notes, and `Open resource` remain available.
 
 ## Comparison history
 
-- Initial comparison: blocked because the protected local owner route redirected to sign-in. No visual fix iteration was possible without an authenticated target-state capture.
+- Initial local comparison was blocked because the protected owner route redirected to sign-in.
+- Final production comparison used the existing signed-in owner session and passed in normal and full-map modes.
 
 ## Implementation checklist
 
-- Authenticate the local owner route through the normal supported flow.
-- Select a mapped resource at 390 × 844.
-- Confirm there is no category badge/label and no tinted outer tray.
-- Confirm the resource preview card spans the focus area without horizontal overflow.
-- Repeat in full-map mode and check note and `Open resource` actions.
+- Authenticated owner route tested through the normal production session.
+- Mapped resource selected at 390 × 844.
+- No category badge/label or tinted outer tray observed.
+- Preview card spans the focus area with equal client and scroll widths.
+- Normal and full-map modes retain the resource content and actions.
 
-final result: blocked
+final result: passed

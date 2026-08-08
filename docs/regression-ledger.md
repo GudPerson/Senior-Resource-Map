@@ -15,9 +15,9 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-08 owner mobile focus-card surface refinement candidate
+## 2026-08-08 owner mobile focus-card surface refinement production release
 
-- Candidate behavior: the owner My Map mobile `complete-preview` focus state no
+- Current behavior: the owner My Map mobile `complete-preview` focus state no
   longer renders the category icon/label header or the tinted rounded tray
   behind the resource. One selected resource preview becomes the full-width
   visible focus surface. Multi-resource focus selections retain the horizontal
@@ -37,15 +37,24 @@ Rules:
   full-map mode, then confirm an ordinary Shared Map still shows its original
   category header and tray.
 - Verification: the focused map/focus-card suite passes 79/79; full client
-  coverage passes 575/575; map lockdown passes 84/84; `npm run build:client`
-  passes; and `git diff --check` passes. Authenticated browser comparison is
-  still required: local normal and Chrome sessions redirected the protected
-  route to sign-in, so `design-qa.md` records the visual gate as blocked rather
-  than claiming a rendered pass.
-- Release status: local release candidate only on
-  `codex/owner-focus-card-surface-refinement`. It has not been committed,
-  pushed, merged, or deployed; production remains on the preceding owner
-  complete-preview release.
+  coverage passes 575/575; full server coverage passes 521/521; map lockdown
+  passes 84/84 followed by the exact six-root production build;
+  `npm run build:client` and `git diff --check` pass. Production smoke passes
+  all 6/6 cases. Signed-in production Chrome UAT at 390 × 844 selects a mapped
+  resource in normal and full-map modes: category element count is zero, card
+  and tray widths both measure 370.8125 pixels, and client/scroll widths both
+  measure 371 pixels, proving there is no horizontal overflow. Map notes and
+  `Open resource` remain available. See `design-qa.md`.
+- Production release: implementation commit `1202b6938` is on
+  `codex/owner-focus-card-surface-refinement` and `main`. The validated exact
+  six-root publication is `ef29dac0-8689-451a-935a-e4eb673e130f` at
+  `https://ef29dac0.senior-resource-map.pages.dev`. All 80 public files match
+  local, immutable Pages, and `https://app.carearound.sg` by MIME, bytes, and
+  SHA-256 with aggregate
+  `a7841175b8b8e9f1fe2ddddf5f8b4dfd1edebd864460187354bf3ff0a18c7ec4`.
+  API health and Discover return 200. No Worker was deployed because no server
+  behavior changed. See
+  `docs/release-manifest-2026-08-08-owner-mobile-focus-card-surface.md`.
 
 ## 2026-08-08 embedded bubble clustering and owner mobile focus-card production release
 
