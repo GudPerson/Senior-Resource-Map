@@ -60,5 +60,6 @@ test('owners explicitly configure exact websites before copying iframe code', ()
 
 test('ordinary app routes keep the global anti-framing policy', () => {
     assert.match(headersSource, /frame-ancestors 'none'/);
+    assert.match(headersSource, /frame-src 'self' https:\/\/accounts\.google\.com/);
     assert.match(headersSource, /X-Frame-Options: DENY/);
 });
