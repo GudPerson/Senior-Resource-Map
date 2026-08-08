@@ -3,11 +3,12 @@
 - Date: 2026-08-08
 - Branch: `codex/map-only-embed-v1`
 - Base: `50306c949d`
-- Compatible Worker commit: `699b33ca`
-- Client commit: `bfd17423`
-- Status: release candidate; production verification pending.
+- Compatible Worker commit: `699b33caf5a20a9409483de9d70aae5e167ed182`
+- Client commit: `bfd174231`
+- Released implementation commit: `2033a36f7`
+- Status: production release verified on 2026-08-08.
 
-## Candidate outcome
+## Released outcome
 
 - The website embed automatically uses the locked Detailed-map v3 overview
   surface at displayed zoom 14 and v2 native surface at displayed zoom 15,
@@ -35,19 +36,28 @@ surface/index validators, and `PrintAnnotationLayer` in read-only mode. It does
 not add map style controls, download assets, live owner-data reads, geolocation,
 or editing to the iframe.
 
-## Required deployment order
+## Deployment record
 
-1. Push the feature branch as the reviewed reference.
-2. Fast-forward clean local `main` to `699b33ca`, push `main`, and deploy the
-   Worker from a clean checkout synchronized with `origin/main`.
-3. Verify API health plus unknown/disabled embed failure states.
-4. Fast-forward `main` to the final client/documentation commit and push.
-5. Build and deploy Pages with the production API URL and all six locked map
-   roots through `npm run deploy:client`.
-6. Verify local, immutable Pages, and custom-domain HTML/JS/CSS/lazy chunks by
-   MIME, bytes, and SHA-256 before browser acceptance.
-7. Run production smoke and disposable-map UAT, then update this manifest,
-   regression ledger, and handoff with exact release evidence.
+1. The Worker-compatible server commit was pushed to `main` and deployed
+   first. Production Worker version:
+   `10d07e2a-2d22-4dfc-8080-ed0d3aa72f59`.
+2. API health returned `200`/`status: ok`; an unknown embed returned `404`;
+   the existing owner map's ordinary Shared Map response remained
+   annotation-free and its embed response accepted the optional empty
+   `printAnnotations` field.
+3. `main` was fast-forwarded to `2033a36f7`, pushed, and built with the
+   production API URL and all six locked Detailed-map roots.
+4. The first controlled Pages deployment was `d4a59034`. The `main` push then
+   triggered automatic deployment `2bbe37de` without the locked build
+   environment and temporarily displaced it on the custom domain. The already
+   validated `client/dist` was republished after that automatic build
+   completed.
+5. The accepted production Pages deployment is
+   `https://d584a8d6.senior-resource-map.pages.dev`.
+6. All 80 public artifacts matched local `client/dist`, the accepted immutable
+   deployment, and `https://app.carearound.sg` by MIME, bytes, and SHA-256.
+   Aggregate SHA-256:
+   `2be419b82246c3674fb73691e40f028bd07251720d404a3bdc4a5c3bb92d5827`.
 
 ## Verification completed before deployment
 
@@ -59,7 +69,7 @@ or editing to the iframe.
 - Exact six-root production build: pass.
 - `git diff --check`: pass.
 
-## Production acceptance matrix
+## Production acceptance
 
 - Existing embed allowlist, iframe framing, guest-only payload, search,
   categories, pins/clusters, list-only disclosure, and revocation still work.
@@ -74,8 +84,22 @@ or editing to the iframe.
   link`. Unchecking and updating removes it from a fresh response.
 - The ordinary Shared Map endpoint/page remains annotation-free. An
   authenticated browser session does not change the embed payload.
-- Owner Print View annotation editing, autosave, duplicate, undo/redo,
-  PNG/PDF export, My Map, Shared Map, and core authenticated smoke remain green.
+- Public production smoke passed 1/1. The five authenticated smoke cases could
+  not start because `SMOKE_PARTNER_USERNAME` and `SMOKE_PARTNER_PASSWORD` were
+  not configured in the release environment; this release does not claim a
+  6/6 smoke run.
+- Signed-in Chrome UAT on existing owner map 25 confirmed current production
+  script loading, two v2 native Detailed chunks at displayed zoom 15, zero
+  live basemap tiles, and the expected Fei Yue Brickland logo in its selected
+  resource preview. The existing map and its snapshot were not mutated.
+- Disposable signed-in map 298 proved the complete annotation path: a drawn
+  line was private by default, became a sanitized read-only embed annotation
+  only after opting in and updating the shared link, and disappeared from a
+  fresh embed response after opting out and updating again. The ordinary
+  Shared Map endpoint never exposed `printAnnotations` or `isShared`.
+- The disposable map was unpublished and deleted. It is absent from My Maps,
+  and both `/api/shared-maps/:token` and `/api/shared-maps/:token/embed` return
+  `404` for its retired token.
 
 ## Rollback
 

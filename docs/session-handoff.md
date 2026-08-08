@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-08 (Asia/Singapore)
 
-## Embedded-map presentation enrichment (2026-08-08, release candidate)
+## Embedded-map presentation enrichment (2026-08-08, production release)
 
 - Branch `codex/map-only-embed-v1` now contains compatible server commit
   `699b33ca` and client commit `bfd17423`. The embed automatically uses the
@@ -20,8 +20,25 @@ Last updated: 2026-08-08 (Asia/Singapore)
   framing, My Map, Print View, export, and six-root contracts are preserved.
 - Local gates pass: focused server 59/59, focused client 93/93, server 520/520,
   client/source 587/587, map lockdown 84/84, exact six-root production build,
-  and `git diff --check`. Worker-first deployment, custom-domain artifact
-  parity, production smoke, and disposable-map acceptance remain pending.
+  and `git diff --check`. Worker version
+  `10d07e2a-2d22-4dfc-8080-ed0d3aa72f59` was deployed first.
+- Accepted Pages production is
+  `https://d584a8d6.senior-resource-map.pages.dev`. All 80 local, immutable,
+  and custom-domain artifacts match by MIME, bytes, and SHA-256; aggregate
+  SHA-256 is
+  `2be419b82246c3674fb73691e40f028bd07251720d404a3bdc4a5c3bb92d5827`.
+  A `main` push triggered automatic deployment `2bbe37de` without the locked
+  build environment after the first controlled deploy, so the validated dist
+  was deliberately republished after it completed. Keep this race in the
+  release gate for future client deploys.
+- Public smoke passed 1/1. The five authenticated smoke cases were not runnable
+  because their configured username/password were absent, so this release does
+  not claim 6/6. Signed-in Chrome UAT nevertheless proved the exact new paths:
+  Detailed native fixed layers with zero live tiles, selected-resource logo,
+  private-by-default annotation opt-in, frozen read-only rendering, opt-out
+  removal, and an annotation-free ordinary Shared Map. Disposable map 298 was
+  unpublished, deleted, removed from My Maps, and its retired public token now
+  returns 404 from both Shared Map API routes. Existing map 25 was read-only.
 - See `docs/release-manifest-2026-08-08-embedded-map-enrichment.md` for the
   deploy sequence, acceptance matrix, and rollback boundary.
 

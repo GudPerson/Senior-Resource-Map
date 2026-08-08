@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-08 embedded-map presentation enrichment release candidate
+## 2026-08-08 embedded-map presentation enrichment production release
 
 - Current behavior: the website embed reuses the production Detailed-map
   fixed surfaces automatically when the locked six-root build enables them.
@@ -55,13 +55,28 @@ Rules:
   annotation does not, and the ordinary Shared Map still has no annotation.
   Uncheck the shared annotation, update the shared link, and confirm it is no
   longer in a fresh embed response.
-- Pre-deploy verification: focused server coverage passes 59/59; focused
+- Verification: focused server coverage passes 59/59; focused
   embed/map/annotation client coverage passes 93/93; the full server suite
   passes 520/520; full client/source coverage passes 587/587; map lockdown
   passes 84/84; `git diff --check` passes; and the exact six-root production
-  build passes with only the established browsers-data advisory. Production
-  Worker, Pages, artifact parity, smoke, and disposable-map UAT remain the
-  release gates before this entry may be marked complete.
+  build passes with only the established browsers-data advisory. Worker
+  `10d07e2a-2d22-4dfc-8080-ed0d3aa72f59` and Pages
+  `https://d584a8d6.senior-resource-map.pages.dev` are live. All 80 local,
+  immutable, and custom-domain artifacts match by MIME, bytes, and SHA-256;
+  aggregate SHA-256 is
+  `2be419b82246c3674fb73691e40f028bd07251720d404a3bdc4a5c3bb92d5827`.
+  Automatic deployment `2bbe37de` briefly displaced the first controlled
+  deploy after the `main` push; the validated dist was republished only after
+  that build completed.
+- Production acceptance: public smoke passes 1/1. Five authenticated smoke
+  cases were not started because their configured credentials were absent, so
+  6/6 is not claimed. Signed-in Chrome UAT on existing map 25 confirmed two v2
+  native Detailed chunks at displayed zoom 15, zero live basemap tiles, and
+  the expected selected-resource logo without mutation. Disposable map 298
+  proved annotation opt-in, sanitized frozen read-only rendering, opt-out and
+  snapshot update removal, and the ordinary Shared Map's annotation-free
+  response. It was then unpublished and deleted; its retired token returns
+  404 from both public Shared Map API routes.
 
 ## 2026-08-08 map-only website embed V1 production release
 

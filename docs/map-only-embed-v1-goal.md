@@ -1,7 +1,8 @@
 # Map-only Embed V1 Goal
 
-Status: implementation contract locked for the active `codex/map-only-embed-v1`
-goal. This document does not authorize a production deployment.
+Status: production contract released and verified on 2026-08-08 from
+`codex/map-only-embed-v1`. The original approval boundary below remains as the
+historical implementation gate.
 
 ## Outcome
 
@@ -211,7 +212,7 @@ without changing current callers.
 
 ## Verification and release gates
 
-Implementation is not complete until current evidence proves:
+The release evidence proves:
 
 1. origin normalization rejects unsafe or ambiguous values;
 2. only the owner can change embed settings;
@@ -234,6 +235,8 @@ Implementation is not complete until current evidence proves:
     API health, external-host UAT, and authenticated production smoke pass
     after explicit release approval.
 
-No commit, push, Worker deploy, Pages deploy, schema apply, or production-data
-mutation is authorized merely by this goal document. Those actions remain
-subject to the CareAround release checklist and explicit user approval.
+This goal document alone did not authorize deployment. The 2026-08-08 release
+was separately approved and passed the CareAround release checklist gates,
+subject to the recorded limitation that five credentialed smoke cases could
+not start in the release environment; signed-in focused UAT covered the new
+presentation and privacy paths.
