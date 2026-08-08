@@ -4,6 +4,7 @@ import { getDb } from '../db/index.js';
 import { hardAssets, myMapAssetNotes, myMapAssets, myMaps } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizeMyMapCategoryOrder } from '../utils/myMapCategoryOrder.js';
+import { normalizeMapEmbedOrigins } from '../utils/mapEmbed.js';
 import { buildMyMapDirectory, normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
 import { normalizeRole } from '../utils/roles.js';
 import { translateSharedMapNotes } from '../utils/sharedNoteTranslations.js';
@@ -31,8 +32,8 @@ async function loadSharedMapByToken(db, token, includeAssets = false) {
             eq(myMaps.shareToken, token),
             eq(myMaps.isShared, true)
         ),
-        with: includeAssets
-            ? {
+        with: {
+            ...(includeAssets ? {
                 assets: {
                     columns: {
                         id: true,
@@ -50,9 +51,9 @@ async function loadSharedMapByToken(db, token, includeAssets = false) {
                         },
                     },
                 },
-                shareSnapshot: true,
-            }
-            : undefined,
+            } : {}),
+            shareSnapshot: true,
+        },
     });
 }
 
@@ -70,6 +71,28 @@ async function requireSharedMap(db, token, includeAssets = false) {
         throw createHttpError(404, 'This shared directory is no longer available');
     }
     return map;
+}
+
+async function requireEmbeddedMap(db, token, includeAssets = false) {
+    const map = await requireSharedMap(db, token, includeAssets);
+    let allowedOrigins = [];
+    try {
+        allowedOrigins = normalizeMapEmbedOrigins(map.embedAllowedOrigins);
+    } catch {
+        // Persisted settings that cannot produce a safe frame-ancestor list fail closed.
+    }
+    if (!map.embedEnabled || allowedOrigins.length === 0) {
+        throw createHttpError(404, 'This embedded map is no longer available');
+    }
+    if (
+        !map.shareSnapshot?.snapshot
+        || typeof map.shareSnapshot.snapshot !== 'object'
+        || Array.isArray(map.shareSnapshot.snapshot)
+        || map.shareSnapshot.shareToken !== map.shareToken
+    ) {
+        throw createHttpError(404, 'This embedded map is no longer available');
+    }
+    return { map, allowedOrigins };
 }
 
 async function resolveUniqueCopyName(db, userId, originalName) {
@@ -242,6 +265,67 @@ export async function getSharedMapDirectory(db, token, viewerUser) {
     return directory;
 }
 
+export async function getEmbeddedMapConfig(db, token) {
+    const { allowedOrigins } = await requireEmbeddedMap(db, token);
+    return { allowedOrigins };
+}
+
+export async function getEmbeddedMapDirectory(db, token) {
+    await requireEmbeddedMap(db, token);
+    const directory = await getSharedMapDirectory(db, token, { role: 'guest' });
+    const places = (directory.places || []).map((place) => ({
+        ...place,
+        rows: (place.rows || []).map((row) => {
+            const {
+                notes,
+                saveEligible,
+                access,
+                missingProfileFields,
+                addedAt,
+                mapShortDescriptors,
+                mapShortDescriptor,
+                mapShortDescriptorTextColor,
+                mapShortDescriptorHighlightColor,
+                ...embeddedRow
+            } = row;
+            void notes;
+            void saveEligible;
+            void access;
+            void missingProfileFields;
+            void addedAt;
+            void mapShortDescriptors;
+            void mapShortDescriptor;
+            void mapShortDescriptorTextColor;
+            void mapShortDescriptorHighlightColor;
+            return embeddedRow;
+        }),
+    }));
+
+    return {
+        id: directory.id,
+        name: directory.name,
+        description: directory.description || null,
+        createdAt: directory.createdAt || null,
+        updatedAt: directory.updatedAt || null,
+        categoryOrder: directory.categoryOrder || [],
+        summary: directory.summary,
+        share: {
+            isShared: true,
+            shareToken: directory.share?.shareToken || token,
+            sharePath: directory.share?.sharePath || `/shared/maps/${token}`,
+            shareUpdatedAt: directory.share?.shareUpdatedAt || null,
+        },
+        places,
+        viewer: {
+            isAuthenticated: false,
+            isOwner: false,
+            canSaveCopy: false,
+            canSaveResources: false,
+            copyDefaultName: null,
+        },
+    };
+}
+
 export async function copySharedMapToMyMaps(db, viewerUser, token) {
     assertCopyViewer(viewerUser);
     const map = await requireSharedMap(db, token, true);
@@ -371,6 +455,34 @@ export const getSharedMap = async (c) => {
     } catch (err) {
         console.error('getSharedMap Error:', err);
         return c.json({ error: err.message || 'Failed to fetch shared directory' }, err.status || 500);
+    }
+};
+
+export const getEmbeddedMapConfigRoute = async (c) => {
+    c.header('Cache-Control', 'no-store');
+    try {
+        const token = String(c.req.param('token') || '').trim();
+        if (!token) return c.json({ error: 'Share token is required' }, 400);
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        return c.json(await getEmbeddedMapConfig(db, token));
+    } catch (err) {
+        console.error('getEmbeddedMapConfigRoute Error:', err);
+        return c.json({ error: err.message || 'Embedded map is unavailable' }, err.status || 500);
+    }
+};
+
+export const getEmbeddedMap = async (c) => {
+    c.header('Cache-Control', 'no-store');
+    try {
+        const token = String(c.req.param('token') || '').trim();
+        if (!token) return c.json({ error: 'Share token is required' }, 400);
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        return c.json(await getEmbeddedMapDirectory(db, token));
+    } catch (err) {
+        console.error('getEmbeddedMap Error:', err);
+        return c.json({ error: err.message || 'Embedded map is unavailable' }, err.status || 500);
     }
 };
 

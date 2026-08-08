@@ -34,6 +34,7 @@ import {
 } from '../utils/myMapCategoryOrder.js';
 import { normalizeRole } from '../utils/roles.js';
 import { createShareToken } from '../utils/shareTokens.js';
+import { MAX_MAP_EMBED_ORIGINS, normalizeMapEmbedOrigins } from '../utils/mapEmbed.js';
 import {
     optionalOneLineTextSchema,
     optionalTextSchema,
@@ -110,6 +111,10 @@ const updateMyMapPersonalPlaceShortDescriptorBodySchema = z.object({
 
 const shareMyMapBodySchema = z.object({
     includeHandoffNotes: z.boolean().optional(),
+});
+const updateMyMapEmbedBodySchema = z.object({
+    enabled: z.boolean(),
+    allowedOrigins: z.array(z.string().trim().min(1).max(500)).max(MAX_MAP_EMBED_ORIGINS),
 });
 
 function createHttpError(status, message) {
@@ -226,6 +231,9 @@ function formatMyMapSummary(map) {
         sharePath: map.isShared && map.shareToken ? `/shared/maps/${map.shareToken}` : null,
         shareIncludesHandoffNotes: Boolean(map.shareIncludesHandoffNotes),
         shareUpdatedAt: map.shareUpdatedAt || null,
+        embedEnabled: Boolean(map.embedEnabled),
+        embedAllowedOrigins: Array.isArray(map.embedAllowedOrigins) ? map.embedAllowedOrigins : [],
+        embedPath: map.isShared && map.shareToken ? `/embed/maps/${map.shareToken}` : null,
         createdAt: map.createdAt,
         updatedAt: map.updatedAt,
     };
@@ -666,6 +674,53 @@ export async function updateMyMapCategoryOrder(db, user, mapId, body) {
     };
 }
 
+export async function updateMyMapEmbedSettings(db, user, mapId, body) {
+    assertDirectoryUser(user);
+    const map = await requireOwnedMap(db, user.id, mapId);
+    const allowedOrigins = normalizeMapEmbedOrigins(body?.allowedOrigins);
+    const enabled = Boolean(body?.enabled);
+
+    if (enabled && (!map.isShared || !map.shareToken)) {
+        throw createHttpError(409, 'Publish this map before enabling website embedding');
+    }
+    if (enabled && allowedOrigins.length === 0) {
+        throw createHttpError(400, 'Add at least one approved website before enabling embedding');
+    }
+    if (enabled) {
+        const shareSnapshot = await db.query.myMapShareSnapshots.findFirst({
+            where: and(
+                eq(myMapShareSnapshots.mapId, mapId),
+                eq(myMapShareSnapshots.shareToken, map.shareToken)
+            ),
+        });
+        if (
+            !shareSnapshot?.snapshot
+            || typeof shareSnapshot.snapshot !== 'object'
+            || Array.isArray(shareSnapshot.snapshot)
+            || shareSnapshot.shareToken !== map.shareToken
+        ) {
+            throw createHttpError(409, 'Update the shared link before enabling website embedding');
+        }
+    }
+
+    const updatedAt = new Date();
+    await db.update(myMaps)
+        .set({
+            embedEnabled: enabled,
+            embedAllowedOrigins: allowedOrigins,
+            updatedAt,
+        })
+        .where(
+            and(
+                eq(myMaps.id, mapId),
+                eq(myMaps.userId, user.id)
+            )
+        );
+
+    const updated = await requireOwnedMap(db, user.id, mapId, true);
+    return formatMyMapSummary(updated);
+}
+
 export async function publishMyMap(db, user, mapId, resolutionContext = null, options = {}) {
     assertDirectoryUser(user);
     const map = await requireOwnedMap(db, user.id, mapId, true);
@@ -731,6 +786,7 @@ export async function unpublishMyMap(db, user, mapId) {
             shareToken: null,
             shareIncludesHandoffNotes: false,
             shareUpdatedAt: new Date(),
+            embedEnabled: false,
             updatedAt: new Date(),
         })
         .where(
@@ -1169,6 +1225,27 @@ export const postMyMapShare = async (c) => {
     } catch (err) {
         console.error('postMyMapShare Error:', err);
         return c.json({ error: err.message || 'Failed to publish share link' }, err.status || 500);
+    }
+};
+
+export const patchMyMapEmbed = async (c) => {
+    try {
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const mapId = parseMapId(c.req.param('id'));
+        if (!mapId) {
+            return c.json({ error: 'Map id is required' }, 400);
+        }
+        const body = validateRequestBody(
+            await c.req.json(),
+            updateMyMapEmbedBodySchema,
+            'Website embed settings'
+        );
+        return c.json(await updateMyMapEmbedSettings(db, user, mapId, body));
+    } catch (err) {
+        console.error('patchMyMapEmbed Error:', err);
+        return c.json({ error: err.message || 'Failed to update website embed settings' }, err.status || 500);
     }
 };
 

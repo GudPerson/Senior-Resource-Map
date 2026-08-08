@@ -12,6 +12,7 @@ import {
     publishMyMap,
     renameMyMap,
     updateMyMapCategoryOrder,
+    updateMyMapEmbedSettings,
     updateMyMapPersonalPlace,
     updateMyMapPersonalPlaceShortDescriptor,
     updateMyMapAssetNotes,
@@ -78,6 +79,8 @@ function createMap(overrides = {}) {
         shareToken: null,
         shareIncludesHandoffNotes: false,
         shareUpdatedAt: null,
+        embedEnabled: false,
+        embedAllowedOrigins: [],
         categoryOrder: [],
         createdAt: new Date('2026-03-14T10:00:00.000Z'),
         updatedAt: new Date('2026-03-14T10:00:00.000Z'),
@@ -1402,6 +1405,77 @@ test('updateMyMapCategoryOrder keeps owner authorization intact', async () => {
     );
 });
 
+test('updateMyMapEmbedSettings enables a published map for normalized approved origins', async () => {
+    const db = createFakeDb({
+        maps: [createMap({ isShared: true, shareToken: 'live-token' })],
+        shareSnapshots: [{
+            mapId: 3,
+            shareToken: 'live-token',
+            snapshot: { name: 'Published map' },
+        }],
+    });
+
+    const updated = await updateMyMapEmbedSettings(db, DEFAULT_USER, 3, {
+        enabled: true,
+        allowedOrigins: [
+            'https://WWW.Example.org.sg/',
+            'https://www.example.org.sg',
+            'https://staging.example.org.sg',
+        ],
+    });
+
+    assert.equal(updated.embedEnabled, true);
+    assert.deepEqual(updated.embedAllowedOrigins, [
+        'https://www.example.org.sg',
+        'https://staging.example.org.sg',
+    ]);
+    assert.equal(updated.embedPath, '/embed/maps/live-token');
+});
+
+test('updateMyMapEmbedSettings requires a published map and an approved origin', async () => {
+    const privateDb = createFakeDb({ maps: [createMap()] });
+    await assert.rejects(
+        () => updateMyMapEmbedSettings(privateDb, DEFAULT_USER, 3, {
+            enabled: true,
+            allowedOrigins: ['https://www.example.org.sg'],
+        }),
+        (error) => error.status === 409,
+    );
+
+    const sharedDb = createFakeDb({
+        maps: [createMap({ isShared: true, shareToken: 'live-token' })],
+    });
+    await assert.rejects(
+        () => updateMyMapEmbedSettings(sharedDb, DEFAULT_USER, 3, {
+            enabled: true,
+            allowedOrigins: [],
+        }),
+        (error) => error.status === 400,
+    );
+
+    await assert.rejects(
+        () => updateMyMapEmbedSettings(sharedDb, DEFAULT_USER, 3, {
+            enabled: true,
+            allowedOrigins: ['https://www.example.org.sg'],
+        }),
+        (error) => error.status === 409 && /Update the shared link/.test(error.message),
+    );
+});
+
+test('updateMyMapEmbedSettings preserves owner authorization', async () => {
+    const db = createFakeDb({
+        maps: [createMap({ isShared: true, shareToken: 'live-token' })],
+    });
+
+    await assert.rejects(
+        () => updateMyMapEmbedSettings(db, { id: 9, role: 'guest' }, 3, {
+            enabled: true,
+            allowedOrigins: ['https://www.example.org.sg'],
+        }),
+        (error) => error.status === 403,
+    );
+});
+
 test('publishMyMap enables a reusable share link', async () => {
     const db = createFakeDb({
         maps: [createMap({ categoryOrder: ['home care', 'active ageing centre'] })],
@@ -1492,9 +1566,14 @@ test('publishMyMap excludes owner-only resource short descriptors', async () => 
     assert.deepEqual(snapshot.places[0].rows[0].mapShortDescriptors, []);
 });
 
-test('unpublishMyMap clears the active share token', async () => {
+test('unpublishMyMap clears the active share token and disables embedding', async () => {
     const db = createFakeDb({
-        maps: [createMap({ isShared: true, shareToken: 'live-token' })],
+        maps: [createMap({
+            isShared: true,
+            shareToken: 'live-token',
+            embedEnabled: true,
+            embedAllowedOrigins: ['https://www.example.org.sg'],
+        })],
         mapAssets: [createMapAsset()],
     });
 
@@ -1502,6 +1581,8 @@ test('unpublishMyMap clears the active share token', async () => {
 
     assert.equal(unpublished.isShared, false);
     assert.equal(unpublished.shareToken, null);
+    assert.equal(unpublished.embedEnabled, false);
+    assert.deepEqual(unpublished.embedAllowedOrigins, ['https://www.example.org.sg']);
 });
 
 test('republishMyMap generates a fresh token after a map is unpublished', async () => {
@@ -1516,6 +1597,7 @@ test('republishMyMap generates a fresh token after a map is unpublished', async 
     assert.equal(unpublished.isShared, false);
     assert.equal(unpublished.shareToken, null);
     assert.equal(republished.isShared, true);
+    assert.equal(republished.embedEnabled, false);
     assert.equal(typeof republished.shareToken, 'string');
     assert.notEqual(republished.shareToken, 'live-token');
 });

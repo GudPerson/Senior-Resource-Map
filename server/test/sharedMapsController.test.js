@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { copySharedMapToMyMaps, getSharedMapDirectory } from '../src/controllers/sharedMapsController.js';
+import {
+    copySharedMapToMyMaps,
+    getEmbeddedMapConfig,
+    getEmbeddedMapDirectory,
+    getSharedMapDirectory,
+} from '../src/controllers/sharedMapsController.js';
 import { myMapAssetNotes, myMapAssets, myMaps } from '../src/db/schema.js';
 
 const GUEST_USER = { role: 'guest' };
@@ -18,6 +23,8 @@ function createSharedMap(overrides = {}) {
         shareToken: 'shared-token',
         shareIncludesHandoffNotes: false,
         shareUpdatedAt: new Date('2026-03-20T09:00:00.000Z'),
+        embedEnabled: false,
+        embedAllowedOrigins: [],
         createdAt: new Date('2026-03-19T09:00:00.000Z'),
         updatedAt: new Date('2026-03-20T09:00:00.000Z'),
         ...overrides,
@@ -354,6 +361,94 @@ test('getSharedMapDirectory returns a clean unavailable error when a token is in
             assert.equal(err.message, 'This shared directory is no longer available');
             return true;
         }
+    );
+});
+
+test('embedded map config and directory require live opt-in settings', async () => {
+    const db = createFakeDb({
+        maps: [createSharedMap({
+            embedEnabled: true,
+            embedAllowedOrigins: ['https://www.example.org.sg'],
+        })],
+        mapAssets: [createMapAsset()],
+        shareSnapshots: [{
+            mapId: 3,
+            shareToken: 'shared-token',
+            snapshot: createSnapshotDirectory(),
+        }],
+        hardAsset: createHardAsset(),
+    });
+
+    assert.deepEqual(
+        await getEmbeddedMapConfig(db, 'shared-token'),
+        { allowedOrigins: ['https://www.example.org.sg'] },
+    );
+
+    const directory = await getEmbeddedMapDirectory(db, 'shared-token');
+    assert.equal(directory.viewer.isAuthenticated, false);
+    assert.equal(directory.viewer.isOwner, false);
+    assert.equal(directory.viewer.canSaveCopy, false);
+    assert.equal(directory.viewer.canSaveResources, false);
+    assert.equal(directory.share.embedEnabled, undefined);
+    assert.equal(directory.share.embedAllowedOrigins, undefined);
+    assert.equal(directory.personalPlaces, undefined);
+    assert.equal(directory.printAnnotations, undefined);
+    assert.equal(directory.assets, undefined);
+    assert.equal(directory.places[0].rows[0].notes, undefined);
+    assert.equal(directory.places[0].rows[0].saveEligible, undefined);
+    assert.equal(directory.places[0].rows[0].access, undefined);
+});
+
+test('embedded map stays unavailable while the normal shared map remains readable', async () => {
+    const db = createFakeDb({
+        maps: [createSharedMap({ embedEnabled: false })],
+        mapAssets: [createMapAsset()],
+        hardAsset: createHardAsset(),
+    });
+
+    await assert.rejects(
+        () => getEmbeddedMapConfig(db, 'shared-token'),
+        (error) => error.status === 404,
+    );
+    await assert.rejects(
+        () => getEmbeddedMapDirectory(db, 'shared-token'),
+        (error) => error.status === 404,
+    );
+
+    const directory = await getSharedMapDirectory(db, 'shared-token', GUEST_USER);
+    assert.equal(directory.name, 'Neighbourhood support');
+});
+
+test('embedded map fails closed when persisted origins are not safe CSP sources', async () => {
+    const db = createFakeDb({
+        maps: [createSharedMap({
+            embedEnabled: true,
+            embedAllowedOrigins: ['https://*.example.org.sg'],
+        })],
+        shareSnapshots: [{
+            mapId: 3,
+            shareToken: 'shared-token',
+            snapshot: createSnapshotDirectory(),
+        }],
+    });
+
+    await assert.rejects(
+        () => getEmbeddedMapConfig(db, 'shared-token'),
+        (error) => error.status === 404,
+    );
+});
+
+test('embedded map fails closed without a matching frozen share snapshot', async () => {
+    const db = createFakeDb({
+        maps: [createSharedMap({
+            embedEnabled: true,
+            embedAllowedOrigins: ['https://www.example.org.sg'],
+        })],
+    });
+
+    await assert.rejects(
+        () => getEmbeddedMapConfig(db, 'shared-token'),
+        (error) => error.status === 404,
     );
 });
 

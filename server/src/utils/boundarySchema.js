@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { ensureMapEmbedSchema } from './mapEmbedSchema.js';
 
 let ensureBoundarySchemaPromise = null;
 let ensureGroupAssetSchemaPromise = null;
@@ -138,6 +139,8 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     share_token VARCHAR(64),
                     share_includes_handoff_notes BOOLEAN NOT NULL DEFAULT FALSE,
                     share_updated_at TIMESTAMP,
+                    embed_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                    embed_allowed_origins JSONB NOT NULL DEFAULT '[]'::jsonb,
                     category_order JSONB NOT NULL DEFAULT '[]'::jsonb,
                     created_at TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
@@ -148,6 +151,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS share_token VARCHAR(64)`);
             await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS share_includes_handoff_notes BOOLEAN NOT NULL DEFAULT FALSE`);
             await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS share_updated_at TIMESTAMP`);
+            await ensureMapEmbedSchema(db);
             await db.execute(sql`ALTER TABLE my_maps ADD COLUMN IF NOT EXISTS category_order JSONB NOT NULL DEFAULT '[]'::jsonb`);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_map_assets (

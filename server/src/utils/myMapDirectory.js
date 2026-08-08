@@ -1104,6 +1104,13 @@ export async function buildMyMapDirectory(db, {
                 sharePath: map.shareToken ? `/shared/maps/${map.shareToken}` : null,
                 shareIncludesHandoffNotes: Boolean(map.shareIncludesHandoffNotes),
                 shareUpdatedAt: map.shareUpdatedAt || null,
+                ...(mode === 'owner' ? {
+                    embedEnabled: Boolean(map.embedEnabled),
+                    embedAllowedOrigins: Array.isArray(map.embedAllowedOrigins)
+                        ? map.embedAllowedOrigins
+                        : [],
+                    embedPath: map.shareToken ? `/embed/maps/${map.shareToken}` : null,
+                } : {}),
             },
             assets: assetSummaries,
             personalPlaces: personalPlaceSummaries,
