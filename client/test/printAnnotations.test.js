@@ -201,6 +201,7 @@ test('shape rotation is normalized, persisted only for supported area shapes, an
     assert.equal(circle.rotationDegrees, -45);
     assert.equal(Object.hasOwn(line, 'rotationDegrees'), false);
     assert.equal(duplicate.rotationDegrees, 90);
+    assert.equal(duplicate.isShared, false);
 });
 
 test('annotation duplication preserves content, offsets geometry, and creates a new id', () => {
@@ -397,6 +398,10 @@ test('annotation capture and local draft keys are stable and owner scoped', () =
         getPrintAnnotationCaptureKey([annotation]),
         getPrintAnnotationCaptureKey(normalizePrintAnnotations([annotation])),
     );
+    assert.equal(
+        getPrintAnnotationCaptureKey([{ ...annotation, isShared: true }]),
+        getPrintAnnotationCaptureKey([{ ...annotation, isShared: false }]),
+    );
     assert.equal(getAnnotationLocalDraftKey(7, 258), 'carearound:print-annotations:7:258');
     assert.equal(getAnnotationLocalDraftKey('guest', 258), '');
 });
@@ -516,6 +521,8 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(toolbarSource, /selectedAnnotation\.type === PRINT_ANNOTATION_TOOL_PIN/);
     assert.match(layerSource, /function PinAnnotation/);
     assert.match(toolbarSource, /Duplicate annotation/);
+    assert.match(toolbarSource, /Share this annotation/);
+    assert.match(toolbarSource, /public only after you update the shared link/);
     assert.match(toolbarSource, /Drag the highlighted centre handle/);
     assert.match(toolbarSource, /circle outline stays unchanged/);
     assert.match(layerSource, /buildPrintAnnotationRectanglePoints/);

@@ -3,9 +3,13 @@ import { ExternalLink, RotateCcw, Search, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 
 import DirectoryMap from '../components/DirectoryMap.jsx';
+import { FIXED_TOWN_SURFACE_MIN_ZOOM } from '../components/FixedTownSurfaceLayer.jsx';
+import PrintAnnotationLayer from '../components/PrintAnnotationLayer.jsx';
 import BrandLockup from '../components/layout/BrandLockup.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { useEmbeddedDetailedMap } from '../hooks/useEmbeddedDetailedMap.js';
 import { fetchEmbeddedMap } from '../lib/embedMapApi.js';
+import { normalizePrintAnnotations } from '../lib/printAnnotations.js';
 import {
     buildEmbedCategoryOptions,
     buildEmbeddedMapPresentation,
@@ -64,6 +68,35 @@ function EmbeddedMapUnavailable({ retryable, onRetry }) {
     );
 }
 
+function ResourcePreviewLogo({ row }) {
+    const imageUrls = [row?.logoUrl, row?.mapCategoryIconUrl, row?.categoryIconUrl]
+        .map((value) => String(value || '').trim())
+        .filter((value, index, values) => value && values.indexOf(value) === index);
+    const imageSignature = imageUrls.join('|');
+    const [failedImageCount, setFailedImageCount] = useState(0);
+
+    useEffect(() => {
+        setFailedImageCount(0);
+    }, [imageSignature]);
+
+    const imageUrl = imageUrls[failedImageCount] || '';
+    const fallbackLabel = String(row?.name || '').trim().slice(0, 1).toUpperCase() || 'C';
+
+    return (
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-sm font-extrabold text-slate-500">
+            {imageUrl ? (
+                <img
+                    src={imageUrl}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-contain p-1"
+                    onError={() => setFailedImageCount((current) => current + 1)}
+                />
+            ) : fallbackLabel}
+        </span>
+    );
+}
+
 function ResourcePreview({ group, fullMapUrl, onClose }) {
     const { t } = useLocale();
     const rows = group?.rows || [];
@@ -90,10 +123,13 @@ function ResourcePreview({ group, fullMapUrl, onClose }) {
             <div className="mt-3 space-y-2">
                 {rows.slice(0, 4).map((row) => {
                     const content = (
-                        <>
-                            <span className="block font-bold text-slate-900">{row.name}</span>
-                            <span className="mt-0.5 block text-xs text-slate-500">{row.mapSubCategory || row.subCategory || row.bucket || ''}</span>
-                        </>
+                        <span className="flex items-start gap-3">
+                            <ResourcePreviewLogo row={row} />
+                            <span className="min-w-0 flex-1">
+                                <span className="block font-bold text-slate-900">{row.name}</span>
+                                <span className="mt-0.5 block text-xs text-slate-500">{row.mapSubCategory || row.subCategory || row.bucket || ''}</span>
+                            </span>
+                        </span>
                     );
                     return row.detailPath && row.status !== 'unavailable' ? (
                         <a
@@ -178,6 +214,15 @@ export default function EmbeddedMapPage() {
         (presentation?.mappedGroups || []).reduce((total, group) => total + (group.rows?.length || 0), 0)
     ), [presentation?.mappedGroups]);
     const fullMapUrl = useMemo(() => buildFullMapUrl(directory, token), [directory, token]);
+    const detailedMap = useEmbeddedDetailedMap(presentation.pins);
+    const sharedAnnotations = useMemo(() => (
+        normalizePrintAnnotations(directory?.printAnnotations)
+    ), [directory?.printAnnotations]);
+    const sharedAnnotationOverlay = useMemo(() => (
+        sharedAnnotations.length ? (
+            <PrintAnnotationLayer annotations={sharedAnnotations} editable={false} />
+        ) : null
+    ), [sharedAnnotations]);
 
     if (state.status === 'loading') {
         return (
@@ -299,6 +344,21 @@ export default function EmbeddedMapPage() {
                     showPopup={false}
                     showMapStyleControl={false}
                     mapStyleOverride="default"
+                    basemapMode={detailedMap.enabled ? 'auto' : 'live'}
+                    fixedTownSurfaceManifest={detailedMap.native.manifest}
+                    fixedTownAssetBaseUrl={detailedMap.native.assetBaseUrl}
+                    fixedTownSurfaceAvailable={detailedMap.native.available}
+                    fixedTownSurfacePending={detailedMap.native.pending}
+                    fixedTownSurfaceMinZoom={FIXED_TOWN_SURFACE_MIN_ZOOM}
+                    fixedTownOverviewSurfaceManifest={detailedMap.overview.manifest}
+                    fixedTownOverviewAssetBaseUrl={detailedMap.overview.assetBaseUrl}
+                    fixedTownOverviewSurfaceAvailable={detailedMap.overview.available}
+                    fixedTownOverviewSurfacePending={detailedMap.overview.pending}
+                    fixedTownSurfaceLockMinZoom={false}
+                    fixedTownSurfaceFallbackBelowMinZoom
+                    fixedTownSurfaceFallbackScope="local"
+                    onFixedTownSurfaceViewportChange={detailedMap.setViewportBounds}
+                    mapOverlay={sharedAnnotationOverlay}
                     mapHeightClassName="h-full"
                     layoutSignature={`embedded-map-${mapResetKey}`}
                     emptyLabel={t('sharedMapNoMappablePlacesYet')}

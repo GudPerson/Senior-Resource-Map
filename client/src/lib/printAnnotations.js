@@ -194,6 +194,7 @@ export function normalizePrintAnnotation(annotation) {
     return {
         id,
         type,
+        isShared: Boolean(annotation?.isShared),
         points: type === PRINT_ANNOTATION_TOOL_PIN
             ? points.slice(0, 1)
             : [
@@ -274,6 +275,7 @@ export function duplicatePrintAnnotation(
     return normalizePrintAnnotation({
         ...source,
         id,
+        isShared: false,
         points: translatedPoints,
         ...(source.type === PRINT_ANNOTATION_TOOL_POLYGON
             ? { controlPoints: translatedPoints }
@@ -282,7 +284,11 @@ export function duplicatePrintAnnotation(
 }
 
 export function getPrintAnnotationCaptureKey(annotations = []) {
-    return JSON.stringify(normalizePrintAnnotations(annotations));
+    return JSON.stringify(normalizePrintAnnotations(annotations).map((annotation) => {
+        const { isShared, ...captureAnnotation } = annotation;
+        void isShared;
+        return captureAnnotation;
+    }));
 }
 
 export function getPrintAnnotationMinimumPointCount(tool) {

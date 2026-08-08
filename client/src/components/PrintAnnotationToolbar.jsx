@@ -502,6 +502,23 @@ export default function PrintAnnotationToolbar({
                 </label>
             ) : null}
 
+            {selectedAnnotation ? (
+                <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-md border border-brand-100 bg-brand-50 px-2.5 py-2 text-xs text-brand-900">
+                    <input
+                        type="checkbox"
+                        checked={Boolean(selectedAnnotation.isShared)}
+                        onChange={(event) => onSelectedChange?.({ isShared: event.target.checked })}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-brand-300 text-brand-700 focus:ring-brand-500"
+                    />
+                    <span>
+                        <span className="block font-bold">Share this annotation</span>
+                        <span className="mt-0.5 block leading-4 text-brand-800">
+                            It becomes public only after you update the shared link.
+                        </span>
+                    </span>
+                </label>
+            ) : null}
+
             <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
                 <IconButton label="Undo" disabled={!canUndo} onClick={onUndo}>
                     <Undo2 size={16} />

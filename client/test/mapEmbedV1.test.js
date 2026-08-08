@@ -8,6 +8,7 @@ const mainSource = readSource('../src/main.jsx');
 const standardRootSource = readSource('../src/StandardAppRoot.jsx');
 const embeddedAppSource = readSource('../src/EmbeddedApp.jsx');
 const embeddedPageSource = readSource('../src/pages/EmbeddedMapPage.jsx');
+const embeddedDetailedMapSource = readSource('../src/hooks/useEmbeddedDetailedMap.js');
 const shareModalSource = readSource('../src/components/ShareMapModal.jsx');
 const myMapPageSource = readSource('../src/pages/MyMapDetailPage.jsx');
 const apiSource = readSource('../src/lib/api.js');
@@ -40,9 +41,27 @@ test('map-only page uses the guest endpoint and omits private-map tool surfaces'
     assert.match(embeddedPageSource, /h-screen min-h-\[400px\].*overflow-hidden/);
     assert.match(embeddedPageSource, /embedded-map-height-warning/);
     assert.match(embeddedPageSource, /mapHeightClassName="h-full"/);
+    assert.match(embeddedPageSource, /function ResourcePreviewLogo/);
+    assert.match(embeddedPageSource, /row\?\.logoUrl/);
+    assert.match(embeddedPageSource, /row\?\.mapCategoryIconUrl/);
+    assert.match(embeddedPageSource, /useEmbeddedDetailedMap\(presentation\.pins\)/);
+    assert.match(embeddedPageSource, /basemapMode=\{detailedMap\.enabled \? 'auto' : 'live'\}/);
+    assert.match(embeddedPageSource, /fixedTownSurfaceManifest=\{detailedMap\.native\.manifest\}/);
+    assert.match(embeddedPageSource, /fixedTownOverviewSurfaceManifest=\{detailedMap\.overview\.manifest\}/);
+    assert.match(embeddedPageSource, /fixedTownSurfaceFallbackScope="local"/);
+    assert.match(embeddedPageSource, /normalizePrintAnnotations\(directory\?\.printAnnotations\)/);
+    assert.match(embeddedPageSource, /<PrintAnnotationLayer annotations=\{sharedAnnotations\} editable=\{false\}/);
+    assert.match(embeddedPageSource, /mapOverlay=\{sharedAnnotationOverlay\}/);
     assert.match(embeddedPageSource, /target="_blank"/);
     assert.match(directoryMapSource, /title=\{pin\.title \|\| pin\.previewResourceNames\?\.join\(', '\) \|\| 'Map resource'\}/);
-    assert.doesNotMatch(embeddedPageSource, /useAuth|SavedAssets|Print|Annotat|geolocation|fixedTown|removeMyMap|updateMyMap/);
+    assert.doesNotMatch(embeddedPageSource, /useAuth|SavedAssets|geolocation|removeMyMap|updateMyMap/);
+    assert.match(embeddedDetailedMapSource, /VITE_TOWN_MAP_PROOF_ENABLED/);
+    assert.match(embeddedDetailedMapSource, /VITE_TOWN_MAP_ASSET_BASE_URL/);
+    assert.match(embeddedDetailedMapSource, /VITE_TOWN_MAP_ZOOM14_OVERVIEW_ENABLED/);
+    assert.match(embeddedDetailedMapSource, /VITE_TOWN_MAP_OVERVIEW_ASSET_BASE_URL/);
+    assert.match(embeddedDetailedMapSource, /fetchFixedTownSurfaceSource/);
+    assert.match(embeddedDetailedMapSource, /selectFixedTownSurfaceForViewport/);
+    assert.match(embeddedDetailedMapSource, /fetchFixedTownSurfaceManifest/);
 });
 
 test('owners explicitly configure exact websites before copying iframe code', () => {
