@@ -15,6 +15,49 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-08 embedded preview WWW and label refinement production release
+
+- Current behavior: the compact embedded-resource Website action now uses a
+  globe-plus-`WWW` mark based on the supplied visual reference while retaining
+  CareAround styling, accessible Website labelling, external-link behavior,
+  focus treatment, and a 44-pixel touch target. The public-offering pill now
+  reads, for example, `4 Programmes / Services`; all supported locales retain
+  the slash construction.
+- Architecture and blast radius: the change is limited to the existing
+  embed-only contact action and one established translation key. It does not
+  alter snapshot data, counts, filtering, map pins, Group behavior,
+  annotations, Detailed surfaces, My Map, Print View, framing, auth, or API
+  behavior. The watermarked source image is reference-only and is not added to
+  the product bundle.
+- Reproduction and acceptance: open an approved embed at the documented
+  400x520 minimum, select a resource with Website, phone, Facebook, Instagram,
+  and guest-open offerings, and confirm the globe-plus-WWW mark and
+  `Programmes / Services` pill. Confirm Website, phone, both social channels,
+  and `Open resource` stay on one row without popup scrolling or clipping.
+- Verification: focused embed/i18n coverage passes 8/8; full client/source
+  coverage passes 575/575; full server coverage passes 521/521; the ordinary
+  client build passes; and map lockdown passes 84/84 plus the exact six-root
+  build, with only the established stale browsers-data advisory. Local Chrome
+  QA at 400x520 reports a 204-pixel `clientHeight` and `scrollHeight`, all five
+  complete-fixture actions on the same row, and no clipped requested content.
+  Production Chrome UAT at the same viewport confirms the WWW mark,
+  `1 Programmes / Services`, 204/204 card height, and one aligned Website,
+  phone, and `Open resource` row. The public production smoke case passes; the
+  five credentialed cases were unavailable because the configured smoke
+  username/password were absent and are not claimed as passed.
+- Production release: implementation commit `651692289` is on
+  `codex/embed-preview-www-refinement` and `main`. The final controlled Pages
+  deployment is `d76c9bf4-1a2b-48b2-944a-b0b77816752b` at
+  `https://d76c9bf4.senior-resource-map.pages.dev`. All 81 public files match
+  local, immutable Pages, and `https://app.carearound.sg` by MIME, bytes, and
+  SHA-256 with aggregate
+  `c22921fb7de1ebb023bdab3c637036445adb23b00c60de7399856fc03a6fb023`.
+  The `EmbeddedMapPage-Bw36sde0.js` lazy chunk returns JavaScript and contains
+  both requested markers. API health, the frozen embed API, the embed document,
+  and Discover return 200. No Worker was deployed because no server behavior
+  changed. See
+  `docs/release-manifest-2026-08-08-embedded-preview-www-refinement.md`.
+
 ## 2026-08-08 complete embedded-resource preview production release
 
 - Current behavior: one selected embedded-map resource is presented as one

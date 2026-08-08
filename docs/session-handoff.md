@@ -2,6 +2,37 @@
 
 Last updated: 2026-08-08 (Asia/Singapore)
 
+## Embedded preview WWW and label refinement (2026-08-08, production release)
+
+- On `codex/embed-preview-www-refinement`, the embedded Website action uses a
+  compact globe-plus-`WWW` mark based on the user's supplied reference. The
+  watermarked stock image is not bundled. The guest-open offering pill reads,
+  for example, `4 Programmes / Services`, with the slash construction retained
+  across supported locales.
+- The patch is embed-only and translation-only. It does not change frozen
+  snapshot data, eligibility counts, Group filters, annotations, Detailed map
+  surfaces, My Map, Print View, auth, framing, or server behavior.
+- At 400x520, Website, phone, Facebook, Instagram, and `Open resource` remain
+  on one row. The 204-pixel card has equal client and scroll heights, so the
+  refinement does not reintroduce the earlier whitespace, wrap, or clipping.
+- Gates pass: focused embed/i18n 8/8, full client/source 575/575, full server
+  521/521, ordinary client build, and map lockdown 84/84 plus the exact
+  six-root build. Production Chrome UAT at 400x520 confirms the WWW mark, slash
+  label, 204/204 card height, and one action row. The public production smoke
+  case passes; five authenticated cases could not run because the configured
+  smoke credentials were absent.
+- Implementation `651692289` is pushed on
+  `codex/embed-preview-www-refinement` and `main`. The accepted production
+  deployment is `https://d76c9bf4.senior-resource-map.pages.dev`; all 81 local,
+  immutable, and custom-domain files match by MIME, bytes, and SHA-256 at
+  aggregate
+  `c22921fb7de1ebb023bdab3c637036445adb23b00c60de7399856fc03a6fb023`.
+  API health, the frozen embed endpoint, embed document, and Discover return
+  200. No Worker deployment was needed. See
+  `docs/release-manifest-2026-08-08-embedded-preview-www-refinement.md`.
+- Preserve unrelated untracked workspace files if continuing this release
+  line.
+
 ## Complete embedded-resource preview (2026-08-08, production release)
 
 - On `codex/map-only-embed-v1`, the embedded selected-resource card now shows

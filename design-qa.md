@@ -1,15 +1,17 @@
 # Embedded Resource Preview Design QA
 
-## WWW and label refinement (local candidate)
+## WWW and label refinement (production release)
 
 - Icon reference: `/var/folders/gc/xhshpq5n5xd9pjtvv1x7bry00000gn/T/codex-clipboard-067c890d-8dc7-4ff9-a0a7-711a82db8342.png`
 - 400x520 implementation: `/Users/sweetbuns/CareAroundSG/output/chrome/embed-preview-www-refinement/embed-preview-www-400x520.png`
 - Combined comparison input: `/Users/sweetbuns/CareAroundSG/output/chrome/embed-preview-www-refinement/reference-comparison.png`
+- Production 400x520 verification: `/Users/sweetbuns/CareAroundSG/output/release-logs/embed-www-production-400x520.png`
 - The Website action follows the supplied globe-plus-WWW concept using the existing Lucide globe icon and a compact `WWW` wordmark. The watermarked stock reference itself is not shipped.
 - The mark stays inside a 52x44-pixel platform-styled action, preserving the 44-pixel touch target, focus treatment, and the existing CareAround palette.
 - The availability pill now reads `4 Programmes / Services`; supported translations use the same slash construction.
 - At the 400x520 minimum, Website, phone, Facebook, Instagram, and `Open resource` remain on one row. The selected-resource preview reports `clientHeight: 204` and `scrollHeight: 204`, so there is no clipping or internal scroll.
 - The supplied source is an icon reference rather than a full-screen layout. The comparison therefore checks the requested globe-plus-WWW visual language inside the existing approved preview state instead of treating the stock image as a screen to clone.
+- Production Chrome verification on `https://app.carearound.sg/embed/maps/LiHr0nVxXnroOQ1oXaD61MqH5mRv9wiV` confirms the requested mark and slash label, a 204-pixel card with equal client and scroll heights, and one aligned action row at 400x520.
 
 ## Sources and implementation evidence
 
