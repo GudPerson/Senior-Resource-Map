@@ -8,7 +8,9 @@ goal. This document does not authorize a production deployment.
 An owner can explicitly allow a published Shared Map to appear as a compact,
 guest-only interactive map on approved external websites. CareAround generates
 the iframe code. Visitors can explore published resource locations without
-receiving owner, account, editing, annotation, print, or private-map controls.
+receiving owner, account, editing, print, or private-map controls. Owners may
+explicitly include individual read-only map annotations in the frozen embed
+snapshot; annotations remain private by default.
 
 The embed uses the existing frozen Shared Map snapshot. Private edits remain
 private until the owner updates the Shared Map. Unpublishing invalidates the
@@ -42,6 +44,11 @@ The iframe contains:
 - compact search and category filters;
 - reset/zoom controls and a full-map link;
 - one selected-place/resource preview at a time;
+- the resource logo in that preview, with category-icon and letter fallbacks;
+- the production Detailed-map fixed surface when available at the current
+  location and zoom, with the regular map as its safe fallback;
+- only map annotations explicitly marked for sharing before the latest shared
+  snapshot update;
 - a notice when additional published resources have no map coordinates;
 - CareAround and required basemap attribution; and
 - a calm unavailable state when embedding is disabled or the map is
@@ -52,7 +59,7 @@ The iframe does not contain:
 - the full resource-card directory;
 - sign-in, Save, Copy to My Maps, or account navigation;
 - Manage Resources, Remove, Edit, Arrange categories, or owner Share controls;
-- Print View, PNG/PDF export, annotations, Detailed-map controls, or
+- Print View, PNG/PDF export, annotation editing, Detailed-map controls, or
   geolocation/distance controls;
 - personal places, private notes, private files, private postal context, or
   other owner-only content.
@@ -100,8 +107,10 @@ the authoritative way to browse every published mapped and list-only resource.
   browser also has a CareAround session cookie.
 - Existing Shared Map live-visibility filtering continues to remove a frozen
   resource that is no longer publicly eligible.
-- Personal places, print annotations, private notes, private files, saved home
-  data, viewer postal data, and owner controls remain absent.
+- Personal places, unshared print annotations, private notes, private files,
+  saved home data, viewer postal data, and owner controls remain absent.
+- Shared annotations are opt-in per item, sanitized into the frozen snapshot,
+  and read-only in the embed. The ordinary Shared Map remains annotation-free.
 - Disabling embedding does not unpublish the normal Shared Map link.
 - Unpublishing disables embedding, deletes the frozen snapshot through the
   existing path, and rotates the token on a future republish. A republished map
@@ -133,8 +142,10 @@ New endpoints:
   it ignores browser authentication and returns unavailable unless embedding
   is enabled.
 
-Ordinary `GET /api/shared-maps/:token`, Shared Map copy/save behavior, share
-publishing, and frozen snapshot generation retain their current contracts.
+Ordinary `GET /api/shared-maps/:token`, its annotation-free response, and
+Shared Map copy/save behavior retain their current contracts. Frozen snapshot
+generation adds only the sanitized, explicitly shared annotation subset
+consumed by the embed endpoint.
 
 ## Framing and Pages contract
 
@@ -172,7 +183,8 @@ New code is isolated to:
 - additive My Map columns plus boundary bootstrap;
 - focused My Map and Shared Map routes/controllers;
 - one Pages Function and one narrow `_routes.json` rule;
-- one lazy-loaded `EmbeddedMapPage` and small embed presentation helpers;
+- one lazy-loaded `EmbeddedMapPage`, one embed-only Detailed-map loader, and
+  small embed presentation helpers;
 - the existing Share dialog's new Website embed section; and
 - focused client, server, header, privacy, and browser tests.
 
@@ -203,7 +215,8 @@ Implementation is not complete until current evidence proves:
 
 1. origin normalization rejects unsafe or ambiguous values;
 2. only the owner can change embed settings;
-3. embed data is guest-scoped with private/personal/annotation data absent;
+3. embed data is guest-scoped with private/personal data and unshared
+   annotations absent, while explicitly shared annotations are sanitized;
 4. frozen snapshot, live public-visibility filtering, update, disable,
    unpublish, token rotation, and re-enable behavior all pass;
 5. the normal Shared Map route remains guest-readable and unchanged;

@@ -2,6 +2,29 @@
 
 Last updated: 2026-08-08 (Asia/Singapore)
 
+## Embedded-map presentation enrichment (2026-08-08, release candidate)
+
+- Branch `codex/map-only-embed-v1` now contains compatible server commit
+  `699b33ca` and client commit `bfd17423`. The embed automatically uses the
+  locked Detailed-map native/overview fixed surfaces, and selected-resource
+  previews show the resource logo with category-icon and letter fallbacks.
+- Print annotations remain private by default. Owners can explicitly mark an
+  annotation `Share this annotation`; only that public subset is sanitized
+  into the frozen snapshot when `Update shared link` is used. The embed renders
+  it read-only, while the ordinary Shared Map remains annotation-free.
+  Duplicates start private. Public-subset changes make the Share dialog stale;
+  private-only annotation changes do not.
+- There is no schema migration, new route, permission change, personal-place
+  exposure, live owner-data read, R2 change, or annotation editing inside the
+  iframe. The existing allowlist, revocation, guest visibility, list-only,
+  framing, My Map, Print View, export, and six-root contracts are preserved.
+- Local gates pass: focused server 59/59, focused client 93/93, server 520/520,
+  client/source 587/587, map lockdown 84/84, exact six-root production build,
+  and `git diff --check`. Worker-first deployment, custom-domain artifact
+  parity, production smoke, and disposable-map acceptance remain pending.
+- See `docs/release-manifest-2026-08-08-embedded-map-enrichment.md` for the
+  deploy sequence, acceptance matrix, and rollback boundary.
+
 ## Map-only website embed V1 (2026-08-08, production release)
 
 - Branch `codex/map-only-embed-v1` starts from deployed source base

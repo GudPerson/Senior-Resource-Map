@@ -15,6 +15,54 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-08 embedded-map presentation enrichment release candidate
+
+- Current behavior: the website embed reuses the production Detailed-map
+  fixed surfaces automatically when the locked six-root build enables them.
+  The compact resource preview now displays the resource logo, then the map
+  category icon, category icon, or a letter fallback. No new map setting,
+  owner action, download surface, or geolocation control is exposed in the
+  iframe.
+- Annotation privacy contract: owner Print View annotations remain private by
+  default. An owner must select an annotation and explicitly enable `Share
+  this annotation`; the annotation becomes public only after `Update shared
+  link`. Publishing freezes only opted-in annotations into the existing Shared
+  Map snapshot, strips the visibility flag, and exposes the sanitized shapes
+  read-only only to the embed endpoint. The ordinary Shared Map endpoint and
+  page remain annotation-free. Duplicates always start private, and changing
+  only the share flag does not invalidate PNG/PDF capture preparation.
+- Snapshot and stale-state behavior: changes to the public annotation subset
+  advance the owner map update timestamp so the existing Share dialog warns
+  that its frozen link is stale. Private-only annotation edits do not create a
+  public-share warning. Unchecking a previously shared annotation leaves the
+  old frozen snapshot public until the owner intentionally updates the shared
+  link, matching the existing resource/note snapshot contract.
+- Architecture and blast radius: server commit `699b33ca` adds one optional
+  boolean inside the existing annotation JSON document and one sanitized
+  snapshot field; no table, route, migration, permission, auth, personal-place,
+  resource-visibility, or R2 change is introduced. Client commit `bfd17423`
+  adds one embed-only fixed-surface loader and read-only presentation changes.
+  Existing owner My Map, Print View editing, six-root Detailed behavior,
+  annotations, exports, Shared Map directory, embed allowlist/revocation,
+  framing policy, and list-only disclosures retain their current contracts.
+- Reproduction and acceptance: in an owned map's Print View, select one
+  annotation, enable `Share this annotation`, save, and confirm the Share
+  dialog requests an update. Update the shared link and load the approved
+  iframe. At displayed zoom 14 confirm the v3 overview surface; at zoom 15
+  confirm the v2 native surface; where unavailable confirm the regular map
+  remains usable. Select a pin and confirm its resource preview has logo/icon
+  fallback. Confirm the opted-in annotation renders read-only, a private
+  annotation does not, and the ordinary Shared Map still has no annotation.
+  Uncheck the shared annotation, update the shared link, and confirm it is no
+  longer in a fresh embed response.
+- Pre-deploy verification: focused server coverage passes 59/59; focused
+  embed/map/annotation client coverage passes 93/93; the full server suite
+  passes 520/520; full client/source coverage passes 587/587; map lockdown
+  passes 84/84; `git diff --check` passes; and the exact six-root production
+  build passes with only the established browsers-data advisory. Production
+  Worker, Pages, artifact parity, smoke, and disposable-map UAT remain the
+  release gates before this entry may be marked complete.
+
 ## 2026-08-08 map-only website embed V1 production release
 
 - Current behavior: a My Map owner must first publish the existing frozen
