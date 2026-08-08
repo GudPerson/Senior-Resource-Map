@@ -39,12 +39,15 @@ Rules:
 - Verification: the focused map/focus-card suite passes 79/79; full client
   coverage passes 575/575; full server coverage passes 521/521; map lockdown
   passes 84/84 followed by the exact six-root production build;
-  `npm run build:client` and `git diff --check` pass. Production smoke passes
-  all 6/6 cases. Signed-in production Chrome UAT at 390 × 844 selects a mapped
-  resource in normal and full-map modes: category element count is zero, card
-  and tray widths both measure 370.8125 pixels, and client/scroll widths both
-  measure 371 pixels, proving there is no horizontal overflow. Map notes and
-  `Open resource` remain available. See `design-qa.md`.
+  `npm run build:client` and `git diff --check` pass. The final production
+  smoke suite exits zero: five cases pass on their first attempt, and the
+  postal-import case passes on its configured retry after the first attempt
+  times out waiting 45 seconds for its resolved anchor. Signed-in production
+  Chrome UAT at 390 × 844 selects a mapped resource in normal and full-map
+  modes: category element count is zero, card and tray widths both measure
+  370.8125 pixels, and client/scroll widths both measure 371 pixels, proving
+  there is no horizontal overflow. Map notes and `Open resource` remain
+  available. See `design-qa.md`.
 - Production release: implementation commit `1202b6938` is on
   `codex/owner-focus-card-surface-refinement` and `main`. The validated exact
   six-root publication is `ef29dac0-1c82-4181-974f-491299a4bd00` at

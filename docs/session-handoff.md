@@ -13,8 +13,10 @@ Last updated: 2026-08-08 (Asia/Singapore)
   embedded maps, pins, notes, actions, auth, API, snapshots, membership,
   annotations, exports, and Detailed-map assets are unchanged.
 - Gates pass: focused map/focus coverage 79/79, full client/source 575/575,
-  full server 521/521, production smoke 6/6, ordinary client build, map
-  lockdown 84/84 plus the exact six-root build, and `git diff --check`.
+  full server 521/521, ordinary client build, map lockdown 84/84 plus the exact
+  six-root build, and `git diff --check`. The final production smoke suite
+  exits zero with five first-attempt passes and one postal-import pass on its
+  configured retry after a 45-second resolved-anchor timeout.
 - Signed-in production Chrome UAT at 390 × 844 passes normal and full-map
   modes. Both contain zero category elements, the card and tray each measure
   370.8125 pixels wide, and client/scroll widths are both 371 pixels. The card

@@ -30,7 +30,9 @@ Date: 2026-08-08 (Asia/Singapore)
 - Focused map and focus-card tests: 79/79 passed.
 - Full client/source tests: 575/575 passed.
 - Full server tests: 521/521 passed.
-- Production smoke: 6/6 passed.
+- Production smoke exited zero: five cases passed on their first attempt; the
+  postal-import case passed on its configured retry after the first attempt
+  timed out waiting 45 seconds for its resolved anchor.
 - Map lockdown: 84/84 passed, followed by the exact six-root production build.
 - Ordinary client build and `git diff --check` passed. The only build advisory
   was the established stale browsers-data notice.
