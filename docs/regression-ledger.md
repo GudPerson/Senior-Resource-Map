@@ -15,6 +15,47 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-08 complete embedded-resource preview local release candidate
+
+- Current behavior: one selected embedded-map resource is presented as one
+  content-dense card. Its logo/fallback, name, and address form the identity
+  block. Optional operating hours or schedule, website, visible tap-to-call
+  number, supported social-channel icons, and `Open resource` follow without
+  repeating the resource name or address. At 400x520 the website, phone,
+  social, and resource actions share one 44-pixel-target row and no longer sit
+  below an internal scroll boundary.
+- Public-offering pill: a hard Place snapshot now carries the deduplicated
+  count of linked or hosted Programmes and Services that a guest can access.
+  Promotions, hidden/deleted or scheduled-hidden offerings, member-only
+  offerings, audience-scoped offerings, and eligibility-gated offerings do
+  not count. The optional pill reads, for example, `4 programmes and services`.
+- Snapshot boundary: the count is calculated only while creating or updating
+  the existing frozen My Map share snapshot. Existing live tokens retain their
+  previous data until the owner intentionally uses `Update shared link`; the
+  embed does not query live offerings. Contact details retain the prior
+  sanitized embed-only snapshot contract.
+- Architecture and blast radius: the change is limited to the existing batched
+  hard-asset share hydration, snapshot row normalization, embed presentation
+  helper, and embed-only card. There is no schema, route, auth, permission,
+  map-membership, Group-filter, annotation, Print View, export, R2, framing, or
+  ordinary Shared Map behavior change.
+- Reproduction and acceptance: update a shared link containing a hard Place
+  with public hours, contact channels, and guest-open Programmes/Services. Open
+  its approved iframe at 400x520, select the pin, and confirm the complete card
+  is visible without scrolling or duplicate identity. Confirm the pill excludes
+  non-guest offerings, optional rows disappear cleanly when fields are absent,
+  and the desktop card retains its labelled operating-hours treatment.
+- Verification: full server coverage passes 521/521; full client/source
+  coverage passes 574/574; map lockdown passes 84/84; the exact six-root
+  production client build passes with only the established browsers-data
+  advisory; and `git diff --check` passes. Playwright visual QA passes at
+  400x520 and 1280x900. At the compact viewport the card's `clientHeight` and
+  `scrollHeight` are both 204 pixels, and all five Website, phone, Facebook,
+  Instagram, and `Open resource` actions are visible. See `design-qa.md`.
+- Release state: validated local candidate on `codex/map-only-embed-v1`;
+  production identifiers and artifact parity will be recorded after the
+  approved Worker-first release.
+
 ## 2026-08-08 embedded-map contacts and Group filters production release
 
 - Current behavior: a selected embedded-map pin shows the place name and
@@ -5171,7 +5212,8 @@ Active next recovery family:
   advisory. Browser QA at 1440x1024 and 390x844 confirmed the selected Day-view
   composition, working date controls, the empty-date state, no horizontal
   overflow, and zero application console errors or warnings. The final
-  side-by-side comparison is recorded in `design-qa.md`. The unchanged live
+  side-by-side comparison is recorded in
+  `docs/design-qa-care-calendar-planning-views-2026-07-17.md`. The unchanged live
   release also passed all five production smoke journeys immediately before
   deployment.
 - Release follow-up: `e820f3ec3` was fast-forwarded into `main` and pushed.

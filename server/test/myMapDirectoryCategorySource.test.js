@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { buildMyMapDirectory } from '../src/utils/myMapDirectory.js';
+import {
+    buildMyMapDirectory,
+    countOpenToAllProgrammesAndServices,
+} from '../src/utils/myMapDirectory.js';
 
 const source = readFileSync(
     new URL('../src/utils/myMapDirectory.js', import.meta.url),
@@ -18,6 +21,36 @@ test('My Map directory snapshots expose category color with category icons', () 
     assert.match(source, /const hardPlaceRow = place\.rows\.find\(\(row\) => row\.resourceType === 'hard' && \(row\.categoryIconUrl \|\| row\.categoryColor\)\)/);
     assert.match(source, /sharedCategoryColor = row\.categoryColor \|\| null/);
     assert.match(source, /categoryColor: categoryMeta\.color/);
+});
+
+test('hard Place snapshots count only public programmes and services that are open to all', () => {
+    const publicOffering = {
+        id: 41,
+        bucket: 'Programmes',
+        audienceMode: 'public',
+        isMemberOnly: false,
+        eligibilityRules: null,
+        isHidden: false,
+        hideFrom: null,
+        hideUntil: null,
+        isDeleted: false,
+    };
+    const asset = {
+        softAssets: [
+            { softAsset: publicOffering },
+            { softAsset: { ...publicOffering, id: 42, bucket: 'Services' } },
+            { softAsset: { ...publicOffering, id: 43, bucket: 'Promotions' } },
+            { softAsset: { ...publicOffering, id: 44, isMemberOnly: true } },
+            { softAsset: { ...publicOffering, id: 45, eligibilityRules: { version: 1, criteria: { age: { min: 60 } } } } },
+        ],
+        hostedSoftAssets: [
+            { ...publicOffering, id: 41 },
+            { ...publicOffering, id: 46, audienceMode: 'audience_zones' },
+            { ...publicOffering, id: 47, isHidden: true },
+        ],
+    };
+
+    assert.equal(countOpenToAllProgrammesAndServices(asset), 2);
 });
 
 test('large My Maps batch live Place hydration instead of issuing one query per resource', async () => {

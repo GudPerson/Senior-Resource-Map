@@ -43,6 +43,7 @@ test('map-only page uses the guest endpoint and omits private-map tool surfaces'
     assert.match(embeddedPageSource, /mapHeightClassName="h-full"/);
     assert.match(embeddedPageSource, /function ResourcePreviewLogo/);
     assert.match(embeddedPageSource, /function ResourceContactLinks/);
+    assert.match(embeddedPageSource, /<ResourceContactLinks row=\{row\} detailPath=\{row\.detailPath\}/);
     assert.match(embeddedPageSource, /function EmbedSocialPlatformIcon/);
     assert.match(embeddedPageSource, /SOCIAL_ICON_BUTTON_CLASSES/);
     assert.match(embeddedPageSource, /<EmbedSocialPlatformIcon platform=\{entry\.key\}/);
@@ -50,8 +51,15 @@ test('map-only page uses the guest endpoint and omits private-map tool surfaces'
     assert.match(embeddedPageSource, /row\?\.mapCategoryIconUrl/);
     assert.match(embeddedPageSource, /getSocialLinkEntries\(row\?\.socialLinks\)/);
     assert.match(embeddedPageSource, /normalizeContactPhone\(row\?\.contactPhone\)/);
-    assert.match(embeddedPageSource, /shouldShowEmbedResourceName\(group, row\)/);
+    assert.match(embeddedPageSource, /buildEmbedResourcePreviewDetails\(group, row\)/);
+    assert.match(embeddedPageSource, /preview\.name/);
+    assert.match(embeddedPageSource, /preview\.address/);
+    assert.match(embeddedPageSource, /preview\.scheduleText/);
+    assert.match(embeddedPageSource, /t\(preview\.scheduleLabelKey\)/);
+    assert.match(embeddedPageSource, /preview\.openProgrammeServiceCount > 0/);
+    assert.match(embeddedPageSource, /t\('embedMapOpenProgrammeServiceCount'/);
     assert.match(embeddedPageSource, /max-h-\[calc\(100%-1\.5rem\)\]/);
+    assert.match(embeddedPageSource, /z-\[1100\]/);
     assert.match(embeddedPageSource, /t\('website'\)/);
     assert.match(embeddedPageSource, /t\('contact'\)/);
     assert.doesNotMatch(embeddedPageSource, /selectedGroup \? selectedGroup\.name/);

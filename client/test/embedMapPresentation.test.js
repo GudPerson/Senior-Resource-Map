@@ -7,7 +7,7 @@ import {
     filterEmbedDirectoryByCategories,
     findEmbedPreviewGroup,
     getEmbedListOnlyResourceCount,
-    shouldShowEmbedResourceName,
+    buildEmbedResourcePreviewDetails,
 } from '../src/lib/embedMapPresentation.js';
 
 function createDirectory() {
@@ -130,22 +130,35 @@ test('map-only presentation reports resources without coordinates separately', (
     assert.equal(getEmbedListOnlyResourceCount(createDirectory()), 1);
 });
 
-test('resource preview suppresses only a redundant single resource name', () => {
-    const singleGroup = {
+test('resource preview consolidates identity, address, and optional hours', () => {
+    const group = {
         name: 'Mapped care centre',
-        rows: [{ name: 'Mapped care centre' }],
+        address: '1 Example Street Singapore 600001',
     };
-    assert.equal(shouldShowEmbedResourceName(singleGroup, singleGroup.rows[0]), false);
 
-    const hostedGroup = {
+    assert.deepEqual(buildEmbedResourcePreviewDetails(group, {
         name: 'Mapped care centre',
-        rows: [{ name: 'Falls prevention workshop' }],
-    };
-    assert.equal(shouldShowEmbedResourceName(hostedGroup, hostedGroup.rows[0]), true);
+        address: '1 Example Street Singapore 600001',
+        resourceType: 'hard',
+        descriptor: 'Mon-Fri: 8.30am-6.00pm',
+        openProgrammeServiceCount: 4,
+    }), {
+        name: 'Mapped care centre',
+        address: '1 Example Street Singapore 600001',
+        scheduleText: 'Mon-Fri: 8.30am-6.00pm',
+        scheduleLabelKey: 'operatingHours',
+        openProgrammeServiceCount: 4,
+    });
 
-    const multiGroup = {
-        name: 'Mapped care centre',
-        rows: [{ name: 'Mapped care centre' }, { name: 'Meals service' }],
-    };
-    assert.equal(shouldShowEmbedResourceName(multiGroup, multiGroup.rows[0]), true);
+    assert.deepEqual(buildEmbedResourcePreviewDetails(group, {
+        name: 'Falls prevention workshop',
+        resourceType: 'soft',
+        descriptor: 'Fridays, 10am',
+    }), {
+        name: 'Falls prevention workshop',
+        address: '1 Example Street Singapore 600001',
+        scheduleText: 'Fridays, 10am',
+        scheduleLabelKey: 'schedule',
+        openProgrammeServiceCount: 0,
+    });
 });

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ExternalLink, Globe2, Phone, RotateCcw, Search, X } from 'lucide-react';
+import { Clock, ExternalLink, Globe2, Phone, RotateCcw, Search, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 
 import DirectoryMap from '../components/DirectoryMap.jsx';
@@ -12,10 +12,10 @@ import { fetchEmbeddedMap } from '../lib/embedMapApi.js';
 import { normalizePrintAnnotations } from '../lib/printAnnotations.js';
 import {
     buildEmbedCategoryOptions,
+    buildEmbedResourcePreviewDetails,
     buildEmbeddedMapPresentation,
     findEmbedPreviewGroup,
     getEmbedListOnlyResourceCount,
-    shouldShowEmbedResourceName,
 } from '../lib/embedMapPresentation.js';
 import { getSocialLinkEntries } from '../lib/socialLinks.js';
 
@@ -85,7 +85,7 @@ function ResourcePreviewLogo({ row }) {
     const fallbackLabel = String(row?.name || '').trim().slice(0, 1).toUpperCase() || 'C';
 
     return (
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-sm font-extrabold text-slate-500">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white text-base font-extrabold text-slate-500 shadow-sm sm:h-14 sm:w-14 sm:rounded-2xl">
             {imageUrl ? (
                 <img
                     src={imageUrl}
@@ -158,7 +158,7 @@ function EmbedSocialPlatformIcon({ platform, size = 19 }) {
     }
 }
 
-function ResourceContactLinks({ row }) {
+function ResourceContactLinks({ row, detailPath }) {
     const { t } = useLocale();
     const websiteHref = normalizeContactHref(row?.website);
     const contactPhone = normalizeContactPhone(row?.contactPhone);
@@ -166,7 +166,7 @@ function ResourceContactLinks({ row }) {
         .map((entry) => ({ ...entry, url: normalizeContactHref(entry.url) }))
         .filter((entry) => entry.url);
 
-    if (!websiteHref && !contactPhone && socialEntries.length === 0) return null;
+    if (!websiteHref && !contactPhone && socialEntries.length === 0 && !detailPath) return null;
 
     return (
         <div className="flex flex-wrap items-center gap-2">
@@ -206,6 +206,16 @@ function ResourceContactLinks({ row }) {
                     <span className="sr-only">{entry.label}</span>
                 </a>
             ))}
+            {detailPath ? (
+                <a
+                    href={detailPath}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-auto inline-flex min-h-11 items-center gap-1 text-xs font-bold text-brand-700 hover:underline focus:outline-none focus:ring-2 focus:ring-brand-300 focus:ring-offset-2"
+                >
+                    {t('embedMapOpenResource')} <ExternalLink size={12} />
+                </a>
+            ) : null}
         </div>
     );
 }
@@ -215,51 +225,61 @@ function ResourcePreview({ group, fullMapUrl, onClose }) {
     const rows = group?.rows || [];
 
     return (
-        <section className="absolute inset-x-3 bottom-3 z-[500] max-h-[calc(100%-1.5rem)] overflow-y-auto rounded-[22px] border border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur sm:inset-x-auto sm:bottom-4 sm:left-4 sm:max-h-[42%] sm:w-[min(380px,calc(100%-2rem))]">
-            <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <p className="truncate text-base font-extrabold text-slate-950">{group?.name}</p>
-                    {group?.shortLocationLine || group?.address ? (
-                        <p className="mt-1 text-xs leading-5 text-slate-500">{group.shortLocationLine || group.address}</p>
-                    ) : null}
-                </div>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"
-                    aria-label={t('close')}
-                >
-                    <X size={18} />
-                </button>
-            </div>
+        <section className="absolute inset-x-3 bottom-3 z-[1100] max-h-[calc(100%-1.5rem)] overflow-y-auto rounded-[22px] border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur sm:inset-x-auto sm:bottom-4 sm:left-4 sm:max-h-[48%] sm:w-[min(400px,calc(100%-2rem))] sm:p-3">
+            <button
+                type="button"
+                onClick={onClose}
+                className="absolute right-2 top-2 z-10 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 sm:right-3 sm:top-3"
+                aria-label={t('close')}
+            >
+                <X size={18} />
+            </button>
 
-            <div className="mt-3 space-y-2">
+            <div className="space-y-2">
                 {rows.slice(0, 4).map((row) => {
-                    const showResourceName = shouldShowEmbedResourceName(group, row);
+                    const preview = buildEmbedResourcePreviewDetails(group, row);
                     return (
                         <article
                             key={row.rowKey || row.assetKey || `${row.resourceType}:${row.resourceId}`}
-                            className="rounded-2xl border border-slate-200 px-3 py-2.5 text-sm"
+                            className={`text-sm ${rows.length > 1 ? 'rounded-2xl border border-slate-200 p-2 sm:p-3' : ''}`}
                         >
-                            <div className="flex items-start gap-3">
+                            <div className="flex items-start gap-2 pr-10 sm:gap-3 sm:pr-11">
                                 <ResourcePreviewLogo row={row} />
-                                <div className="min-w-0 flex-1 space-y-2">
-                                    {showResourceName ? (
-                                        <p className="font-bold text-slate-900">{row.name}</p>
-                                    ) : null}
-                                    {row.status !== 'unavailable' ? <ResourceContactLinks row={row} /> : null}
-                                    {row.detailPath && row.status !== 'unavailable' ? (
-                                        <a
-                                            href={row.detailPath}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex min-h-11 items-center gap-1 text-xs font-bold text-brand-700"
-                                        >
-                                            {t('embedMapOpenResource')} <ExternalLink size={12} />
-                                        </a>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-extrabold leading-4 text-slate-950 sm:leading-5">{preview.name}</p>
+                                    {preview.address ? (
+                                        <p className="mt-0.5 break-words text-xs leading-4 text-slate-500 sm:mt-1 sm:leading-5">{preview.address}</p>
                                     ) : null}
                                 </div>
                             </div>
+
+                            {preview.openProgrammeServiceCount > 0 ? (
+                                <span className="mt-1.5 inline-flex rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-bold text-brand-800 sm:mt-2">
+                                    {t('embedMapOpenProgrammeServiceCount', {
+                                        count: preview.openProgrammeServiceCount,
+                                    })}
+                                </span>
+                            ) : null}
+
+                            {preview.scheduleText && row.status !== 'unavailable' ? (
+                                <div className="mt-1.5 flex min-h-9 items-center gap-2 rounded-xl bg-slate-50 p-2 sm:mt-2 sm:items-start">
+                                    <Clock size={17} aria-hidden="true" className="shrink-0 text-brand-700 sm:mt-0.5" />
+                                    <div className="min-w-0">
+                                        <p className="hidden text-[10px] font-extrabold uppercase tracking-wide text-slate-500 sm:block">
+                                            {t(preview.scheduleLabelKey)}
+                                        </p>
+                                        <p className="whitespace-pre-line break-words text-xs leading-4 text-slate-700 sm:mt-0.5 sm:leading-5">
+                                            {preview.scheduleText}
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {row.status !== 'unavailable' ? (
+                                <div className="mt-1 sm:mt-1.5">
+                                    <ResourceContactLinks row={row} detailPath={row.detailPath} />
+                                </div>
+                            ) : null}
                         </article>
                     );
                 })}
@@ -506,7 +526,7 @@ export default function EmbeddedMapPage() {
                 ) : null}
             </section>
 
-            <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-500">
+            <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 sm:px-4 sm:py-2.5">
                 {!selectedGroup ? <span>{t('embedMapSelectResource')}</span> : null}
                 <span className="ml-auto flex flex-wrap items-center justify-end gap-3">
                     {listOnlyCount > 0 ? (
@@ -514,7 +534,7 @@ export default function EmbeddedMapPage() {
                             {t('embedMapListOnlyNotice', { count: listOnlyCount })}
                         </a>
                     ) : null}
-                    <a href={fullMapUrl} target="_blank" rel="noreferrer" className="font-bold text-slate-700 hover:text-brand-700">
+                    <a href={fullMapUrl} target="_blank" rel="noreferrer" className={`${listOnlyCount > 0 ? 'hidden sm:inline' : ''} font-bold text-slate-700 hover:text-brand-700`}>
                         {t('embedMapPoweredBy')}
                     </a>
                 </span>

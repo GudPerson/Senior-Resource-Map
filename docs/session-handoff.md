@@ -2,6 +2,34 @@
 
 Last updated: 2026-08-08 (Asia/Singapore)
 
+## Complete embedded-resource preview (2026-08-08, local release candidate)
+
+- On `codex/map-only-embed-v1`, the embedded selected-resource card now shows
+  one complete identity block (logo/fallback, name, address), optional hours or
+  schedule, a guest-open Programmes/Services count pill, compact Website and
+  social icons, the visible tap-to-call number, and `Open resource`. The former
+  duplicated identity block is gone.
+- UI/UX Pro guidance was applied as a targeted density pass: 4/8-pixel spacing,
+  responsive logo/padding, one compact mobile hours line, and one wrapping
+  action row while preserving 44-pixel targets and focus styles. At the
+  documented 400x520 minimum, the complete 204-pixel card fits without an
+  internal scrollbar; desktop keeps the labelled hours hierarchy.
+- The pill counts only deduplicated linked/hosted Programmes and Services whose
+  guest access resolves to granted. Promotions, hidden/deleted or
+  scheduled-hidden, member-only, audience-scoped, and eligibility-gated
+  offerings are excluded. The value is frozen only on `Update shared link`, so
+  existing tokens retain their prior snapshot until the owner updates it.
+- No schema, route, auth, permission, membership, Group-filter, annotation,
+  Print View, export, R2, framing, ordinary Shared Map, or live-offering-read
+  behavior changed. Preserve all unrelated untracked workspace files.
+- Gates pass: server 521/521, client/source 574/574, map lockdown 84/84, exact
+  six-root production build, `git diff --check`, and visual QA at 400x520 and
+  1280x900. The compact proof exposes Website, phone, Facebook, Instagram, and
+  `Open resource` without clipping. See `design-qa.md`.
+- Release state remains local and validated. Deploy Worker first, then the exact
+  six-root Pages artifact, verify custom-domain artifact parity, and update this
+  handoff with the accepted production identifiers.
+
 ## Embedded-map contacts and Group filters (2026-08-08, production release)
 
 - On `codex/map-only-embed-v1`, the embed-only resource preview now removes a

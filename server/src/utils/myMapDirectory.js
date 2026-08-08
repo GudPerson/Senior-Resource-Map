@@ -5,8 +5,10 @@ import {
     buildEligibilityContext,
     buildMembershipHostIdMap,
     getOfferingAccessMetadata,
+    OFFERING_ACCESS,
 } from './eligibility.js';
 import { getSoftAssetLocations, isChildSoftAsset } from './softAssetHierarchy.js';
+import { normalizeSoftAssetBucket } from './softAssetBuckets.js';
 import { groupPublicGroupMembers } from './softAssetGroups.js';
 import { normalizeEmbeddedResourceContact } from './embeddedResourceContacts.js';
 import { normalizeMyMapCategoryOrder } from './myMapCategoryOrder.js';
@@ -41,6 +43,39 @@ function normalizeAvailabilityCount(value) {
 function normalizeAvailabilityUnit(value) {
     const text = normalizeText(value);
     return text || null;
+}
+
+export function countOpenToAllProgrammesAndServices(asset) {
+    const offeringsById = new Map();
+    const linkedOfferings = [
+        ...(asset?.softAssets || []).map((entry) => entry?.softAsset),
+        ...(asset?.hostedSoftAssets || []),
+    ];
+
+    linkedOfferings.forEach((offering) => {
+        if (Number.isInteger(offering?.id) && !offeringsById.has(offering.id)) {
+            offeringsById.set(offering.id, offering);
+        }
+    });
+
+    return [...offeringsById.values()].filter((offering) => {
+        let bucket;
+        try {
+            bucket = normalizeSoftAssetBucket(offering.bucket || offering.subCategory, 'Programmes');
+        } catch {
+            return false;
+        }
+
+        if (bucket !== 'Programmes' && bucket !== 'Services') return false;
+        if (!isAssetVisible(offering, { role: 'guest' })) return false;
+
+        return getOfferingAccessMetadata(
+            offering,
+            { role: 'guest' },
+            { activeMembershipHardAssetIds: new Set() },
+            [],
+        ).access === OFFERING_ACCESS.GRANTED;
+    }).length;
 }
 
 function buildAssetKey(resourceType, resourceId) {
@@ -146,6 +181,7 @@ function normalizeLegacySnapshot(resourceType, resourceId, snapshot) {
         availabilityEnabled: normalizeAvailabilityEnabled(snapshot?.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(snapshot?.availabilityCount),
         availabilityUnit: normalizeAvailabilityUnit(snapshot?.availabilityUnit),
+        openProgrammeServiceCount: normalizeAvailabilityCount(snapshot?.openProgrammeServiceCount),
         places: [createFallbackPlace(resourceType, resourceId, snapshot)],
     };
 }
@@ -174,6 +210,7 @@ export function normalizeMyMapAssetSnapshot(resourceType, resourceId, snapshot) 
             availabilityEnabled: normalizeAvailabilityEnabled(snapshot?.availabilityEnabled),
             availabilityCount: normalizeAvailabilityCount(snapshot?.availabilityCount),
             availabilityUnit: normalizeAvailabilityUnit(snapshot?.availabilityUnit),
+            openProgrammeServiceCount: normalizeAvailabilityCount(snapshot?.openProgrammeServiceCount),
             mapFocusPlaceKeys: normalizePlaceKeyList(snapshot?.mapFocusPlaceKeys),
             ...(groupMemberAssetKeys.length ? { groupMemberAssetKeys } : {}),
             places: snapshot.places.map((place, index) => normalizePlaceSnapshot(place, index)),
@@ -242,6 +279,7 @@ export function buildMyMapAssetSnapshot(resourceType, asset) {
             availabilityEnabled: false,
             availabilityCount: 0,
             availabilityUnit: null,
+            openProgrammeServiceCount: countOpenToAllProgrammesAndServices(asset),
             places: [buildPlaceSnapshot(asset)],
         };
     }
@@ -266,6 +304,7 @@ export function buildMyMapAssetSnapshot(resourceType, asset) {
         availabilityEnabled: normalizeAvailabilityEnabled(asset.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(asset.availabilityCount),
         availabilityUnit: normalizeAvailabilityUnit(asset.availabilityUnit),
+        openProgrammeServiceCount: 0,
         mapFocusPlaceKeys,
         ...(groupMemberAssetKeys.length ? { groupMemberAssetKeys } : {}),
         places: places.length > 0 ? places : [createFallbackPlace('soft', asset.id, null)],
@@ -301,6 +340,41 @@ const hardAssetQuery = {
             columns: {
                 id: true,
                 managerUserId: true,
+            },
+        },
+        softAssets: {
+            columns: {
+                id: true,
+            },
+            with: {
+                softAsset: {
+                    columns: {
+                        id: true,
+                        bucket: true,
+                        subCategory: true,
+                        audienceMode: true,
+                        isMemberOnly: true,
+                        eligibilityRules: true,
+                        isHidden: true,
+                        hideFrom: true,
+                        hideUntil: true,
+                        isDeleted: true,
+                    },
+                },
+            },
+        },
+        hostedSoftAssets: {
+            columns: {
+                id: true,
+                bucket: true,
+                subCategory: true,
+                audienceMode: true,
+                isMemberOnly: true,
+                eligibilityRules: true,
+                isHidden: true,
+                hideFrom: true,
+                hideUntil: true,
+                isDeleted: true,
             },
         },
     },
@@ -683,6 +757,7 @@ function buildRow({
         availabilityEnabled: normalizeAvailabilityEnabled(snapshot.availabilityEnabled),
         availabilityCount: normalizeAvailabilityCount(snapshot.availabilityCount),
         availabilityUnit: normalizeAvailabilityUnit(snapshot.availabilityUnit),
+        openProgrammeServiceCount: normalizeAvailabilityCount(snapshot.openProgrammeServiceCount),
         detailPath,
         status,
         saveEligible,

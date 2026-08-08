@@ -129,11 +129,23 @@ export function findEmbedPreviewGroup(presentation, placeKey) {
     )) || null;
 }
 
-export function shouldShowEmbedResourceName(group, row) {
-    const rows = Array.isArray(group?.rows) ? group.rows : [];
-    if (rows.length !== 1) return true;
+export function buildEmbedResourcePreviewDetails(group, row) {
+    const compactText = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+    const name = compactText(row?.name) || compactText(group?.name) || 'Resource';
+    const address = compactText(row?.address)
+        || compactText(group?.shortLocationLine)
+        || compactText(group?.address);
+    const scheduleText = String(row?.descriptor || '').trim();
+    const parsedOpenProgrammeServiceCount = Number.parseInt(row?.openProgrammeServiceCount, 10);
 
-    const groupName = String(group?.name || '').trim().replace(/\s+/g, ' ').toLowerCase();
-    const resourceName = String(row?.name || '').trim().replace(/\s+/g, ' ').toLowerCase();
-    return !groupName || !resourceName || groupName !== resourceName;
+    return {
+        name,
+        address,
+        scheduleText,
+        scheduleLabelKey: row?.resourceType === 'hard' ? 'operatingHours' : 'schedule',
+        openProgrammeServiceCount: Number.isInteger(parsedOpenProgrammeServiceCount)
+            && parsedOpenProgrammeServiceCount > 0
+            ? parsedOpenProgrammeServiceCount
+            : 0,
+    };
 }
