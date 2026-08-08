@@ -34,6 +34,10 @@ const appCssSource = readFileSync(
     new URL('../src/index.css', import.meta.url),
     'utf8',
 );
+const compactResourcePreviewCardSource = readFileSync(
+    new URL('../src/components/CompactResourcePreviewCard.jsx', import.meta.url),
+    'utf8',
+);
 
 function sourceBetween(source, startMarker, endMarker) {
     const start = source.indexOf(startMarker);
@@ -271,6 +275,16 @@ test('mobile map focus tray shows selected cards without changing list order', (
     assert.match(sharedMapDirectorySource, /if \(!selectionPlaceKey\) \{\s*setFlashPlaceKey\(null\);\s*if \(isMobileMapPanelEnabled && canClearMobileFocusTrayFromScroll\(\)\) \{\s*setMobileFocusTrayPlaceKey\(null\);/);
     assert.match(sharedMapDirectorySource, /if \(deltaY > 0 && mobileFocusTrayPlaceKeyRef\.current && canClearMobileFocusTrayFromScroll\(\)\) \{\s*setMobileFocusTrayPlaceKey\(null\);/);
     assert.match(traySource, /data-mobile-map-focus-tray-card="true"/);
+    assert.match(sharedMapDirectorySource, /mobileFocusCardVariant = 'default'/);
+    assert.match(myMapV2ScaffoldSource, /mobileFocusCardVariant="complete-preview"/);
+    assert.doesNotMatch(sharedMapPageSource, /mobileFocusCardVariant="complete-preview"/);
+    assert.match(traySource, /cardVariant === 'complete-preview'/);
+    assert.match(traySource, /<CompactResourcePreviewCard/);
+    assert.match(traySource, /detailAction=\{/);
+    assert.match(traySource, /<Link to=\{placeDetailPath\}/);
+    assert.match(traySource, /trailingAction=\{/);
+    assert.match(traySource, /<MapNoteIconButton/);
+    assert.match(compactResourcePreviewCardSource, /buildEmbedResourcePreviewDetails\(group, row\)/);
     assert.match(traySource, /border border-brand-200 bg-brand-100\/75/);
     assert.match(traySource, /ring-1 ring-white\/80/);
     assert.match(traySource, /const trayGroups = selection\.type === 'group' \|\| selection\.type === 'pin-group'\s*\? selection\.members\s*: \[selection\.group\]/);
@@ -354,7 +368,7 @@ test('mobile full-map overlay has visible return and notes controls', () => {
     assert.doesNotMatch(mobileSource, /<span>\{t\('returnToMapList'\)\}<\/span>/);
     assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*onOpen=\{openResourceNotes\}/);
     assert.match(sharedMapDirectorySource, /compactFullMap \? 'min-w-\[min\(18rem,78vw\)\] max-w-\[19rem\]' : 'min-w-\[min\(18rem,78vw\)\]'/);
-    assert.match(sharedMapDirectorySource, /isFullMap \? 'max-h-\[30svh\] flex-shrink-0 overflow-hidden' : ''/);
+    assert.match(sharedMapDirectorySource, /cardVariant === 'complete-preview' \? 'overflow-y-auto' : 'overflow-hidden'/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /mobileMapStickyClassName="[^"]*disable-font-scaling/);
     assert.doesNotMatch(myMapDetailPageSource, /mobileMapStickyClassName="[^"]*disable-font-scaling/);
     assert.doesNotMatch(sharedMapPageSource, /mobileMapStickyClassName="[^"]*disable-font-scaling/);

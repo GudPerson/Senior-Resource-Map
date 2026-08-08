@@ -174,6 +174,7 @@ export default function MyMapV2PreviewScaffold({
                         showDesktopHoverLogo
                         showMapLegend={false}
                         cardBadgeMode="logo"
+                        mobileFocusCardVariant="complete-preview"
                         preserveMobileMapFrameInFlow={preserveMobileMapFrameInFlow}
                         desktopScrollTargetRef={desktopScrollTargetRef}
                         desktopGridClassName={V2_DESKTOP_GRID_CLASS}

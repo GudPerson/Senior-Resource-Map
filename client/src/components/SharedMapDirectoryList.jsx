@@ -28,6 +28,7 @@ import {
     CalendarPlus,
     ChevronRight,
     Eye,
+    ExternalLink,
     Italic,
     Link2,
     List,
@@ -68,6 +69,9 @@ import MarkdownLiteText from './MarkdownLiteText.jsx';
 import OfferingAccessNotice from './OfferingAccessNotice.jsx';
 import { PersonalPlaceCategoryIcon } from '../lib/personalPlaceCategories.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
+import CompactResourcePreviewCard, {
+    COMPACT_RESOURCE_DETAIL_ACTION_CLASSNAME,
+} from './CompactResourcePreviewCard.jsx';
 
 const DirectoryReturnPathContext = React.createContext('');
 
@@ -2466,11 +2470,13 @@ function MobileMapFocusTrayPlaceCard({
     clusterColorData = null,
     cardBadgeMode = 'logo',
     compactFullMap = false,
+    cardVariant = 'default',
 }) {
     const { t } = useLocale();
     const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
     const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(group);
+    const previewRow = primaryManagedPlaceRow || getGroupBadgeRow(group);
     const locationLine = resolveV2CardLocationLine(group, t);
     const canFocusOnMap = Boolean(onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
 
@@ -2485,6 +2491,37 @@ function MobileMapFocusTrayPlaceCard({
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
         onViewOnMap?.(group.placeKey);
+    }
+
+    if (cardVariant === 'complete-preview' && previewRow) {
+        return (
+            <CompactResourcePreviewCard
+                data-mobile-map-focus-tray-card="true"
+                group={group}
+                row={previewRow}
+                framed
+                className={`group snap-start bg-white shadow-sm transition hover:border-brand-200 ${
+                    compactFullMap ? 'min-w-[min(18rem,78vw)] max-w-[19rem]' : 'min-w-[min(18rem,78vw)]'
+                }`}
+                onClick={handleCardClick}
+                onKeyDown={handleCardKeyDown}
+                role={canFocusOnMap ? 'button' : undefined}
+                tabIndex={canFocusOnMap ? 0 : undefined}
+                aria-label={canFocusOnMap ? `${t('viewOnMap')}: ${group.name}` : undefined}
+                detailAction={placeDetailPath && previewRow.status !== 'unavailable' ? (
+                    <Link to={placeDetailPath} className={COMPACT_RESOURCE_DETAIL_ACTION_CLASSNAME}>
+                        {t('embedMapOpenResource')} <ExternalLink size={12} />
+                    </Link>
+                ) : null}
+                trailingAction={(
+                    <MapNoteIconButton
+                        row={primaryNoteRow}
+                        onOpenResourceNotes={onOpenResourceNotes}
+                        compact
+                    />
+                )}
+            />
+        );
     }
 
     return (
@@ -2553,6 +2590,7 @@ function MobileMapFocusTray({
     clusterMapping = {},
     cardBadgeMode = 'logo',
     variant = 'default',
+    cardVariant = 'default',
 }) {
     if (!selection) return null;
 
@@ -2569,7 +2607,9 @@ function MobileMapFocusTray({
         <section
             data-mobile-map-focus-tray="true"
             className={`rounded-[26px] border border-brand-200 bg-brand-100/75 p-3.5 shadow-[0_22px_48px_-26px_rgba(15,118,110,0.58),0_8px_22px_-18px_rgba(15,23,42,0.32)] ring-1 ring-white/80 [overflow-anchor:none] ${
-                isFullMap ? 'max-h-[30svh] flex-shrink-0 overflow-hidden' : ''
+                isFullMap
+                    ? `max-h-[30svh] flex-shrink-0 ${cardVariant === 'complete-preview' ? 'overflow-y-auto' : 'overflow-hidden'}`
+                    : ''
             }`}
         >
             <DirectoryCategoryPill
@@ -2591,6 +2631,7 @@ function MobileMapFocusTray({
                         clusterColorData={clusterMapping[group.placeKey] || null}
                         cardBadgeMode={cardBadgeMode}
                         compactFullMap={isFullMap}
+                        cardVariant={cardVariant}
                     />
                 ))}
             </div>
@@ -3202,6 +3243,7 @@ export default function SharedMapDirectoryList({
     desktopScrollTargetRef = null,
     selectionPlaceKey = null,
     selectionScrollRequest = 0,
+    mobileFocusCardVariant = 'default',
 }) {
     const { t } = useLocale();
     const location = useLocation();
@@ -3647,6 +3689,7 @@ export default function SharedMapDirectoryList({
                         onOpenResourceNotes={openResourceNotes}
                         clusterMapping={clusterMapping}
                         cardBadgeMode={cardBadgeMode}
+                        cardVariant={mobileFocusCardVariant}
                     />
 
                     <div ref={mobileMapWrapperRef} className={mobileMapNotesWrapperClassName}>
@@ -3744,6 +3787,7 @@ export default function SharedMapDirectoryList({
                                 clusterMapping={clusterMapping}
                                 cardBadgeMode={cardBadgeMode}
                                 variant="full-map"
+                                cardVariant={mobileFocusCardVariant}
                             />
                             <MapNotesEntryButton
                                 rows={noteResourceRows}
