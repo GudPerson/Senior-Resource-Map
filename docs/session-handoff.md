@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-08 (Asia/Singapore)
 
-## Embedded-map contacts and Group filters (2026-08-08, local candidate)
+## Embedded-map contacts and Group filters (2026-08-08, production release)
 
 - On `codex/map-only-embed-v1`, the embed-only resource preview now removes a
   redundant one-resource name/category repeat while preserving names that
@@ -25,9 +25,25 @@ Last updated: 2026-08-08 (Asia/Singapore)
   Website, phone, Facebook, and resource actions are accessible. Local
   cross-origin Detailed-manifest CORS errors are expected preview-environment
   noise; the regular map fallback remained usable.
-- This is an undeployed local candidate. It has not been staged, committed,
-  pushed, or released; use `docs/release-checklist.md` before any authorized
-  production deployment. Preserve the unrelated untracked workspace files.
+- Implementation commit `ce37a5954` is pushed on
+  `codex/map-only-embed-v1` and `main`. Worker
+  `1971d14c-54f0-4d0c-8f61-0eab30722cc8` deployed first and both public map
+  endpoints returned 200; the ordinary Shared Map payload remained free of
+  website, contact-phone, and social fields. The exact six-root Pages artifact
+  is `https://b8dc25b5.senior-resource-map.pages.dev`; all 81 local,
+  immutable, and custom-domain files matched by bytes and SHA-256 at aggregate
+  `972a4e186846edb5afed7b43333b6fa317458605f542111020b42f3f3de667e0`.
+- Production Playwright UAT at 400x520 showed 4 mapped resources and retained
+  all 4 pins when ICCP was selected. A selected Fei Yue place showed its name
+  and address once, with the resource link preserved. Public smoke passed 1/1;
+  five authenticated cases were unavailable because their configured
+  credentials were absent. Map 25 and its existing frozen share were not
+  mutated; its owner must use `Update shared link` once to freeze the new
+  contact fields and exact Group-member keys. Preserve unrelated untracked
+  workspace files.
+- See
+  `docs/release-manifest-2026-08-08-embedded-map-contacts-group-filter.md` for
+  the release record and rollback boundary.
 
 ## Embedded-map presentation enrichment (2026-08-08, production release)
 

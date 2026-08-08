@@ -15,9 +15,9 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-08 embedded-map contact and Group-filter candidate
+## 2026-08-08 embedded-map contacts and Group filters production release
 
-- Candidate behavior: a selected embedded-map pin shows the place name and
+- Current behavior: a selected embedded-map pin shows the place name and
   address once. A one-resource preview no longer repeats that same name or its
   category inside the card; multi-resource or differently named hosted rows
   retain their distinguishing names. The row keeps its resource logo/fallback,
@@ -62,9 +62,22 @@ Rules:
   resource` through accessible links. Local Detailed-manifest CORS failures
   are expected in this cross-origin preview and did not affect the live-map
   fallback or the asserted behavior.
-- Release state: local candidate only on `codex/map-only-embed-v1`; not staged,
-  committed, pushed, or deployed. A production release still requires the
-  normal release checklist and explicit deployment authorization.
+- Production release: implementation commit `ce37a5954` is on
+  `codex/map-only-embed-v1` and `main`. Worker version
+  `1971d14c-54f0-4d0c-8f61-0eab30722cc8` was deployed first; API health and
+  both public share endpoints returned 200, while the ordinary Shared Map
+  response remained contact-free. The exact six-root client deployed at
+  `https://b8dc25b5.senior-resource-map.pages.dev`. All 81 public artifacts
+  matched local, immutable Pages, and `https://app.carearound.sg` by bytes and
+  SHA-256 with aggregate
+  `972a4e186846edb5afed7b43333b6fa317458605f542111020b42f3f3de667e0`.
+  Production Playwright UAT at 400x520 confirmed 4 mapped resources, all 4
+  mapped Group-member pins remain after selecting ICCP, and a selected place
+  shows its name/address only once. Public production smoke passed 1/1; the
+  five authenticated cases were not run because their configured credentials
+  were absent. Existing map 25 and its frozen snapshot were read-only during
+  verification, so the owner must use `Update shared link` once before its
+  embed receives newly frozen contact fields and exact member keys.
 
 ## 2026-08-08 embedded-map presentation enrichment production release
 
