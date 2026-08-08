@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-08 complete embedded-resource preview local release candidate
+## 2026-08-08 complete embedded-resource preview production release
 
 - Current behavior: one selected embedded-map resource is presented as one
   content-dense card. Its logo/fallback, name, and address form the identity
@@ -52,9 +52,19 @@ Rules:
   400x520 and 1280x900. At the compact viewport the card's `clientHeight` and
   `scrollHeight` are both 204 pixels, and all five Website, phone, Facebook,
   Instagram, and `Open resource` actions are visible. See `design-qa.md`.
-- Release state: validated local candidate on `codex/map-only-embed-v1`;
-  production identifiers and artifact parity will be recorded after the
-  approved Worker-first release.
+- Production release: implementation commit `f54ec727b` is on
+  `codex/map-only-embed-v1` and `main`. Worker version
+  `ec655f91-1ce8-4afc-ad3e-0a8d5432154d` was deployed and its health, ordinary
+  Shared Map, and embed endpoints returned 200. After automatic Pages build
+  `82dd8be3`, the exact six-root artifact was deliberately republished at
+  `https://213d1357.senior-resource-map.pages.dev`. All 81 public files then
+  matched local, immutable Pages, and `https://app.carearound.sg` by MIME,
+  bytes, and SHA-256 with aggregate
+  `36dfdfd454f0d01a0dba3f4c6afd0a8dab5c3873f6363142448421767854969a`.
+  The production embed document and `EmbeddedMapPage` lazy chunk return the
+  expected HTML/JavaScript MIME types and contain the count/contact paths.
+  Existing map 25 remained read-only; its four hard rows correctly retain a
+  zero count until the owner intentionally uses `Update shared link`.
 
 ## 2026-08-08 embedded-map contacts and Group filters production release
 

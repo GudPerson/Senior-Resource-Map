@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-08 (Asia/Singapore)
 
-## Complete embedded-resource preview (2026-08-08, local release candidate)
+## Complete embedded-resource preview (2026-08-08, production release)
 
 - On `codex/map-only-embed-v1`, the embedded selected-resource card now shows
   one complete identity block (logo/fallback, name, address), optional hours or
@@ -26,9 +26,17 @@ Last updated: 2026-08-08 (Asia/Singapore)
   six-root production build, `git diff --check`, and visual QA at 400x520 and
   1280x900. The compact proof exposes Website, phone, Facebook, Instagram, and
   `Open resource` without clipping. See `design-qa.md`.
-- Release state remains local and validated. Deploy Worker first, then the exact
-  six-root Pages artifact, verify custom-domain artifact parity, and update this
-  handoff with the accepted production identifiers.
+- Implementation `f54ec727b` is pushed on `codex/map-only-embed-v1` and `main`.
+  Worker `ec655f91-1ce8-4afc-ad3e-0a8d5432154d` is live; API health, ordinary
+  Shared Map, and embed endpoints returned 200. Automatic Pages build
+  `82dd8be3` completed first, then the exact six-root artifact was republished
+  at `https://213d1357.senior-resource-map.pages.dev`.
+- All 81 local, immutable, and custom-domain files match by MIME, bytes, and
+  SHA-256 at aggregate
+  `36dfdfd454f0d01a0dba3f4c6afd0a8dab5c3873f6363142448421767854969a`.
+  Production serves the expected embed HTML and JavaScript chunk with the new
+  count/contact paths. Map 25 was not mutated and still reports zero positive
+  counts, as expected until its owner uses `Update shared link`.
 
 ## Embedded-map contacts and Group filters (2026-08-08, production release)
 

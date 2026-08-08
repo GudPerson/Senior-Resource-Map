@@ -2,7 +2,8 @@
 
 - Date: 2026-08-08
 - Branch: `codex/map-only-embed-v1`
-- Status: validated local release candidate; production identifiers pending.
+- Released implementation commit: `f54ec727b3100f24cf864122871aa85d419901d6`
+- Status: production release verified on 2026-08-08.
 
 ## Intended outcome
 
@@ -38,18 +39,26 @@ changed.
 - `git diff --check`: pass.
 - Visual QA: pass at 400x520 and 1280x900; see `design-qa.md`.
 
-## Deployment order
+## Deployment record
 
-1. Commit and push the validated implementation branch.
-2. Fast-forward and push `main`, then immediately deploy and verify the
-   compatible Worker while the automatic Pages build is still in progress.
-3. Allow that automatic build to settle without accepting it as the release.
-4. Publish the already validated exact six-root `client/dist` through the
-   controlled Pages release.
-5. Compare local, immutable Pages, and `https://app.carearound.sg` artifacts by
-   MIME type, byte length, and SHA-256.
-6. Verify API health and the public embed route without mutating map 25 or its
-   frozen snapshot.
+1. `codex/map-only-embed-v1` and `main` were fast-forwarded to `f54ec727b` and
+   pushed.
+2. The guarded clean-`main` Worker release deployed version
+   `ec655f91-1ce8-4afc-ad3e-0a8d5432154d`. API health, ordinary Shared Map,
+   and embed endpoints returned 200.
+3. Automatic Pages build `82dd8be3` completed. It was not accepted as the
+   release because it did not use the controlled six-root artifact.
+4. The exact production API URL and six locked Detailed-map roots built and
+   deployed. A final identical publish after the automatic build settled is
+   available at `https://213d1357.senior-resource-map.pages.dev`.
+5. All 81 public files matched local `client/dist`, the immutable Pages URL,
+   and `https://app.carearound.sg` by MIME, byte length, and SHA-256 with
+   aggregate
+   `36dfdfd454f0d01a0dba3f4c6afd0a8dab5c3873f6363142448421767854969a`.
+6. The production embed document and lazy chunk return the expected HTML and
+   JavaScript MIME types and carry the new count/contact paths. Existing map 25
+   was not mutated; its four hard rows retain zero positive counts until its
+   owner intentionally uses `Update shared link`.
 
 ## Rollback
 
