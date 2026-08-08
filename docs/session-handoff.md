@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-08 (Asia/Singapore)
 
-## Embedded bubbles and owner mobile focus card (2026-08-08, release candidate)
+## Embedded bubbles and owner mobile focus card (2026-08-08, production release)
 
 - On `codex/embed-bubbles-owner-focus-card`, the map-only embed now uses the
   current category-bubble collision mode rather than the legacy numeric cluster
@@ -18,11 +18,20 @@ Last updated: 2026-08-08 (Asia/Singapore)
   API, schema, membership, annotations, and exports are unchanged.
 - Gates pass: focused map/focus coverage 79/79, full client/source 590/590,
   server 521/521, ordinary client build, map lockdown 84/84 plus the exact
-  six-root build, and `git diff --check`. Implementation commit `b9a750ec` is
-  ready for the Pages release gate; production UAT and artifact parity are not
-  yet claimed.
+  six-root build, and `git diff --check`. Production Chrome UAT confirms four
+  embed category bubbles, zero legacy clusters, complete unclipped preview
+  actions at 400x520, and the signed-in owner focus card at 390x844. The
+  immutable deployment also confirms the card in full-map mode. Public smoke
+  passes 1/1; five authenticated smoke cases lacked configured credentials and
+  are not claimed as passed.
+- Implementation `b9a750ec` is pushed on the feature branch and `main`. After
+  the expected Git-build race, the exact six-root artifact was republished at
+  `https://f74778c3.senior-resource-map.pages.dev`. All 80 local, immutable,
+  and custom-domain files match by MIME, bytes, and SHA-256 at aggregate
+  `99468f3e9a667ed5f383c3eef6400d28e7a4b1f9fdc256396ac8b224cd500cb9`.
+  API health, embed API/document, and Discover return 200. No Worker changed.
 - Preserve all unrelated untracked workspace files when continuing this
-  release. See
+  release line. See
   `docs/release-manifest-2026-08-08-embed-bubbles-owner-focus-card.md`.
 
 ## Embedded preview WWW and label refinement (2026-08-08, production release)

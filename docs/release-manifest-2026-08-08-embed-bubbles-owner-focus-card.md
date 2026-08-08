@@ -31,16 +31,36 @@ Date: 2026-08-08 (Asia/Singapore)
 - Ordinary client build and `git diff --check` passed. The only build advisory
   was the established stale browsers-data notice.
 
-## Deployment gate
+## Deployment
 
-- Push the validated implementation to `main`, wait for the Git-triggered
-  Pages build to settle, then directly publish the already validated
-  `client/dist` with cache skipping.
-- Confirm the complete local/immutable/custom-domain manifest by MIME type,
-  byte length, and SHA-256 before acceptance.
-- Confirm API health, the frozen embed endpoint/document, Discover, embedded
-  category-bubble behavior, and signed-in owner My Map mobile focus cards.
-- No Worker deployment is planned because server behavior is unchanged.
+- Git-triggered production deployment:
+  `667d0f59-f04b-4ddb-bf04-650749d9d3fa`.
+- Accepted controlled six-root publication after the Git-build race settled:
+  `f74778c3-d4b3-4451-8eb9-3141907b446c`.
+- Immutable URL: `https://f74778c3.senior-resource-map.pages.dev`.
+- Production URL: `https://app.carearound.sg`.
+- No Worker deployment was performed because server behavior did not change.
+
+## Production evidence
+
+- All 80 public files match local, immutable Pages, and the custom domain by
+  MIME type, byte length, and SHA-256.
+- Aggregate manifest SHA-256:
+  `99468f3e9a667ed5f383c3eef6400d28e7a4b1f9fdc256396ac8b224cd500cb9`.
+- All six locked Detailed-map roots and required/forbidden release markers
+  remain present in the deployed JavaScript.
+- API health, the frozen embed API, production embed document, and Discover
+  return 200.
+- Production Chrome UAT at 400x520 reports four category-bubble icons/lobes,
+  zero legacy cluster markers, and visible Website, phone, and `Open resource`
+  actions with no internal card overflow.
+- Signed-in production owner UAT at 390x844 confirms the complete focus card,
+  public Programme/Service count, hours, contact actions, and SPA `returnTo`
+  path. The immutable deployment confirms the same card in full-map mode with
+  the tray's bounded vertical scrolling.
+- Production smoke: the public case passed. Five authenticated cases were not
+  runnable because `SMOKE_PARTNER_USERNAME` and `SMOKE_PARTNER_PASSWORD` were
+  absent; they are not claimed as passed.
 
 ## Rollback
 

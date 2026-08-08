@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-08 embedded bubble clustering and owner mobile focus-card release candidate
+## 2026-08-08 embedded bubble clustering and owner mobile focus-card production release
 
 - Current behavior: the map-only embed uses the same category-bubble collision
   behavior as the current interactive My Map instead of the legacy numeric
@@ -37,14 +37,27 @@ Rules:
   and its available actions are visible without losing map-focus or note
   behavior. Confirm an ordinary Shared Map and owner Print View keep their
   existing card contracts.
-- Verification before deploy: focused map and focus-card coverage passes
+- Verification: focused map and focus-card coverage passes
   79/79; full client/source coverage passes 590/590; full server coverage
   passes 521/521; the ordinary client build passes; map lockdown passes 84/84
   followed by the exact six-root production build; and `git diff --check`
-  passes. The only build advisory is the established stale browsers-data
-  notice. Production deployment and signed-in/mobile UAT remain release gates.
-- Candidate reference: implementation commit `b9a750ec` on
-  `codex/embed-bubbles-owner-focus-card`. See
+  passes. At 400x520, production Chrome UAT finds four category-bubble icons
+  and lobes, zero legacy cluster markers, visible Website/phone/resource
+  actions, and equal client/scroll heights. Signed-in owner UAT at 390x844
+  confirms the complete focus card and SPA return path in normal mode; the
+  immutable deployment confirms the same card in full-map mode with bounded
+  vertical tray overflow. The public production smoke case passes; five
+  credentialed cases were unavailable because the configured smoke username
+  and password were absent and are not claimed as passed.
+- Production release: implementation commit `b9a750ec` is on
+  `codex/embed-bubbles-owner-focus-card` and `main`. The final controlled Pages
+  deployment is `f74778c3-d4b3-4451-8eb9-3141907b446c` at
+  `https://f74778c3.senior-resource-map.pages.dev`. All 80 public files match
+  local, immutable Pages, and `https://app.carearound.sg` by MIME, bytes, and
+  SHA-256 with aggregate
+  `99468f3e9a667ed5f383c3eef6400d28e7a4b1f9fdc256396ac8b224cd500cb9`.
+  API health, the frozen embed API/document, and Discover return 200. No Worker
+  was deployed because no server behavior changed. See
   `docs/release-manifest-2026-08-08-embed-bubbles-owner-focus-card.md`.
 
 ## 2026-08-08 embedded preview WWW and label refinement production release
