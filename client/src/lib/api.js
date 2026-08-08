@@ -567,6 +567,7 @@ export const api = {
     updateMyMapPrintAnnotations: (id, body) => request('PUT', `/my-maps/${id}/print-annotations`, body),
     publishMyMapShare: (id, body = {}) => request('POST', `/my-maps/${id}/share`, body),
     unpublishMyMapShare: (id) => request('DELETE', `/my-maps/${id}/share`),
+    updateMyMapEmbed: (id, body) => request('PATCH', `/my-maps/${id}/embed`, body),
     addMyMapAsset: (id, body) => request('POST', `/my-maps/${id}/assets`, body),
     updateMyMapAssetShortDescriptor: (id, resourceType, resourceId, body) => request('PATCH', `/my-maps/${id}/assets/${resourceType}/${resourceId}/short-description`, body),
     updateMyMapAssetNotes: (id, resourceType, resourceId, body, options = {}) => request('PATCH', `/my-maps/${id}/assets/${resourceType}/${resourceId}/notes`, body, options),

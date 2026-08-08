@@ -3048,6 +3048,8 @@ export default function DirectoryMap({
                                 key={pin.pinKey || pin.placeKey}
                                 position={[pin.displayLat, pin.displayLng]}
                                 icon={icon}
+                                title={pin.title || pin.previewResourceNames?.join(', ') || 'Map resource'}
+                                alt={pin.title || pin.previewResourceNames?.join(', ') || 'Map resource'}
                                 zIndexOffset={markerMode === 'print-badge'
                                     ? 100000 + ((Number(pin.number) || 0) * 1000)
                                     : (markerMode === 'category-bubble' && isMatched ? 100000 : undefined)}
@@ -3133,6 +3135,8 @@ export default function DirectoryMap({
                     key={pin.pinKey || pin.placeKey}
                     position={[pin.displayLat, pin.displayLng]}
                     icon={icon}
+                    title={pin.title || pin.previewResourceNames?.join(', ') || 'Map resource'}
+                    alt={pin.title || pin.previewResourceNames?.join(', ') || 'Map resource'}
                     zIndexOffset={markerMode === 'print-badge'
                         ? 100000 + ((Number(pin.number) || 0) * 1000)
                         : (markerMode === 'category-bubble' && isMatched ? 100000 : undefined)}

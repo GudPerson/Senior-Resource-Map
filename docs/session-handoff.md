@@ -1,6 +1,51 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-08-07 (Asia/Singapore)
+Last updated: 2026-08-08 (Asia/Singapore)
+
+## Map-only website embed V1 (2026-08-08, local candidate)
+
+- Branch `codex/map-only-embed-v1` starts from deployed source base
+  `967cf183d`. The owner Share dialog now has opt-in Website embed settings for
+  exact approved origins, a live enable/disable switch, preview, and generated
+  lazy iframe code. The frozen Shared Map snapshot remains authoritative;
+  embedding fails closed without a matching snapshot, while ordinary Shared
+  Map compatibility and owner workflows are unchanged. A legacy published map
+  must use `Update shared link` once before enabling an embed.
+- The embed is guest-only and map-only. It boots outside auth, Google, saved
+  resources, and PWA providers; uses a credential-free endpoint; and strips
+  top-level assets plus notes, save/access/profile fields, personal places,
+  annotations, and embed settings. It keeps map name, category-bubble
+  pins/clusters, search/categories, zoom/reset, selected resource preview,
+  list-only disclosure, external-tab links, and attribution.
+- Global anti-framing headers remain locked. A Pages Function handles only
+  `/embed/maps/*`, obtains the minimum live origin configuration, supplies a
+  route-specific CSP and full Function-response security headers, removes XFO
+  only there, and fails to a no-data unavailable document. Production origins
+  are exact HTTPS origins; only loopback HTTP is allowed for UAT.
+- Current gates pass: focused 96/96, full server 517/517, full client 572/572,
+  map lockdown 84/84, and exact six-root build. Built-artifact browser UAT
+  passed desktop, mobile touch release, 900x520 layout, 399-pixel warning,
+  selected resource, list-only disclosure, and zero-error approved-parent
+  framing. A second origin was blocked by the expected `frame-ancestors` CSP.
+- Wrangler 4.120.0 compiled the Pages Function from `client/functions` and
+  generated only `/embed/maps/*`. The release manifest uses a server/schema
+  Commit A followed by client/docs Commit B so a possible main-branch Pages
+  build cannot expose the embed client before the compatible Worker is healthy.
+- The schema gate now has a narrow `bootstrap:map-embed-schema` command. It
+  reuses the full boundary bootstrap's two-column helper, applies only the
+  embed columns, and verifies them through `information_schema`.
+- Fresh rollback evidence confirms production API health and byte-identical
+  custom/immutable HTML at deployment `6ee1710f`, SHA-256
+  `42fb3394e86e29871a61d703e648d841474dff25b7e2ab1f86432ce18aefa243`;
+  the ordinary custom-domain shell still has CSP `frame-ancestors 'none'` and
+  XFO DENY.
+- This is not released. No schema apply, commit, push, Worker/Pages deployment,
+  or production mutation has occurred. Production schema bootstrap is disabled,
+  so the approved release order is explicit schema apply, compatible Worker,
+  exact Pages artifact, parity checks, authenticated owner UAT, external-host
+  UAT, and disposable cleanup. Preserve unrelated untracked files.
+  See `docs/release-manifest-2026-08-08-map-only-embed-v1.md` for the exact
+  main-line reconciliation, deployment, acceptance, and rollback order.
 
 ## Print View Detailed-map transient-load stabilization (2026-08-07, production release)
 

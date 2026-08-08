@@ -3,6 +3,16 @@
 @tailwind components;
 @tailwind utilities;
 
+.embedded-map-height-warning {
+    display: none;
+}
+
+@media (max-height: 399px) {
+    .embedded-map-height-warning {
+        display: flex;
+    }
+}
+
 @layer base {
   :root {
     --font-scale: 1;

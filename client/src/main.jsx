@@ -1,29 +1,26 @@
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App.jsx'
-import { AuthProvider } from './contexts/AuthContext.jsx'
-import { A11yProvider } from './contexts/A11yContext.jsx'
-import { MapStyleProvider } from './contexts/MapStyleContext.jsx'
-import { GoogleOAuthProvider } from '@react-oauth/google'
-import { registerCareAroundPwa } from './lib/pwaRegistration.js'
 
 const rootElement = document.getElementById('root')
+const isEmbeddedMapRoute = window.location.pathname.startsWith('/embed/maps/')
 
 // Keep a visible release marker in the shell and force a fresh hashed entry
 // whenever the bootstrap contract changes.
-document.documentElement.dataset.carearoundClientShell = '2026-07-21.1'
+document.documentElement.dataset.carearoundClientShell = '2026-08-08.1'
 
-createRoot(rootElement).render(
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-        <A11yProvider>
-            <MapStyleProvider>
-                <AuthProvider>
-                    <App />
-                </AuthProvider>
-            </MapStyleProvider>
-        </A11yProvider>
-    </GoogleOAuthProvider>
-)
+async function startClient() {
+    if (isEmbeddedMapRoute) {
+        const { default: EmbeddedApp } = await import('./EmbeddedApp.jsx')
+        createRoot(rootElement).render(<EmbeddedApp />)
+        return
+    }
 
-registerCareAroundPwa()
+    const [{ default: StandardAppRoot }, { registerCareAroundPwa }] = await Promise.all([
+        import('./StandardAppRoot.jsx'),
+        import('./lib/pwaRegistration.js'),
+    ])
+    createRoot(rootElement).render(<StandardAppRoot />)
+    registerCareAroundPwa()
+}
+
+startClient()

@@ -2673,6 +2673,23 @@ export default function MyMapDetailPage() {
         }
     }
 
+    async function handleUpdateEmbed(settings) {
+        if (!directory) return false;
+        setShareSubmitting(true);
+        setShareError('');
+        try {
+            await api.updateMyMapEmbed(directory.id, settings);
+            const refreshed = await loadMap();
+            return refreshed !== false;
+        } catch (err) {
+            console.error(err);
+            setShareError(err.message || t('failed'));
+            return false;
+        } finally {
+            setShareSubmitting(false);
+        }
+    }
+
     function focusPlaceOnMap(placeKey) {
         const mapFocusPlaceKeys = ownerPresentation.mapFocusPlaceKeysByKey?.[placeKey] || [];
         const resolvedPlaceKey = ownerPresentation.groupKeyByPlaceKey?.[placeKey] || placeKey;
@@ -3311,6 +3328,7 @@ export default function MyMapDetailPage() {
                     }}
                     onPublish={handlePublishShare}
                     onUnpublish={handleUnpublishShare}
+                    onUpdateEmbed={handleUpdateEmbed}
                 />
 
                 <AddPersonalPlaceChooserModal
@@ -3644,6 +3662,7 @@ export default function MyMapDetailPage() {
                 }}
                 onPublish={handlePublishShare}
                 onUnpublish={handleUnpublishShare}
+                onUpdateEmbed={handleUpdateEmbed}
             />
 
             <AddPersonalPlaceChooserModal

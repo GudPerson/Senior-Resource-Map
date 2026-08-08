@@ -15,6 +15,87 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-08 map-only website embed V1 candidate
+
+- Candidate behavior: a My Map owner must first publish the existing frozen
+  Shared Map snapshot, then may separately approve up to ten exact website
+  origins and enable `Website embed`. The Share dialog previews the compact
+  map, displays mapped and list-only counts, and generates one lazy 520-pixel
+  iframe. Disablement or approved-origin removal is live and does not require
+  republishing; unpublishing disables embedding and a future republish remains
+  disabled until the owner explicitly enables it again. Enabling requires a
+  matching frozen snapshot; a legacy published map must use `Update shared
+  link` first rather than falling back to live owner data.
+- Guest boundary: `/embed/maps/:token` boots a separate client provider tree
+  without auth, Google sign-in, saved resources, account navigation, or PWA
+  registration. Its credential-free API response is rebuilt through the
+  existing frozen guest Shared Map and additionally omits asset summaries,
+  notes, save/access/profile metadata, personal places, print annotations, and
+  embed settings. The UI exposes only map name, category-bubble pins/clusters,
+  search, category filters, reset/zoom, one selected-resource preview,
+  list-only disclosure, full-map/resource links, and required attribution.
+- Framing and revocation boundary: ordinary app HTML keeps global
+  `frame-ancestors 'none'` plus `X-Frame-Options: DENY`. One Pages Function is
+  routed only for `/embed/maps/*`, verifies the live allowlist through a
+  minimal Worker endpoint, removes the frame header only from that response,
+  sets exact `frame-ancestors 'self' <approved origins>`, disables sensitive
+  browser permissions, prevents indexing/caching on both Pages and Worker
+  responses, and serves a no-data
+  unavailable document if configuration cannot be verified. Origins require
+  HTTPS in production; paths, queries, fragments, credentials, wildcards, and
+  unsafe persisted values fail closed. HTTP is limited to loopback UAT.
+- Architecture and blast radius: additive `embed_enabled` and
+  `embed_allowed_origins` My Map columns, one authenticated owner PATCH, two
+  guest read endpoints, one isolated embed bootstrap/page, and one additive
+  Share-dialog section. Existing `/shared/maps/:token`, sharing snapshots,
+  Shared Map copy/save, owner My Map, Print View, Detailed surfaces,
+  annotations, exports, visibility filtering, auth/session behavior, and
+  global headers retain their current contracts. The candidate starts from
+  deployed source base `967cf183d` on `codex/map-only-embed-v1`.
+  The approval-gated schema apply is narrowed to those two columns through
+  `bootstrap:map-embed-schema`; it verifies both and does not execute the wider
+  boundary-schema catalogue.
+- Reproduction and acceptance: publish an owned map, add an exact approved
+  origin, enable Website embed, and confirm preview/code appear. Load the code
+  at a 900x520 approved parent and confirm map/search/filter/pin preview,
+  external-tab links, list-only notice, and attribution. At a coarse pointer,
+  confirm the interaction guard, Done, and Escape release. At 399 pixels high,
+  confirm guidance requests at least 400 pixels. Load the identical iframe from
+  an unapproved parent and confirm the browser blocks it through
+  `frame-ancestors`. Disable embedding, remove the parent origin, and unpublish
+  in turn; each next load must fail closed while the ordinary Shared Map stays
+  readable where applicable. Confirm a browser session cookie never changes
+  the embed viewer or payload.
+- Current verification: focused embed/client/server/header coverage passes
+  96/96; full server coverage passes 517/517; full client/source coverage
+  passes 572/572; the map-lockdown aggregate passes 84/84; and the exact
+  six-root production build passes with only the established browser-data and
+  bundle-size advisories. Built-artifact Playwright UAT passes desktop
+  search/filter/pin-preview, named marker controls, mobile guard/Done/Escape,
+  the 900x520 no-scroll layout, and the sub-400-pixel warning. The exact Pages
+  response builder rendered inside approved loopback origin
+  `http://127.0.0.1:4190`; origin `http://127.0.0.1:4191` was blocked with the
+  expected CSP violation and the approved parent produced zero browser errors.
+  Wrangler 4.120.0 also compiled the Pages Function successfully and generated
+  a route manifest containing only `/embed/maps/*`; the bundle retained the
+  config fetch, exact CSP, Pages asset binding, and fail-closed handler.
+  `git diff --check` and the scoped secret/privacy review pass with no findings.
+  A fresh read-only production baseline also found API health OK and custom
+  HTML byte-identical to immutable deployment `6ee1710f` at SHA-256
+  `42fb3394e86e29871a61d703e648d841474dff25b7e2ab1f86432ce18aefa243`;
+  ordinary production HTML retained `frame-ancestors 'none'` and XFO DENY.
+- Release state: candidate only. No schema apply, commit, push, Worker deploy,
+  Pages deploy, production mutation, or production UAT is included. Because
+  production runtime schema bootstrap is disabled, the additive production
+  schema gate must be explicit and precede the compatible Worker, which must
+  precede Pages. Pause for one release approval covering commit/push, the
+  reviewed schema apply, Worker, Pages, artifact parity, approved/unapproved
+  external-host checks, authenticated owner UAT, and disposable cleanup.
+  `docs/release-manifest-2026-08-08-map-only-embed-v1.md` records the required
+  two-commit server-first release order because remote `main` is behind the
+  already-deployed candidate base and a mixed main push may trigger Pages
+  before the compatible Worker exists.
+
 ## 2026-08-07 owner Print View Detailed-map transient-load stabilization release
 
 - Candidate behavior: owner My Map Print View uses the same locked fractional

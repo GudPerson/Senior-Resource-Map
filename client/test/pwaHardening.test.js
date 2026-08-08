@@ -177,7 +177,7 @@ test('offline and delivery files are present and service worker updates are not 
 test('the independent app-shell recovery keeps a cached entry failure from leaving a blank page', () => {
     assert.match(indexSource, /<script defer src="\/app-shell-recovery-20260721-1\.js"><\/script>/);
     assert.match(headersSource, /\/app-shell-recovery-20260721-1\.js[\s\S]*Content-Type: application\/javascript[\s\S]*Cache-Control: no-cache/);
-    assert.match(mainSource, /carearoundClientShell = '2026-07-21\.1'/);
+    assert.match(mainSource, /carearoundClientShell = '2026-08-08\.1'/);
     assert.match(shellRecoverySource, /RECOVERY_DELAY_MS = 6000/);
     assert.match(shellRecoverySource, /entryUrl\.origin !== window\.location\.origin/);
     assert.match(shellRecoverySource, /entryUrl\.pathname\.startsWith\('\/assets\/index-'\)/);
