@@ -40,3 +40,54 @@
 - No P0, P1, or P2 visual, accessibility, or content-hierarchy issue remains in the tested states.
 
 final result: passed
+
+---
+
+# Design QA: owner mobile focus-card surface refinement
+
+- Source visual truth: `/Users/sweetbuns/Downloads/WhatsApp Image 2026-08-08 at 22.54.06.jpeg`
+- Requested delta: remove the category badge/label above the focused resource and remove the tinted outer tray so the resource preview card becomes the visible surface.
+- Browser-rendered implementation evidence: `/Users/sweetbuns/CareAroundSG/output/design-qa/owner-mobile-focus-card-local-auth-blocked.png`
+- Target viewport: 390 × 844 CSS pixels.
+- Source pixels: 945 × 2048. The source is a higher-density Android capture and was assessed as a mobile reference, not resampled for pixel comparison.
+- Implementation pixels: 390 × 844 at the browser viewport's native capture density.
+- Target state: signed-in owner My Map with one selected mapped resource in the mobile focus tray.
+- Captured implementation state: local sign-in screen. The protected owner map redirected to `/login`, so the requested focused-resource state could not be rendered without a new authentication action.
+
+## Full-view comparison evidence
+
+The source clearly shows the redundant category header and tinted rounded tray around the complete resource preview. The implementation capture does not reach the owner map, so a visual before/after comparison of the requested state is unavailable. Source-level regression coverage confirms that the complete-preview variant now omits `DirectoryCategoryPill`, uses a visually neutral outer section, and stretches a single compact resource card to the available tray width, but this is not a substitute for rendered visual evidence.
+
+## Focused-region comparison evidence
+
+Blocked for the same authentication reason: the local browser could not render the mobile focus-card region. No typography, spacing, token, asset, or copy fidelity claim is made from the sign-in capture.
+
+## Findings
+
+- [P2] Protected focus-card state is not visually verified.
+  - Location: owner My Map mobile focus tray, normal and full-map modes.
+  - Evidence: the source visual contains the target region, while the local implementation capture is the sign-in screen.
+  - Impact: automated source and build checks cannot rule out a responsive spacing or overflow mismatch in the final rendered state.
+  - Fix: complete authenticated mobile UAT at 390 × 844, select a mapped resource, and capture both normal and full-map focus-card states.
+
+## Required fidelity surfaces
+
+- Fonts and typography: blocked in the target state.
+- Spacing and layout rhythm: code contract updated; rendered comparison blocked.
+- Colors and visual tokens: the complete-preview wrapper is neutral by contract; rendered comparison blocked.
+- Image quality and asset fidelity: existing resource logo behavior is unchanged; rendered comparison blocked.
+- Copy and content: the category label is removed by contract; resource-preview copy is unchanged; rendered comparison blocked.
+
+## Comparison history
+
+- Initial comparison: blocked because the protected local owner route redirected to sign-in. No visual fix iteration was possible without an authenticated target-state capture.
+
+## Implementation checklist
+
+- Authenticate the local owner route through the normal supported flow.
+- Select a mapped resource at 390 × 844.
+- Confirm there is no category badge/label and no tinted outer tray.
+- Confirm the resource preview card spans the focus area without horizontal overflow.
+- Repeat in full-map mode and check note and `Open resource` actions.
+
+final result: blocked

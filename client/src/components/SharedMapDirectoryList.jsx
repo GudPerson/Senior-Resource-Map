@@ -2471,6 +2471,7 @@ function MobileMapFocusTrayPlaceCard({
     cardBadgeMode = 'logo',
     compactFullMap = false,
     cardVariant = 'default',
+    stretchToTray = false,
 }) {
     const { t } = useLocale();
     const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
@@ -2501,7 +2502,11 @@ function MobileMapFocusTrayPlaceCard({
                 row={previewRow}
                 framed
                 className={`group snap-start bg-white shadow-sm transition hover:border-brand-200 ${
-                    compactFullMap ? 'min-w-[min(18rem,78vw)] max-w-[19rem]' : 'min-w-[min(18rem,78vw)]'
+                    stretchToTray
+                        ? 'w-full min-w-0 flex-none'
+                        : compactFullMap
+                            ? 'min-w-[min(18rem,78vw)] max-w-[19rem]'
+                            : 'min-w-[min(18rem,78vw)]'
                 }`}
                 onClick={handleCardClick}
                 onKeyDown={handleCardKeyDown}
@@ -2600,27 +2605,31 @@ function MobileMapFocusTray({
         : [selection.group];
     const isFullMap = variant === 'full-map';
     const groupContextLabel = selection.type === 'group' ? categoryGroup.name : '';
+    const isCompletePreview = cardVariant === 'complete-preview';
+    const stretchCompletePreview = isCompletePreview && trayGroups.length === 1;
 
     if (!trayGroups.length) return null;
 
     return (
         <section
             data-mobile-map-focus-tray="true"
-            className={`rounded-[26px] border border-brand-200 bg-brand-100/75 p-3.5 shadow-[0_22px_48px_-26px_rgba(15,118,110,0.58),0_8px_22px_-18px_rgba(15,23,42,0.32)] ring-1 ring-white/80 [overflow-anchor:none] ${
-                isFullMap
-                    ? `max-h-[30svh] flex-shrink-0 ${cardVariant === 'complete-preview' ? 'overflow-y-auto' : 'overflow-hidden'}`
-                    : ''
-            }`}
+            className={isCompletePreview
+                ? `[overflow-anchor:none] ${isFullMap ? 'max-h-[30svh] flex-shrink-0 overflow-y-auto' : ''}`
+                : `rounded-[26px] border border-brand-200 bg-brand-100/75 p-3.5 shadow-[0_22px_48px_-26px_rgba(15,118,110,0.58),0_8px_22px_-18px_rgba(15,23,42,0.32)] ring-1 ring-white/80 [overflow-anchor:none] ${
+                    isFullMap ? 'max-h-[30svh] flex-shrink-0 overflow-hidden' : ''
+                }`}
         >
-            <DirectoryCategoryPill
-                label={categoryGroup.categoryLabel}
-                showUnmapped={Boolean(categoryGroup.isUnmappedGroup && !groupContextLabel)}
-                secondaryLabel={groupContextLabel}
-                color={categoryGroup.categoryColor}
-                iconUrl={categoryGroup.categoryIconUrl}
-                iconKey={categoryGroup.categoryIconKey}
-            />
-            <div className="mt-2 flex snap-x gap-2 overflow-x-auto pb-1">
+            {!isCompletePreview ? (
+                <DirectoryCategoryPill
+                    label={categoryGroup.categoryLabel}
+                    showUnmapped={Boolean(categoryGroup.isUnmappedGroup && !groupContextLabel)}
+                    secondaryLabel={groupContextLabel}
+                    color={categoryGroup.categoryColor}
+                    iconUrl={categoryGroup.categoryIconUrl}
+                    iconKey={categoryGroup.categoryIconKey}
+                />
+            ) : null}
+            <div className={stretchCompletePreview ? 'flex min-w-0' : `${isCompletePreview ? '' : 'mt-2 '}flex snap-x gap-2 overflow-x-auto pb-1`}>
                 {trayGroups.map((group) => (
                     <MobileMapFocusTrayPlaceCard
                         key={group.placeKey}
@@ -2632,6 +2641,7 @@ function MobileMapFocusTray({
                         cardBadgeMode={cardBadgeMode}
                         compactFullMap={isFullMap}
                         cardVariant={cardVariant}
+                        stretchToTray={stretchCompletePreview}
                     />
                 ))}
             </div>

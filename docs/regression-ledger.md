@@ -15,6 +15,38 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-08 owner mobile focus-card surface refinement candidate
+
+- Candidate behavior: the owner My Map mobile `complete-preview` focus state no
+  longer renders the category icon/label header or the tinted rounded tray
+  behind the resource. One selected resource preview becomes the full-width
+  visible focus surface. Multi-resource focus selections retain the horizontal
+  card rail without restoring the removed category header.
+- Architecture and blast radius: the refinement stays behind the existing
+  owner-only `complete-preview` variant in `SharedMapDirectoryList`. The
+  ordinary Shared Map/default tray retains its category pill, tinted wrapper,
+  spacing, and full-map overflow behavior. Desktop cards, owner Print View,
+  embedded-map previews, pins, map focus, notes, resource actions, auth, API,
+  snapshots, membership, annotations, exports, and Detailed-map assets are
+  unchanged.
+- Reproduction and acceptance: at a 390 × 844 mobile viewport, open an owned
+  My Map, select one mapped resource, and confirm the resource card sits
+  directly below the map with no category badge/label and no extra tinted
+  container. Confirm the card uses the available width and retains its logo,
+  details, note action, contact actions, and `Open resource` link. Repeat in
+  full-map mode, then confirm an ordinary Shared Map still shows its original
+  category header and tray.
+- Verification: the focused map/focus-card suite passes 79/79; full client
+  coverage passes 575/575; map lockdown passes 84/84; `npm run build:client`
+  passes; and `git diff --check` passes. Authenticated browser comparison is
+  still required: local normal and Chrome sessions redirected the protected
+  route to sign-in, so `design-qa.md` records the visual gate as blocked rather
+  than claiming a rendered pass.
+- Release status: local release candidate only on
+  `codex/owner-focus-card-surface-refinement`. It has not been committed,
+  pushed, merged, or deployed; production remains on the preceding owner
+  complete-preview release.
+
 ## 2026-08-08 embedded bubble clustering and owner mobile focus-card production release
 
 - Current behavior: the map-only embed uses the same category-bubble collision
