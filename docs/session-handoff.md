@@ -2,33 +2,247 @@
 
 Last updated: 2026-08-09 (Asia/Singapore)
 
-## Map Studio rollback to stable My Map (2026-08-09, production complete)
+## Map Studio local-UAT status after production rollback (2026-08-09)
 
-- The owner requested that Map Studio leave production for further refinement.
-  `main` was restored additively by `e47015090` to the exact pre-Studio
-  client/server tree at `fe91f9667`; history was not rewritten.
-- The stable target retains the refined owner mobile focus card, current bubble
-  clustering, Detailed maps, annotations, personal places, ordinary Print
-  View/export, repaired embed Pages Function, frozen Shared/embed behavior,
-  authentication, notes, and existing My Map actions.
-- `codex/map-studio-state-model` remains intact at the completed Studio handoff
-  for local signed-in UAT. Do not merge or deploy it again until its next design
-  refinement and an explicit release approval.
-- The additive Studio table is intentionally retained and becomes inert under
-  the stable Worker. Do not drop it or delete private Studio documents as part
-  of this rollback.
-- Pre-deploy gates pass: the client/server source tree matches `fe91f9667`,
-  full client is 575/575, full server is 521/521, map-lockdown is 84/84, and
-  the exact six-root production build completes.
-- Stable Worker version `bcf5df81-0e78-4ccb-9fa6-dce171413172` is healthy and
-  the Studio route returns 404. Pages preview `29adada2` and production
-  `7fb9a0bc` include the embed Function and all 80 files; preview, immutable,
-  and two custom-domain passes match by MIME, bytes, and SHA-256 at aggregate
-  `2c6aab6e9213709a2fdb944bbc3f63566e51f36926c683add3c8b288eaaa3c53`.
-- Production smoke passes 6/6 on its first run. Framing boundaries are intact.
-  Disposable signed-in owner UAT passes desktop interactive My Map, ordinary
-  Print View, the complete mobile focus card at 390 px, and absence of Studio
-  UI; the fixture was removed. Production rollback is closed.
+- This branch retains the complete Map Studio implementation for local UAT and
+  refinement only. It is not the active production release.
+- Production `main` was rolled back additively by `e47015090` to the exact
+  pre-Studio My Map tree at `fe91f9667`; release evidence is recorded by
+  `1adc038a0`. The stable Worker and Pages deployment are live and verified.
+- Do not deploy or merge this branch until the refinements pass a new release
+  review. Keep Shared/embed exclusion, ordinary Print View, privacy, Detailed
+  maps, clustering, focus cards, annotations, and all other locked behavior.
+- The additive Studio table and its private rows remain intact but inert in
+  production. Do not drop, purge, backfill, or publish them during UAT.
+
+## My Map owner-toolbar consolidation (2026-08-09, local refinement)
+
+- The owner header now contains only Manage resources, Personal place, Edit
+  content, Edit layout, Print View, Download Map Notes, and Share. Edit content
+  contains Arrange categories, Add short description, and Annotate; the map
+  name pencil owns the established title/description editor.
+- The visible Explore/Design switch, duplicate Studio map-tools strip, and
+  duplicate Export PNG/PDF action were removed. Edit layout calls the existing
+  Studio controller and opens the same responsive floating settings sheet.
+  Internal Design state, named views, explicit Save/Discard, and the ordinary
+  Print View/export route are unchanged.
+- The desktop menu and mobile in-flow disclosure use labelled icons, 44 px
+  targets, Escape/outside-click dismissal, and translated labels in all four
+  locales. Signed-in local UAT on map 258 passed without saving or dirtying the
+  view. Focused 33/33, full client 637/637, map lockdown 84/84, ordinary and
+  exact Detailed-map builds, and diff checks pass. Keep this branch local;
+  production remains on the stable rollback.
+
+## Unified interactive Map Studio composition and tools (2026-08-09, local)
+
+- Design now owns the composition used by both interactive My Map and Studio
+  Export: Balanced, Map focus, or Full map; map side/width; map height; resource
+  columns; labels; pin size; and marker/card identity. Export settings now own
+  only margins and image quality, removing the former duplicate Layout module.
+- Marker identity has three matching modes: category bubbles with logo cards,
+  category-coloured numbered pins with matching numbered cards, and category
+  icons with matching icon cards. Numbered and icon modes keep the current
+  bubble cluster renderer for close pins.
+- Existing category arrangement, personal-place, short-description,
+  annotation, and PNG/PDF flows are now launchable from the private Studio
+  panel and reuse their established APIs/renderers. Interactive hover, focus,
+  selection, search, notes, and the mobile focus card remain on the same shared
+  callbacks across layouts.
+- The persisted document is version 2. Strict stored version 1 documents are
+  migrated additively at the validation boundary; there is no new database
+  table/column migration and no destructive operation. Shared/embed still
+  exclude Studio state, and ordinary Print View remains available.
+- Final local evidence: focused 131/131, full client 635/635, full server
+  540/540, map lockdown 84/84, and the exact Detailed-map configured build all
+  pass, as do the ordinary build and diff check. Signed-in UAT on existing map
+  258 passed desktop unified composition, all three marker/card identities,
+  exact numbered colour/number parity, hover highlighting, 390 px no-overflow,
+  mobile focus cards, output-only Export controls, enabled PNG/PDF actions, and
+  direct Export reload without accidental persistence. No CareAround page
+  error was logged. Do not push, merge, or deploy this branch.
+
+## Map Studio numbered pins and Design settings (2026-08-09, local refinement)
+
+- `Numbered pins` now uses the current category-coloured Print badge markers
+  in both the owner interactive map and Studio Export. The former monochrome
+  Studio number marker is no longer selected. Category bubbles and current
+  bubble clustering remain the default and are unchanged.
+- Design settings now use the same responsive interaction pattern as current
+  Print View settings: one explicit trigger, floating/dismissible desktop
+  sheet, mobile in-flow sheet, 44 px controls, Escape support, and progressive
+  disclosure for resource-pin and annotation-dependent choices. The saved
+  named-view design still excludes exploration and export-only Print settings.
+- Gates pass: focused 103/103, full client/source 617/617, map lockdown 84/84,
+  ordinary and production-configured builds, and diff check. Signed-in local
+  UAT on disposable map 321 (cleaned up) passed numbered-pin parity in both
+  interactive and Export views, explicit save/reload, valid PNG/PDF, desktop
+  and 390 px mobile layout, no horizontal overflow, and the focus-card flow.
+  Screenshots and downloads are in
+  `output/playwright/map-studio-settings-refinement/`.
+- This refinement is for local UAT only. Do not push, merge, or deploy it until
+  the user completes the next refinement/release review. Production remains on
+  the stable pre-Studio My Map rollback.
+
+## Map Studio integrated production release (2026-08-09)
+
+- `codex/map-studio-state-model` now contains the complete additive goal through
+  Explore, Design, and Studio Export. All version 1 design paths are wired to
+  existing map/card/layout seams; several private named views use explicit
+  save and optimistic document revisions; temporary exploration and export-only
+  settings remain outside persistence.
+- Studio Export reuses `?view=print` and the dedicated hidden-capture pipeline.
+  Direct reload resolves the saved named view before enabling export. The
+  ordinary Print View remains available and unchanged by default. Shared Map
+  and embed do not import, request, or publish Studio state.
+- The additive `my_map_studio_documents` schema was applied and verified against
+  the configured CareAround database with no backfill, existing-row rewrite,
+  or destructive operation. Worker version
+  `c7bd164d-bff4-499e-b2da-bb12cce74b37` and exact Pages production deployment
+  `842f7c23` are live from commit `1be2093de`.
+- Final local gates pass: client 616/616, server 539/539, map lockdown 84/84,
+  ordinary and exact six-root production builds, and diff check. Signed-in
+  disposable-map UAT passed two named views, explicit persistence,
+  desktop/mobile Design, category filtering, Studio Export direct reload,
+  390 px no-overflow, and the mobile focus resource card. Production smoke is
+  6/6.
+- Deployment verification passed: preview `81098817` and immutable production
+  matched all 82 served files; two complete custom-domain passes also matched
+  MIME, bytes, and SHA-256 after edge convergence. Pages Functions and routes,
+  embed framing, ordinary anti-framing, API health, Shared/embed Studio
+  exclusion, and the six production smoke behaviors are green. The preview's
+  unique hostname was intentionally not added to the Worker auth allowlist.
+- Final signed-in production UAT used disposable maps that were removed after
+  each run. It proved ordinary Print separation, two persisted named views,
+  direct Studio Export reload, desktop/mobile Design, 390 px no-overflow,
+  bubble focus cards, and actual valid PNG/PDF downloads. The rendered
+  single-page A3 PDF matches the PNG composition without clipping or overlap.
+- Explicit exclusions remain: no Studio view data in frozen Shared/embed
+  snapshots, no Print View retirement, no destructive database work, no
+  secrets/auth changes, and no route consolidation.
+
+## Map Studio phase 1 architecture and state model (2026-08-09, local candidate)
+
+- Work is isolated on `codex/map-studio-state-model` from base
+  `fe91f9667355239ca16cf314277659e51e78db9c`. It adds a pure versioned model,
+  focused tests, and `docs/map-studio-architecture.md`. Phase 2 now imports its
+  commands only through the owner helper/panel; Phase 3 feeds only the sanitized
+  active draft into owner interactive maps. No design is fed into the export
+  renderer.
+- The model separates explicit-save named-view design from temporary
+  exploration and export-only settings. It supports create, rename, duplicate,
+  select, save/update, set-default, and delete; rejects stale saves; and
+  requires explicit discard before switching away from a dirty draft.
+- Existing My Map resources, category order, notes, private annotation
+  geometry, personal places, frozen Shared Map/embed snapshots, auth,
+  `DirectoryMap`, and the dedicated Print View/export renderer are unchanged.
+- Verification passes: focused 10/10, full client/source 600/600, ordinary
+  client build, map lockdown 84/84, exact six-root build, and diff check.
+- Phase 2 now adds the approved local owner persistence/API and named-view UI
+  slices described below. Route consolidation, shared/embed view data, database
+  application, and deployment remain outside the current candidate.
+
+## Map Studio phase 2 owner schema/API and UI (2026-08-09, local candidate)
+
+- Current Neon HTTP patterns favour one atomic
+  `my_map_studio_documents` row per My Map over separate view rows. The JSON
+  document owns the validated view collection/default ID while optimistic
+  revision remains a database column, allowing one compare-and-swap save.
+- `server/src/utils/mapStudioDocument.js` is now wired only to a new owner
+  controller and the private My Map duplication path. It accepts the Phase 1
+  document and strictly excludes exploration, export settings, annotation
+  geometry, unknown fields/versions, invalid view identity, invalid cameras,
+  unbounded layer references, oversized revisions, and documents above 512
+  KiB. Stored-data corruption fails closed.
+- Authenticated non-guest owners have GET/PUT under `/my-maps/:id/studio`. An
+  absent row returns `document: null` so the client can build its legacy default
+  in memory. The first explicit save atomically inserts revision one; later
+  saves compare-and-swap the expected revision and return 409 on conflict
+  without a read-before-write race.
+- Private Studio saves must not update `my_maps.updated_at` or change frozen
+  share/embed staleness. My Map duplication validates and copies a persisted
+  document privately at revision one; deletion cascades. Guest, Shared Map,
+  embed, existing owner detail, annotations, and personal-place paths do not
+  load Studio state.
+- `my_map_studio_documents`, `ensureMapStudioSchema`, its verifier, and the
+  narrow `bootstrap:map-studio-schema` command are implemented. No configured
+  database was mutated and no production backfill is planned. The table must be
+  applied and verified before any compatible Worker deployment.
+- The owner My Map route now has an isolated multilingual named-view panel in
+  both the V2 and classic layouts. It supports create, rename, duplicate,
+  select, set-default, delete, explicit Save/Discard, dirty unload/view-switch
+  protection, and non-destructive 409 recovery. A Studio load failure is local
+  to the panel. Print View, Shared Map, and embed do not render or call it.
+- The client editor keeps the persisted server revision, working named-view
+  document, and temporary design session separate. Phase 3 applies the selected
+  draft only to private owner `DirectoryMap` instances; Print View remains
+  separate. Current bubble defaults, Detailed surfaces, focus cards, notes,
+  annotations, personal places, and exports remain on their locked components.
+- Focused owner UI/state/API coverage passes 52/52, full server 539/539, full
+  client/source 611/611, ordinary build, map lockdown 84/84, exact six-root
+  build, and diff checks. Nothing is committed, pushed, or deployed. Production
+  schema application, compatible Worker/client rollout, Phase 3 renderer
+  adapters, and Shared Map/embed publication remain separately gated.
+
+## Map Studio phase 3 Explore/Design runtime (2026-08-09, local candidate)
+
+- `client/src/lib/mapStudioInteractiveAdapter.js` remains a pure translation
+  from saved/draft design to existing interactive seams. The owner page now
+  consumes it only after the current map's private Studio load succeeds and
+  applies it to V2 and classic desktop/mobile map shells.
+- Scoped map colour, detail mode, fixed/fit camera, category-bubble/numbered pin
+  style, annotation visibility, and the semantic map-height token are
+  adapter-ready. The default emits no cluster, pin-badge, or category-icon
+  override, preserving the current V2 bubble behavior.
+- All three Studio pin styles now bypass aggregate count clustering. Numbered
+  pins use the existing collision-separated print-badge bubbles so their colour
+  and number continue to match the cards; category icons remain individual,
+  overlap-capable saved-place pins like Discovery.
+- Local refinement proof on map 258: displayed zoom 14 used 20 overview layers
+  and zero live tiles; numbered and category-icon modes each rendered 37
+  individual markers and zero aggregate clusters. Focused coverage passes
+  79/79, full client coverage 636/636, map lockdown 84/84, and the exact
+  configured Detailed-map client build passes. The local UAT view was restored
+  clean after the temporary category-icon preview; production is unchanged.
+- Individual Studio markers now share Discovery's hover-stacking outcome: pin
+  hover and resource-card hover both lift the matched marker above overlapping
+  peers. The change reuses the existing owner hover key and leaves coordinates,
+  collision layout, baseline order, clustering, and non-interactive Print
+  rendering unchanged. Non-numbered inactive pins explicitly reset their
+  Leaflet offset to zero so style switching cannot retain numbered stacking.
+- Local map 258 proof passed for numbered card hover plus category-icon card
+  and direct-pin hover; every matched marker exceeded the highest peer z-index.
+  Focused coverage passes 39/39, full client 637/637, map lockdown 84/84, and
+  the exact configured Detailed-map build passes. The isolated preview was
+  discarded and production remains unchanged.
+- Interactive pin size, label detail, resource/category filtering, and
+  resource-panel placement are explicitly deferred. They must not appear as
+  working controls until pins and every desktop/mobile card or sticky/focus
+  layout update together.
+- `MapStudioViewsPanel` remains the canonical session/document owner. Its
+  guarded runtime snapshot and narrow controller coordinate explicit modes,
+  Design-only draft patches, and temporary exploration without exposing either
+  full document to renderers. Save retains the latest temporary camera even if
+  the map moves while the compare-and-swap request is in flight.
+- `MapStudioDesignControls.jsx` mounts inside the private panel. Map-settings
+  colour and Standard/Detailed actions use the same draft and automatically
+  enter Design. Scoped colour also chooses the matching live and Detailed asset
+  roots/manifests. The existing annotation overlay is filtered without changing
+  annotation persistence. Fit/fixed camera and semantic height work through the
+  existing controller, class, and resizable-frame seams.
+- Explore search, hover, focus, selection, and camera movement stay outside the
+  PUT. A panel load failure supplies no runtime model and leaves the old map
+  behavior usable. V2 category-bubble defaults, cluster props, mobile complete
+  focus cards, notes, personal places, actions, auth, Print View, Shared Map,
+  and embed are not replaced.
+- Pin size, label detail, resource/category filtering, resource-panel placement,
+  Phase 4 export parity, Shared Map/embed view snapshots, and route consolidation
+  remain deferred. No configured schema was applied and no commit, push, Worker,
+  Pages deploy, or production UAT occurred.
+- Verification passes: focused runtime coverage 62/62, full client/source
+  623/623, full server 539/539, ordinary client build, map lockdown 84/84, exact
+  six-root production build, and diff check. The stale Browserslist dataset is
+  the only build advisory. Signed-in desktop/mobile runtime UAT must wait for an
+  explicitly approved schema/Worker/client release plan.
 
 ## Owner embed-preview Pages Function recovery (2026-08-09, production)
 

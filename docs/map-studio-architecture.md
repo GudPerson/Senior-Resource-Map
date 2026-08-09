@@ -1,13 +1,15 @@
 # CareAround Map Studio Architecture
 
 Date: 2026-08-09
-Status: production through Phase 4 at `1be2093de`. The versioned state model,
-owner schema/API, named-view UI, complete Explore/Design presentation wiring,
-and additive Export/Print parity are live. The additive schema was applied and
-verified without a backfill, Worker version
-`c7bd164d-bff4-499e-b2da-bb12cce74b37` is active, and Pages deployment
-`842f7c23` is exact on the custom domain. The existing Print View route remains
-the renderer and rollback surface; Shared Map/embed snapshots remain unchanged.
+Status: local UAT and refinement only on `codex/map-studio-state-model`.
+Production `main` was
+rolled back additively by `e47015090` to the exact pre-Studio My Map client/API
+tree at `fe91f9667`; release evidence is in `1adc038a0`. The versioned state
+model, owner schema/API, named-view UI, Explore/Design wiring, and additive
+Export/Print work remain here for UAT but must not be redeployed without a fresh
+release review. The additive schema remains intact and inert in production.
+The existing Print View route remains the renderer and rollback surface;
+Shared Map/embed snapshots remain unchanged.
 
 ## Product Goal
 
@@ -15,10 +17,11 @@ Map Studio evolves one My Map into one workspace with three modes:
 
 - **Explore** for navigation, current bubble clustering, search, selection,
   notes, and resource focus cards.
-- **Design** for saved basemap, map detail, camera framing, pins, labels,
-  layers, annotations visibility, and interactive layout.
-- **Export/Print** for temporary page layout, columns, margins, and output
-  quality rendered through the existing deterministic export surface.
+- **Design** for saved basemap, map detail, camera framing, marker/card
+  identity, labels, layers, annotations visibility, and the composition used
+  by both the interactive map and export.
+- **Export/Print** for temporary margins and output quality rendered through
+  the existing deterministic export surface.
 
 One My Map may have several named visual views. Resource membership, personal
 places, notes, and annotation geometry still belong to the My Map rather than
@@ -42,9 +45,10 @@ The model has three separate roots:
 2. `MapStudioSession` is temporary. It contains the active mode, active view,
    saved and draft designs, dirty state, search, hover, focus, selection, and
    unsaved camera movement.
-3. `MapStudioExportSettings` is export-only. It contains page layout,
-   placement, height, columns, margins, and image quality and is not included
-   in a saved view.
+3. `MapStudioExportSettings` is export-only. It contains margins and image
+   quality and is not included in a saved view. Layout, placement, map height,
+   columns, marker identity, and card identity come from the active design so
+   the interactive and exported compositions cannot drift.
 
 Unknown future schema versions fail closed. A My Map with no Map Studio
 document gets one deterministic `Default view`; no legacy data is rewritten
@@ -59,10 +63,10 @@ or inferred as a newer schema.
 | Basemap colour and detail mode | Named view design | Explicit `Save view` only |
 | Designed camera | Named view design | `Use current framing`, then explicit `Save view` |
 | Pin style and size, label detail, layer visibility | Named view design | Explicit `Save view` only |
-| Interactive map height and resource-panel placement | Named view design | Explicit `Save view` only |
+| Interactive/export layout, map height, map side/width, resource columns | Named view design | Explicit `Save view` only |
 | Search, hover, focus, selection | Map Studio session | Never persisted |
 | Ordinary pan/zoom | Map Studio exploration state | Never persisted unless deliberately copied into the design draft |
-| Print page, columns, margins, quality | Export settings | Export session only |
+| Export margins and image quality | Export settings | Export session only |
 | Shared/embed data | Existing frozen share snapshot | Changes only through the existing explicit share update |
 
 The design can reference annotation identifiers for visibility, but it does
@@ -70,12 +74,12 @@ not own, copy, or migrate annotation geometry. Personal places stay inside the
 owner-only My Map payload and never enter guest or embed state through Map
 Studio.
 
-## Version 1 Persistent Shape
+## Version 2 Persistent Shape
 
 The normalized document is intentionally small:
 
 ```text
-MapStudioDocument v1
+MapStudioDocument v2
   revision
   defaultViewId
   views[]
@@ -85,11 +89,21 @@ MapStudioDocument v1
     design
       basemap: style, detailMode
       camera: fit | fixed view
-      pins: category-bubble | numbered, size
+      pins: category-bubble | numbered | category-icon, size
       labels: detail
       layers: resource and annotation visibility filters
-      layout: interactive map height and resource-panel placement
+      layout: map height, balanced | map-focus | full-map,
+              map side/width, resource columns
 ```
+
+Version 2 replaces the former `resourcePanel` preference with the same
+composition vocabulary used by the established Print View. Version 1 rows are
+read through a bounded additive migration: `responsive` becomes `balanced`,
+`beside-map` becomes `map-focus`, and `below-map` becomes `full-map`. The
+server retains strict version 1 validation for stored rows while accepting only
+version 2 on new writes. No database-column or destructive data migration is
+required because the document remains inside the existing versioned JSONB
+boundary.
 
 Named-view commands create, rename, duplicate, select, update, mark a default,
 and delete views. At least one view must remain. View identifiers are supplied
@@ -135,9 +149,21 @@ existing `printMapState` contract.
 
 The current Print View renderer still owns its locked print-badge marker
 contract. Studio Export maps the supported view design, resource visibility,
-camera, card detail, layout, margins, and image quality into that renderer.
+camera, card detail, composition, margins, and image quality into that
+renderer.
 The visible preview and hidden capture therefore share one print state while
 the ordinary Print View continues to use its existing defaults.
+
+For the local UAT refinement, Studio's `Numbered pins` choice deliberately maps
+to that same `print-badge` seam in both interactive and export adapters. This
+preserves category colours and number identity without introducing a second
+numbered-marker design. The corresponding card uses the same category colour
+and number. `Category icons` likewise use the same category identity on pin
+and card, while `Category bubbles` retain the current logo-card behavior.
+Studio's Design settings also reuse Print View's
+responsive control behavior (explicit trigger, floating desktop sheet, mobile
+in-flow sheet, and progressive disclosure) while keeping their persistent
+named-view state separate from export-only margin and quality settings.
 
 ## Explicit Save Flow
 
@@ -265,20 +291,23 @@ The current renderer support matrix is intentionally explicit:
 | `basemap.style` | Wired owner-only | `DirectoryMap.mapStyleOverride` plus matching Detailed asset family |
 | `basemap.detailMode` | Wired owner-only | `DirectoryMap.basemapMode` |
 | `camera` | Wired owner-only | `mapViewState` / temporary `onMapViewStateChange` |
-| `pins.style` | Wired owner-only | semantic `category-bubble` / `number` marker mode |
+| `pins.style` | Wired owner-only | category bubble, category-coloured numbered badge, or category icon; card identity follows the marker |
 | `layers.annotations` and hidden IDs | Wired owner-only | existing annotation filter plus `mapOverlay` |
 | `layout.mapHeight` | Wired owner-only | existing map-height shell/class and resizable-frame seams |
 | `pins.size` | Wired owner-only | scaled bubble, saved-pin, number, and cluster artwork through `DirectoryMap.markerScale` |
 | `labels.detail` | Wired owner-only | shared card-detail contract across desktop, mobile focus, and print cards |
 | resource layer and category filters | Wired owner-only | source-directory filtering before both pins and cards are derived |
-| `layout.resourcePanel` | Wired owner-only | responsive, below-map, and beside-map presentation seams |
+| `layout.preset`, side, width, and columns | Wired owner-only | balanced, map-focus, and full-map compositions reused by interactive and export views |
 
-The default adapter output keeps category-bubble marker semantics and does not
-emit clustering, badge, or category-icon overrides. The V2 shell therefore
-retains its current bubble/collision behavior under runtime wiring.
-Numbered pins translate only to `DirectoryMap`'s existing `number` mode. A
-fixed camera is copied into the controlled-camera input; fit mode remains null
-so the current camera fitter stays authoritative.
+The default adapter output keeps category-bubble marker semantics and the
+current collision behavior. Numbered pins translate to the established
+category-coloured `print-badge` renderer, and category icons translate through
+the existing category-icon seam. Numbered pins reuse the same collision-separated
+bubble behavior as category bubbles, while category icons remain individual,
+overlap-capable markers like Discovery. None of the three Studio styles is
+replaced by an aggregate count cluster. A fixed camera is
+copied into the controlled-camera input; fit mode remains null so the current
+camera fitter stays authoritative.
 
 The runtime applies the active draft to desktop and mobile V2 and classic owner
 maps. Scoped colour also chooses the matching Default/Gray Detailed roots and
@@ -288,7 +317,7 @@ pan/zoom, search, hover, focus, and selection update only exploration state.
 Fit/fixed camera changes rotate the existing layout signature so returning to
 fit reuses the established camera fitter. Annotation visibility filters the
 existing overlay without changing its private autosave document. Every version
-1 design path is now represented by an owner control and a renderer seam.
+2 design path is now represented by an owner control and a renderer seam.
 Resource filtering is applied to the source directory before both the classic
 and V2 presentation models are rebuilt, preventing pin/card divergence.
 
@@ -311,9 +340,10 @@ the panel remains the canonical owner of the session and documents.
 ### Standalone Explore and Design controls
 
 `MapStudioDesignControls.jsx` defines the owner control surface for scoped map
-colour, Detailed/standard detail, pin style and size, label detail, resource
-and annotation visibility, compact/standard/tall map height, responsive/below/
-beside resource placement, and fit/current camera framing. It also exports the
+colour, Detailed/standard detail, three marker/card identities, pin size, label
+detail, resource and annotation visibility, compact/standard/tall map height,
+balanced/map-focus/full-map composition, map side/width, resource columns, and
+fit/current camera framing. It also exports the
 explicit Explore and Design mode switch. All choices use accessible pressed
 state and at least 44-pixel touch targets, with complete English, Chinese,
 Malay, and Tamil copy.
@@ -332,8 +362,9 @@ owner-only Studio API before enabling PNG/PDF actions. Missing or invalid view
 data fails closed with export disabled; it never silently exports another
 view.
 
-`buildMapStudioPrintState` combines the active design with temporary page size,
-orientation, columns, margins, map placement/height, and image quality. Studio
+`buildMapStudioPrintState` combines the active design with temporary margins
+and image quality. Composition, columns, map placement/height, marker identity,
+and card identity remain sourced from Design. Studio
 Export locks persistent map-design controls and hides My Map mutation actions,
 while the ordinary Print View retains its established controls and defaults.
 Resource/category filtering occurs before both the print presentation and map
@@ -364,7 +395,7 @@ frozen presentation when no view snapshot exists.
 
 ### Phase 1 — architecture and model
 
-- Pure versioned document, session, export settings, commands, and tests.
+- Pure versioned document, session, export settings, commands, migrations, and tests.
 - No runtime imports, schema, API, route, UI, share, or deploy changes.
 
 ### Phase 2 — owner persistence and named-view controls
@@ -383,11 +414,12 @@ frozen presentation when no view snapshot exists.
 ### Phase 3 — Explore and Design adapters
 
 - Pure design-to-interactive model and support matrix are implemented locally,
-  with default category-bubble parity.
+  with default category-bubble parity and corresponding numbered/category-icon
+  marker-card identities.
 - A canonical owner runtime snapshot, mode-gated design mutation, temporary
   exploration mutation, and stale-load-safe panel callback are implemented
   with one owner-page consumer.
-- Standalone multilingual Explore/Design controls cover every version 1 design
+- Standalone multilingual Explore/Design controls cover every version 2 design
   path and mount only in the owner panel.
 - The current presentation is fed into existing `DirectoryMap` instances
   through the narrow adapter in V2 and classic desktop/mobile shells.
