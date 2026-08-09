@@ -17,15 +17,16 @@ Rules:
 
 ## 2026-08-09 Map Studio production rollback to stable My Map
 
-- Candidate behavior: production returns to the exact pre-Map Studio My Map
+- Current behavior: production has returned to the exact pre-Map Studio My Map
   client and API at `fe91f9667355239ca16cf314277659e51e78db9c`. This keeps the
   refined owner mobile focus card, current category-bubble clustering,
   Detailed surfaces, annotations, personal places, frozen Shared/embed maps,
   ordinary Print View/export, authentication, notes, and existing My Map
   membership/actions while removing the Studio panel, Studio API, and Studio
   Export entry points from production.
-- Rollback boundary: the implementation and its production-release handoff are
-  reverted additively on `main`; Git history is not rewritten. The complete
+- Rollback boundary: commit `e47015090` reverts the implementation and its
+  production-release handoff additively on `main`; Git history is not
+  rewritten. The complete
   candidate remains on `codex/map-studio-state-model` for local UAT and future
   refinement. No unrelated workspace file is included.
 - Data and privacy: the additive `my_map_studio_documents` table and any private
@@ -36,13 +37,22 @@ Rules:
   `fe91f9667` exactly. Full client passes 575/575, full server passes 521/521,
   and map-lockdown passes 84/84 together with the exact six-root production
   build. `git diff --cached --check` also passes.
-- Remaining acceptance: production smoke, custom-domain artifact parity,
-  ordinary/embed framing, and authenticated My Map mobile/desktop checks must
-  pass before the rollback is closed.
-- Deployment gate: validation, rollback commit/push, compatible stable Worker,
-  exact Pages preview/production publish, and post-deployment verification are
-  pending. Stop if the stable tree differs outside documentation or a locked
-  behavior regresses.
+- Deployment: stable Worker version
+  `bcf5df81-0e78-4ccb-9fa6-dce171413172` is healthy and the retired Studio
+  route returns 404. Pages preview `29adada2` and production `7fb9a0bc` both
+  compiled and uploaded the embed Function, `_routes.json`, and all 80 static
+  files. Preview, immutable production, and two custom-domain passes match by
+  MIME, byte count, and SHA-256 at aggregate manifest
+  `2c6aab6e9213709a2fdb944bbc3f63566e51f36926c683add3c8b288eaaa3c53`.
+- Production verification: smoke passes 6/6 on its first run. Ordinary routes
+  retain XFO DENY and `frame-ancestors 'none'`; embed retains no XFO,
+  `no-store`, and exact `frame-ancestors 'self' https://gudauth.app
+  https://carearound.sg`. Disposable owner-map UAT passes desktop interactive,
+  ordinary Print View, and the 390 px mobile complete focus card with no Studio
+  UI or focus-surface overflow; fixture map 318 was removed successfully.
+- Release gate: passed. Production stays on stable My Map. Map Studio remains
+  isolated at `bb41f1eb8` on `codex/map-studio-state-model` for local UAT and
+  must not be redeployed without a fresh refinement and release approval.
 
 ## 2026-08-09 owner embed-preview Pages Function deployment recovery
 

@@ -2,11 +2,11 @@
 
 Last updated: 2026-08-09 (Asia/Singapore)
 
-## Map Studio rollback to stable My Map (2026-08-09, release candidate)
+## Map Studio rollback to stable My Map (2026-08-09, production complete)
 
 - The owner requested that Map Studio leave production for further refinement.
-  `main` is being restored additively to the exact pre-Studio client/server tree
-  at `fe91f9667`; history is not rewritten.
+  `main` was restored additively by `e47015090` to the exact pre-Studio
+  client/server tree at `fe91f9667`; history was not rewritten.
 - The stable target retains the refined owner mobile focus card, current bubble
   clustering, Detailed maps, annotations, personal places, ordinary Print
   View/export, repaired embed Pages Function, frozen Shared/embed behavior,
@@ -20,10 +20,15 @@ Last updated: 2026-08-09 (Asia/Singapore)
 - Pre-deploy gates pass: the client/server source tree matches `fe91f9667`,
   full client is 575/575, full server is 521/521, map-lockdown is 84/84, and
   the exact six-root production build completes.
-- Before production closeout, require exact stable-tree proof, full server and
-  client gates, map lockdown and six-root build, Worker/Pages release evidence,
-  complete custom-domain parity, production smoke, and desktop/mobile owner My
-  Map verification.
+- Stable Worker version `bcf5df81-0e78-4ccb-9fa6-dce171413172` is healthy and
+  the Studio route returns 404. Pages preview `29adada2` and production
+  `7fb9a0bc` include the embed Function and all 80 files; preview, immutable,
+  and two custom-domain passes match by MIME, bytes, and SHA-256 at aggregate
+  `2c6aab6e9213709a2fdb944bbc3f63566e51f36926c683add3c8b288eaaa3c53`.
+- Production smoke passes 6/6 on its first run. Framing boundaries are intact.
+  Disposable signed-in owner UAT passes desktop interactive My Map, ordinary
+  Print View, the complete mobile focus card at 390 px, and absence of Studio
+  UI; the fixture was removed. Production rollback is closed.
 
 ## Owner embed-preview Pages Function recovery (2026-08-09, production)
 
