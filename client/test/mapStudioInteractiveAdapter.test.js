@@ -42,7 +42,7 @@ test('interactive model preserves the locked category-bubble defaults', () => {
     assert.equal(model.layout.mapHeight, 'standard');
     assert.deepEqual(model.supportedPaths, MAP_STUDIO_INTERACTIVE_SUPPORTED_PATHS);
     assert.deepEqual(model.deferredPaths, MAP_STUDIO_INTERACTIVE_DEFERRED_PATHS);
-    assert.deepEqual(model.cardIdentity, { mode: 'logo' });
+    assert.deepEqual(model.cardIdentity, { mode: 'logo', showNumberBadge: false });
 });
 
 test('interactive model maps only proven DirectoryMap design seams', () => {
@@ -108,6 +108,7 @@ test('category icon pins and cards share one identity without aggregate clusteri
     assert.equal(model.directoryMap.pinCategoryIconMode, 'auto');
     assert.equal(model.directoryMap.clusterMarkerMode, 'none');
     assert.equal(model.cardIdentity.mode, 'category-icon');
+    assert.equal(model.cardIdentity.showNumberBadge, false);
 });
 
 test('numbered pins keep individual collision-managed bubble identities', () => {
@@ -117,7 +118,8 @@ test('numbered pins keep individual collision-managed bubble identities', () => 
 
     assert.equal(model.directoryMap.markerMode, 'print-badge');
     assert.equal(model.directoryMap.clusterMarkerMode, 'none');
-    assert.equal(model.cardIdentity.mode, 'number');
+    assert.equal(model.cardIdentity.mode, 'logo');
+    assert.equal(model.cardIdentity.showNumberBadge, true);
 });
 
 test('interactive model returns cloned camera and layer arrays', () => {

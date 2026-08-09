@@ -39,6 +39,14 @@ test('directory map applies the interactive marker scale to cluster bubbles', ()
     assert.match(directoryMapSource, /createDirectoryClusterIcon\([\s\S]*?clusterMarkerMode,[\s\S]*?resolvedMarkerScale/);
 });
 
+test('directory map applies the interactive marker scale to saved category pins', () => {
+    assert.match(directoryMapSource, /function scaleDirectorySavedPinIcon\(icon, scale = 1\)/);
+    assert.match(directoryMapSource, /data-directory-marker-scale="\$\{markerScale\}"/);
+    assert.match(directoryMapSource, /iconSize: \[scaledWidth, scaledHeight\]/);
+    assert.match(directoryMapSource, /scaleDirectorySavedPinIcon\(createSavedPlacePinIcon\(\{/);
+    assert.match(directoryMapSource, /\}\), resolvedMarkerScale\)/);
+});
+
 test('directory map fits visible spread pin positions with enough top padding for pin artwork', () => {
     assert.match(directoryMapSource, /const DIRECTORY_FIT_PADDING_TOP_LEFT = \[44, 72\]/);
     assert.match(directoryMapSource, /fitPaddingTopLeft = DIRECTORY_FIT_PADDING_TOP_LEFT/);

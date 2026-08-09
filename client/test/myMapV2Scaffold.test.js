@@ -132,15 +132,18 @@ test('my map v2 mobile chrome stays compact in normal flow above the scrolling m
 test('my map v2 preserves category bubbles by default while allowing the scoped Studio pin style', () => {
     assert.match(myMapV2ScaffoldSource, /markerMode=\{directoryMapRuntime\?\.markerMode \|\| 'category-bubble'\}/);
     assert.match(myMapV2ScaffoldSource, /markerScale=\{directoryMapRuntime\?\.markerScale \|\| 1\}/);
+    assert.match(myMapV2ScaffoldSource, /printBadgeScale=\{directoryMapRuntime\?\.markerScale \|\| 1\}/);
     assert.match(myMapV2ScaffoldSource, /showPins=\{mapStudioRuntime\?\.resourceLayer\?\.visible \?\? true\}/);
     assert.match(myMapV2ScaffoldSource, /pinBadgeMode=\{directoryMapRuntime\?\.pinBadgeMode \|\| 'none'\}/);
     assert.match(myMapV2ScaffoldSource, /pinCategoryIconMode=\{directoryMapRuntime\?\.pinCategoryIconMode \|\| 'none'\}/);
     assert.match(myMapV2ScaffoldSource, /clusterMarkerMode=\{directoryMapRuntime\?\.clusterMarkerMode \|\| 'none'\}/);
     assert.match(myMapV2ScaffoldSource, /cardBadgeMode=\{mapStudioRuntime\?\.cardIdentity\?\.mode \|\| 'logo'\}/);
+    assert.match(myMapV2ScaffoldSource, /showInteractiveNumberBadges=\{Boolean\(mapStudioRuntime\?\.cardIdentity\?\.showNumberBadge\)\}/);
     assert.match(myMapV2ScaffoldSource, /showMapLegend=\{false\}/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /clusterMarkerMode="asset-spread"/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /markerMode="number"/);
     assert.match(myMapDetailPageSource, /const classicMarkerMode = mapStudioInteractiveModel\?\.directoryMap\?\.markerMode \|\| 'number'/);
+    assert.match(myMapDetailPageSource, /printBadgeScale: mapStudioInteractiveModel\?\.directoryMap\?\.markerScale \?\? 1/);
     assert.match(myMapDetailPageSource, /buildMapStudioResourceLayerCatalog\(townMapCoveragePresentation\)/);
     assert.match(myMapDetailPageSource, /filterMapStudioDirectoryByLayers/);
 });

@@ -1,13 +1,8 @@
 import { useId } from 'react';
-import { X } from 'lucide-react';
+import { PanelLeft, PanelRight, X } from 'lucide-react';
 
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import {
-    MAP_STUDIO_CAMERA_FIT,
-    MAP_STUDIO_CAMERA_FIXED,
-    MAP_STUDIO_MAP_HEIGHT_COMPACT,
-    MAP_STUDIO_MAP_HEIGHT_STANDARD,
-    MAP_STUDIO_MAP_HEIGHT_TALL,
     MAP_STUDIO_PIN_STYLE_BUBBLE,
     MAP_STUDIO_PIN_STYLE_CATEGORY_ICON,
     MAP_STUDIO_PIN_STYLE_NUMBERED,
@@ -35,6 +30,10 @@ import {
     PRINT_MAP_WIDTH_WIDE,
     normalizePrintMapHiddenLayerKeys,
 } from '../lib/printMapState.js';
+import {
+    MAP_STUDIO_LAYOUT_PANEL_SIDE_LEFT,
+    MAP_STUDIO_LAYOUT_PANEL_SIDE_RIGHT,
+} from '../lib/mapStudioUiPreferences.js';
 
 function ChoiceButton({ selected, label, onClick, disabled = false }) {
     return (
@@ -79,9 +78,10 @@ function DesignFieldset({ legend, description = '', children, columns = 2 }) {
 
 export default function MapStudioDesignControls({
     design,
-    explorationCamera = null,
     resourceLayerCatalog = null,
     annotationLayerCatalog = [],
+    panelSide = MAP_STUDIO_LAYOUT_PANEL_SIDE_RIGHT,
+    onPanelSideChange = null,
     onPatch = null,
     onClose = null,
     disabled = false,
@@ -89,14 +89,6 @@ export default function MapStudioDesignControls({
     const { t } = useLocale();
     const headingId = useId();
     const value = normalizeMapStudioDesign(design);
-    const cameraCandidate = normalizeMapStudioDesign({
-        ...value,
-        camera: {
-            mode: MAP_STUDIO_CAMERA_FIXED,
-            view: explorationCamera,
-        },
-    }).camera;
-    const canUseCurrentFraming = cameraCandidate.mode === MAP_STUDIO_CAMERA_FIXED;
     const hiddenResourceLayerKeys = new Set(normalizePrintMapHiddenLayerKeys(
         value.layers.hiddenResourceLayerKeys,
     ));
@@ -138,17 +130,55 @@ export default function MapStudioDesignControls({
                         {t('mapStudioDesignControlsHelp')}
                     </p>
                 </div>
-                {onClose ? (
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-4 focus:ring-brand-100"
-                        aria-label={t('mapStudioCloseDesignSettings')}
-                        title={t('mapStudioCloseDesignSettings')}
-                    >
-                        <X size={18} aria-hidden="true" />
-                    </button>
-                ) : null}
+                <div className="flex shrink-0 items-center gap-2">
+                    {onPanelSideChange ? (
+                        <div
+                            className="hidden items-center gap-2 lg:flex"
+                            role="group"
+                            aria-label={t('mapStudioLayoutPanelPosition')}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => onPanelSideChange(MAP_STUDIO_LAYOUT_PANEL_SIDE_LEFT)}
+                                aria-pressed={panelSide === MAP_STUDIO_LAYOUT_PANEL_SIDE_LEFT}
+                                aria-label={t('mapStudioDockLayoutLeft')}
+                                title={t('mapStudioDockLayoutLeft')}
+                                className={`inline-flex h-11 w-11 touch-manipulation items-center justify-center rounded-xl border transition focus:outline-none focus:ring-4 focus:ring-brand-100 ${
+                                    panelSide === MAP_STUDIO_LAYOUT_PANEL_SIDE_LEFT
+                                        ? 'border-brand-500 bg-brand-50 text-brand-800'
+                                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                                }`}
+                            >
+                                <PanelLeft size={18} aria-hidden="true" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onPanelSideChange(MAP_STUDIO_LAYOUT_PANEL_SIDE_RIGHT)}
+                                aria-pressed={panelSide === MAP_STUDIO_LAYOUT_PANEL_SIDE_RIGHT}
+                                aria-label={t('mapStudioDockLayoutRight')}
+                                title={t('mapStudioDockLayoutRight')}
+                                className={`inline-flex h-11 w-11 touch-manipulation items-center justify-center rounded-xl border transition focus:outline-none focus:ring-4 focus:ring-brand-100 ${
+                                    panelSide === MAP_STUDIO_LAYOUT_PANEL_SIDE_RIGHT
+                                        ? 'border-brand-500 bg-brand-50 text-brand-800'
+                                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                                }`}
+                            >
+                                <PanelRight size={18} aria-hidden="true" />
+                            </button>
+                        </div>
+                    ) : null}
+                    {onClose ? (
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-4 focus:ring-brand-100"
+                            aria-label={t('mapStudioCloseDesignSettings')}
+                            title={t('mapStudioCloseDesignSettings')}
+                        >
+                            <X size={18} aria-hidden="true" />
+                        </button>
+                    ) : null}
+                </div>
             </div>
 
             <div className="mt-3 space-y-3">
@@ -256,17 +286,6 @@ export default function MapStudioDesignControls({
                         ) : null}
                     </>
                 ) : null}
-
-                <DesignFieldset legend={t('mapStudioMapHeight')} columns={3}>
-                    <ChoiceButton selected={value.layout.mapHeight === MAP_STUDIO_MAP_HEIGHT_COMPACT} label={t('mapStudioHeightCompact')} onClick={() => onPatch?.({ layout: { mapHeight: MAP_STUDIO_MAP_HEIGHT_COMPACT } })} disabled={disabled} />
-                    <ChoiceButton selected={value.layout.mapHeight === MAP_STUDIO_MAP_HEIGHT_STANDARD} label={t('mapStudioHeightStandard')} onClick={() => onPatch?.({ layout: { mapHeight: MAP_STUDIO_MAP_HEIGHT_STANDARD } })} disabled={disabled} />
-                    <ChoiceButton selected={value.layout.mapHeight === MAP_STUDIO_MAP_HEIGHT_TALL} label={t('mapStudioHeightTall')} onClick={() => onPatch?.({ layout: { mapHeight: MAP_STUDIO_MAP_HEIGHT_TALL } })} disabled={disabled} />
-                </DesignFieldset>
-
-                <DesignFieldset legend={t('mapStudioCamera')} description={!canUseCurrentFraming ? t('mapStudioCurrentFramingUnavailable') : ''}>
-                    <ChoiceButton selected={value.camera.mode === MAP_STUDIO_CAMERA_FIT} label={t('mapStudioCameraFit')} onClick={() => onPatch?.({ camera: { mode: MAP_STUDIO_CAMERA_FIT, view: null } })} disabled={disabled} />
-                    <ChoiceButton selected={value.camera.mode === MAP_STUDIO_CAMERA_FIXED} label={t('mapStudioUseCurrentFraming')} onClick={() => onPatch?.({ camera: cameraCandidate })} disabled={disabled || !canUseCurrentFraming} />
-                </DesignFieldset>
 
                 <DesignFieldset legend={t('mapStudioAnnotations')}>
                     <ChoiceButton selected={value.layers.annotations === PRINT_MAP_ANNOTATION_LAYER_SHOW} label={t('mapStudioAnnotationsShow')} onClick={() => onPatch?.({ layers: { annotations: PRINT_MAP_ANNOTATION_LAYER_SHOW } })} disabled={disabled} />

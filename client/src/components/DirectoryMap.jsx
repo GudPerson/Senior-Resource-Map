@@ -499,6 +499,42 @@ function createDirectoryNumberMarker(number, emphasis = 'default', placeKey = nu
     });
 }
 
+function scaleDirectorySavedPinIcon(icon, scale = 1) {
+    const markerScale = normalizePrintBadgeScale(scale);
+    if (!icon || markerScale === 1) return icon;
+
+    const options = icon.options || {};
+    const readPoint = (value, fallback) => {
+        if (Array.isArray(value)) return value;
+        if (Number.isFinite(value?.x) && Number.isFinite(value?.y)) return [value.x, value.y];
+        return fallback;
+    };
+    const iconSize = readPoint(options.iconSize, [44, 60]);
+    const iconAnchor = readPoint(options.iconAnchor, [22, 54]);
+    const popupAnchor = readPoint(options.popupAnchor, [0, -52]);
+    const tooltipAnchor = readPoint(options.tooltipAnchor, [0, -48]);
+    const scaledWidth = iconSize[0] * markerScale;
+    const scaledHeight = iconSize[1] * markerScale;
+
+    return L.divIcon({
+        ...options,
+        html: `
+            <div
+                data-directory-marker-scale="${markerScale}"
+                style="position:relative;width:${scaledWidth}px;height:${scaledHeight}px;overflow:visible;pointer-events:none;"
+            >
+                <div style="position:absolute;left:50%;bottom:0;width:${iconSize[0]}px;height:${iconSize[1]}px;transform:translateX(-50%) scale(${markerScale});transform-origin:center bottom;overflow:visible;">
+                    ${options.html || ''}
+                </div>
+            </div>
+        `,
+        iconSize: [scaledWidth, scaledHeight],
+        iconAnchor: [iconAnchor[0] * markerScale, iconAnchor[1] * markerScale],
+        popupAnchor: [popupAnchor[0] * markerScale, popupAnchor[1] * markerScale],
+        tooltipAnchor: [tooltipAnchor[0] * markerScale, tooltipAnchor[1] * markerScale],
+    });
+}
+
 function createPrintResourceBadgeMarker(number, {
     color = null,
     emphasis = 'default',
@@ -3078,7 +3114,7 @@ export default function DirectoryMap({
                                             color: pin.categoryColor || '#0F172A',
                                         })
                                         : null));
-                                const savedPinIcon = createSavedPlacePinIcon({
+                                const savedPinIcon = scaleDirectorySavedPinIcon(createSavedPlacePinIcon({
                                     count: pin.curatedCount,
                                     emphasis: isMatched ? 'primary' : 'default',
                                     tone: 'saved',
@@ -3087,7 +3123,7 @@ export default function DirectoryMap({
                                     colorSegments: pin.categoryColorSegments || [],
                                     placeKey: pin.placeKey,
                                     showBadge: pinBadgeMode !== 'none',
-                                });
+                                }), resolvedMarkerScale);
                                 savedPinIcon.options.assetCount = getDirectoryPinAssetCount(pin);
                                 savedPinIcon.options.categoryIconUrl = categoryIconUrl;
                                 savedPinIcon.options.categoryColor = pin.categoryColor || null;
@@ -3169,7 +3205,7 @@ export default function DirectoryMap({
                                 color: pin.categoryColor || '#0F172A',
                             })
                             : null));
-                    const savedPinIcon = createSavedPlacePinIcon({
+                    const savedPinIcon = scaleDirectorySavedPinIcon(createSavedPlacePinIcon({
                         count: pin.curatedCount,
                         emphasis: isMatched ? 'primary' : 'default',
                         tone: 'saved',
@@ -3178,7 +3214,7 @@ export default function DirectoryMap({
                         colorSegments: pin.categoryColorSegments || [],
                         placeKey: pin.placeKey,
                         showBadge: pinBadgeMode !== 'none',
-                    });
+                    }), resolvedMarkerScale);
                     savedPinIcon.options.assetCount = getDirectoryPinAssetCount(pin);
                     savedPinIcon.options.categoryIconUrl = categoryIconUrl;
                     savedPinIcon.options.categoryColor = pin.categoryColor || null;

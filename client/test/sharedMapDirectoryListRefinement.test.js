@@ -85,6 +85,7 @@ test('v2 mapped cards can use logo, numbered, or category-icon identities', () =
     assert.match(badgeSource, /<ResourceRowIcon[\s\S]*logoUrl=\{resolvedBadgeRow\?\.logoUrl\}/);
     assert.match(sharedMapDirectorySource, /cardBadgeMode=\{cardBadgeMode\}/);
     assert.match(myMapV2ScaffoldSource, /cardBadgeMode=\{mapStudioRuntime\?\.cardIdentity\?\.mode \|\| 'logo'\}/);
+    assert.match(myMapV2ScaffoldSource, /showInteractiveNumberBadges=\{Boolean\(mapStudioRuntime\?\.cardIdentity\?\.showNumberBadge\)\}/);
 });
 
 test('list-only Group cards can expose a map focus action when mapped member pins exist', () => {
@@ -405,7 +406,7 @@ test('print V2 cards can opt into compact category-coloured resource badges', ()
     assert.match(sharedMapDirectorySource, /showPrintNumberBadge = false/);
     assert.match(sharedMapDirectorySource, /color=\{group\.categoryColor \|\| clusterColorData\?\.core \|\| null\}/);
     assert.match(sharedMapDirectorySource, /compact=\{useCompactNamesOnlyCard\}/);
-    assert.match(sharedMapDirectorySource, /const showPrimaryCardBadge = cardBadgeMode !== 'none'/);
+    assert.match(sharedMapDirectorySource, /const showPrimaryCardBadge = \(interactive \? interactiveCardBadgeMode : cardBadgeMode\) !== 'none'/);
     assert.match(sharedMapDirectorySource, /printNumberBadgePosition === 'start'/);
     assert.match(sharedMapDirectorySource, /data-print-label-detail=\{normalizedPrintLabelDetail\}/);
     assert.match(sharedMapDirectorySource, /data-print-number-badge-position=\{showPrintNumberBadge \? printNumberBadgePosition : undefined\}/);
@@ -413,6 +414,48 @@ test('print V2 cards can opt into compact category-coloured resource badges', ()
     assert.match(sharedMapDirectorySource, /printNumberBadgePosition="start"/);
     assert.match(sharedMapDirectorySource, /showPrintNumberBadge=\{showPrintNumberBadges\}/);
     assert.doesNotMatch(printBadgeSource, /bg-\[#0f766e\]/);
+});
+
+test('interactive numbered cards preserve the logo and place the Print View badge beside the map', () => {
+    const cardSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function DirectoryPlaceGroupCard',
+        'function DirectoryUnmappedRow',
+    );
+
+    assert.match(sharedMapDirectorySource, /showInteractiveNumberBadges = false/);
+    assert.match(sharedMapDirectorySource, /showInteractiveNumberBadge = false/);
+    assert.match(cardSource, /interactiveCardBadgeMode = showInteractiveNumberBadge && cardBadgeMode === 'number'/);
+    assert.match(cardSource, /showSeparateNumberBadge = showPrintNumberBadge \|\| \(interactive && showInteractiveNumberBadge\)/);
+    assert.match(cardSource, /data-interactive-number-badge-position=\{showInteractiveNumberBadge \? printNumberBadgePosition : undefined\}/);
+    assert.match(sharedMapDirectorySource, /printNumberBadgePosition=\{interactiveMapSide === 'right' \? 'end' : 'start'\}/);
+    assert.match(sharedMapDirectorySource, /printNumberBadgePosition="end"/);
+    assert.match(sharedMapDirectorySource, /printNumberBadgePosition="start"/);
+    assert.match(myMapDetailPageSource, /showInteractiveNumberBadges=\{Boolean\(mapStudioInteractiveModel\?\.cardIdentity\?\.showNumberBadge\)\}/);
+});
+
+test('interactive cards render saved short-description colours and highlights through the Print View formatter', () => {
+    const resourceRowSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function DirectoryResourceRow',
+        'function DirectoryPlaceBadge',
+    );
+    const primaryDescriptionSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function PrimaryMapShortDescription',
+        'function DirectoryNestedPlaceSection',
+    );
+    const unmappedSource = sourceBetween(
+        sharedMapDirectorySource,
+        'function DirectoryUnmappedRow',
+        'function DirectoryCategoryPillLabel',
+    );
+
+    assert.match(resourceRowSource, /<MapShortDescriptionText item=\{item\} textClassName="text-xs">/);
+    assert.match(primaryDescriptionSource, /<MapShortDescriptionText[\s\S]*item=\{item\}[\s\S]*textClassName=\{compact \? 'text-xs' : 'text-sm'\}/);
+    assert.match(unmappedSource, /<MapShortDescriptionText[\s\S]*item=\{item\}[\s\S]*textClassName=\{compact \? 'text-xs' : 'text-sm'\}/);
+    assert.match(primaryDescriptionSource, /data-map-short-description-text="true"/);
+    assert.match(primaryDescriptionSource, /style=\{style\}/);
 });
 
 test('v2 can hide the map legend while shared directory lists keep it by default', () => {
@@ -487,7 +530,7 @@ test('v2 logo cards show the resource name before the address metadata', () => {
     );
     const v2CardSource = sourceBetween(
         cardSource,
-        "const usesV2CardLanguage = cardBadgeMode !== 'none';",
+        "const usesV2CardLanguage = interactiveCardBadgeMode !== 'none';",
         'if (placeDetailPath && fullCardLink && !isPostalGroup && !canFocusCardOnMap && !canRemovePrimaryResource)',
     );
 

@@ -1478,9 +1478,11 @@ function DirectoryResourceRow({
                                                 {shortDescriptionItems.map((item, index) => (
                                                     <p
                                                         key={item.id || `${item.text}-${index}`}
-                                                        className="text-xs leading-5 text-slate-500"
+                                                        className="leading-5"
                                                     >
-                                                        {item.text}
+                                                        <MapShortDescriptionText item={item} textClassName="text-xs">
+                                                            {item.text}
+                                                        </MapShortDescriptionText>
                                                     </p>
                                                 ))}
                                             </div>
@@ -1851,9 +1853,14 @@ function PrimaryMapShortDescription({
                 {shortDescriptionItems.map((item, index) => (
                     <p
                         key={item.id || `${item.text}-${index}`}
-                        className={`leading-5 text-slate-500 ${compact ? 'text-xs' : 'text-sm'}`}
+                        className="leading-5"
                     >
-                        {item.text}
+                        <MapShortDescriptionText
+                            item={item}
+                            textClassName={compact ? 'text-xs' : 'text-sm'}
+                        >
+                            {item.text}
+                        </MapShortDescriptionText>
                     </p>
                 ))}
             </div>
@@ -1893,6 +1900,7 @@ function MapShortDescriptionText({
         <span
             className={`inline font-medium ${textClassName} ${highlighted ? 'rounded px-1 py-0.5' : ''}`}
             style={style}
+            data-map-short-description-text="true"
             data-print-short-description-text="true"
         >
             {children}
@@ -2009,6 +2017,7 @@ function DirectoryPlaceGroupCard({
     logoRevealed = false,
     cardBadgeMode = 'number',
     showPrintNumberBadge = false,
+    showInteractiveNumberBadge = false,
     printNumberBadgePosition = 'end',
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
 }) {
@@ -2033,22 +2042,27 @@ function DirectoryPlaceGroupCard({
     const useCompactNamesOnlyCard = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES;
     const showInteractiveLogo = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_LOGOS
         || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
-    const showInteractiveIdentity = cardBadgeMode !== 'none'
-        && (cardBadgeMode !== 'logo' || showInteractiveLogo);
+    const interactiveCardBadgeMode = showInteractiveNumberBadge && cardBadgeMode === 'number'
+        ? 'logo'
+        : cardBadgeMode;
+    const showInteractiveIdentity = interactiveCardBadgeMode !== 'none'
+        && (interactiveCardBadgeMode !== 'logo' || showInteractiveLogo);
     const showInteractiveAddress = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES
         || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const showInteractiveDescriptions = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS
         || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const showInteractiveResourceRows = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
-    const showPrimaryCardBadge = cardBadgeMode !== 'none' && (!interactive || showInteractiveIdentity);
-    const printNumberBadge = showPrintNumberBadge ? (
+    const showPrimaryCardBadge = (interactive ? interactiveCardBadgeMode : cardBadgeMode) !== 'none'
+        && (!interactive || showInteractiveIdentity);
+    const showSeparateNumberBadge = showPrintNumberBadge || (interactive && showInteractiveNumberBadge);
+    const resourceNumberBadge = showSeparateNumberBadge ? (
         <PrintResourceNumberBadge
             value={group.number}
             color={group.categoryColor || clusterColorData?.core || null}
             compact={useCompactNamesOnlyCard}
         />
     ) : null;
-    const printNumberBadgeAtStart = printNumberBadgePosition === 'start';
+    const numberBadgeAtStart = printNumberBadgePosition === 'start';
     const isPostalGroup = Boolean(group?.isPostalGroup && Array.isArray(group?.nestedPlaces) && group.nestedPlaces.length > 1);
     const printHighlightClassName = 'border-orange-400 ring-2 ring-orange-300 shadow-[0_0_0_3px_rgba(249,115,22,0.16)]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
@@ -2097,7 +2111,7 @@ function DirectoryPlaceGroupCard({
                     }`}
                 >
                     <div className={`flex ${useCompactNamesOnlyCard ? 'items-center gap-1.5' : 'items-start gap-2.5'}`}>
-                        {printNumberBadgeAtStart ? printNumberBadge : null}
+                        {numberBadgeAtStart ? resourceNumberBadge : null}
                         {showPrimaryCardBadge && ['logo', 'category-icon'].includes(cardBadgeMode) ? (
                             <DirectoryPlaceBadge
                                 group={group}
@@ -2183,7 +2197,7 @@ function DirectoryPlaceGroupCard({
                                 })}
                             </div>
                         </div>
-                        {!printNumberBadgeAtStart ? printNumberBadge : null}
+                        {!numberBadgeAtStart ? resourceNumberBadge : null}
                     </div>
                 </section>
             );
@@ -2209,7 +2223,7 @@ function DirectoryPlaceGroupCard({
                 }`}
             >
                 <div className={`flex ${useCompactNamesOnlyCard ? 'items-center gap-1.5' : 'items-start gap-2.5'}`}>
-                    {printNumberBadgeAtStart ? printNumberBadge : null}
+                    {numberBadgeAtStart ? resourceNumberBadge : null}
                     {showPrimaryCardBadge && ['logo', 'category-icon'].includes(cardBadgeMode) ? (
                         <DirectoryPlaceBadge
                             group={group}
@@ -2276,7 +2290,7 @@ function DirectoryPlaceGroupCard({
                             </div>
                         ) : null}
                     </div>
-                    {!printNumberBadgeAtStart ? printNumberBadge : null}
+                    {!numberBadgeAtStart ? resourceNumberBadge : null}
                 </div>
             </section>
         );
@@ -2287,15 +2301,20 @@ function DirectoryPlaceGroupCard({
         const trailingNestedPlaces = group.nestedPlaces.slice(1);
         const primaryHoverLogoRow = getNestedPlaceLogoRow(primaryNestedPlace);
         const groupedCardContent = (
-            <div className={`grid ${showInteractiveIdentity
-                ? (compactInteractive ? 'grid-cols-[2.625rem_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[2.875rem_minmax(0,1fr)] gap-x-3')
-                : 'grid-cols-1'}`}>
+            <div
+                className="flex items-start gap-2.5"
+                data-interactive-number-badge-position={showInteractiveNumberBadge ? printNumberBadgePosition : undefined}
+            >
+                {numberBadgeAtStart ? resourceNumberBadge : null}
+                <div className={`grid min-w-0 flex-1 ${showInteractiveIdentity
+                    ? (compactInteractive ? 'grid-cols-[2.625rem_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[2.875rem_minmax(0,1fr)] gap-x-3')
+                    : 'grid-cols-1'}`}>
                 {showInteractiveIdentity ? (
                     <DirectoryPlaceBadge
                         group={group}
                         clusterColorData={clusterColorData}
                         compactInteractive={compactInteractive}
-                        badgeMode={cardBadgeMode}
+                        badgeMode={interactiveCardBadgeMode}
                         badgeRow={getNestedPlaceBadgeRow(primaryNestedPlace)}
                         hoverLogoRow={primaryHoverLogoRow}
                         logoRevealed={logoRevealed}
@@ -2341,7 +2360,7 @@ function DirectoryPlaceGroupCard({
                                         group={nestedPlace}
                                         clusterColorData={clusterColorData}
                                         compactInteractive={compactInteractive}
-                                        badgeMode={cardBadgeMode}
+                                        badgeMode={interactiveCardBadgeMode}
                                         badgeRow={getNestedPlaceBadgeRow(nestedPlace)}
                                         onViewOnMap={onViewOnMap}
                                     />
@@ -2361,6 +2380,8 @@ function DirectoryPlaceGroupCard({
                         ))}
                     </div>
                 ) : null}
+                </div>
+                {!numberBadgeAtStart ? resourceNumberBadge : null}
             </div>
         );
 
@@ -2386,19 +2407,23 @@ function DirectoryPlaceGroupCard({
         <h3 className={`${compactInteractive ? 'text-[0.9375rem]' : 'text-[1.0625rem]'} font-bold leading-tight text-slate-900`}>{group.name}</h3>
     );
     const hoverLogoRow = showDesktopHoverLogo ? getGroupHoverLogoRow(group) : null;
-    const usesV2CardLanguage = cardBadgeMode !== 'none';
+    const usesV2CardLanguage = interactiveCardBadgeMode !== 'none';
     const resolvedLocationLine = resolveV2CardLocationLine(group, t);
     const hasLocationMeta = Boolean(resolvedLocationLine || group.distanceLabel);
 
     const cardContent = (
         <>
-            <div className={`flex items-start ${compactInteractive ? 'gap-2.5' : 'gap-3'}`}>
+            <div
+                className={`flex items-start ${compactInteractive ? 'gap-2.5' : 'gap-3'}`}
+                data-interactive-number-badge-position={showInteractiveNumberBadge ? printNumberBadgePosition : undefined}
+            >
+                {numberBadgeAtStart ? resourceNumberBadge : null}
                 {showInteractiveIdentity ? (
                     <DirectoryPlaceBadge
                         group={group}
                         clusterColorData={clusterColorData}
                         compactInteractive={compactInteractive}
-                        badgeMode={cardBadgeMode}
+                        badgeMode={interactiveCardBadgeMode}
                         badgeRow={getGroupBadgeRow(group)}
                         hoverLogoRow={hoverLogoRow}
                         logoRevealed={logoRevealed}
@@ -2473,6 +2498,7 @@ function DirectoryPlaceGroupCard({
                         </div>
                     ) : null}
                 </div>
+                {!numberBadgeAtStart ? resourceNumberBadge : null}
             </div>
         </>
     );
@@ -2840,9 +2866,14 @@ function DirectoryUnmappedRow({
                                     {shortDescriptionItems.map((item, index) => (
                                         <p
                                             key={item.id || `${item.text}-${index}`}
-                                            className="text-sm leading-5 text-slate-600"
+                                            className="leading-5"
                                         >
-                                            {item.text}
+                                            <MapShortDescriptionText
+                                                item={item}
+                                                textClassName={compact ? 'text-xs' : 'text-sm'}
+                                            >
+                                                {item.text}
+                                            </MapShortDescriptionText>
                                         </p>
                                     ))}
                                 </div>
@@ -3100,6 +3131,7 @@ function DirectoryGroupColumn({
     cardBadgeMode = 'number',
     showCategoryPills = false,
     showPrintNumberBadges = false,
+    showInteractiveNumberBadges = false,
     printNumberBadgePosition = 'end',
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
     printColumnCount = 1,
@@ -3165,6 +3197,7 @@ function DirectoryGroupColumn({
                             logoRevealed={isGroupLogoRevealed(group, logoRevealPlaceKeys)}
                             cardBadgeMode={cardBadgeMode}
                             showPrintNumberBadge={showPrintNumberBadges}
+                            showInteractiveNumberBadge={showInteractiveNumberBadges}
                             printNumberBadgePosition={printNumberBadgePosition}
                             printLabelDetail={printLabelDetail}
                             sectionRef={(node) => {
@@ -3299,6 +3332,7 @@ export default function SharedMapDirectoryList({
     showMapLegend = true,
     cardBadgeMode = 'number',
     showPrintNumberBadges = false,
+    showInteractiveNumberBadges = false,
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
     printResourcesBelow = false,
     printResourceColumnCount = 2,
@@ -3794,7 +3828,9 @@ export default function SharedMapDirectoryList({
                             showDesktopHoverLogo={showDesktopHoverLogo}
                             logoRevealPlaceKeys={logoRevealPlaceKeys}
                             cardBadgeMode={cardBadgeMode}
+                            showInteractiveNumberBadges={showInteractiveNumberBadges}
                             showCategoryPills={showCategoryPills}
+                            printNumberBadgePosition="start"
                             printLabelDetail={printLabelDetail}
                         />
 
@@ -3910,7 +3946,9 @@ export default function SharedMapDirectoryList({
                         showDesktopHoverLogo={showDesktopHoverLogo}
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
                         cardBadgeMode={cardBadgeMode}
+                        showInteractiveNumberBadges={showInteractiveNumberBadges}
                         showCategoryPills={showCategoryPills}
+                        printNumberBadgePosition={interactiveMapSide === 'right' ? 'end' : 'start'}
                         printLabelDetail={printLabelDetail}
                     />
                 ))}
@@ -4012,7 +4050,9 @@ export default function SharedMapDirectoryList({
                                 showDesktopHoverLogo={showDesktopHoverLogo}
                                 logoRevealPlaceKeys={logoRevealPlaceKeys}
                                 cardBadgeMode={cardBadgeMode}
+                                showInteractiveNumberBadges={showInteractiveNumberBadges}
                                 showCategoryPills={showCategoryPills}
+                                printNumberBadgePosition="start"
                                 printLabelDetail={printLabelDetail}
                             />
                         ))}
@@ -4161,6 +4201,7 @@ export default function SharedMapDirectoryList({
                         showDesktopHoverLogo={showDesktopHoverLogo}
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
                         cardBadgeMode={cardBadgeMode}
+                        showInteractiveNumberBadges={showInteractiveNumberBadges}
                         showCategoryPills={showCategoryPills}
                         showPrintNumberBadges={showPrintNumberBadges}
                         printNumberBadgePosition="end"
@@ -4219,6 +4260,7 @@ export default function SharedMapDirectoryList({
                                     showDesktopHoverLogo={showDesktopHoverLogo}
                                     logoRevealPlaceKeys={logoRevealPlaceKeys}
                                     cardBadgeMode={cardBadgeMode}
+                                    showInteractiveNumberBadges={showInteractiveNumberBadges}
                                     showCategoryPills={showCategoryPills}
                                     showPrintNumberBadges={showPrintNumberBadges}
                                     printNumberBadgePosition="end"
@@ -4267,6 +4309,7 @@ export default function SharedMapDirectoryList({
                         showDesktopHoverLogo={showDesktopHoverLogo}
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
                         cardBadgeMode={cardBadgeMode}
+                        showInteractiveNumberBadges={showInteractiveNumberBadges}
                         showCategoryPills={showCategoryPills}
                         showPrintNumberBadges={showPrintNumberBadges}
                         printNumberBadgePosition="start"

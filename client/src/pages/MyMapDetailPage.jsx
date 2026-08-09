@@ -3393,6 +3393,7 @@ export default function MyMapDetailPage() {
             : undefined,
         mapViewState: mapStudioInteractiveModel?.directoryMap?.mapViewState ?? null,
         markerScale: mapStudioInteractiveModel?.directoryMap?.markerScale ?? 1,
+        printBadgeScale: mapStudioInteractiveModel?.directoryMap?.markerScale ?? 1,
         pinBadgeMode: mapStudioInteractiveModel?.directoryMap?.pinBadgeMode ?? 'count',
         pinCategoryIconMode: mapStudioInteractiveModel?.directoryMap?.pinCategoryIconMode ?? 'auto',
         clusterMarkerMode: mapStudioInteractiveModel?.directoryMap?.clusterMarkerMode ?? 'bubble',
@@ -4033,6 +4034,7 @@ export default function MyMapDetailPage() {
                                 interactiveResourceColumnCount={mapStudioInteractiveModel?.layout?.resourceColumnCount}
                                 interactiveSideResourceColumnCount={mapStudioInteractiveModel?.layout?.sideResourceColumnCount}
                                 cardBadgeMode={mapStudioInteractiveModel?.cardIdentity?.mode || 'number'}
+                                showInteractiveNumberBadges={Boolean(mapStudioInteractiveModel?.cardIdentity?.showNumberBadge)}
                                 showDesktopHoverLogo
                                 preserveMobileMapFrameInFlow={TOWN_MAP_PROOF_ENABLED}
                                 desktopScrollTargetRef={desktopSelectionSnapRef}

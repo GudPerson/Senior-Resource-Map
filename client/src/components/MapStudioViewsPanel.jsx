@@ -48,6 +48,11 @@ import {
     MAP_STUDIO_MAX_VIEW_NAME_LENGTH,
     MAP_STUDIO_MODE_DESIGN,
 } from '../lib/mapStudioState.js';
+import {
+    MAP_STUDIO_LAYOUT_PANEL_SIDE_LEFT,
+    readMapStudioLayoutPanelSide,
+    writeMapStudioLayoutPanelSide,
+} from '../lib/mapStudioUiPreferences.js';
 
 function createViewEntropy(sequence) {
     const randomId = globalThis.crypto?.randomUUID?.();
@@ -78,6 +83,11 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
     const [editorMode, setEditorMode] = useState(null);
     const [viewName, setViewName] = useState('');
     const [designSettingsOpen, setDesignSettingsOpen] = useState(false);
+    const [designSettingsSide, setDesignSettingsSide] = useState(readMapStudioLayoutPanelSide);
+
+    const handleDesignSettingsSideChange = useCallback((nextSide) => {
+        setDesignSettingsSide(writeMapStudioLayoutPanelSide(nextSide));
+    }, []);
 
     const handleModeChange = useCallback((nextMode) => {
         if (saving || editorMode) return;
@@ -485,14 +495,20 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                             id={`map-studio-design-settings-${mapId}`}
                             role="dialog"
                             aria-label={t('editLayout')}
-                            className="w-full lg:absolute lg:right-4 lg:top-[calc(100%+12px)] lg:z-20 lg:max-h-[calc(100dvh-10rem)] lg:w-[420px] lg:max-w-[calc(100vw-2rem)] lg:overflow-y-auto lg:overscroll-contain lg:rounded-2xl lg:bg-white lg:shadow-2xl"
+                            className={`w-full lg:absolute lg:top-[calc(100%+12px)] lg:z-20 lg:max-h-[calc(100dvh-10rem)] lg:w-[420px] lg:max-w-[calc(100vw-2rem)] lg:overflow-y-auto lg:overscroll-contain lg:rounded-2xl lg:bg-white lg:shadow-2xl ${
+                                designSettingsSide === MAP_STUDIO_LAYOUT_PANEL_SIDE_LEFT
+                                    ? 'lg:left-4 lg:right-auto'
+                                    : 'lg:right-4 lg:left-auto'
+                            }`}
                             data-map-studio-design-settings-panel="true"
+                            data-map-studio-design-settings-side={designSettingsSide}
                         >
                             <MapStudioDesignControls
                                 design={ownerState.session.draftDesign}
-                                explorationCamera={ownerState.session.exploration.cameraView}
                                 resourceLayerCatalog={resourceLayerCatalog}
                                 annotationLayerCatalog={annotationLayerCatalog}
+                                panelSide={designSettingsSide}
+                                onPanelSideChange={handleDesignSettingsSideChange}
                                 onPatch={handleDesignPatch}
                                 onClose={() => setDesignSettingsOpen(false)}
                                 disabled={saving || Boolean(editorMode)}

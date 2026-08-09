@@ -76,7 +76,12 @@ export function buildMapStudioInteractiveModel(design, defaults = {}) {
             clusterMarkerMode: 'none',
         },
         cardIdentity: {
-            mode: isNumbered ? 'number' : isCategoryIcon ? 'category-icon' : 'logo',
+            // Numbered Studio pins keep the approved Print View card language:
+            // the resource logo remains the card identity while the matching
+            // category-coloured number is rendered independently at the edge
+            // nearest the map.
+            mode: isCategoryIcon ? 'category-icon' : 'logo',
+            showNumberBadge: isNumbered,
         },
         annotationLayer: {
             visible: normalizedDesign.layers.annotations !== PRINT_MAP_ANNOTATION_LAYER_HIDE,

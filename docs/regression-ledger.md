@@ -15,6 +15,82 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-10 Map Studio live pin-size and Layout-panel refinement
+
+- Candidate behavior: the one Map Studio Pin size choice now updates the live
+  interactive map for numbered badges, category bubbles, and category-icon pins
+  at the same `1`, `1.25`, and `1.5` scales used by Print View. Numbered mode
+  maps the interactive Studio scale into DirectoryMap's existing Print badge
+  seam; category icons use a DirectoryMap-local wrapper so Discovery's stable
+  saved-pin defaults and other callers remain unchanged.
+- Layout-control refinement: Map height and Starting view are no longer exposed
+  in the floating Edit layout menu. Their versioned document fields remain
+  readable for backward compatibility, so no schema migration, destructive
+  rewrite, or existing-view corruption is introduced. The desktop floating
+  menu can dock left or right through labelled 44 px controls. Its last side is
+  remembered as a browser-only UI preference and does not dirty or persist a
+  named Map Studio view, affect export, or enter Shared Map/embed snapshots.
+- Known-good reference and reproduction: Print View pin sizing and the existing
+  right-docked floating panel are the stable references. On an owned numbered
+  map, open Edit layout and choose Standard, Large, and Extra large; each map
+  pin must resize immediately without entering Print View. Repeat with Category
+  bubbles and Category icons. Confirm Map height and Starting view are absent,
+  dock the panel left, reload, and confirm it reopens left; dock it right and
+  confirm the map view still reports no unsaved changes.
+- Acceptance criteria: interactive and Print pin sizes correspond across all
+  three Studio styles; pin/card identity, bubble collision, category-icon
+  overlap, hover stacking, Detailed zoom behavior, mobile cards, annotations,
+  Print View/export, privacy, and frozen shared/embed behavior remain intact.
+  The floating panel must fit a 390 px viewport without horizontal overflow,
+  hide desktop-only dock controls there, and retain keyboard/ARIA states.
+- Pre-deploy verification: focused Map Studio/marker/UI-preference coverage
+  passed 44/44; full client coverage passed 628/628; map lockdown passed 84/84;
+  `npm run build:client`, the exact six-root
+  `npm run build:client:map-lockdown`, and `git diff --check` passed. Signed-in
+  local UAT on owner map 258 proved live numbered scales `1`, `1.25`, and `1.5`,
+  plus category-icon and category-bubble scale `1.25`, then restored the saved
+  numbered/extra-large design without dirty state. At 1440 x 1000 the panel
+  moved from right (`974..1394`) to left (`46..466`), retained left after reload,
+  and returned right without dirtying the view. At 390 x 844 it fit within the
+  viewport (`27..363`, document width 390), hid the desktop dock controls, and
+  exposed neither removed setting. No CareAround page error was logged; two old
+  unrelated Chrome-extension import errors were excluded.
+
+## 2026-08-09 Map Studio interactive numbered-card and descriptor parity (local candidate)
+
+- Candidate behavior: numbered-pin mode now keeps the resource logo in the
+  interactive card and renders the existing category-coloured Print View
+  number badge as a separate identity. In the Balanced desktop layout, cards
+  left of the map place the number at the right edge and cards right of the map
+  place it at the left edge, so the number always faces the map. Map-focus and
+  below-map compositions use the same explicit placement model. Category
+  bubble, category-icon, Shared Map/embed, and mobile focus-card identities are
+  unchanged.
+- Descriptor parity: mapped primary descriptions, nested resource
+  descriptions, and unmapped-card descriptions now use the same normalized
+  text-colour, highlight-colour, clone-decoration, and font-weight renderer as
+  the approved Print View instead of discarding those saved attributes in the
+  interactive branch.
+- Known-good reference and reproduction: owner Print View on map 258 and the
+  user-approved 2026-08-09 Print View screenshot are authoritative. Open the
+  owner map with a numbered Studio view and full labels; verify that each card
+  retains its logo, its numbered badge sits on the map-facing edge, and saved
+  blue, green, and yellow description highlights match Print View.
+- Acceptance criteria: the same resource number and category colour remain
+  aligned across pin and card; the logo is not replaced by the number; left and
+  right card rails mirror correctly; saved descriptor text/highlight styles are
+  visible; Print View rendering and export, hover/focus behavior, Detailed map,
+  annotations, privacy, and frozen Shared/embed snapshots do not regress.
+- Verification: focused adapter/scaffold/card coverage passes 55/55; full
+  client coverage passes 624/624; map lockdown passes 84/84; ordinary and exact
+  Detailed-map builds pass; and `git diff --check` passes. Signed-in local UAT
+  at 1440 x 1000 on map 258 rendered 37 numbered cards with both number and logo,
+  proved end-position badges on the left rail and start-position badges on the
+  right rail, and rendered 25 styled descriptions with their saved foreground,
+  background, and weight. No CareAround page error was logged; one unrelated
+  Chrome-extension import error was excluded. Production and saved view state
+  were not changed.
+
 ## 2026-08-09 refined Map Studio production release
 
 - Current behavior: production now serves the refined Map Studio owner

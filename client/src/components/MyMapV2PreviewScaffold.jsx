@@ -112,6 +112,7 @@ export default function MyMapV2PreviewScaffold({
             interactive={!suspendMapInteraction}
             markerMode={directoryMapRuntime?.markerMode || 'category-bubble'}
             markerScale={directoryMapRuntime?.markerScale || 1}
+            printBadgeScale={directoryMapRuntime?.markerScale || 1}
             pinBadgeMode={directoryMapRuntime?.pinBadgeMode || 'none'}
             pinCategoryIconMode={directoryMapRuntime?.pinCategoryIconMode || 'none'}
             clusterMarkerMode={directoryMapRuntime?.clusterMarkerMode || 'none'}
@@ -209,6 +210,7 @@ export default function MyMapV2PreviewScaffold({
                         showDesktopHoverLogo
                         showMapLegend={false}
                         cardBadgeMode={mapStudioRuntime?.cardIdentity?.mode || 'logo'}
+                        showInteractiveNumberBadges={Boolean(mapStudioRuntime?.cardIdentity?.showNumberBadge)}
                         mobileFocusCardVariant="complete-preview"
                         printLabelDetail={mapStudioRuntime?.labels?.detail}
                         resourcePanelPlacement={mapStudioRuntime?.layout?.resourcePanel}
