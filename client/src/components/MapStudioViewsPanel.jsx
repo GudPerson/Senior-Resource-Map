@@ -8,26 +8,20 @@ import {
 } from 'react';
 import {
     AlertTriangle,
-    AlignLeft,
     Copy,
     Layers3,
-    ListOrdered,
     LoaderCircle,
     Pencil,
-    PenLine,
-    Printer,
-    MapPin,
     Plus,
     RefreshCw,
     RotateCcw,
     Save,
-    SlidersHorizontal,
     Star,
     Trash2,
 } from 'lucide-react';
 
 import { useConfirmDialog } from './ConfirmDialog.jsx';
-import MapStudioDesignControls, { MapStudioModeSwitch } from './MapStudioDesignControls.jsx';
+import MapStudioDesignControls from './MapStudioDesignControls.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { api } from '../lib/api.js';
 import {
@@ -67,17 +61,6 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
     resourceLayerCatalog = null,
     annotationLayerCatalog = [],
     onOwnerSessionChange = null,
-    onArrangeCategories = null,
-    canArrangeCategories = true,
-    onAddPersonalPlace = null,
-    personalPlacePickerActive = false,
-    shortDescriptionMode = false,
-    onToggleShortDescription = null,
-    annotationEditing = false,
-    canEditAnnotations = false,
-    annotationsReady = false,
-    onToggleAnnotations = null,
-    onOpenExport = null,
 }, ref) {
     const { t } = useLocale();
     const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
@@ -125,6 +108,7 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
 
     useImperativeHandle(ref, () => ({
         setMode: handleModeChange,
+        openLayoutSettings: () => handleModeChange(MAP_STUDIO_MODE_DESIGN),
         patchDesign: handleDesignPatch,
         patchExploration: handleExplorationPatch,
     }), [handleDesignPatch, handleExplorationPatch, handleModeChange]);
@@ -493,78 +477,27 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                     )}
                 </div>
 
-                {!loading && !loadError && ownerState ? (
-                    <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
-                        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]">
-                            <MapStudioModeSwitch
-                                mode={ownerState.session.mode}
-                                onModeChange={handleModeChange}
+                {!loading && !loadError && ownerState
+                    && ownerState.session.mode === MAP_STUDIO_MODE_DESIGN
+                    && designSettingsOpen ? (
+                    <div className="mt-4 border-t border-slate-100 pt-4 lg:mt-0 lg:border-0 lg:pt-0">
+                        <div
+                            id={`map-studio-design-settings-${mapId}`}
+                            role="dialog"
+                            aria-label={t('editLayout')}
+                            className="w-full lg:absolute lg:right-4 lg:top-[calc(100%+12px)] lg:z-20 lg:max-h-[calc(100dvh-10rem)] lg:w-[420px] lg:max-w-[calc(100vw-2rem)] lg:overflow-y-auto lg:overscroll-contain lg:rounded-2xl lg:bg-white lg:shadow-2xl"
+                            data-map-studio-design-settings-panel="true"
+                        >
+                            <MapStudioDesignControls
+                                design={ownerState.session.draftDesign}
+                                explorationCamera={ownerState.session.exploration.cameraView}
+                                resourceLayerCatalog={resourceLayerCatalog}
+                                annotationLayerCatalog={annotationLayerCatalog}
+                                onPatch={handleDesignPatch}
+                                onClose={() => setDesignSettingsOpen(false)}
                                 disabled={saving || Boolean(editorMode)}
                             />
-                            {ownerState.session.mode === MAP_STUDIO_MODE_DESIGN ? (
-                                <button
-                                    type="button"
-                                    onClick={() => setDesignSettingsOpen((current) => !current)}
-                                    disabled={saving || Boolean(editorMode)}
-                                    className={`btn-ghost min-h-11 justify-center border px-4 text-sm ${
-                                        designSettingsOpen
-                                            ? 'border-brand-600 bg-brand-50 text-brand-800'
-                                            : 'border-slate-200 text-slate-700'
-                                    } disabled:opacity-45`}
-                                    aria-expanded={designSettingsOpen}
-                                    aria-controls={`map-studio-design-settings-${mapId}`}
-                                    data-map-studio-design-settings-trigger="true"
-                                >
-                                    <SlidersHorizontal size={16} aria-hidden="true" />
-                                    {t('mapStudioOpenDesignSettings')}
-                                </button>
-                            ) : null}
                         </div>
-                        <div
-                            className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2"
-                            aria-label={t('mapStudioMapTools')}
-                            data-map-studio-map-tools="true"
-                        >
-                            <button type="button" onClick={onArrangeCategories} disabled={!canArrangeCategories} className="btn-ghost min-h-11 flex-1 justify-center border border-slate-200 bg-white px-3 text-xs text-slate-700 disabled:opacity-45 sm:flex-none sm:text-sm">
-                                <ListOrdered size={16} aria-hidden="true" />
-                                {t('arrangeCategories')}
-                            </button>
-                            <button type="button" onClick={onAddPersonalPlace} className={`btn-ghost min-h-11 flex-1 justify-center border bg-white px-3 text-xs sm:flex-none sm:text-sm ${personalPlacePickerActive ? 'border-brand-600 text-brand-800' : 'border-slate-200 text-slate-700'}`} aria-pressed={personalPlacePickerActive}>
-                                <MapPin size={16} aria-hidden="true" />
-                                {personalPlacePickerActive ? t('cancelAddPersonalPlace') : t('addPersonalPlace')}
-                            </button>
-                            <button type="button" onClick={onToggleShortDescription} className={`btn-ghost min-h-11 flex-1 justify-center border bg-white px-3 text-xs sm:flex-none sm:text-sm ${shortDescriptionMode ? 'border-brand-600 text-brand-800' : 'border-slate-200 text-slate-700'}`} aria-pressed={shortDescriptionMode}>
-                                <AlignLeft size={16} aria-hidden="true" />
-                                {t('addShortDescription')}
-                            </button>
-                            {canEditAnnotations ? (
-                                <button type="button" onClick={onToggleAnnotations} disabled={!annotationsReady} className={`btn-ghost min-h-11 flex-1 justify-center border bg-white px-3 text-xs disabled:cursor-wait disabled:opacity-45 sm:flex-none sm:text-sm ${annotationEditing ? 'border-brand-600 text-brand-800' : 'border-slate-200 text-slate-700'}`} aria-pressed={annotationEditing}>
-                                    <PenLine size={16} aria-hidden="true" />
-                                    {t('mapStudioAnnotate')}
-                                </button>
-                            ) : null}
-                            <button type="button" onClick={onOpenExport} className="btn-ghost min-h-11 flex-1 justify-center border border-slate-200 bg-white px-3 text-xs text-slate-700 sm:flex-none sm:text-sm">
-                                <Printer size={16} aria-hidden="true" />
-                                {t('mapStudioExportPngPdf')}
-                            </button>
-                        </div>
-                        {ownerState.session.mode === MAP_STUDIO_MODE_DESIGN && designSettingsOpen ? (
-                            <div
-                                id={`map-studio-design-settings-${mapId}`}
-                                className="w-full lg:absolute lg:right-4 lg:top-[calc(100%+12px)] lg:z-20 lg:max-h-[calc(100dvh-10rem)] lg:w-[420px] lg:max-w-[calc(100vw-2rem)] lg:overflow-y-auto lg:overscroll-contain lg:rounded-2xl lg:bg-white lg:shadow-2xl"
-                                data-map-studio-design-settings-panel="true"
-                            >
-                                <MapStudioDesignControls
-                                    design={ownerState.session.draftDesign}
-                                    explorationCamera={ownerState.session.exploration.cameraView}
-                                    resourceLayerCatalog={resourceLayerCatalog}
-                                    annotationLayerCatalog={annotationLayerCatalog}
-                                    onPatch={handleDesignPatch}
-                                    onClose={() => setDesignSettingsOpen(false)}
-                                    disabled={saving || Boolean(editorMode)}
-                                />
-                            </div>
-                        ) : null}
                     </div>
                 ) : null}
 

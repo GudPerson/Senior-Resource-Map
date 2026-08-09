@@ -8,8 +8,6 @@ import {
     MAP_STUDIO_MAP_HEIGHT_COMPACT,
     MAP_STUDIO_MAP_HEIGHT_STANDARD,
     MAP_STUDIO_MAP_HEIGHT_TALL,
-    MAP_STUDIO_MODE_DESIGN,
-    MAP_STUDIO_MODE_EXPLORE,
     MAP_STUDIO_PIN_STYLE_BUBBLE,
     MAP_STUDIO_PIN_STYLE_CATEGORY_ICON,
     MAP_STUDIO_PIN_STYLE_NUMBERED,
@@ -76,39 +74,6 @@ function DesignFieldset({ legend, description = '', children, columns = 2 }) {
                 {children}
             </div>
         </fieldset>
-    );
-}
-
-export function MapStudioModeSwitch({
-    mode = MAP_STUDIO_MODE_EXPLORE,
-    onModeChange = null,
-    disabled = false,
-}) {
-    const { t } = useLocale();
-    const resolvedMode = mode === MAP_STUDIO_MODE_DESIGN
-        ? MAP_STUDIO_MODE_DESIGN
-        : MAP_STUDIO_MODE_EXPLORE;
-
-    return (
-        <div
-            role="group"
-            aria-label={t('mapStudioModeLabel')}
-            className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5"
-            data-map-studio-mode-switch="true"
-        >
-            <ChoiceButton
-                selected={resolvedMode === MAP_STUDIO_MODE_EXPLORE}
-                label={t('mapStudioExploreMode')}
-                onClick={() => onModeChange?.(MAP_STUDIO_MODE_EXPLORE)}
-                disabled={disabled}
-            />
-            <ChoiceButton
-                selected={resolvedMode === MAP_STUDIO_MODE_DESIGN}
-                label={t('mapStudioDesignMode')}
-                onClick={() => onModeChange?.(MAP_STUDIO_MODE_DESIGN)}
-                disabled={disabled}
-            />
-        </div>
     );
 }
 
