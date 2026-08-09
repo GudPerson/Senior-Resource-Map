@@ -68,7 +68,12 @@ export function buildMapStudioInteractiveModel(design, defaults = {}) {
             markerScale: getPrintMapPinScale(normalizedDesign.pins.size),
             pinBadgeMode: 'none',
             pinCategoryIconMode: isCategoryIcon ? 'auto' : 'none',
-            clusterMarkerMode: isNumbered || isCategoryIcon ? 'bubble' : 'none',
+            // Studio pin styles are all individual-marker presentations. The
+            // numbered renderer reuses DirectoryMap's bubble collision solver,
+            // while category icons keep the overlap-capable Discovery behavior.
+            // Aggregate count clusters would replace the selected marker/card
+            // identity and are therefore intentionally disabled here.
+            clusterMarkerMode: 'none',
         },
         cardIdentity: {
             mode: isNumbered ? 'number' : isCategoryIcon ? 'category-icon' : 'logo',

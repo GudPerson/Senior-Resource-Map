@@ -302,8 +302,10 @@ The current renderer support matrix is intentionally explicit:
 The default adapter output keeps category-bubble marker semantics and the
 current collision behavior. Numbered pins translate to the established
 category-coloured `print-badge` renderer, and category icons translate through
-the existing category-icon seam. Those two individual-marker styles keep the
-current bubble cluster renderer when close pins collapse. A fixed camera is
+the existing category-icon seam. Numbered pins reuse the same collision-separated
+bubble behavior as category bubbles, while category icons remain individual,
+overlap-capable markers like Discovery. None of the three Studio styles is
+replaced by an aggregate count cluster. A fixed camera is
 copied into the controlled-camera input; fit mode remains null so the current
 camera fitter stays authoritative.
 

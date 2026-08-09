@@ -175,6 +175,16 @@ Last updated: 2026-08-09 (Asia/Singapore)
   style, annotation visibility, and the semantic map-height token are
   adapter-ready. The default emits no cluster, pin-badge, or category-icon
   override, preserving the current V2 bubble behavior.
+- All three Studio pin styles now bypass aggregate count clustering. Numbered
+  pins use the existing collision-separated print-badge bubbles so their colour
+  and number continue to match the cards; category icons remain individual,
+  overlap-capable saved-place pins like Discovery.
+- Local refinement proof on map 258: displayed zoom 14 used 20 overview layers
+  and zero live tiles; numbered and category-icon modes each rendered 37
+  individual markers and zero aggregate clusters. Focused coverage passes
+  79/79, full client coverage 636/636, map lockdown 84/84, and the exact
+  configured Detailed-map client build passes. The local UAT view was restored
+  clean after the temporary category-icon preview; production is unchanged.
 - Interactive pin size, label detail, resource/category filtering, and
   resource-panel placement are explicitly deferred. They must not appear as
   working controls until pins and every desktop/mobile card or sticky/focus

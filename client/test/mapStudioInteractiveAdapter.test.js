@@ -74,7 +74,7 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
         markerScale: 1.25,
         pinBadgeMode: 'none',
         pinCategoryIconMode: 'none',
-        clusterMarkerMode: 'bubble',
+        clusterMarkerMode: 'none',
     });
     assert.deepEqual(model.annotationLayer, {
         visible: false,
@@ -99,15 +99,25 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
     assert.deepEqual(model.deferredPaths, []);
 });
 
-test('category icon pins and cards share one identity while retaining bubble clustering', () => {
+test('category icon pins and cards share one identity without aggregate clustering', () => {
     const design = createMapStudioDesign();
     design.pins.style = MAP_STUDIO_PIN_STYLE_CATEGORY_ICON;
     const model = buildMapStudioInteractiveModel(design);
 
     assert.equal(model.directoryMap.markerMode, 'category-icon');
     assert.equal(model.directoryMap.pinCategoryIconMode, 'auto');
-    assert.equal(model.directoryMap.clusterMarkerMode, 'bubble');
+    assert.equal(model.directoryMap.clusterMarkerMode, 'none');
     assert.equal(model.cardIdentity.mode, 'category-icon');
+});
+
+test('numbered pins keep individual collision-managed bubble identities', () => {
+    const design = createMapStudioDesign();
+    design.pins.style = MAP_STUDIO_PIN_STYLE_NUMBERED;
+    const model = buildMapStudioInteractiveModel(design);
+
+    assert.equal(model.directoryMap.markerMode, 'print-badge');
+    assert.equal(model.directoryMap.clusterMarkerMode, 'none');
+    assert.equal(model.cardIdentity.mode, 'number');
 });
 
 test('interactive model returns cloned camera and layer arrays', () => {

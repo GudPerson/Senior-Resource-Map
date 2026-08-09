@@ -40,9 +40,11 @@ Rules:
 - Marker/card parity: owners can choose Category bubbles, Numbered pins, or
   Category icons. Numbered cards and pins use the same category colour and
   number; category-icon cards and pins use the same category identity. The
-  current bubble renderer remains the cluster representation for close
-  numbered or category-icon pins. Category bubbles retain the existing
-  collision behavior and logo cards.
+  numbered style uses the same collision-separated bubble behavior as category
+  bubbles, and category icons remain individual overlap-capable pins like
+  Discovery. Studio does not replace either style with aggregate count
+  clusters. Category bubbles retain the existing collision behavior and logo
+  cards.
 - Interactive tools: Arrange categories, Add personal place, Short
   descriptions, desktop annotation editing, and Export PNG/PDF are reachable
   from the private Map Studio panel. They reuse existing My Map APIs,
@@ -67,6 +69,15 @@ Rules:
   the unsaved preview. No CareAround page error was logged; one unrelated
   Chrome-extension module error was excluded. This work stays local on
   `codex/map-studio-state-model`; production is unchanged.
+- Pin-behavior refinement verification on 2026-08-09: focused Studio, marker,
+  and local-map configuration coverage passes 79/79; full client coverage
+  passes 636/636; Detailed-map lockdown passes 84/84; and the exact configured
+  Detailed-map client build passes. Signed-in local UAT on map 258 at displayed
+  zoom 14 rendered 20 zoom-14 overview layers and zero live tiles. Numbered
+  mode rendered 37 individual collision-managed badge markers and category-icon
+  mode rendered 37 individual category icons, with zero aggregate cluster
+  elements in both modes. The temporary category-icon preview was discarded,
+  leaving the saved view clean. Production remains unchanged.
 
 ## 2026-08-09 Map Studio numbered-pin and Design-settings refinement (local UAT)
 
