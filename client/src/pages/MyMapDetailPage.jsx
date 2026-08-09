@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
@@ -6,6 +6,7 @@ import {
     AlignLeft,
     ArrowLeft,
     CheckCircle2,
+    ChevronDown,
     LayoutTemplate,
     Link2,
     ListOrdered,
@@ -18,6 +19,7 @@ import {
     Printer,
     RotateCcw,
     Search,
+    SlidersHorizontal,
     X,
 } from 'lucide-react';
 
@@ -217,6 +219,130 @@ function PersonalPlacePlacementPrompt({ message }) {
     );
 }
 
+function OwnerEditContentMenu({
+    onArrangeCategories,
+    categoryCount = 0,
+    onToggleShortDescription,
+    shortDescriptionMode = false,
+    onToggleAnnotations,
+    annotationEditing = false,
+    canEditAnnotations = false,
+    annotationsReady = false,
+    inFlow = false,
+}) {
+    const { t } = useLocale();
+    const menuId = useId();
+    const rootRef = useRef(null);
+    const menuRef = useRef(null);
+    const triggerRef = useRef(null);
+    const [open, setOpen] = useState(false);
+
+    const focusFirstAvailableItem = useCallback(() => {
+        window.requestAnimationFrame(() => {
+            menuRef.current?.querySelector('button:not(:disabled)')?.focus();
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const handlePointerDown = (event) => {
+            if (rootRef.current?.contains(event.target)) return;
+            setOpen(false);
+        };
+        const handleKeyDown = (event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            setOpen(false);
+            triggerRef.current?.focus();
+        };
+        window.addEventListener('pointerdown', handlePointerDown);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('pointerdown', handlePointerDown);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [open]);
+
+    const runAction = useCallback((action) => {
+        setOpen(false);
+        action?.();
+    }, []);
+
+    return (
+        <div ref={rootRef} className={`relative ${inFlow ? 'w-full' : ''}`} data-owner-edit-content-menu="true">
+            <button
+                ref={triggerRef}
+                type="button"
+                onClick={() => setOpen((current) => !current)}
+                onKeyDown={(event) => {
+                    if (event.key !== 'ArrowDown') return;
+                    event.preventDefault();
+                    setOpen(true);
+                    focusFirstAvailableItem();
+                }}
+                className={`btn-ghost h-12 justify-center border px-3.5 text-sm sm:px-4 ${inFlow ? 'w-full' : ''} ${
+                    open
+                        ? 'border-brand-600 bg-brand-50 text-brand-800'
+                        : 'border-slate-200 text-slate-700'
+                }`}
+                aria-expanded={open}
+                aria-haspopup="menu"
+                aria-controls={menuId}
+            >
+                <AlignLeft size={16} aria-hidden="true" />
+                {t('editContent')}
+                <ChevronDown size={15} className={`transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+            </button>
+
+            {open ? (
+                <div
+                    ref={menuRef}
+                    id={menuId}
+                    role="menu"
+                    aria-label={t('editContent')}
+                    className={`${inFlow ? 'mt-2 w-full' : 'absolute right-0 top-[calc(100%+8px)] z-[1140] w-64'} overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl`}
+                >
+                    <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => runAction(onArrangeCategories)}
+                        disabled={categoryCount < 2}
+                        className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-brand-50 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                        <ListOrdered size={17} className="text-brand-700" aria-hidden="true" />
+                        {t('arrangeCategories')}
+                    </button>
+                    <button
+                        type="button"
+                        role="menuitemcheckbox"
+                        aria-checked={shortDescriptionMode}
+                        onClick={() => runAction(onToggleShortDescription)}
+                        className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-brand-100 ${
+                            shortDescriptionMode ? 'bg-brand-50 text-brand-800' : 'text-slate-700 hover:bg-brand-50'
+                        }`}
+                    >
+                        <AlignLeft size={17} className="text-brand-700" aria-hidden="true" />
+                        {t('addShortDescription')}
+                    </button>
+                    <button
+                        type="button"
+                        role="menuitemcheckbox"
+                        aria-checked={annotationEditing}
+                        onClick={() => runAction(onToggleAnnotations)}
+                        disabled={!canEditAnnotations || !annotationsReady}
+                        className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-wait disabled:opacity-45 ${
+                            annotationEditing ? 'bg-brand-50 text-brand-800' : 'text-slate-700 hover:bg-brand-50'
+                        }`}
+                    >
+                        <PenLine size={17} className="text-brand-700" aria-hidden="true" />
+                        {t('mapStudioAnnotate')}
+                    </button>
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 function OwnerHeader({
     directory,
     query,
@@ -228,6 +354,14 @@ function OwnerHeader({
     categoryCount = 0,
     onAddPersonalPlace,
     personalPlacePickerActive = false,
+    onToggleShortDescription,
+    shortDescriptionMode = false,
+    onToggleAnnotations,
+    annotationEditing = false,
+    canEditAnnotations = false,
+    annotationsReady = false,
+    onEditLayout,
+    editLayoutDisabled = false,
     onEditDetails,
     onOpenPrintView,
     onOpenShare,
@@ -242,9 +376,21 @@ function OwnerHeader({
                 {/* Row 1: Title and Actions */}
                 <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
                     <div className="min-w-0 flex-1">
-                        <h1 className="truncate text-[1.8rem] font-extrabold tracking-tight text-slate-900 sm:text-[2rem]">
-                            {directory.name}
-                        </h1>
+                        <div className="flex min-w-0 items-center gap-2">
+                            <h1 className="truncate text-[1.8rem] font-extrabold tracking-tight text-slate-900 sm:text-[2rem]">
+                                {directory.name}
+                            </h1>
+                            <button
+                                type="button"
+                                onClick={onEditDetails}
+                                className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-brand-800 focus:outline-none focus:ring-4 focus:ring-brand-100"
+                                aria-label={t('editMapDetails')}
+                                title={t('editMapDetails')}
+                                data-owner-map-title-edit="true"
+                            >
+                                <Pencil size={18} aria-hidden="true" />
+                            </button>
+                        </div>
                         {directory.description ? (
                             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                                 {directory.description}
@@ -252,29 +398,28 @@ function OwnerHeader({
                         ) : null}
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-end gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2" data-owner-map-toolbar="true">
                         <button type="button" onClick={onAddAssets} className={`btn-primary min-w-[172px] ${compactActionClassName}`}>
                             <Plus size={16} />
                             {t('manageResources')}
                         </button>
-                        {onArrangeCategories ? (
-                            <button
-                                type="button"
-                                onClick={onArrangeCategories}
-                                disabled={categoryCount < 2}
-                                className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-45`}
-                            >
-                                <ListOrdered size={16} />
-                                {t('arrangeCategories')}
-                            </button>
-                        ) : null}
-                        <button type="button" onClick={onAddPersonalPlace} className={`btn-ghost min-w-[172px] ${compactActionClassName} border border-slate-200 text-slate-700`}>
-                            <MapPin size={16} />
-                            {personalPlacePickerActive ? t('cancelAddPersonalPlace') : t('addPersonalPlace')}
+                        <button type="button" onClick={onAddPersonalPlace} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`} aria-pressed={personalPlacePickerActive}>
+                            <Plus size={16} />
+                            {personalPlacePickerActive ? t('cancelAddPersonalPlace') : t('personalPlace')}
                         </button>
-                        <button type="button" onClick={onEditDetails} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
-                            <Pencil size={16} />
-                            {t('edit')}
+                        <OwnerEditContentMenu
+                            onArrangeCategories={onArrangeCategories}
+                            categoryCount={categoryCount}
+                            onToggleShortDescription={onToggleShortDescription}
+                            shortDescriptionMode={shortDescriptionMode}
+                            onToggleAnnotations={onToggleAnnotations}
+                            annotationEditing={annotationEditing}
+                            canEditAnnotations={canEditAnnotations}
+                            annotationsReady={annotationsReady}
+                        />
+                        <button type="button" onClick={onEditLayout} disabled={editLayoutDisabled} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700 disabled:cursor-wait disabled:opacity-45`} aria-haspopup="dialog" aria-controls={`map-studio-design-settings-${directory.id}`}>
+                            <SlidersHorizontal size={16} aria-hidden="true" />
+                            {t('editLayout')}
                         </button>
                         <button type="button" onClick={onOpenPrintView} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700`}>
                             <Printer size={16} />
@@ -331,6 +476,14 @@ function MyMapMobileControls({
     categoryCount = 0,
     onAddPersonalPlace,
     personalPlacePickerActive = false,
+    onToggleShortDescription,
+    shortDescriptionMode = false,
+    onToggleAnnotations,
+    annotationEditing = false,
+    canEditAnnotations = false,
+    annotationsReady = false,
+    onEditLayout,
+    editLayoutDisabled = false,
     onEditDetails,
     onOpenPrintView,
     onOpenShare,
@@ -366,8 +519,18 @@ function MyMapMobileControls({
                         <Menu size={compactOverlay ? 18 : 20} strokeWidth={compactOverlay ? 2.3 : 2} />
                     </button>
 
-                    <div className="min-w-0 flex-1">
-                        <p className={`${compactOverlay ? 'text-[15px] sm:text-base' : 'text-base sm:text-[17px]'} truncate font-bold text-slate-900`}>{directory.name}</p>
+                    <div className="flex min-w-0 flex-1 items-center gap-1">
+                        <p className={`${compactOverlay ? 'text-[15px] sm:text-base' : 'text-base sm:text-[17px]'} min-w-0 flex-1 truncate font-bold text-slate-900`}>{directory.name}</p>
+                        <button
+                            type="button"
+                            onClick={onEditDetails}
+                            className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-slate-600 transition hover:bg-white focus:outline-none focus:ring-4 focus:ring-brand-100"
+                            aria-label={t('editMapDetails')}
+                            title={t('editMapDetails')}
+                            data-owner-map-title-edit="true"
+                        >
+                            <Pencil size={17} aria-hidden="true" />
+                        </button>
                     </div>
                 </div>
             </div>
@@ -388,8 +551,17 @@ function MyMapMobileControls({
                         </Drawer.Description>
 
                         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
-                            <div className="min-w-0">
-                                <h2 className="truncate text-[17px] font-bold text-slate-900">{directory.name}</h2>
+                            <div className="flex min-w-0 flex-1 items-center gap-1">
+                                <h2 className="min-w-0 flex-1 truncate text-[17px] font-bold text-slate-900">{directory.name}</h2>
+                                <button
+                                    type="button"
+                                    onClick={() => runDrawerAction(onEditDetails)}
+                                    className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-4 focus:ring-brand-100"
+                                    aria-label={t('editMapDetails')}
+                                    title={t('editMapDetails')}
+                                >
+                                    <Pencil size={17} aria-hidden="true" />
+                                </button>
                             </div>
 
                             <button
@@ -417,24 +589,24 @@ function MyMapMobileControls({
                                     <Plus size={16} />
                                     {t('manageResources')}
                                 </button>
-                                {onArrangeCategories ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => runDrawerAction(onArrangeCategories)}
-                                        disabled={categoryCount < 2}
-                                        className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-45"
-                                    >
-                                        <ListOrdered size={16} />
-                                        {t('arrangeCategories')}
-                                    </button>
-                                ) : null}
                                 <button type="button" onClick={() => runDrawerAction(onAddPersonalPlace)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
-                                    <MapPin size={16} />
-                                    {personalPlacePickerActive ? t('cancelAddPersonalPlace') : t('addPersonalPlace')}
+                                    <Plus size={16} />
+                                    {personalPlacePickerActive ? t('cancelAddPersonalPlace') : t('personalPlace')}
                                 </button>
-                                <button type="button" onClick={() => runDrawerAction(onEditDetails)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
-                                    <Pencil size={16} />
-                                    {t('editDetails')}
+                                <OwnerEditContentMenu
+                                    onArrangeCategories={() => runDrawerAction(onArrangeCategories)}
+                                    categoryCount={categoryCount}
+                                    onToggleShortDescription={() => runDrawerAction(onToggleShortDescription)}
+                                    shortDescriptionMode={shortDescriptionMode}
+                                    onToggleAnnotations={() => runDrawerAction(onToggleAnnotations)}
+                                    annotationEditing={annotationEditing}
+                                    canEditAnnotations={canEditAnnotations}
+                                    annotationsReady={annotationsReady}
+                                    inFlow
+                                />
+                                <button type="button" onClick={() => runDrawerAction(onEditLayout)} disabled={editLayoutDisabled} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700 disabled:cursor-wait disabled:opacity-45" aria-haspopup="dialog" aria-controls={`map-studio-design-settings-${directory.id}`}>
+                                    <SlidersHorizontal size={16} aria-hidden="true" />
+                                    {t('editLayout')}
                                 </button>
                                 <button type="button" onClick={() => runDrawerAction(onOpenPrintView)} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700">
                                     <Printer size={16} />
@@ -3068,6 +3240,28 @@ export default function MyMapDetailPage() {
         setInteractiveAnnotationEditorOpen(true);
     }
 
+    function toggleInteractiveShortDescription() {
+        if (interactiveAnnotationEditorOpen) {
+            printAnnotations.saveNow();
+            setInteractiveAnnotationEditorOpen(false);
+        }
+        setInteractiveShortDescriptionMode((current) => !current);
+    }
+
+    function openMapDetailsEditor() {
+        setEditError('');
+        setEditOpen(true);
+    }
+
+    function openMapShare() {
+        setShareError('');
+        setShareOpen(true);
+    }
+
+    function openMapStudioLayoutSettings() {
+        mapStudioControllerRef.current?.openLayoutSettings();
+    }
+
     function closePrintView() {
         printAnnotations.saveNow();
         setPrintAnnotationEditorOpen(false);
@@ -3146,6 +3340,24 @@ export default function MyMapDetailPage() {
         );
     }
 
+    const ownerToolbarActionProps = {
+        onArrangeCategories: openCategoryOrder,
+        categoryCount: categoryOrderOptions.length,
+        onAddPersonalPlace: openPersonalPlacePicker,
+        personalPlacePickerActive,
+        onToggleShortDescription: toggleInteractiveShortDescription,
+        shortDescriptionMode: interactiveShortDescriptionMode,
+        onToggleAnnotations: toggleInteractiveAnnotationEditor,
+        annotationEditing: interactiveAnnotationEditorOpen,
+        canEditAnnotations: canEditPrintAnnotations,
+        annotationsReady: printAnnotationsReady,
+        onEditLayout: openMapStudioLayoutSettings,
+        editLayoutDisabled: !mapStudioRuntimeSnapshot,
+        onEditDetails: openMapDetailsEditor,
+        onOpenPrintView: openPrintView,
+        onOpenShare: openMapShare,
+        renderPdfExportButton,
+    };
     const ownerMapStudioPanel = (
         <MapStudioViewsPanel
             ref={mapStudioControllerRef}
@@ -3159,23 +3371,6 @@ export default function MyMapDetailPage() {
                     || `${String(annotation.type || 'Annotation').replace(/-/g, ' ')} ${index + 1}`,
             }))}
             onOwnerSessionChange={handleOwnerMapStudioSessionChange}
-            onArrangeCategories={openCategoryOrder}
-            canArrangeCategories={categoryOrderOptions.length >= 2}
-            onAddPersonalPlace={openPersonalPlacePicker}
-            personalPlacePickerActive={personalPlacePickerActive}
-            shortDescriptionMode={interactiveShortDescriptionMode}
-            onToggleShortDescription={() => {
-                if (interactiveAnnotationEditorOpen) {
-                    printAnnotations.saveNow();
-                    setInteractiveAnnotationEditorOpen(false);
-                }
-                setInteractiveShortDescriptionMode((current) => !current);
-            }}
-            annotationEditing={interactiveAnnotationEditorOpen}
-            canEditAnnotations={canEditPrintAnnotations}
-            annotationsReady={printAnnotationsReady}
-            onToggleAnnotations={toggleInteractiveAnnotationEditor}
-            onOpenExport={openPrintView}
         />
     );
     const ownerMapStudioRuntime = mapStudioInteractiveModel ? {
@@ -3556,20 +3751,7 @@ export default function MyMapDetailPage() {
                             anchorState={anchorState}
                             actionError={actionError}
                             onAddAssets={openManageAssets}
-                            onArrangeCategories={openCategoryOrder}
-                            categoryCount={categoryOrderOptions.length}
-                            onAddPersonalPlace={openPersonalPlacePicker}
-                            personalPlacePickerActive={personalPlacePickerActive}
-                            onEditDetails={() => {
-                                setEditError('');
-                                setEditOpen(true);
-                            }}
-                            onOpenPrintView={openPrintView}
-                            onOpenShare={() => {
-                                setShareError('');
-                                setShareOpen(true);
-                            }}
-                            renderPdfExportButton={renderPdfExportButton}
+                            {...ownerToolbarActionProps}
                         />
                     ) : (
                         <MyMapMobileControls
@@ -3578,20 +3760,7 @@ export default function MyMapDetailPage() {
                             onQueryChange={setQuery}
                             anchorState={anchorState}
                             onAddAssets={openManageAssets}
-                            onArrangeCategories={openCategoryOrder}
-                            categoryCount={categoryOrderOptions.length}
-                            onAddPersonalPlace={openPersonalPlacePicker}
-                            personalPlacePickerActive={personalPlacePickerActive}
-                            onEditDetails={() => {
-                                setEditError('');
-                                setEditOpen(true);
-                            }}
-                            onOpenPrintView={openPrintView}
-                            onOpenShare={() => {
-                                setShareError('');
-                                setShareOpen(true);
-                            }}
-                            renderPdfExportButton={renderPdfExportButton}
+                            {...ownerToolbarActionProps}
                             compactOverlay
                         />
                     )}
@@ -3753,19 +3922,8 @@ export default function MyMapDetailPage() {
                             onQueryChange={setQuery}
                             anchorState={anchorState}
                             onAddAssets={openManageAssets}
-                            onAddPersonalPlace={openPersonalPlacePicker}
-                            personalPlacePickerActive={personalPlacePickerActive}
-                            onEditDetails={() => {
-                            setEditError('');
-                            setEditOpen(true);
-                        }}
-                        onOpenPrintView={openPrintView}
-                        onOpenShare={() => {
-                            setShareError('');
-                            setShareOpen(true);
-                        }}
-                        renderPdfExportButton={renderPdfExportButton}
-                    />
+                            {...ownerToolbarActionProps}
+                        />
                 ) : null}
 
                 <div className="mx-auto w-full max-w-[1800px] space-y-4 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 2xl:px-14 xl:space-y-5">
@@ -3778,18 +3936,7 @@ export default function MyMapDetailPage() {
                                 anchorState={anchorState}
                                 actionError={actionError}
                                 onAddAssets={openManageAssets}
-                                onAddPersonalPlace={openPersonalPlacePicker}
-                                personalPlacePickerActive={personalPlacePickerActive}
-                                onEditDetails={() => {
-                                    setEditError('');
-                                    setEditOpen(true);
-                                }}
-                                onOpenPrintView={openPrintView}
-                                onOpenShare={() => {
-                                    setShareError('');
-                                    setShareOpen(true);
-                                }}
-                                renderPdfExportButton={renderPdfExportButton}
+                                {...ownerToolbarActionProps}
                             />
                         </div>
                     ) : null}

@@ -15,6 +15,24 @@ Last updated: 2026-08-09 (Asia/Singapore)
 - The additive Studio table and its private rows remain intact but inert in
   production. Do not drop, purge, backfill, or publish them during UAT.
 
+## My Map owner-toolbar consolidation (2026-08-09, local refinement)
+
+- The owner header now contains only Manage resources, Personal place, Edit
+  content, Edit layout, Print View, Download Map Notes, and Share. Edit content
+  contains Arrange categories, Add short description, and Annotate; the map
+  name pencil owns the established title/description editor.
+- The visible Explore/Design switch, duplicate Studio map-tools strip, and
+  duplicate Export PNG/PDF action were removed. Edit layout calls the existing
+  Studio controller and opens the same responsive floating settings sheet.
+  Internal Design state, named views, explicit Save/Discard, and the ordinary
+  Print View/export route are unchanged.
+- The desktop menu and mobile in-flow disclosure use labelled icons, 44 px
+  targets, Escape/outside-click dismissal, and translated labels in all four
+  locales. Signed-in local UAT on map 258 passed without saving or dirtying the
+  view. Focused 33/33, full client 637/637, map lockdown 84/84, ordinary and
+  exact Detailed-map builds, and diff checks pass. Keep this branch local;
+  production remains on the stable rollback.
+
 ## Unified interactive Map Studio composition and tools (2026-08-09, local)
 
 - Design now owns the composition used by both interactive My Map and Studio

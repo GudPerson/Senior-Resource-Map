@@ -42,28 +42,34 @@ test('standalone Map Studio controls expose the complete adapter-ready interacti
     assert.doesNotMatch(controlsSource, /DirectoryMap|DirectoryPrintView|SharedMapDirectoryList/);
 });
 
-test('Explore and Design remain explicit modes with accessible touch controls', () => {
-    assert.match(controlsSource, /data-map-studio-mode-switch="true"/);
-    assert.match(controlsSource, /MAP_STUDIO_MODE_EXPLORE/);
-    assert.match(controlsSource, /MAP_STUDIO_MODE_DESIGN/);
+test('layout choices keep accessible touch controls without exposing a redundant mode switch', () => {
+    assert.doesNotMatch(controlsSource, /data-map-studio-mode-switch="true"/);
+    assert.doesNotMatch(controlsSource, /MAP_STUDIO_MODE_EXPLORE|MAP_STUDIO_MODE_DESIGN/);
     assert.match(controlsSource, /aria-pressed=\{selected\}/);
     assert.match(controlsSource, /min-h-11/);
     assert.match(controlsSource, /disabled=\{disabled \|\| !canUseCurrentFraming\}/);
 });
 
-test('approved runtime mounts controls only inside the owner Map Studio panel', () => {
-    assert.match(panelSource, /import MapStudioDesignControls, \{ MapStudioModeSwitch \}/);
+test('the owner toolbar opens the floating layout controls through the narrow Studio controller', () => {
+    assert.match(panelSource, /import MapStudioDesignControls from/);
     assert.match(panelSource, /ownerState\.session\.mode === MAP_STUDIO_MODE_DESIGN/);
     assert.match(panelSource, /design=\{ownerState\.session\.draftDesign\}/);
     assert.match(panelSource, /explorationCamera=\{ownerState\.session\.exploration\.cameraView\}/);
     assert.match(panelSource, /resourceLayerCatalog=\{resourceLayerCatalog\}/);
     assert.match(panelSource, /annotationLayerCatalog=\{annotationLayerCatalog\}/);
-    assert.match(panelSource, /data-map-studio-design-settings-trigger="true"/);
+    assert.match(panelSource, /openLayoutSettings: \(\) => handleModeChange\(MAP_STUDIO_MODE_DESIGN\)/);
     assert.match(panelSource, /designSettingsOpen/);
     assert.match(panelSource, /lg:absolute/);
     assert.match(panelSource, /event\.key !== 'Escape'/);
-    assert.match(panelSource, /data-map-studio-map-tools="true"/);
-    assert.match(panelSource, /onToggleAnnotations/);
-    assert.match(panelSource, /onOpenExport/);
+    assert.doesNotMatch(panelSource, /MapStudioModeSwitch|data-map-studio-map-tools|onOpenExport/);
+    assert.match(ownerPageSource, /data-owner-map-toolbar="true"/);
+    assert.match(ownerPageSource, /data-owner-edit-content-menu="true"/);
+    assert.match(ownerPageSource, /data-owner-map-title-edit="true"/);
+    assert.match(ownerPageSource, /mapStudioControllerRef\.current\?\.openLayoutSettings\(\)/);
+    assert.match(ownerPageSource, /t\('editContent'\)/);
+    assert.match(ownerPageSource, /t\('editLayout'\)/);
+    assert.match(ownerPageSource, /aria-haspopup="menu"/);
+    assert.match(ownerPageSource, /event\.key !== 'Escape'/);
+    assert.match(ownerPageSource, /inFlow/);
     assert.doesNotMatch(ownerPageSource, /MapStudioDesignControls|MapStudioModeSwitch/);
 });

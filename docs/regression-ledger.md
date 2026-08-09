@@ -29,6 +29,31 @@ Rules:
   mobile focus cards, annotations, personal-place privacy, frozen Shared/embed,
   ordinary Print View/export, authentication, and existing My Map behavior.
 
+## 2026-08-09 My Map owner-toolbar consolidation (local UAT)
+
+- Candidate behavior: the owner header now presents one action hierarchy in
+  this order: Manage resources, Personal place, Edit content, Edit layout,
+  Print View, Download Map Notes, and Share. Edit content progressively
+  discloses Arrange categories, Add short description, and Annotate. The map
+  title pencil opens the established name/description editor.
+- Studio simplification: the large Explore/Design switch, duplicate map-tools
+  row, and duplicate Export PNG/PDF action are no longer rendered. Edit layout
+  opens the existing responsive Studio settings sheet through a narrow owner
+  controller command; the internal Design session and explicit named-view save
+  model remain unchanged. Opening or closing the sheet does not dirty a view.
+- Accessibility and responsive acceptance: new actions retain labelled Lucide
+  icons and at least 44 px targets. Edit content is a keyboard-addressable menu
+  with outside-click and Escape dismissal; the mobile drawer uses the same
+  seven-action model with the submenu in normal flow rather than a fixed-width
+  overlay. Print View and Download Map Notes keep their existing handlers.
+- Verification: focused toolbar/Studio/V2/i18n coverage passes 33/33; full client
+  coverage passes 637/637; map lockdown passes 84/84; ordinary and exact
+  Detailed-map builds pass; and `git diff --check` passes. Signed-in local UAT
+  on map 258 proved the seven desktop actions, three Edit content choices,
+  floating Edit layout sheet, clean named-view state after opening settings,
+  and the title-pencil editor without saving. Shared/embed, Print View,
+  persistence, map rendering, and production were not changed.
+
 ## 2026-08-09 unified interactive composition and tools refinement (local UAT)
 
 - Candidate behavior: Design is now the single owner of layout, map height,
