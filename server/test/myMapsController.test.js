@@ -871,7 +871,7 @@ test('duplicateMyMap creates a private owner copy with independent map child row
         }],
         studioDocuments: [{
             mapId: 3,
-            schemaVersion: 1,
+            schemaVersion: sourceStudioDocument.schemaVersion,
             document: {
                 schemaVersion: sourceStudioDocument.schemaVersion,
                 defaultViewId: sourceStudioDocument.defaultViewId,

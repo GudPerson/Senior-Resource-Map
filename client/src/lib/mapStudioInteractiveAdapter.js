@@ -1,10 +1,13 @@
 import {
     MAP_STUDIO_CAMERA_FIXED,
+    MAP_STUDIO_PIN_STYLE_CATEGORY_ICON,
     MAP_STUDIO_PIN_STYLE_NUMBERED,
     normalizeMapStudioDesign,
 } from './mapStudioState.js';
 import {
     PRINT_MAP_ANNOTATION_LAYER_HIDE,
+    PRINT_MAP_LAYOUT_FOCUS,
+    PRINT_MAP_LAYOUT_FULL,
     PRINT_MAP_RESOURCE_LAYER_HIDE,
     getPrintMapPinScale,
 } from './printMapState.js';
@@ -25,7 +28,11 @@ export const MAP_STUDIO_INTERACTIVE_SUPPORTED_PATHS = Object.freeze([
     'layers.annotations',
     'layers.hiddenAnnotationIds',
     'layout.mapHeight',
-    'layout.resourcePanel',
+    'layout.preset',
+    'layout.mapSide',
+    'layout.mapWidth',
+    'layout.resourceColumnCount',
+    'layout.sideResourceColumnCount',
 ]);
 
 export const MAP_STUDIO_INTERACTIVE_DEFERRED_PATHS = Object.freeze([]);
@@ -41,6 +48,10 @@ export const MAP_STUDIO_INTERACTIVE_DEFERRED_PATHS = Object.freeze([]);
  */
 export function buildMapStudioInteractiveModel(design, defaults = {}) {
     const normalizedDesign = normalizeMapStudioDesign(design, defaults);
+    const pinStyle = normalizedDesign.pins.style;
+    const isNumbered = pinStyle === MAP_STUDIO_PIN_STYLE_NUMBERED;
+    const isCategoryIcon = pinStyle === MAP_STUDIO_PIN_STYLE_CATEGORY_ICON;
+    const layoutPreset = normalizedDesign.layout.preset;
 
     return {
         directoryMap: {
@@ -49,10 +60,18 @@ export function buildMapStudioInteractiveModel(design, defaults = {}) {
             mapViewState: normalizedDesign.camera.mode === MAP_STUDIO_CAMERA_FIXED
                 ? clone(normalizedDesign.camera.view)
                 : null,
-            markerMode: normalizedDesign.pins.style === MAP_STUDIO_PIN_STYLE_NUMBERED
+            markerMode: isNumbered
                 ? 'print-badge'
-                : 'category-bubble',
+                : isCategoryIcon
+                    ? 'category-icon'
+                    : 'category-bubble',
             markerScale: getPrintMapPinScale(normalizedDesign.pins.size),
+            pinBadgeMode: 'none',
+            pinCategoryIconMode: isCategoryIcon ? 'auto' : 'none',
+            clusterMarkerMode: isNumbered || isCategoryIcon ? 'bubble' : 'none',
+        },
+        cardIdentity: {
+            mode: isNumbered ? 'number' : isCategoryIcon ? 'category-icon' : 'logo',
         },
         annotationLayer: {
             visible: normalizedDesign.layers.annotations !== PRINT_MAP_ANNOTATION_LAYER_HIDE,
@@ -68,7 +87,16 @@ export function buildMapStudioInteractiveModel(design, defaults = {}) {
         },
         layout: {
             mapHeight: normalizedDesign.layout.mapHeight,
-            resourcePanel: normalizedDesign.layout.resourcePanel,
+            preset: layoutPreset,
+            resourcePanel: layoutPreset === PRINT_MAP_LAYOUT_FULL
+                ? 'below-map'
+                : layoutPreset === PRINT_MAP_LAYOUT_FOCUS
+                    ? 'beside-map'
+                    : 'responsive',
+            mapSide: normalizedDesign.layout.mapSide,
+            mapWidth: normalizedDesign.layout.mapWidth,
+            resourceColumnCount: normalizedDesign.layout.resourceColumnCount,
+            sideResourceColumnCount: normalizedDesign.layout.sideResourceColumnCount,
             resourcePanelSupport: 'supported',
         },
         supportedPaths: [...MAP_STUDIO_INTERACTIVE_SUPPORTED_PATHS],

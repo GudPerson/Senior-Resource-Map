@@ -15,6 +15,34 @@ Last updated: 2026-08-09 (Asia/Singapore)
 - The additive Studio table and its private rows remain intact but inert in
   production. Do not drop, purge, backfill, or publish them during UAT.
 
+## Unified interactive Map Studio composition and tools (2026-08-09, local)
+
+- Design now owns the composition used by both interactive My Map and Studio
+  Export: Balanced, Map focus, or Full map; map side/width; map height; resource
+  columns; labels; pin size; and marker/card identity. Export settings now own
+  only margins and image quality, removing the former duplicate Layout module.
+- Marker identity has three matching modes: category bubbles with logo cards,
+  category-coloured numbered pins with matching numbered cards, and category
+  icons with matching icon cards. Numbered and icon modes keep the current
+  bubble cluster renderer for close pins.
+- Existing category arrangement, personal-place, short-description,
+  annotation, and PNG/PDF flows are now launchable from the private Studio
+  panel and reuse their established APIs/renderers. Interactive hover, focus,
+  selection, search, notes, and the mobile focus card remain on the same shared
+  callbacks across layouts.
+- The persisted document is version 2. Strict stored version 1 documents are
+  migrated additively at the validation boundary; there is no new database
+  table/column migration and no destructive operation. Shared/embed still
+  exclude Studio state, and ordinary Print View remains available.
+- Final local evidence: focused 131/131, full client 635/635, full server
+  540/540, map lockdown 84/84, and the exact Detailed-map configured build all
+  pass, as do the ordinary build and diff check. Signed-in UAT on existing map
+  258 passed desktop unified composition, all three marker/card identities,
+  exact numbered colour/number parity, hover highlighting, 390 px no-overflow,
+  mobile focus cards, output-only Export controls, enabled PNG/PDF actions, and
+  direct Export reload without accidental persistence. No CareAround page
+  error was logged. Do not push, merge, or deploy this branch.
+
 ## Map Studio numbered pins and Design settings (2026-08-09, local refinement)
 
 - `Numbered pins` now uses the current category-coloured Print badge markers

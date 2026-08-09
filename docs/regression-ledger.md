@@ -29,6 +29,45 @@ Rules:
   mobile focus cards, annotations, personal-place privacy, frozen Shared/embed,
   ordinary Print View/export, authentication, and existing My Map behavior.
 
+## 2026-08-09 unified interactive composition and tools refinement (local UAT)
+
+- Candidate behavior: Design is now the single owner of layout, map height,
+  map side/width, resource columns, pin size, labels, and marker/card identity.
+  Balanced, Map focus, and Full map compositions render on the interactive
+  owner map and feed the same values into Studio Export. Export settings now
+  contain only margins and image quality, eliminating conflicting Design and
+  Layout controls.
+- Marker/card parity: owners can choose Category bubbles, Numbered pins, or
+  Category icons. Numbered cards and pins use the same category colour and
+  number; category-icon cards and pins use the same category identity. The
+  current bubble renderer remains the cluster representation for close
+  numbered or category-icon pins. Category bubbles retain the existing
+  collision behavior and logo cards.
+- Interactive tools: Arrange categories, Add personal place, Short
+  descriptions, desktop annotation editing, and Export PNG/PDF are reachable
+  from the private Map Studio panel. They reuse existing My Map APIs,
+  annotation revisions/autosave, and the dedicated Print View renderer rather
+  than adding competing persistence or export paths. Existing hover, focus,
+  selection, notes, search, and mobile focus-card behavior remain wired across
+  layouts. Mobile keeps its safe single-column adaptation.
+- Persistence and privacy: version 2 writes the unified layout and three pin
+  styles through the existing owner-scoped JSON document. Strict version 1
+  reads migrate additively in memory; no database-column or destructive data
+  migration is required. Shared Map and embed still do not load or publish
+  Studio state. The ordinary Print View route remains operational.
+- Verification: focused Studio coverage passes 131/131; full client
+  coverage passes 635/635; full server coverage passes 540/540; map lockdown
+  passes 84/84 and its exact Detailed-map configured build passes. The ordinary
+  build and `git diff --check` pass. Signed-in local UAT on existing map 258
+  proved desktop Side map/right/2-column/extra-wide composition, category-icon
+  parity, exact numbered pin/card colour parity, card-hover pin highlighting,
+  390 px no-overflow adaptation, current mobile focus-card selection, and an
+  Export panel containing only quality and margins. A direct Export reload
+  returned to the saved design with enabled PNG/PDF actions and did not persist
+  the unsaved preview. No CareAround page error was logged; one unrelated
+  Chrome-extension module error was excluded. This work stays local on
+  `codex/map-studio-state-model`; production is unchanged.
+
 ## 2026-08-09 Map Studio numbered-pin and Design-settings refinement (local UAT)
 
 - Candidate behavior: choosing `Numbered pins` in Map Studio now reuses the

@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 import { cleanOneLineText, validateRequestBody } from './inputValidation.js';
 
-export const MAP_STUDIO_SCHEMA_VERSION = 1;
+export const MAP_STUDIO_SCHEMA_VERSION = 2;
+const MAP_STUDIO_LEGACY_SCHEMA_VERSION = 1;
 export const MAP_STUDIO_MAX_VIEWS = 50;
 export const MAP_STUDIO_MAX_VIEW_NAME_LENGTH = 80;
 export const MAP_STUDIO_MAX_LAYER_REFERENCES = 200;
@@ -79,7 +80,7 @@ const designSchema = z.object({
     }).strict(),
     camera: cameraSchema,
     pins: z.object({
-        style: z.enum(['category-bubble', 'numbered']),
+        style: z.enum(['category-bubble', 'numbered', 'category-icon']),
         size: z.enum(['standard', 'large', 'extra-large']),
     }).strict(),
     labels: z.object({
@@ -99,6 +100,23 @@ const designSchema = z.object({
     }).strict(),
     layout: z.object({
         mapHeight: z.enum(['compact', 'standard', 'tall']),
+        preset: z.enum(['balanced', 'map-focus', 'full-map']),
+        mapSide: z.enum(['left', 'right']),
+        mapWidth: z.enum(['wide', 'extra-wide']),
+        resourceColumnCount: z.union([
+            z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6),
+        ]),
+        sideResourceColumnCount: z.union([z.literal(1), z.literal(2)]),
+    }).strict(),
+}).strict();
+
+const legacyDesignSchema = designSchema.extend({
+    pins: z.object({
+        style: z.enum(['category-bubble', 'numbered']),
+        size: z.enum(['standard', 'large', 'extra-large']),
+    }).strict(),
+    layout: z.object({
+        mapHeight: z.enum(['compact', 'standard', 'tall']),
         resourcePanel: z.enum(['responsive', 'below-map', 'beside-map']),
     }).strict(),
 }).strict();
@@ -110,10 +128,20 @@ const viewSchema = z.object({
     design: designSchema,
 }).strict();
 
+const legacyViewSchema = viewSchema.extend({
+    design: legacyDesignSchema,
+}).strict();
+
 const mapStudioStoredDocumentBaseSchema = z.object({
     schemaVersion: z.literal(MAP_STUDIO_SCHEMA_VERSION),
     defaultViewId: viewIdSchema,
     views: z.array(viewSchema).min(1).max(MAP_STUDIO_MAX_VIEWS),
+}).strict();
+
+const legacyMapStudioStoredDocumentBaseSchema = z.object({
+    schemaVersion: z.literal(MAP_STUDIO_LEGACY_SCHEMA_VERSION),
+    defaultViewId: viewIdSchema,
+    views: z.array(legacyViewSchema).min(1).max(MAP_STUDIO_MAX_VIEWS),
 }).strict();
 
 function refineMapStudioDocument(document, context) {
@@ -162,6 +190,9 @@ function refineMapStudioDocument(document, context) {
 export const mapStudioStoredDocumentSchema = mapStudioStoredDocumentBaseSchema
     .superRefine(refineMapStudioDocument);
 
+const legacyMapStudioStoredDocumentSchema = legacyMapStudioStoredDocumentBaseSchema
+    .superRefine(refineMapStudioDocument);
+
 const mapStudioDocumentInputSchema = mapStudioStoredDocumentBaseSchema
     .extend({
         revision: z.number().int().min(0).max(MAP_STUDIO_MAX_REVISION),
@@ -188,6 +219,35 @@ export function buildMapStudioStoredDocument(document) {
     };
 }
 
+function migrateStoredMapStudioDocument(document) {
+    if (document.schemaVersion === MAP_STUDIO_SCHEMA_VERSION) return document;
+    return {
+        schemaVersion: MAP_STUDIO_SCHEMA_VERSION,
+        defaultViewId: document.defaultViewId,
+        views: document.views.map((view) => {
+            const resourcePanel = view.design.layout.resourcePanel;
+            return {
+                ...view,
+                design: {
+                    ...view.design,
+                    layout: {
+                        mapHeight: view.design.layout.mapHeight,
+                        preset: resourcePanel === 'below-map'
+                            ? 'full-map'
+                            : resourcePanel === 'beside-map'
+                                ? 'map-focus'
+                                : 'balanced',
+                        mapSide: 'left',
+                        mapWidth: 'wide',
+                        resourceColumnCount: 2,
+                        sideResourceColumnCount: 1,
+                    },
+                },
+            };
+        }),
+    };
+}
+
 export function formatMapStudioDocument(mapId, row = null) {
     if (!row) {
         return {
@@ -197,14 +257,18 @@ export function formatMapStudioDocument(mapId, row = null) {
         };
     }
 
-    const parsed = mapStudioStoredDocumentSchema.safeParse(row.document);
+    const storedSchemaVersion = Number(row.schemaVersion ?? row.document?.schemaVersion);
+    const schema = storedSchemaVersion === MAP_STUDIO_LEGACY_SCHEMA_VERSION
+        ? legacyMapStudioStoredDocumentSchema
+        : mapStudioStoredDocumentSchema;
+    const parsed = schema.safeParse(row.document);
     if (!parsed.success) {
         throw createHttpError(500, 'Stored Map Studio design is invalid');
     }
-    const storedSchemaVersion = Number(row.schemaVersion ?? parsed.data.schemaVersion);
     const storedRevision = Number(row.revision);
     if (
-        storedSchemaVersion !== MAP_STUDIO_SCHEMA_VERSION
+        storedSchemaVersion !== Number(parsed.data.schemaVersion)
+        || ![MAP_STUDIO_LEGACY_SCHEMA_VERSION, MAP_STUDIO_SCHEMA_VERSION].includes(storedSchemaVersion)
         || !Number.isSafeInteger(storedRevision)
         || storedRevision < 1
     ) {
@@ -214,7 +278,7 @@ export function formatMapStudioDocument(mapId, row = null) {
     return {
         mapId,
         document: {
-            ...parsed.data,
+            ...migrateStoredMapStudioDocument(parsed.data),
             revision: storedRevision,
         },
         updatedAt: row.updatedAt || null,

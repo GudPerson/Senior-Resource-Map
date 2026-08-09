@@ -123,7 +123,7 @@ test('revision zero atomically creates the first private Map Studio document', a
     assert.equal(result.mapId, MAP_ID);
     assert.equal(result.document.revision, 1);
     assert.equal(db.state.row.revision, 1);
-    assert.equal(db.state.row.schemaVersion, 1);
+    assert.equal(db.state.row.schemaVersion, createDocument().schemaVersion);
     assert.equal(Object.hasOwn(db.state.row.document, 'revision'), false);
     assert.equal(db.state.documentReadCount, 0, 'PUT must use compare-and-swap without a read-before-write');
     assert.equal(db.state.mapUpdateCount, 0, 'private design saves must not mark a frozen share stale');
@@ -134,7 +134,7 @@ test('subsequent saves compare-and-swap the external revision and reject stale w
     const db = createFakeDb({
         row: {
             mapId: MAP_ID,
-            schemaVersion: 1,
+            schemaVersion: initialDocument.schemaVersion,
             document: {
                 schemaVersion: initialDocument.schemaVersion,
                 defaultViewId: initialDocument.defaultViewId,
@@ -167,7 +167,7 @@ test('revision zero conflicts when another session already created a document', 
     const db = createFakeDb({
         row: {
             mapId: MAP_ID,
-            schemaVersion: 1,
+            schemaVersion: document.schemaVersion,
             document: {
                 schemaVersion: document.schemaVersion,
                 defaultViewId: document.defaultViewId,

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { createMapStudioDocument } from '../../client/src/lib/mapStudioState.js';
 import {
+    MAP_STUDIO_SCHEMA_VERSION,
     MAP_STUDIO_MAX_LAYER_REFERENCES,
     MAP_STUDIO_MAX_REVISION,
     buildMapStudioStoredDocument,
@@ -61,7 +62,7 @@ test('server persistence fails closed for unknown versions and invalid view iden
     const document = createDocument();
 
     assert.throws(
-        () => validateMapStudioDocumentInput({ ...document, schemaVersion: 2 }),
+        () => validateMapStudioDocumentInput({ ...document, schemaVersion: MAP_STUDIO_SCHEMA_VERSION + 1 }),
         /Map Studio design is invalid/,
     );
     assert.throws(
@@ -187,14 +188,14 @@ test('stored documents keep revision metadata outside JSON and round-trip safely
 test('invalid stored Map Studio data fails closed instead of reaching the owner UI', () => {
     assert.throws(
         () => formatMapStudioDocument(25, {
-            document: { schemaVersion: 2, views: [] },
+            document: { schemaVersion: MAP_STUDIO_SCHEMA_VERSION, views: [] },
             revision: 1,
         }),
         (error) => error.status === 500 && /Stored Map Studio design is invalid/.test(error.message),
     );
     assert.throws(
         () => formatMapStudioDocument(25, {
-            schemaVersion: 2,
+            schemaVersion: MAP_STUDIO_SCHEMA_VERSION + 1,
             document: buildMapStudioStoredDocument(createDocument()),
             revision: 1,
         }),
@@ -202,10 +203,40 @@ test('invalid stored Map Studio data fails closed instead of reaching the owner 
     );
     assert.throws(
         () => formatMapStudioDocument(25, {
-            schemaVersion: 1,
+            schemaVersion: MAP_STUDIO_SCHEMA_VERSION,
             document: buildMapStudioStoredDocument(createDocument()),
             revision: 0,
         }),
         (error) => error.status === 500 && /metadata is invalid/.test(error.message),
     );
+});
+
+test('stored schema v1 documents are returned as additive schema v2 views', () => {
+    const current = createDocument();
+    const legacy = {
+        schemaVersion: 1,
+        defaultViewId: current.defaultViewId,
+        views: current.views.map((view) => ({
+            ...view,
+            design: {
+                ...view.design,
+                layout: { mapHeight: 'tall', resourcePanel: 'beside-map' },
+            },
+        })),
+    };
+    const formatted = formatMapStudioDocument(25, {
+        schemaVersion: 1,
+        document: legacy,
+        revision: 4,
+    });
+
+    assert.equal(formatted.document.schemaVersion, MAP_STUDIO_SCHEMA_VERSION);
+    assert.deepEqual(formatted.document.views[0].design.layout, {
+        mapHeight: 'tall',
+        preset: 'map-focus',
+        mapSide: 'left',
+        mapWidth: 'wide',
+        resourceColumnCount: 2,
+        sideResourceColumnCount: 1,
+    });
 });

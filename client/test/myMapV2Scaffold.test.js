@@ -132,10 +132,10 @@ test('my map v2 preserves category bubbles by default while allowing the scoped 
     assert.match(myMapV2ScaffoldSource, /markerMode=\{directoryMapRuntime\?\.markerMode \|\| 'category-bubble'\}/);
     assert.match(myMapV2ScaffoldSource, /markerScale=\{directoryMapRuntime\?\.markerScale \|\| 1\}/);
     assert.match(myMapV2ScaffoldSource, /showPins=\{mapStudioRuntime\?\.resourceLayer\?\.visible \?\? true\}/);
-    assert.match(myMapV2ScaffoldSource, /pinBadgeMode="none"/);
-    assert.match(myMapV2ScaffoldSource, /pinCategoryIconMode="none"/);
-    assert.match(myMapV2ScaffoldSource, /clusterMarkerMode="none"/);
-    assert.match(myMapV2ScaffoldSource, /cardBadgeMode="logo"/);
+    assert.match(myMapV2ScaffoldSource, /pinBadgeMode=\{directoryMapRuntime\?\.pinBadgeMode \|\| 'none'\}/);
+    assert.match(myMapV2ScaffoldSource, /pinCategoryIconMode=\{directoryMapRuntime\?\.pinCategoryIconMode \|\| 'none'\}/);
+    assert.match(myMapV2ScaffoldSource, /clusterMarkerMode=\{directoryMapRuntime\?\.clusterMarkerMode \|\| 'none'\}/);
+    assert.match(myMapV2ScaffoldSource, /cardBadgeMode=\{mapStudioRuntime\?\.cardIdentity\?\.mode \|\| 'logo'\}/);
     assert.match(myMapV2ScaffoldSource, /showMapLegend=\{false\}/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /clusterMarkerMode="asset-spread"/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /markerMode="number"/);
@@ -150,10 +150,11 @@ test('owner print can use V2 print cards without hiding the app toolbar or chang
     assert.match(directoryPrintViewSource, /withOwnerPrintBadgePins\(basePresentation\)/);
     assert.match(directoryPrintViewSource, /markerMode=\{printMapState\?\.studioMarkerMode \|\| \(useV2Format \? 'print-badge' : 'number'\)\}/);
     assert.match(directoryPrintViewSource, /pinBadgeMode=\{useV2Format \? 'none' : 'count'\}/);
+    assert.match(directoryPrintViewSource, /studioMarkerMode === 'category-icon'/);
     assert.match(directoryPrintViewSource, /clusterMarkerMode=\{useV2Format \? 'none' : 'bubble'\}/);
     assert.match(directoryPrintViewSource, /spreadCoincidentPins=\{!useV2Format\}/);
-    assert.match(directoryPrintViewSource, /cardBadgeMode=\{useV2OwnerPrint \? \(showPrintLogos \? 'logo' : 'none'\) : 'number'\}/);
-    assert.match(directoryPrintViewSource, /showPrintNumberBadges=\{useV2OwnerPrint\}/);
+    assert.match(directoryPrintViewSource, /cardBadgeMode=\{useV2OwnerPrint \? studioCardBadgeMode : 'number'\}/);
+    assert.match(directoryPrintViewSource, /showPrintNumberBadges=\{useV2OwnerPrint && showStudioNumberIdentity\}/);
     assert.match(directoryPrintViewSource, /showMapLegend=\{!useV2OwnerPrint\}/);
     assert.doesNotMatch(directoryPrintViewSource, /pinSpreadMode/);
     assert.doesNotMatch(appSource, /ownerPrintView/);
@@ -252,7 +253,7 @@ test('my map v2 uses the restored normal map sizing without enabling full-map mo
     assert.match(myMapV2ScaffoldSource, /xl:gap-5 xl:grid-cols-\[minmax\(320px,0\.85fr\)_minmax\(620px,1\.45fr\)_minmax\(360px,0\.95fr\)\]/);
     assert.match(myMapV2ScaffoldSource, /2xl:grid-cols-\[minmax\(360px,0\.9fr\)_minmax\(760px,1\.55fr\)_minmax\(400px,1fr\)\]'/);
     assert.match(myMapV2ScaffoldSource, /sm:px-6 sm:py-6 lg:px-8 xl:px-10/);
-    assert.match(myMapV2ScaffoldSource, /desktopGridClassName=\{V2_DESKTOP_GRID_CLASS\}/);
+    assert.match(myMapV2ScaffoldSource, /desktopGridClassName=\{desktopGridClassName\}/);
     assert.match(myMapV2ScaffoldSource, /desktopMapHeightClass[\s\S]*V2_DESKTOP_MAP_HEIGHT_CLASS/);
     assert.match(myMapV2ScaffoldSource, /mobileMapHeightClass[\s\S]*V2_MOBILE_MAP_HEIGHT_CLASS/);
     assert.match(myMapV2ScaffoldSource, /mapElement=\{renderMap\(desktopMapHeightClass\)\}/);

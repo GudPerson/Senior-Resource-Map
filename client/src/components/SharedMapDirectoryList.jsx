@@ -1621,6 +1621,7 @@ function DirectoryPlaceBadge({
     const { t } = useLocale();
     const [logoFitMode, setLogoFitMode] = useState('cover');
     const isLogoMode = badgeMode === 'logo';
+    const isCategoryIconMode = badgeMode === 'category-icon';
     const hasHoverLogo = Boolean(hoverLogoRow?.logoUrl);
     const wrapperClassName = compactInteractive ? 'h-[2.625rem] w-[2.625rem]' : 'h-[2.875rem] w-[2.875rem]';
     const numberBadgeClassName = compactInteractive
@@ -1689,6 +1690,25 @@ function DirectoryPlaceBadge({
         );
     }
 
+    if (isCategoryIconMode) {
+        const categoryIconContent = (
+            <DirectoryCategoryIcon
+                iconUrl={group?.categoryIconUrl}
+                iconKey={group?.categoryIconKey}
+                color={group?.categoryColor}
+            />
+        );
+        return canViewOnMap ? (
+            <button {...buttonProps} className={shellClassName}>
+                {categoryIconContent}
+            </button>
+        ) : (
+            <span className={shellClassName} aria-label={group.name} title={group.name}>
+                {categoryIconContent}
+            </span>
+        );
+    }
+
     return (
         canViewOnMap ? (
             <button
@@ -1698,7 +1718,7 @@ function DirectoryPlaceBadge({
                 <span
                     className={`absolute ${numberBadgeClassName} flex items-center justify-center font-black text-white shadow-sm transition-all duration-300 hover:opacity-90 ${numberBadgeVisibilityClassName}`}
                     style={{
-                        backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
+                        backgroundColor: group?.categoryColor || clusterColorData?.core || '#0f766e',
                         fontSize: String(group.number).length > 2 ? '0.75rem' : (compactInteractive ? '1rem' : '1.125rem'),
                         fontFamily: 'var(--font-heading)',
                         lineHeight: 1,
@@ -1735,7 +1755,7 @@ function DirectoryPlaceBadge({
             <span
                 className={`absolute ${numberBadgeClassName} flex items-center justify-center font-black text-white shadow-sm transition-all duration-300 hover:opacity-90 ${numberBadgeVisibilityClassName}`}
                 style={{
-                    backgroundColor: clusterColorData ? clusterColorData.core : '#0f766e',
+                    backgroundColor: group?.categoryColor || clusterColorData?.core || '#0f766e',
                     fontSize: String(group.number).length > 2 ? '0.75rem' : (compactInteractive ? '1rem' : '1.125rem'),
                     fontFamily: 'var(--font-heading)',
                     lineHeight: 1,
@@ -2013,12 +2033,14 @@ function DirectoryPlaceGroupCard({
     const useCompactNamesOnlyCard = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES;
     const showInteractiveLogo = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_LOGOS
         || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
+    const showInteractiveIdentity = cardBadgeMode !== 'none'
+        && (cardBadgeMode !== 'logo' || showInteractiveLogo);
     const showInteractiveAddress = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES
         || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const showInteractiveDescriptions = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS
         || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const showInteractiveResourceRows = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
-    const showPrimaryCardBadge = cardBadgeMode !== 'none' && (!interactive || showInteractiveLogo);
+    const showPrimaryCardBadge = cardBadgeMode !== 'none' && (!interactive || showInteractiveIdentity);
     const printNumberBadge = showPrintNumberBadge ? (
         <PrintResourceNumberBadge
             value={group.number}
@@ -2076,7 +2098,7 @@ function DirectoryPlaceGroupCard({
                 >
                     <div className={`flex ${useCompactNamesOnlyCard ? 'items-center gap-1.5' : 'items-start gap-2.5'}`}>
                         {printNumberBadgeAtStart ? printNumberBadge : null}
-                        {showPrimaryCardBadge && cardBadgeMode === 'logo' ? (
+                        {showPrimaryCardBadge && ['logo', 'category-icon'].includes(cardBadgeMode) ? (
                             <DirectoryPlaceBadge
                                 group={group}
                                 clusterColorData={clusterColorData}
@@ -2188,7 +2210,7 @@ function DirectoryPlaceGroupCard({
             >
                 <div className={`flex ${useCompactNamesOnlyCard ? 'items-center gap-1.5' : 'items-start gap-2.5'}`}>
                     {printNumberBadgeAtStart ? printNumberBadge : null}
-                    {showPrimaryCardBadge && cardBadgeMode === 'logo' ? (
+                    {showPrimaryCardBadge && ['logo', 'category-icon'].includes(cardBadgeMode) ? (
                         <DirectoryPlaceBadge
                             group={group}
                             clusterColorData={clusterColorData}
@@ -2265,10 +2287,10 @@ function DirectoryPlaceGroupCard({
         const trailingNestedPlaces = group.nestedPlaces.slice(1);
         const primaryHoverLogoRow = getNestedPlaceLogoRow(primaryNestedPlace);
         const groupedCardContent = (
-            <div className={`grid ${showInteractiveLogo
+            <div className={`grid ${showInteractiveIdentity
                 ? (compactInteractive ? 'grid-cols-[2.625rem_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[2.875rem_minmax(0,1fr)] gap-x-3')
                 : 'grid-cols-1'}`}>
-                {showInteractiveLogo ? (
+                {showInteractiveIdentity ? (
                     <DirectoryPlaceBadge
                         group={group}
                         clusterColorData={clusterColorData}
@@ -2306,15 +2328,15 @@ function DirectoryPlaceGroupCard({
                 </div>
 
                 {trailingNestedPlaces.length ? (
-                    <div className={`${showInteractiveLogo ? 'col-span-2' : ''} ${compactInteractive ? 'mt-3 space-y-3' : 'mt-4 space-y-4'}`}>
+                    <div className={`${showInteractiveIdentity ? 'col-span-2' : ''} ${compactInteractive ? 'mt-3 space-y-3' : 'mt-4 space-y-4'}`}>
                         {trailingNestedPlaces.map((nestedPlace) => (
                             <div
                                 key={nestedPlace.placeKey}
-                                className={`grid items-start ${showInteractiveLogo
+                                className={`grid items-start ${showInteractiveIdentity
                                     ? (compactInteractive ? 'grid-cols-[2.625rem_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[2.875rem_minmax(0,1fr)] gap-x-3')
                                     : 'grid-cols-1'}`}
                             >
-                                {showInteractiveLogo && cardBadgeMode === 'logo' ? (
+                                {showInteractiveIdentity ? (
                                     <DirectoryPlaceBadge
                                         group={nestedPlace}
                                         clusterColorData={clusterColorData}
@@ -2322,12 +2344,6 @@ function DirectoryPlaceGroupCard({
                                         badgeMode={cardBadgeMode}
                                         badgeRow={getNestedPlaceBadgeRow(nestedPlace)}
                                         onViewOnMap={onViewOnMap}
-                                    />
-                                ) : showInteractiveLogo ? (
-                                    <HiddenLogoSlot
-                                        logoRow={getNestedPlaceLogoRow(nestedPlace)}
-                                        revealed={logoRevealed}
-                                        compactInteractive={compactInteractive}
                                     />
                                 ) : null}
                                 <DirectoryNestedPlaceSection
@@ -2370,14 +2386,14 @@ function DirectoryPlaceGroupCard({
         <h3 className={`${compactInteractive ? 'text-[0.9375rem]' : 'text-[1.0625rem]'} font-bold leading-tight text-slate-900`}>{group.name}</h3>
     );
     const hoverLogoRow = showDesktopHoverLogo ? getGroupHoverLogoRow(group) : null;
-    const usesV2CardLanguage = cardBadgeMode === 'logo';
+    const usesV2CardLanguage = cardBadgeMode !== 'none';
     const resolvedLocationLine = resolveV2CardLocationLine(group, t);
     const hasLocationMeta = Boolean(resolvedLocationLine || group.distanceLabel);
 
     const cardContent = (
         <>
             <div className={`flex items-start ${compactInteractive ? 'gap-2.5' : 'gap-3'}`}>
-                {showInteractiveLogo ? (
+                {showInteractiveIdentity ? (
                     <DirectoryPlaceBadge
                         group={group}
                         clusterColorData={clusterColorData}
@@ -2531,6 +2547,11 @@ function MobileMapFocusTrayPlaceCard({
                 group={group}
                 row={previewRow}
                 labelDetail={labelDetail}
+                identityMode={cardBadgeMode}
+                identityNumber={group.number}
+                identityColor={group.categoryColor || clusterColorData?.core}
+                identityIconUrl={group.categoryIconUrl}
+                identityIconKey={group.categoryIconKey}
                 framed
                 className={`group snap-start bg-white shadow-sm transition hover:border-brand-200 ${
                     stretchToTray
@@ -3289,6 +3310,11 @@ export default function SharedMapDirectoryList({
     selectionScrollRequest = 0,
     mobileFocusCardVariant = 'default',
     resourcePanelPlacement = 'responsive',
+    interactiveLayoutPreset = 'balanced',
+    interactiveMapSide = 'left',
+    interactiveMapWidth = 'wide',
+    interactiveResourceColumnCount = 2,
+    interactiveSideResourceColumnCount = 1,
 }) {
     const { t } = useLocale();
     const location = useLocation();
@@ -3849,8 +3875,102 @@ export default function SharedMapDirectoryList({
         );
     }
 
-    if (interactive && resolvedLayout === 'desktop' && resourcePanelPlacement === 'below-map') {
-        const belowMapColumns = splitPrintResourceGroups(displayGroups, 2);
+    if (interactive && resolvedLayout === 'desktop' && interactiveLayoutPreset === 'map-focus') {
+        const sideColumnCount = normalizePrintMapSideResourceColumnCount(
+            interactiveSideResourceColumnCount,
+        );
+        const sideColumns = splitPrintSideResourceGroups(displayGroups, sideColumnCount);
+        const resourcePane = (
+            <div
+                className="grid min-w-0 gap-4"
+                style={{ gridTemplateColumns: `repeat(${sideColumnCount}, minmax(0, 1fr))` }}
+                data-map-studio-side-columns={sideColumnCount}
+            >
+                {sideColumns.map((columnGroups, index) => (
+                    <DirectoryGroupColumn
+                        key={`studio-side-column-${index}`}
+                        groups={columnGroups}
+                        mode={mode}
+                        interactive
+                        compactInteractive={compactInteractiveDesktop}
+                        fullCardLink={mode !== 'owner'}
+                        onViewOnMap={handleDirectoryViewOnMap}
+                        onHoverPlaceStart={onHoverPlaceStart}
+                        onHoverPlaceEnd={onHoverPlaceEnd}
+                        onRemoveResource={onRemoveResource}
+                        onEditPersonalPlace={onEditPersonalPlace}
+                        onEditResourceShortDescription={onEditResourceShortDescription}
+                        onUpdateResourceNotes={onUpdateResourceNotes}
+                        onOpenResourceNotes={openResourceNotes}
+                        canSaveResources={canSaveResources}
+                        highlightPlaceKey={flashPlaceKey}
+                        highlightPlaceKeys={highlightPlaceKeys}
+                        sectionRefs={sectionRefs}
+                        clusterMapping={clusterMapping}
+                        showDesktopHoverLogo={showDesktopHoverLogo}
+                        logoRevealPlaceKeys={logoRevealPlaceKeys}
+                        cardBadgeMode={cardBadgeMode}
+                        showCategoryPills={showCategoryPills}
+                        printLabelDetail={printLabelDetail}
+                    />
+                ))}
+            </div>
+        );
+        const mapPane = (
+            <div ref={desktopMapWrapperRef} className={`lg:sticky lg:top-6 ${desktopMapWrapperClassName}`.trim()}>
+                {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
+                {showMapLegend ? <MapLegend /> : null}
+                <MapNotesEntryButton rows={noteResourceRows} mode={mode} onOpen={openResourceNotes} />
+            </div>
+        );
+        const mapFraction = interactiveMapWidth === 'extra-wide' ? 1.65 : 1.35;
+        const resourcesMin = sideColumnCount === 2 ? 'minmax(0, 1.15fr)' : 'minmax(0, 0.78fr)';
+        const mapMin = `minmax(0, ${mapFraction}fr)`;
+        return (
+            <DirectoryReturnPathContext.Provider value={detailReturnPath}>
+                <div className={`space-y-5 ${className}`} data-map-studio-resource-panel="beside-map">
+                    <div
+                        className="grid items-start gap-5"
+                        style={{
+                            gridTemplateColumns: interactiveMapSide === 'right'
+                                ? `${resourcesMin} ${mapMin}`
+                                : `${mapMin} ${resourcesMin}`,
+                        }}
+                    >
+                        {interactiveMapSide === 'right' ? resourcePane : mapPane}
+                        {interactiveMapSide === 'right' ? mapPane : resourcePane}
+                    </div>
+                    {shouldRenderUnmappedSections ? (
+                        <DirectoryUnmappedSection
+                            rows={unmappedRows}
+                            interactive
+                            mode={mode}
+                            canSaveResources={canSaveResources}
+                            onRemoveResource={onRemoveResource}
+                            onEditResourceShortDescription={onEditResourceShortDescription}
+                            onOpenResourceNotes={openResourceNotes}
+                        />
+                    ) : null}
+                    <MapNotesOverlay
+                        open={notesPanel.open}
+                        rows={noteResourceRows}
+                        selectedKey={notesPanel.selectedKey}
+                        mode={mode}
+                        onSelectResource={selectResourceNotes}
+                        onBackToList={backToNotesList}
+                        onClose={closeResourceNotes}
+                        onUpdateResourceNotes={onUpdateResourceNotes}
+                    />
+                </div>
+            </DirectoryReturnPathContext.Provider>
+        );
+    }
+
+    if (interactive && resolvedLayout === 'desktop' && (resourcePanelPlacement === 'below-map' || interactiveLayoutPreset === 'full-map')) {
+        const normalizedColumnCount = normalizePrintMapResourceColumnCount(
+            interactiveResourceColumnCount,
+        );
+        const belowMapColumns = splitPrintResourceGroups(displayGroups, normalizedColumnCount);
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
                 <div className={`space-y-5 ${className}`} data-map-studio-resource-panel="below-map">
@@ -3863,7 +3983,11 @@ export default function SharedMapDirectoryList({
                             onOpen={openResourceNotes}
                         />
                     </div>
-                    <div className="grid gap-4 lg:grid-cols-2">
+                    <div
+                        className="grid gap-4"
+                        style={{ gridTemplateColumns: `repeat(${normalizedColumnCount}, minmax(0, 1fr))` }}
+                        data-map-studio-resource-columns={normalizedColumnCount}
+                    >
                         {belowMapColumns.map((columnGroups, index) => (
                             <DirectoryGroupColumn
                                 key={`studio-below-map-column-${index}`}

@@ -3,11 +3,18 @@ import {
     PRINT_MAP_ANNOTATION_LAYER_SHOW,
     PRINT_MAP_LABEL_DETAIL_FULL,
     PRINT_MAP_LAYOUT_BALANCED,
+    PRINT_MAP_LAYOUT_FOCUS,
+    PRINT_MAP_LAYOUT_FULL,
+    PRINT_MAP_FULL_PAGE_DEFAULT_HEIGHT_PX,
+    PRINT_MAP_DEFAULT_HEIGHT_PX,
+    PRINT_MAP_MIN_HEIGHT_PX,
+    PRINT_MAP_PAGE_LAYOUT_FULL,
     PRINT_MAP_PAGE_LAYOUT_STANDARD,
     PRINT_MAP_PIN_SIZE_STANDARD,
     PRINT_MAP_QUALITY_STANDARD,
     PRINT_MAP_RESOURCE_LAYER_SHOW,
     PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
+    PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
     PRINT_MAP_SIDE_LEFT,
     PRINT_MAP_WIDTH_WIDE,
     clampPrintMapHeight,
@@ -17,19 +24,17 @@ import {
     normalizePrintMapLabelDetail,
     normalizePrintMapLayoutPreset,
     normalizePrintMapMargin,
-    normalizePrintMapPageLayout,
     normalizePrintMapPinSize,
     normalizePrintMapQuality,
     normalizePrintMapResourceColumnCount,
     normalizePrintMapResourceLayer,
-    normalizePrintMapResourcePlacement,
     normalizePrintMapSide,
     normalizePrintMapSideResourceColumnCount,
     normalizePrintMapViewState,
     normalizePrintMapWidth,
 } from './printMapState.js';
 
-export const MAP_STUDIO_SCHEMA_VERSION = 1;
+export const MAP_STUDIO_SCHEMA_VERSION = 2;
 export const MAP_STUDIO_DEFAULT_VIEW_ID = 'view-default';
 export const MAP_STUDIO_DEFAULT_VIEW_NAME = 'Default view';
 export const MAP_STUDIO_MAX_VIEWS = 50;
@@ -45,6 +50,7 @@ export const MAP_STUDIO_DETAIL_AUTO = 'auto';
 export const MAP_STUDIO_DETAIL_LIVE = 'live';
 export const MAP_STUDIO_PIN_STYLE_BUBBLE = 'category-bubble';
 export const MAP_STUDIO_PIN_STYLE_NUMBERED = 'numbered';
+export const MAP_STUDIO_PIN_STYLE_CATEGORY_ICON = 'category-icon';
 export const MAP_STUDIO_MAP_HEIGHT_COMPACT = 'compact';
 export const MAP_STUDIO_MAP_HEIGHT_STANDARD = 'standard';
 export const MAP_STUDIO_MAP_HEIGHT_TALL = 'tall';
@@ -83,8 +89,11 @@ function normalizeDetailMode(value, fallback = MAP_STUDIO_DETAIL_AUTO) {
 }
 
 function normalizePinStyle(value) {
-    return value === MAP_STUDIO_PIN_STYLE_NUMBERED
-        ? MAP_STUDIO_PIN_STYLE_NUMBERED
+    return [
+        MAP_STUDIO_PIN_STYLE_NUMBERED,
+        MAP_STUDIO_PIN_STYLE_CATEGORY_ICON,
+    ].includes(value)
+        ? value
         : MAP_STUDIO_PIN_STYLE_BUBBLE;
 }
 
@@ -188,7 +197,11 @@ export function createMapStudioDesign({
         },
         layout: {
             mapHeight: MAP_STUDIO_MAP_HEIGHT_STANDARD,
-            resourcePanel: MAP_STUDIO_RESOURCE_PANEL_RESPONSIVE,
+            preset: PRINT_MAP_LAYOUT_BALANCED,
+            mapSide: PRINT_MAP_SIDE_LEFT,
+            mapWidth: PRINT_MAP_WIDTH_WIDE,
+            resourceColumnCount: 2,
+            sideResourceColumnCount: 1,
         },
     };
 }
@@ -223,7 +236,15 @@ export function normalizeMapStudioDesign(value, defaults = {}) {
         },
         layout: {
             mapHeight: normalizeMapHeight(value?.layout?.mapHeight),
-            resourcePanel: normalizeResourcePanel(value?.layout?.resourcePanel),
+            preset: normalizePrintMapLayoutPreset(value?.layout?.preset),
+            mapSide: normalizePrintMapSide(value?.layout?.mapSide),
+            mapWidth: normalizePrintMapWidth(value?.layout?.mapWidth),
+            resourceColumnCount: normalizePrintMapResourceColumnCount(
+                value?.layout?.resourceColumnCount,
+            ),
+            sideResourceColumnCount: normalizePrintMapSideResourceColumnCount(
+                value?.layout?.sideResourceColumnCount,
+            ),
         },
     };
 }
@@ -296,6 +317,35 @@ export function normalizeMapStudioDocument(value, defaults = {}) {
 export function migrateMapStudioDocument(value, defaults = {}) {
     if (value === null || value === undefined) {
         return createMapStudioDocument(defaults);
+    }
+    if (Number(value?.schemaVersion) === 1 && MAP_STUDIO_SCHEMA_VERSION === 2) {
+        const migratedViews = (Array.isArray(value.views) ? value.views : []).map((view) => {
+            const legacyResourcePanel = normalizeResourcePanel(view?.design?.layout?.resourcePanel);
+            const preset = legacyResourcePanel === MAP_STUDIO_RESOURCE_PANEL_BELOW
+                ? PRINT_MAP_LAYOUT_FULL
+                : legacyResourcePanel === MAP_STUDIO_RESOURCE_PANEL_BESIDE
+                    ? PRINT_MAP_LAYOUT_FOCUS
+                    : PRINT_MAP_LAYOUT_BALANCED;
+            return {
+                ...view,
+                design: {
+                    ...(view?.design || {}),
+                    layout: {
+                        mapHeight: view?.design?.layout?.mapHeight,
+                        preset,
+                        mapSide: PRINT_MAP_SIDE_LEFT,
+                        mapWidth: PRINT_MAP_WIDTH_WIDE,
+                        resourceColumnCount: 2,
+                        sideResourceColumnCount: 1,
+                    },
+                },
+            };
+        });
+        return normalizeMapStudioDocument({
+            ...value,
+            schemaVersion: MAP_STUDIO_SCHEMA_VERSION,
+            views: migratedViews,
+        }, defaults);
     }
     return normalizeMapStudioDocument(value, defaults);
 }
@@ -510,24 +560,9 @@ export function saveMapStudioView(document, session) {
 }
 
 export function createMapStudioExportSettings(value = {}) {
-    const basePrintState = createOwnerPrintMapState('default');
-    const pageLayout = normalizePrintMapPageLayout(value?.pageLayout ?? PRINT_MAP_PAGE_LAYOUT_STANDARD);
-    const layoutPreset = normalizePrintMapLayoutPreset(value?.layoutPreset ?? PRINT_MAP_LAYOUT_BALANCED);
     return {
         schemaVersion: MAP_STUDIO_SCHEMA_VERSION,
-        height: clampPrintMapHeight(value?.height ?? basePrintState.height, { pageLayout, layoutPreset }),
-        pageLayout,
-        resourcePlacement: normalizePrintMapResourcePlacement(
-            value?.resourcePlacement ?? PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
-        ),
         imageQuality: normalizePrintMapQuality(value?.imageQuality ?? PRINT_MAP_QUALITY_STANDARD),
-        layoutPreset,
-        mapSide: normalizePrintMapSide(value?.mapSide ?? PRINT_MAP_SIDE_LEFT),
-        mapWidth: normalizePrintMapWidth(value?.mapWidth ?? PRINT_MAP_WIDTH_WIDE),
-        resourceColumnCount: normalizePrintMapResourceColumnCount(value?.resourceColumnCount),
-        sideResourceColumnCount: normalizePrintMapSideResourceColumnCount(
-            value?.sideResourceColumnCount,
-        ),
         margins: normalizePrintMapMargin(normalizeExportMargin(value?.margins)),
     };
 }
@@ -535,6 +570,24 @@ export function createMapStudioExportSettings(value = {}) {
 export function buildMapStudioPrintState(design, exportSettings = {}) {
     const normalizedDesign = normalizeMapStudioDesign(design);
     const normalizedExport = createMapStudioExportSettings(exportSettings);
+    const usesFullMapLayout = normalizedDesign.layout.preset === PRINT_MAP_LAYOUT_FULL;
+    const pageLayout = usesFullMapLayout
+        ? PRINT_MAP_PAGE_LAYOUT_FULL
+        : PRINT_MAP_PAGE_LAYOUT_STANDARD;
+    const resourcePlacement = usesFullMapLayout
+        ? PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE
+        : PRINT_MAP_RESOURCE_PLACEMENT_BESIDE;
+    const designHeight = normalizedDesign.layout.mapHeight === MAP_STUDIO_MAP_HEIGHT_COMPACT
+        ? PRINT_MAP_MIN_HEIGHT_PX
+        : normalizedDesign.layout.mapHeight === MAP_STUDIO_MAP_HEIGHT_TALL
+            ? 560
+            : PRINT_MAP_DEFAULT_HEIGHT_PX;
+    const height = clampPrintMapHeight(
+        usesFullMapLayout
+            ? PRINT_MAP_FULL_PAGE_DEFAULT_HEIGHT_PX
+            : designHeight,
+        { pageLayout, layoutPreset: normalizedDesign.layout.preset },
+    );
     return {
         ...createOwnerPrintMapState(normalizedDesign.basemap.style, {
             basemapMode: normalizedDesign.basemap.detailMode,
@@ -544,25 +597,27 @@ export function buildMapStudioPrintState(design, exportSettings = {}) {
         view: normalizedDesign.camera.mode === MAP_STUDIO_CAMERA_FIXED
             ? clone(normalizedDesign.camera.view)
             : null,
-        height: normalizedExport.height,
-        pageLayout: normalizedExport.pageLayout,
-        resourcePlacement: normalizedExport.resourcePlacement,
+        height,
+        pageLayout,
+        resourcePlacement,
         mapQuality: normalizedExport.imageQuality,
         margins: normalizedExport.margins,
         resourceLayer: normalizedDesign.layers.resources,
         pinSize: normalizedDesign.pins.size,
         studioMarkerMode: normalizedDesign.pins.style === MAP_STUDIO_PIN_STYLE_NUMBERED
             ? 'print-badge'
-            : 'category-bubble',
+            : normalizedDesign.pins.style === MAP_STUDIO_PIN_STYLE_CATEGORY_ICON
+                ? 'category-icon'
+                : 'category-bubble',
         annotationLayer: normalizedDesign.layers.annotations,
         hiddenResourceLayerKeys: clone(normalizedDesign.layers.hiddenResourceLayerKeys),
         hiddenAnnotationIds: clone(normalizedDesign.layers.hiddenAnnotationIds),
-        layoutPreset: normalizedExport.layoutPreset,
-        mapSide: normalizedExport.mapSide,
-        mapWidth: normalizedExport.mapWidth,
+        layoutPreset: normalizedDesign.layout.preset,
+        mapSide: normalizedDesign.layout.mapSide,
+        mapWidth: normalizedDesign.layout.mapWidth,
         labelDetail: normalizedDesign.labels.detail,
-        resourceColumnCount: normalizedExport.resourceColumnCount,
-        sideResourceColumnCount: normalizedExport.sideResourceColumnCount,
+        resourceColumnCount: normalizedDesign.layout.resourceColumnCount,
+        sideResourceColumnCount: normalizedDesign.layout.sideResourceColumnCount,
     };
 }
 

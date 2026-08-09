@@ -451,8 +451,10 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(ownerSource, /layoutPreset: PRINT_MAP_LAYOUT_FULL/);
     assert.match(ownerSource, /import PrintAnnotationLayer from '\.\.\/components\/PrintAnnotationLayer\.jsx'/);
     assert.match(ownerSource, /enabled: Boolean\(mapId && user\?\.id\)/);
-    assert.match(ownerSource, /restoreLocalDraft: isPrintView/);
-    assert.match(ownerSource, /autosave: isPrintView/);
+    assert.match(ownerSource, /restoreLocalDraft: true/);
+    assert.match(ownerSource, /autosave: isPrintView \|\| interactiveAnnotationEditorOpen/);
+    assert.match(ownerSource, /useInteractiveMapAnnotationEditor/);
+    assert.match(ownerSource, /mapSurfaceOverlay=\{interactiveAnnotationEditor\.surfaceOverlay\}/);
     assert.match(ownerSource, /ownerInteractiveAnnotationOverlay/);
     assert.match(ownerSource, /editable=\{false\}/);
     assert.match(ownerSource, /mapOverlay=\{ownerInteractiveAnnotationOverlay\}/);
