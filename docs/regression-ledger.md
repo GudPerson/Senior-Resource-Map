@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-09 Map Studio integrated release candidate
+## 2026-08-09 Map Studio integrated production release
 
 - Current behavior: an owner can create, rename, duplicate, select, set as
   default, update, and delete several private named views of one My Map. Explore
@@ -60,10 +60,32 @@ Rules:
   remains 6/6; the local postal-import smoke is expectedly unavailable because
   the local Worker has no managed Google Places secret, while the same check
   passes against production.
-- Release gate: schema is complete. Commit/push, compatible Worker deployment,
-  exact Pages preview/production deployment, and post-deployment UAT remain
-  pending. Any failed release gate or material privacy/regression finding stops
-  the release.
+- Release evidence: `1be2093de` was pushed to both
+  `codex/map-studio-state-model` and `main`. Worker release-line validation
+  passed and version `c7bd164d-bff4-499e-b2da-bb12cce74b37` was deployed;
+  custom API health is OK and the unauthenticated Studio route returns 401.
+  Pages preview `81098817` matched all 82 served files by MIME, bytes, and
+  SHA-256 and retained its Function bundle, `_routes.json`, embed framing, and
+  ordinary anti-framing policy. The preview's unique hostname remained outside
+  the authentication origin allowlist by design, so no auth configuration was
+  expanded.
+- Production evidence: Pages deployment `842f7c23` compiled and uploaded the
+  Function bundle and route manifest. After edge convergence, both the
+  immutable deployment and two uncached custom-domain passes matched all 82
+  files by MIME, bytes, and SHA-256. The six production smoke behaviors passed;
+  the postal-import behavior passed its built-in retry after one transient
+  wizard-open timeout. Both public frozen-share APIs returned 200 JSON with no
+  Studio state. Ordinary app routes retain `X-Frame-Options: DENY` and
+  `frame-ancestors 'none'`; embed retains `no-store`, no XFO, and exact
+  `frame-ancestors 'self' https://gudauth.app https://carearound.sg`.
+- Authenticated production UAT: disposable maps 311 and 312 were created and
+  removed successfully. The final run proved two named views, explicit save and
+  revision reload, Design filtering, desktop/mobile layout, 390 px no-overflow,
+  bubble focus-card flow, Studio Export direct reload, and ordinary Print View
+  separation. The selected view produced a valid nonblank 2,908,610-byte PNG
+  and 3,091,718-byte single-page A3 PDF; rendered inspection showed the same
+  map, resources, numbering, margins, typography, and attribution without
+  clipping or overlap. Release gates are complete.
 
 ## 2026-08-09 Map Studio phase 1 architecture and state-model candidate
 

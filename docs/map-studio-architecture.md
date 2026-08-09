@@ -1,13 +1,13 @@
 # CareAround Map Studio Architecture
 
 Date: 2026-08-09
-Status: local release candidate through Phase 4. The versioned state model,
+Status: production through Phase 4 at `1be2093de`. The versioned state model,
 owner schema/API, named-view UI, complete Explore/Design presentation wiring,
-and additive Export/Print parity are implemented on
-`codex/map-studio-state-model`. The additive schema has been applied and
-verified without a backfill; the compatible Worker and client have not yet
-been deployed. The existing Print View route remains the renderer and rollback
-surface; Shared Map/embed snapshots remain unchanged.
+and additive Export/Print parity are live. The additive schema was applied and
+verified without a backfill, Worker version
+`c7bd164d-bff4-499e-b2da-bb12cce74b37` is active, and Pages deployment
+`842f7c23` is exact on the custom domain. The existing Print View route remains
+the renderer and rollback surface; Shared Map/embed snapshots remain unchanged.
 
 ## Product Goal
 

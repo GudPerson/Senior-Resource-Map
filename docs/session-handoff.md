@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-09 (Asia/Singapore)
 
-## Map Studio integrated release candidate (2026-08-09)
+## Map Studio integrated production release (2026-08-09)
 
 - `codex/map-studio-state-model` now contains the complete additive goal through
   Explore, Design, and Studio Export. All version 1 design paths are wired to
@@ -13,22 +13,28 @@ Last updated: 2026-08-09 (Asia/Singapore)
   Direct reload resolves the saved named view before enabling export. The
   ordinary Print View remains available and unchanged by default. Shared Map
   and embed do not import, request, or publish Studio state.
-- The additive `my_map_studio_documents` schema has been applied and verified
-  against the configured CareAround database with no backfill, existing-row
-  rewrite, or destructive operation. Compatible Worker and Pages deployments
-  are still pending.
+- The additive `my_map_studio_documents` schema was applied and verified against
+  the configured CareAround database with no backfill, existing-row rewrite,
+  or destructive operation. Worker version
+  `c7bd164d-bff4-499e-b2da-bb12cce74b37` and exact Pages production deployment
+  `842f7c23` are live from commit `1be2093de`.
 - Final local gates pass: client 616/616, server 539/539, map lockdown 84/84,
   ordinary and exact six-root production builds, and diff check. Signed-in
   disposable-map UAT passed two named views, explicit persistence,
   desktop/mobile Design, category filtering, Studio Export direct reload,
   390 px no-overflow, and the mobile focus resource card. Production smoke is
   6/6.
-- Release sequence: audit and commit only intended Map Studio files; push the
-  feature branch; release the compatible Worker; publish the exact validated
-  client artifact to a Pages preview and verify it; promote that artifact to
-  production; then repeat authenticated disposable-map UAT plus Shared/embed,
-  ordinary Print, Detailed, auth, and artifact-parity checks. Stop on any failed
-  gate or material privacy/regression issue.
+- Deployment verification passed: preview `81098817` and immutable production
+  matched all 82 served files; two complete custom-domain passes also matched
+  MIME, bytes, and SHA-256 after edge convergence. Pages Functions and routes,
+  embed framing, ordinary anti-framing, API health, Shared/embed Studio
+  exclusion, and the six production smoke behaviors are green. The preview's
+  unique hostname was intentionally not added to the Worker auth allowlist.
+- Final signed-in production UAT used disposable maps that were removed after
+  each run. It proved ordinary Print separation, two persisted named views,
+  direct Studio Export reload, desktop/mobile Design, 390 px no-overflow,
+  bubble focus cards, and actual valid PNG/PDF downloads. The rendered
+  single-page A3 PDF matches the PNG composition without clipping or overlap.
 - Explicit exclusions remain: no Studio view data in frozen Shared/embed
   snapshots, no Print View retirement, no destructive database work, no
   secrets/auth changes, and no route consolidation.
