@@ -2,6 +2,140 @@
 
 Last updated: 2026-08-09 (Asia/Singapore)
 
+## Map Studio integrated release candidate (2026-08-09)
+
+- `codex/map-studio-state-model` now contains the complete additive goal through
+  Explore, Design, and Studio Export. All version 1 design paths are wired to
+  existing map/card/layout seams; several private named views use explicit
+  save and optimistic document revisions; temporary exploration and export-only
+  settings remain outside persistence.
+- Studio Export reuses `?view=print` and the dedicated hidden-capture pipeline.
+  Direct reload resolves the saved named view before enabling export. The
+  ordinary Print View remains available and unchanged by default. Shared Map
+  and embed do not import, request, or publish Studio state.
+- The additive `my_map_studio_documents` schema has been applied and verified
+  against the configured CareAround database with no backfill, existing-row
+  rewrite, or destructive operation. Compatible Worker and Pages deployments
+  are still pending.
+- Final local gates pass: client 616/616, server 539/539, map lockdown 84/84,
+  ordinary and exact six-root production builds, and diff check. Signed-in
+  disposable-map UAT passed two named views, explicit persistence,
+  desktop/mobile Design, category filtering, Studio Export direct reload,
+  390 px no-overflow, and the mobile focus resource card. Production smoke is
+  6/6.
+- Release sequence: audit and commit only intended Map Studio files; push the
+  feature branch; release the compatible Worker; publish the exact validated
+  client artifact to a Pages preview and verify it; promote that artifact to
+  production; then repeat authenticated disposable-map UAT plus Shared/embed,
+  ordinary Print, Detailed, auth, and artifact-parity checks. Stop on any failed
+  gate or material privacy/regression issue.
+- Explicit exclusions remain: no Studio view data in frozen Shared/embed
+  snapshots, no Print View retirement, no destructive database work, no
+  secrets/auth changes, and no route consolidation.
+
+## Map Studio phase 1 architecture and state model (2026-08-09, local candidate)
+
+- Work is isolated on `codex/map-studio-state-model` from base
+  `fe91f9667355239ca16cf314277659e51e78db9c`. It adds a pure versioned model,
+  focused tests, and `docs/map-studio-architecture.md`. Phase 2 now imports its
+  commands only through the owner helper/panel; Phase 3 feeds only the sanitized
+  active draft into owner interactive maps. No design is fed into the export
+  renderer.
+- The model separates explicit-save named-view design from temporary
+  exploration and export-only settings. It supports create, rename, duplicate,
+  select, save/update, set-default, and delete; rejects stale saves; and
+  requires explicit discard before switching away from a dirty draft.
+- Existing My Map resources, category order, notes, private annotation
+  geometry, personal places, frozen Shared Map/embed snapshots, auth,
+  `DirectoryMap`, and the dedicated Print View/export renderer are unchanged.
+- Verification passes: focused 10/10, full client/source 600/600, ordinary
+  client build, map lockdown 84/84, exact six-root build, and diff check.
+- Phase 2 now adds the approved local owner persistence/API and named-view UI
+  slices described below. Route consolidation, shared/embed view data, database
+  application, and deployment remain outside the current candidate.
+
+## Map Studio phase 2 owner schema/API and UI (2026-08-09, local candidate)
+
+- Current Neon HTTP patterns favour one atomic
+  `my_map_studio_documents` row per My Map over separate view rows. The JSON
+  document owns the validated view collection/default ID while optimistic
+  revision remains a database column, allowing one compare-and-swap save.
+- `server/src/utils/mapStudioDocument.js` is now wired only to a new owner
+  controller and the private My Map duplication path. It accepts the Phase 1
+  document and strictly excludes exploration, export settings, annotation
+  geometry, unknown fields/versions, invalid view identity, invalid cameras,
+  unbounded layer references, oversized revisions, and documents above 512
+  KiB. Stored-data corruption fails closed.
+- Authenticated non-guest owners have GET/PUT under `/my-maps/:id/studio`. An
+  absent row returns `document: null` so the client can build its legacy default
+  in memory. The first explicit save atomically inserts revision one; later
+  saves compare-and-swap the expected revision and return 409 on conflict
+  without a read-before-write race.
+- Private Studio saves must not update `my_maps.updated_at` or change frozen
+  share/embed staleness. My Map duplication validates and copies a persisted
+  document privately at revision one; deletion cascades. Guest, Shared Map,
+  embed, existing owner detail, annotations, and personal-place paths do not
+  load Studio state.
+- `my_map_studio_documents`, `ensureMapStudioSchema`, its verifier, and the
+  narrow `bootstrap:map-studio-schema` command are implemented. No configured
+  database was mutated and no production backfill is planned. The table must be
+  applied and verified before any compatible Worker deployment.
+- The owner My Map route now has an isolated multilingual named-view panel in
+  both the V2 and classic layouts. It supports create, rename, duplicate,
+  select, set-default, delete, explicit Save/Discard, dirty unload/view-switch
+  protection, and non-destructive 409 recovery. A Studio load failure is local
+  to the panel. Print View, Shared Map, and embed do not render or call it.
+- The client editor keeps the persisted server revision, working named-view
+  document, and temporary design session separate. Phase 3 applies the selected
+  draft only to private owner `DirectoryMap` instances; Print View remains
+  separate. Current bubble defaults, Detailed surfaces, focus cards, notes,
+  annotations, personal places, and exports remain on their locked components.
+- Focused owner UI/state/API coverage passes 52/52, full server 539/539, full
+  client/source 611/611, ordinary build, map lockdown 84/84, exact six-root
+  build, and diff checks. Nothing is committed, pushed, or deployed. Production
+  schema application, compatible Worker/client rollout, Phase 3 renderer
+  adapters, and Shared Map/embed publication remain separately gated.
+
+## Map Studio phase 3 Explore/Design runtime (2026-08-09, local candidate)
+
+- `client/src/lib/mapStudioInteractiveAdapter.js` remains a pure translation
+  from saved/draft design to existing interactive seams. The owner page now
+  consumes it only after the current map's private Studio load succeeds and
+  applies it to V2 and classic desktop/mobile map shells.
+- Scoped map colour, detail mode, fixed/fit camera, category-bubble/numbered pin
+  style, annotation visibility, and the semantic map-height token are
+  adapter-ready. The default emits no cluster, pin-badge, or category-icon
+  override, preserving the current V2 bubble behavior.
+- Interactive pin size, label detail, resource/category filtering, and
+  resource-panel placement are explicitly deferred. They must not appear as
+  working controls until pins and every desktop/mobile card or sticky/focus
+  layout update together.
+- `MapStudioViewsPanel` remains the canonical session/document owner. Its
+  guarded runtime snapshot and narrow controller coordinate explicit modes,
+  Design-only draft patches, and temporary exploration without exposing either
+  full document to renderers. Save retains the latest temporary camera even if
+  the map moves while the compare-and-swap request is in flight.
+- `MapStudioDesignControls.jsx` mounts inside the private panel. Map-settings
+  colour and Standard/Detailed actions use the same draft and automatically
+  enter Design. Scoped colour also chooses the matching live and Detailed asset
+  roots/manifests. The existing annotation overlay is filtered without changing
+  annotation persistence. Fit/fixed camera and semantic height work through the
+  existing controller, class, and resizable-frame seams.
+- Explore search, hover, focus, selection, and camera movement stay outside the
+  PUT. A panel load failure supplies no runtime model and leaves the old map
+  behavior usable. V2 category-bubble defaults, cluster props, mobile complete
+  focus cards, notes, personal places, actions, auth, Print View, Shared Map,
+  and embed are not replaced.
+- Pin size, label detail, resource/category filtering, resource-panel placement,
+  Phase 4 export parity, Shared Map/embed view snapshots, and route consolidation
+  remain deferred. No configured schema was applied and no commit, push, Worker,
+  Pages deploy, or production UAT occurred.
+- Verification passes: focused runtime coverage 62/62, full client/source
+  623/623, full server 539/539, ordinary client build, map lockdown 84/84, exact
+  six-root production build, and diff check. The stale Browserslist dataset is
+  the only build advisory. Signed-in desktop/mobile runtime UAT must wait for an
+  explicitly approved schema/Worker/client release plan.
+
 ## Owner embed-preview Pages Function recovery (2026-08-09, production)
 
 - The owner Share dialog preview briefly showed `app.carearound.sg refused to

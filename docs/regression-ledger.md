@@ -15,6 +15,319 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-09 Map Studio integrated release candidate
+
+- Current behavior: an owner can create, rename, duplicate, select, set as
+  default, update, and delete several private named views of one My Map. Explore
+  state remains temporary; Design previews basemap, detail, camera, bubble or
+  numbered pins, pin size, card detail, resource/category and annotation
+  visibility, map height, and resource placement; only `Save changes` persists
+  the normalized document. Studio Export carries the selected design into the
+  existing Print View renderer while page layout, margins, and quality remain
+  export-only.
+- Architecture and blast radius: the owner panel is an additive consumer of the
+  existing My Map payload, `DirectoryMap`, presentation model, shared resource
+  cards, and dedicated export renderer. Resource filters are applied to source
+  data before both pins and cards. Studio pin scaling includes current bubble
+  clusters. A failed Studio GET emits no runtime model, preserving the legacy
+  owner map. The ordinary Print View route remains operational and retains its
+  established print-badge defaults.
+- Locked boundaries: Shared Map and embed routes neither fetch nor render live
+  Studio documents. Frozen snapshots, personal-place privacy, annotation
+  geometry/autosave, current mobile focus cards, Detailed map roots, bubble
+  clustering, authentication, notes, membership/actions, and owner/share
+  mutation contracts remain on their existing paths. No route was retired, no
+  secret/auth configuration changed, and no backfill or destructive database
+  operation occurred.
+- Schema evidence: the additive `my_map_studio_documents` bootstrap completed
+  against the configured CareAround database and verified all six expected
+  columns and constraints. It created no Studio document rows and performed no
+  rewrite of existing My Maps.
+- Reproduction and acceptance: create a disposable owned My Map; create two
+  named views; make temporary Explore changes and confirm clean state; preview
+  every Design family; save one view and confirm its revision after reload;
+  discard a later draft; open Studio Export and reload its direct URL; repeat
+  at 390 px and select a bubble twice to reveal the focus resource. Confirm no
+  horizontal page overflow and that filtered resources disappear from both map
+  and list. Confirm ordinary Print, Shared Map, embed, and a Studio API failure
+  preserve their previous behavior.
+- Verification: full client/source coverage passes 616/616; full server
+  coverage passes 539/539; ordinary production build passes; map lockdown
+  passes 84/84 and its exact six-root production build passes; `git diff
+  --check` passes. Signed-in local UAT passed with two named views, explicit
+  persistence, desktop/mobile Design, category filtering, Studio Export direct
+  reload, 390 px no-overflow, and the mobile focus-card flow. Production smoke
+  remains 6/6; the local postal-import smoke is expectedly unavailable because
+  the local Worker has no managed Google Places secret, while the same check
+  passes against production.
+- Release gate: schema is complete. Commit/push, compatible Worker deployment,
+  exact Pages preview/production deployment, and post-deployment UAT remain
+  pending. Any failed release gate or material privacy/regression finding stops
+  the release.
+
+## 2026-08-09 Map Studio phase 1 architecture and state-model candidate
+
+- Candidate behavior: Map Studio now has a pure versioned client state model
+  for multiple named views, persistent design settings, temporary exploration,
+  export-only layout settings, explicit save, optimistic view revisions, and
+  guarded dirty-view switching. It is not imported by an application page or
+  renderer, so current My Map and Print View behavior is unchanged.
+- Architecture and blast radius: the candidate adds
+  `client/src/lib/mapStudioState.js`, focused unit coverage, and
+  `docs/map-studio-architecture.md`. It reuses the pure Print View state
+  normalizers and exposes an adapter to the existing `printMapState` contract.
+  It makes no database, API, route, component, resource-membership,
+  annotation-document, personal-place, auth, Shared Map, embed, Detailed-map,
+  export-capture, or production change. The dedicated Print View route remains
+  the authoritative export and rollback surface.
+- Reproduction and acceptance: run
+  `node --test client/test/mapStudioState.test.js` and confirm legacy My Maps
+  receive one deterministic default view; named views can be created, renamed,
+  duplicated, selected, saved, defaulted, and deleted; exploration/export
+  changes do not mutate the saved document; view switching requires explicit
+  discard when dirty; stale saves fail; and the existing Print View adapter
+  receives only supported fields. Confirm `mapStudioState` has no runtime
+  importer before persistence/UI work starts.
+- Verification: focused Map Studio coverage passes 10/10; full client/source
+  coverage passes 600/600; `npm run build:client` passes; map lockdown passes
+  84/84 followed by the exact six-root production build; and
+  `git diff --check` passes. The only build advisory is the pre-existing stale
+  Browserslist dataset notice. No server test is required because this phase
+  has no server or schema change.
+- Next gate: persistence, owner UI wiring, route changes, Shared Map/embed
+  view publication, and deployment are explicitly outside this phase. Review
+  and approve the additive owner-only persistence design before Phase 2.
+
+## 2026-08-09 Map Studio phase 2 persistence-contract preflight
+
+- Candidate behavior: a strict server-side contract now accepts the normalized
+  version 1 client document and rejects temporary exploration, export state,
+  annotation geometry, unknown fields or versions, invalid/default-missing
+  views, invalid cameras, duplicate/excessive layer references, and documents
+  above 512 KiB. The contract is pure and has no runtime importer.
+- Architecture and blast radius: live server inspection replaced the initial
+  separate-view-row proposal with one atomic `my_map_studio_documents` row per
+  My Map. A single JSON document plus database revision preserves view/default
+  invariants with one compare-and-swap write and avoids cross-row transaction
+  races on the current Neon HTTP path. This preflight adds only
+  `server/src/utils/mapStudioDocument.js`, its test, and architecture records;
+  it does not add the table, schema bootstrap, controller, route, API client,
+  UI, My Map timestamp change, Shared Map/embed data, or production behavior.
+- Reproduction and acceptance: run
+  `node --test server/test/mapStudioDocument.test.js client/test/mapStudioState.test.js`
+  and confirm cross-client/server parity, rejection of temporary/private
+  fields, strict version/view/camera/layer bounds, external database revision,
+  lazy null-document formatting, and fail-closed invalid stored data. Confirm
+  no runtime source imports `mapStudioDocument` before the schema/API phase.
+- Verification: focused client/server contract coverage passes 16/16; the full
+  server suite passes 527/527; and `git diff --check` passes. The full client
+  600/600, ordinary build, and map-lockdown 84/84 plus exact six-root build
+  remain current because this preflight does not change client runtime code.
+- Gate result: explicit Phase 2 schema/API implementation approval was received
+  on 2026-08-09. The resulting local candidate is recorded below. Applying the
+  schema to a configured database, wiring an owner client, pushing, and
+  deploying remain separate gates.
+
+## 2026-08-09 Map Studio phase 2 owner schema/API candidate
+
+- Candidate behavior: authenticated non-guest My Map owners can use the new
+  `GET /api/my-maps/:id/studio` and `PUT /api/my-maps/:id/studio` contract. GET
+  remains lazy and returns `document: null` until the first explicit save. PUT
+  stores the entire normalized version 1 document atomically; revision zero
+  inserts revision one, later writes compare-and-swap the expected revision,
+  and stale writers receive `409`.
+- Architecture and blast radius: one additive
+  `my_map_studio_documents` row is keyed to `my_maps.id` with cascade deletion,
+  a separate schema version and positive database revision, bounded JSONB, and
+  timestamps. The dedicated bootstrap verifier checks all columns, the primary
+  key, cascade foreign key, and positive-revision constraint. Private Studio
+  saves never update `my_maps.updated_at`; guest, Shared Map, embed, resource,
+  personal-place, annotation, auth, and existing My Map detail payloads do not
+  read the document. My Map duplication copies a valid private document at
+  revision one and validates it before creating the copy; a source without a
+  row remains lazy.
+- Reproduction and acceptance: run
+  `node --test server/test/mapStudioDocument.test.js server/test/mapStudioSchema.test.js server/test/mapStudioController.test.js server/test/myMapsController.test.js client/test/mapStudioState.test.js`.
+  Confirm owner-only reads/writes, no read-before-write race, create/update
+  conflicts, strict private-field rejection, no `my_maps` timestamp write,
+  private independent duplication, fail-closed stored data, and schema
+  lifecycle verification. Run `npm run test:server`, the full client/source
+  suite, ordinary client build, and `npm run verify:map-lockdown` before any
+  further phase.
+- Verification: focused Phase 1/2 and My Map coverage passes 67/67; full server
+  coverage passes 539/539; full client/source coverage passes 600/600; ordinary
+  client build passes; map lockdown passes 84/84 followed by the exact six-root
+  build; and whitespace/diff checks pass. The only build advisory is the
+  pre-existing stale Browserslist dataset notice.
+- Deployment gate: the schema code and narrow
+  `bootstrap:map-studio-schema` command exist, but no configured database was
+  mutated, no client runtime calls the API, and nothing was committed, pushed,
+  or deployed. Before a Worker deploy, explicitly approve the intended database
+  target, apply and verify the table first, and then deploy a compatible Worker.
+  Owner UI wiring remains the next separately reviewed slice; Shared Map/embed
+  publication remains outside this phase.
+
+## 2026-08-09 Map Studio phase 2 owner UI/API-client candidate
+
+- Candidate behavior: the owner My Map route now shows a multilingual Map
+  Studio panel for selecting, creating, renaming, duplicating, defaulting, and
+  deleting named visual views. Every command stays local until explicit `Save
+  changes`; `Discard` restores the last server document. A dirty design requires
+  explicit discard before a view switch or structural view action, dirty page
+  unloads are guarded, and a `409` keeps local changes visible while offering a
+  warned `Reload latest` recovery.
+- Architecture and blast radius: `mapStudioOwnerState.js` separates the last
+  server document/revision, the working named-view document, and the temporary
+  design session. The save builder sends the last server revision as the
+  compare-and-swap expectation while excluding exploration and export state.
+  `MapStudioViewsPanel` owns its independent GET/PUT lifecycle and is added
+  through one slot in the V2 scaffold plus one classic-layout insertion. It is
+  not rendered inside Print View and is absent from Shared Map/embed routes. It
+  does not pass any design field into `DirectoryMap`, the presentation model,
+  resource cards, Detailed surfaces, annotations, or export renderers.
+- Reproduction and acceptance: open an owned My Map on desktop and phone width;
+  confirm the panel can manage several named views without changing the map;
+  switch views, set a default, Save, reload, and confirm the document returns;
+  make more changes and Discard to restore the last server copy. Simulate two
+  sessions and confirm the stale save shows conflict recovery without replacing
+  either document. Confirm a Studio load failure leaves the owner map usable,
+  Print View has no panel, and Shared Map/embed payloads and pages contain no
+  Studio client calls.
+- Verification: focused owner state/UI/API/i18n/My Map coverage passes 52/52;
+  full client/source coverage passes 611/611; full server coverage remains
+  539/539; the ordinary production-style client build passes; map lockdown
+  passes 84/84 followed by the exact six-root production build; and diff checks
+  pass. The only build advisory is the pre-existing stale Browserslist dataset
+  notice.
+- Deployment gate: no configured database was mutated, no schema bootstrap was
+  run, and nothing was committed, pushed, or deployed. Production order remains
+  explicit target approval, schema apply/verification, compatible Worker, then
+  the owner client. Phase 3 design-to-map adapters, export parity, route
+  consolidation, and Shared Map/embed view publication remain separate gates.
+
+## 2026-08-09 Map Studio phase 3 interactive-adapter preflight
+
+- Candidate behavior: a pure adapter now translates a normalized named-view
+  design into the existing scoped `DirectoryMap` style, detail, camera, and
+  semantic marker inputs, plus annotation visibility and the interactive
+  map-height token. It is not imported by a renderer, so selecting a named view
+  still makes no visible map, card, annotation, layout, or export change.
+- Architecture and blast radius: adapter-ready settings are explicitly
+  separated from deferred interactive settings. Pin size, label detail,
+  resource/category filtering, and resource-panel placement remain deferred
+  because the current interactive renderers do not yet provide end-to-end
+  desktop/mobile parity for them. The adapter never emits clustering, pin badge,
+  or category-icon overrides, never writes the global map-style preference, and
+  has no API, schema, Shared Map, embed, Print View, or owner-domain import.
+- Reproduction and acceptance: run
+  `node --test client/test/mapStudioInteractiveAdapter.test.js` and confirm the
+  default design returns `category-bubble`, the selected scoped style/detail,
+  fit camera as null, and no clustering override; confirm numbered and fixed
+  camera values map to the existing renderer contract; confirm camera and layer
+  arrays are cloned; and confirm unsupported settings remain listed as
+  deferred. Search runtime sources and confirm the adapter has no importer.
+- Verification: focused adapter coverage passes 3/3; the combined Map Studio
+  owner/state/API/adapter checks pass 35/35; full client/source coverage passes
+  614/614; the ordinary production-style client build passes; map lockdown
+  passes 84/84 followed by the exact six-root production build; the adapter has
+  no runtime importer; and whitespace/diff checks pass. The only build advisory
+  is the pre-existing stale Browserslist dataset notice.
+- Next gate: Phase 3 runtime wiring will touch the owner panel, V2 and classic
+  owner map shells, map settings, controlled exploration camera, and annotation
+  overlay. It requires a separate reviewed slice. Resource/card filtering,
+  responsive panel placement, export parity, database application, commit,
+  push, and deployment remain outside this preflight.
+
+### Owner-session coordination follow-up
+
+- Candidate behavior: `mapStudioOwnerState.js` now supplies one cloned active
+  runtime snapshot with separate design and whole-owner dirty flags. It also
+  supplies Design-mode-gated design mutation and temporary exploration
+  mutation. The named-view panel can optionally emit that snapshot after a
+  successful current-map load, but no page consumes the callback yet.
+- Blast radius and acceptance: the callback is null during loading/error,
+  rejects a superseded map request, and cannot expose the persisted or working
+  document. Design patching outside Design mode throws; exploration search,
+  selection, and camera changes remain clean and absent from the PUT payload.
+  The owner page and V2 scaffold still have no callback or interactive-adapter
+  wiring, so current maps, controls, cards, annotations, and exports remain
+  unchanged.
+- Verification: focused state/UI/adapter coverage passes 27/27; full
+  client/source coverage passes 618/618; the ordinary production-style client
+  build passes; map lockdown passes 84/84 followed by the exact six-root
+  production build; and whitespace/diff checks pass. The only build advisory is
+  the pre-existing stale Browserslist dataset notice.
+
+### Standalone Explore/Design controls follow-up
+
+- Candidate behavior: an unmounted multilingual control surface now defines
+  explicit Explore/Design modes and partial patches for scoped colour,
+  Detailed/standard mode, bubble/numbered pins, map height, fit/current framing,
+  and annotation visibility. It has accessible pressed state and 44-pixel touch
+  targets. Current framing is unavailable until a valid exploration camera is
+  supplied.
+- Blast radius and acceptance: the component has no map, API, persistence,
+  owner-page, Shared Map, embed, or Print View import. Deferred pin size, label
+  detail, resource/category filters, and responsive resource-panel placement
+  are absent. The existing owner panel and page do not import the component, so
+  the production UI and all locked renderers remain unchanged.
+- Verification: focused Map Studio and locale coverage passes 34/34; full
+  client/source coverage passes 621/621; the ordinary production-style client
+  build passes; map lockdown passes 84/84 followed by the exact six-root
+  production build; and whitespace/diff checks pass. The only build advisory is
+  the pre-existing stale Browserslist dataset notice.
+
+## 2026-08-09 Map Studio phase 3 Explore/Design runtime candidate
+
+- Candidate behavior: the private owner My Map route now consumes the current
+  Map Studio session after its map-scoped GET succeeds. Explore mode records
+  search, hover, focus, selection, and ordinary camera movement only in the
+  temporary session. Design mode previews scoped colour, Detailed/standard
+  detail, category-bubble/numbered pins, compact/standard/tall map height,
+  fit/current framing, and annotation visibility in both V2 and classic
+  desktop/mobile map shells. None of those design changes enter the PUT until
+  the existing explicit `Save changes` action.
+- Architecture and blast radius: `MapStudioViewsPanel` remains the canonical
+  session/document owner and exposes one narrow controller for mode, draft, and
+  exploration patches. `MyMapDetailPage` translates its sanitized runtime
+  snapshot through `mapStudioInteractiveAdapter`; a missing/loading/error
+  snapshot passes no scoped model and preserves the legacy map fallback. Scoped
+  colour selects the matching Default/Gray live and Detailed asset families.
+  Existing map-settings colour/detail actions enter Design and patch the same
+  draft instead of changing the global colour preference. The existing
+  annotation document is presentation-filtered only. `DirectoryMap` clears a
+  local Standard override when a controlled view returns to Detailed, and the
+  V2 resizable frame applies the semantic height preset without changing legacy
+  bounds for other callers.
+- Locked boundaries: V2 still defaults to category bubbles and retains its
+  explicit cluster/badge/category-icon behavior; current mobile focus cards,
+  cards, notes, category order, personal places, membership/actions, and auth
+  remain on existing paths. Print View and hidden export capture do not consume
+  the interactive runtime. Shared Map and embed do not import the owner panel,
+  API, or runtime snapshot. Resource/category filtering, label detail, pin size,
+  resource-panel placement, export parity, snapshot publication, route
+  consolidation, schema application, and deployment remain outside Phase 3.
+- Reproduction and acceptance: on an owned map, switch Explore/Design, pan and
+  search without producing dirty state, then change each supported Design
+  control and confirm an unsaved indicator appears. Confirm map-settings colour
+  and Standard/Detailed choices enter Design, Default/Gray Detailed assets stay
+  matched, `Use current framing` is unavailable until the map reports a camera,
+  fit mode refits, annotation hide is non-destructive, Save survives reload,
+  Discard restores the last server document, and a Studio GET failure leaves the
+  map usable. Repeat at desktop and phone widths and on `?ui=classic`. Confirm
+  Print View, Shared Map, and embed remain unchanged.
+- Verification: focused Map Studio/V2/Detailed/annotation/resize coverage passes
+  62/62; full client/source coverage passes 623/623; full server coverage passes
+  539/539; the ordinary client build passes; map lockdown passes 84/84 followed
+  by the exact six-root production build; and `git diff --check` passes. The only
+  build advisory is the pre-existing stale Browserslist dataset notice. Manual
+  signed-in desktop/mobile runtime UAT remains pending because the additive
+  schema has not been applied to a configured database.
+- Deployment gate: no configured database was mutated, the schema bootstrap was
+  not run, and nothing was committed, pushed, or deployed. The next gate is a
+  reviewed schema/Worker/client release plan or Phase 4 export parity; neither is
+  implied by this local runtime approval.
+
 ## 2026-08-09 owner embed-preview Pages Function deployment recovery
 
 - Current behavior: the signed-in owner Share dialog again renders its

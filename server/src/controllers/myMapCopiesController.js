@@ -7,11 +7,17 @@ import {
     myMapAssets,
     myMapPersonalPlaceLinks,
     myMapPrintAnnotationDocuments,
+    myMapStudioDocuments,
     myMaps,
 } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizeMyMapCategoryOrder } from '../utils/myMapCategoryOrder.js';
 import { normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
+import {
+    MAP_STUDIO_SCHEMA_VERSION,
+    buildMapStudioStoredDocument,
+    formatMapStudioDocument,
+} from '../utils/mapStudioDocument.js';
 import { normalizeRole } from '../utils/roles.js';
 
 function createHttpError(status, message) {
@@ -129,6 +135,7 @@ async function loadOwnedMapForDuplicate(db, userId, mapId) {
                 orderBy: [asc(myMapPersonalPlaceLinks.addedAt), asc(myMapPersonalPlaceLinks.id)],
             },
             printAnnotationDocument: true,
+            studioDocument: true,
         },
     });
 
@@ -188,6 +195,11 @@ function getOwnedPersonalPlaceLinks(map, userId) {
 export async function duplicateMyMap(db, user, mapId) {
     assertMyMapCopyUser(user);
     const sourceMap = await loadOwnedMapForDuplicate(db, user.id, mapId);
+    const sourceStudioDocument = sourceMap.studioDocument
+        ? buildMapStudioStoredDocument(
+            formatMapStudioDocument(mapId, sourceMap.studioDocument).document,
+        )
+        : null;
     const timestamp = new Date();
     const name = await resolveUniqueDuplicateName(db, user.id, sourceMap.name);
 
@@ -256,6 +268,17 @@ export async function duplicateMyMap(db, user, mapId) {
             mapId: createdMap.id,
             schemaVersion: Number(sourceAnnotations.schemaVersion) || 1,
             annotations: cloneJson(sourceAnnotations.annotations) || [],
+            revision: 1,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+        });
+    }
+
+    if (sourceStudioDocument) {
+        await db.insert(myMapStudioDocuments).values({
+            mapId: createdMap.id,
+            schemaVersion: MAP_STUDIO_SCHEMA_VERSION,
+            document: sourceStudioDocument,
             revision: 1,
             createdAt: timestamp,
             updatedAt: timestamp,

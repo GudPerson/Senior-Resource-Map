@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { createMapStudioDocument } from '../../client/src/lib/mapStudioState.js';
+
 import {
     addAssetToMyMap,
     createMyMapPersonalPlace,
@@ -38,6 +40,7 @@ import {
     myMapPersonalPlaces,
     myMapPrintAnnotationDocuments,
     myMapShareSnapshots,
+    myMapStudioDocuments,
     myMaps,
     userPersonalPlaceCategories,
     userPersonalPlaces,
@@ -209,6 +212,8 @@ function attachAssets(state, map) {
             }),
         printAnnotationDocument: state.printAnnotationDocuments
             .find((document) => document.mapId === map.id) || null,
+        studioDocument: state.studioDocuments
+            .find((document) => document.mapId === map.id) || null,
     };
 }
 
@@ -222,6 +227,7 @@ function createFakeDb({
     personalPlaceCategories = [],
     personalPlaceLinks = [],
     printAnnotationDocuments = [],
+    studioDocuments = [],
     legacyPersonalPlaces = [],
     shareSnapshots = [],
     hardAsset = null,
@@ -237,6 +243,7 @@ function createFakeDb({
         personalPlaceCategories: personalPlaceCategories.map((item) => ({ ...item })),
         personalPlaceLinks: personalPlaceLinks.map((item) => ({ ...item })),
         printAnnotationDocuments: printAnnotationDocuments.map((item) => ({ ...item })),
+        studioDocuments: studioDocuments.map((item) => ({ ...item })),
         legacyPersonalPlaces: legacyPersonalPlaces.map((item) => ({ ...item })),
         shareSnapshots: shareSnapshots.map((item) => ({ ...item })),
         hardAsset,
@@ -508,6 +515,22 @@ function createFakeDb({
                 };
             }
 
+            if (table === myMapStudioDocuments) {
+                return {
+                    values(value) {
+                        const row = {
+                            createdAt: new Date('2026-03-14T11:07:50.000Z'),
+                            updatedAt: new Date('2026-03-14T11:07:50.000Z'),
+                            ...value,
+                        };
+                        state.studioDocuments.push(row);
+                        return {
+                            returning: async () => [row],
+                        };
+                    },
+                };
+            }
+
             if (table === myMapShareSnapshots) {
                 return {
                     values(value) {
@@ -761,6 +784,12 @@ test('createMyMap creates a named map and can seed it from saved assets', async 
 });
 
 test('duplicateMyMap creates a private owner copy with independent map child rows', async () => {
+    const sourceStudioDocument = createMapStudioDocument({
+        viewId: 'view-default',
+        viewName: 'Partner overview',
+        mapStyle: 'gray',
+        detailMode: 'auto',
+    });
     const db = createFakeDb({
         maps: [createMap({
             description: 'Planning around Teck Whye.',
@@ -840,6 +869,18 @@ test('duplicateMyMap creates a private owner copy with independent map child row
             createdAt: new Date('2026-03-14T10:34:00.000Z'),
             updatedAt: new Date('2026-03-14T10:34:00.000Z'),
         }],
+        studioDocuments: [{
+            mapId: 3,
+            schemaVersion: 1,
+            document: {
+                schemaVersion: sourceStudioDocument.schemaVersion,
+                defaultViewId: sourceStudioDocument.defaultViewId,
+                views: sourceStudioDocument.views,
+            },
+            revision: 4,
+            createdAt: new Date('2026-03-14T10:34:30.000Z'),
+            updatedAt: new Date('2026-03-14T10:34:30.000Z'),
+        }],
         shareSnapshots: [{
             id: 40,
             mapId: 3,
@@ -861,6 +902,8 @@ test('duplicateMyMap creates a private owner copy with independent map child row
     const copiedLinks = db.state.personalPlaceLinks.filter((link) => link.mapId === copied.id);
     const copiedAnnotationDocument = db.state.printAnnotationDocuments
         .find((document) => document.mapId === copied.id);
+    const sourceStudioRow = db.state.studioDocuments.find((document) => document.mapId === 3);
+    const copiedStudioRow = db.state.studioDocuments.find((document) => document.mapId === copied.id);
 
     assert.equal(copied.name, 'Copy of Community planning');
     assert.equal(copied.description, 'Planning around Teck Whye.');
@@ -911,6 +954,10 @@ test('duplicateMyMap creates a private owner copy with independent map child row
     assert.equal(db.state.personalPlaces.length, 1);
     assert.deepEqual(copiedAnnotationDocument.annotations[0].points, [[1.381, 103.741]]);
     assert.equal(copiedAnnotationDocument.revision, 1);
+    assert.equal(copiedStudioRow.revision, 1);
+    assert.equal(copiedStudioRow.document.views[0].name, 'Partner overview');
+    copiedStudioRow.document.views[0].name = 'Changed copy view';
+    assert.equal(sourceStudioRow.document.views[0].name, 'Partner overview');
     assert.equal(db.state.shareSnapshots.length, 1);
     assert.equal(db.state.shareSnapshots[0].mapId, 3);
 });
@@ -952,6 +999,25 @@ test('duplicateMyMap rejects guests and maps not owned by the user', async () =>
             return true;
         },
     );
+});
+
+test('duplicateMyMap rejects invalid stored Studio state before creating the copy', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        studioDocuments: [{
+            mapId: 3,
+            schemaVersion: 2,
+            document: { schemaVersion: 2, views: [] },
+            revision: 1,
+        }],
+    });
+
+    await assert.rejects(
+        () => duplicateMyMap(db, DEFAULT_USER, 3),
+        (error) => error.status === 500,
+    );
+    assert.equal(db.state.maps.length, 1);
+    assert.equal(db.state.studioDocuments.length, 1);
 });
 
 test('getMyMapDetail falls back to snapshot data for unavailable assets', async () => {

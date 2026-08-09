@@ -17,6 +17,8 @@ import {
     PRINT_MAP_LABEL_DETAIL_LOGOS,
     PRINT_MAP_LAYOUT_FOCUS,
     PRINT_MAP_LAYOUT_FULL,
+    PRINT_MAP_MARGIN_NARROW,
+    PRINT_MAP_MARGIN_WIDE,
     PRINT_MAP_ANNOTATION_LAYER_HIDE,
     PRINT_MAP_ANNOTATION_LAYER_SHOW,
     PRINT_MAP_PAGE_LAYOUT_FULL,
@@ -31,6 +33,7 @@ import {
     normalizePrintMapLabelDetail,
     normalizePrintMapAnnotationLayer,
     normalizePrintMapHiddenLayerKeys,
+    normalizePrintMapMargin,
     normalizePrintMapResourceColumnCount,
     normalizePrintMapResourceLayer,
     normalizePrintMapSideResourceColumnCount,
@@ -41,6 +44,10 @@ import {
     filterPrintMapResourcePins,
     getVisiblePrintResourcePlaceKeys,
 } from '../lib/printMapLayers.js';
+import {
+    buildMapStudioResourceLayerCatalog,
+    filterMapStudioDirectoryByLayers,
+} from '../lib/mapStudioPresentationAdapter.js';
 import {
     DEFAULT_PRINT_ANNOTATION_STYLE,
     PRINT_ANNOTATION_DRAW_TOOLS,
@@ -442,6 +449,7 @@ function PrintDirectoryMap({
     onCloseAnnotationEditor = null,
     onMapClick = null,
     surfaceStatus = null,
+    designLocked = false,
 }) {
     const { t } = useLocale();
     const [annotationTool, setAnnotationTool] = useState(PRINT_ANNOTATION_TOOL_SELECT);
@@ -672,8 +680,9 @@ function PrintDirectoryMap({
                 onFocusHandled={showResourcePins ? onFocusHandled : undefined}
                 onResetView={onResetView}
                 interactive={interactive}
-                markerMode={useV2Format ? 'print-badge' : 'number'}
+                markerMode={printMapState?.studioMarkerMode || (useV2Format ? 'print-badge' : 'number')}
                 printBadgeScale={getPrintMapPinScale(printMapState?.pinSize)}
+                markerScale={getPrintMapPinScale(printMapState?.pinSize)}
                 pinBadgeMode={useV2Format ? 'none' : 'count'}
                 pinCategoryIconMode={useV2Format ? 'none' : 'auto'}
                 clusterMarkerMode={useV2Format ? 'none' : 'bubble'}
@@ -696,10 +705,10 @@ function PrintDirectoryMap({
                 onClusterChange={onClusterChange}
                 observeFrameResize={Boolean(printMapState)}
                 mapStyleOverride={printMapState?.mapStyle || null}
-                onMapStyleOverrideChange={printMapState && interactive ? handleControlledMapStyleChange : null}
+                onMapStyleOverrideChange={printMapState && interactive && !designLocked ? handleControlledMapStyleChange : null}
                 mapStyleDescription={printMapState ? 'This choice applies only to this print preview.' : undefined}
                 mapViewState={printMapState?.view || null}
-                onMapViewStateChange={printMapState && interactive ? handleControlledMapViewChange : null}
+                onMapViewStateChange={printMapState && interactive && !designLocked ? handleControlledMapViewChange : null}
                 captureReadyKey={printMapState ? buildPrintMapCaptureKey(printMapState) : ''}
                 basemapMode={printMapState?.basemapMode || 'live'}
                 fixedTownSurfaceManifest={fixedTownSurfaceManifest}
@@ -722,8 +731,8 @@ function PrintDirectoryMap({
                 onFixedTownSurfaceViewportChange={interactive ? onFixedTownSurfaceViewportChange : null}
                 mobileControlPortalTarget={mobileControlPortalTarget}
                 onMapClick={onMapClick}
-                mapModeControl={printMapState && interactive ? mapModeControl : null}
-                showMapStyleControl={interactive}
+                mapModeControl={printMapState && interactive && !designLocked ? mapModeControl : null}
+                showMapStyleControl={interactive && !designLocked}
                 mapOverlay={visiblePrintAnnotations.length || annotationEditing ? (
                     <PrintAnnotationLayer
                         annotations={visiblePrintAnnotations}
@@ -938,12 +947,29 @@ export default function DirectoryPrintView({
     onEditPersonalPlace = null,
     onRemovePersonalPlace = null,
     mapLayersEnabled = false,
+    mapStudioDesignLocked = false,
 }) {
     const useV2OwnerPrint = mode === 'owner';
-    const basePresentation = buildDirectoryPresentation(directory, {
+    const unfilteredBasePresentation = buildDirectoryPresentation(directory, {
         activeAnchor,
         presentationMode: useV2OwnerPrint ? 'v2-cards' : 'default',
     });
+    const mapStudioResourceLayerCatalog = useV2OwnerPrint
+        ? buildMapStudioResourceLayerCatalog(unfilteredBasePresentation)
+        : null;
+    const printDirectory = useV2OwnerPrint
+        ? filterMapStudioDirectoryByLayers(
+            directory,
+            mapStudioResourceLayerCatalog,
+            printMapState?.hiddenResourceLayerKeys,
+        )
+        : directory;
+    const basePresentation = printDirectory === directory
+        ? unfilteredBasePresentation
+        : buildDirectoryPresentation(printDirectory, {
+            activeAnchor,
+            presentationMode: 'v2-cards',
+        });
     const printLayoutConfig = getOwnerPrintLayoutConfig(printMapState);
     const annotationsVisibleForLayout = useV2OwnerPrint;
     const annotationsEditableForLayout = annotationsVisibleForLayout
@@ -959,12 +985,17 @@ export default function DirectoryPrintView({
     const effectiveSideResourceColumnCount = printLayoutConfig.layoutPreset === PRINT_MAP_LAYOUT_FOCUS
         ? sideResourceColumnCount
         : 1;
-    const ownerPrintPresentation = useV2OwnerPrint ? withOwnerPrintBadgePins(basePresentation) : basePresentation;
+    const studioMarkerMode = ['category-bubble', 'number'].includes(printMapState?.studioMarkerMode)
+        ? printMapState.studioMarkerMode
+        : null;
+    const ownerPrintPresentation = useV2OwnerPrint && !studioMarkerMode
+        ? withOwnerPrintBadgePins(basePresentation)
+        : basePresentation;
     const presentation = useV2OwnerPrint
         ? withOwnerPrintLayout(ownerPrintPresentation, printLayoutConfig)
         : ownerPrintPresentation;
     const resourceLayerModel = useV2OwnerPrint
-        ? buildPrintMapResourceLayers(ownerPrintPresentation)
+        ? buildPrintMapResourceLayers(withOwnerPrintBadgePins(unfilteredBasePresentation))
         : { groups: [], layerKeyByPlaceKey: {} };
     const visibleResourcePlaceKeys = showResourcePins
         ? getVisiblePrintResourcePlaceKeys(
@@ -972,9 +1003,9 @@ export default function DirectoryPrintView({
             printMapState?.hiddenResourceLayerKeys,
         )
         : new Set();
-    const visibleResourcePins = useV2OwnerPrint
+    const visibleResourcePins = useV2OwnerPrint && !studioMarkerMode
         ? filterPrintMapResourcePins(presentation.pins, visibleResourcePlaceKeys)
-        : presentation.pins;
+        : (showResourcePins ? presentation.pins : []);
     const visiblePrintAnnotations = annotationsVisibleForLayout
         ? filterPrintMapAnnotations(printAnnotations, {
             annotationLayer: normalizePrintMapAnnotationLayer(printMapState?.annotationLayer),
@@ -1027,9 +1058,9 @@ export default function DirectoryPrintView({
         };
     }, [variant]);
 
-    const resourceCount = directory?.summary?.resourceCount || 0;
+    const resourceCount = printDirectory?.summary?.resourceCount || 0;
     const mappedPlaceCount = presentation.mappedGroups.length;
-    const printMapInteractive = variant === 'screen';
+    const printMapInteractive = variant === 'screen' && !mapStudioDesignLocked;
     const patchPrintMapState = useCallback((patch) => {
         if (!onPrintMapStateChange) return;
         onPrintMapStateChange((current) => ({ ...current, ...patch }));
@@ -1113,7 +1144,11 @@ export default function DirectoryPrintView({
             : (hoveredPrintPlaceKey ? getPrintHoverPlaceKeys(hoveredPrintPlaceKey) : []));
 
     const sheetWidth = variant === 'export' ? (exportWidth || PREVIEW_CONTAINER_WIDTH) : PREVIEW_CONTAINER_WIDTH;
-    const paddingClass = printResourcesBelow ? '' : 'p-10';
+    const margins = normalizePrintMapMargin(printMapState?.margins);
+    const printPagePaddingClassName = margins === PRINT_MAP_MARGIN_NARROW
+        ? 'p-5'
+        : margins === PRINT_MAP_MARGIN_WIDE ? 'p-16' : 'p-10';
+    const paddingClass = printResourcesBelow ? '' : printPagePaddingClassName;
 
     const content = (
         <div 
@@ -1127,6 +1162,7 @@ export default function DirectoryPrintView({
             data-print-side-resource-columns={effectiveSideResourceColumnCount}
             data-print-resources-below={printResourcesBelow ? 'true' : 'false'}
             data-print-resource-layer={resourceLayer}
+            data-print-margins={margins}
             className={`text-slate-900 ${paddingClass} flex-shrink-0`}
             style={{ 
                 width: `${sheetWidth}px`,
@@ -1160,7 +1196,7 @@ export default function DirectoryPrintView({
                 renderDesktopMap={() => (
                     <PrintDirectoryMap
                         presentation={presentation}
-                        directory={directory}
+                        directory={printDirectory}
                         generatedAt={generatedAt}
                         resourceCount={resourceCount}
                         mappedPlaceCount={mappedPlaceCount}
@@ -1223,6 +1259,7 @@ export default function DirectoryPrintView({
                         onCloseAnnotationEditor={onCloseAnnotationEditor}
                         onMapClick={personalPlacePickerActive ? onPersonalPlaceMapClick : null}
                         surfaceStatus={personalPlaceSurfaceStatus}
+                        designLocked={mapStudioDesignLocked}
                     />
                 )}
                 cardBadgeMode={useV2OwnerPrint ? (showPrintLogos ? 'logo' : 'none') : 'number'}
@@ -1238,6 +1275,7 @@ export default function DirectoryPrintView({
                         resourceCount={resourceCount}
                     />
                 ) : null}
+                printPagePaddingClassName={printPagePaddingClassName}
                 showMapLegend={!useV2OwnerPrint}
             />
 

@@ -356,10 +356,16 @@ function getPrintBadgeLobeLayout(count, scale = 1) {
     });
 }
 
-function getCategoryBubbleLobeLayout(count, compact = false) {
+function getCategoryBubbleLobeLayout(count, compact = false, scale = 1) {
+    const markerScale = normalizePrintBadgeScale(scale);
+    const diameter = (compact
+        ? DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER
+        : DIRECTORY_CATEGORY_BUBBLE_DIAMETER) * markerScale;
     return getBubbleLobeLayout(count, {
-        diameter: compact ? DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER : DIRECTORY_CATEGORY_BUBBLE_DIAMETER,
-        spacing: compact ? DIRECTORY_CATEGORY_BUBBLE_DOT_LOBE_SPACING : DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING,
+        diameter,
+        spacing: compact
+            ? DIRECTORY_CATEGORY_BUBBLE_DOT_LOBE_SPACING * markerScale
+            : DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING * markerScale,
     });
 }
 
@@ -450,8 +456,10 @@ function getClusterColorData(children) {
     return PALETTE[Math.abs(hash) % PALETTE.length];
 }
 
-function createDirectoryNumberMarker(number, emphasis = 'default', placeKey = null) {
+function createDirectoryNumberMarker(number, emphasis = 'default', placeKey = null, scale = 1) {
     const isSelected = emphasis === 'primary';
+    const markerScale = normalizePrintBadgeScale(scale);
+    const markerSize = 48 * markerScale;
     const coreColor = '#0f766e';
     const ringColor = isSelected ? '#f97316' : '#ffffff';
     const glowColor = isSelected ? 'rgba(249, 115, 22, 0.34)' : 'rgba(15, 118, 110, 0.16)';
@@ -461,25 +469,30 @@ function createDirectoryNumberMarker(number, emphasis = 'default', placeKey = nu
         className: '',
         placeKey: placeKey,
         html: `
-            <div
-                class="directory-number-marker ${isSelected ? 'directory-number-marker--selected' : ''}"
-                style="
-                    --directory-number-marker-core:${coreColor};
-                    --directory-number-marker-ring:${ringColor};
-                    --directory-number-marker-glow:${glowColor};
-                    --directory-number-marker-shadow:${shadowColor};
-                "
-            >
-                <div class="directory-number-marker__pulse"></div>
-                <div class="directory-number-marker__core">
-                    ${escapeHtml(number)}
+            <div style="position:relative;width:${markerSize}px;height:${markerSize}px;display:flex;align-items:center;justify-content:center;">
+                <div
+                    class="directory-number-marker ${isSelected ? 'directory-number-marker--selected' : ''}"
+                    data-directory-marker-scale="${markerScale}"
+                    style="
+                        --directory-number-marker-core:${coreColor};
+                        --directory-number-marker-ring:${ringColor};
+                        --directory-number-marker-glow:${glowColor};
+                        --directory-number-marker-shadow:${shadowColor};
+                        transform:scale(${markerScale});
+                        transform-origin:center;
+                    "
+                >
+                    <div class="directory-number-marker__pulse"></div>
+                    <div class="directory-number-marker__core">
+                        ${escapeHtml(number)}
+                    </div>
                 </div>
             </div>
         `,
-        iconSize: [48, 48],
-        iconAnchor: [24, 24],
-        popupAnchor: [0, -24],
-        tooltipAnchor: [0, -24],
+        iconSize: [markerSize, markerSize],
+        iconAnchor: [markerSize / 2, markerSize / 2],
+        popupAnchor: [0, -markerSize / 2],
+        tooltipAnchor: [0, -markerSize / 2],
     });
 }
 
@@ -600,10 +613,14 @@ function createCategoryBubbleMarker(pin = {}, {
     emphasis = 'default',
     activePlaceKeys = new Set(),
     compact = false,
+    scale = 1,
 } = {}) {
     const bubbleItems = normalizeCategoryBubbleItems(pin.categoryBubbleItems || null, pin);
-    const lobeLayout = getCategoryBubbleLobeLayout(bubbleItems.length, compact);
-    const lobeDiameter = compact ? DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER : DIRECTORY_CATEGORY_BUBBLE_DIAMETER;
+    const markerScale = normalizePrintBadgeScale(scale);
+    const lobeLayout = getCategoryBubbleLobeLayout(bubbleItems.length, compact, markerScale);
+    const lobeDiameter = (compact
+        ? DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER
+        : DIRECTORY_CATEGORY_BUBBLE_DIAMETER) * markerScale;
     const lobeClassName = compact
         ? 'directory-category-bubble-marker__lobe directory-category-bubble-marker__lobe--compact-dot'
         : 'directory-category-bubble-marker__lobe';
@@ -621,7 +638,7 @@ function createCategoryBubbleMarker(pin = {}, {
             ? `<img class="directory-category-bubble-marker__icon" src="${escapeHtml(item.iconUrl)}" alt="" />`
             : item.iconKey
                 ? renderPersonalPlaceIconMarkup(item.iconKey, {
-                    size: compact ? 8 : 15,
+                    size: (compact ? 8 : 15) * markerScale,
                     color: item.color || '#0f766e',
                     strokeWidth: 2.5,
                     className: 'directory-category-bubble-marker__icon',
@@ -683,6 +700,7 @@ function createCategoryBubbleMarker(pin = {}, {
                     data-print-lobe-count="${bubbleItems.length}"
                     data-print-icon-width="${lobeLayout.width}"
                     data-print-icon-height="${lobeLayout.height}"
+                    data-directory-marker-scale="${markerScale}"
                     data-print-offset-x="0"
                     data-print-offset-y="0"
                     style="
@@ -942,9 +960,15 @@ function createDirectoryAssetSpreadClusterIcon(children = [], emphasizedPlaceKey
     });
 }
 
-function createDirectoryClusterIcon(cluster, emphasizedPlaceKeys = new Set(), clusterMarkerMode = 'bubble') {
+function createDirectoryClusterIcon(
+    cluster,
+    emphasizedPlaceKeys = new Set(),
+    clusterMarkerMode = 'bubble',
+    scale = 1,
+) {
     const count = cluster.getChildCount();
     const children = cluster.getAllChildMarkers();
+    const markerScale = normalizePrintBadgeScale(scale);
     const assetCount = getDirectoryClusterAssetCount(children);
     const dominantColor = getClusterColorData(children) || {
         core: '#0f766e',
@@ -989,19 +1013,24 @@ function createDirectoryClusterIcon(cluster, emphasizedPlaceKeys = new Set(), cl
     const outerShadow = isHighlighted ? '0 18px 36px rgba(249,115,22,0.26)' : `0 16px 34px ${dominantColor.glow}`;
     const innerBackground = isHighlighted ? '#f97316' : dominantColor.core;
 
+    const iconSize = 54 * markerScale;
+    const outerSize = 42 * markerScale;
+    const innerSize = 32 * markerScale;
+    const fontSize = 13 * markerScale;
+
     return L.divIcon({
         className: '',
         html: `
-            <div style="width:54px;height:54px;display:flex;align-items:center;justify-content:center;">
-                <div style="width:42px;height:42px;border-radius:999px;background:${outerBackground};display:flex;align-items:center;justify-content:center;border:1px solid ${outerBorder};box-shadow:${outerShadow};">
-                    <div style="width:32px;height:32px;border-radius:999px;background:${innerBackground};color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;line-height:1;font-family:var(--font-heading);">
+            <div data-directory-marker-scale="${markerScale}" style="width:${iconSize}px;height:${iconSize}px;display:flex;align-items:center;justify-content:center;">
+                <div style="width:${outerSize}px;height:${outerSize}px;border-radius:999px;background:${outerBackground};display:flex;align-items:center;justify-content:center;border:1px solid ${outerBorder};box-shadow:${outerShadow};">
+                    <div style="width:${innerSize}px;height:${innerSize}px;border-radius:999px;background:${innerBackground};color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:${fontSize}px;line-height:1;font-family:var(--font-heading);">
                         ${escapeHtml(count)}
                     </div>
                 </div>
             </div>
         `,
-        iconSize: [54, 54],
-        iconAnchor: [27, 27],
+        iconSize: [iconSize, iconSize],
+        iconAnchor: [iconSize / 2, iconSize / 2],
     });
 }
 
@@ -2455,6 +2484,7 @@ export default function DirectoryMap({
     emptyLabel = 'This directory does not have any mappable places yet.',
     markerMode = 'count',
     printBadgeScale = 1,
+    markerScale = 1,
     pinBadgeMode = 'count',
     pinCategoryIconMode = 'auto',
     clusterMarkerMode = 'bubble',
@@ -2542,6 +2572,7 @@ export default function DirectoryMap({
     const resolvedMapHeightPx = Number.isFinite(Number(mapHeightPx)) && Number(mapHeightPx) > 0
         ? Math.round(Number(mapHeightPx))
         : null;
+    const resolvedMarkerScale = normalizePrintBadgeScale(markerScale);
     const lastPlaceActivationRef = useRef({ token: null, at: 0 });
     const lastCategoryBubbleHoverKeyRef = useRef(null);
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
@@ -2551,6 +2582,7 @@ export default function DirectoryMap({
     const [fixedTownManualLiveOverride, setFixedTownManualLiveOverride] = useState(false);
     const [fixedTownSurfaceFaultReason, setFixedTownSurfaceFaultReason] = useState('');
     const fixedTownSurfaceFaultZoomRef = useRef(null);
+    const previousBasemapModeRef = useRef(basemapMode);
     const resolvedMapMinZoom = Number.isFinite(Number(mapMinZoom))
         ? Number(mapMinZoom)
         : CAREAROUND_BASEMAP_MIN_ZOOM;
@@ -2628,6 +2660,15 @@ export default function DirectoryMap({
         }
         onBasemapModeChange?.(nextMode);
     }, [onBasemapModeChange, townMapZoomEligible]);
+    useEffect(() => {
+        if (previousBasemapModeRef.current === basemapMode) return;
+        previousBasemapModeRef.current = basemapMode;
+        if (basemapMode === 'auto' || basemapMode === 'town') {
+            setFixedTownManualLiveOverride(false);
+            setFixedTownSurfaceFaultReason('');
+            fixedTownSurfaceFaultZoomRef.current = null;
+        }
+    }, [basemapMode]);
     const handleFixedTownSurfaceFallback = useCallback((details = {}) => {
         if (fixedTownSurfaceFallbackScope === 'local') {
             const reason = details.reason || 'surface-unavailable';
@@ -2770,8 +2811,8 @@ export default function DirectoryMap({
         }).join(';');
 
         const focusedKeys = (focusedPlaceKeys || []).map((value) => String(value)).sort().join('|');
-        return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${focusedKeys}::${activeKeys}::${compactCategoryBubbles ? 'compact' : 'full'}::${normalizePrintBadgeScale(printBadgeScale)}::${markerKeys}`;
-    }, [activePlaceKey, activePlaceKeySet, compactCategoryBubbles, displayMarkerPins, focusedPlaceKey, focusedPlaceKeys, markerMode, printBadgeScale]);
+        return `${activePlaceKey || ''}::${focusedPlaceKey || ''}::${focusedKeys}::${activeKeys}::${compactCategoryBubbles ? 'compact' : 'full'}::${normalizePrintBadgeScale(printBadgeScale)}::${resolvedMarkerScale}::${markerKeys}`;
+    }, [activePlaceKey, activePlaceKeySet, compactCategoryBubbles, displayMarkerPins, focusedPlaceKey, focusedPlaceKeys, markerMode, printBadgeScale, resolvedMarkerScale]);
     const collisionFixedPlaceKeys = useMemo(() => {
         if (markerMode !== 'category-bubble') return [];
 
@@ -2789,8 +2830,9 @@ export default function DirectoryMap({
             pin.number || '',
             placeNumberByKey?.[pin.placeKey] || '',
             pin.printNumberLabel || '',
+            resolvedMarkerScale,
         ].join(':');
-    }).join(';'), [displayMarkerPins, placeNumberByKey]);
+    }).join(';'), [displayMarkerPins, placeNumberByKey, resolvedMarkerScale]);
     const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
     const showRecenterControl = interactive && (displayPins.length + (anchorPoint ? 1 : 0)) > 1;
     const hasMapSettingsControl = Boolean(resolvedMapModeControl || showMapStyleControl);
@@ -2977,7 +3019,12 @@ export default function DirectoryMap({
                     removeOutsideVisibleBounds={false}
                     disableClusteringAtZoom={16}
                     maxClusterRadius={42}
-                    iconCreateFunction={(cluster) => createDirectoryClusterIcon(cluster, activePlaceKeySet, clusterMarkerMode)}
+                    iconCreateFunction={(cluster) => createDirectoryClusterIcon(
+                        cluster,
+                        activePlaceKeySet,
+                        clusterMarkerMode,
+                        resolvedMarkerScale,
+                    )}
                 >
                     {displayMarkerPins.map((pin) => {
                         const activeKey = activePlaceKey ?? focusedPlaceKey;
@@ -3009,13 +3056,15 @@ export default function DirectoryMap({
                                     emphasis: isMatched ? 'primary' : 'default',
                                     activePlaceKeys: activePlaceKeySet,
                                     compact: compactCategoryBubbles,
+                                    scale: resolvedMarkerScale,
                                 }
                             )
                             : markerMode === 'number'
                             ? createDirectoryNumberMarker(
                                 pin.number || placeNumberByKey?.[pin.placeKey] || '?',
                                 isMatched ? 'primary' : 'default',
-                                pin.placeKey
+                                pin.placeKey,
+                                resolvedMarkerScale,
                             )
                             : (() => {
                                 const categoryIconUrl = pinCategoryIconMode === 'none'
@@ -3096,13 +3145,15 @@ export default function DirectoryMap({
                         emphasis: isMatched ? 'primary' : 'default',
                         activePlaceKeys: activePlaceKeySet,
                         compact: compactCategoryBubbles,
+                        scale: resolvedMarkerScale,
                     }
                 )
                 : markerMode === 'number'
                 ? createDirectoryNumberMarker(
                     pin.number || placeNumberByKey?.[pin.placeKey] || '?',
                     isMatched ? 'primary' : 'default',
-                    pin.placeKey
+                    pin.placeKey,
+                    resolvedMarkerScale,
                 )
                 : (() => {
                     const categoryIconUrl = pinCategoryIconMode === 'none'
@@ -3149,7 +3200,7 @@ export default function DirectoryMap({
                 />
             );
         });
-    }, [shouldCluster, showPins, displayMarkerPins, markerMode, printBadgeScale, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
+    }, [shouldCluster, showPins, displayMarkerPins, markerMode, printBadgeScale, resolvedMarkerScale, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
     const mapClickEnabled = interactive && typeof onMapClick === 'function';
     const currentAnchorPlacementHandlers = mapClickEnabled && anchorPoint?.kind === 'current'

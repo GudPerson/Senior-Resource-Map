@@ -15,6 +15,9 @@ import {
     PRINT_MAP_MAX_HEIGHT_PX,
     PRINT_MAP_PAGE_LAYOUT_FULL,
     PRINT_MAP_PAGE_LAYOUT_STANDARD,
+    PRINT_MAP_MARGIN_NARROW,
+    PRINT_MAP_MARGIN_STANDARD,
+    PRINT_MAP_MARGIN_WIDE,
     PRINT_MAP_PIN_SIZE_EXTRA_LARGE,
     PRINT_MAP_PIN_SIZE_LARGE,
     PRINT_MAP_PIN_SIZE_STANDARD,
@@ -22,13 +25,17 @@ import {
     PRINT_MAP_RESOURCE_LAYER_SHOW,
     PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
     PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
+    PRINT_MAP_QUALITY_HIGH,
+    PRINT_MAP_QUALITY_STANDARD,
     PRINT_MAP_SIDE_LEFT,
     PRINT_MAP_SIDE_RIGHT,
     PRINT_MAP_WIDTH_EXTRA_WIDE,
     PRINT_MAP_WIDTH_WIDE,
     normalizePrintMapLabelDetail,
     normalizePrintMapLayoutPreset,
+    normalizePrintMapMargin,
     normalizePrintMapPinSize,
+    normalizePrintMapQuality,
     normalizePrintMapResourceColumnCount,
     normalizePrintMapResourceLayer,
     normalizePrintMapSide,
@@ -53,7 +60,7 @@ function ChoiceButton({ selected, label, onClick }) {
     );
 }
 
-export default function PrintLayoutControls({ value, onChange, onClose }) {
+export default function PrintLayoutControls({ value, onChange, onClose, mapStudioExport = false }) {
     const { t } = useLocale();
     const layoutPreset = normalizePrintMapLayoutPreset(value?.layoutPreset);
     const resourceLayer = normalizePrintMapResourceLayer(value?.resourceLayer);
@@ -61,6 +68,8 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
     const mapSide = normalizePrintMapSide(value?.mapSide);
     const mapWidth = normalizePrintMapWidth(value?.mapWidth);
     const labelDetail = normalizePrintMapLabelDetail(value?.labelDetail);
+    const mapQuality = normalizePrintMapQuality(value?.mapQuality);
+    const margins = normalizePrintMapMargin(value?.margins);
     const resourceColumnCount = normalizePrintMapResourceColumnCount(value?.resourceColumnCount);
     const sideResourceColumnCount = normalizePrintMapSideResourceColumnCount(
         value?.sideResourceColumnCount,
@@ -226,6 +235,36 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
                 </div>
             ) : null}
 
+            {mapStudioExport ? (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2" data-map-studio-export-settings="true">
+                    <fieldset data-print-image-quality-controls="true">
+                        <legend className="text-sm font-bold text-slate-800">{t('printImageQuality')}</legend>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                            <ChoiceButton
+                                selected={mapQuality === PRINT_MAP_QUALITY_STANDARD}
+                                label={t('printImageQualityStandard')}
+                                onClick={() => patchState({ mapQuality: PRINT_MAP_QUALITY_STANDARD })}
+                            />
+                            <ChoiceButton
+                                selected={mapQuality === PRINT_MAP_QUALITY_HIGH}
+                                label={t('printImageQualityHigh')}
+                                onClick={() => patchState({ mapQuality: PRINT_MAP_QUALITY_HIGH })}
+                            />
+                        </div>
+                        <p className="mt-1.5 text-xs font-medium leading-4 text-slate-500">{t('printImageQualityHelp')}</p>
+                    </fieldset>
+                    <fieldset data-print-margin-controls="true">
+                        <legend className="text-sm font-bold text-slate-800">{t('mapStudioExportMargins')}</legend>
+                        <div className="mt-2 grid grid-cols-3 gap-2">
+                            <ChoiceButton selected={margins === PRINT_MAP_MARGIN_NARROW} label={t('mapStudioExportMarginNarrow')} onClick={() => patchState({ margins: PRINT_MAP_MARGIN_NARROW })} />
+                            <ChoiceButton selected={margins === PRINT_MAP_MARGIN_STANDARD} label={t('mapStudioExportMarginStandard')} onClick={() => patchState({ margins: PRINT_MAP_MARGIN_STANDARD })} />
+                            <ChoiceButton selected={margins === PRINT_MAP_MARGIN_WIDE} label={t('mapStudioExportMarginWide')} onClick={() => patchState({ margins: PRINT_MAP_MARGIN_WIDE })} />
+                        </div>
+                    </fieldset>
+                </div>
+            ) : null}
+
+            {!mapStudioExport ? (
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <fieldset data-print-resource-layer-controls="true">
                     <legend className="text-sm font-bold text-slate-800">{t('printResourcePins')}</legend>
@@ -289,6 +328,7 @@ export default function PrintLayoutControls({ value, onChange, onClose }) {
                     </p>
                 </fieldset>
             </div>
+            ) : null}
         </section>
     );
 }
