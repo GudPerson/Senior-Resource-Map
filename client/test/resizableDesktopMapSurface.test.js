@@ -5,8 +5,6 @@ import { readFileSync } from 'node:fs';
 import {
     clampDesktopMapHeight,
     getDesktopMapHeightBounds,
-    getDesktopMapStudioHeightBounds,
-    resolveDesktopMapStudioHeightPreset,
 } from '../src/lib/resizableMapFrame.js';
 
 const resizableSurfaceSource = readFileSync(
@@ -43,20 +41,6 @@ test('desktop map height stays within the resize bounds', () => {
     assert.equal(clampDesktopMapHeight(1200, bounds), 780);
 });
 
-test('Map Studio height presets extend the owner frame without changing legacy bounds', () => {
-    const bounds = getDesktopMapStudioHeightBounds(1000);
-    assert.deepEqual(bounds, {
-        minimumHeight: 380,
-        compactHeight: 380,
-        defaultHeight: 480,
-        maximumHeight: 780,
-    });
-    assert.equal(resolveDesktopMapStudioHeightPreset('compact', bounds), 380);
-    assert.equal(resolveDesktopMapStudioHeightPreset('standard', bounds), 480);
-    assert.equal(resolveDesktopMapStudioHeightPreset('tall', bounds), 780);
-    assert.equal(getDesktopMapHeightBounds(1000).minimumHeight, 480);
-});
-
 test('desktop resize handle supports pointer, keyboard, reset, and map callback continuity', () => {
     assert.match(resizableSurfaceSource, /role="separator"/);
     assert.match(resizableSurfaceSource, /aria-valuemin=\{bounds\.minimumHeight\}/);
@@ -71,10 +55,6 @@ test('desktop resize handle supports pointer, keyboard, reset, and map callback 
     assert.match(resizableSurfaceSource, /observeFrameResize: true/);
     assert.match(resizableSurfaceSource, /onClusterChange,/);
     assert.match(resizableSurfaceSource, /data-map-resize-handle="true"/);
-    assert.match(resizableSurfaceSource, /heightPreset = null/);
-    assert.match(resizableSurfaceSource, /heightResetKey = ''/);
-    assert.match(resizableSurfaceSource, /\[heightPreset, heightResetKey\]/);
-    assert.match(resizableSurfaceSource, /resolveDesktopMapStudioHeightPreset/);
 });
 
 test('DirectoryMap frame resize sync is opt-in and preserves the current camera', () => {

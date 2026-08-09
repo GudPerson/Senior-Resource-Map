@@ -82,8 +82,6 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /fixedTownSurfaceViewportEligible !== false/);
     assert.match(directoryMapSource, /townViewportEligible: fixedTownSurfaceInViewport/);
     assert.match(directoryMapSource, /fixedTownManualLiveOverride/);
-    assert.match(directoryMapSource, /previousBasemapModeRef/);
-    assert.match(directoryMapSource, /if \(basemapMode === 'auto' \|\| basemapMode === 'town'\)/);
     assert.match(directoryMapSource, /else if \(townMapZoomEligible\)/);
     assert.match(directoryMapSource, /if \(!townMapZoomEligible\)/);
     assert.match(directoryMapSource, /fixedTownSurfaceFallbackScope === 'local'/);
@@ -217,8 +215,7 @@ test('town map proof is owner-only, local-flagged, and uses viewport coverage fo
     assert.match(ownerPageSource, /\[townMapManifestReloadVersion\]/);
     assert.match(ownerPageSource, /fixedTownOverviewSurfaceManifest=\{townMapOverviewManifestState\.manifest\}/);
     assert.match(ownerPageSource, /fixedTownOverviewSurfaceManifest=\{printTownMapOverviewManifestState\.manifest\}/);
-    assert.match(ownerPageSource, /interactiveMapStyle === CAREAROUND_MAP_STYLE_GRAY/);
-    assert.match(ownerPageSource, /printMapState\.mapStyle === CAREAROUND_MAP_STYLE_GRAY/);
+    assert.match(ownerPageSource, /mapStyle === CAREAROUND_MAP_STYLE_GRAY/);
     assert.match(ownerPageSource, /mapMinZoom=\{TOWN_MAP_PROOF_ENABLED \? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined\}/);
     assert.match(ownerPageSource, /showZoomLevelCounter=\{TOWN_MAP_PROOF_ENABLED\}/);
     assert.match(ownerPageSource, /minimumZoomCenter=\{TOWN_MAP_PROOF_ENABLED \? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null\}/);

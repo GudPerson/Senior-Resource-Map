@@ -16,8 +16,6 @@ import {
     PRINT_MAP_LAYOUT_BALANCED,
     PRINT_MAP_LAYOUT_FOCUS,
     PRINT_MAP_LAYOUT_FULL,
-    PRINT_MAP_MARGIN_NARROW,
-    PRINT_MAP_MARGIN_STANDARD,
     PRINT_MAP_MAX_HEIGHT_PX,
     PRINT_MAP_MIN_HEIGHT_PX,
     PRINT_MAP_PAGE_LAYOUT_FULL,
@@ -78,7 +76,6 @@ test('owner print map starts from a safe baseline while carrying only the global
         pageLayout: PRINT_MAP_PAGE_LAYOUT_STANDARD,
         resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
         mapQuality: PRINT_MAP_QUALITY_STANDARD,
-        margins: PRINT_MAP_MARGIN_STANDARD,
         resourceLayer: PRINT_MAP_RESOURCE_LAYER_SHOW,
         pinSize: PRINT_MAP_PIN_SIZE_STANDARD,
         annotationLayer: PRINT_MAP_ANNOTATION_LAYER_SHOW,
@@ -162,7 +159,6 @@ test('owner print reset clears camera and detail changes without losing the devi
     assert.equal(reset.pageLayout, PRINT_MAP_PAGE_LAYOUT_STANDARD);
     assert.equal(reset.resourcePlacement, PRINT_MAP_RESOURCE_PLACEMENT_BESIDE);
     assert.equal(reset.mapQuality, PRINT_MAP_QUALITY_STANDARD);
-    assert.equal(reset.margins, PRINT_MAP_MARGIN_STANDARD);
     assert.equal(reset.resourceLayer, PRINT_MAP_RESOURCE_LAYER_SHOW);
     assert.equal(reset.pinSize, PRINT_MAP_PIN_SIZE_STANDARD);
     assert.equal(reset.annotationLayer, PRINT_MAP_ANNOTATION_LAYER_SHOW);
@@ -188,10 +184,8 @@ test('capture key changes for every visual print map setting', () => {
         buildPrintMapCaptureKey({ ...baseline, pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL }),
         buildPrintMapCaptureKey({ ...baseline, resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE }),
         buildPrintMapCaptureKey({ ...baseline, mapQuality: PRINT_MAP_QUALITY_HIGH }),
-        buildPrintMapCaptureKey({ ...baseline, margins: PRINT_MAP_MARGIN_NARROW }),
         buildPrintMapCaptureKey({ ...baseline, resourceLayer: PRINT_MAP_RESOURCE_LAYER_HIDE }),
         buildPrintMapCaptureKey({ ...baseline, pinSize: PRINT_MAP_PIN_SIZE_LARGE }),
-        buildPrintMapCaptureKey({ ...baseline, studioMarkerMode: 'category-bubble' }),
         buildPrintMapCaptureKey({ ...baseline, annotationLayer: 'hide' }),
         buildPrintMapCaptureKey({ ...baseline, hiddenResourceLayerKeys: ['resource:carearound'] }),
         buildPrintMapCaptureKey({ ...baseline, hiddenAnnotationIds: ['annotation_1'] }),
@@ -203,7 +197,7 @@ test('capture key changes for every visual print map setting', () => {
         buildPrintMapCaptureKey({ ...baseline, resourceColumnCount: 4 }),
         buildPrintMapCaptureKey({ ...baseline, sideResourceColumnCount: 2 }),
     ]);
-    assert.equal(keys.size, 22);
+    assert.equal(keys.size, 20);
 });
 
 test('Full layout exports the map and resources as separate image pages', () => {
@@ -478,11 +472,7 @@ test('print layout controls use a compact mobile-safe three-mode layout with pro
     assert.match(ownerPageSource, /className="min-h-11 w-full px-3 text-xs sm:w-auto sm:text-sm"/);
     assert.doesNotMatch(printLayoutControlsSource, /data-print-page-layout-controls/);
     assert.doesNotMatch(printLayoutControlsSource, /data-print-resource-placement-controls/);
-    assert.match(printLayoutControlsSource, /mapStudioExport = false/);
-    assert.match(printLayoutControlsSource, /data-map-studio-export-settings="true"/);
-    assert.match(printLayoutControlsSource, /data-print-image-quality-controls="true"/);
-    assert.match(printLayoutControlsSource, /data-print-margin-controls="true"/);
-    assert.match(printLayoutControlsSource, /!mapStudioExport/);
+    assert.doesNotMatch(printLayoutControlsSource, /data-print-image-quality-controls/);
 });
 
 test('print label detail choices retain the numbered map key while controlling address and resource rows', () => {
@@ -755,8 +745,8 @@ test('map downloads wait for a verified export surface while resource PNG stays 
     assert.match(exportButtonSource, /await isMapCaptureVisiblyBlank/);
     assert.match(exportButtonSource, /data-print-export-readiness=\{mapDownloadStatus\}/);
     assert.match(exportButtonSource, /role="progressbar"/);
-    assert.match(exportButtonSource, /disabled=\{disabled \|\| exporting \|\| !mapDownloadReady\}/g);
-    assert.match(exportButtonSource, /onClick=\{\(\) => handleImageExport\('resources'\)\}[\s\S]*?disabled=\{disabled \|\| exporting\}[\s\S]*?data-print-export-page-action="resources"/);
+    assert.match(exportButtonSource, /disabled=\{exporting \|\| !mapDownloadReady\}/g);
+    assert.match(exportButtonSource, /onClick=\{\(\) => handleImageExport\('resources'\)\}[\s\S]*?disabled=\{exporting\}[\s\S]*?data-print-export-page-action="resources"/);
     assert.match(exportButtonSource, /t\('retryMapDownloadPreparation'\)/);
     assert.match(exportButtonSource, /\{exportRoot \? createPortal\(/);
     assert.match(ownerPageSource, /deferPreparation=\{printAnnotationEditorOpen\}/);

@@ -17,7 +17,7 @@ const appCssSource = readFileSync(
 
 test('directory map keeps bubble clusters as the default marker mode', () => {
     assert.match(directoryMapSource, /clusterMarkerMode = 'bubble'/);
-    assert.match(directoryMapSource, /createDirectoryClusterIcon\([\s\S]*?clusterMarkerMode,[\s\S]*?resolvedMarkerScale/);
+    assert.match(directoryMapSource, /createDirectoryClusterIcon\(cluster, activePlaceKeySet, clusterMarkerMode\)/);
 });
 
 test('directory map can disable clustering so close pins behave as individual markers', () => {
@@ -31,12 +31,6 @@ test('directory map can hide pin artwork without losing its camera points or bas
     assert.match(directoryMapSource, /if \(!showPins\) return null/);
     assert.match(directoryMapSource, /pins=\{displayPins\}/);
     assert.match(directoryMapSource, /\{renderedMarkers\}/);
-});
-
-test('directory map applies the interactive marker scale to cluster bubbles', () => {
-    assert.match(directoryMapSource, /function createDirectoryClusterIcon\([\s\S]*?scale = 1/);
-    assert.match(directoryMapSource, /const iconSize = 54 \* markerScale/);
-    assert.match(directoryMapSource, /createDirectoryClusterIcon\([\s\S]*?clusterMarkerMode,[\s\S]*?resolvedMarkerScale/);
 });
 
 test('directory map fits visible spread pin positions with enough top padding for pin artwork', () => {
@@ -171,11 +165,9 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER = 13/);
     assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_DOT_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER \* 0\.58/);
     assert.match(directoryMapSource, /function createCategoryBubbleMarker/);
-    assert.match(directoryMapSource, /function getCategoryBubbleLobeLayout\(count, compact = false, scale = 1\)/);
-    assert.match(directoryMapSource, /DIRECTORY_CATEGORY_BUBBLE_DIAMETER\) \* markerScale/);
-    assert.match(directoryMapSource, /DIRECTORY_CATEGORY_BUBBLE_DOT_LOBE_SPACING \* markerScale/);
-    assert.match(directoryMapSource, /DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING \* markerScale/);
-    assert.match(directoryMapSource, /data-directory-marker-scale="\$\{markerScale\}"/);
+    assert.match(directoryMapSource, /function getCategoryBubbleLobeLayout\(count, compact = false\)/);
+    assert.match(directoryMapSource, /diameter: compact \? DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER : DIRECTORY_CATEGORY_BUBBLE_DIAMETER/);
+    assert.match(directoryMapSource, /spacing: compact \? DIRECTORY_CATEGORY_BUBBLE_DOT_LOBE_SPACING : DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING/);
     assert.match(directoryMapSource, /function DirectoryCategoryBubbleZoomClassSync/);
     assert.match(directoryMapSource, /const DIRECTORY_CATEGORY_BUBBLE_REVEAL_ZOOM = DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD \+ 0\.35/);
     assert.match(directoryMapSource, /function DirectoryMapInstanceSync/);

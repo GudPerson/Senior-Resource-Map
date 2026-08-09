@@ -3,13 +3,6 @@ import { Clock, Globe2, Phone } from 'lucide-react';
 
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { buildEmbedResourcePreviewDetails } from '../lib/embedMapPresentation.js';
-import {
-    PRINT_MAP_LABEL_DETAIL_FULL,
-    PRINT_MAP_LABEL_DETAIL_LOGOS,
-    PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES,
-    PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS,
-    normalizePrintMapLabelDetail,
-} from '../lib/printMapState.js';
 import { getSocialLinkEntries } from '../lib/socialLinks.js';
 
 const SOCIAL_ICON_BUTTON_CLASSES = {
@@ -171,20 +164,11 @@ export default function CompactResourcePreviewCard({
     trailingAction = null,
     framed = false,
     reserveCloseSpace = false,
-    labelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
     className = '',
     ...articleProps
 }) {
     const { t } = useLocale();
     const preview = buildEmbedResourcePreviewDetails(group, row);
-    const normalizedLabelDetail = normalizePrintMapLabelDetail(labelDetail);
-    const showLogo = normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_LOGOS
-        || normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
-    const showAddress = normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES
-        || normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
-    const showDescription = normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS
-        || normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
-    const showFullDetails = normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
 
     return (
         <article
@@ -192,17 +176,17 @@ export default function CompactResourcePreviewCard({
             className={`text-sm ${framed ? 'rounded-2xl border border-slate-200 p-2 sm:p-3' : ''} ${className}`.trim()}
         >
             <div className={`flex items-start gap-2 sm:gap-3 ${reserveCloseSpace ? 'pr-10 sm:pr-11' : ''}`}>
-                {showLogo ? <ResourcePreviewLogo row={row} /> : null}
+                <ResourcePreviewLogo row={row} />
                 <div className="min-w-0 flex-1">
                     <p className="text-sm font-extrabold leading-4 text-slate-950 sm:leading-5">{preview.name}</p>
-                    {showAddress && preview.address ? (
+                    {preview.address ? (
                         <p className="mt-0.5 break-words text-xs leading-4 text-slate-500 sm:mt-1 sm:leading-5">{preview.address}</p>
                     ) : null}
                 </div>
                 {trailingAction ? <div className="shrink-0">{trailingAction}</div> : null}
             </div>
 
-            {showFullDetails && preview.openProgrammeServiceCount > 0 ? (
+            {preview.openProgrammeServiceCount > 0 ? (
                 <span className="mt-1.5 inline-flex rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-bold text-brand-800 sm:mt-2">
                     {t('embedMapOpenProgrammeServiceCount', {
                         count: preview.openProgrammeServiceCount,
@@ -210,7 +194,7 @@ export default function CompactResourcePreviewCard({
                 </span>
             ) : null}
 
-            {showDescription && preview.scheduleText && row?.status !== 'unavailable' ? (
+            {preview.scheduleText && row?.status !== 'unavailable' ? (
                 <div className="mt-1.5 flex min-h-9 items-center gap-2 rounded-xl bg-slate-50 p-2 sm:mt-2 sm:items-start">
                     <Clock size={17} aria-hidden="true" className="shrink-0 text-brand-700 sm:mt-0.5" />
                     <div className="min-w-0">
@@ -224,7 +208,7 @@ export default function CompactResourcePreviewCard({
                 </div>
             ) : null}
 
-            {showFullDetails && row?.status !== 'unavailable' ? (
+            {row?.status !== 'unavailable' ? (
                 <div className="mt-1 sm:mt-1.5">
                     <ResourceContactLinks row={row} detailAction={detailAction} />
                 </div>

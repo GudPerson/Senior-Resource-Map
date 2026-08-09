@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm';
 import { ensureMapEmbedSchema } from './mapEmbedSchema.js';
-import { ensureMapStudioSchema } from './mapStudioSchema.js';
 
 let ensureBoundarySchemaPromise = null;
 let ensureGroupAssetSchemaPromise = null;
@@ -209,7 +208,6 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             `);
-            await ensureMapStudioSchema(db);
             await db.execute(sql`
                 CREATE TABLE IF NOT EXISTS my_map_personal_places (
                     id SERIAL PRIMARY KEY,

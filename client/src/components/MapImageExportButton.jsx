@@ -218,7 +218,6 @@ export default function MapImageExportButton({
     fixedTownOverviewSurfacePending = false,
     printAnnotations = [],
     deferPreparation = false,
-    disabled = false,
 }) {
     const { t } = useLocale();
     const exportRef = useRef(null);
@@ -610,7 +609,7 @@ export default function MapImageExportButton({
                     <button
                         type="button"
                         onClick={() => handleImageExport('resources')}
-                        disabled={disabled || exporting}
+                        disabled={exporting}
                         data-print-export-quality={printMapQuality}
                         data-print-export-page-action="resources"
                         className={`btn-ghost justify-center border border-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
@@ -621,7 +620,7 @@ export default function MapImageExportButton({
                     <button
                         type="button"
                         onClick={() => handleImageExport('map')}
-                        disabled={disabled || exporting || !mapDownloadReady}
+                        disabled={exporting || !mapDownloadReady}
                         aria-describedby="map-download-readiness"
                         data-print-export-quality={printMapQuality}
                         data-print-export-page-action="map"
@@ -635,7 +634,7 @@ export default function MapImageExportButton({
                 <button
                     type="button"
                     onClick={() => handleImageExport()}
-                    disabled={disabled || exporting || !mapDownloadReady}
+                    disabled={exporting || !mapDownloadReady}
                     aria-describedby="map-download-readiness"
                     data-print-export-quality={printMapQuality}
                     className={`btn-ghost justify-center border border-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
@@ -647,7 +646,7 @@ export default function MapImageExportButton({
             <button
                 type="button"
                 onClick={handlePdfExport}
-                disabled={disabled || exporting || !mapDownloadReady}
+                disabled={exporting || !mapDownloadReady}
                 aria-describedby="map-download-readiness"
                 data-print-pdf-export="a3"
                 className={`btn-ghost justify-center border border-slate-200 text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}

@@ -9,7 +9,6 @@ import { appendMapReturnTo, buildCurrentAppPath, normalizeMapReturnPath } from '
 import { OFFERING_ACCESS } from '../lib/eligibility.js';
 import {
     PRINT_MAP_LABEL_DETAIL_FULL,
-    PRINT_MAP_LABEL_DETAIL_LOGOS,
     PRINT_MAP_LABEL_DETAIL_NAMES,
     PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES,
     PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS,
@@ -1889,7 +1888,6 @@ function DirectoryNestedPlaceSection({
     onEditPersonalPlace,
     onEditResourceShortDescription,
     onOpenResourceNotes,
-    labelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
 }) {
     const nestedPlaceDetailPath = useDirectoryDetailPath(getGroupDetailPath(nestedPlace));
     const visibleRows = getVisibleGroupRows(nestedPlace);
@@ -1898,10 +1896,6 @@ function DirectoryNestedPlaceSection({
     const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(nestedPlace);
     const canRemovePrimaryResource = mode === 'owner'
         && Boolean(primaryManagedPlaceRow && onRemoveResource);
-    const normalizedLabelDetail = normalizePrintMapLabelDetail(labelDetail);
-    const showDescriptions = normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS
-        || normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
-    const showResourceRows = normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
 
     return (
         <div className={compactInteractive ? 'space-y-1.5' : 'space-y-2'}>
@@ -1922,16 +1916,14 @@ function DirectoryNestedPlaceSection({
                 />
             </div>
 
-            {showDescriptions ? (
-                <PrimaryMapShortDescription
-                    row={primaryManagedPlaceRow}
-                    mode={mode}
-                    compact={compactInteractive}
-                    onEditResourceShortDescription={onEditResourceShortDescription}
-                />
-            ) : null}
+            <PrimaryMapShortDescription
+                row={primaryManagedPlaceRow}
+                mode={mode}
+                compact={compactInteractive}
+                onEditResourceShortDescription={onEditResourceShortDescription}
+            />
 
-            {showResourceRows && canRemovePrimaryResource ? (
+            {canRemovePrimaryResource ? (
                 <div className="flex justify-end">
                     <OwnerMapResourceRemoveAction
                         row={primaryManagedPlaceRow}
@@ -1941,7 +1933,7 @@ function DirectoryNestedPlaceSection({
                 </div>
             ) : null}
 
-            {showResourceRows && visibleRows.length ? (
+            {visibleRows.length ? (
                 <div className={`border-l border-slate-100 ${compactInteractive ? 'space-y-1.5 pl-2.5' : 'space-y-2.5 pl-3.5'}`}>
                     {visibleRows.map((row, index) => (
                         <DirectoryResourceRow
@@ -2011,14 +2003,7 @@ function DirectoryPlaceGroupCard({
             ? visibleRows.filter((row) => printShortDescriptionEditing || hasRowShortDescription(row))
             : []);
     const useCompactNamesOnlyCard = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES;
-    const showInteractiveLogo = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_LOGOS
-        || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
-    const showInteractiveAddress = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES
-        || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
-    const showInteractiveDescriptions = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS
-        || normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
-    const showInteractiveResourceRows = normalizedPrintLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
-    const showPrimaryCardBadge = cardBadgeMode !== 'none' && (!interactive || showInteractiveLogo);
+    const showPrimaryCardBadge = cardBadgeMode !== 'none';
     const printNumberBadge = showPrintNumberBadge ? (
         <PrintResourceNumberBadge
             value={group.number}
@@ -2265,29 +2250,23 @@ function DirectoryPlaceGroupCard({
         const trailingNestedPlaces = group.nestedPlaces.slice(1);
         const primaryHoverLogoRow = getNestedPlaceLogoRow(primaryNestedPlace);
         const groupedCardContent = (
-            <div className={`grid ${showInteractiveLogo
-                ? (compactInteractive ? 'grid-cols-[2.625rem_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[2.875rem_minmax(0,1fr)] gap-x-3')
-                : 'grid-cols-1'}`}>
-                {showInteractiveLogo ? (
-                    <DirectoryPlaceBadge
-                        group={group}
-                        clusterColorData={clusterColorData}
-                        compactInteractive={compactInteractive}
-                        badgeMode={cardBadgeMode}
-                        badgeRow={getNestedPlaceBadgeRow(primaryNestedPlace)}
-                        hoverLogoRow={primaryHoverLogoRow}
-                        logoRevealed={logoRevealed}
-                        onViewOnMap={onViewOnMap}
-                    />
-                ) : null}
+            <div className={`grid ${compactInteractive ? 'grid-cols-[2.625rem_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[2.875rem_minmax(0,1fr)] gap-x-3'}`}>
+                <DirectoryPlaceBadge
+                    group={group}
+                    clusterColorData={clusterColorData}
+                    compactInteractive={compactInteractive}
+                    badgeMode={cardBadgeMode}
+                    badgeRow={getNestedPlaceBadgeRow(primaryNestedPlace)}
+                    hoverLogoRow={primaryHoverLogoRow}
+                    logoRevealed={logoRevealed}
+                    onViewOnMap={onViewOnMap}
+                />
                 <div className="min-w-0">
-                    {showInteractiveAddress ? (
-                        <DirectoryLocationMeta
-                            shortLocationLine={group.shortLocationLine}
-                            distanceLabel={group.distanceLabel}
-                            compact={compactInteractive}
-                        />
-                    ) : null}
+                    <DirectoryLocationMeta
+                        shortLocationLine={group.shortLocationLine}
+                        distanceLabel={group.distanceLabel}
+                        compact={compactInteractive}
+                    />
                     {primaryNestedPlace ? (
                         <div className={compactInteractive ? 'mt-2' : 'mt-2.5'}>
                             <DirectoryNestedPlaceSection
@@ -2299,22 +2278,19 @@ function DirectoryPlaceGroupCard({
                                 onEditPersonalPlace={onEditPersonalPlace}
                                 onEditResourceShortDescription={onEditResourceShortDescription}
                                 onOpenResourceNotes={onOpenResourceNotes}
-                                labelDetail={normalizedPrintLabelDetail}
                             />
                         </div>
                     ) : null}
                 </div>
 
                 {trailingNestedPlaces.length ? (
-                    <div className={`${showInteractiveLogo ? 'col-span-2' : ''} ${compactInteractive ? 'mt-3 space-y-3' : 'mt-4 space-y-4'}`}>
+                    <div className={`col-span-2 ${compactInteractive ? 'mt-3 space-y-3' : 'mt-4 space-y-4'}`}>
                         {trailingNestedPlaces.map((nestedPlace) => (
                             <div
                                 key={nestedPlace.placeKey}
-                                className={`grid items-start ${showInteractiveLogo
-                                    ? (compactInteractive ? 'grid-cols-[2.625rem_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[2.875rem_minmax(0,1fr)] gap-x-3')
-                                    : 'grid-cols-1'}`}
+                                className={`grid items-start ${compactInteractive ? 'grid-cols-[2.625rem_minmax(0,1fr)] gap-x-2.5' : 'grid-cols-[2.875rem_minmax(0,1fr)] gap-x-3'}`}
                             >
-                                {showInteractiveLogo && cardBadgeMode === 'logo' ? (
+                                {cardBadgeMode === 'logo' ? (
                                     <DirectoryPlaceBadge
                                         group={nestedPlace}
                                         clusterColorData={clusterColorData}
@@ -2323,13 +2299,13 @@ function DirectoryPlaceGroupCard({
                                         badgeRow={getNestedPlaceBadgeRow(nestedPlace)}
                                         onViewOnMap={onViewOnMap}
                                     />
-                                ) : showInteractiveLogo ? (
+                                ) : (
                                     <HiddenLogoSlot
                                         logoRow={getNestedPlaceLogoRow(nestedPlace)}
                                         revealed={logoRevealed}
                                         compactInteractive={compactInteractive}
                                     />
-                                ) : null}
+                                )}
                                 <DirectoryNestedPlaceSection
                                     nestedPlace={nestedPlace}
                                     mode={mode}
@@ -2339,7 +2315,6 @@ function DirectoryPlaceGroupCard({
                                     onEditPersonalPlace={onEditPersonalPlace}
                                     onEditResourceShortDescription={onEditResourceShortDescription}
                                     onOpenResourceNotes={onOpenResourceNotes}
-                                    labelDetail={normalizedPrintLabelDetail}
                                 />
                             </div>
                         ))}
@@ -2377,20 +2352,18 @@ function DirectoryPlaceGroupCard({
     const cardContent = (
         <>
             <div className={`flex items-start ${compactInteractive ? 'gap-2.5' : 'gap-3'}`}>
-                {showInteractiveLogo ? (
-                    <DirectoryPlaceBadge
-                        group={group}
-                        clusterColorData={clusterColorData}
-                        compactInteractive={compactInteractive}
-                        badgeMode={cardBadgeMode}
-                        badgeRow={getGroupBadgeRow(group)}
-                        hoverLogoRow={hoverLogoRow}
-                        logoRevealed={logoRevealed}
-                        onViewOnMap={onViewOnMap}
-                    />
-                ) : null}
+                <DirectoryPlaceBadge
+                    group={group}
+                    clusterColorData={clusterColorData}
+                    compactInteractive={compactInteractive}
+                    badgeMode={cardBadgeMode}
+                    badgeRow={getGroupBadgeRow(group)}
+                    hoverLogoRow={hoverLogoRow}
+                    logoRevealed={logoRevealed}
+                    onViewOnMap={onViewOnMap}
+                />
                 <div className="min-w-0 flex-1">
-                    {!usesV2CardLanguage && showInteractiveAddress ? (
+                    {!usesV2CardLanguage ? (
                         <DirectoryLocationMeta
                             shortLocationLine={resolvedLocationLine}
                             distanceLabel={group.distanceLabel}
@@ -2400,7 +2373,7 @@ function DirectoryPlaceGroupCard({
                     <div className={`${usesV2CardLanguage ? '' : (compactInteractive ? 'mt-2' : 'mt-2.5')} flex items-start gap-2`}>
                         <div className="min-w-0 flex-1">
                             {interactivePlaceTitle}
-                            {usesV2CardLanguage && showInteractiveAddress && hasLocationMeta ? (
+                            {usesV2CardLanguage && hasLocationMeta ? (
                                 <div className="mt-0">
                                     <DirectoryLocationMeta
                                         shortLocationLine={resolvedLocationLine}
@@ -2417,16 +2390,14 @@ function DirectoryPlaceGroupCard({
                             compact={compactInteractive}
                         />
                     </div>
-                    {showInteractiveDescriptions ? (
-                        <PrimaryMapShortDescription
-                            row={primaryManagedPlaceRow}
-                            mode={mode}
-                            compact={compactInteractive}
-                            onEditResourceShortDescription={onEditResourceShortDescription}
-                        />
-                    ) : null}
+                    <PrimaryMapShortDescription
+                        row={primaryManagedPlaceRow}
+                        mode={mode}
+                        compact={compactInteractive}
+                        onEditResourceShortDescription={onEditResourceShortDescription}
+                    />
 
-                    {showInteractiveResourceRows && canRemovePrimaryResource ? (
+                    {canRemovePrimaryResource ? (
                         <div className="flex justify-end">
                             <OwnerMapResourceRemoveAction
                                 row={primaryManagedPlaceRow}
@@ -2436,7 +2407,7 @@ function DirectoryPlaceGroupCard({
                         </div>
                     ) : null}
 
-                    {showInteractiveResourceRows && visibleRows.length ? (
+                    {visibleRows.length ? (
                         <div className={`border-t border-l border-slate-100 ${compactInteractive ? 'mt-2 space-y-1.5 pl-2.5 pt-2' : 'mt-3 space-y-2.5 pl-3.5 pt-3'}`}>
                             {visibleRows.map((row, index) => (
                                 <DirectoryResourceRow
@@ -2501,7 +2472,6 @@ function MobileMapFocusTrayPlaceCard({
     compactFullMap = false,
     cardVariant = 'default',
     stretchToTray = false,
-    labelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
 }) {
     const { t } = useLocale();
     const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
@@ -2530,7 +2500,6 @@ function MobileMapFocusTrayPlaceCard({
                 data-mobile-map-focus-tray-card="true"
                 group={group}
                 row={previewRow}
-                labelDetail={labelDetail}
                 framed
                 className={`group snap-start bg-white shadow-sm transition hover:border-brand-200 ${
                     stretchToTray
@@ -2627,7 +2596,6 @@ function MobileMapFocusTray({
     cardBadgeMode = 'logo',
     variant = 'default',
     cardVariant = 'default',
-    labelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
 }) {
     if (!selection) return null;
 
@@ -2674,7 +2642,6 @@ function MobileMapFocusTray({
                         compactFullMap={isFullMap}
                         cardVariant={cardVariant}
                         stretchToTray={stretchCompletePreview}
-                        labelDetail={labelDetail}
                     />
                 ))}
             </div>
@@ -3283,12 +3250,10 @@ export default function SharedMapDirectoryList({
     printResourceColumnCount = 2,
     printSideResourceColumnCount = 1,
     printResourcePageHeader = null,
-    printPagePaddingClassName = 'p-10',
     desktopScrollTargetRef = null,
     selectionPlaceKey = null,
     selectionScrollRequest = 0,
     mobileFocusCardVariant = 'default',
-    resourcePanelPlacement = 'responsive',
 }) {
     const { t } = useLocale();
     const location = useLocation();
@@ -3735,7 +3700,6 @@ export default function SharedMapDirectoryList({
                         clusterMapping={clusterMapping}
                         cardBadgeMode={cardBadgeMode}
                         cardVariant={mobileFocusCardVariant}
-                        labelDetail={printLabelDetail}
                     />
 
                     <div ref={mobileMapWrapperRef} className={mobileMapNotesWrapperClassName}>
@@ -3769,7 +3733,6 @@ export default function SharedMapDirectoryList({
                             logoRevealPlaceKeys={logoRevealPlaceKeys}
                             cardBadgeMode={cardBadgeMode}
                             showCategoryPills={showCategoryPills}
-                            printLabelDetail={printLabelDetail}
                         />
 
                         {shouldRenderUnmappedSections ? (
@@ -3835,7 +3798,6 @@ export default function SharedMapDirectoryList({
                                 cardBadgeMode={cardBadgeMode}
                                 variant="full-map"
                                 cardVariant={mobileFocusCardVariant}
-                                labelDetail={printLabelDetail}
                             />
                             <MapNotesEntryButton
                                 rows={noteResourceRows}
@@ -3844,76 +3806,6 @@ export default function SharedMapDirectoryList({
                             />
                         </div>
                     ) : null}
-                </div>
-            </DirectoryReturnPathContext.Provider>
-        );
-    }
-
-    if (interactive && resolvedLayout === 'desktop' && resourcePanelPlacement === 'below-map') {
-        const belowMapColumns = splitPrintResourceGroups(displayGroups, 2);
-        return (
-            <DirectoryReturnPathContext.Provider value={detailReturnPath}>
-                <div className={`space-y-5 ${className}`} data-map-studio-resource-panel="below-map">
-                    <div ref={desktopMapWrapperRef} className={desktopMapWrapperClassName}>
-                        {renderDesktopMap ? React.cloneElement(renderDesktopMap(), { onClusterChange: setClusterMapping }) : null}
-                        {showMapLegend ? <MapLegend /> : null}
-                        <MapNotesEntryButton
-                            rows={noteResourceRows}
-                            mode={mode}
-                            onOpen={openResourceNotes}
-                        />
-                    </div>
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        {belowMapColumns.map((columnGroups, index) => (
-                            <DirectoryGroupColumn
-                                key={`studio-below-map-column-${index}`}
-                                groups={columnGroups}
-                                mode={mode}
-                                interactive
-                                compactInteractive={compactInteractiveDesktop}
-                                fullCardLink={mode !== 'owner'}
-                                onViewOnMap={handleDirectoryViewOnMap}
-                                onHoverPlaceStart={onHoverPlaceStart}
-                                onHoverPlaceEnd={onHoverPlaceEnd}
-                                onRemoveResource={onRemoveResource}
-                                onEditPersonalPlace={onEditPersonalPlace}
-                                onEditResourceShortDescription={onEditResourceShortDescription}
-                                onUpdateResourceNotes={onUpdateResourceNotes}
-                                onOpenResourceNotes={openResourceNotes}
-                                canSaveResources={canSaveResources}
-                                highlightPlaceKey={flashPlaceKey}
-                                highlightPlaceKeys={highlightPlaceKeys}
-                                sectionRefs={sectionRefs}
-                                clusterMapping={clusterMapping}
-                                showDesktopHoverLogo={showDesktopHoverLogo}
-                                logoRevealPlaceKeys={logoRevealPlaceKeys}
-                                cardBadgeMode={cardBadgeMode}
-                                showCategoryPills={showCategoryPills}
-                                printLabelDetail={printLabelDetail}
-                            />
-                        ))}
-                    </div>
-                    {shouldRenderUnmappedSections ? (
-                        <DirectoryUnmappedSection
-                            rows={unmappedRows}
-                            interactive
-                            mode={mode}
-                            canSaveResources={canSaveResources}
-                            onRemoveResource={onRemoveResource}
-                            onEditResourceShortDescription={onEditResourceShortDescription}
-                            onOpenResourceNotes={openResourceNotes}
-                        />
-                    ) : null}
-                    <MapNotesOverlay
-                        open={notesPanel.open}
-                        rows={noteResourceRows}
-                        selectedKey={notesPanel.selectedKey}
-                        mode={mode}
-                        onSelectResource={selectResourceNotes}
-                        onBackToList={backToNotesList}
-                        onClose={closeResourceNotes}
-                        onUpdateResourceNotes={onUpdateResourceNotes}
-                    />
                 </div>
             </DirectoryReturnPathContext.Provider>
         );
@@ -3957,7 +3849,7 @@ export default function SharedMapDirectoryList({
                 <div className={`space-y-8 ${className}`} data-print-resources-below="true">
                     <section
                         ref={desktopMapWrapperRef}
-                        className={`bg-white ${printPagePaddingClassName} ${desktopMapWrapperClassName}`.trim()}
+                        className={`bg-white p-10 ${desktopMapWrapperClassName}`.trim()}
                         data-print-full-map-page="true"
                         data-print-export-page="map"
                     >
@@ -3965,7 +3857,7 @@ export default function SharedMapDirectoryList({
                     </section>
 
                     <section
-                        className={`bg-white ${printPagePaddingClassName} [break-before:page] [page-break-before:always]`}
+                        className="bg-white p-10 [break-before:page] [page-break-before:always]"
                         data-print-resource-page="true"
                         data-print-export-page="resources"
                     >

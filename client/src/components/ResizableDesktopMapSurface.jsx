@@ -6,8 +6,6 @@ import {
     DESKTOP_MAP_HEIGHT_KEYBOARD_STEP_PX,
     clampDesktopMapHeight,
     getDesktopMapHeightBounds,
-    getDesktopMapStudioHeightBounds,
-    resolveDesktopMapStudioHeightPreset,
 } from '../lib/resizableMapFrame.js';
 
 function getInitialBounds() {
@@ -17,23 +15,15 @@ function getInitialBounds() {
 export default function ResizableDesktopMapSurface({
     mapElement,
     onClusterChange,
-    heightPreset = null,
-    heightResetKey = '',
 }) {
     const { t } = useLocale();
-    const initialBounds = heightPreset
-        ? getDesktopMapStudioHeightBounds(typeof window === 'undefined' ? 900 : window.innerHeight)
-        : getInitialBounds();
-    const initialHeight = heightPreset
-        ? resolveDesktopMapStudioHeightPreset(heightPreset, initialBounds)
-        : initialBounds.defaultHeight;
+    const initialBounds = getInitialBounds();
     const boundsRef = useRef(initialBounds);
-    const heightPresetRef = useRef(heightPreset);
-    const heightRef = useRef(initialHeight);
+    const heightRef = useRef(initialBounds.defaultHeight);
     const dragRef = useRef(null);
     const resizeFrameRef = useRef(null);
     const bodyStyleRef = useRef(null);
-    const [height, setHeight] = useState(initialHeight);
+    const [height, setHeight] = useState(initialBounds.defaultHeight);
 
     function restoreBodyInteraction() {
         if (!bodyStyleRef.current || typeof document === 'undefined') return;
@@ -112,27 +102,12 @@ export default function ResizableDesktopMapSurface({
     }
 
     function resetHeight() {
-        applyHeight(heightPresetRef.current
-            ? resolveDesktopMapStudioHeightPreset(heightPresetRef.current, boundsRef.current)
-            : boundsRef.current.defaultHeight);
+        applyHeight(boundsRef.current.defaultHeight);
     }
 
     useEffect(() => {
-        heightPresetRef.current = heightPreset;
-        const nextBounds = heightPreset
-            ? getDesktopMapStudioHeightBounds(window.innerHeight)
-            : getDesktopMapHeightBounds(window.innerHeight);
-        boundsRef.current = nextBounds;
-        applyHeight(heightPreset
-            ? resolveDesktopMapStudioHeightPreset(heightPreset, nextBounds)
-            : nextBounds.defaultHeight);
-    }, [heightPreset, heightResetKey]);
-
-    useEffect(() => {
         function handleViewportResize() {
-            const nextBounds = heightPresetRef.current
-                ? getDesktopMapStudioHeightBounds(window.innerHeight)
-                : getDesktopMapHeightBounds(window.innerHeight);
+            const nextBounds = getDesktopMapHeightBounds(window.innerHeight);
             boundsRef.current = nextBounds;
             applyHeight(heightRef.current);
         }
