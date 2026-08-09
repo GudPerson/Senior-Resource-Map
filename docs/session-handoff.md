@@ -21,10 +21,11 @@ Last updated: 2026-08-10 (Asia/Singapore)
   unchanged.
 - Source commit `61ac302bd` is on `main` and
   `codex/map-studio-print-card-parity`. Worker version
-  `81a20bd0-4487-40a6-9ad5-5e4fbd66b4a0` and exact Pages deployment
-  `5d7a3bc1` are live. All 82 local, immutable, and settled custom-domain files
-  match at aggregate comparison digest
-  `b60dae0b845703a35e08df47feb9848cca3f30469436a4ab932dde3c24f346b5`.
+  `81a20bd0-4487-40a6-9ad5-5e4fbd66b4a0` is live. Pages was manually
+  re-published from the exact validated artifact after the release-record push
+  triggered an incomplete Git build. All 82 local, final-immutable, and
+  settled custom-domain files match at canonical path/hash digest
+  `cfbc04c5420a0814830b7fab20c3030e2036b8033c6b4cc01d3e44df5a1f54b9`.
 - Focused 85/85, full server, client 630/630, map lockdown 84/84, ordinary and
   exact production builds, diff check, API/header/privacy probes, old-snapshot
   fallback, and signed-in disposable-map frozen-update UAT pass. The disposable

@@ -56,10 +56,12 @@ Rules:
   tests; map lockdown passed 84/84; ordinary and exact six-root production
   client builds passed; and `git diff --check` passed. Source `61ac302bd` was
   pushed to the candidate branch and fast-forwarded to `main`. Worker version
-  `81a20bd0-4487-40a6-9ad5-5e4fbd66b4a0` was deployed before exact Pages
-  release `5d7a3bc1`. All 82 local, immutable, and settled custom-domain files
-  matched MIME, bytes, and SHA-256 at aggregate comparison digest
-  `b60dae0b845703a35e08df47feb9848cca3f30469436a4ab932dde3c24f346b5`.
+  `81a20bd0-4487-40a6-9ad5-5e4fbd66b4a0` was deployed before Pages. The
+  release-record push then triggered an incomplete Git build, so Pages was
+  manually re-published from the exact validated `client/dist`. All 82 local,
+  final-immutable, and settled custom-domain files matched MIME, bytes, and
+  SHA-256 at canonical path/hash digest
+  `cfbc04c5420a0814830b7fab20c3030e2036b8033c6b4cc01d3e44df5a1f54b9`.
 - Production boundary evidence: API health and a pre-envelope snapshot's
   stable defaults passed. Ordinary routes retained XFO DENY and
   `frame-ancestors 'none'`; the embed retained `no-store`, no XFO, and exact

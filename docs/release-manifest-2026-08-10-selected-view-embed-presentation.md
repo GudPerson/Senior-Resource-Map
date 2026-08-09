@@ -41,11 +41,11 @@
 - `git diff --check`: passed.
 - Worker version `81a20bd0-4487-40a6-9ad5-5e4fbd66b4a0` is live on
   `api.carearound.sg`.
-- Exact Pages deployment `5d7a3bc1` is live at
-  `https://5d7a3bc1.senior-resource-map.pages.dev` and on
-  `app.carearound.sg`. All 82 deployable files match the validated local
-  artifact by MIME, bytes, and SHA-256; comparison-register digest:
-  `b60dae0b845703a35e08df47feb9848cca3f30469436a4ab932dde3c24f346b5`.
+- Pages was re-published manually from the exact validated `client/dist` after
+  the release-record push triggered an incomplete Git build. All 82 deployable
+  files on the final immutable deployment and `app.carearound.sg` match the
+  local artifact by MIME, bytes, and SHA-256; canonical path/hash register:
+  `cfbc04c5420a0814830b7fab20c3030e2036b8033c6b4cc01d3e44df5a1f54b9`.
 - Ordinary app routes retain XFO DENY and `frame-ancestors 'none'`. The
   production embed document remains `no-store`, has no XFO, and uses only its
   exact configured frame ancestors. The embed API is public, guest-only, and
