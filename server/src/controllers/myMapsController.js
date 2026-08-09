@@ -40,7 +40,11 @@ import { normalizeRole } from '../utils/roles.js';
 import { createShareToken } from '../utils/shareTokens.js';
 import { MAX_MAP_EMBED_ORIGINS, normalizeMapEmbedOrigins } from '../utils/mapEmbed.js';
 import { buildEmbeddedPrintAnnotationSnapshot } from './printAnnotationsController.js';
-import { buildEmbeddedMapPresentationSnapshot } from '../utils/embeddedMapPresentation.js';
+import {
+    buildEmbeddedMapPresentationSnapshot,
+    buildEmbeddedMapResourceAllowlist,
+    filterEmbeddedMapAnnotationsByDesign,
+} from '../utils/embeddedMapPresentation.js';
 import { formatMapStudioDocument } from '../utils/mapStudioDocument.js';
 import {
     optionalOneLineTextSchema,
@@ -752,12 +756,14 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
     assertDirectoryUser(user);
     const map = await requireOwnedMap(db, user.id, mapId, true, true);
     let embeddedPresentation = buildEmbeddedMapPresentationSnapshot(null);
+    let selectedStudioView = null;
     if (options.studioViewId) {
         const studioDocument = formatMapStudioDocument(mapId, map.studioDocument).document;
         const selectedView = studioDocument?.views?.find((view) => view.id === options.studioViewId);
         if (!selectedView) {
             throw createHttpError(409, 'Save the selected Map Studio view before updating the shared link');
         }
+        selectedStudioView = selectedView;
         embeddedPresentation = buildEmbeddedMapPresentationSnapshot(selectedView.design);
     }
     const finalResolutionContext = resolutionContext || await createSavedAssetResolutionContext(db, user);
@@ -809,13 +815,19 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
         );
     const embeddedResourceContacts = buildEmbeddedResourceContactSnapshot(sharedSnapshot);
     const publicSharedSnapshot = stripEmbeddedResourceContactsFromDirectory(sharedSnapshot);
+    const embeddedResourceKeys = selectedStudioView
+        ? buildEmbeddedMapResourceAllowlist(publicSharedSnapshot, selectedStudioView.design)
+        : null;
+    const embeddedAnnotations = filterEmbeddedMapAnnotationsByDesign(
+        buildEmbeddedPrintAnnotationSnapshot(map.printAnnotationDocument?.annotations),
+        selectedStudioView?.design,
+    );
     await persistShareSnapshot(db, mapId, shareToken, {
         ...publicSharedSnapshot,
-        embeddedAnnotations: buildEmbeddedPrintAnnotationSnapshot(
-            map.printAnnotationDocument?.annotations,
-        ),
+        embeddedAnnotations,
         embeddedResourceContacts,
         embeddedPresentation,
+        ...(embeddedResourceKeys ? { embeddedResourceKeys } : {}),
     }, sharedAt);
 
     const updated = await requireOwnedMap(db, user.id, mapId, true);

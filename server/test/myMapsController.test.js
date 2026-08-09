@@ -1603,7 +1603,9 @@ test('publishMyMap freezes only the selected saved view public presentation', as
     };
     studioDocument.views[0].design.layers.resources = 'hide';
     studioDocument.views[0].design.layers.annotations = 'hide';
-    studioDocument.views[0].design.layers.hiddenResourceLayerKeys = ['hard:29'];
+    studioDocument.views[0].design.layers.hiddenResourceLayerKeys = [
+        'resource:carearound:category:active ageing centre',
+    ];
     studioDocument.views[0].design.layers.hiddenAnnotationIds = ['private-annotation'];
     studioDocument.views[0].design.layout.mapSide = 'right';
     const db = createFakeDb({
@@ -1637,10 +1639,13 @@ test('publishMyMap freezes only the selected saved view public presentation', as
         pinsVisible: false,
         annotationsVisible: false,
     });
+    assert.deepEqual(snapshot.embeddedResourceKeys, []);
+    assert.deepEqual(snapshot.embeddedAnnotations, []);
     assert.equal(snapshot.studioViewId, undefined);
     assert.equal(snapshot.studioDocument, undefined);
     assert.equal(snapshot.design, undefined);
     assert.equal(JSON.stringify(snapshot).includes('private-annotation'), false);
+    assert.equal(JSON.stringify(snapshot).includes('hiddenResourceLayerKeys'), false);
     assert.equal(JSON.stringify(snapshot).includes('mapSide'), false);
     assert.equal(JSON.stringify(snapshot).includes('ownerOnlyInjection'), false);
 

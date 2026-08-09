@@ -9,7 +9,10 @@ import {
 } from '../utils/embeddedResourceContacts.js';
 import { normalizeMyMapCategoryOrder } from '../utils/myMapCategoryOrder.js';
 import { normalizeMapEmbedOrigins } from '../utils/mapEmbed.js';
-import { normalizeEmbeddedMapPresentationSnapshot } from '../utils/embeddedMapPresentation.js';
+import {
+    filterEmbeddedMapDirectoryByResourceAllowlist,
+    normalizeEmbeddedMapPresentationSnapshot,
+} from '../utils/embeddedMapPresentation.js';
 import { buildMyMapDirectory, normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
 import { normalizeRole } from '../utils/roles.js';
 import { translateSharedMapNotes } from '../utils/sharedNoteTranslations.js';
@@ -142,12 +145,16 @@ function normalizeSnapshotDirectory(map, viewerUser, {
         embeddedAnnotations,
         embeddedResourceContacts,
         embeddedPresentation,
+        embeddedResourceKeys,
         printAnnotations,
         ...sharedSnapshot
     } = snapshot;
     void printAnnotations;
+    const publicSnapshot = includeEmbeddedPresentation
+        ? filterEmbeddedMapDirectoryByResourceAllowlist(sharedSnapshot, embeddedResourceKeys)
+        : sharedSnapshot;
     const directory = {
-        ...sharedSnapshot,
+        ...publicSnapshot,
         ...(includeEmbeddedAnnotations ? {
             printAnnotations: normalizeEmbeddedPrintAnnotationSnapshot(embeddedAnnotations),
         } : {}),

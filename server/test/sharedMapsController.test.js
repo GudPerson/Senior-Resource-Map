@@ -410,6 +410,7 @@ test('embedded map config and directory require live opt-in settings', async () 
                     pinsVisible: false,
                     annotationsVisible: false,
                 },
+                embeddedResourceKeys: ['hard-29'],
                 printAnnotations: [{ id: 'untrusted-alias' }],
             }),
         }],
@@ -440,6 +441,7 @@ test('embedded map config and directory require live opt-in settings', async () 
         annotationsVisible: false,
     });
     assert.equal(directory.assets, undefined);
+    assert.equal(directory.embeddedResourceKeys, undefined);
     assert.equal(directory.places[0].rows[0].notes, undefined);
     assert.equal(directory.places[0].rows[0].saveEligible, undefined);
     assert.equal(directory.places[0].rows[0].access, undefined);
@@ -454,9 +456,38 @@ test('embedded map config and directory require live opt-in settings', async () 
     assert.equal(ordinarySharedDirectory.embeddedAnnotations, undefined);
     assert.equal(ordinarySharedDirectory.embeddedResourceContacts, undefined);
     assert.equal(ordinarySharedDirectory.embeddedPresentation, undefined);
+    assert.equal(ordinarySharedDirectory.embeddedResourceKeys, undefined);
     assert.equal(ordinarySharedDirectory.places[0].rows[0].website, undefined);
     assert.equal(ordinarySharedDirectory.places[0].rows[0].contactPhone, undefined);
     assert.equal(ordinarySharedDirectory.places[0].rows[0].socialLinks, undefined);
+});
+
+test('embedded resource allowlist filters only the map-only embed snapshot', async () => {
+    const db = createFakeDb({
+        maps: [createSharedMap({
+            embedEnabled: true,
+            embedAllowedOrigins: ['https://www.example.org.sg'],
+        })],
+        mapAssets: [createMapAsset()],
+        shareSnapshots: [{
+            mapId: 3,
+            shareToken: 'shared-token',
+            snapshot: createSnapshotDirectory({
+                embeddedResourceKeys: [],
+            }),
+        }],
+        hardAsset: createHardAsset(),
+    });
+
+    const embeddedDirectory = await getEmbeddedMapDirectory(db, 'shared-token');
+    assert.deepEqual(embeddedDirectory.places, []);
+    assert.equal(embeddedDirectory.summary.resourceCount, 0);
+    assert.equal(embeddedDirectory.summary.placeCount, 0);
+    assert.equal(embeddedDirectory.summary.mappablePlaceCount, 0);
+
+    const ordinarySharedDirectory = await getSharedMapDirectory(db, 'shared-token', GUEST_USER);
+    assert.equal(ordinarySharedDirectory.places.length, 1);
+    assert.equal(ordinarySharedDirectory.summary.resourceCount, 1);
 });
 
 test('embedded map stays unavailable while the normal shared map remains readable', async () => {
