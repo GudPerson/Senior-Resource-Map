@@ -40,6 +40,7 @@ export default function MyMapV2PreviewScaffold({
     onResetView,
     onMapClick,
     mapOverlay = null,
+    mapSurfaceOverlay = null,
     toolbar = null,
     studioPanel = null,
     useDesktopBodyLayout = useDesktopLayout,
@@ -86,6 +87,10 @@ export default function MyMapV2PreviewScaffold({
             ? V2_TALL_MOBILE_MAP_HEIGHT_CLASS
             : V2_MOBILE_MAP_HEIGHT_CLASS;
     const directoryMapRuntime = mapStudioRuntime?.directoryMap || null;
+    const studioLayout = mapStudioRuntime?.layout || null;
+    const desktopGridClassName = studioLayout?.mapWidth === 'extra-wide'
+        ? 'lg:gap-4 lg:grid-cols-[minmax(210px,0.68fr)_minmax(500px,1.55fr)_minmax(220px,0.72fr)] xl:gap-5 xl:grid-cols-[minmax(280px,0.72fr)_minmax(720px,1.75fr)_minmax(300px,0.78fr)] 2xl:grid-cols-[minmax(320px,0.8fr)_minmax(840px,1.9fr)_minmax(340px,0.85fr)]'
+        : V2_DESKTOP_GRID_CLASS;
 
     const renderMap = (mapHeightClassName) => (
         <DirectoryMap
@@ -107,9 +112,9 @@ export default function MyMapV2PreviewScaffold({
             interactive={!suspendMapInteraction}
             markerMode={directoryMapRuntime?.markerMode || 'category-bubble'}
             markerScale={directoryMapRuntime?.markerScale || 1}
-            pinBadgeMode="none"
-            pinCategoryIconMode="none"
-            clusterMarkerMode="none"
+            pinBadgeMode={directoryMapRuntime?.pinBadgeMode || 'none'}
+            pinCategoryIconMode={directoryMapRuntime?.pinCategoryIconMode || 'none'}
+            clusterMarkerMode={directoryMapRuntime?.clusterMarkerMode || 'none'}
             showPins={mapStudioRuntime?.resourceLayer?.visible ?? true}
             placeNumberByKey={presentation.placeNumberByKey}
             emptyLabel={emptyLabel}
@@ -148,6 +153,7 @@ export default function MyMapV2PreviewScaffold({
             mapViewState={directoryMapRuntime?.mapViewState ?? null}
             onMapViewStateChange={mapStudioRuntime?.onMapViewStateChange ?? null}
             mapOverlay={mapOverlay}
+            surfaceOverlay={mapSurfaceOverlay}
             surfaceStatus={mapSurfaceStatus}
         />
     );
@@ -179,7 +185,9 @@ export default function MyMapV2PreviewScaffold({
 
                 {resourceCount === 0 ? (
                     <div className="space-y-4">
-                        {onMapClick ? renderMap(useDesktopLayout ? desktopMapHeightClass : mobileMapHeightClass) : null}
+                        {onMapClick || mapOverlay || mapSurfaceOverlay
+                            ? renderMap(useDesktopLayout ? desktopMapHeightClass : mobileMapHeightClass)
+                            : null}
                         {emptyState}
                     </div>
                 ) : (
@@ -200,13 +208,18 @@ export default function MyMapV2PreviewScaffold({
                         selectionScrollRequest={selectionScrollRequest}
                         showDesktopHoverLogo
                         showMapLegend={false}
-                        cardBadgeMode="logo"
+                        cardBadgeMode={mapStudioRuntime?.cardIdentity?.mode || 'logo'}
                         mobileFocusCardVariant="complete-preview"
                         printLabelDetail={mapStudioRuntime?.labels?.detail}
                         resourcePanelPlacement={mapStudioRuntime?.layout?.resourcePanel}
+                        interactiveLayoutPreset={mapStudioRuntime?.layout?.preset}
+                        interactiveMapSide={mapStudioRuntime?.layout?.mapSide}
+                        interactiveMapWidth={mapStudioRuntime?.layout?.mapWidth}
+                        interactiveResourceColumnCount={mapStudioRuntime?.layout?.resourceColumnCount}
+                        interactiveSideResourceColumnCount={mapStudioRuntime?.layout?.sideResourceColumnCount}
                         preserveMobileMapFrameInFlow={preserveMobileMapFrameInFlow}
                         desktopScrollTargetRef={desktopScrollTargetRef}
-                        desktopGridClassName={V2_DESKTOP_GRID_CLASS}
+                        desktopGridClassName={desktopGridClassName}
                         renderDesktopMap={() => (
                             presentation.pins.length ? (
                                 <ResizableDesktopMapSurface

@@ -11,6 +11,7 @@ import {
     normalizePrintMapLabelDetail,
 } from '../lib/printMapState.js';
 import { getSocialLinkEntries } from '../lib/socialLinks.js';
+import { PersonalPlaceCategoryIcon } from '../lib/personalPlaceCategories.jsx';
 
 const SOCIAL_ICON_BUTTON_CLASSES = {
     facebook: 'border-[#1877f2] bg-[#1877f2] text-white hover:border-[#145dbd] hover:bg-[#145dbd]',
@@ -111,6 +112,51 @@ function ResourcePreviewLogo({ row }) {
     );
 }
 
+function ResourcePreviewIdentity({
+    row,
+    mode = 'logo',
+    number = null,
+    color = '',
+    iconUrl = '',
+    iconKey = '',
+}) {
+    if (mode === 'logo') return <ResourcePreviewLogo row={row} />;
+    const accent = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(color || '').trim())
+        ? color
+        : '#0f766e';
+    const shellClassName = 'flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-white text-base font-black shadow-sm sm:h-14 sm:w-14 sm:rounded-2xl';
+
+    if (mode === 'number') {
+        return (
+            <span
+                className={`${shellClassName} text-white`}
+                style={{ backgroundColor: accent, borderColor: accent }}
+                aria-label={number ? `Map number ${number}` : undefined}
+            >
+                {number || '•'}
+            </span>
+        );
+    }
+
+    return (
+        <span
+            className={shellClassName}
+            style={{ borderColor: accent, color: accent }}
+            aria-hidden="true"
+        >
+            {iconUrl ? (
+                <img src={iconUrl} alt="" className="h-full w-full object-contain p-1.5" />
+            ) : iconKey ? (
+                <PersonalPlaceCategoryIcon iconKey={iconKey} size={24} strokeWidth={2.3} />
+            ) : (
+                <span className="text-lg font-black">
+                    {String(row?.name || '').trim().slice(0, 1).toUpperCase() || 'C'}
+                </span>
+            )}
+        </span>
+    );
+}
+
 function ResourceContactLinks({ row, detailAction = null }) {
     const { t } = useLocale();
     const websiteHref = normalizeContactHref(row?.website);
@@ -172,6 +218,11 @@ export default function CompactResourcePreviewCard({
     framed = false,
     reserveCloseSpace = false,
     labelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
+    identityMode = 'logo',
+    identityNumber = null,
+    identityColor = '',
+    identityIconUrl = '',
+    identityIconKey = '',
     className = '',
     ...articleProps
 }) {
@@ -180,6 +231,7 @@ export default function CompactResourcePreviewCard({
     const normalizedLabelDetail = normalizePrintMapLabelDetail(labelDetail);
     const showLogo = normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_LOGOS
         || normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
+    const showIdentity = identityMode !== 'logo' || showLogo;
     const showAddress = normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES
         || normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const showDescription = normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS
@@ -192,7 +244,16 @@ export default function CompactResourcePreviewCard({
             className={`text-sm ${framed ? 'rounded-2xl border border-slate-200 p-2 sm:p-3' : ''} ${className}`.trim()}
         >
             <div className={`flex items-start gap-2 sm:gap-3 ${reserveCloseSpace ? 'pr-10 sm:pr-11' : ''}`}>
-                {showLogo ? <ResourcePreviewLogo row={row} /> : null}
+                {showIdentity ? (
+                    <ResourcePreviewIdentity
+                        row={row}
+                        mode={identityMode}
+                        number={identityNumber}
+                        color={identityColor}
+                        iconUrl={identityIconUrl}
+                        iconKey={identityIconKey}
+                    />
+                ) : null}
                 <div className="min-w-0 flex-1">
                     <p className="text-sm font-extrabold leading-4 text-slate-950 sm:leading-5">{preview.name}</p>
                     {showAddress && preview.address ? (

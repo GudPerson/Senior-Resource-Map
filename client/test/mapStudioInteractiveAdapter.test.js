@@ -9,8 +9,8 @@ import {
 import {
     MAP_STUDIO_CAMERA_FIXED,
     MAP_STUDIO_MAP_HEIGHT_TALL,
+    MAP_STUDIO_PIN_STYLE_CATEGORY_ICON,
     MAP_STUDIO_PIN_STYLE_NUMBERED,
-    MAP_STUDIO_RESOURCE_PANEL_BESIDE,
     createMapStudioDesign,
 } from '../src/lib/mapStudioState.js';
 import {
@@ -31,6 +31,9 @@ test('interactive model preserves the locked category-bubble defaults', () => {
         mapViewState: null,
         markerMode: 'category-bubble',
         markerScale: 1,
+        pinBadgeMode: 'none',
+        pinCategoryIconMode: 'none',
+        clusterMarkerMode: 'none',
     });
     assert.deepEqual(model.annotationLayer, {
         visible: true,
@@ -39,9 +42,7 @@ test('interactive model preserves the locked category-bubble defaults', () => {
     assert.equal(model.layout.mapHeight, 'standard');
     assert.deepEqual(model.supportedPaths, MAP_STUDIO_INTERACTIVE_SUPPORTED_PATHS);
     assert.deepEqual(model.deferredPaths, MAP_STUDIO_INTERACTIVE_DEFERRED_PATHS);
-    assert.equal('clusterMarkerMode' in model.directoryMap, false);
-    assert.equal('pinBadgeMode' in model.directoryMap, false);
-    assert.equal('pinCategoryIconMode' in model.directoryMap, false);
+    assert.deepEqual(model.cardIdentity, { mode: 'logo' });
 });
 
 test('interactive model maps only proven DirectoryMap design seams', () => {
@@ -57,7 +58,11 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
     design.layers.hiddenResourceLayerKeys = ['resource:carearound'];
     design.layers.hiddenAnnotationIds = ['annotation-1'];
     design.layout.mapHeight = MAP_STUDIO_MAP_HEIGHT_TALL;
-    design.layout.resourcePanel = MAP_STUDIO_RESOURCE_PANEL_BESIDE;
+    design.layout.preset = 'map-focus';
+    design.layout.mapSide = 'right';
+    design.layout.mapWidth = 'extra-wide';
+    design.layout.resourceColumnCount = 4;
+    design.layout.sideResourceColumnCount = 2;
 
     const model = buildMapStudioInteractiveModel(design);
 
@@ -67,6 +72,9 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
         mapViewState: { center: [1.385, 103.744], zoom: 16.5 },
         markerMode: 'print-badge',
         markerScale: 1.25,
+        pinBadgeMode: 'none',
+        pinCategoryIconMode: 'none',
+        clusterMarkerMode: 'bubble',
     });
     assert.deepEqual(model.annotationLayer, {
         visible: false,
@@ -80,10 +88,26 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
     assert.deepEqual(model.labels, { detail: 'full' });
     assert.deepEqual(model.layout, {
         mapHeight: 'tall',
+        preset: 'map-focus',
         resourcePanel: 'beside-map',
+        mapSide: 'right',
+        mapWidth: 'extra-wide',
+        resourceColumnCount: 4,
+        sideResourceColumnCount: 2,
         resourcePanelSupport: 'supported',
     });
     assert.deepEqual(model.deferredPaths, []);
+});
+
+test('category icon pins and cards share one identity while retaining bubble clustering', () => {
+    const design = createMapStudioDesign();
+    design.pins.style = MAP_STUDIO_PIN_STYLE_CATEGORY_ICON;
+    const model = buildMapStudioInteractiveModel(design);
+
+    assert.equal(model.directoryMap.markerMode, 'category-icon');
+    assert.equal(model.directoryMap.pinCategoryIconMode, 'auto');
+    assert.equal(model.directoryMap.clusterMarkerMode, 'bubble');
+    assert.equal(model.cardIdentity.mode, 'category-icon');
 });
 
 test('interactive model returns cloned camera and layer arrays', () => {

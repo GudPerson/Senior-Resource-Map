@@ -8,10 +8,15 @@ import {
 } from 'react';
 import {
     AlertTriangle,
+    AlignLeft,
     Copy,
     Layers3,
+    ListOrdered,
     LoaderCircle,
     Pencil,
+    PenLine,
+    Printer,
+    MapPin,
     Plus,
     RefreshCw,
     RotateCcw,
@@ -62,6 +67,17 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
     resourceLayerCatalog = null,
     annotationLayerCatalog = [],
     onOwnerSessionChange = null,
+    onArrangeCategories = null,
+    canArrangeCategories = true,
+    onAddPersonalPlace = null,
+    personalPlacePickerActive = false,
+    shortDescriptionMode = false,
+    onToggleShortDescription = null,
+    annotationEditing = false,
+    canEditAnnotations = false,
+    annotationsReady = false,
+    onToggleAnnotations = null,
+    onOpenExport = null,
 }, ref) {
     const { t } = useLocale();
     const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
@@ -503,6 +519,34 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                                     {t('mapStudioOpenDesignSettings')}
                                 </button>
                             ) : null}
+                        </div>
+                        <div
+                            className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2"
+                            aria-label={t('mapStudioMapTools')}
+                            data-map-studio-map-tools="true"
+                        >
+                            <button type="button" onClick={onArrangeCategories} disabled={!canArrangeCategories} className="btn-ghost min-h-11 flex-1 justify-center border border-slate-200 bg-white px-3 text-xs text-slate-700 disabled:opacity-45 sm:flex-none sm:text-sm">
+                                <ListOrdered size={16} aria-hidden="true" />
+                                {t('arrangeCategories')}
+                            </button>
+                            <button type="button" onClick={onAddPersonalPlace} className={`btn-ghost min-h-11 flex-1 justify-center border bg-white px-3 text-xs sm:flex-none sm:text-sm ${personalPlacePickerActive ? 'border-brand-600 text-brand-800' : 'border-slate-200 text-slate-700'}`} aria-pressed={personalPlacePickerActive}>
+                                <MapPin size={16} aria-hidden="true" />
+                                {personalPlacePickerActive ? t('cancelAddPersonalPlace') : t('addPersonalPlace')}
+                            </button>
+                            <button type="button" onClick={onToggleShortDescription} className={`btn-ghost min-h-11 flex-1 justify-center border bg-white px-3 text-xs sm:flex-none sm:text-sm ${shortDescriptionMode ? 'border-brand-600 text-brand-800' : 'border-slate-200 text-slate-700'}`} aria-pressed={shortDescriptionMode}>
+                                <AlignLeft size={16} aria-hidden="true" />
+                                {t('addShortDescription')}
+                            </button>
+                            {canEditAnnotations ? (
+                                <button type="button" onClick={onToggleAnnotations} disabled={!annotationsReady} className={`btn-ghost min-h-11 flex-1 justify-center border bg-white px-3 text-xs disabled:cursor-wait disabled:opacity-45 sm:flex-none sm:text-sm ${annotationEditing ? 'border-brand-600 text-brand-800' : 'border-slate-200 text-slate-700'}`} aria-pressed={annotationEditing}>
+                                    <PenLine size={16} aria-hidden="true" />
+                                    {t('mapStudioAnnotate')}
+                                </button>
+                            ) : null}
+                            <button type="button" onClick={onOpenExport} className="btn-ghost min-h-11 flex-1 justify-center border border-slate-200 bg-white px-3 text-xs text-slate-700 sm:flex-none sm:text-sm">
+                                <Printer size={16} aria-hidden="true" />
+                                {t('mapStudioExportPngPdf')}
+                            </button>
                         </div>
                         {ownerState.session.mode === MAP_STUDIO_MODE_DESIGN && designSettingsOpen ? (
                             <div

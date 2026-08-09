@@ -87,6 +87,7 @@ import {
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { usePrintAnnotations } from '../hooks/usePrintAnnotations.js';
+import useInteractiveMapAnnotationEditor from '../hooks/useInteractiveMapAnnotationEditor.jsx';
 import {
     PRINT_MAP_ANNOTATION_LAYER_HIDE,
     PRINT_MAP_ANNOTATION_LAYER_SHOW,
@@ -1306,6 +1307,11 @@ export default function MyMapDetailPage() {
             mapStudioRuntimeSnapshot.activeViewId,
             mapStudioRuntimeSnapshot.design?.camera?.mode,
             mapStudioInteractiveModel?.layout?.mapHeight,
+            mapStudioInteractiveModel?.layout?.preset,
+            mapStudioInteractiveModel?.layout?.mapSide,
+            mapStudioInteractiveModel?.layout?.mapWidth,
+            mapStudioInteractiveModel?.layout?.resourceColumnCount,
+            mapStudioInteractiveModel?.layout?.sideResourceColumnCount,
         ].join(':')
         : 'legacy';
     const [printMapState, setPrintMapState] = useState(() => (
@@ -1317,6 +1323,8 @@ export default function MyMapDetailPage() {
     const [printLayoutOpen, setPrintLayoutOpen] = useState(false);
     const [printAnnotationEditorOpen, setPrintAnnotationEditorOpen] = useState(false);
     const [printShortDescriptionMode, setPrintShortDescriptionMode] = useState(false);
+    const [interactiveAnnotationEditorOpen, setInteractiveAnnotationEditorOpen] = useState(false);
+    const [interactiveShortDescriptionMode, setInteractiveShortDescriptionMode] = useState(false);
     const [townMapManifestStates, setTownMapManifestStates] = useState({
         [CAREAROUND_MAP_STYLE_DEFAULT]: createTownMapManifestState(),
         [CAREAROUND_MAP_STYLE_GRAY]: createTownMapManifestState(),
@@ -1366,12 +1374,12 @@ export default function MyMapDetailPage() {
         mapId,
         userId: user?.id,
         enabled: Boolean(mapId && user?.id),
-        restoreLocalDraft: isPrintView,
-        autosave: isPrintView,
+        restoreLocalDraft: true,
+        autosave: isPrintView || interactiveAnnotationEditorOpen,
     });
     const printAnnotationsReady = ['saved', 'unsaved', 'saving'].includes(printAnnotations.status);
-    const ownerInteractiveAnnotationOverlay = useMemo(() => {
-        if (isPrintView || !printAnnotations.annotations.length) return null;
+    const ownerReadOnlyAnnotationOverlay = useMemo(() => {
+        if (isPrintView || interactiveAnnotationEditorOpen || !printAnnotations.annotations.length) return null;
         const annotations = mapStudioInteractiveModel
             ? filterPrintMapAnnotations(printAnnotations.annotations, {
                 annotationLayer: mapStudioInteractiveModel.annotationLayer.visible
@@ -1387,7 +1395,22 @@ export default function MyMapDetailPage() {
                 editable={false}
             />
         );
-    }, [isPrintView, mapStudioInteractiveModel, printAnnotations.annotations]);
+    }, [interactiveAnnotationEditorOpen, isPrintView, mapStudioInteractiveModel, printAnnotations.annotations]);
+    const interactiveAnnotationEditor = useInteractiveMapAnnotationEditor({
+        enabled: interactiveAnnotationEditorOpen && !isPrintView,
+        annotations: printAnnotations.annotations,
+        status: printAnnotations.status,
+        error: printAnnotations.error,
+        replaceAnnotations: printAnnotations.replaceAnnotations,
+        saveNow: printAnnotations.saveNow,
+        undo: printAnnotations.undo,
+        redo: printAnnotations.redo,
+        canUndo: printAnnotations.canUndo,
+        canRedo: printAnnotations.canRedo,
+        onClose: () => setInteractiveAnnotationEditorOpen(false),
+    });
+    const ownerInteractiveAnnotationOverlay = interactiveAnnotationEditor.mapOverlay
+        || ownerReadOnlyAnnotationOverlay;
     const isFullMapPrintLayout = printMapState.layoutPreset === PRINT_MAP_LAYOUT_FULL;
     const anchorState = useDirectoryDistanceAnchor({
         storageKey: mapId ? `my-map:no-default:${mapId}` : 'my-map:no-default',
@@ -2536,6 +2559,10 @@ export default function MyMapDetailPage() {
     }
 
     function openPersonalPlacePicker() {
+        if (interactiveAnnotationEditorOpen) {
+            printAnnotations.saveNow();
+            setInteractiveAnnotationEditorOpen(false);
+        }
         if (personalPlacePickerActive) {
             setPersonalPlacePickerActive(false);
             setPersonalPlaceError('');
@@ -2997,6 +3024,10 @@ export default function MyMapDetailPage() {
     }, []);
 
     function openPrintView() {
+        if (interactiveAnnotationEditorOpen) {
+            printAnnotations.saveNow();
+            setInteractiveAnnotationEditorOpen(false);
+        }
         const studioSnapshot = mapStudioRuntimeSnapshot?.design
             ? {
                 id: mapStudioRuntimeSnapshot.activeViewId,
@@ -3022,6 +3053,19 @@ export default function MyMapDetailPage() {
         if (studioSnapshot) nextParams.set('studioView', studioSnapshot.id);
         else nextParams.delete('studioView');
         setSearchParams(nextParams);
+    }
+
+    function toggleInteractiveAnnotationEditor() {
+        if (!canEditPrintAnnotations || !printAnnotationsReady) return;
+        if (interactiveAnnotationEditorOpen) {
+            printAnnotations.saveNow();
+            setInteractiveAnnotationEditorOpen(false);
+            return;
+        }
+        setPersonalPlacePickerActive(false);
+        setInteractiveShortDescriptionMode(false);
+        printAnnotations.reload();
+        setInteractiveAnnotationEditorOpen(true);
     }
 
     function closePrintView() {
@@ -3115,6 +3159,23 @@ export default function MyMapDetailPage() {
                     || `${String(annotation.type || 'Annotation').replace(/-/g, ' ')} ${index + 1}`,
             }))}
             onOwnerSessionChange={handleOwnerMapStudioSessionChange}
+            onArrangeCategories={openCategoryOrder}
+            canArrangeCategories={categoryOrderOptions.length >= 2}
+            onAddPersonalPlace={openPersonalPlacePicker}
+            personalPlacePickerActive={personalPlacePickerActive}
+            shortDescriptionMode={interactiveShortDescriptionMode}
+            onToggleShortDescription={() => {
+                if (interactiveAnnotationEditorOpen) {
+                    printAnnotations.saveNow();
+                    setInteractiveAnnotationEditorOpen(false);
+                }
+                setInteractiveShortDescriptionMode((current) => !current);
+            }}
+            annotationEditing={interactiveAnnotationEditorOpen}
+            canEditAnnotations={canEditPrintAnnotations}
+            annotationsReady={printAnnotationsReady}
+            onToggleAnnotations={toggleInteractiveAnnotationEditor}
+            onOpenExport={openPrintView}
         />
     );
     const ownerMapStudioRuntime = mapStudioInteractiveModel ? {
@@ -3137,6 +3198,9 @@ export default function MyMapDetailPage() {
             : undefined,
         mapViewState: mapStudioInteractiveModel?.directoryMap?.mapViewState ?? null,
         markerScale: mapStudioInteractiveModel?.directoryMap?.markerScale ?? 1,
+        pinBadgeMode: mapStudioInteractiveModel?.directoryMap?.pinBadgeMode ?? 'count',
+        pinCategoryIconMode: mapStudioInteractiveModel?.directoryMap?.pinCategoryIconMode ?? 'auto',
+        clusterMarkerMode: mapStudioInteractiveModel?.directoryMap?.clusterMarkerMode ?? 'bubble',
         showPins: mapStudioInteractiveModel?.resourceLayer?.visible ?? true,
         onMapViewStateChange: mapStudioInteractiveModel
             ? handleInteractiveMapViewStateChange
@@ -3470,6 +3534,9 @@ export default function MyMapDetailPage() {
                     onViewSection={handleViewSection}
                     onRemoveResource={handleRemoveResource}
                     onEditPersonalPlace={handleEditPersonalPlace}
+                    onEditResourceShortDescription={interactiveShortDescriptionMode
+                        ? handleEditResourceShortDescription
+                        : null}
                     onUpdateResourceNotes={handleUpdateResourceNotes}
                     onMapClick={personalPlacePickerActive ? handlePersonalPlaceMapClick : null}
                     onHoverPlaceStart={handleMapHoverStart}
@@ -3480,6 +3547,7 @@ export default function MyMapDetailPage() {
                     onFocusHandled={handleMapFocusHandled}
                     onResetView={clearMapSelection}
                     mapOverlay={ownerInteractiveAnnotationOverlay}
+                    mapSurfaceOverlay={interactiveAnnotationEditor.surfaceOverlay}
                     toolbar={useDesktopOwnerLayout ? (
                         <OwnerHeader
                             directory={directory}
@@ -3738,7 +3806,7 @@ export default function MyMapDetailPage() {
 
                     {mapStudioFilteredDirectory.summary.resourceCount === 0 ? (
                         <div className="space-y-4">
-                            {personalPlacePickerActive ? (
+                            {personalPlacePickerActive || interactiveAnnotationEditorOpen ? (
                                 <DirectoryMap
                                     activeAnchor={activeAnchor}
                                     pins={interactivePresentation.pins}
@@ -3752,7 +3820,7 @@ export default function MyMapDetailPage() {
                                     onClusterSelect={handleMapClusterSelect}
                                     onFocusHandled={handleMapFocusHandled}
                                     onResetView={clearMapSelection}
-                                    onMapClick={handlePersonalPlaceMapClick}
+                                    onMapClick={personalPlacePickerActive ? handlePersonalPlaceMapClick : null}
                                     interactive
                                     {...classicMapStudioMapProps}
                                     markerMode={classicMarkerMode}
@@ -3782,6 +3850,7 @@ export default function MyMapDetailPage() {
                                     onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                     mapModeControl={mapModeControl}
                                     mapOverlay={ownerInteractiveAnnotationOverlay}
+                                    surfaceOverlay={interactiveAnnotationEditor.surfaceOverlay}
                                     surfaceStatus={personalPlaceMapSurfaceStatus}
                                 />
                             ) : null}
@@ -3801,6 +3870,9 @@ export default function MyMapDetailPage() {
                                 onHoverPlaceEnd={handleMapHoverEnd}
                                 onRemoveResource={handleRemoveResource}
                                 onEditPersonalPlace={handleEditPersonalPlace}
+                                onEditResourceShortDescription={interactiveShortDescriptionMode
+                                    ? handleEditResourceShortDescription
+                                    : null}
                                 onUpdateResourceNotes={handleUpdateResourceNotes}
                                 highlightPlaceKey={activePlaceKey}
                                 highlightPlaceKeys={activePlaceKeys}
@@ -3808,6 +3880,12 @@ export default function MyMapDetailPage() {
                                 selectionScrollRequest={selectionScrollRequest}
                                 printLabelDetail={mapStudioInteractiveModel?.labels?.detail}
                                 resourcePanelPlacement={mapStudioInteractiveModel?.layout?.resourcePanel}
+                                interactiveLayoutPreset={mapStudioInteractiveModel?.layout?.preset}
+                                interactiveMapSide={mapStudioInteractiveModel?.layout?.mapSide}
+                                interactiveMapWidth={mapStudioInteractiveModel?.layout?.mapWidth}
+                                interactiveResourceColumnCount={mapStudioInteractiveModel?.layout?.resourceColumnCount}
+                                interactiveSideResourceColumnCount={mapStudioInteractiveModel?.layout?.sideResourceColumnCount}
+                                cardBadgeMode={mapStudioInteractiveModel?.cardIdentity?.mode || 'number'}
                                 showDesktopHoverLogo
                                 preserveMobileMapFrameInFlow={TOWN_MAP_PROOF_ENABLED}
                                 desktopScrollTargetRef={desktopSelectionSnapRef}
@@ -3858,6 +3936,7 @@ export default function MyMapDetailPage() {
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                         mapModeControl={mapModeControl}
                                         mapOverlay={ownerInteractiveAnnotationOverlay}
+                                        surfaceOverlay={interactiveAnnotationEditor.surfaceOverlay}
                                         surfaceStatus={personalPlaceMapSurfaceStatus}
                                     />
                                 )}
@@ -3907,6 +3986,7 @@ export default function MyMapDetailPage() {
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                         mapModeControl={mapModeControl}
                                         mapOverlay={ownerInteractiveAnnotationOverlay}
+                                        surfaceOverlay={interactiveAnnotationEditor.surfaceOverlay}
                                         surfaceStatus={personalPlaceMapSurfaceStatus}
                                     />
                                 )}

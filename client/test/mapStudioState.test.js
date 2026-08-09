@@ -8,8 +8,8 @@ import {
     MAP_STUDIO_EXPORT_MARGIN_WIDE,
     MAP_STUDIO_MAP_HEIGHT_TALL,
     MAP_STUDIO_MODE_DESIGN,
+    MAP_STUDIO_PIN_STYLE_CATEGORY_ICON,
     MAP_STUDIO_PIN_STYLE_NUMBERED,
-    MAP_STUDIO_RESOURCE_PANEL_BESIDE,
     MAP_STUDIO_SCHEMA_VERSION,
     buildMapStudioPrintState,
     createMapStudioDesign,
@@ -75,8 +75,8 @@ test('a legacy My Map gets one versioned default view without changing existing 
 
 test('schema reads are explicit and reject unknown future versions instead of overwriting them', () => {
     assert.throws(
-        () => normalizeMapStudioDocument({ schemaVersion: 2, views: [] }),
-        /Unsupported Map Studio schema version: 2/,
+        () => normalizeMapStudioDocument({ schemaVersion: 3, views: [] }),
+        /Unsupported Map Studio schema version: 3/,
     );
     assert.throws(
         () => normalizeMapStudioDocument({ views: [] }),
@@ -86,7 +86,7 @@ test('schema reads are explicit and reject unknown future versions instead of ov
 
 test('normalization bounds visual state and removes duplicate layer identifiers', () => {
     const normalized = normalizeMapStudioDocument({
-        schemaVersion: 1,
+        schemaVersion: MAP_STUDIO_SCHEMA_VERSION,
         revision: -10,
         defaultViewId: 'missing',
         views: [
@@ -107,7 +107,11 @@ test('normalization bounds visual state and removes duplicate layer identifiers'
                     },
                     layout: {
                         mapHeight: MAP_STUDIO_MAP_HEIGHT_TALL,
-                        resourcePanel: MAP_STUDIO_RESOURCE_PANEL_BESIDE,
+                        preset: PRINT_MAP_LAYOUT_FOCUS,
+                        mapSide: PRINT_MAP_SIDE_RIGHT,
+                        mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
+                        resourceColumnCount: 4,
+                        sideResourceColumnCount: 2,
                     },
                 },
             },
@@ -127,7 +131,7 @@ test('normalization bounds visual state and removes duplicate layer identifiers'
 test('invalid persistent view collections fail closed instead of being truncated or overwritten', () => {
     assert.throws(
         () => normalizeMapStudioDocument({
-            schemaVersion: 1,
+            schemaVersion: MAP_STUDIO_SCHEMA_VERSION,
             defaultViewId: 'view-one',
             views: [
                 { id: 'view-one', name: 'One', design: {} },
@@ -137,7 +141,7 @@ test('invalid persistent view collections fail closed instead of being truncated
         /Duplicate Map Studio view id: view-one/,
     );
     assert.throws(
-        () => normalizeMapStudioDocument({ schemaVersion: 1, views: [] }),
+        () => normalizeMapStudioDocument({ schemaVersion: MAP_STUDIO_SCHEMA_VERSION, views: [] }),
         /must contain at least one view/,
     );
 });
@@ -269,6 +273,13 @@ test('export settings stay outside persistent design and adapt to the locked Pri
             view: { center: [1.377, 103.744], zoom: 16 },
         },
         pins: { size: PRINT_MAP_PIN_SIZE_LARGE },
+        layout: {
+            preset: PRINT_MAP_LAYOUT_FOCUS,
+            mapSide: PRINT_MAP_SIDE_RIGHT,
+            mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
+            resourceColumnCount: 4,
+            sideResourceColumnCount: 2,
+        },
         labels: { detail: PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES },
         layers: {
             resources: PRINT_MAP_RESOURCE_LAYER_HIDE,
@@ -278,15 +289,7 @@ test('export settings stay outside persistent design and adapt to the locked Pri
         },
     });
     const exportSettings = createMapStudioExportSettings({
-        height: 1200,
-        pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL,
-        resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
         imageQuality: PRINT_MAP_QUALITY_HIGH,
-        layoutPreset: PRINT_MAP_LAYOUT_FOCUS,
-        mapSide: PRINT_MAP_SIDE_RIGHT,
-        mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
-        resourceColumnCount: 4,
-        sideResourceColumnCount: 2,
         margins: MAP_STUDIO_EXPORT_MARGIN_WIDE,
     });
     const printState = buildMapStudioPrintState(session.draftDesign, exportSettings);
@@ -302,12 +305,48 @@ test('export settings stay outside persistent design and adapt to the locked Pri
     assert.equal(printState.resourceLayer, PRINT_MAP_RESOURCE_LAYER_HIDE);
     assert.equal(printState.annotationLayer, PRINT_MAP_ANNOTATION_LAYER_HIDE);
     assert.equal(printState.mapQuality, PRINT_MAP_QUALITY_HIGH);
-    assert.equal(printState.pageLayout, PRINT_MAP_PAGE_LAYOUT_FULL);
-    assert.equal(printState.resourcePlacement, PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE);
+    assert.equal(Object.hasOwn(exportSettings, 'layoutPreset'), false);
+    assert.equal(printState.pageLayout, 'standard');
+    assert.equal(printState.resourcePlacement, 'beside');
     assert.equal(printState.layoutPreset, PRINT_MAP_LAYOUT_FOCUS);
     assert.equal(printState.mapSide, PRINT_MAP_SIDE_RIGHT);
     assert.equal(printState.mapWidth, PRINT_MAP_WIDTH_EXTRA_WIDE);
     assert.equal(printState.resourceColumnCount, 4);
     assert.equal(printState.sideResourceColumnCount, 2);
     assert.equal(printState.margins, MAP_STUDIO_EXPORT_MARGIN_WIDE);
+});
+
+test('schema v1 views migrate additively into the unified v2 layout model', () => {
+    const migrated = migrateMapStudioDocument({
+        schemaVersion: 1,
+        revision: 4,
+        defaultViewId: 'legacy-view',
+        views: [{
+            id: 'legacy-view',
+            name: 'Legacy view',
+            revision: 2,
+            design: {
+                ...createMapStudioDesign(),
+                pins: { style: 'numbered', size: 'large' },
+                layout: { mapHeight: 'tall', resourcePanel: 'beside-map' },
+            },
+        }],
+    });
+
+    assert.equal(migrated.schemaVersion, MAP_STUDIO_SCHEMA_VERSION);
+    assert.deepEqual(migrated.views[0].design.layout, {
+        mapHeight: 'tall',
+        preset: PRINT_MAP_LAYOUT_FOCUS,
+        mapSide: 'left',
+        mapWidth: 'wide',
+        resourceColumnCount: 2,
+        sideResourceColumnCount: 1,
+    });
+    assert.equal(migrated.views[0].design.pins.style, MAP_STUDIO_PIN_STYLE_NUMBERED);
+});
+
+test('category icon Studio identity reaches the dedicated export marker renderer', () => {
+    const design = createMapStudioDesign();
+    design.pins.style = MAP_STUDIO_PIN_STYLE_CATEGORY_ICON;
+    assert.equal(buildMapStudioPrintState(design).studioMarkerMode, 'category-icon');
 });

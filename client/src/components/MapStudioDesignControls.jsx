@@ -11,10 +11,8 @@ import {
     MAP_STUDIO_MODE_DESIGN,
     MAP_STUDIO_MODE_EXPLORE,
     MAP_STUDIO_PIN_STYLE_BUBBLE,
+    MAP_STUDIO_PIN_STYLE_CATEGORY_ICON,
     MAP_STUDIO_PIN_STYLE_NUMBERED,
-    MAP_STUDIO_RESOURCE_PANEL_BELOW,
-    MAP_STUDIO_RESOURCE_PANEL_BESIDE,
-    MAP_STUDIO_RESOURCE_PANEL_RESPONSIVE,
     normalizeMapStudioDesign,
 } from '../lib/mapStudioState.js';
 import {
@@ -25,11 +23,18 @@ import {
     PRINT_MAP_LABEL_DETAIL_NAMES,
     PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES,
     PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS,
+    PRINT_MAP_LAYOUT_BALANCED,
+    PRINT_MAP_LAYOUT_FOCUS,
+    PRINT_MAP_LAYOUT_FULL,
     PRINT_MAP_PIN_SIZE_EXTRA_LARGE,
     PRINT_MAP_PIN_SIZE_LARGE,
     PRINT_MAP_PIN_SIZE_STANDARD,
     PRINT_MAP_RESOURCE_LAYER_HIDE,
     PRINT_MAP_RESOURCE_LAYER_SHOW,
+    PRINT_MAP_SIDE_LEFT,
+    PRINT_MAP_SIDE_RIGHT,
+    PRINT_MAP_WIDTH_EXTRA_WIDE,
+    PRINT_MAP_WIDTH_WIDE,
     normalizePrintMapHiddenLayerKeys,
 } from '../lib/printMapState.js';
 
@@ -52,6 +57,11 @@ function ChoiceButton({ selected, label, onClick, disabled = false }) {
 }
 
 function DesignFieldset({ legend, description = '', children, columns = 2 }) {
+    const gridClassName = columns === 5
+        ? 'grid-cols-5'
+        : columns === 3
+            ? 'grid-cols-3'
+            : 'grid-cols-2';
     return (
         <fieldset>
             <legend className="text-sm font-bold text-slate-800">{legend}</legend>
@@ -61,7 +71,7 @@ function DesignFieldset({ legend, description = '', children, columns = 2 }) {
                 </p>
             ) : null}
             <div
-                className={`mt-2 grid gap-2 ${columns === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}
+                className={`mt-2 grid gap-2 ${gridClassName}`}
             >
                 {children}
             </div>
@@ -196,9 +206,10 @@ export default function MapStudioDesignControls({
 
                 {value.layers.resources === PRINT_MAP_RESOURCE_LAYER_SHOW ? (
                     <>
-                        <DesignFieldset legend={t('mapStudioPinStyle')}>
+                        <DesignFieldset legend={t('mapStudioPinStyle')} columns={3}>
                             <ChoiceButton selected={value.pins.style === MAP_STUDIO_PIN_STYLE_BUBBLE} label={t('mapStudioPinBubble')} onClick={() => onPatch?.({ pins: { style: MAP_STUDIO_PIN_STYLE_BUBBLE } })} disabled={disabled} />
                             <ChoiceButton selected={value.pins.style === MAP_STUDIO_PIN_STYLE_NUMBERED} label={t('mapStudioPinNumbered')} onClick={() => onPatch?.({ pins: { style: MAP_STUDIO_PIN_STYLE_NUMBERED } })} disabled={disabled} />
+                            <ChoiceButton selected={value.pins.style === MAP_STUDIO_PIN_STYLE_CATEGORY_ICON} label={t('mapStudioPinCategoryIcon')} onClick={() => onPatch?.({ pins: { style: MAP_STUDIO_PIN_STYLE_CATEGORY_ICON } })} disabled={disabled} />
                         </DesignFieldset>
 
                         <DesignFieldset legend={t('mapStudioPinSize')} description={t('printPinSizeHelp')} columns={3}>
@@ -213,11 +224,46 @@ export default function MapStudioDesignControls({
                             ))}
                         </DesignFieldset>
 
-                        <DesignFieldset legend={t('mapStudioResourcePanel')} columns={3}>
-                            <ChoiceButton selected={value.layout.resourcePanel === MAP_STUDIO_RESOURCE_PANEL_RESPONSIVE} label={t('mapStudioResourcePanelResponsive')} onClick={() => onPatch?.({ layout: { resourcePanel: MAP_STUDIO_RESOURCE_PANEL_RESPONSIVE } })} disabled={disabled} />
-                            <ChoiceButton selected={value.layout.resourcePanel === MAP_STUDIO_RESOURCE_PANEL_BELOW} label={t('mapStudioResourcePanelBelow')} onClick={() => onPatch?.({ layout: { resourcePanel: MAP_STUDIO_RESOURCE_PANEL_BELOW } })} disabled={disabled} />
-                            <ChoiceButton selected={value.layout.resourcePanel === MAP_STUDIO_RESOURCE_PANEL_BESIDE} label={t('mapStudioResourcePanelBeside')} onClick={() => onPatch?.({ layout: { resourcePanel: MAP_STUDIO_RESOURCE_PANEL_BESIDE } })} disabled={disabled} />
+                        <DesignFieldset legend={t('printLayoutType')} description={
+                            value.layout.preset === PRINT_MAP_LAYOUT_FULL
+                                ? t('printPageFullMapDescription')
+                                : value.layout.preset === PRINT_MAP_LAYOUT_FOCUS
+                                    ? t('printLayoutMapFocusDescription')
+                                    : t('printLayoutBalancedDescription')
+                        } columns={3}>
+                            <ChoiceButton selected={value.layout.preset === PRINT_MAP_LAYOUT_BALANCED} label={t('printLayoutBalanced')} onClick={() => onPatch?.({ layout: { preset: PRINT_MAP_LAYOUT_BALANCED } })} disabled={disabled} />
+                            <ChoiceButton selected={value.layout.preset === PRINT_MAP_LAYOUT_FOCUS} label={t('printLayoutMapFocus')} onClick={() => onPatch?.({ layout: { preset: PRINT_MAP_LAYOUT_FOCUS } })} disabled={disabled} />
+                            <ChoiceButton selected={value.layout.preset === PRINT_MAP_LAYOUT_FULL} label={t('printPageFullMap')} onClick={() => onPatch?.({ layout: { preset: PRINT_MAP_LAYOUT_FULL } })} disabled={disabled} />
                         </DesignFieldset>
+
+                        {value.layout.preset === PRINT_MAP_LAYOUT_FOCUS ? (
+                            <>
+                                <DesignFieldset legend={t('printMapPosition')}>
+                                    <ChoiceButton selected={value.layout.mapSide === PRINT_MAP_SIDE_LEFT} label={t('printMapOnLeft')} onClick={() => onPatch?.({ layout: { mapSide: PRINT_MAP_SIDE_LEFT } })} disabled={disabled} />
+                                    <ChoiceButton selected={value.layout.mapSide === PRINT_MAP_SIDE_RIGHT} label={t('printMapOnRight')} onClick={() => onPatch?.({ layout: { mapSide: PRINT_MAP_SIDE_RIGHT } })} disabled={disabled} />
+                                </DesignFieldset>
+                                <DesignFieldset legend={t('printResourceCardColumns')} description={t('printSideResourceCardColumnsHelp')}>
+                                    {[1, 2].map((count) => (
+                                        <ChoiceButton key={count} selected={value.layout.sideResourceColumnCount === count} label={String(count)} onClick={() => onPatch?.({ layout: { sideResourceColumnCount: count } })} disabled={disabled} />
+                                    ))}
+                                </DesignFieldset>
+                            </>
+                        ) : null}
+
+                        {value.layout.preset !== PRINT_MAP_LAYOUT_FULL ? (
+                            <DesignFieldset legend={t('printMapWidth')}>
+                                <ChoiceButton selected={value.layout.mapWidth === PRINT_MAP_WIDTH_WIDE} label={t('printMapWidthWide')} onClick={() => onPatch?.({ layout: { mapWidth: PRINT_MAP_WIDTH_WIDE } })} disabled={disabled} />
+                                <ChoiceButton selected={value.layout.mapWidth === PRINT_MAP_WIDTH_EXTRA_WIDE} label={t('printMapWidthExtraWide')} onClick={() => onPatch?.({ layout: { mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE } })} disabled={disabled} />
+                            </DesignFieldset>
+                        ) : null}
+
+                        {value.layout.preset === PRINT_MAP_LAYOUT_FULL ? (
+                            <DesignFieldset legend={t('printResourceCardColumns')} description={t('printResourceCardColumnsHelp')} columns={5}>
+                                {[2, 3, 4, 5, 6].map((count) => (
+                                    <ChoiceButton key={count} selected={value.layout.resourceColumnCount === count} label={String(count)} onClick={() => onPatch?.({ layout: { resourceColumnCount: count } })} disabled={disabled} />
+                                ))}
+                            </DesignFieldset>
+                        ) : null}
 
                         {resourceLayerCatalog?.groups?.length ? (
                             <fieldset className="rounded-xl border border-slate-200 bg-white p-3" data-map-studio-resource-layers="true">

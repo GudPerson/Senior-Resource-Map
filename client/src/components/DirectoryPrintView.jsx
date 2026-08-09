@@ -684,7 +684,9 @@ function PrintDirectoryMap({
                 printBadgeScale={getPrintMapPinScale(printMapState?.pinSize)}
                 markerScale={getPrintMapPinScale(printMapState?.pinSize)}
                 pinBadgeMode={useV2Format ? 'none' : 'count'}
-                pinCategoryIconMode={useV2Format ? 'none' : 'auto'}
+                pinCategoryIconMode={printMapState?.studioMarkerMode === 'category-icon'
+                    ? 'auto'
+                    : (useV2Format ? 'none' : 'auto')}
                 clusterMarkerMode={useV2Format ? 'none' : 'bubble'}
                 spreadCoincidentPins={!useV2Format}
                 placeNumberByKey={presentation.placeNumberByKey}
@@ -985,7 +987,7 @@ export default function DirectoryPrintView({
     const effectiveSideResourceColumnCount = printLayoutConfig.layoutPreset === PRINT_MAP_LAYOUT_FOCUS
         ? sideResourceColumnCount
         : 1;
-    const studioMarkerMode = ['category-bubble', 'number', 'print-badge'].includes(printMapState?.studioMarkerMode)
+    const studioMarkerMode = ['category-bubble', 'category-icon', 'number', 'print-badge'].includes(printMapState?.studioMarkerMode)
         ? printMapState.studioMarkerMode
         : null;
     const usesOwnerPrintBadgePins = useV2OwnerPrint
@@ -1016,6 +1018,10 @@ export default function DirectoryPrintView({
         : [];
     const showPrintLogos = labelDetail === PRINT_MAP_LABEL_DETAIL_LOGOS
         || labelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
+    const showStudioNumberIdentity = !studioMarkerMode || studioMarkerMode === 'print-badge';
+    const studioCardBadgeMode = studioMarkerMode === 'category-icon'
+        ? 'category-icon'
+        : (showPrintLogos ? 'logo' : 'none');
     const resolvedShareUrl = shareUrl || buildDirectoryShareUrl(directory?.share?.sharePath);
     const canShowQr = Boolean(resolvedShareUrl) && (mode === 'shared' || mode === 'owner' || directory?.share?.isShared);
     
@@ -1264,8 +1270,8 @@ export default function DirectoryPrintView({
                         designLocked={mapStudioDesignLocked}
                     />
                 )}
-                cardBadgeMode={useV2OwnerPrint ? (showPrintLogos ? 'logo' : 'none') : 'number'}
-                showPrintNumberBadges={useV2OwnerPrint}
+                cardBadgeMode={useV2OwnerPrint ? studioCardBadgeMode : 'number'}
+                showPrintNumberBadges={useV2OwnerPrint && showStudioNumberIdentity}
                 printLabelDetail={labelDetail}
                 printResourcesBelow={printResourcesBelow}
                 printResourceColumnCount={resourceColumnCount}

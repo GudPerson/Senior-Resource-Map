@@ -2546,6 +2546,7 @@ export default function DirectoryMap({
     mobileControlPortalTarget = null,
     onMapClick = null,
     mapOverlay = null,
+    surfaceOverlay = null,
     surfaceStatus = null,
 }) {
     const { mapStyle } = useMapStyle();
@@ -3446,6 +3447,7 @@ export default function DirectoryMap({
                 {renderedMarkers}
                 {mapOverlay}
             </MapContainer>
+            {surfaceOverlay}
             {resolvedSurfaceStatus ? (
                 <div
                     data-map-surface-status="true"

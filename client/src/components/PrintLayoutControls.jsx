@@ -112,10 +112,10 @@ export default function PrintLayoutControls({ value, onChange, onClose, mapStudi
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <h2 id="print-layout-heading" className="text-base font-black text-slate-900">
-                        {t('printLayout')}
+                        {mapStudioExport ? t('mapStudioOutputSettings') : t('printLayout')}
                     </h2>
                     <p className="mt-0.5 text-xs leading-4 text-slate-600 sm:text-sm sm:leading-5">
-                        {t('printLayoutDescription')}
+                        {mapStudioExport ? t('mapStudioOutputSettingsHelp') : t('printLayoutDescription')}
                     </p>
                 </div>
                 <button
@@ -129,6 +129,8 @@ export default function PrintLayoutControls({ value, onChange, onClose, mapStudi
                 </button>
             </div>
 
+            {!mapStudioExport ? (
+            <>
             <fieldset className="mt-3">
                 <legend className="text-sm font-bold text-slate-800">{t('printLayoutType')}</legend>
                 <div className="mt-2 grid grid-cols-3 gap-2">
@@ -233,6 +235,8 @@ export default function PrintLayoutControls({ value, onChange, onClose, mapStudi
                         </div>
                     </fieldset>
                 </div>
+            ) : null}
+            </>
             ) : null}
 
             {mapStudioExport ? (

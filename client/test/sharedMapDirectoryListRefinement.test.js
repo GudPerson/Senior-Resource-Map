@@ -71,7 +71,7 @@ test('list-only resource badges use the row logo before falling back to icon art
     assert.match(sharedMapDirectorySource, /<ResourceRowIcon[\s\S]*logoUrl=\{row\.logoUrl\}/);
 });
 
-test('v2 mapped cards can use permanent resource logos while numbered badges stay the default', () => {
+test('v2 mapped cards can use logo, numbered, or category-icon identities', () => {
     const badgeSource = sourceBetween(
         sharedMapDirectorySource,
         'function DirectoryPlaceBadge',
@@ -81,9 +81,10 @@ test('v2 mapped cards can use permanent resource logos while numbered badges sta
     assert.match(sharedMapDirectorySource, /cardBadgeMode = 'number'/);
     assert.match(badgeSource, /badgeMode = 'number'/);
     assert.match(badgeSource, /badgeMode === 'logo'/);
+    assert.match(badgeSource, /badgeMode === 'category-icon'/);
     assert.match(badgeSource, /<ResourceRowIcon[\s\S]*logoUrl=\{resolvedBadgeRow\?\.logoUrl\}/);
     assert.match(sharedMapDirectorySource, /cardBadgeMode=\{cardBadgeMode\}/);
-    assert.match(myMapV2ScaffoldSource, /cardBadgeMode="logo"/);
+    assert.match(myMapV2ScaffoldSource, /cardBadgeMode=\{mapStudioRuntime\?\.cardIdentity\?\.mode \|\| 'logo'\}/);
 });
 
 test('list-only Group cards can expose a map focus action when mapped member pins exist', () => {
@@ -486,7 +487,7 @@ test('v2 logo cards show the resource name before the address metadata', () => {
     );
     const v2CardSource = sourceBetween(
         cardSource,
-        "const usesV2CardLanguage = cardBadgeMode === 'logo';",
+        "const usesV2CardLanguage = cardBadgeMode !== 'none';",
         'if (placeDetailPath && fullCardLink && !isPostalGroup && !canFocusCardOnMap && !canRemovePrimaryResource)',
     );
 
