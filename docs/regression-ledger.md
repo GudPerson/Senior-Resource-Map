@@ -15,6 +15,48 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-09 refined Map Studio production release
+
+- Current behavior: production now serves the refined Map Studio owner
+  workspace with several explicit-save named views, the consolidated owner
+  toolbar, unified interactive/print composition settings, category bubbles,
+  category-coloured numbered pins and cards, overlap-capable category-icon
+  pins, active-marker hover stacking, and the existing deterministic Print
+  View PNG/PDF renderer.
+- Release source and order: the reviewed UAT tree was pushed to
+  `codex/map-studio-state-model`, restored additively on `main`, and released
+  from `2a2283747`. The additive six-column Studio schema was verified first;
+  compatible Worker version `9cec2d10-42c0-4f8a-9ecf-6092820594bd` was then
+  deployed before the client. No table drop, backfill, row deletion,
+  secret/auth change, or unrelated workspace file was included.
+- Client evidence: Pages preview `f0afba7c` and production `f111f8d2` both
+  compiled the Function, uploaded `_headers`, the Functions bundle, and
+  `_routes.json`, and served all 82 local files byte-for-byte. Preview,
+  immutable production, and two custom-domain passes matched MIME, byte count,
+  and SHA-256 at aggregate
+  `3984ed2b97bffa3f04a43327d52db76898376e92bf6b190d5db29564fe4c3b87`.
+- Regression and privacy gates: full server coverage passes 540/540, full
+  client/source coverage passes 622/622, map lockdown passes 84/84, the exact
+  six-root Detailed production build passes, and the Studio schema verifier
+  confirms all six expected columns. The Studio endpoint is owner-protected;
+  frozen Shared Map and embed payloads contain no Studio state. Ordinary app
+  routes retain XFO DENY and `frame-ancestors 'none'`; embed retains no XFO,
+  `no-store`, and exact `frame-ancestors 'self' https://gudauth.app
+  https://carearound.sg`.
+- Signed-in production UAT: owner map 258 loaded its two existing named views
+  and numbered marker/card relationship. The responsive owner menu showed only
+  Manage resources, Personal place, Edit content, Edit layout, Print View,
+  Download Map Notes, and Share. Edit layout opened the unified Design sheet
+  without dirtying the view; the 734 px layout had no horizontal overflow.
+  Print View loaded directly with ready Save PNG and Save PDF controls. No
+  CareAround page error was logged; one unrelated Chrome-extension import error
+  was excluded. Existing user tabs and map data were left unchanged.
+- Release gate: passed. The credentialed Playwright smoke command was not run
+  because this workstation does not expose its smoke username/password; the
+  equivalent signed-in owner flow was checked through the existing browser
+  session, while API health, access control, framing, payload privacy, and full
+  artifact parity were independently verified.
+
 ## 2026-08-09 Map Studio local-UAT hold after production rollback
 
 - Current status: this branch is retained for local signed-in UAT and further

@@ -1,13 +1,11 @@
 # CareAround Map Studio Architecture
 
 Date: 2026-08-09
-Status: local UAT and refinement only on `codex/map-studio-state-model`.
-Production `main` was
-rolled back additively by `e47015090` to the exact pre-Studio My Map client/API
-tree at `fe91f9667`; release evidence is in `1adc038a0`. The versioned state
-model, owner schema/API, named-view UI, Explore/Design wiring, and additive
-Export/Print work remain here for UAT but must not be redeployed without a fresh
-release review. The additive schema remains intact and inert in production.
+Status: refined Map Studio production release from `2a2283747`; the reviewed
+source remains on `codex/map-studio-state-model` and is restored additively on
+`main`. Worker version `9cec2d10-42c0-4f8a-9ecf-6092820594bd` and Pages
+deployment `f111f8d2` are live. The additive schema is verified and active only
+for owner-scoped Studio documents.
 The existing Print View route remains the renderer and rollback surface;
 Shared Map/embed snapshots remain unchanged.
 

@@ -2,18 +2,30 @@
 
 Last updated: 2026-08-09 (Asia/Singapore)
 
-## Map Studio local-UAT status after production rollback (2026-08-09)
+## Refined Map Studio production status (2026-08-09)
 
-- This branch retains the complete Map Studio implementation for local UAT and
-  refinement only. It is not the active production release.
-- Production `main` was rolled back additively by `e47015090` to the exact
-  pre-Studio My Map tree at `fe91f9667`; release evidence is recorded by
-  `1adc038a0`. The stable Worker and Pages deployment are live and verified.
-- Do not deploy or merge this branch until the refinements pass a new release
-  review. Keep Shared/embed exclusion, ordinary Print View, privacy, Detailed
-  maps, clustering, focus cards, annotations, and all other locked behavior.
-- The additive Studio table and its private rows remain intact but inert in
-  production. Do not drop, purge, backfill, or publish them during UAT.
+- The user-approved refined Map Studio UAT tree is live from release source
+  `2a2283747`. Worker version
+  `9cec2d10-42c0-4f8a-9ecf-6092820594bd` was released before exact Pages
+  deployment `f111f8d2`; preview `f0afba7c` used the same unchanged artifact.
+- Server 540/540, client 622/622, map lockdown 84/84, the exact six-root
+  Detailed build, and the additive six-column Studio schema verifier pass.
+  All 82 preview, immutable, and custom-domain files match local bytes and
+  SHA-256 at aggregate
+  `3984ed2b97bffa3f04a43327d52db76898376e92bf6b190d5db29564fe4c3b87`.
+- Signed-in production UAT on owner map 258 passed the consolidated seven-action
+  menu, named-view load, numbered pin/card relationship, responsive Edit layout
+  sheet, clean explicit-save state, no 734 px overflow, and ready Print View
+  PNG/PDF controls. No map or view data was changed.
+- Shared/embed snapshots remain frozen and contain no Studio data. Ordinary
+  anti-framing and route-specific embed framing pass; the existing Print View,
+  Detailed maps, clustering, focus cards, annotations, personal-place privacy,
+  authentication, and My Map resource behavior remain locked.
+- The old rollback and local-UAT records below are retained as release history;
+  they no longer describe the active production state. Credentialed Playwright
+  smoke was unavailable because its local credentials are absent, so the
+  authenticated browser UAT and independent API/header/artifact probes are the
+  current release evidence.
 
 ## My Map owner-toolbar consolidation (2026-08-09, local refinement)
 
