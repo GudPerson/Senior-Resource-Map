@@ -1,13 +1,14 @@
 # CareAround Map Studio Architecture
 
 Date: 2026-08-09
-Status: production through Phase 4 at `1be2093de`. The versioned state model,
-owner schema/API, named-view UI, complete Explore/Design presentation wiring,
-and additive Export/Print parity are live. The additive schema was applied and
-verified without a backfill, Worker version
-`c7bd164d-bff4-499e-b2da-bb12cce74b37` is active, and Pages deployment
-`842f7c23` is exact on the custom domain. The existing Print View route remains
-the renderer and rollback surface; Shared Map/embed snapshots remain unchanged.
+Status: local UAT and refinement only at `1be2093de`. Production `main` was
+rolled back additively by `e47015090` to the exact pre-Studio My Map client/API
+tree at `fe91f9667`; release evidence is in `1adc038a0`. The versioned state
+model, owner schema/API, named-view UI, Explore/Design wiring, and additive
+Export/Print work remain here for UAT but must not be redeployed without a fresh
+release review. The additive schema remains intact and inert in production.
+The existing Print View route remains the renderer and rollback surface;
+Shared Map/embed snapshots remain unchanged.
 
 ## Product Goal
 

@@ -15,6 +15,20 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-09 Map Studio local-UAT hold after production rollback
+
+- Current status: this branch is retained for local signed-in UAT and further
+  refinement only. Production `main` is on additive rollback `e47015090`, with
+  release evidence in `1adc038a0`, and serves the exact pre-Studio My Map
+  client/API tree at `fe91f9667`.
+- Safety boundary: do not merge, push a release, or deploy this Studio branch
+  without a fresh design and release review. The additive Studio table remains
+  intact and inert under the stable production Worker; no destructive database
+  operation or Shared/embed publication is authorized.
+- Locked surfaces remain unchanged: Detailed maps, current bubble clustering,
+  mobile focus cards, annotations, personal-place privacy, frozen Shared/embed,
+  ordinary Print View/export, authentication, and existing My Map behavior.
+
 ## 2026-08-09 Map Studio integrated production release
 
 - Current behavior: an owner can create, rename, duplicate, select, set as

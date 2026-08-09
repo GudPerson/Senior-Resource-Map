@@ -2,6 +2,19 @@
 
 Last updated: 2026-08-09 (Asia/Singapore)
 
+## Map Studio local-UAT status after production rollback (2026-08-09)
+
+- This branch retains the complete Map Studio implementation for local UAT and
+  refinement only. It is not the active production release.
+- Production `main` was rolled back additively by `e47015090` to the exact
+  pre-Studio My Map tree at `fe91f9667`; release evidence is recorded by
+  `1adc038a0`. The stable Worker and Pages deployment are live and verified.
+- Do not deploy or merge this branch until the refinements pass a new release
+  review. Keep Shared/embed exclusion, ordinary Print View, privacy, Detailed
+  maps, clustering, focus cards, annotations, and all other locked behavior.
+- The additive Studio table and its private rows remain intact but inert in
+  production. Do not drop, purge, backfill, or publish them during UAT.
+
 ## Map Studio integrated production release (2026-08-09)
 
 - `codex/map-studio-state-model` now contains the complete additive goal through
