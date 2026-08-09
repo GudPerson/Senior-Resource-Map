@@ -17,19 +17,23 @@ Rules:
 
 ## 2026-08-10 selected-view embed presentation snapshot
 
-- Candidate behavior: `Update shared link` publishes the currently selected
-  persisted Map Studio named view as the presentation source for the map-only
-  embed. The frozen public snapshot contains exactly map colour, map detail
-  mode, pin style, pin size, all-pins visibility, and all-shared-annotations
-  visibility. The embed maps those values onto the existing Detailed/Live,
-  category-bubble, numbered Print badge, category-icon, and pin-size renderers.
+- Current behavior: `Update shared link` publishes the currently selected
+  persisted Map Studio named view as the content and presentation source for
+  the map-only embed. The frozen public snapshot contains exactly map colour,
+  map detail mode, pin style, pin size, all-pins visibility, and
+  all-shared-annotations visibility. An internal embed-only resource allowlist
+  and shared-annotation subset are derived from the saved view. The embed maps
+  the presentation values onto the existing Detailed/Live, category-bubble,
+  numbered Print badge, category-icon, and pin-size renderers.
 - Privacy boundary: the snapshot continues to contain only guest-visible map
   resources, annotations explicitly marked for sharing, and the established
   sanitised embedded contact fields. It does not contain a Studio document,
   view id/name, personal place, private note or descriptor, camera, hidden
-  resource/annotation ids, labels, layout, docking, card columns, export
+  resource/annotation ids, derived resource allowlist, labels, layout, docking,
+  card columns, export
   quality/margins, owner control, or unsaved draft. The ordinary Shared Map
-  response does not expose the embed presentation envelope.
+  response does not expose the embed presentation envelope or apply the
+  embed-only resource subset.
 - Frozen behavior: the Worker resolves the requested view only from the saved
   owner document and rejects an unknown/unsaved view before changing share
   state. The client blocks `Update shared link` while Studio has unsaved design
@@ -37,6 +41,8 @@ Rules:
   embed until the owner saves them and explicitly updates the shared link
   again. Older snapshots and maps without a persisted Studio document retain
   the established category-bubble/default/auto/standard/visible defaults.
+  Older snapshots without a resource allowlist also retain all resources from
+  their original guest-sanitised frozen snapshot.
 - Reproduction: on an owned map with two saved views, select the non-default
   view, set Gray + Live, Numbered + Large/Extra large, and save. Update the
   shared link and open the enabled embed. Confirm its map and pins match those
@@ -45,23 +51,30 @@ Rules:
   existing embed remains unchanged; update the link and confirm it changes.
 - Acceptance criteria: public payload inspection shows only the seven-key
   versioned presentation envelope; personal places/private data and editor or
-  export settings remain absent; numbered pins retain Print badge colours and
+  export settings, hidden ids, and the internal resource allowlist remain
+  absent; resources and shared annotations hidden in the published saved view
+  are absent from the embed while ordinary Shared Map remains unchanged;
+  numbered pins retain Print badge colours and
   numbers, category icons retain individual overlap-capable markers, pin size
   is live in the embed, annotation/pin visibility is respected, and existing
   search, filtering, preview cards, Detailed fallback, framing, revocation,
   no-store, attribution, Shared Map, My Map, Print View, and exports remain
   stable.
-- Release verification: focused owner/share/embed/privacy coverage passed
-  85/85; full server coverage and full client coverage passed with 630 client
-  tests; map lockdown passed 84/84; ordinary and exact six-root production
-  client builds passed; and `git diff --check` passed. Source `61ac302bd` was
-  pushed to the candidate branch and fast-forwarded to `main`. Worker version
-  `81a20bd0-4487-40a6-9ad5-5e4fbd66b4a0` was deployed before Pages. The
-  release-record push then triggered an incomplete Git build, so Pages was
+- Release verification: initial focused owner/share/embed/privacy coverage
+  passed 85/85; corrective resource-subset and annotation coverage passed
+  59/59; full server coverage passed 548/548 and full client coverage passed
+  630/630; map lockdown passed 84/84; ordinary and exact six-root production
+  client builds passed; and `git diff --check` passed. Source `61ac302bd` and
+  corrective commit `b517294df` were pushed to the candidate branch and
+  `main`. Worker version `b1938192-bdc4-42c1-90fc-7fc2feaa5f54` was deployed
+  before Pages. The release-record push then triggered an incomplete Git build,
+  so Pages was
   manually re-published from the exact validated `client/dist`. All 82 local,
   final-immutable, and settled custom-domain files matched MIME, bytes, and
   SHA-256 at canonical path/hash digest
   `cfbc04c5420a0814830b7fab20c3030e2036b8033c6b4cc01d3e44df5a1f54b9`.
+  Final immutable Pages deployment:
+  `https://e88fccc3.senior-resource-map.pages.dev`.
 - Production boundary evidence: API health and a pre-envelope snapshot's
   stable defaults passed. Ordinary routes retained XFO DENY and
   `frame-ancestors 'none'`; the embed retained `no-store`, no XFO, and exact
@@ -71,10 +84,18 @@ Rules:
   The live embed rendered numbered pins with no Studio/owner controls. Payload
   inspection found none of the forbidden editor/private fields, while the
   ordinary Shared Map omitted the embed envelope. The disposable map/token was
-  removed and now returns 404; existing maps were untouched. Credentialed
+  removed and now returns 404; existing maps were untouched. That UAT also
+  found the selected view showed 8 resources while the first candidate embed
+  still returned all 34, so the gate remained open. Correction `b517294df`
+  now derives and consumes an embed-only allowlist, filters the already-shared
+  annotations, strips the allowlist and hidden ids from the guest response,
+  keeps ordinary Shared Map complete, and preserves legacy snapshots. The
+  corrected production Worker returned the pre-allowlist map's original 34
+  resources with stable defaults and none of the forbidden fields. Credentialed
   Playwright smoke was unavailable because the local smoke credentials are
   unset, so the equivalent owner flow was completed through the existing
-  signed-in browser session. Release gate passed.
+  signed-in browser session and the corrective delta was closed by focused,
+  full-server, API, privacy, and exact-artifact checks. Release gate passed.
 
 ## 2026-08-10 Map Studio live pin-size and Layout-panel refinement
 
