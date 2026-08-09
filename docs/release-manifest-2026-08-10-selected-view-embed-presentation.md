@@ -2,7 +2,8 @@
 
 - Date: 2026-08-10 (Asia/Singapore)
 - Branch: `codex/map-studio-print-card-parity`
-- Status: validated candidate; production release pending.
+- Release commit: `61ac302bd`
+- Status: released and production-verified.
 
 ## Scope
 
@@ -38,19 +39,42 @@
 - Map lockdown: 84/84 passed.
 - Ordinary and exact six-root production client builds: passed.
 - `git diff --check`: passed.
+- Worker version `81a20bd0-4487-40a6-9ad5-5e4fbd66b4a0` is live on
+  `api.carearound.sg`.
+- Exact Pages deployment `5d7a3bc1` is live at
+  `https://5d7a3bc1.senior-resource-map.pages.dev` and on
+  `app.carearound.sg`. All 82 deployable files match the validated local
+  artifact by MIME, bytes, and SHA-256; comparison-register digest:
+  `b60dae0b845703a35e08df47feb9848cca3f30469436a4ab932dde3c24f346b5`.
+- Ordinary app routes retain XFO DENY and `frame-ancestors 'none'`. The
+  production embed document remains `no-store`, has no XFO, and uses only its
+  exact configured frame ancestors. The embed API is public, guest-only, and
+  `no-store`.
+- A signed-in disposable production copy proved the complete freeze cycle:
+  initial publication emitted `category-icon` + `standard`; switching to the
+  other persisted named view did not change the embed; explicit
+  `Update shared link` changed it to `numbered` + `standard`; the live embed
+  rendered numbered pins and no Studio/owner controls. Public payload checks
+  found no Studio document, view identity, personal places, print/export
+  settings, docking, card columns, or owner state. The ordinary Shared Map
+  response omitted `embeddedPresentation`.
+- The disposable map and token were deleted after UAT; the former embed now
+  returns 404. Existing user maps and live share tokens were not changed.
+- Credentialed Playwright smoke was unavailable because the local smoke
+  username/password variables are unset. The equivalent authenticated owner
+  path was exercised through the existing signed-in browser session, with API,
+  header, privacy, and artifact checks run independently.
 
-## Release order
+## Release order completed
 
-1. Commit and push the reviewed candidate branch.
-2. Reconcile the candidate onto clean, synchronized `main` without including
-   unrelated untracked files.
-3. Deploy the compatible Worker first and verify API health plus old-snapshot
-   fallback.
-4. Publish the exact already-validated six-root `client/dist` with Pages
-   Functions, `_headers`, and `_routes.json`.
-5. Verify immutable and custom-domain artifacts, API payload privacy, ordinary
-   anti-framing, embed framing/no-store, and selected-view frozen-update UAT on
-   a disposable map.
+1. Pushed the reviewed candidate branch and fast-forwarded synchronized
+   `main`, preserving unrelated untracked files.
+2. Deployed the compatible Worker first and verified API health plus an
+   existing pre-envelope snapshot's legacy defaults.
+3. Published the exact already-validated six-root `client/dist` with Pages
+   Functions, `_headers`, `_routes.json`, and `--skip-caching`.
+4. Held the release during an initial custom-domain edge race, then verified
+   the complete settled manifest before running frozen-update UAT.
 
 ## Rollback
 

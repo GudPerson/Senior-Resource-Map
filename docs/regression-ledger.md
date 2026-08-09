@@ -51,12 +51,28 @@ Rules:
   search, filtering, preview cards, Detailed fallback, framing, revocation,
   no-store, attribution, Shared Map, My Map, Print View, and exports remain
   stable.
-- Pre-release verification: focused owner/share/embed/privacy coverage passed
+- Release verification: focused owner/share/embed/privacy coverage passed
   85/85; full server coverage and full client coverage passed with 630 client
   tests; map lockdown passed 84/84; ordinary and exact six-root production
-  client builds passed; and `git diff --check` passed. Production deployment,
-  frozen-update UAT, response-header checks, and exact artifact parity remain
-  release gates.
+  client builds passed; and `git diff --check` passed. Source `61ac302bd` was
+  pushed to the candidate branch and fast-forwarded to `main`. Worker version
+  `81a20bd0-4487-40a6-9ad5-5e4fbd66b4a0` was deployed before exact Pages
+  release `5d7a3bc1`. All 82 local, immutable, and settled custom-domain files
+  matched MIME, bytes, and SHA-256 at aggregate comparison digest
+  `b60dae0b845703a35e08df47feb9848cca3f30469436a4ab932dde3c24f346b5`.
+- Production boundary evidence: API health and a pre-envelope snapshot's
+  stable defaults passed. Ordinary routes retained XFO DENY and
+  `frame-ancestors 'none'`; the embed retained `no-store`, no XFO, and exact
+  configured frame ancestors. A signed-in disposable copy published
+  `category-icon` + `standard`, stayed unchanged after selecting another saved
+  view, and changed to `numbered` + `standard` only after `Update shared link`.
+  The live embed rendered numbered pins with no Studio/owner controls. Payload
+  inspection found none of the forbidden editor/private fields, while the
+  ordinary Shared Map omitted the embed envelope. The disposable map/token was
+  removed and now returns 404; existing maps were untouched. Credentialed
+  Playwright smoke was unavailable because the local smoke credentials are
+  unset, so the equivalent owner flow was completed through the existing
+  signed-in browser session. Release gate passed.
 
 ## 2026-08-10 Map Studio live pin-size and Layout-panel refinement
 

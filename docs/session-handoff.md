@@ -1,6 +1,36 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-08-09 (Asia/Singapore)
+Last updated: 2026-08-10 (Asia/Singapore)
+
+## Selected-view embed presentation release (2026-08-10)
+
+- `Update shared link` now treats the currently selected persisted Map Studio
+  named view as the embed presentation source. The frozen public snapshot adds
+  only a versioned allowlist: map style, detail mode, pin style, pin size,
+  all-pins visibility, and all-shared-annotations visibility. Unsaved Studio
+  changes are blocked from publication.
+- The embed consumes the allowlist through existing Detailed/Live map,
+  category-bubble, numbered Print badge, category-icon, and pin-scale seams.
+  Old snapshots and maps without saved Studio data retain established defaults.
+  Ordinary Shared Map responses still omit the presentation envelope.
+- The privacy boundary remains narrow: no Studio document, view id/name,
+  personal place/private data, camera, label, hidden-layer id, layout, docking,
+  card-column, export/Print, or owner-control state is published. Existing guest
+  resource visibility, shared annotation filtering, permitted contact
+  sanitisation, frozen updates, exact-origin framing, and revocation remain
+  unchanged.
+- Source commit `61ac302bd` is on `main` and
+  `codex/map-studio-print-card-parity`. Worker version
+  `81a20bd0-4487-40a6-9ad5-5e4fbd66b4a0` and exact Pages deployment
+  `5d7a3bc1` are live. All 82 local, immutable, and settled custom-domain files
+  match at aggregate comparison digest
+  `b60dae0b845703a35e08df47feb9848cca3f30469436a4ab932dde3c24f346b5`.
+- Focused 85/85, full server, client 630/630, map lockdown 84/84, ordinary and
+  exact production builds, diff check, API/header/privacy probes, old-snapshot
+  fallback, and signed-in disposable-map frozen-update UAT pass. The disposable
+  map/token were removed and now return 404; existing maps were not changed.
+  Credentialed Playwright smoke remains unavailable because its local username
+  and password variables are unset.
 
 ## Refined Map Studio production status (2026-08-09)
 
