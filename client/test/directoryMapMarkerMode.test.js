@@ -129,7 +129,8 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /map\.on\('moveend', handleMapSettled\)/);
     assert.match(directoryMapSource, /map\.on\('zoomend', handleMapSettled\)/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_LOBE_SPACING = DIRECTORY_PRINT_BADGE_DIAMETER \* 0\.9/);
-    assert.match(directoryMapSource, /markerMode === 'category-bubble' && isMatched \? 100000 : undefined/);
+    assert.match(directoryMapSource, /getDirectoryMarkerZIndexOffset\(\{/);
+    assert.match(directoryMapSource, /isMatched: interactive && isMatched/);
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_DIAMETER = 25\.5/);
     assert.match(directoryMapSource, /printBadgeScale = 1/);
     assert.match(directoryMapSource, /const badgeDiameter = DIRECTORY_PRINT_BADGE_DIAMETER \* badgeScale/);
