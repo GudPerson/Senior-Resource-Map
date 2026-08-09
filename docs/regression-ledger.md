@@ -55,6 +55,25 @@ Rules:
   viewport (`27..363`, document width 390), hid the desktop dock controls, and
   exposed neither removed setting. No CareAround page error was logged; two old
   unrelated Chrome-extension import errors were excluded.
+- Release evidence: source commit `5cf3be69` was pushed to
+  `codex/map-studio-print-card-parity`. Pages preview `c5dcedc7` and immutable
+  production `baa1ca0d` compiled the Function and uploaded `_headers`, the
+  Functions bundle, and `_routes.json`. Preview, immutable production, and the
+  settled `app.carearound.sg` custom domain each matched all 82 deployable local
+  files byte-for-byte. API health returned 200; ordinary app routes retained
+  XFO DENY and `frame-ancestors 'none'`; the approved embed retained `no-store`,
+  no XFO, and its exact configured frame ancestors.
+- Signed-in production UAT: owner map 258 kept its saved numbered/extra-large
+  design and exposed neither Map height nor Starting view. Standard, Large, and
+  Extra large changed live badge scale to `1`, `1.25`, and `1.5`, and returning
+  to Extra large cleared dirty state. At 1440 x 1000 the panel moved left
+  (`40..460`), retained that side after reload, and returned right
+  (`980..1400`) without dirtying the view. At 390 x 844 it fit within
+  `23..367`, had document width 390 with no horizontal overflow, and hid the
+  desktop dock controls. Release gate passed. The credentialed Playwright smoke
+  command remained unavailable because the three smoke environment variables
+  are unset; the equivalent authenticated owner flow was completed through the
+  existing browser session.
 
 ## 2026-08-09 Map Studio interactive numbered-card and descriptor parity (local candidate)
 
