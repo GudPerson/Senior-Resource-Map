@@ -552,7 +552,7 @@ export function buildMapStudioPrintState(design, exportSettings = {}) {
         resourceLayer: normalizedDesign.layers.resources,
         pinSize: normalizedDesign.pins.size,
         studioMarkerMode: normalizedDesign.pins.style === MAP_STUDIO_PIN_STYLE_NUMBERED
-            ? 'number'
+            ? 'print-badge'
             : 'category-bubble',
         annotationLayer: normalizedDesign.layers.annotations,
         hiddenResourceLayerKeys: clone(normalizedDesign.layers.hiddenResourceLayerKeys),

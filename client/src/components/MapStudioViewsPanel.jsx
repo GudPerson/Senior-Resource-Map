@@ -16,6 +16,7 @@ import {
     RefreshCw,
     RotateCcw,
     Save,
+    SlidersHorizontal,
     Star,
     Trash2,
 } from 'lucide-react';
@@ -77,9 +78,11 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
     const [conflict, setConflict] = useState(false);
     const [editorMode, setEditorMode] = useState(null);
     const [viewName, setViewName] = useState('');
+    const [designSettingsOpen, setDesignSettingsOpen] = useState(false);
 
     const handleModeChange = useCallback((nextMode) => {
         if (saving || editorMode) return;
+        setDesignSettingsOpen(nextMode === MAP_STUDIO_MODE_DESIGN);
         setOwnerState((current) => (
             current ? setOwnerMapStudioMode(current, nextMode) : current
         ));
@@ -129,6 +132,7 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
         setActionError('');
         setConflict(false);
         setEditorMode(null);
+        setDesignSettingsOpen(false);
         try {
             const response = await api.getMyMapStudio(mapId);
             if (requestId !== loadRequestRef.current) return;
@@ -181,6 +185,17 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [dirty]);
+
+    useEffect(() => {
+        if (!designSettingsOpen) return undefined;
+        const handleDesignSettingsKeyDown = (event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            setDesignSettingsOpen(false);
+        };
+        window.addEventListener('keydown', handleDesignSettingsKeyDown);
+        return () => window.removeEventListener('keydown', handleDesignSettingsKeyDown);
+    }, [designSettingsOpen]);
 
     async function discardDesignDraftIfNeeded() {
         if (!ownerState?.session?.dirty) return ownerState;
@@ -374,7 +389,7 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
     return (
         <>
             <section
-                className="rounded-[24px] border border-brand-100 bg-white px-4 py-4 shadow-sm sm:px-5"
+                className={`relative rounded-[24px] border border-brand-100 bg-white px-4 py-4 shadow-sm sm:px-5 ${designSettingsOpen ? 'z-[1120]' : ''}`}
                 aria-labelledby={`map-studio-title-${mapId}`}
                 data-map-studio-owner-panel="true"
             >
@@ -464,20 +479,47 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
 
                 {!loading && !loadError && ownerState ? (
                     <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
-                        <MapStudioModeSwitch
-                            mode={ownerState.session.mode}
-                            onModeChange={handleModeChange}
-                            disabled={saving || Boolean(editorMode)}
-                        />
-                        {ownerState.session.mode === MAP_STUDIO_MODE_DESIGN ? (
-                            <MapStudioDesignControls
-                                design={ownerState.session.draftDesign}
-                                explorationCamera={ownerState.session.exploration.cameraView}
-                                resourceLayerCatalog={resourceLayerCatalog}
-                                annotationLayerCatalog={annotationLayerCatalog}
-                                onPatch={handleDesignPatch}
+                        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]">
+                            <MapStudioModeSwitch
+                                mode={ownerState.session.mode}
+                                onModeChange={handleModeChange}
                                 disabled={saving || Boolean(editorMode)}
                             />
+                            {ownerState.session.mode === MAP_STUDIO_MODE_DESIGN ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setDesignSettingsOpen((current) => !current)}
+                                    disabled={saving || Boolean(editorMode)}
+                                    className={`btn-ghost min-h-11 justify-center border px-4 text-sm ${
+                                        designSettingsOpen
+                                            ? 'border-brand-600 bg-brand-50 text-brand-800'
+                                            : 'border-slate-200 text-slate-700'
+                                    } disabled:opacity-45`}
+                                    aria-expanded={designSettingsOpen}
+                                    aria-controls={`map-studio-design-settings-${mapId}`}
+                                    data-map-studio-design-settings-trigger="true"
+                                >
+                                    <SlidersHorizontal size={16} aria-hidden="true" />
+                                    {t('mapStudioOpenDesignSettings')}
+                                </button>
+                            ) : null}
+                        </div>
+                        {ownerState.session.mode === MAP_STUDIO_MODE_DESIGN && designSettingsOpen ? (
+                            <div
+                                id={`map-studio-design-settings-${mapId}`}
+                                className="w-full lg:absolute lg:right-4 lg:top-[calc(100%+12px)] lg:z-20 lg:max-h-[calc(100dvh-10rem)] lg:w-[420px] lg:max-w-[calc(100vw-2rem)] lg:overflow-y-auto lg:overscroll-contain lg:rounded-2xl lg:bg-white lg:shadow-2xl"
+                                data-map-studio-design-settings-panel="true"
+                            >
+                                <MapStudioDesignControls
+                                    design={ownerState.session.draftDesign}
+                                    explorationCamera={ownerState.session.exploration.cameraView}
+                                    resourceLayerCatalog={resourceLayerCatalog}
+                                    annotationLayerCatalog={annotationLayerCatalog}
+                                    onPatch={handleDesignPatch}
+                                    onClose={() => setDesignSettingsOpen(false)}
+                                    disabled={saving || Boolean(editorMode)}
+                                />
+                            </div>
                         ) : null}
                     </div>
                 ) : null}

@@ -985,10 +985,12 @@ export default function DirectoryPrintView({
     const effectiveSideResourceColumnCount = printLayoutConfig.layoutPreset === PRINT_MAP_LAYOUT_FOCUS
         ? sideResourceColumnCount
         : 1;
-    const studioMarkerMode = ['category-bubble', 'number'].includes(printMapState?.studioMarkerMode)
+    const studioMarkerMode = ['category-bubble', 'number', 'print-badge'].includes(printMapState?.studioMarkerMode)
         ? printMapState.studioMarkerMode
         : null;
-    const ownerPrintPresentation = useV2OwnerPrint && !studioMarkerMode
+    const usesOwnerPrintBadgePins = useV2OwnerPrint
+        && (!studioMarkerMode || studioMarkerMode === 'print-badge');
+    const ownerPrintPresentation = usesOwnerPrintBadgePins
         ? withOwnerPrintBadgePins(basePresentation)
         : basePresentation;
     const presentation = useV2OwnerPrint
@@ -1003,7 +1005,7 @@ export default function DirectoryPrintView({
             printMapState?.hiddenResourceLayerKeys,
         )
         : new Set();
-    const visibleResourcePins = useV2OwnerPrint && !studioMarkerMode
+    const visibleResourcePins = usesOwnerPrintBadgePins
         ? filterPrintMapResourcePins(presentation.pins, visibleResourcePlaceKeys)
         : (showResourcePins ? presentation.pins : []);
     const visiblePrintAnnotations = annotationsVisibleForLayout

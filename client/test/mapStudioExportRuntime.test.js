@@ -42,6 +42,8 @@ test('Map Studio Export filters cards and pins from one directory and applies de
     assert.match(printViewSource, /printMapInteractive = variant === 'screen' && !mapStudioDesignLocked/);
     assert.match(printViewSource, /showMapStyleControl=\{interactive && !designLocked\}/);
     assert.match(printViewSource, /printMapState\?\.studioMarkerMode \|\| \(useV2Format \? 'print-badge' : 'number'\)/);
+    assert.match(printViewSource, /usesOwnerPrintBadgePins/);
+    assert.match(printViewSource, /studioMarkerMode === 'print-badge'/);
     assert.match(printViewSource, /markerScale=\{getPrintMapPinScale\(printMapState\?\.pinSize\)\}/);
 });
 
