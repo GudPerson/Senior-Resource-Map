@@ -99,6 +99,27 @@ test('request abort signal is forwarded to fetch', async () => {
     assert.equal(fetchOptions.signal, abortController.signal);
 });
 
+test('JSON API errors expose the HTTP status for optimistic conflict handling', async () => {
+    await assert.rejects(
+        () => requestWithBaseCandidates(
+            'PUT',
+            '/my-maps/25/studio',
+            { revision: 3 },
+            {
+                baseCandidates: ['https://api.example/api'],
+                fetchImpl: async () => new Response(
+                    JSON.stringify({ error: 'Map Studio design changed in another session.' }),
+                    {
+                        status: 409,
+                        headers: { 'content-type': 'application/json' },
+                    },
+                ),
+            },
+        ),
+        (error) => error.status === 409 && /another session/.test(error.message),
+    );
+});
+
 test('managed hard and soft asset helpers forward abort signals', async () => {
     const originalFetch = globalThis.fetch;
     const abortController = new AbortController();

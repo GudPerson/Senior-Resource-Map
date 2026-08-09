@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, varchar, decimal, timestamp, pgEnum, jsonb, boolean, primaryKey, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, text, varchar, decimal, timestamp, pgEnum, jsonb, boolean, primaryKey, uniqueIndex, index, check } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
 export const roleEnum = pgEnum('role', ['super_admin', 'regional_admin', 'partner', 'standard', 'guest']);
@@ -720,6 +720,17 @@ export const myMapPrintAnnotationDocuments = pgTable('my_map_print_annotation_do
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+export const myMapStudioDocuments = pgTable('my_map_studio_documents', {
+  mapId: integer('map_id').primaryKey().references(() => myMaps.id, { onDelete: 'cascade' }),
+  schemaVersion: integer('schema_version').notNull().default(1),
+  document: jsonb('document').notNull(),
+  revision: integer('revision').notNull().default(1),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  revisionPositive: check('my_map_studio_documents_revision_positive', sql`${table.revision} > 0`),
+}));
+
 export const myMapPersonalPlaces = pgTable('my_map_personal_places', {
   id: serial('id').primaryKey(),
   mapId: integer('map_id').references(() => myMaps.id, { onDelete: 'cascade' }).notNull(),
@@ -1440,6 +1451,10 @@ export const myMapsRelations = relations(myMaps, ({ one, many }) => ({
     fields: [myMaps.id],
     references: [myMapPrintAnnotationDocuments.mapId],
   }),
+  studioDocument: one(myMapStudioDocuments, {
+    fields: [myMaps.id],
+    references: [myMapStudioDocuments.mapId],
+  }),
   shareSnapshot: one(myMapShareSnapshots, {
     fields: [myMaps.id],
     references: [myMapShareSnapshots.mapId],
@@ -1472,6 +1487,13 @@ export const myMapAssetShortDescriptorsRelations = relations(myMapAssetShortDesc
 export const myMapPrintAnnotationDocumentsRelations = relations(myMapPrintAnnotationDocuments, ({ one }) => ({
   map: one(myMaps, {
     fields: [myMapPrintAnnotationDocuments.mapId],
+    references: [myMaps.id],
+  }),
+}));
+
+export const myMapStudioDocumentsRelations = relations(myMapStudioDocuments, ({ one }) => ({
+  map: one(myMaps, {
+    fields: [myMapStudioDocuments.mapId],
     references: [myMaps.id],
   }),
 }));

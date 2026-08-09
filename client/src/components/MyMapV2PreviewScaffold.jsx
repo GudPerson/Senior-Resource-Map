@@ -4,6 +4,10 @@ import SharedMapDirectoryList from './SharedMapDirectoryList.jsx';
 
 const V2_DESKTOP_MAP_HEIGHT_CLASS = 'h-[48vh] min-h-[440px] max-h-[700px]';
 const V2_MOBILE_MAP_HEIGHT_CLASS = 'h-[34svh] min-h-[260px] max-h-[390px]';
+const V2_COMPACT_DESKTOP_MAP_HEIGHT_CLASS = 'h-[38vh] min-h-[360px] max-h-[540px]';
+const V2_COMPACT_MOBILE_MAP_HEIGHT_CLASS = 'h-[27svh] min-h-[220px] max-h-[310px]';
+const V2_TALL_DESKTOP_MAP_HEIGHT_CLASS = 'h-[64vh] min-h-[560px] max-h-[860px]';
+const V2_TALL_MOBILE_MAP_HEIGHT_CLASS = 'h-[50svh] min-h-[380px] max-h-[600px]';
 const V2_DESKTOP_GRID_CLASS = 'lg:gap-4 lg:grid-cols-[minmax(230px,0.78fr)_minmax(430px,1.32fr)_minmax(240px,0.84fr)] xl:gap-5 xl:grid-cols-[minmax(320px,0.85fr)_minmax(620px,1.45fr)_minmax(360px,0.95fr)] 2xl:grid-cols-[minmax(360px,0.9fr)_minmax(760px,1.55fr)_minmax(400px,1fr)]';
 const V2_DESKTOP_FIT_PADDING_BOTTOM_RIGHT = [44, 24];
 const V2_MOBILE_FIT_PADDING_BOTTOM_RIGHT = [104, 44];
@@ -37,6 +41,7 @@ export default function MyMapV2PreviewScaffold({
     onMapClick,
     mapOverlay = null,
     toolbar = null,
+    studioPanel = null,
     useDesktopBodyLayout = useDesktopLayout,
     emptyLabel,
     emptyState = null,
@@ -66,8 +71,21 @@ export default function MyMapV2PreviewScaffold({
     mapModeControl = null,
     preserveMobileMapFrameInFlow = false,
     mapSurfaceStatus = null,
+    mapStudioRuntime = null,
 }) {
     const resourceCount = Number(directory?.summary?.resourceCount || 0);
+    const mapHeight = mapStudioRuntime?.layout?.mapHeight || 'standard';
+    const desktopMapHeightClass = mapHeight === 'compact'
+        ? V2_COMPACT_DESKTOP_MAP_HEIGHT_CLASS
+        : mapHeight === 'tall'
+            ? V2_TALL_DESKTOP_MAP_HEIGHT_CLASS
+            : V2_DESKTOP_MAP_HEIGHT_CLASS;
+    const mobileMapHeightClass = mapHeight === 'compact'
+        ? V2_COMPACT_MOBILE_MAP_HEIGHT_CLASS
+        : mapHeight === 'tall'
+            ? V2_TALL_MOBILE_MAP_HEIGHT_CLASS
+            : V2_MOBILE_MAP_HEIGHT_CLASS;
+    const directoryMapRuntime = mapStudioRuntime?.directoryMap || null;
 
     const renderMap = (mapHeightClassName) => (
         <DirectoryMap
@@ -87,14 +105,16 @@ export default function MyMapV2PreviewScaffold({
             onResetView={onResetView}
             onMapClick={onMapClick}
             interactive={!suspendMapInteraction}
-            markerMode="category-bubble"
+            markerMode={directoryMapRuntime?.markerMode || 'category-bubble'}
+            markerScale={directoryMapRuntime?.markerScale || 1}
             pinBadgeMode="none"
             pinCategoryIconMode="none"
             clusterMarkerMode="none"
+            showPins={mapStudioRuntime?.resourceLayer?.visible ?? true}
             placeNumberByKey={presentation.placeNumberByKey}
             emptyLabel={emptyLabel}
             mapHeightClassName={mapHeightClassName}
-            layoutSignature="v2-map"
+            layoutSignature={mapStudioRuntime?.layoutSignature || 'v2-map'}
             fitPaddingBottomRight={useDesktopLayout
                 ? V2_DESKTOP_FIT_PADDING_BOTTOM_RIGHT
                 : V2_MOBILE_FIT_PADDING_BOTTOM_RIGHT}
@@ -122,6 +142,11 @@ export default function MyMapV2PreviewScaffold({
             onFixedTownSurfaceMetricsChange={onFixedTownSurfaceMetricsChange}
             onFixedTownSurfaceViewportChange={onFixedTownSurfaceViewportChange}
             mapModeControl={mapModeControl}
+            mapStyleOverride={directoryMapRuntime?.mapStyleOverride ?? null}
+            onMapStyleOverrideChange={mapStudioRuntime?.onMapStyleChange ?? null}
+            mapStyleDescription={mapStudioRuntime?.mapStyleDescription}
+            mapViewState={directoryMapRuntime?.mapViewState ?? null}
+            onMapViewStateChange={mapStudioRuntime?.onMapViewStateChange ?? null}
             mapOverlay={mapOverlay}
             surfaceStatus={mapSurfaceStatus}
         />
@@ -142,6 +167,8 @@ export default function MyMapV2PreviewScaffold({
                     </div>
                 ) : null}
 
+                {studioPanel}
+
                 {useDesktopLayout ? (
                     <div
                         ref={desktopScrollTargetRef}
@@ -152,7 +179,7 @@ export default function MyMapV2PreviewScaffold({
 
                 {resourceCount === 0 ? (
                     <div className="space-y-4">
-                        {onMapClick ? renderMap(useDesktopLayout ? V2_DESKTOP_MAP_HEIGHT_CLASS : V2_MOBILE_MAP_HEIGHT_CLASS) : null}
+                        {onMapClick ? renderMap(useDesktopLayout ? desktopMapHeightClass : mobileMapHeightClass) : null}
                         {emptyState}
                     </div>
                 ) : (
@@ -175,17 +202,21 @@ export default function MyMapV2PreviewScaffold({
                         showMapLegend={false}
                         cardBadgeMode="logo"
                         mobileFocusCardVariant="complete-preview"
+                        printLabelDetail={mapStudioRuntime?.labels?.detail}
+                        resourcePanelPlacement={mapStudioRuntime?.layout?.resourcePanel}
                         preserveMobileMapFrameInFlow={preserveMobileMapFrameInFlow}
                         desktopScrollTargetRef={desktopScrollTargetRef}
                         desktopGridClassName={V2_DESKTOP_GRID_CLASS}
                         renderDesktopMap={() => (
                             presentation.pins.length ? (
                                 <ResizableDesktopMapSurface
-                                    mapElement={renderMap(V2_DESKTOP_MAP_HEIGHT_CLASS)}
+                                    mapElement={renderMap(desktopMapHeightClass)}
+                                    heightPreset={mapStudioRuntime ? mapHeight : null}
+                                    heightResetKey={mapStudioRuntime?.heightResetKey || ''}
                                 />
-                            ) : renderMap(V2_DESKTOP_MAP_HEIGHT_CLASS)
+                            ) : renderMap(desktopMapHeightClass)
                         )}
-                        renderMobileMap={() => renderMap(V2_MOBILE_MAP_HEIGHT_CLASS)}
+                        renderMobileMap={() => renderMap(mobileMapHeightClass)}
                         mobileMapStickyClassName="sticky top-[56px] sm:top-[64px] z-[1090] -mx-4 bg-[#f6f8fb] px-4 pb-5 shadow-[0_18px_28px_-24px_rgba(15,23,42,0.45)] isolate"
                     />
                 )}

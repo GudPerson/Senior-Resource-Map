@@ -17,6 +17,9 @@ export const PRINT_MAP_RESOURCE_PLACEMENT_BESIDE = 'beside';
 export const PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE = 'next-page';
 export const PRINT_MAP_QUALITY_STANDARD = 'standard';
 export const PRINT_MAP_QUALITY_HIGH = 'high';
+export const PRINT_MAP_MARGIN_NARROW = 'narrow';
+export const PRINT_MAP_MARGIN_STANDARD = 'standard';
+export const PRINT_MAP_MARGIN_WIDE = 'wide';
 export const PRINT_MAP_RESOURCE_LAYER_SHOW = 'show';
 export const PRINT_MAP_RESOURCE_LAYER_HIDE = 'hide';
 export const PRINT_MAP_PIN_SIZE_STANDARD = 'standard';
@@ -69,6 +72,12 @@ export function shouldExportPrintMapAsSeparatePages(state = {}) {
 
 export function normalizePrintMapQuality(value) {
     return value === PRINT_MAP_QUALITY_HIGH ? PRINT_MAP_QUALITY_HIGH : PRINT_MAP_QUALITY_STANDARD;
+}
+
+export function normalizePrintMapMargin(value) {
+    if (value === PRINT_MAP_MARGIN_NARROW) return PRINT_MAP_MARGIN_NARROW;
+    if (value === PRINT_MAP_MARGIN_WIDE) return PRINT_MAP_MARGIN_WIDE;
+    return PRINT_MAP_MARGIN_STANDARD;
 }
 
 export function normalizePrintMapResourceLayer(value) {
@@ -388,6 +397,7 @@ export function createOwnerPrintMapState(mapStyle, {
         pageLayout: PRINT_MAP_PAGE_LAYOUT_STANDARD,
         resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
         mapQuality: PRINT_MAP_QUALITY_STANDARD,
+        margins: PRINT_MAP_MARGIN_STANDARD,
         resourceLayer: PRINT_MAP_RESOURCE_LAYER_SHOW,
         pinSize: PRINT_MAP_PIN_SIZE_STANDARD,
         annotationLayer: PRINT_MAP_ANNOTATION_LAYER_SHOW,
@@ -421,8 +431,12 @@ export function buildPrintMapCaptureKey(state) {
         normalizePrintMapPageLayout(state?.pageLayout),
         normalizePrintMapResourcePlacement(state?.resourcePlacement),
         normalizePrintMapQuality(state?.mapQuality),
+        normalizePrintMapMargin(state?.margins),
         normalizePrintMapResourceLayer(state?.resourceLayer),
         normalizePrintMapPinSize(state?.pinSize),
+        ['category-bubble', 'number'].includes(state?.studioMarkerMode)
+            ? state.studioMarkerMode
+            : 'legacy-print-badge',
         normalizePrintMapAnnotationLayer(state?.annotationLayer),
         JSON.stringify(normalizePrintMapHiddenLayerKeys(state?.hiddenResourceLayerKeys)),
         JSON.stringify(normalizePrintMapHiddenLayerKeys(state?.hiddenAnnotationIds)),

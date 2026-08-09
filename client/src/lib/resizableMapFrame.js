@@ -4,6 +4,8 @@ export const DESKTOP_MAP_HEIGHT_DEFAULT_MAX_PX = 700;
 export const DESKTOP_MAP_HEIGHT_EXPANDED_RATIO = 0.78;
 export const DESKTOP_MAP_HEIGHT_EXPANDED_MAX_PX = 840;
 export const DESKTOP_MAP_HEIGHT_KEYBOARD_STEP_PX = 40;
+export const DESKTOP_MAP_STUDIO_COMPACT_RATIO = 0.38;
+export const DESKTOP_MAP_STUDIO_COMPACT_MIN_PX = 360;
 
 function clamp(value, minimum, maximum) {
     return Math.min(Math.max(value, minimum), maximum);
@@ -28,6 +30,28 @@ export function getDesktopMapHeightBounds(viewportHeight) {
         defaultHeight,
         maximumHeight,
     };
+}
+
+export function getDesktopMapStudioHeightBounds(viewportHeight) {
+    const standardBounds = getDesktopMapHeightBounds(viewportHeight);
+    const safeViewportHeight = Number.isFinite(Number(viewportHeight)) && Number(viewportHeight) > 0
+        ? Number(viewportHeight)
+        : 900;
+    const compactHeight = Math.round(Math.min(
+        standardBounds.defaultHeight,
+        Math.max(DESKTOP_MAP_STUDIO_COMPACT_MIN_PX, safeViewportHeight * DESKTOP_MAP_STUDIO_COMPACT_RATIO),
+    ));
+    return {
+        ...standardBounds,
+        minimumHeight: compactHeight,
+        compactHeight,
+    };
+}
+
+export function resolveDesktopMapStudioHeightPreset(preset, bounds) {
+    if (preset === 'compact') return Number(bounds?.compactHeight) || Number(bounds?.minimumHeight);
+    if (preset === 'tall') return Number(bounds?.maximumHeight);
+    return Number(bounds?.defaultHeight);
 }
 
 export function clampDesktopMapHeight(height, bounds) {

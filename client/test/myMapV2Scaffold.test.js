@@ -106,7 +106,8 @@ test('my map v2 mobile chrome stays compact in normal flow above the scrolling m
     assert.match(navbarSource, /hc-nav sticky top-0 z-\[1200\]/);
     assert.match(mobileBottomSheetSource, /Drawer\.Overlay className="fixed inset-0 z-\[1600\]/);
     assert.match(mobileBottomSheetSource, /className=\{`fixed bottom-0 left-0 right-0 z-\[1610\]/);
-    assert.match(mobileControlsSource, /z-\[1100\] -mx-4 flex h-11/);
+    assert.match(mobileControlsSource, /z-\[1100\] flex h-11/);
+    assert.doesNotMatch(mobileControlsSource, /compactOverlay[\s\S]*?z-\[1100\] -mx-4/);
     assert.match(mobileControlsSource, /bg-slate-50\/95/);
     assert.match(mobileControlsSource, /inline-flex h-8 w-10/);
     assert.match(mobileControlsSource, /rounded-full/);
@@ -127,8 +128,10 @@ test('my map v2 mobile chrome stays compact in normal flow above the scrolling m
     assert.doesNotMatch(myMapDetailPageSource, /mobileMapStickyClassName="sticky top-\[116px\] sm:top-\[132px\]/);
 });
 
-test('my map v2 uses category bubble pins while stable my map keeps numbered pins', () => {
-    assert.match(myMapV2ScaffoldSource, /markerMode="category-bubble"/);
+test('my map v2 preserves category bubbles by default while allowing the scoped Studio pin style', () => {
+    assert.match(myMapV2ScaffoldSource, /markerMode=\{directoryMapRuntime\?\.markerMode \|\| 'category-bubble'\}/);
+    assert.match(myMapV2ScaffoldSource, /markerScale=\{directoryMapRuntime\?\.markerScale \|\| 1\}/);
+    assert.match(myMapV2ScaffoldSource, /showPins=\{mapStudioRuntime\?\.resourceLayer\?\.visible \?\? true\}/);
     assert.match(myMapV2ScaffoldSource, /pinBadgeMode="none"/);
     assert.match(myMapV2ScaffoldSource, /pinCategoryIconMode="none"/);
     assert.match(myMapV2ScaffoldSource, /clusterMarkerMode="none"/);
@@ -136,14 +139,16 @@ test('my map v2 uses category bubble pins while stable my map keeps numbered pin
     assert.match(myMapV2ScaffoldSource, /showMapLegend=\{false\}/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /clusterMarkerMode="asset-spread"/);
     assert.doesNotMatch(myMapV2ScaffoldSource, /markerMode="number"/);
-    assert.match(myMapDetailPageSource, /markerMode="number"/);
+    assert.match(myMapDetailPageSource, /const classicMarkerMode = mapStudioInteractiveModel\?\.directoryMap\?\.markerMode \|\| 'number'/);
+    assert.match(myMapDetailPageSource, /buildMapStudioResourceLayerCatalog\(townMapCoveragePresentation\)/);
+    assert.match(myMapDetailPageSource, /filterMapStudioDirectoryByLayers/);
 });
 
 test('owner print can use V2 print cards without hiding the app toolbar or changing shared print', () => {
     assert.match(directoryPrintViewSource, /const useV2OwnerPrint = mode === 'owner'/);
     assert.match(directoryPrintViewSource, /presentationMode: useV2OwnerPrint \? 'v2-cards' : 'default'/);
     assert.match(directoryPrintViewSource, /withOwnerPrintBadgePins\(basePresentation\)/);
-    assert.match(directoryPrintViewSource, /markerMode=\{useV2Format \? 'print-badge' : 'number'\}/);
+    assert.match(directoryPrintViewSource, /markerMode=\{printMapState\?\.studioMarkerMode \|\| \(useV2Format \? 'print-badge' : 'number'\)\}/);
     assert.match(directoryPrintViewSource, /pinBadgeMode=\{useV2Format \? 'none' : 'count'\}/);
     assert.match(directoryPrintViewSource, /clusterMarkerMode=\{useV2Format \? 'none' : 'bubble'\}/);
     assert.match(directoryPrintViewSource, /spreadCoincidentPins=\{!useV2Format\}/);
@@ -248,8 +253,12 @@ test('my map v2 uses the restored normal map sizing without enabling full-map mo
     assert.match(myMapV2ScaffoldSource, /2xl:grid-cols-\[minmax\(360px,0\.9fr\)_minmax\(760px,1\.55fr\)_minmax\(400px,1fr\)\]'/);
     assert.match(myMapV2ScaffoldSource, /sm:px-6 sm:py-6 lg:px-8 xl:px-10/);
     assert.match(myMapV2ScaffoldSource, /desktopGridClassName=\{V2_DESKTOP_GRID_CLASS\}/);
-    assert.match(myMapV2ScaffoldSource, /renderDesktopMap=\{\(\) => \([\s\S]*presentation\.pins\.length \? \([\s\S]*<ResizableDesktopMapSurface[\s\S]*mapElement=\{renderMap\(V2_DESKTOP_MAP_HEIGHT_CLASS\)\}[\s\S]*\) : renderMap\(V2_DESKTOP_MAP_HEIGHT_CLASS\)[\s\S]*\)\}/);
-    assert.match(myMapV2ScaffoldSource, /renderMobileMap=\{\(\) => renderMap\(V2_MOBILE_MAP_HEIGHT_CLASS\)\}/);
+    assert.match(myMapV2ScaffoldSource, /desktopMapHeightClass[\s\S]*V2_DESKTOP_MAP_HEIGHT_CLASS/);
+    assert.match(myMapV2ScaffoldSource, /mobileMapHeightClass[\s\S]*V2_MOBILE_MAP_HEIGHT_CLASS/);
+    assert.match(myMapV2ScaffoldSource, /mapElement=\{renderMap\(desktopMapHeightClass\)\}/);
+    assert.match(myMapV2ScaffoldSource, /heightPreset=\{mapStudioRuntime \? mapHeight : null\}/);
+    assert.match(myMapV2ScaffoldSource, /heightResetKey=\{mapStudioRuntime\?\.heightResetKey \|\| ''\}/);
+    assert.match(myMapV2ScaffoldSource, /renderMobileMap=\{\(\) => renderMap\(mobileMapHeightClass\)\}/);
 });
 
 test('my map v2 does not expose the rejected auto full-map experiment', () => {

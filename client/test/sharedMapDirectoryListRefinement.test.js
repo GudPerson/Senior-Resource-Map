@@ -490,8 +490,8 @@ test('v2 logo cards show the resource name before the address metadata', () => {
         'if (placeDetailPath && fullCardLink && !isPostalGroup && !canFocusCardOnMap && !canRemovePrimaryResource)',
     );
 
-    assert.match(v2CardSource, /!usesV2CardLanguage \? \(/);
-    assert.match(v2CardSource, /usesV2CardLanguage && hasLocationMeta \? \(/);
+    assert.match(v2CardSource, /!usesV2CardLanguage && showInteractiveAddress \? \(/);
+    assert.match(v2CardSource, /usesV2CardLanguage && showInteractiveAddress && hasLocationMeta \? \(/);
     assert.match(v2CardSource, /const resolvedLocationLine = resolveV2CardLocationLine\(group, t\)/);
     assert.match(v2CardSource, /<div className="mt-0">/);
     assert.match(v2CardSource, /tight/);
@@ -499,7 +499,7 @@ test('v2 logo cards show the resource name before the address metadata', () => {
     assert.match(sharedMapDirectorySource, /function resolveV2CardLocationLine/);
     assert.match(sharedMapDirectorySource, /item\?\.shortLocationLine \|\| item\?\.locationLabel \|\| item\?\.address \|\| item\?\.contextLabel/);
     assert.ok(
-        v2CardSource.indexOf('{interactivePlaceTitle}') < v2CardSource.indexOf('usesV2CardLanguage && hasLocationMeta'),
+        v2CardSource.indexOf('{interactivePlaceTitle}') < v2CardSource.indexOf('usesV2CardLanguage && showInteractiveAddress && hasLocationMeta'),
         'V2 cards should render the title row before location metadata',
     );
     assert.ok(

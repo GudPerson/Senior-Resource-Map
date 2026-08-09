@@ -139,6 +139,7 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
             if (isJson && data?.error) {
                 handleAuthJsonError(data, { suppressAuthExpired });
                 const error = new Error(data.error);
+                error.status = res.status;
                 if (data.code) error.code = data.code;
                 throw error;
             }
@@ -212,6 +213,7 @@ export async function requestFormDataWithBaseCandidates(path, formData, options 
             if (isJson && data?.error) {
                 handleAuthJsonError(data, { suppressAuthExpired });
                 const error = new Error(data.error);
+                error.status = res.status;
                 if (data.code) error.code = data.code;
                 throw error;
             }
@@ -559,6 +561,8 @@ export const api = {
     getMyMaps: () => request('GET', '/my-maps'),
     createMyMap: (body) => request('POST', '/my-maps', body),
     getMyMap: (id) => request('GET', `/my-maps/${id}`),
+    getMyMapStudio: (id, options = {}) => request('GET', `/my-maps/${id}/studio`, undefined, options),
+    updateMyMapStudio: (id, body) => request('PUT', `/my-maps/${id}/studio`, body),
     updateMyMap: (id, body) => request('PATCH', `/my-maps/${id}`, body),
     updateMyMapCategoryOrder: (id, body) => request('PATCH', `/my-maps/${id}/category-order`, body),
     deleteMyMap: (id) => request('DELETE', `/my-maps/${id}`),
