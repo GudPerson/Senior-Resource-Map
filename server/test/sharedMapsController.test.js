@@ -401,6 +401,15 @@ test('embedded map config and directory require live opt-in settings', async () 
                         },
                     },
                 },
+                embeddedPresentation: {
+                    version: 1,
+                    mapStyle: 'gray',
+                    detailMode: 'live',
+                    pinStyle: 'numbered',
+                    pinSize: 'large',
+                    pinsVisible: false,
+                    annotationsVisible: false,
+                },
                 printAnnotations: [{ id: 'untrusted-alias' }],
             }),
         }],
@@ -421,6 +430,15 @@ test('embedded map config and directory require live opt-in settings', async () 
     assert.equal(directory.share.embedAllowedOrigins, undefined);
     assert.equal(directory.personalPlaces, undefined);
     assert.deepEqual(directory.printAnnotations, [embeddedAnnotation]);
+    assert.deepEqual(directory.embeddedPresentation, {
+        version: 1,
+        mapStyle: 'gray',
+        detailMode: 'live',
+        pinStyle: 'numbered',
+        pinSize: 'large',
+        pinsVisible: false,
+        annotationsVisible: false,
+    });
     assert.equal(directory.assets, undefined);
     assert.equal(directory.places[0].rows[0].notes, undefined);
     assert.equal(directory.places[0].rows[0].saveEligible, undefined);
@@ -435,6 +453,7 @@ test('embedded map config and directory require live opt-in settings', async () 
     assert.equal(ordinarySharedDirectory.printAnnotations, undefined);
     assert.equal(ordinarySharedDirectory.embeddedAnnotations, undefined);
     assert.equal(ordinarySharedDirectory.embeddedResourceContacts, undefined);
+    assert.equal(ordinarySharedDirectory.embeddedPresentation, undefined);
     assert.equal(ordinarySharedDirectory.places[0].rows[0].website, undefined);
     assert.equal(ordinarySharedDirectory.places[0].rows[0].contactPhone, undefined);
     assert.equal(ordinarySharedDirectory.places[0].rows[0].socialLinks, undefined);

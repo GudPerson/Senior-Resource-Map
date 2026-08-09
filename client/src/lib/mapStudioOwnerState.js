@@ -68,6 +68,7 @@ export function getMapStudioOwnerRuntimeSnapshot(state) {
 
     return {
         schemaVersion: state.session.schemaVersion,
+        documentRevision: Number(state.persistedDocument.revision) || 0,
         activeViewId: state.session.activeViewId,
         activeViewName: activeView.name,
         mode: state.session.mode,

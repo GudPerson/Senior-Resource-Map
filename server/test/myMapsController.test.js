@@ -1577,8 +1577,95 @@ test('publishMyMap enables a reusable share link', async () => {
             },
         },
     });
+    assert.deepEqual(db.state.shareSnapshots[0].snapshot.embeddedPresentation, {
+        version: 1,
+        mapStyle: 'default',
+        detailMode: 'auto',
+        pinStyle: 'category-bubble',
+        pinSize: 'standard',
+        pinsVisible: true,
+        annotationsVisible: true,
+    });
     assert.equal(db.state.shareSnapshots[0].snapshot.places[0].rows[0].website, undefined);
     assert.equal(db.state.shareSnapshots[0].snapshot.places[0].rows[0].socialLinks, undefined);
+});
+
+test('publishMyMap freezes only the selected saved view public presentation', async () => {
+    const studioDocument = createMapStudioDocument({
+        viewId: 'partner-view',
+        viewName: 'Partner planning',
+        mapStyle: 'gray',
+        detailMode: 'live',
+    });
+    studioDocument.views[0].design.pins = {
+        style: 'numbered',
+        size: 'extra-large',
+    };
+    studioDocument.views[0].design.layers.resources = 'hide';
+    studioDocument.views[0].design.layers.annotations = 'hide';
+    studioDocument.views[0].design.layers.hiddenResourceLayerKeys = ['hard:29'];
+    studioDocument.views[0].design.layers.hiddenAnnotationIds = ['private-annotation'];
+    studioDocument.views[0].design.layout.mapSide = 'right';
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset()],
+        hardAsset: createHardAsset(),
+        studioDocuments: [{
+            mapId: 3,
+            schemaVersion: studioDocument.schemaVersion,
+            document: {
+                schemaVersion: studioDocument.schemaVersion,
+                defaultViewId: studioDocument.defaultViewId,
+                views: studioDocument.views,
+            },
+            revision: 5,
+        }],
+    });
+
+    await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT, {
+        studioViewId: 'partner-view',
+        design: { ownerOnlyInjection: true },
+    });
+
+    const snapshot = db.state.shareSnapshots[0].snapshot;
+    assert.deepEqual(snapshot.embeddedPresentation, {
+        version: 1,
+        mapStyle: 'gray',
+        detailMode: 'live',
+        pinStyle: 'numbered',
+        pinSize: 'extra-large',
+        pinsVisible: false,
+        annotationsVisible: false,
+    });
+    assert.equal(snapshot.studioViewId, undefined);
+    assert.equal(snapshot.studioDocument, undefined);
+    assert.equal(snapshot.design, undefined);
+    assert.equal(JSON.stringify(snapshot).includes('private-annotation'), false);
+    assert.equal(JSON.stringify(snapshot).includes('mapSide'), false);
+    assert.equal(JSON.stringify(snapshot).includes('ownerOnlyInjection'), false);
+
+    const frozenPresentation = structuredClone(snapshot.embeddedPresentation);
+    db.state.studioDocuments[0].document.views[0].design.basemap.style = 'default';
+    db.state.studioDocuments[0].document.views[0].design.pins.style = 'category-icon';
+    assert.deepEqual(snapshot.embeddedPresentation, frozenPresentation);
+});
+
+test('publishMyMap rejects an unsaved selected view before mutating share state', async () => {
+    const db = createFakeDb({
+        maps: [createMap()],
+        mapAssets: [createMapAsset()],
+        hardAsset: createHardAsset(),
+    });
+
+    await assert.rejects(
+        () => publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT, {
+            studioViewId: 'unsaved-view',
+        }),
+        (error) => error.status === 409 && /Save the selected Map Studio view/.test(error.message),
+    );
+    assert.equal(db.state.maps[0].isShared, false);
+    assert.equal(db.state.maps[0].shareToken, null);
+    assert.equal(db.state.shareSnapshots.length, 0);
 });
 
 test('publishMyMap freezes only annotations explicitly marked for sharing', async () => {

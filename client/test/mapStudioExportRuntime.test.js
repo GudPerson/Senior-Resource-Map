@@ -55,7 +55,8 @@ test('Map Studio Export exposes export-only quality and margin controls without 
     assert.match(printControlsSource, /\{!mapStudioExport \? \(/);
 });
 
-test('Map Studio view state remains absent from frozen Shared Map and embed routes', () => {
+test('private Map Studio documents remain absent from frozen Shared Map and embed routes', () => {
     assert.doesNotMatch(sharedMapSource, /MapStudio|mapStudio/);
     assert.doesNotMatch(embeddedMapSource, /MapStudio|mapStudio/);
+    assert.match(embeddedMapSource, /embeddedPresentation/);
 });

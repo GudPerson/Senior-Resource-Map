@@ -2982,11 +2982,17 @@ export default function MyMapDetailPage() {
 
     async function handlePublishShare(options = {}) {
         if (!directory) return;
+        if (mapStudioRuntimeSnapshot?.ownerDirty || mapStudioRuntimeSnapshot?.designDirty) {
+            setShareError(t('mapStudioSaveBeforeShare'));
+            return;
+        }
         setShareSubmitting(true);
         setShareError('');
         try {
             void options;
-            await api.publishMyMapShare(directory.id);
+            await api.publishMyMapShare(directory.id, mapStudioRuntimeSnapshot?.documentRevision > 0
+                ? { studioViewId: mapStudioRuntimeSnapshot.activeViewId }
+                : {});
             await loadMap();
         } catch (err) {
             console.error(err);

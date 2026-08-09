@@ -1,6 +1,59 @@
 import { buildDirectoryPresentation } from './directoryPresentation.js';
 import { buildMyMapCategoryRank, normalizeMyMapCategoryKey } from './myMapCategoryOrder.js';
 
+export const DEFAULT_EMBEDDED_MAP_PRESENTATION = Object.freeze({
+    version: 1,
+    mapStyle: 'default',
+    detailMode: 'auto',
+    pinStyle: 'category-bubble',
+    pinSize: 'standard',
+    pinsVisible: true,
+    annotationsVisible: true,
+});
+
+export function normalizeEmbeddedMapPresentation(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || Number(value.version) !== 1) {
+        return { ...DEFAULT_EMBEDDED_MAP_PRESENTATION };
+    }
+    return {
+        version: 1,
+        mapStyle: value.mapStyle === 'gray' ? 'gray' : 'default',
+        detailMode: value.detailMode === 'live' ? 'live' : 'auto',
+        pinStyle: ['numbered', 'category-icon'].includes(value.pinStyle)
+            ? value.pinStyle
+            : 'category-bubble',
+        pinSize: ['large', 'extra-large'].includes(value.pinSize)
+            ? value.pinSize
+            : 'standard',
+        pinsVisible: value.pinsVisible !== false,
+        annotationsVisible: value.annotationsVisible !== false,
+    };
+}
+
+export function buildEmbeddedMapRuntime(value) {
+    const settings = normalizeEmbeddedMapPresentation(value);
+    const markerScale = settings.pinSize === 'extra-large'
+        ? 1.5
+        : settings.pinSize === 'large'
+            ? 1.25
+            : 1;
+    const isNumbered = settings.pinStyle === 'numbered';
+    const isCategoryIcon = settings.pinStyle === 'category-icon';
+    return {
+        ...settings,
+        markerMode: isNumbered
+            ? 'print-badge'
+            : isCategoryIcon
+                ? 'category-icon'
+                : 'category-bubble',
+        markerScale,
+        printBadgeScale: markerScale,
+        pinBadgeMode: 'none',
+        pinCategoryIconMode: isCategoryIcon ? 'auto' : 'none',
+        clusterMarkerMode: 'none',
+    };
+}
+
 function getRowCategoryLabel(row = {}) {
     return row.mapSubCategory
         || row.mapCategoryLabel

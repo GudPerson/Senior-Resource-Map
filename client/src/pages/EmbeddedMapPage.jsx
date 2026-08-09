@@ -15,6 +15,7 @@ import { fetchEmbeddedMap } from '../lib/embedMapApi.js';
 import { normalizePrintAnnotations } from '../lib/printAnnotations.js';
 import {
     buildEmbedCategoryOptions,
+    buildEmbeddedMapRuntime,
     buildEmbeddedMapPresentation,
     findEmbedPreviewGroup,
     getEmbedListOnlyResourceCount,
@@ -167,6 +168,9 @@ export default function EmbeddedMapPage() {
         (presentation?.mappedGroups || []).reduce((total, group) => total + (group.rows?.length || 0), 0)
     ), [presentation?.mappedGroups]);
     const fullMapUrl = useMemo(() => buildFullMapUrl(directory, token), [directory, token]);
+    const embeddedMapRuntime = useMemo(() => (
+        buildEmbeddedMapRuntime(directory?.embeddedPresentation)
+    ), [directory?.embeddedPresentation]);
     const detailedMap = useEmbeddedDetailedMap(presentation.pins);
     const sharedAnnotations = useMemo(() => (
         normalizePrintAnnotations(directory?.printAnnotations)
@@ -289,15 +293,20 @@ export default function EmbeddedMapPage() {
                     key={`embed-map-${mapResetKey}`}
                     pins={presentation.pins}
                     onViewSection={(placeKey) => setSelectedPlaceKey(String(placeKey || ''))}
-                    markerMode="category-bubble"
-                    pinBadgeMode="none"
-                    pinCategoryIconMode="none"
-                    clusterMarkerMode="none"
+                    markerMode={embeddedMapRuntime.markerMode}
+                    markerScale={embeddedMapRuntime.markerScale}
+                    printBadgeScale={embeddedMapRuntime.printBadgeScale}
+                    pinBadgeMode={embeddedMapRuntime.pinBadgeMode}
+                    pinCategoryIconMode={embeddedMapRuntime.pinCategoryIconMode}
+                    clusterMarkerMode={embeddedMapRuntime.clusterMarkerMode}
+                    showPins={embeddedMapRuntime.pinsVisible}
                     placeNumberByKey={presentation.placeNumberByKey}
                     showPopup={false}
                     showMapStyleControl={false}
-                    mapStyleOverride="default"
-                    basemapMode={detailedMap.enabled ? 'auto' : 'live'}
+                    mapStyleOverride={embeddedMapRuntime.mapStyle}
+                    basemapMode={embeddedMapRuntime.detailMode === 'live'
+                        ? 'live'
+                        : detailedMap.enabled ? 'auto' : 'live'}
                     fixedTownSurfaceManifest={detailedMap.native.manifest}
                     fixedTownAssetBaseUrl={detailedMap.native.assetBaseUrl}
                     fixedTownSurfaceAvailable={detailedMap.native.available}
@@ -311,7 +320,7 @@ export default function EmbeddedMapPage() {
                     fixedTownSurfaceFallbackBelowMinZoom
                     fixedTownSurfaceFallbackScope="local"
                     onFixedTownSurfaceViewportChange={detailedMap.setViewportBounds}
-                    mapOverlay={sharedAnnotationOverlay}
+                    mapOverlay={embeddedMapRuntime.annotationsVisible ? sharedAnnotationOverlay : null}
                     mapHeightClassName="h-full"
                     layoutSignature={`embedded-map-${mapResetKey}`}
                     emptyLabel={t('sharedMapNoMappablePlacesYet')}

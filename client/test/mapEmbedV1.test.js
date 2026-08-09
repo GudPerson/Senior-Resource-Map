@@ -32,12 +32,14 @@ test('embedded maps boot outside authenticated, saved-resource, Google, and PWA 
 test('map-only page uses the guest endpoint and omits private-map tool surfaces', () => {
     assert.match(embeddedPageSource, /fetchEmbeddedMap\(token\)/);
     assert.match(embeddedPageSource, /buildEmbeddedMapPresentation/);
+    assert.match(embeddedPageSource, /buildEmbeddedMapRuntime/);
     assert.match(embeddedPageSource, /buildEmbedCategoryOptions/);
     assert.match(embeddedPageSource, /getEmbedListOnlyResourceCount/);
-    assert.match(embeddedPageSource, /markerMode="category-bubble"/);
-    assert.match(embeddedPageSource, /pinBadgeMode="none"/);
-    assert.match(embeddedPageSource, /pinCategoryIconMode="none"/);
-    assert.match(embeddedPageSource, /clusterMarkerMode="none"/);
+    assert.match(embeddedPageSource, /markerMode=\{embeddedMapRuntime\.markerMode\}/);
+    assert.match(embeddedPageSource, /pinBadgeMode=\{embeddedMapRuntime\.pinBadgeMode\}/);
+    assert.match(embeddedPageSource, /pinCategoryIconMode=\{embeddedMapRuntime\.pinCategoryIconMode\}/);
+    assert.match(embeddedPageSource, /clusterMarkerMode=\{embeddedMapRuntime\.clusterMarkerMode\}/);
+    assert.match(embeddedPageSource, /showPins=\{embeddedMapRuntime\.pinsVisible\}/);
     assert.match(embeddedPageSource, /showMapStyleControl=\{false\}/);
     assert.match(embeddedPageSource, /coarsePointer && !touchInteractionEnabled/);
     assert.match(embeddedPageSource, /absolute left-3 top-3/);
@@ -70,13 +72,14 @@ test('map-only page uses the guest endpoint and omits private-map tool surfaces'
     assert.match(compactResourcePreviewCardSource, /t\('contact'\)/);
     assert.doesNotMatch(embeddedPageSource, /selectedGroup \? selectedGroup\.name/);
     assert.match(embeddedPageSource, /useEmbeddedDetailedMap\(presentation\.pins\)/);
-    assert.match(embeddedPageSource, /basemapMode=\{detailedMap\.enabled \? 'auto' : 'live'\}/);
+    assert.match(embeddedPageSource, /mapStyleOverride=\{embeddedMapRuntime\.mapStyle\}/);
+    assert.match(embeddedPageSource, /embeddedMapRuntime\.detailMode === 'live'/);
     assert.match(embeddedPageSource, /fixedTownSurfaceManifest=\{detailedMap\.native\.manifest\}/);
     assert.match(embeddedPageSource, /fixedTownOverviewSurfaceManifest=\{detailedMap\.overview\.manifest\}/);
     assert.match(embeddedPageSource, /fixedTownSurfaceFallbackScope="local"/);
     assert.match(embeddedPageSource, /normalizePrintAnnotations\(directory\?\.printAnnotations\)/);
     assert.match(embeddedPageSource, /<PrintAnnotationLayer annotations=\{sharedAnnotations\} editable=\{false\}/);
-    assert.match(embeddedPageSource, /mapOverlay=\{sharedAnnotationOverlay\}/);
+    assert.match(embeddedPageSource, /mapOverlay=\{embeddedMapRuntime\.annotationsVisible \? sharedAnnotationOverlay : null\}/);
     assert.match(embeddedPageSource, /target="_blank"/);
     assert.match(directoryMapSource, /title=\{pin\.title \|\| pin\.previewResourceNames\?\.join\(', '\) \|\| 'Map resource'\}/);
     assert.doesNotMatch(embeddedPageSource, /useAuth|SavedAssets|geolocation|removeMyMap|updateMyMap/);

@@ -15,6 +15,49 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-10 selected-view embed presentation snapshot
+
+- Candidate behavior: `Update shared link` publishes the currently selected
+  persisted Map Studio named view as the presentation source for the map-only
+  embed. The frozen public snapshot contains exactly map colour, map detail
+  mode, pin style, pin size, all-pins visibility, and all-shared-annotations
+  visibility. The embed maps those values onto the existing Detailed/Live,
+  category-bubble, numbered Print badge, category-icon, and pin-size renderers.
+- Privacy boundary: the snapshot continues to contain only guest-visible map
+  resources, annotations explicitly marked for sharing, and the established
+  sanitised embedded contact fields. It does not contain a Studio document,
+  view id/name, personal place, private note or descriptor, camera, hidden
+  resource/annotation ids, labels, layout, docking, card columns, export
+  quality/margins, owner control, or unsaved draft. The ordinary Shared Map
+  response does not expose the embed presentation envelope.
+- Frozen behavior: the Worker resolves the requested view only from the saved
+  owner document and rejects an unknown/unsaved view before changing share
+  state. The client blocks `Update shared link` while Studio has unsaved design
+  or named-view changes. Subsequent Studio edits do not change an existing
+  embed until the owner saves them and explicitly updates the shared link
+  again. Older snapshots and maps without a persisted Studio document retain
+  the established category-bubble/default/auto/standard/visible defaults.
+- Reproduction: on an owned map with two saved views, select the non-default
+  view, set Gray + Live, Numbered + Large/Extra large, and save. Update the
+  shared link and open the enabled embed. Confirm its map and pins match those
+  six settings. Change the local view without saving and confirm publishing is
+  blocked; save a different style without updating the link and confirm the
+  existing embed remains unchanged; update the link and confirm it changes.
+- Acceptance criteria: public payload inspection shows only the seven-key
+  versioned presentation envelope; personal places/private data and editor or
+  export settings remain absent; numbered pins retain Print badge colours and
+  numbers, category icons retain individual overlap-capable markers, pin size
+  is live in the embed, annotation/pin visibility is respected, and existing
+  search, filtering, preview cards, Detailed fallback, framing, revocation,
+  no-store, attribution, Shared Map, My Map, Print View, and exports remain
+  stable.
+- Pre-release verification: focused owner/share/embed/privacy coverage passed
+  85/85; full server coverage and full client coverage passed with 630 client
+  tests; map lockdown passed 84/84; ordinary and exact six-root production
+  client builds passed; and `git diff --check` passed. Production deployment,
+  frozen-update UAT, response-header checks, and exact artifact parity remain
+  release gates.
+
 ## 2026-08-10 Map Studio live pin-size and Layout-panel refinement
 
 - Candidate behavior: the one Map Studio Pin size choice now updates the live

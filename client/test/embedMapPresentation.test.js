@@ -3,12 +3,50 @@ import assert from 'node:assert/strict';
 
 import {
     buildEmbedCategoryOptions,
+    buildEmbeddedMapRuntime,
     buildEmbeddedMapPresentation,
+    DEFAULT_EMBEDDED_MAP_PRESENTATION,
     filterEmbedDirectoryByCategories,
     findEmbedPreviewGroup,
     getEmbedListOnlyResourceCount,
     buildEmbedResourcePreviewDetails,
 } from '../src/lib/embedMapPresentation.js';
+
+test('embedded map runtime maps the frozen public presentation to existing renderers', () => {
+    assert.deepEqual(buildEmbeddedMapRuntime({
+        version: 1,
+        mapStyle: 'gray',
+        detailMode: 'live',
+        pinStyle: 'numbered',
+        pinSize: 'extra-large',
+        pinsVisible: false,
+        annotationsVisible: false,
+        layout: { preset: 'map-focus' },
+    }), {
+        version: 1,
+        mapStyle: 'gray',
+        detailMode: 'live',
+        pinStyle: 'numbered',
+        pinSize: 'extra-large',
+        pinsVisible: false,
+        annotationsVisible: false,
+        markerMode: 'print-badge',
+        markerScale: 1.5,
+        printBadgeScale: 1.5,
+        pinBadgeMode: 'none',
+        pinCategoryIconMode: 'none',
+        clusterMarkerMode: 'none',
+    });
+    assert.deepEqual(buildEmbeddedMapRuntime(null), {
+        ...DEFAULT_EMBEDDED_MAP_PRESENTATION,
+        markerMode: 'category-bubble',
+        markerScale: 1,
+        printBadgeScale: 1,
+        pinBadgeMode: 'none',
+        pinCategoryIconMode: 'none',
+        clusterMarkerMode: 'none',
+    });
+});
 
 function createDirectory() {
     return {

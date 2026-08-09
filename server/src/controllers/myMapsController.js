@@ -40,6 +40,8 @@ import { normalizeRole } from '../utils/roles.js';
 import { createShareToken } from '../utils/shareTokens.js';
 import { MAX_MAP_EMBED_ORIGINS, normalizeMapEmbedOrigins } from '../utils/mapEmbed.js';
 import { buildEmbeddedPrintAnnotationSnapshot } from './printAnnotationsController.js';
+import { buildEmbeddedMapPresentationSnapshot } from '../utils/embeddedMapPresentation.js';
+import { formatMapStudioDocument } from '../utils/mapStudioDocument.js';
 import {
     optionalOneLineTextSchema,
     optionalTextSchema,
@@ -116,6 +118,12 @@ const updateMyMapPersonalPlaceShortDescriptorBodySchema = z.object({
 
 const shareMyMapBodySchema = z.object({
     includeHandoffNotes: z.boolean().optional(),
+    studioViewId: z.string()
+        .trim()
+        .min(1)
+        .max(80)
+        .regex(/^[A-Za-z0-9][A-Za-z0-9:_-]{0,79}$/)
+        .optional(),
 });
 const updateMyMapEmbedBodySchema = z.object({
     enabled: z.boolean(),
@@ -386,7 +394,13 @@ function serializeMapAssetNoteItems(mapAsset) {
     return legacyNotes;
 }
 
-async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
+async function loadOwnedMap(
+    db,
+    userId,
+    mapId,
+    includeAssets = false,
+    includeStudioDocument = false,
+) {
     const map = await db.query.myMaps.findFirst({
         where: and(
             eq(myMaps.id, mapId),
@@ -438,6 +452,7 @@ async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
                     orderBy: [asc(myMapPersonalPlaceLinks.addedAt), asc(myMapPersonalPlaceLinks.id)],
                 },
                 printAnnotationDocument: true,
+                ...(includeStudioDocument ? { studioDocument: true } : {}),
             }
             : undefined,
     });
@@ -460,8 +475,14 @@ async function loadOwnedMap(db, userId, mapId, includeAssets = false) {
     };
 }
 
-async function requireOwnedMap(db, userId, mapId, includeAssets = false) {
-    const map = await loadOwnedMap(db, userId, mapId, includeAssets);
+async function requireOwnedMap(
+    db,
+    userId,
+    mapId,
+    includeAssets = false,
+    includeStudioDocument = false,
+) {
+    const map = await loadOwnedMap(db, userId, mapId, includeAssets, includeStudioDocument);
     if (!map) {
         throw createHttpError(404, 'Map not found');
     }
@@ -729,7 +750,16 @@ export async function updateMyMapEmbedSettings(db, user, mapId, body) {
 
 export async function publishMyMap(db, user, mapId, resolutionContext = null, options = {}) {
     assertDirectoryUser(user);
-    const map = await requireOwnedMap(db, user.id, mapId, true);
+    const map = await requireOwnedMap(db, user.id, mapId, true, true);
+    let embeddedPresentation = buildEmbeddedMapPresentationSnapshot(null);
+    if (options.studioViewId) {
+        const studioDocument = formatMapStudioDocument(mapId, map.studioDocument).document;
+        const selectedView = studioDocument?.views?.find((view) => view.id === options.studioViewId);
+        if (!selectedView) {
+            throw createHttpError(409, 'Save the selected Map Studio view before updating the shared link');
+        }
+        embeddedPresentation = buildEmbeddedMapPresentationSnapshot(selectedView.design);
+    }
     const finalResolutionContext = resolutionContext || await createSavedAssetResolutionContext(db, user);
     const sharedAt = new Date();
     const { snapshotUpdates } = await buildMyMapDirectory(db, {
@@ -785,6 +815,7 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
             map.printAnnotationDocument?.annotations,
         ),
         embeddedResourceContacts,
+        embeddedPresentation,
     }, sharedAt);
 
     const updated = await requireOwnedMap(db, user.id, mapId, true);
@@ -1234,6 +1265,7 @@ export const postMyMapShare = async (c) => {
         const body = validateRequestBody(rawBody, shareMyMapBodySchema, 'Share settings');
         const map = await publishMyMap(db, user, mapId, null, {
             includeHandoffNotes: Boolean(body.includeHandoffNotes),
+            studioViewId: body.studioViewId,
         });
         return c.json(map);
     } catch (err) {

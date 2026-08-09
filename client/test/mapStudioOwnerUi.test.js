@@ -8,6 +8,7 @@ function readSource(relativePath) {
 
 const apiSource = readSource('../src/lib/api.js');
 const panelSource = readSource('../src/components/MapStudioViewsPanel.jsx');
+const ownerStateSource = readSource('../src/lib/mapStudioOwnerState.js');
 const ownerPageSource = readSource('../src/pages/MyMapDetailPage.jsx');
 const v2ScaffoldSource = readSource('../src/components/MyMapV2PreviewScaffold.jsx');
 const sharedMapSource = readSource('../src/pages/SharedMapPage.jsx');
@@ -56,6 +57,13 @@ test('runtime design stays owner-scoped while exploration remains temporary', ()
     assert.match(ownerPageSource, /filterPrintMapAnnotations\(printAnnotations\.annotations/);
     assert.match(ownerPageSource, /classicMapStudioMapProps/);
     assert.match(ownerPageSource, /mapStudioLayoutSignature/);
+});
+
+test('sharing publishes only the selected persisted view and blocks unsaved owner state', () => {
+    assert.match(ownerPageSource, /mapStudioRuntimeSnapshot\?\.ownerDirty \|\| mapStudioRuntimeSnapshot\?\.designDirty/);
+    assert.match(ownerPageSource, /t\('mapStudioSaveBeforeShare'\)/);
+    assert.match(ownerPageSource, /\{ studioViewId: mapStudioRuntimeSnapshot\.activeViewId \}/);
+    assert.match(ownerStateSource, /documentRevision: Number\(state\.persistedDocument\.revision\) \|\| 0/);
 });
 
 test('the owner panel is additive to both My Map layouts and remains outside Print View', () => {

@@ -9,6 +9,7 @@ import {
 } from '../utils/embeddedResourceContacts.js';
 import { normalizeMyMapCategoryOrder } from '../utils/myMapCategoryOrder.js';
 import { normalizeMapEmbedOrigins } from '../utils/mapEmbed.js';
+import { normalizeEmbeddedMapPresentationSnapshot } from '../utils/embeddedMapPresentation.js';
 import { buildMyMapDirectory, normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
 import { normalizeRole } from '../utils/roles.js';
 import { translateSharedMapNotes } from '../utils/sharedNoteTranslations.js';
@@ -133,12 +134,14 @@ function createSnapshotViewerSummary(viewerUser, ownerUserId, mapName) {
 function normalizeSnapshotDirectory(map, viewerUser, {
     includeEmbeddedAnnotations = false,
     includeEmbeddedResourceContacts = false,
+    includeEmbeddedPresentation = false,
 } = {}) {
     const snapshot = map?.shareSnapshot?.snapshot;
     if (!snapshot || typeof snapshot !== 'object') return null;
     const {
         embeddedAnnotations,
         embeddedResourceContacts,
+        embeddedPresentation,
         printAnnotations,
         ...sharedSnapshot
     } = snapshot;
@@ -147,6 +150,9 @@ function normalizeSnapshotDirectory(map, viewerUser, {
         ...sharedSnapshot,
         ...(includeEmbeddedAnnotations ? {
             printAnnotations: normalizeEmbeddedPrintAnnotationSnapshot(embeddedAnnotations),
+        } : {}),
+        ...(includeEmbeddedPresentation ? {
+            embeddedPresentation: normalizeEmbeddedMapPresentationSnapshot(embeddedPresentation),
         } : {}),
         share: {
             ...(sharedSnapshot.share || {}),
@@ -298,6 +304,7 @@ export async function getEmbeddedMapDirectory(db, token) {
     const directory = await getSharedMapDirectory(db, token, { role: 'guest' }, {
         includeEmbeddedAnnotations: true,
         includeEmbeddedResourceContacts: true,
+        includeEmbeddedPresentation: true,
     });
     const places = (directory.places || []).map((place) => ({
         ...place,
@@ -343,6 +350,7 @@ export async function getEmbeddedMapDirectory(db, token) {
         },
         places,
         printAnnotations: directory.printAnnotations || [],
+        embeddedPresentation: directory.embeddedPresentation,
         viewer: {
             isAuthenticated: false,
             isOwner: false,

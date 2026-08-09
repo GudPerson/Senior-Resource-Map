@@ -131,6 +131,7 @@ test('runtime snapshot exposes one cloned active design without leaking document
 
     assert.equal(snapshot.activeViewId, 'view-default');
     assert.equal(snapshot.activeViewName, 'Default view');
+    assert.equal(snapshot.documentRevision, 0);
     assert.equal(snapshot.mode, 'explore');
     assert.equal(snapshot.designDirty, false);
     assert.equal(snapshot.ownerDirty, false);
