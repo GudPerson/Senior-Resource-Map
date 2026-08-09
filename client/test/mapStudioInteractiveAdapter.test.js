@@ -65,7 +65,7 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
         mapStyleOverride: 'default',
         basemapMode: 'auto',
         mapViewState: { center: [1.385, 103.744], zoom: 16.5 },
-        markerMode: 'number',
+        markerMode: 'print-badge',
         markerScale: 1.25,
     });
     assert.deepEqual(model.annotationLayer, {

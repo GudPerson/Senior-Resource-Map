@@ -30,6 +30,9 @@ test('standalone Map Studio controls expose the complete adapter-ready interacti
     assert.match(controlsSource, /data-map-studio-resource-layers="true"/);
     assert.match(controlsSource, /data-map-studio-annotation-layers="true"/);
     assert.match(controlsSource, /hiddenAnnotationIds/);
+    assert.match(controlsSource, /data-map-studio-resource-layer-controls="true"/);
+    assert.match(controlsSource, /value\.layers\.resources === PRINT_MAP_RESOURCE_LAYER_SHOW \? \(/);
+    assert.match(controlsSource, /onClose/);
     assert.doesNotMatch(controlsSource, /DirectoryMap|DirectoryPrintView|SharedMapDirectoryList/);
 });
 
@@ -49,5 +52,9 @@ test('approved runtime mounts controls only inside the owner Map Studio panel', 
     assert.match(panelSource, /explorationCamera=\{ownerState\.session\.exploration\.cameraView\}/);
     assert.match(panelSource, /resourceLayerCatalog=\{resourceLayerCatalog\}/);
     assert.match(panelSource, /annotationLayerCatalog=\{annotationLayerCatalog\}/);
+    assert.match(panelSource, /data-map-studio-design-settings-trigger="true"/);
+    assert.match(panelSource, /designSettingsOpen/);
+    assert.match(panelSource, /lg:absolute/);
+    assert.match(panelSource, /event\.key !== 'Escape'/);
     assert.doesNotMatch(ownerPageSource, /MapStudioDesignControls|MapStudioModeSwitch/);
 });

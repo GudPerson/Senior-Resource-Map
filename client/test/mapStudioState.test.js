@@ -12,6 +12,7 @@ import {
     MAP_STUDIO_RESOURCE_PANEL_BESIDE,
     MAP_STUDIO_SCHEMA_VERSION,
     buildMapStudioPrintState,
+    createMapStudioDesign,
     createMapStudioDocument,
     createMapStudioExportSettings,
     createMapStudioSession,
@@ -41,6 +42,15 @@ import {
     PRINT_MAP_SIDE_RIGHT,
     PRINT_MAP_WIDTH_EXTRA_WIDE,
 } from '../src/lib/printMapState.js';
+
+test('numbered Studio pins reuse the current coloured Print View badge renderer', () => {
+    const design = createMapStudioDesign();
+    design.pins.style = MAP_STUDIO_PIN_STYLE_NUMBERED;
+
+    const printState = buildMapStudioPrintState(design);
+
+    assert.equal(printState.studioMarkerMode, 'print-badge');
+});
 
 test('a legacy My Map gets one versioned default view without changing existing runtime behavior', () => {
     const document = migrateMapStudioDocument(null, {

@@ -50,7 +50,7 @@ export function buildMapStudioInteractiveModel(design, defaults = {}) {
                 ? clone(normalizedDesign.camera.view)
                 : null,
             markerMode: normalizedDesign.pins.style === MAP_STUDIO_PIN_STYLE_NUMBERED
-                ? 'number'
+                ? 'print-badge'
                 : 'category-bubble',
             markerScale: getPrintMapPinScale(normalizedDesign.pins.size),
         },

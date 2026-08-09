@@ -15,6 +15,28 @@ Last updated: 2026-08-09 (Asia/Singapore)
 - The additive Studio table and its private rows remain intact but inert in
   production. Do not drop, purge, backfill, or publish them during UAT.
 
+## Map Studio numbered pins and Design settings (2026-08-09, local refinement)
+
+- `Numbered pins` now uses the current category-coloured Print badge markers
+  in both the owner interactive map and Studio Export. The former monochrome
+  Studio number marker is no longer selected. Category bubbles and current
+  bubble clustering remain the default and are unchanged.
+- Design settings now use the same responsive interaction pattern as current
+  Print View settings: one explicit trigger, floating/dismissible desktop
+  sheet, mobile in-flow sheet, 44 px controls, Escape support, and progressive
+  disclosure for resource-pin and annotation-dependent choices. The saved
+  named-view design still excludes exploration and export-only Print settings.
+- Gates pass: focused 103/103, full client/source 617/617, map lockdown 84/84,
+  ordinary and production-configured builds, and diff check. Signed-in local
+  UAT on disposable map 321 (cleaned up) passed numbered-pin parity in both
+  interactive and Export views, explicit save/reload, valid PNG/PDF, desktop
+  and 390 px mobile layout, no horizontal overflow, and the focus-card flow.
+  Screenshots and downloads are in
+  `output/playwright/map-studio-settings-refinement/`.
+- This refinement is for local UAT only. Do not push, merge, or deploy it until
+  the user completes the next refinement/release review. Production remains on
+  the stable pre-Studio My Map rollback.
+
 ## Map Studio integrated production release (2026-08-09)
 
 - `codex/map-studio-state-model` now contains the complete additive goal through

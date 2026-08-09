@@ -1,7 +1,8 @@
 # CareAround Map Studio Architecture
 
 Date: 2026-08-09
-Status: local UAT and refinement only at `1be2093de`. Production `main` was
+Status: local UAT and refinement only on `codex/map-studio-state-model`.
+Production `main` was
 rolled back additively by `e47015090` to the exact pre-Studio My Map client/API
 tree at `fe91f9667`; release evidence is in `1adc038a0`. The versioned state
 model, owner schema/API, named-view UI, Explore/Design wiring, and additive
@@ -139,6 +140,14 @@ contract. Studio Export maps the supported view design, resource visibility,
 camera, card detail, layout, margins, and image quality into that renderer.
 The visible preview and hidden capture therefore share one print state while
 the ordinary Print View continues to use its existing defaults.
+
+For the local UAT refinement, Studio's `Numbered pins` choice deliberately maps
+to that same `print-badge` seam in both interactive and export adapters. This
+preserves category colours and number identity without introducing a second
+numbered-marker design. Studio's Design settings also reuse Print View's
+responsive control behavior (explicit trigger, floating desktop sheet, mobile
+in-flow sheet, and progressive disclosure) while keeping their persistent
+named-view state separate from export-only Print settings.
 
 ## Explicit Save Flow
 

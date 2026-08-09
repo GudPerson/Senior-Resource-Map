@@ -29,6 +29,47 @@ Rules:
   mobile focus cards, annotations, personal-place privacy, frozen Shared/embed,
   ordinary Print View/export, authentication, and existing My Map behavior.
 
+## 2026-08-09 Map Studio numbered-pin and Design-settings refinement (local UAT)
+
+- Candidate behavior: choosing `Numbered pins` in Map Studio now reuses the
+  current Print View category-coloured numbered badge renderer in both the
+  interactive owner map and Studio Export. It no longer routes through the
+  older monochrome teal number marker. Category bubbles and the current bubble
+  clustering path remain the default and are unchanged.
+- Settings behavior: Design settings now follow the current Print View settings
+  pattern: a dedicated 44 px trigger, a dismissible floating settings sheet on
+  desktop, an in-flow sheet on mobile, Escape/close support, clear selected
+  states, and progressive disclosure. Pin style, pin size, card detail,
+  resource layout, and category choices are hidden when resource pins are
+  hidden; annotation item choices are hidden when annotations are hidden.
+  Persistent named-view design remains separate from temporary exploration and
+  export-only Print layout, margins, columns, and quality.
+- Architecture and blast radius: the patch changes only the Studio adapters,
+  owner settings panel, and the existing opt-in Studio marker seam in
+  `DirectoryPrintView`. Ordinary Print View keeps its established defaults;
+  Shared Map/embed, resource cards, map membership, annotation geometry,
+  personal places, Detailed surfaces, clustering, auth, schema, and server
+  behavior are not changed.
+- Reproduction and acceptance: on a disposable owned My Map, enter Design,
+  open Design settings, choose `Numbered pins`, and zoom until individual pins
+  appear. Confirm category-coloured `.directory-print-badge-marker__lobe`
+  markers exist and `.directory-number-marker` does not. Save, open Studio
+  Export, and confirm the same marker renderer and colours. At 390 px confirm
+  the settings sheet stays in document flow with no horizontal overflow; hide
+  resource pins or annotations and confirm their dependent choices disappear.
+  Confirm the panel closes with its close action or Escape and reopens from the
+  settings trigger.
+- Verification: focused Map Studio/Print/i18n coverage passes 103/103; full
+  client/source coverage passes 617/617; map lockdown passes 84/84 and its
+  exact production-configured six-root build passes; the ordinary client build
+  and `git diff --check` pass. Signed-in disposable-map UAT passed on local map
+  321 (removed after the run), including explicit persistence, desktop/mobile
+  Design, 390 px no-overflow, current coloured numbered pins in interactive
+  and Export views, valid PNG/PDF output, direct Export reload, and the mobile
+  focus-card flow. Visual evidence is under
+  `output/playwright/map-studio-settings-refinement/`. This candidate remains
+  local only; production was not pushed or deployed.
+
 ## 2026-08-09 Map Studio integrated production release
 
 - Current behavior: an owner can create, rename, duplicate, select, set as
