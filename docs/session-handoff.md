@@ -185,6 +185,17 @@ Last updated: 2026-08-09 (Asia/Singapore)
   79/79, full client coverage 636/636, map lockdown 84/84, and the exact
   configured Detailed-map client build passes. The local UAT view was restored
   clean after the temporary category-icon preview; production is unchanged.
+- Individual Studio markers now share Discovery's hover-stacking outcome: pin
+  hover and resource-card hover both lift the matched marker above overlapping
+  peers. The change reuses the existing owner hover key and leaves coordinates,
+  collision layout, baseline order, clustering, and non-interactive Print
+  rendering unchanged. Non-numbered inactive pins explicitly reset their
+  Leaflet offset to zero so style switching cannot retain numbered stacking.
+- Local map 258 proof passed for numbered card hover plus category-icon card
+  and direct-pin hover; every matched marker exceeded the highest peer z-index.
+  Focused coverage passes 39/39, full client 637/637, map lockdown 84/84, and
+  the exact configured Detailed-map build passes. The isolated preview was
+  discarded and production remains unchanged.
 - Interactive pin size, label detail, resource/category filtering, and
   resource-panel placement are explicitly deferred. They must not appear as
   working controls until pins and every desktop/mobile card or sticky/focus

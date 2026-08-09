@@ -78,6 +78,19 @@ Rules:
   mode rendered 37 individual category icons, with zero aggregate cluster
   elements in both modes. The temporary category-icon preview was discarded,
   leaving the saved view clean. Production remains unchanged.
+- Hover-stacking acceptance: in every individual-pin Studio style, hovering a
+  pin or its corresponding resource card must raise that marker above
+  overlapping peers, matching Discovery. The existing shared hover key remains
+  authoritative; ordinary marker order, collision offsets, coordinates,
+  clustering choices, and non-interactive Print rendering must not change.
+  Switching away from numbered pins must explicitly clear their numeric
+  stacking offsets so inactive category icons cannot retain stale ordering.
+- Hover-stacking verification on 2026-08-09: focused marker/Studio coverage
+  passes 39/39, full client coverage passes 637/637, map lockdown passes 84/84,
+  and the exact configured Detailed-map build passes. Signed-in local UAT on
+  map 258 proved numbered card hover and category-icon card/pin hover each put
+  the matched marker above every peer. The isolated temporary preview was
+  discarded cleanly; no production or saved-view mutation occurred.
 
 ## 2026-08-09 Map Studio numbered-pin and Design-settings refinement (local UAT)
 

@@ -34,7 +34,10 @@ import {
     isDuplicateClusterClick,
     shouldIgnoreClusterHover,
 } from '../lib/mapClusterInteraction.js';
-import { buildDirectoryMapClassNames } from '../lib/directoryMapPresentation.js';
+import {
+    buildDirectoryMapClassNames,
+    getDirectoryMarkerZIndexOffset,
+} from '../lib/directoryMapPresentation.js';
 import {
     getFocusedDirectoryCameraPins,
     shouldRefitDirectoryCameraAfterResize,
@@ -3100,9 +3103,11 @@ export default function DirectoryMap({
                                 icon={icon}
                                 title={pin.title || pin.previewResourceNames?.join(', ') || 'Map resource'}
                                 alt={pin.title || pin.previewResourceNames?.join(', ') || 'Map resource'}
-                                zIndexOffset={markerMode === 'print-badge'
-                                    ? 100000 + ((Number(pin.number) || 0) * 1000)
-                                    : (markerMode === 'category-bubble' && isMatched ? 100000 : undefined)}
+                                zIndexOffset={getDirectoryMarkerZIndexOffset({
+                                    markerMode,
+                                    isMatched: interactive && isMatched,
+                                    number: pin.number,
+                                })}
                                 eventHandlers={interactive ? {
                                     mousedown: (event) => handleMarkerActivate(event, pin),
                                     click: (event) => handleMarkerActivate(event, pin),
@@ -3189,9 +3194,11 @@ export default function DirectoryMap({
                     icon={icon}
                     title={pin.title || pin.previewResourceNames?.join(', ') || 'Map resource'}
                     alt={pin.title || pin.previewResourceNames?.join(', ') || 'Map resource'}
-                    zIndexOffset={markerMode === 'print-badge'
-                        ? 100000 + ((Number(pin.number) || 0) * 1000)
-                        : (markerMode === 'category-bubble' && isMatched ? 100000 : undefined)}
+                    zIndexOffset={getDirectoryMarkerZIndexOffset({
+                        markerMode,
+                        isMatched: interactive && isMatched,
+                        number: pin.number,
+                    })}
                     eventHandlers={interactive ? {
                         mousedown: (event) => handleMarkerActivate(event, pin),
                         click: (event) => handleMarkerActivate(event, pin),
