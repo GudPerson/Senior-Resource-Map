@@ -63,6 +63,8 @@ test('sharing publishes only the selected persisted view and blocks unsaved owne
     assert.match(ownerPageSource, /mapStudioRuntimeSnapshot\?\.ownerDirty \|\| mapStudioRuntimeSnapshot\?\.designDirty/);
     assert.match(ownerPageSource, /t\('mapStudioSaveBeforeShare'\)/);
     assert.match(ownerPageSource, /\{ studioViewId: mapStudioRuntimeSnapshot\.activeViewId \}/);
+    assert.match(ownerPageSource, /await loadMap\(\);[\s\S]*return true;/);
+    assert.match(ownerPageSource, /setShareError\(err\.message \|\| t\('failedPublishShare'\)\);[\s\S]*return false;/);
     assert.match(ownerStateSource, /documentRevision: Number\(state\.persistedDocument\.revision\) \|\| 0/);
 });
 

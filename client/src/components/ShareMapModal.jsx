@@ -49,6 +49,12 @@ function buildEmbedCode(embedUrl, mapName) {
     return `<iframe src="${escapeHtmlAttribute(embedUrl)}" title="${escapeHtmlAttribute(`${mapName || 'CareAround SG'} interactive resource map`)}" width="100%" height="520" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen style="border:0;border-radius:16px;min-width:400px"></iframe>`;
 }
 
+function buildEmbedPreviewUrl(embedUrl, revision) {
+    if (!embedUrl || !revision) return embedUrl;
+    const separator = embedUrl.includes('?') ? '&' : '?';
+    return `${embedUrl}${separator}snapshot=${encodeURIComponent(revision)}`;
+}
+
 export default function ShareMapModal({
     isOpen,
     map,
@@ -67,8 +73,13 @@ export default function ShareMapModal({
     const [originError, setOriginError] = useState('');
     const [embedEnabled, setEmbedEnabled] = useState(false);
     const [embedOrigins, setEmbedOrigins] = useState([]);
+    const [embedPreviewRevision, setEmbedPreviewRevision] = useState(0);
     const shareUrl = useMemo(() => buildShareUrl(map?.share?.sharePath || map?.sharePath), [map?.share?.sharePath, map?.sharePath]);
     const embedUrl = useMemo(() => buildEmbedUrl(map?.share?.embedPath || map?.embedPath), [map?.share?.embedPath, map?.embedPath]);
+    const embedPreviewUrl = useMemo(
+        () => buildEmbedPreviewUrl(embedUrl, embedPreviewRevision),
+        [embedPreviewRevision, embedUrl],
+    );
     const embedCode = useMemo(() => buildEmbedCode(embedUrl, map?.name), [embedUrl, map?.name]);
     const persistedEmbedEnabled = Boolean(map?.share?.embedEnabled ?? map?.embedEnabled);
     const persistedEmbedOrigins = map?.share?.embedAllowedOrigins || map?.embedAllowedOrigins || [];
@@ -81,6 +92,7 @@ export default function ShareMapModal({
         setOriginError('');
         setEmbedFeedback('');
         setEmbedCopyFeedback('');
+        setEmbedPreviewRevision(0);
     }, [isOpen, map?.id, persistedEmbedEnabled, JSON.stringify(persistedEmbedOrigins)]);
 
     if (!isOpen || !map) return null;
@@ -100,6 +112,12 @@ export default function ShareMapModal({
             console.error(err);
             setCopyFeedback(t('copyFailed'));
         }
+    }
+
+    async function handlePublishClick() {
+        const published = await onPublish?.();
+        if (!published) return;
+        setEmbedPreviewRevision((current) => current + 1);
     }
 
     function handleAddOrigin() {
@@ -350,8 +368,17 @@ export default function ShareMapModal({
                                                 {t('openFullMap')} <ExternalLink size={15} />
                                             </a>
                                         </div>
+                                        <div className={`mt-2 rounded-2xl border px-4 py-3 ${
+                                            hasPendingShareUpdates
+                                                ? 'border-amber-200 bg-amber-50 text-amber-900'
+                                                : 'border-brand-100 bg-brand-50/70 text-brand-900'
+                                        }`}>
+                                            <p className="text-sm font-bold">{t('embedPreviewSnapshotTitle')}</p>
+                                            <p className="mt-1 text-xs leading-5">{t('embedPreviewSnapshotDescription')}</p>
+                                        </div>
                                         <iframe
-                                            src={embedUrl}
+                                            key={embedPreviewUrl}
+                                            src={embedPreviewUrl}
                                             title={`${map.name} ${t('embedPreview')}`}
                                             loading="lazy"
                                             className="mt-2 h-[440px] w-full rounded-2xl border border-slate-200 sm:h-[520px]"
@@ -376,7 +403,7 @@ export default function ShareMapModal({
                             <>
                                 <button
                                     type="button"
-                                    onClick={() => onPublish?.()}
+                                    onClick={handlePublishClick}
                                     disabled={submitting}
                                     className={`${hasPendingShareUpdates ? 'btn-primary' : 'btn-ghost border border-brand-200 text-brand-700 hover:bg-brand-50'} justify-center disabled:cursor-not-allowed disabled:opacity-60`}
                                 >
@@ -394,7 +421,7 @@ export default function ShareMapModal({
                         ) : (
                             <button
                                 type="button"
-                                onClick={() => onPublish?.()}
+                                onClick={handlePublishClick}
                                 disabled={submitting}
                                 className="btn-primary justify-center disabled:cursor-not-allowed disabled:opacity-60"
                             >

@@ -2981,10 +2981,10 @@ export default function MyMapDetailPage() {
     }
 
     async function handlePublishShare(options = {}) {
-        if (!directory) return;
+        if (!directory) return false;
         if (mapStudioRuntimeSnapshot?.ownerDirty || mapStudioRuntimeSnapshot?.designDirty) {
             setShareError(t('mapStudioSaveBeforeShare'));
-            return;
+            return false;
         }
         setShareSubmitting(true);
         setShareError('');
@@ -2994,9 +2994,11 @@ export default function MyMapDetailPage() {
                 ? { studioViewId: mapStudioRuntimeSnapshot.activeViewId }
                 : {});
             await loadMap();
+            return true;
         } catch (err) {
             console.error(err);
             setShareError(err.message || t('failedPublishShare'));
+            return false;
         } finally {
             setShareSubmitting(false);
         }

@@ -37,6 +37,37 @@ test('share map modal keeps copy-existing separate from update-shared-link', () 
     );
     assert.match(
         shareMapModalSource,
-        /onClick=\{\(\) => onPublish\?\.\(\)\}/,
+        /onClick=\{handlePublishClick\}/,
+    );
+});
+
+test('share map modal explains and refreshes the frozen embed preview after publication', () => {
+    assert.match(
+        shareMapModalSource,
+        /const \[embedPreviewRevision, setEmbedPreviewRevision\] = useState\(0\);/,
+    );
+    assert.match(
+        shareMapModalSource,
+        /const published = await onPublish\?\.\(\);/,
+    );
+    assert.match(
+        shareMapModalSource,
+        /if \(!published\) return;/,
+    );
+    assert.match(
+        shareMapModalSource,
+        /setEmbedPreviewRevision\(\(current\) => current \+ 1\);/,
+    );
+    assert.match(
+        shareMapModalSource,
+        /src=\{embedPreviewUrl\}/,
+    );
+    assert.match(
+        shareMapModalSource,
+        /t\('embedPreviewSnapshotTitle'\)/,
+    );
+    assert.match(
+        shareMapModalSource,
+        /t\('embedPreviewSnapshotDescription'\)/,
     );
 });

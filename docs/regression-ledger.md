@@ -15,6 +15,38 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-10 owner embed-preview snapshot refresh
+
+- Candidate behavior: the Website embed preview inside the owner Share dialog
+  explains that it shows the map style and resources from the last published
+  snapshot. After `Update shared link` succeeds, the dialog changes only the
+  preview iframe URL with a local revision query and remounts it in place, so
+  the newly frozen saved view appears without closing and reopening Share.
+- Privacy and blast radius: the refresh happens only after the existing publish
+  callback returns success. Blocked, failed, or unsaved-view publication keeps
+  the existing preview unchanged. The canonical embed URL and copied iframe
+  code stay stable; no API payload, snapshot content, resource visibility,
+  framing origin, cache header, Studio persistence, Shared Map, personal-place,
+  annotation, authentication, schema, or server behavior changes.
+- Reproduction: open an owned shared map whose Website embed is enabled, save
+  a different named-view style, open Share, and note the last-updated-preview
+  message. Select `Update shared link` and keep the dialog open. The preview
+  must reload to the newly published map style and resources after the action
+  succeeds. Trigger a blocked or failed publication and confirm it does not
+  reload as if the update succeeded.
+- Acceptance criteria: the notice is readable in all supported locales; each
+  successful update increments the preview revision and reloads the iframe;
+  failures do not increment it; copied embed code and the Open full map link
+  remain canonical; the frozen selected-view privacy contract remains intact.
+- Pre-release verification: focused Share/embed/Studio/i18n coverage passed
+  18/18; full client/source coverage passed 646/646; full server coverage passed
+  548/548; owner-map lockdown passed 84/84; and the exact six-root production
+  client build passed with the existing Browserslist age notice only.
+  Credentialed production smoke completed all six flows, with the postal-import
+  flow passing on its configured retry after an initial form-load timeout; a
+  clean no-retry targeted rerun then passed 1/1. `git diff --check` passed on
+  branch `codex/share-preview-refresh`. Pages deployment is pending.
+
 ## 2026-08-10 selected-view embed presentation snapshot
 
 - Current behavior: `Update shared link` publishes the currently selected

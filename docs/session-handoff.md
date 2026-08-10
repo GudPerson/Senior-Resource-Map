@@ -2,6 +2,23 @@
 
 Last updated: 2026-08-10 (Asia/Singapore)
 
+## Owner embed-preview refresh (2026-08-10, local candidate)
+
+- The Share dialog now states that its Website embed preview shows the last
+  published map style and resources. A successful `Update shared link` adds a
+  local preview revision to the iframe source and reloads it in place; owners no
+  longer need to close and reopen Share to see the newly frozen saved view.
+- Failed, blocked, and unsaved-view updates do not refresh the preview. The
+  copied embed code and Open full map URL remain canonical, and the server
+  snapshot/privacy/framing contract is unchanged.
+- Focused Share/embed/Studio/i18n tests pass 18/18, full client/source tests
+  pass 646/646, full server tests pass 548/548, owner-map lockdown passes 84/84,
+  the exact six-root build passes, and the diff check passes on
+  `codex/share-preview-refresh`. Credentialed production smoke completed all
+  six flows; postal import passed on its configured retry and then passed a
+  clean targeted no-retry rerun. This client-only candidate is ready for Pages
+  deployment; no Worker change is required.
+
 ## Selected-view embed presentation release (2026-08-10)
 
 - `Update shared link` now treats the currently selected persisted Map Studio
