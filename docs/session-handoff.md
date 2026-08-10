@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-10 (Asia/Singapore)
 
-## Share annotation and Edit layout progressive disclosure (2026-08-10, local UAT)
+## Share annotation and Edit layout progressive disclosure release (2026-08-10)
 
 - The Share dialog now stages a tri-state `Include annotations` choice below
   the embedded preview. Untouched preserves granular annotation sharing;
@@ -20,9 +20,20 @@ Last updated: 2026-08-10 (Asia/Singapore)
   docking preference remains browser-persisted.
 - Verification passes focused Share/Studio/annotation/i18n 35/35, full client
   633/633, full server 548/548, expanded map/embed/Print/UI lockdown 75/75,
-  client production build, and diff check. Work is local on
-  `codex/map-studio-layout-share-ux`; no commit, push, deployment, schema,
-  Worker, secret, database, or frozen production snapshot was changed.
+  map-lockdown 85/85, the exact production client build, and diff check.
+  Implementation commit `3dd54951` is pushed on
+  `codex/map-studio-layout-share-ux` and fast-forwarded to `main`.
+- The exact 82-file artifact was published with Pages Functions and routing at
+  `https://d2c1f0be.senior-resource-map.pages.dev`. The immutable URL and
+  `app.carearound.sg` both match all 82 local public files (164 SHA-256
+  comparisons, zero failures; aggregate local manifest
+  `5211115282cf7256d885eb496d368e967044c302eb5333d60428b73d3fce21a1`). API
+  health and ordinary/embed framing headers are correct. No Worker, schema,
+  auth, secret, database, or existing frozen snapshot was changed.
+- The release shell did not contain authenticated smoke credentials. Owner UAT
+  should confirm the new Share checkbox publication flow and the floating
+  Edit-layout collapse/reopen/close behavior on map 258; this is the only
+  remaining manual follow-up.
 
 ## Embed shared-annotation publication flush release (2026-08-10)
 

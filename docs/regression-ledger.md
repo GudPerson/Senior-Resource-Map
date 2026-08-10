@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-10 Share annotation and Edit layout progressive disclosure (local UAT candidate)
+## 2026-08-10 Share annotation and Edit layout progressive disclosure (production release)
 
 - Candidate behavior: the owner Share dialog now places an explicit `Include
   annotations` checkbox immediately after the embedded preview and before
@@ -57,10 +57,23 @@ Rules:
 - Verification: focused Share/Studio/annotation/i18n coverage passes 35/35;
   full client/source coverage passes 633/633; full server coverage passes
   548/548; the expanded map/embed/Print/UI-preference lockdown passes 75/75;
-  `npm run build:client` and `git diff --check` pass with only the existing
-  Browserslist age notice. Candidate branch:
-  `codex/map-studio-layout-share-ux`. No commit, push, deployment, schema,
-  Worker, secret, database, or public snapshot change has been made.
+  `npm run verify:map-lockdown` passes 85/85 and produces the exact six-root
+  production client build; `git diff --check` passes with only the existing
+  Browserslist age notice. Implementation commit `3dd54951` is pushed on
+  `codex/map-studio-layout-share-ux` and fast-forwarded to `main`. The exact
+  validated `client/dist` was deployed through Pages with Functions,
+  `_headers`, and `_routes.json` at
+  `https://d2c1f0be.senior-resource-map.pages.dev`. All 82 public files match
+  the local artifact on both the immutable Pages URL and `app.carearound.sg`
+  across 164 SHA-256 comparisons with zero failures; aggregate local manifest
+  SHA-256 is
+  `5211115282cf7256d885eb496d368e967044c302eb5333d60428b73d3fce21a1`.
+  API health is `ok`, ordinary app anti-framing remains `frame-ancestors
+  'none'` / `X-Frame-Options: DENY`, and the enabled embed retains its exact
+  approved-origin `frame-ancestors` policy. Production smoke credentials were
+  unavailable in the release shell, so authenticated owner UAT remains the
+  follow-up check. No Worker, schema, secret, database, or automatic public
+  snapshot mutation was deployed.
 
 ## 2026-08-10 embed shared-annotation publication flush (production release)
 
