@@ -2,6 +2,32 @@
 
 Last updated: 2026-08-10 (Asia/Singapore)
 
+## Embed shared-annotation publication flush release (2026-08-10)
+
+- `Update shared link` now flushes the owner annotation document before the
+  frozen snapshot is created. It performs one bounded follow-up save when an
+  edit arrives during an in-flight save, and blocks publication if the document
+  remains dirty or the save fails.
+- The privacy contract is unchanged: only annotations explicitly marked
+  `Share this annotation` and visible in the selected saved named view enter the
+  frozen embed payload. Private annotations, personal places, unsaved Studio
+  changes, owner state, and ordinary Shared Map responses remain excluded.
+- Focused owner/share/embed/annotation/privacy tests pass 99/99, full client
+  tests pass 632/632, the full server suite passes, owner-map lockdown passes
+  85/85, and the exact six-root production build passes. Credentialed
+  production smoke passes all six flows; two unrelated flows passed on their
+  configured retry after transient first-attempt timeouts.
+- Implementation commit `89f2ef5ce` is pushed to `main` and
+  `codex/embed-shared-annotations`. Exact Pages deployment
+  `https://32065598.senior-resource-map.pages.dev` and the settled custom domain
+  match all 82 local public files by MIME, bytes, and SHA-256 at aggregate
+  digest
+  `865c274b826005ae3d003c11f4828ab6638246324fc7214584b536c189ff1395`.
+  Production API health and ordinary/embed framing probes pass. No Worker,
+  schema, secret, authentication, database, or existing frozen snapshot was
+  changed; an opted-in annotation appears only after the owner explicitly uses
+  `Update shared link`.
+
 ## Owner embed-preview refresh release (2026-08-10)
 
 - The Share dialog now states that its Website embed preview shows the last

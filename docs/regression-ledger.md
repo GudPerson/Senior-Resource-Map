@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-10 embed shared-annotation publication flush (local candidate)
+## 2026-08-10 embed shared-annotation publication flush (production release)
 
 - Current behavior: `Update shared link` now waits for the owner annotation
   document's pending save queue to settle before it creates the frozen public
@@ -39,11 +39,25 @@ Rules:
   a save failure blocks publication; a successful update includes only the
   opted-in, selected-view-visible annotations; private annotations remain
   absent; the embed remains frozen until the next explicit update.
-- Pre-release verification: focused owner/share/embed/annotation/privacy tests
+- Verification: focused owner/share/embed/annotation/privacy tests
   pass 99/99; full client/source coverage passes 632/632; the full server suite
   passes; owner-map lockdown passes 85/85; the exact six-root production client
-  build passes with only the existing Browserslist age notice. No production
-  deployment or data mutation was performed.
+  build passes with only the existing Browserslist age notice. Implementation
+  commit `89f2ef5ce` is pushed to `main` and
+  `codex/embed-shared-annotations`. The exact validated Pages artifact was
+  deployed with Functions, `_headers`, `_routes.json`, and `--skip-caching` at
+  `https://32065598.senior-resource-map.pages.dev`; all 82 files on that
+  immutable deployment and settled `app.carearound.sg` match local MIME, bytes,
+  and SHA-256 at aggregate digest
+  `865c274b826005ae3d003c11f4828ab6638246324fc7214584b536c189ff1395`.
+  Production API health, ordinary anti-framing, and the embed's exact restricted
+  framing/no-store headers pass. Credentialed production smoke passes all six
+  flows; the unrelated postal-import and create-map flows each passed on their
+  configured retry after a transient first-attempt timeout. No Worker, schema,
+  secret, authentication, database, or production snapshot was changed. Map
+  258's existing frozen snapshot still reports zero annotations as expected;
+  an opted-in annotation is published only after the owner explicitly selects
+  `Update shared link`.
 
 ## 2026-08-10 owner embed-preview snapshot refresh
 
