@@ -15,9 +15,9 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-10 My Map explicit resource-removal mode (release candidate)
+## 2026-08-10 My Map explicit resource-removal mode (production release)
 
-- Candidate behavior: owner resource cards no longer carry persistent Remove
+- Production behavior: owner resource cards no longer carry persistent Remove
   controls during normal map browsing. `Edit content` now includes a
   keyboard-accessible `Remove resources` toggle. Selecting it closes the menu,
   marks Edit content as active, and reveals the existing Remove action on
@@ -40,11 +40,23 @@ Rules:
   visible destructive label/icon; short-description, annotation, and removal
   modes do not overlap; the established named confirmation and authoritative
   reload remain mandatory; no Shared/Print/public UI gains owner controls.
-- Verification before deploy: focused owner-toolbar, removal, i18n, V2, and
+- Verification and release: focused owner-toolbar, removal, i18n, V2, and
   shared-directory coverage passes 65/65; full client coverage passes 652/652;
   full server coverage passes 548/548; map-lockdown passes 85/85; and the exact
-  six-root production client build and `git diff --check` pass. Owner UAT
-  remains pending.
+  six-root production client build and `git diff --check` pass. Implementation
+  commit `3c856f61` is pushed on `codex/my-map-remove-resource-mode` and
+  fast-forwarded to `main`. After the Git-triggered production build briefly
+  overtook the first direct upload, the exact validated artifact was
+  re-published with Pages Functions, `_headers`, and `_routes.json` at
+  `https://d4145f70.senior-resource-map.pages.dev`. The immutable deployment
+  and settled `app.carearound.sg` match all 82 local public files across 164
+  MIME/byte/SHA-256 comparisons with zero failures; aggregate manifest SHA-256
+  is `627641e77b219c3b63158603d901cacd7e508ad3c17d88555ba5317579ff9dee`.
+  Production API health, ordinary anti-framing, and exact embed framing pass.
+  Signed-in owner UAT on map 258 confirmed zero Remove actions by default, 34
+  actions while the checkbox-semantic removal mode was active, and zero after
+  turning it off; no resource was removed. No Worker, schema, secret,
+  authentication, database, snapshot, or production-data mutation was made.
 
 ## 2026-08-10 My Map category badge colour and contrast parity (release candidate)
 

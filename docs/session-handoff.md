@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-10 (Asia/Singapore)
 
-## My Map explicit resource-removal mode candidate (2026-08-10)
+## My Map explicit resource-removal mode release (2026-08-10)
 
 - `Edit content` now contains an owner-only `Remove resources` toggle. Normal
   resource cards remain uncluttered; the existing card-level Remove actions are
@@ -15,7 +15,19 @@ Last updated: 2026-08-10 (Asia/Singapore)
 - Focused owner/removal/i18n/V2/shared-list coverage passes 65/65, full client
   coverage passes 652/652, full server coverage passes 548/548, map-lockdown
   passes 85/85, and the exact six-root production build and `git diff --check`
-  pass on `codex/my-map-remove-resource-mode`. Owner UAT remains pending.
+  pass. Implementation commit `3c856f61` is on
+  `codex/my-map-remove-resource-mode` and `main`.
+- The final exact Pages artifact with Functions and routing is live at
+  `https://d4145f70.senior-resource-map.pages.dev`. It and the settled custom
+  domain match all 82 local files across 164 MIME/byte/SHA-256 comparisons
+  with zero failures (aggregate manifest
+  `627641e77b219c3b63158603d901cacd7e508ad3c17d88555ba5317579ff9dee`).
+  API health and ordinary/embed framing pass.
+- Signed-in production UAT on map 258 confirmed 0 Remove actions during normal
+  browsing, 34 only after selecting `Edit content` -> `Remove resources`, and
+  0 again after turning removal mode off. No Remove action or confirmation was
+  invoked, and no resource, Worker, schema, secret, auth, database, snapshot,
+  or production data was changed.
 
 ## My Map category badge colour and contrast parity candidate (2026-08-10)
 
