@@ -15,6 +15,34 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-10 My Map category badge colour and contrast parity (release candidate)
+
+- Candidate behavior: My Map category headers now use the exact saved category
+  colour for both the category-name pill outline and the adjacent category-icon
+  ring, matching the ring drawn around category-bubble map pins. The lightly
+  tinted pill background remains. Label text keeps the selected category tone
+  when it already reaches WCAG AA contrast; light selections are darkened only
+  as much as needed toward the existing slate text anchor to reach 4.5:1.
+- Blast radius: this is a shared V2 category-header presentation fix in
+  `SharedMapDirectoryList`. It does not change the saved category colour,
+  category identity, pin rendering, card ordering, category filters, named-view
+  state, Print settings, annotations, resources, API, schema, authentication,
+  or frozen share/embed snapshot data. Shared and Print V2 category headers
+  inherit the same readable treatment when they render the shared component.
+- Reproduction: choose a light category colour such as light gray, then open an
+  owned My Map in a layout that shows category headers and category-bubble map
+  pins. Compare the pill and icon outlines with the matching pin ring and read
+  the uppercase category name against its tinted background.
+- Acceptance criteria: the header outlines and map-pin ring use the same exact
+  category colour; the category name reaches at least 4.5:1 contrast for dark,
+  saturated, and light saved colours; no saved colour or map behavior changes;
+  invalid colours retain the established brand fallback styling.
+- Verification before deploy: focused palette and category-list coverage passes
+  40/40; full client coverage passes 636/636; the full server suite passes;
+  `npm run test:map-lockdown` passes 85/85; the exact six-root production client
+  build and `git diff --check` pass. Browser owner UAT remains the post-deploy
+  visual confirmation.
+
 ## 2026-08-10 Map Studio resource and annotation dropdown parity (production release)
 
 - Candidate behavior: `Resource categories` and `Annotation items` in the

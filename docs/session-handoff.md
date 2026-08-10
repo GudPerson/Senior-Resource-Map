@@ -2,6 +2,21 @@
 
 Last updated: 2026-08-10 (Asia/Singapore)
 
+## My Map category badge colour and contrast parity candidate (2026-08-10)
+
+- Category-name pill outlines and adjacent category-icon rings now use the
+  exact saved category colour, matching category-bubble map-pin rings instead
+  of white-mixed outline variants.
+- The pill background stays lightly tinted. A small shared palette helper keeps
+  the selected tone when readable and derives the nearest darker label tone
+  toward slate when required to meet 4.5:1 contrast, including light-gray
+  selections. Saved category colours and map markers are not mutated.
+- Focused palette/list coverage passes 40/40, full client coverage passes
+  636/636, the full server suite passes, map-lockdown passes 85/85, and the
+  exact six-root production build and diff check pass on
+  `codex/my-map-category-badge-contrast`. Owner visual UAT is the remaining
+  post-deploy confirmation.
+
 ## Map Studio resource and annotation dropdown parity release (2026-08-10)
 
 - The floating Edit layout panel now presents `Resource categories` and

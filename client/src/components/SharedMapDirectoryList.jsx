@@ -24,6 +24,10 @@ import {
     normalizeMapShortDescriptorItems,
 } from '../lib/mapShortDescriptorStyle.js';
 import {
+    buildCategoryBadgePalette,
+    normalizeCategoryAccentColor,
+} from '../lib/categoryBadgePalette.js';
+import {
     ArrowLeft,
     Bold,
     CalendarPlus,
@@ -2961,20 +2965,15 @@ function DirectoryUnmappedPill({ compact = false }) {
     );
 }
 
-function normalizeCategoryAccentColor(value) {
-    const text = String(value || '').trim();
-    return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(text) ? text : '';
-}
-
 function getCategoryPillStyle(color) {
-    const accentColor = normalizeCategoryAccentColor(color);
-    if (!accentColor) return undefined;
+    const palette = buildCategoryBadgePalette(color);
+    if (!palette) return undefined;
 
     return {
-        '--directory-category-accent': accentColor,
-        borderColor: 'color-mix(in srgb, var(--directory-category-accent) 34%, white)',
-        backgroundColor: 'color-mix(in srgb, var(--directory-category-accent) 12%, white)',
-        color: 'var(--directory-category-accent)',
+        '--directory-category-accent': palette.accentColor,
+        borderColor: 'var(--directory-category-accent)',
+        backgroundColor: palette.backgroundColor,
+        color: palette.textColor,
     };
 }
 
@@ -2984,7 +2983,7 @@ function getCategoryIconStyle(color) {
 
     return {
         '--directory-category-accent': accentColor,
-        borderColor: 'color-mix(in srgb, var(--directory-category-accent) 52%, white)',
+        borderColor: 'var(--directory-category-accent)',
         boxShadow: '0 0 0 2px color-mix(in srgb, var(--directory-category-accent) 16%, white), 0 10px 18px -16px rgba(15, 23, 42, 0.42)',
         color: 'var(--directory-category-accent)',
     };
