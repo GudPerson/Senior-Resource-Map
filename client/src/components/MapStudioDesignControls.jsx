@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { PanelLeft, PanelRight, X } from 'lucide-react';
+import { ChevronDown, PanelLeft, PanelRight, X } from 'lucide-react';
 
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import {
@@ -73,6 +73,22 @@ function DesignFieldset({ legend, description = '', children, columns = 2 }) {
                 {children}
             </div>
         </fieldset>
+    );
+}
+
+function DisclosureSummary({ label, summary }) {
+    return (
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 transition hover:bg-brand-50 focus:outline-none focus:ring-4 focus:ring-brand-100 [&::-webkit-details-marker]:hidden">
+            <span>{label}</span>
+            <span className="flex shrink-0 items-center gap-2 text-xs font-semibold text-slate-500 group-open:text-brand-700">
+                <span>{summary}</span>
+                <ChevronDown
+                    size={16}
+                    className="shrink-0 transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none"
+                    aria-hidden="true"
+                />
+            </span>
+        </summary>
     );
 }
 
@@ -257,19 +273,17 @@ export default function MapStudioDesignControls({
 
                         {resourceLayerCatalog?.groups?.length ? (
                             <details className="group rounded-xl border border-slate-200 bg-white" data-map-studio-resource-layers="true">
-                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 transition hover:bg-brand-50 focus:outline-none focus:ring-4 focus:ring-brand-100 [&::-webkit-details-marker]:hidden">
-                                    <span>{t('mapStudioResourceCategories')}</span>
-                                    <span className="text-xs font-semibold text-slate-500 group-open:text-brand-700">
-                                        {t('mapStudioResourceCategoriesSummary', {
-                                            visible: resourceLayerCatalog.groups.reduce((count, group) => (
-                                                hiddenResourceLayerKeys.has(group.key)
-                                                    ? count
-                                                    : count + group.categories.filter((category) => !hiddenResourceLayerKeys.has(category.key)).length
-                                            ), 0),
-                                            total: resourceLayerCatalog.groups.reduce((count, group) => count + group.categories.length, 0),
-                                        })}
-                                    </span>
-                                </summary>
+                                <DisclosureSummary
+                                    label={t('mapStudioResourceCategories')}
+                                    summary={t('mapStudioResourceCategoriesSummary', {
+                                        visible: resourceLayerCatalog.groups.reduce((count, group) => (
+                                            hiddenResourceLayerKeys.has(group.key)
+                                                ? count
+                                                : count + group.categories.filter((category) => !hiddenResourceLayerKeys.has(category.key)).length
+                                        ), 0),
+                                        total: resourceLayerCatalog.groups.reduce((count, group) => count + group.categories.length, 0),
+                                    })}
+                                />
                                 <div className="space-y-3 border-t border-slate-200 p-3">
                                     <p className="text-xs font-medium leading-4 text-slate-500">{t('mapStudioResourceCategoriesHelp')}</p>
                                     {resourceLayerCatalog.groups.map((group) => (
@@ -300,18 +314,26 @@ export default function MapStudioDesignControls({
                 </DesignFieldset>
 
                 {value.layers.annotations === PRINT_MAP_ANNOTATION_LAYER_SHOW && annotationLayerCatalog.length ? (
-                    <fieldset className="rounded-xl border border-slate-200 bg-white p-3" data-map-studio-annotation-layers="true">
-                        <legend className="px-1 text-sm font-bold text-slate-800">{t('mapStudioAnnotationItems')}</legend>
-                        <p className="mb-2 px-1 text-xs font-medium leading-4 text-slate-500">{t('mapStudioAnnotationItemsHelp')}</p>
-                        <div className="space-y-2">
-                            {annotationLayerCatalog.map((annotation) => (
-                                <label key={annotation.id} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700">
-                                    <input type="checkbox" checked={!hiddenAnnotationIds.has(annotation.id)} onChange={() => toggleAnnotation(annotation.id)} disabled={disabled} className="h-5 w-5 rounded border-slate-300 text-brand-700 focus:ring-brand-200" />
-                                    <span className="min-w-0 truncate">{annotation.label}</span>
-                                </label>
-                            ))}
+                    <details className="group rounded-xl border border-slate-200 bg-white" data-map-studio-annotation-layers="true">
+                        <DisclosureSummary
+                            label={t('mapStudioAnnotationItems')}
+                            summary={t('mapStudioResourceCategoriesSummary', {
+                                visible: annotationLayerCatalog.filter((annotation) => !hiddenAnnotationIds.has(annotation.id)).length,
+                                total: annotationLayerCatalog.length,
+                            })}
+                        />
+                        <div className="border-t border-slate-200 p-3">
+                            <p className="mb-2 text-xs font-medium leading-4 text-slate-500">{t('mapStudioAnnotationItemsHelp')}</p>
+                            <div className="space-y-2">
+                                {annotationLayerCatalog.map((annotation) => (
+                                    <label key={annotation.id} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700">
+                                        <input type="checkbox" checked={!hiddenAnnotationIds.has(annotation.id)} onChange={() => toggleAnnotation(annotation.id)} disabled={disabled} className="h-5 w-5 rounded border-slate-300 text-brand-700 focus:ring-brand-200" />
+                                        <span className="min-w-0 truncate">{annotation.label}</span>
+                                    </label>
+                                ))}
+                            </div>
                         </div>
-                    </fieldset>
+                    </details>
                 ) : null}
             </div>
         </section>

@@ -15,6 +15,35 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-10 Map Studio resource and annotation dropdown parity (release candidate)
+
+- Candidate behavior: `Resource categories` and `Annotation items` in the
+  floating Edit layout panel now use the same native disclosure control. Each
+  collapsed header shows its visible/total item count and a Lucide down
+  chevron; opening the control rotates the chevron upward. Both summaries keep
+  a 44-pixel minimum target, visible keyboard focus, and reduced-motion-safe
+  transitions.
+- Blast radius: this changes only the presentation of the two existing
+  multi-select lists in `MapStudioDesignControls`. Resource category keys,
+  hidden annotation ids, Show/Hide controls, named-view drafts and saves,
+  annotation persistence/sharing, map rendering, Print View, Shared Map/embed,
+  schema, API, authentication, and privacy boundaries remain unchanged.
+- Reproduction: on an owned map with saved annotations, open `Edit layout`.
+  Confirm both `Resource categories` and `Annotation items` initially appear as
+  compact rows with shown/total counts and down arrows. Open either row with a
+  pointer or keyboard; its existing checkboxes must appear and its arrow must
+  rotate. Change a resource category and annotation item, close and reopen the
+  disclosure, and confirm the existing selection state is retained.
+- Acceptance criteria: both controls have identical progressive-disclosure
+  affordances; the arrow is not the only expanded-state cue; keyboard and touch
+  access remain native; no checkbox logic, saved design shape, or downstream
+  map/export/share behavior changes.
+- Pre-deploy verification: focused Map Studio controls pass 3/3; full client
+  coverage passes 633/633; `npm run verify:map-lockdown` passes 85/85 and builds
+  the exact six-root production artifact; `git diff --check` passes. Work is on
+  `codex/map-studio-annotation-dropdown`; no Worker, schema, secret, database,
+  snapshot, commit, push, or deployment change has been made yet.
+
 ## 2026-08-10 Share annotation and Edit layout progressive disclosure (production release)
 
 - Candidate behavior: the owner Share dialog now places an explicit `Include

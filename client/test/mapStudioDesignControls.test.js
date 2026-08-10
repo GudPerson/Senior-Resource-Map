@@ -37,6 +37,10 @@ test('standalone Map Studio controls expose the complete adapter-ready interacti
     assert.match(controlsSource, /<details[^>]+data-map-studio-resource-layers="true"/);
     assert.match(controlsSource, /mapStudioResourceCategoriesSummary/);
     assert.match(controlsSource, /data-map-studio-annotation-layers="true"/);
+    assert.match(controlsSource, /<details[^>]+data-map-studio-annotation-layers="true"/);
+    assert.match(controlsSource, /annotationLayerCatalog\.filter\(\(annotation\) => !hiddenAnnotationIds\.has\(annotation\.id\)\)\.length/);
+    assert.match(controlsSource, /ChevronDown/);
+    assert.match(controlsSource, /group-open:rotate-180/);
     assert.match(controlsSource, /hiddenAnnotationIds/);
     assert.match(controlsSource, /data-map-studio-resource-layer-controls="true"/);
     assert.match(controlsSource, /value\.layers\.resources === PRINT_MAP_RESOURCE_LAYER_SHOW \? \(/);

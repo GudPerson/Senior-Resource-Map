@@ -2,6 +2,21 @@
 
 Last updated: 2026-08-10 (Asia/Singapore)
 
+## Map Studio resource and annotation dropdown parity (2026-08-10, release candidate)
+
+- The floating Edit layout panel now presents `Resource categories` and
+  `Annotation items` as matching native dropdown disclosures. Both compact
+  headers show a visible/total summary and a down chevron that rotates when
+  expanded, with the established focus ring, 44-pixel target, and
+  reduced-motion behavior.
+- This is presentation-only. The existing resource and annotation checkboxes,
+  hidden-layer state, named-view persistence, annotation sharing, map/Print
+  rendering, and Shared Map/embed boundaries are unchanged.
+- Focused controls pass 3/3, full client coverage passes 633/633, and
+  map-lockdown passes 85/85 with the exact six-root production build. The
+  candidate is on `codex/map-studio-annotation-dropdown`; commit, push, Pages
+  deployment, and authenticated production UAT are still pending.
+
 ## Share annotation and Edit layout progressive disclosure release (2026-08-10)
 
 - The Share dialog now stages a tri-state `Include annotations` choice below
