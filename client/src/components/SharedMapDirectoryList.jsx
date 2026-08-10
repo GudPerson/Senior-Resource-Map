@@ -1963,7 +1963,7 @@ function DirectoryNestedPlaceSection({
                 />
             ) : null}
 
-            {showResourceRows && canRemovePrimaryResource ? (
+            {canRemovePrimaryResource ? (
                 <div className="flex justify-end">
                     <OwnerMapResourceRemoveAction
                         row={primaryManagedPlaceRow}
@@ -2471,7 +2471,7 @@ function DirectoryPlaceGroupCard({
                         />
                     ) : null}
 
-                    {showInteractiveResourceRows && canRemovePrimaryResource ? (
+                    {canRemovePrimaryResource ? (
                         <div className="flex justify-end">
                             <OwnerMapResourceRemoveAction
                                 row={primaryManagedPlaceRow}

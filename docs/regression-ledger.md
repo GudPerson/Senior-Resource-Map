@@ -15,6 +15,37 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-10 My Map explicit resource-removal mode (release candidate)
+
+- Candidate behavior: owner resource cards no longer carry persistent Remove
+  controls during normal map browsing. `Edit content` now includes a
+  keyboard-accessible `Remove resources` toggle. Selecting it closes the menu,
+  marks Edit content as active, and reveals the existing Remove action on
+  removable resource and personal-place cards. Selecting it again hides those
+  controls.
+- Safety and blast radius: removal mode is local, temporary owner UI state. It
+  does not change map membership until the owner selects a card action and
+  confirms the existing `Remove from this map?` dialog. The existing DELETE
+  API, in-flight guard, success/error handling, authoritative map reload, saved
+  My Directory resource, Map Studio document, Print View, Shared Map/embed,
+  schema, authentication, and privacy boundaries remain unchanged.
+- Reproduction: open an owned My Map and confirm ordinary resource cards have
+  no Remove control. Open `Edit content`, select `Remove resources`, and confirm
+  card-level Remove controls appear on desktop and mobile. Remove one item,
+  cancel the confirmation, then confirm no membership changes. Repeat and
+  confirm removal; the item must leave only this map and remain saved in My
+  Directory. Turn removal mode off and confirm controls disappear.
+- Acceptance criteria: removal controls are absent by default and present only
+  while removal mode is selected; the menu item uses checkbox semantics and a
+  visible destructive label/icon; short-description, annotation, and removal
+  modes do not overlap; the established named confirmation and authoritative
+  reload remain mandatory; no Shared/Print/public UI gains owner controls.
+- Verification before deploy: focused owner-toolbar, removal, i18n, V2, and
+  shared-directory coverage passes 65/65; full client coverage passes 652/652;
+  full server coverage passes 548/548; map-lockdown passes 85/85; and the exact
+  six-root production client build and `git diff --check` pass. Owner UAT
+  remains pending.
+
 ## 2026-08-10 My Map category badge colour and contrast parity (release candidate)
 
 - Candidate behavior: My Map category headers now use the exact saved category

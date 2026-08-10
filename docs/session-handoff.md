@@ -2,6 +2,21 @@
 
 Last updated: 2026-08-10 (Asia/Singapore)
 
+## My Map explicit resource-removal mode candidate (2026-08-10)
+
+- `Edit content` now contains an owner-only `Remove resources` toggle. Normal
+  resource cards remain uncluttered; the existing card-level Remove actions are
+  supplied only while that mode is active on desktop and mobile.
+- The existing confirmation dialog, DELETE API, in-flight guard, and
+  authoritative membership reload are reused unchanged. Removal mode is local
+  UI state and is mutually exclusive with annotation and short-description
+  editing. Print View, Shared Map/embed, Map Studio persistence, schema, auth,
+  privacy, and saved My Directory resources are unchanged.
+- Focused owner/removal/i18n/V2/shared-list coverage passes 65/65, full client
+  coverage passes 652/652, full server coverage passes 548/548, map-lockdown
+  passes 85/85, and the exact six-root production build and `git diff --check`
+  pass on `codex/my-map-remove-resource-mode`. Owner UAT remains pending.
+
 ## My Map category badge colour and contrast parity candidate (2026-08-10)
 
 - Category-name pill outlines and adjacent category-icon rings now use the

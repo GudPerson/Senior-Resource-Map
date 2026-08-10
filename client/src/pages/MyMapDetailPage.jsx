@@ -20,6 +20,7 @@ import {
     RotateCcw,
     Search,
     SlidersHorizontal,
+    Trash2,
     X,
 } from 'lucide-react';
 
@@ -228,6 +229,8 @@ function OwnerEditContentMenu({
     annotationEditing = false,
     canEditAnnotations = false,
     annotationsReady = false,
+    onToggleResourceRemoval,
+    resourceRemovalMode = false,
     inFlow = false,
 }) {
     const { t } = useLocale();
@@ -236,6 +239,7 @@ function OwnerEditContentMenu({
     const menuRef = useRef(null);
     const triggerRef = useRef(null);
     const [open, setOpen] = useState(false);
+    const contentModeActive = shortDescriptionMode || annotationEditing || resourceRemovalMode;
 
     const focusFirstAvailableItem = useCallback(() => {
         window.requestAnimationFrame(() => {
@@ -281,7 +285,7 @@ function OwnerEditContentMenu({
                     focusFirstAvailableItem();
                 }}
                 className={`btn-ghost h-12 justify-center border px-3.5 text-sm sm:px-4 ${inFlow ? 'w-full' : ''} ${
-                    open
+                    open || contentModeActive
                         ? 'border-brand-600 bg-brand-50 text-brand-800'
                         : 'border-slate-200 text-slate-700'
                 }`}
@@ -337,6 +341,21 @@ function OwnerEditContentMenu({
                         <PenLine size={17} className="text-brand-700" aria-hidden="true" />
                         {t('mapStudioAnnotate')}
                     </button>
+                    <button
+                        type="button"
+                        role="menuitemcheckbox"
+                        aria-checked={resourceRemovalMode}
+                        onClick={() => runAction(onToggleResourceRemoval)}
+                        className={`mt-1 flex min-h-11 w-full items-center gap-3 border-t border-slate-100 px-3 py-2 text-left text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-red-100 ${
+                            resourceRemovalMode
+                                ? 'rounded-xl bg-red-50 text-red-700'
+                                : 'rounded-b-xl text-red-700 hover:bg-red-50'
+                        }`}
+                        data-owner-resource-removal-mode="true"
+                    >
+                        <Trash2 size={17} className="text-red-600" aria-hidden="true" />
+                        {t('removeResources')}
+                    </button>
                 </div>
             ) : null}
         </div>
@@ -360,6 +379,8 @@ function OwnerHeader({
     annotationEditing = false,
     canEditAnnotations = false,
     annotationsReady = false,
+    onToggleResourceRemoval,
+    resourceRemovalMode = false,
     onEditLayout,
     editLayoutDisabled = false,
     onEditDetails,
@@ -416,6 +437,8 @@ function OwnerHeader({
                             annotationEditing={annotationEditing}
                             canEditAnnotations={canEditAnnotations}
                             annotationsReady={annotationsReady}
+                            onToggleResourceRemoval={onToggleResourceRemoval}
+                            resourceRemovalMode={resourceRemovalMode}
                         />
                         <button type="button" onClick={onEditLayout} disabled={editLayoutDisabled} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700 disabled:cursor-wait disabled:opacity-45`} aria-haspopup="dialog" aria-controls={`map-studio-design-settings-${directory.id}`}>
                             <SlidersHorizontal size={16} aria-hidden="true" />
@@ -482,6 +505,8 @@ function MyMapMobileControls({
     annotationEditing = false,
     canEditAnnotations = false,
     annotationsReady = false,
+    onToggleResourceRemoval,
+    resourceRemovalMode = false,
     onEditLayout,
     editLayoutDisabled = false,
     onEditDetails,
@@ -602,6 +627,8 @@ function MyMapMobileControls({
                                     annotationEditing={annotationEditing}
                                     canEditAnnotations={canEditAnnotations}
                                     annotationsReady={annotationsReady}
+                                    onToggleResourceRemoval={() => runDrawerAction(onToggleResourceRemoval)}
+                                    resourceRemovalMode={resourceRemovalMode}
                                     inFlow
                                 />
                                 <button type="button" onClick={() => runDrawerAction(onEditLayout)} disabled={editLayoutDisabled} className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700 disabled:cursor-wait disabled:opacity-45" aria-haspopup="dialog" aria-controls={`map-studio-design-settings-${directory.id}`}>
@@ -1497,6 +1524,7 @@ export default function MyMapDetailPage() {
     const [printShortDescriptionMode, setPrintShortDescriptionMode] = useState(false);
     const [interactiveAnnotationEditorOpen, setInteractiveAnnotationEditorOpen] = useState(false);
     const [interactiveShortDescriptionMode, setInteractiveShortDescriptionMode] = useState(false);
+    const [resourceRemovalMode, setResourceRemovalMode] = useState(false);
     const [townMapManifestStates, setTownMapManifestStates] = useState({
         [CAREAROUND_MAP_STYLE_DEFAULT]: createTownMapManifestState(),
         [CAREAROUND_MAP_STYLE_GRAY]: createTownMapManifestState(),
@@ -1608,6 +1636,7 @@ export default function MyMapDetailPage() {
 
     useEffect(() => {
         setMapStudioRuntimeSnapshot(null);
+        setResourceRemovalMode(false);
     }, [mapId]);
 
     useEffect(() => {
@@ -3254,6 +3283,7 @@ export default function MyMapDetailPage() {
         }
         setPersonalPlacePickerActive(false);
         setInteractiveShortDescriptionMode(false);
+        setResourceRemovalMode(false);
         printAnnotations.reload();
         setInteractiveAnnotationEditorOpen(true);
     }
@@ -3263,7 +3293,19 @@ export default function MyMapDetailPage() {
             printAnnotations.saveNow();
             setInteractiveAnnotationEditorOpen(false);
         }
+        setResourceRemovalMode(false);
         setInteractiveShortDescriptionMode((current) => !current);
+    }
+
+    function toggleResourceRemovalMode() {
+        if (!resourceRemovalMode) {
+            if (interactiveAnnotationEditorOpen) {
+                printAnnotations.saveNow();
+                setInteractiveAnnotationEditorOpen(false);
+            }
+            setInteractiveShortDescriptionMode(false);
+        }
+        setResourceRemovalMode((current) => !current);
     }
 
     function openMapDetailsEditor() {
@@ -3369,6 +3411,8 @@ export default function MyMapDetailPage() {
         annotationEditing: interactiveAnnotationEditorOpen,
         canEditAnnotations: canEditPrintAnnotations,
         annotationsReady: printAnnotationsReady,
+        onToggleResourceRemoval: toggleResourceRemovalMode,
+        resourceRemovalMode,
         onEditLayout: openMapStudioLayoutSettings,
         editLayoutDisabled: !mapStudioRuntimeSnapshot,
         onEditDetails: openMapDetailsEditor,
@@ -3746,7 +3790,7 @@ export default function MyMapDetailPage() {
                     suspendMapInteraction={directoryMapInteractionSuspended}
                     onViewOnMap={handleViewOnMap}
                     onViewSection={handleViewSection}
-                    onRemoveResource={handleRemoveResource}
+                    onRemoveResource={resourceRemovalMode ? handleRemoveResource : null}
                     onEditPersonalPlace={handleEditPersonalPlace}
                     onEditResourceShortDescription={interactiveShortDescriptionMode
                         ? handleEditResourceShortDescription
@@ -4036,7 +4080,7 @@ export default function MyMapDetailPage() {
                                 onViewOnMap={handleViewOnMap}
                                 onHoverPlaceStart={handleMapHoverStart}
                                 onHoverPlaceEnd={handleMapHoverEnd}
-                                onRemoveResource={handleRemoveResource}
+                                onRemoveResource={resourceRemovalMode ? handleRemoveResource : null}
                                 onEditPersonalPlace={handleEditPersonalPlace}
                                 onEditResourceShortDescription={interactiveShortDescriptionMode
                                     ? handleEditResourceShortDescription
