@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-10 Map Studio resource and annotation dropdown parity (release candidate)
+## 2026-08-10 Map Studio resource and annotation dropdown parity (production release)
 
 - Candidate behavior: `Resource categories` and `Annotation items` in the
   floating Edit layout panel now use the same native disclosure control. Each
@@ -38,11 +38,22 @@ Rules:
   affordances; the arrow is not the only expanded-state cue; keyboard and touch
   access remain native; no checkbox logic, saved design shape, or downstream
   map/export/share behavior changes.
-- Pre-deploy verification: focused Map Studio controls pass 3/3; full client
+- Verification: focused Map Studio controls pass 3/3; full client
   coverage passes 633/633; `npm run verify:map-lockdown` passes 85/85 and builds
-  the exact six-root production artifact; `git diff --check` passes. Work is on
-  `codex/map-studio-annotation-dropdown`; no Worker, schema, secret, database,
-  snapshot, commit, push, or deployment change has been made yet.
+  the exact six-root production artifact; `git diff --check` passes.
+  Implementation commit `74992af4` is pushed on
+  `codex/map-studio-annotation-dropdown` and fast-forwarded to `main`. The exact
+  validated `client/dist` was deployed with Pages Functions, `_headers`, and
+  `_routes.json` at `https://b9ffa65d.senior-resource-map.pages.dev`. The first
+  custom-domain manifest probe correctly held the release while 13 lazy chunks
+  briefly returned the SPA fallback during propagation; the settled immutable
+  and custom domains then matched all 82 files across 164 SHA-256 comparisons
+  with zero failures. Aggregate local manifest SHA-256 is
+  `7d2a9e5f4883473cb2965b0e405f8b9e32e284a3d244cc59eb16609151ea2088`.
+  API health and ordinary/embed framing probes pass. Authenticated smoke
+  credentials were unavailable in the release shell, so owner UAT remains the
+  manual follow-up. No Worker, schema, secret, database, snapshot, annotation
+  document, or public share was changed.
 
 ## 2026-08-10 Share annotation and Edit layout progressive disclosure (production release)
 

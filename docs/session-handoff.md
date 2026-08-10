@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-10 (Asia/Singapore)
 
-## Map Studio resource and annotation dropdown parity (2026-08-10, release candidate)
+## Map Studio resource and annotation dropdown parity release (2026-08-10)
 
 - The floating Edit layout panel now presents `Resource categories` and
   `Annotation items` as matching native dropdown disclosures. Both compact
@@ -13,9 +13,19 @@ Last updated: 2026-08-10 (Asia/Singapore)
   hidden-layer state, named-view persistence, annotation sharing, map/Print
   rendering, and Shared Map/embed boundaries are unchanged.
 - Focused controls pass 3/3, full client coverage passes 633/633, and
-  map-lockdown passes 85/85 with the exact six-root production build. The
-  candidate is on `codex/map-studio-annotation-dropdown`; commit, push, Pages
-  deployment, and authenticated production UAT are still pending.
+  map-lockdown passes 85/85 with the exact six-root production build.
+  Implementation commit `74992af4` is pushed on
+  `codex/map-studio-annotation-dropdown` and `main`.
+- The exact artifact is live at
+  `https://b9ffa65d.senior-resource-map.pages.dev`. After a transient
+  propagation interval in which 13 custom-domain lazy chunks returned the SPA
+  fallback, the settled immutable and custom domains match all 82 files across
+  164 SHA-256 comparisons with zero failures (aggregate local manifest
+  `7d2a9e5f4883473cb2965b0e405f8b9e32e284a3d244cc59eb16609151ea2088`). API
+  health and ordinary/embed framing pass. No Worker, schema, auth, secret,
+  database, annotation data, or frozen snapshot changed. Authenticated owner
+  UAT remains pending because smoke credentials were unavailable in the release
+  shell.
 
 ## Share annotation and Edit layout progressive disclosure release (2026-08-10)
 
