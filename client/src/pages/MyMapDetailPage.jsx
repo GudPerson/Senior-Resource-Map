@@ -2989,7 +2989,12 @@ export default function MyMapDetailPage() {
         setShareSubmitting(true);
         setShareError('');
         try {
-            void options;
+            if (typeof options?.includeAnnotations === 'boolean') {
+                printAnnotations.replaceAnnotations((current) => current.map((annotation) => ({
+                    ...annotation,
+                    isShared: options.includeAnnotations,
+                })), { recordHistory: false });
+            }
             const annotationsReadyForShare = await printAnnotations.flushPendingChanges();
             if (!annotationsReadyForShare) {
                 setShareError(t('failedPublishShare'));
@@ -3871,6 +3876,8 @@ export default function MyMapDetailPage() {
                     onPublish={handlePublishShare}
                     onUnpublish={handleUnpublishShare}
                     onUpdateEmbed={handleUpdateEmbed}
+                    annotations={printAnnotations.annotations}
+                    annotationsReady={printAnnotationsReady}
                 />
 
                 <AddPersonalPlaceChooserModal
@@ -4203,6 +4210,8 @@ export default function MyMapDetailPage() {
                 onPublish={handlePublishShare}
                 onUnpublish={handleUnpublishShare}
                 onUpdateEmbed={handleUpdateEmbed}
+                annotations={printAnnotations.annotations}
+                annotationsReady={printAnnotationsReady}
             />
 
             <AddPersonalPlaceChooserModal

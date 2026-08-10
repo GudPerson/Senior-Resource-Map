@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Code2, Copy, ExternalLink, Globe2, Link2, LockKeyhole, Plus, Trash2, X } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { hasSharedMapUpdates } from '../lib/shareMapStatus.js';
@@ -64,6 +64,8 @@ export default function ShareMapModal({
     onPublish,
     onUnpublish,
     onUpdateEmbed,
+    annotations = [],
+    annotationsReady = true,
 }) {
     const { t } = useLocale();
     const [copyFeedback, setCopyFeedback] = useState('');
@@ -74,6 +76,8 @@ export default function ShareMapModal({
     const [embedEnabled, setEmbedEnabled] = useState(false);
     const [embedOrigins, setEmbedOrigins] = useState([]);
     const [embedPreviewRevision, setEmbedPreviewRevision] = useState(0);
+    const [includeAnnotationsSelection, setIncludeAnnotationsSelection] = useState(null);
+    const includeAnnotationsRef = useRef(null);
     const shareUrl = useMemo(() => buildShareUrl(map?.share?.sharePath || map?.sharePath), [map?.share?.sharePath, map?.sharePath]);
     const embedUrl = useMemo(() => buildEmbedUrl(map?.share?.embedPath || map?.embedPath), [map?.share?.embedPath, map?.embedPath]);
     const embedPreviewUrl = useMemo(
@@ -93,14 +97,31 @@ export default function ShareMapModal({
         setEmbedFeedback('');
         setEmbedCopyFeedback('');
         setEmbedPreviewRevision(0);
+        setIncludeAnnotationsSelection(null);
     }, [isOpen, map?.id, persistedEmbedEnabled, JSON.stringify(persistedEmbedOrigins)]);
 
-    if (!isOpen || !map) return null;
-
     const isShared = Boolean(map?.share?.isShared ?? map?.isShared);
-    const hasPendingShareUpdates = hasSharedMapUpdates(map);
+    const annotationCount = Array.isArray(annotations) ? annotations.length : 0;
+    const persistedSharedAnnotationCount = Array.isArray(annotations)
+        ? annotations.filter((annotation) => Boolean(annotation?.isShared)).length
+        : 0;
+    const sharedAnnotationCount = includeAnnotationsSelection === true
+        ? annotationCount
+        : includeAnnotationsSelection === false
+            ? 0
+            : persistedSharedAnnotationCount;
+    const includesAllAnnotations = annotationCount > 0 && sharedAnnotationCount === annotationCount;
+    const includesSomeAnnotations = sharedAnnotationCount > 0 && !includesAllAnnotations;
+    const hasPendingShareUpdates = hasSharedMapUpdates(map) || includeAnnotationsSelection !== null;
     const sharedStatusTitle = hasPendingShareUpdates ? t('shareLinkNeedsUpdateTitle') : t('sharedLinkIsLive');
     const sharedStatusDescription = hasPendingShareUpdates ? t('shareLinkNeedsUpdateDescription') : t('sharedLinkDescription');
+
+    useEffect(() => {
+        if (!includeAnnotationsRef.current) return;
+        includeAnnotationsRef.current.indeterminate = includesSomeAnnotations;
+    }, [includesSomeAnnotations]);
+
+    if (!isOpen || !map) return null;
 
     async function handleCopyLink() {
         if (!shareUrl) return;
@@ -115,9 +136,14 @@ export default function ShareMapModal({
     }
 
     async function handlePublishClick() {
-        const published = await onPublish?.();
+        const published = await onPublish?.({ includeAnnotations: includeAnnotationsSelection });
         if (!published) return;
+        setIncludeAnnotationsSelection(null);
         setEmbedPreviewRevision((current) => current + 1);
+    }
+
+    function handleIncludeAnnotationsChange(event) {
+        setIncludeAnnotationsSelection(event.target.checked);
     }
 
     function handleAddOrigin() {
@@ -389,6 +415,34 @@ export default function ShareMapModal({
                                 )}
                             </div>
                         </section>
+                    ) : null}
+
+                    {isShared ? (
+                        <label className={`flex min-h-11 items-start gap-3 rounded-[22px] border p-4 ${
+                            annotationCount > 0 && annotationsReady
+                                ? 'cursor-pointer border-brand-200 bg-brand-50/60'
+                                : 'cursor-not-allowed border-slate-200 bg-slate-50 opacity-70'
+                        }`}>
+                            <input
+                                ref={includeAnnotationsRef}
+                                type="checkbox"
+                                checked={includesAllAnnotations}
+                                onChange={handleIncludeAnnotationsChange}
+                                disabled={!annotationCount || !annotationsReady || submitting}
+                                className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-brand-700 focus:ring-brand-500"
+                            />
+                            <span>
+                                <span className="block text-sm font-bold text-slate-900">{t('includeAnnotationsInShare')}</span>
+                                <span className="mt-1 block text-xs leading-5 text-slate-600">
+                                    {annotationCount > 0
+                                        ? t('includeAnnotationsInShareHelp', {
+                                            sharedCount: sharedAnnotationCount,
+                                            count: annotationCount,
+                                        })
+                                        : t('noAnnotationsToShare')}
+                                </span>
+                            </span>
+                        </label>
                     ) : null}
 
                     {error ? (

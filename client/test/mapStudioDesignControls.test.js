@@ -18,7 +18,7 @@ const ownerPageSource = readFileSync(
 test('standalone Map Studio controls expose the complete adapter-ready interactive settings', () => {
     assert.match(controlsSource, /data-map-studio-design-controls="true"/);
     assert.match(controlsSource, /basemap: \{ style: 'default' \}/);
-    assert.match(controlsSource, /basemap: \{ detailMode: 'auto' \}/);
+    assert.doesNotMatch(controlsSource, /mapStudioMapDetail|detailMode:/);
     assert.match(controlsSource, /MAP_STUDIO_PIN_STYLE_BUBBLE/);
     assert.match(controlsSource, /MAP_STUDIO_PIN_STYLE_NUMBERED/);
     assert.match(controlsSource, /MAP_STUDIO_PIN_STYLE_CATEGORY_ICON/);
@@ -34,6 +34,8 @@ test('standalone Map Studio controls expose the complete adapter-ready interacti
     assert.match(controlsSource, /sideResourceColumnCount/);
     assert.match(controlsSource, /resourceColumnCount/);
     assert.match(controlsSource, /data-map-studio-resource-layers="true"/);
+    assert.match(controlsSource, /<details[^>]+data-map-studio-resource-layers="true"/);
+    assert.match(controlsSource, /mapStudioResourceCategoriesSummary/);
     assert.match(controlsSource, /data-map-studio-annotation-layers="true"/);
     assert.match(controlsSource, /hiddenAnnotationIds/);
     assert.match(controlsSource, /data-map-studio-resource-layer-controls="true"/);
@@ -61,8 +63,14 @@ test('the owner toolbar opens the floating layout controls through the narrow St
     assert.doesNotMatch(panelSource, /explorationCamera=/);
     assert.match(panelSource, /resourceLayerCatalog=\{resourceLayerCatalog\}/);
     assert.match(panelSource, /annotationLayerCatalog=\{annotationLayerCatalog\}/);
-    assert.match(panelSource, /openLayoutSettings: \(\) => handleModeChange\(MAP_STUDIO_MODE_DESIGN\)/);
+    assert.match(panelSource, /openLayoutSettings: \(\) => \{[\s\S]*setDesignSettingsCollapsed\(false\);[\s\S]*handleModeChange\(MAP_STUDIO_MODE_DESIGN\);/);
     assert.match(panelSource, /designSettingsOpen/);
+    assert.match(panelSource, /designSettingsCollapsed/);
+    assert.match(panelSource, /document\.addEventListener\('pointerdown', handleDesignSettingsOutsidePointer, true\)/);
+    assert.match(panelSource, /setDesignSettingsCollapsed\(true\)/);
+    assert.match(panelSource, /data-map-studio-design-settings-state=\{designSettingsCollapsed \? 'collapsed' : 'expanded'\}/);
+    assert.match(panelSource, /onClick=\{\(\) => setDesignSettingsCollapsed\(false\)\}/);
+    assert.match(panelSource, /onClick=\{closeDesignSettings\}/);
     assert.match(panelSource, /readMapStudioLayoutPanelSide/);
     assert.match(panelSource, /writeMapStudioLayoutPanelSide/);
     assert.match(panelSource, /data-map-studio-design-settings-side=\{designSettingsSide\}/);

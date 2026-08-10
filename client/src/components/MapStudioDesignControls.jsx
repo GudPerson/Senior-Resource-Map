@@ -187,11 +187,6 @@ export default function MapStudioDesignControls({
                     <ChoiceButton selected={value.basemap.style === 'gray'} label={t('mapStudioColourGray')} onClick={() => onPatch?.({ basemap: { style: 'gray' } })} disabled={disabled} />
                 </DesignFieldset>
 
-                <DesignFieldset legend={t('mapStudioMapDetail')}>
-                    <ChoiceButton selected={value.basemap.detailMode === 'auto'} label={t('mapStudioDetailAuto')} onClick={() => onPatch?.({ basemap: { detailMode: 'auto' } })} disabled={disabled} />
-                    <ChoiceButton selected={value.basemap.detailMode === 'live'} label={t('mapStudioDetailLive')} onClick={() => onPatch?.({ basemap: { detailMode: 'live' } })} disabled={disabled} />
-                </DesignFieldset>
-
                 <div data-map-studio-resource-layer-controls="true">
                     <DesignFieldset legend={t('mapStudioResources')} description={t('printResourcePinsHelp')}>
                         <ChoiceButton selected={value.layers.resources === PRINT_MAP_RESOURCE_LAYER_SHOW} label={t('mapStudioResourcesShow')} onClick={() => onPatch?.({ layers: { resources: PRINT_MAP_RESOURCE_LAYER_SHOW } })} disabled={disabled} />
@@ -261,10 +256,22 @@ export default function MapStudioDesignControls({
                         ) : null}
 
                         {resourceLayerCatalog?.groups?.length ? (
-                            <fieldset className="rounded-xl border border-slate-200 bg-white p-3" data-map-studio-resource-layers="true">
-                                <legend className="px-1 text-sm font-bold text-slate-800">{t('mapStudioResourceCategories')}</legend>
-                                <p className="mb-2 px-1 text-xs font-medium leading-4 text-slate-500">{t('mapStudioResourceCategoriesHelp')}</p>
-                                <div className="space-y-3">
+                            <details className="group rounded-xl border border-slate-200 bg-white" data-map-studio-resource-layers="true">
+                                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 transition hover:bg-brand-50 focus:outline-none focus:ring-4 focus:ring-brand-100 [&::-webkit-details-marker]:hidden">
+                                    <span>{t('mapStudioResourceCategories')}</span>
+                                    <span className="text-xs font-semibold text-slate-500 group-open:text-brand-700">
+                                        {t('mapStudioResourceCategoriesSummary', {
+                                            visible: resourceLayerCatalog.groups.reduce((count, group) => (
+                                                hiddenResourceLayerKeys.has(group.key)
+                                                    ? count
+                                                    : count + group.categories.filter((category) => !hiddenResourceLayerKeys.has(category.key)).length
+                                            ), 0),
+                                            total: resourceLayerCatalog.groups.reduce((count, group) => count + group.categories.length, 0),
+                                        })}
+                                    </span>
+                                </summary>
+                                <div className="space-y-3 border-t border-slate-200 p-3">
+                                    <p className="text-xs font-medium leading-4 text-slate-500">{t('mapStudioResourceCategoriesHelp')}</p>
                                     {resourceLayerCatalog.groups.map((group) => (
                                         <div key={group.key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                                             <label className="flex min-h-11 items-center gap-2 text-sm font-black text-slate-800">
@@ -282,7 +289,7 @@ export default function MapStudioDesignControls({
                                         </div>
                                     ))}
                                 </div>
-                            </fieldset>
+                            </details>
                         ) : null}
                     </>
                 ) : null}

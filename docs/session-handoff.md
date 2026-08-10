@@ -2,6 +2,28 @@
 
 Last updated: 2026-08-10 (Asia/Singapore)
 
+## Share annotation and Edit layout progressive disclosure (2026-08-10, local UAT)
+
+- The Share dialog now stages a tri-state `Include annotations` choice below
+  the embedded preview. Untouched preserves granular annotation sharing;
+  checked/unchecked applies all-public/all-private only when the owner selects
+  `Update shared link`, before the existing verified annotation flush and
+  frozen selected-view publication.
+- The privacy boundary is unchanged: the bulk control writes the existing
+  per-annotation `isShared` flags, while the server still sanitizes only opted-in
+  selected-view-visible annotations. Closing Share does not apply the staged
+  choice or update the public snapshot.
+- Edit layout no longer duplicates Map detail, which remains available through
+  Map settings. Resource categories use a compact multi-select dropdown. An
+  outside click collapses the expanded floating panel to an `Edit layout`
+  header, the header reopens it, and `X` closes it; the existing left/right
+  docking preference remains browser-persisted.
+- Verification passes focused Share/Studio/annotation/i18n 35/35, full client
+  633/633, full server 548/548, expanded map/embed/Print/UI lockdown 75/75,
+  client production build, and diff check. Work is local on
+  `codex/map-studio-layout-share-ux`; no commit, push, deployment, schema,
+  Worker, secret, database, or frozen production snapshot was changed.
+
 ## Embed shared-annotation publication flush release (2026-08-10)
 
 - `Update shared link` now flushes the owner annotation document before the

@@ -15,6 +15,53 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-10 Share annotation and Edit layout progressive disclosure (local UAT candidate)
+
+- Candidate behavior: the owner Share dialog now places an explicit `Include
+  annotations` checkbox immediately after the embedded preview and before
+  `Update shared link`. The control reports how many saved annotations will be
+  public, supports a mixed state when only some annotations are opted in, and
+  stages the choice inside the dialog. Only the explicit update action applies
+  the bulk choice to the existing per-annotation `isShared` flags, flushes the
+  annotation document, and creates the next frozen snapshot. Leaving the
+  checkbox untouched preserves the existing granular annotation choices.
+- Edit-layout behavior: the duplicate Map detail choice is removed only from
+  the floating Edit layout panel; the versioned design field and the existing
+  Map settings control remain intact. Resource categories are now a compact,
+  keyboard-accessible multi-select dropdown with a visible-category summary.
+  Clicking outside an expanded Edit layout panel collapses it to a floating
+  `Edit layout` header; clicking the header reopens it and the adjacent `X`
+  closes it. The remembered left/right panel preference is unchanged.
+- Privacy and blast radius: the new checkbox is an explicit bulk editor for the
+  same private-by-default annotation flags, not a publication bypass. The
+  server continues to sanitize and publish only opted-in annotations that are
+  visible in the selected saved named view. Personal places, private notes,
+  unsaved Studio state, owner controls, export settings, Shared Map behavior,
+  embed framing, schema, authentication, map markers, Detailed surfaces, and
+  Print View remain unchanged.
+- Reproduction: on an owned shared map with zero, some, or all annotations
+  marked for sharing, open Share and inspect the checkbox below the preview.
+  Change it and close Share without updating; the public snapshot must stay
+  unchanged. Reopen, choose the desired state, and select `Update shared link`;
+  the iframe must refresh to only the newly opted-in selected-view annotations.
+  Open Edit layout, click the map to collapse it, click the floating header to
+  reopen it, switch the dock side, reload to confirm the side preference, and
+  use `X` to close it. Confirm Map detail remains available in Map settings and
+  the resource-category dropdown retains every group/category checkbox.
+- Acceptance criteria: annotation inclusion remains explicit, staged, and
+  frozen; mixed annotation state is visible; save failure still blocks
+  publication; Map detail has one owner-facing control; resource filters remain
+  multi-select; outside-click minimizes without discarding design edits; `X`
+  closes; left/right memory, named-view save semantics, and all locked map and
+  export behavior remain stable.
+- Verification: focused Share/Studio/annotation/i18n coverage passes 35/35;
+  full client/source coverage passes 633/633; full server coverage passes
+  548/548; the expanded map/embed/Print/UI-preference lockdown passes 75/75;
+  `npm run build:client` and `git diff --check` pass with only the existing
+  Browserslist age notice. Candidate branch:
+  `codex/map-studio-layout-share-ux`. No commit, push, deployment, schema,
+  Worker, secret, database, or public snapshot change has been made.
+
 ## 2026-08-10 embed shared-annotation publication flush (production release)
 
 - Current behavior: `Update shared link` now waits for the owner annotation

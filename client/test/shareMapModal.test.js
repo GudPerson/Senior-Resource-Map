@@ -14,7 +14,7 @@ test('share map modal prompts owners to update stale shared links intentionally'
     );
     assert.match(
         shareMapModalSource,
-        /const hasPendingShareUpdates = hasSharedMapUpdates\(map\);/,
+        /const hasPendingShareUpdates = hasSharedMapUpdates\(map\) \|\| includeAnnotationsSelection !== null;/,
     );
     assert.match(
         shareMapModalSource,
@@ -24,6 +24,16 @@ test('share map modal prompts owners to update stale shared links intentionally'
         shareMapModalSource,
         /hasPendingShareUpdates \? t\('shareLinkNeedsUpdateDescription'\) : t\('sharedLinkDescription'\)/,
     );
+});
+
+test('share map modal exposes an explicit bulk annotation opt-in without bypassing annotation flags', () => {
+    assert.match(shareMapModalSource, /annotations = \[\]/);
+    assert.match(shareMapModalSource, /annotations\.filter\(\(annotation\) => Boolean\(annotation\?\.isShared\)\)\.length/);
+    assert.match(shareMapModalSource, /includeAnnotationsRef\.current\.indeterminate = includesSomeAnnotations/);
+    assert.match(shareMapModalSource, /setIncludeAnnotationsSelection\(event\.target\.checked\)/);
+    assert.match(shareMapModalSource, /onPublish\?\.\(\{ includeAnnotations: includeAnnotationsSelection \}\)/);
+    assert.match(shareMapModalSource, /t\('includeAnnotationsInShare'\)/);
+    assert.match(shareMapModalSource, /disabled=\{!annotationCount \|\| !annotationsReady \|\| submitting\}/);
 });
 
 test('share map modal keeps copy-existing separate from update-shared-link', () => {
@@ -48,7 +58,7 @@ test('share map modal explains and refreshes the frozen embed preview after publ
     );
     assert.match(
         shareMapModalSource,
-        /const published = await onPublish\?\.\(\);/,
+        /const published = await onPublish\?\.\(\{ includeAnnotations: includeAnnotationsSelection \}\);/,
     );
     assert.match(
         shareMapModalSource,
