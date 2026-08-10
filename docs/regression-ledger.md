@@ -17,7 +17,7 @@ Rules:
 
 ## 2026-08-10 owner embed-preview snapshot refresh
 
-- Candidate behavior: the Website embed preview inside the owner Share dialog
+- Current behavior: the Website embed preview inside the owner Share dialog
   explains that it shows the map style and resources from the last published
   snapshot. After `Update shared link` succeeds, the dialog changes only the
   preview iframe URL with a local revision query and remounts it in place, so
@@ -45,7 +45,21 @@ Rules:
   Credentialed production smoke completed all six flows, with the postal-import
   flow passing on its configured retry after an initial form-load timeout; a
   clean no-retry targeted rerun then passed 1/1. `git diff --check` passed on
-  branch `codex/share-preview-refresh`. Pages deployment is pending.
+  branch `codex/share-preview-refresh`.
+- Release verification: implementation commit `fa47ed830` was pushed to
+  `codex/share-preview-refresh`, fast-forwarded to `main`, and pushed. The exact
+  six-root `client/dist` was published with Pages Functions, `_headers`,
+  `_routes.json`, and `--skip-caching` at
+  `https://bab18d6a.senior-resource-map.pages.dev`. All 82 immutable and settled
+  `app.carearound.sg` files matched local MIME, bytes, and SHA-256 at aggregate
+  digest `64e0768fe84c9c2b0a99496365f94a9693fb777409c35da52064770ff51b134a`.
+  Production API health returned OK; the embed retained its exact configured
+  frame ancestors and no XFO; the live My Map lazy chunk was JavaScript and
+  byte-identical to local; and production bundles contained both the local
+  preview-revision refresh marker and the last-updated-preview notice.
+  Post-deploy credentialed smoke passed all 6/6 flows cleanly. No Worker,
+  schema, secret, authentication, snapshot payload, or production-data change
+  was deployed.
 
 ## 2026-08-10 selected-view embed presentation snapshot
 

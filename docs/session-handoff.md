@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-10 (Asia/Singapore)
 
-## Owner embed-preview refresh (2026-08-10, local candidate)
+## Owner embed-preview refresh release (2026-08-10)
 
 - The Share dialog now states that its Website embed preview shows the last
   published map style and resources. A successful `Update shared link` adds a
@@ -16,8 +16,15 @@ Last updated: 2026-08-10 (Asia/Singapore)
   the exact six-root build passes, and the diff check passes on
   `codex/share-preview-refresh`. Credentialed production smoke completed all
   six flows; postal import passed on its configured retry and then passed a
-  clean targeted no-retry rerun. This client-only candidate is ready for Pages
-  deployment; no Worker change is required.
+  clean targeted no-retry rerun.
+- Implementation commit `fa47ed830` is pushed on `main` and
+  `codex/share-preview-refresh`. Exact Pages deployment
+  `https://bab18d6a.senior-resource-map.pages.dev` and the settled custom domain
+  match all 82 local files by MIME, bytes, and SHA-256 at aggregate digest
+  `64e0768fe84c9c2b0a99496365f94a9693fb777409c35da52064770ff51b134a`.
+  Production API health, embed framing, live chunk markers, and clean
+  post-deploy smoke 6/6 pass. No Worker, schema, secret, authentication,
+  snapshot payload, or production-data change was made.
 
 ## Selected-view embed presentation release (2026-08-10)
 
