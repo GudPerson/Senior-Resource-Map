@@ -17,7 +17,7 @@ import {
     PRINT_MAP_LAYOUT_FOCUS,
     PRINT_MAP_LAYOUT_FULL,
     PRINT_MAP_MARGIN_NARROW,
-    PRINT_MAP_MARGIN_STANDARD,
+    PRINT_MAP_MARGIN_WIDE,
     PRINT_MAP_MAX_HEIGHT_PX,
     PRINT_MAP_MIN_HEIGHT_PX,
     PRINT_MAP_PAGE_LAYOUT_FULL,
@@ -69,7 +69,7 @@ const sharedMapDirectorySource = readFileSync(new URL('../src/components/SharedM
 const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
 const rootPackage = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
 
-test('owner print map starts from a safe baseline while carrying only the global colour preference', () => {
+test('owner Export View starts from a safe high-resolution, wide-margin baseline', () => {
     assert.deepEqual(createOwnerPrintMapState('gray'), {
         mapStyle: 'gray',
         basemapMode: 'live',
@@ -77,8 +77,8 @@ test('owner print map starts from a safe baseline while carrying only the global
         height: PRINT_MAP_DEFAULT_HEIGHT_PX,
         pageLayout: PRINT_MAP_PAGE_LAYOUT_STANDARD,
         resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
-        mapQuality: PRINT_MAP_QUALITY_STANDARD,
-        margins: PRINT_MAP_MARGIN_STANDARD,
+        mapQuality: PRINT_MAP_QUALITY_HIGH,
+        margins: PRINT_MAP_MARGIN_WIDE,
         resourceLayer: PRINT_MAP_RESOURCE_LAYER_SHOW,
         pinSize: PRINT_MAP_PIN_SIZE_STANDARD,
         annotationLayer: PRINT_MAP_ANNOTATION_LAYER_SHOW,
@@ -129,7 +129,7 @@ test('owner print map can request Detailed automatically without changing the sa
     assert.equal(createOwnerPrintMapState('default', { basemapMode: 'town' }).basemapMode, 'live');
     assert.match(ownerPageSource, /OWNER_PRINT_BASEMAP_OPTIONS = TOWN_MAP_PROOF_ENABLED/);
     assert.match(ownerPageSource, /createOwnerPrintMapState\(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS\)/);
-    assert.match(ownerPageSource, /resetOwnerPrintMapState\(current, mapStyle\)/);
+    assert.doesNotMatch(ownerPageSource, /resetOwnerPrintMapState\(current, mapStyle\)/);
 });
 
 test('owner print reset clears camera and detail changes without losing the device colour preference', () => {
@@ -161,8 +161,8 @@ test('owner print reset clears camera and detail changes without losing the devi
     assert.equal(reset.height, PRINT_MAP_DEFAULT_HEIGHT_PX);
     assert.equal(reset.pageLayout, PRINT_MAP_PAGE_LAYOUT_STANDARD);
     assert.equal(reset.resourcePlacement, PRINT_MAP_RESOURCE_PLACEMENT_BESIDE);
-    assert.equal(reset.mapQuality, PRINT_MAP_QUALITY_STANDARD);
-    assert.equal(reset.margins, PRINT_MAP_MARGIN_STANDARD);
+    assert.equal(reset.mapQuality, PRINT_MAP_QUALITY_HIGH);
+    assert.equal(reset.margins, PRINT_MAP_MARGIN_WIDE);
     assert.equal(reset.resourceLayer, PRINT_MAP_RESOURCE_LAYER_SHOW);
     assert.equal(reset.pinSize, PRINT_MAP_PIN_SIZE_STANDARD);
     assert.equal(reset.annotationLayer, PRINT_MAP_ANNOTATION_LAYER_SHOW);
@@ -187,7 +187,7 @@ test('capture key changes for every visual print map setting', () => {
         buildPrintMapCaptureKey({ ...baseline, view: { center: [1.38, 103.75], zoom: 16 } }),
         buildPrintMapCaptureKey({ ...baseline, pageLayout: PRINT_MAP_PAGE_LAYOUT_FULL }),
         buildPrintMapCaptureKey({ ...baseline, resourcePlacement: PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE }),
-        buildPrintMapCaptureKey({ ...baseline, mapQuality: PRINT_MAP_QUALITY_HIGH }),
+        buildPrintMapCaptureKey({ ...baseline, mapQuality: PRINT_MAP_QUALITY_STANDARD }),
         buildPrintMapCaptureKey({ ...baseline, margins: PRINT_MAP_MARGIN_NARROW }),
         buildPrintMapCaptureKey({ ...baseline, resourceLayer: PRINT_MAP_RESOURCE_LAYER_HIDE }),
         buildPrintMapCaptureKey({ ...baseline, pinSize: PRINT_MAP_PIN_SIZE_LARGE }),
@@ -596,7 +596,7 @@ test('owner print preview exposes controlled zoom, detail, colour, camera, and h
 
 test('visible preview and hidden image export consume the same frozen print map state and width', () => {
     assert.match(ownerPageSource, /printMapState=\{printMapState\}/g);
-    assert.match(ownerPageSource, /<PrintLayoutControls/);
+    assert.doesNotMatch(ownerPageSource, /<PrintLayoutControls/);
     assert.match(ownerPageSource, /ownerInteractiveDirectoryUrl/);
     assert.match(ownerPageSource, /nextParams\.delete\('view'\)/);
     assert.match(ownerPageSource, /const printQrDirectoryUrl = sharedDirectoryUrl \|\| ownerInteractiveDirectoryUrl/);
@@ -646,14 +646,9 @@ test('visible preview and hidden image export consume the same frozen print map 
     );
     assert.match(ownerPageSource, /data-owner-print-toolbar="true"/);
     assert.match(ownerPageSource, /data-print-toolbar-actions="true"/);
-    assert.match(ownerPageSource, /data-print-layout-panel="true"/);
-    assert.match(
-        ownerPageSource,
-        /lg:absolute lg:right-4 lg:top-\[calc\(100%\+12px\)\][^"]*lg:max-h-\[calc\(100dvh-12rem\)\][^"]*lg:w-\[400px\][^"]*lg:overflow-y-auto/,
-    );
-    assert.match(ownerPageSource, /if \(!isPrintView \|\| !printLayoutOpen\) return undefined/);
-    assert.match(ownerPageSource, /event\.key !== 'Escape'/);
-    assert.match(ownerPageSource, /window\.addEventListener\('keydown', handlePrintLayoutKeyDown\)/);
+    assert.doesNotMatch(ownerPageSource, /data-print-layout-panel="true"/);
+    assert.doesNotMatch(ownerPageSource, /data-print-layout-trigger="true"/);
+    assert.doesNotMatch(ownerPageSource, /Reset print map/);
     assert.match(ownerPageSource, /Your saved image will match this preview/);
     assert.doesNotMatch(ownerPageSource, /onClick=\{\(\) => window\.print\(\)\}/);
     assert.match(directoryMapSource, /right-\[13px\] top-3 z-\[1002\] lg:right-3/);

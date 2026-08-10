@@ -31,8 +31,12 @@ test('My Map notes PDF labels are available in all locale dictionaries', () => {
     }
 });
 
-test('My Map owner actions use the concise Print View label on desktop and mobile', () => {
+test('My Map owner actions use the concise Export View label on desktop and mobile', () => {
     const occurrences = [...pageSource.matchAll(/t\('print'\)/g)].length;
     assert.equal(occurrences, 2);
     assert.doesNotMatch(pageSource, /t\('printFriendlyView'\)/);
+    assert.equal([...i18nSource.matchAll(/print: 'Export View'/g)].length, 1);
+    assert.equal([...i18nSource.matchAll(/print: '导出视图'/g)].length, 1);
+    assert.equal([...i18nSource.matchAll(/print: 'Paparan Eksport'/g)].length, 1);
+    assert.equal([...i18nSource.matchAll(/print: 'ஏற்றுமதி பார்வை'/g)].length, 1);
 });

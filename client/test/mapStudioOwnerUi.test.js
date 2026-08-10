@@ -78,7 +78,10 @@ test('the owner panel is additive to both My Map layouts and remains outside Pri
     assert.match(ownerPageSource, /const ownerMapStudioPanel = \(/);
     assert.match(ownerPageSource, /studioPanel=\{ownerMapStudioPanel\}/);
     assert.match(v2ScaffoldSource, /studioPanel = null/);
-    assert.match(v2ScaffoldSource, /\{studioPanel\}/);
+    assert.match(ownerPageSource, /data-map-studio-top-row="true">[\s\S]*\{ownerMapStudioPanel\}/);
+    assert.match(v2ScaffoldSource, /data-map-studio-top-row="true">[\s\S]*\{studioPanel\}/);
+    assert.match(ownerPageSource, /data-map-studio-top-row="true"[\s\S]*<OwnerHeader/);
+    assert.match(v2ScaffoldSource, /data-map-studio-top-row="true"[\s\S]*data-my-map-ui="v2"/);
 
     const printBranch = ownerPageSource.slice(
         ownerPageSource.indexOf('if (isPrintView) {'),

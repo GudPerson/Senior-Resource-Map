@@ -2,6 +2,24 @@
 
 Last updated: 2026-08-10 (Asia/Singapore)
 
+## Map Studio top-row and Export View refinement candidate (2026-08-10)
+
+- The desktop owner Map Studio named-view toolbar is now the first control row
+  in classic and V2 My Map. Mobile keeps its navigation/control header first,
+  with Map Studio immediately below it.
+- `Print View` is now labelled `Export View` in English, Chinese, Malay, and
+  Tamil. Its existing route and renderer are retained, while the duplicate
+  Print layout panel and Reset print map action are no longer mounted.
+- Export-only defaults are fixed to High resolution and Wide margins for both
+  legacy owner export state and selected Map Studio views. Named-view design,
+  annotations, map interaction, PNG/PDF readiness, Shared Map/embed, schema,
+  auth, and privacy boundaries are unchanged.
+- Focused Map Studio/Export View/state/i18n/print coverage passes 57/57, full
+  client coverage passes 638/638, full server coverage passes 548/548,
+  map-lockdown passes 85/85, and the exact six-root production client build
+  passes on `codex/map-studio-export-view-refinement`. Commit, push, Pages
+  deployment, and production verification are pending.
+
 ## My Map explicit resource-removal mode release (2026-08-10)
 
 - `Edit content` now contains an owner-only `Remove resources` toggle. Normal

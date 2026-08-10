@@ -10,8 +10,8 @@ const printViewSource = readFileSync(
     new URL('../src/components/DirectoryPrintView.jsx', import.meta.url),
     'utf8',
 );
-const printControlsSource = readFileSync(
-    new URL('../src/components/PrintLayoutControls.jsx', import.meta.url),
+const mapStudioStateSource = readFileSync(
+    new URL('../src/lib/mapStudioState.js', import.meta.url),
     'utf8',
 );
 const sharedMapSource = readFileSync(
@@ -30,7 +30,6 @@ test('Map Studio Export snapshots the active draft and restores saved named view
     assert.match(ownerPageSource, /nextParams\.set\('studioView', studioSnapshot\.id\)/);
     assert.match(ownerPageSource, /api\.getMyMapStudio\(mapId\)/);
     assert.match(ownerPageSource, /document\?\.views\?\.find\(\(view\) => view\.id === printStudioViewId\)/);
-    assert.match(ownerPageSource, /mapStudioExport=\{Boolean\(activePrintStudioView\)\}/);
     assert.match(ownerPageSource, /mapStudioDesignLocked=\{Boolean\(activePrintStudioView\)\}/);
 });
 
@@ -47,12 +46,12 @@ test('Map Studio Export filters cards and pins from one directory and applies de
     assert.match(printViewSource, /markerScale=\{getPrintMapPinScale\(printMapState\?\.pinSize\)\}/);
 });
 
-test('Map Studio Export exposes export-only quality and margin controls without changing legacy Print View defaults', () => {
-    assert.match(printControlsSource, /mapStudioExport = false/);
-    assert.match(printControlsSource, /data-map-studio-export-settings="true"/);
-    assert.match(printControlsSource, /data-print-image-quality-controls="true"/);
-    assert.match(printControlsSource, /data-print-margin-controls="true"/);
-    assert.match(printControlsSource, /\{!mapStudioExport \? \(/);
+test('Map Studio Export fixes high-resolution quality and wide margins without mounting duplicate layout controls', () => {
+    assert.match(mapStudioStateSource, /imageQuality: normalizePrintMapQuality\(value\?\.imageQuality \?\? PRINT_MAP_QUALITY_HIGH\)/);
+    assert.match(mapStudioStateSource, /value\?\.margins \?\? MAP_STUDIO_EXPORT_MARGIN_WIDE/);
+    assert.doesNotMatch(ownerPageSource, /PrintLayoutControls/);
+    assert.doesNotMatch(ownerPageSource, /data-print-layout-trigger/);
+    assert.doesNotMatch(ownerPageSource, /Reset print map/);
 });
 
 test('private Map Studio documents remain absent from frozen Shared Map and embed routes', () => {

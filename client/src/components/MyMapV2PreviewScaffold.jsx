@@ -169,12 +169,18 @@ export default function MyMapV2PreviewScaffold({
 
             <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6 lg:px-8 xl:px-10 2xl:px-14">
                 {useDesktopLayout ? (
+                    <div data-map-studio-top-row="true">
+                        {studioPanel}
+                    </div>
+                ) : null}
+
+                {useDesktopLayout ? (
                     <div data-my-map-ui="v2">
                         {toolbar}
                     </div>
                 ) : null}
 
-                {studioPanel}
+                {!useDesktopLayout ? studioPanel : null}
 
                 {useDesktopLayout ? (
                     <div

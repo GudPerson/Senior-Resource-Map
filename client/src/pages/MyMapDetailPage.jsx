@@ -7,7 +7,6 @@ import {
     ArrowLeft,
     CheckCircle2,
     ChevronDown,
-    LayoutTemplate,
     Link2,
     ListOrdered,
     LoaderCircle,
@@ -17,7 +16,6 @@ import {
     Pencil,
     Plus,
     Printer,
-    RotateCcw,
     Search,
     SlidersHorizontal,
     Trash2,
@@ -37,7 +35,6 @@ import MyMapCategoryOrderModal from '../components/MyMapCategoryOrderModal.jsx';
 import MyMapV2PreviewScaffold from '../components/MyMapV2PreviewScaffold.jsx';
 import MapAssetShortDescriptionModal from '../components/MapAssetShortDescriptionModal.jsx';
 import MapStudioViewsPanel from '../components/MapStudioViewsPanel.jsx';
-import PrintLayoutControls from '../components/PrintLayoutControls.jsx';
 import PrintAnnotationLayer from '../components/PrintAnnotationLayer.jsx';
 import AddPersonalPlaceChooserModal from '../components/personalPlaces/AddPersonalPlaceChooserModal.jsx';
 import PersonalPlaceCategoryManagerModal from '../components/personalPlaces/PersonalPlaceCategoryManagerModal.jsx';
@@ -96,7 +93,6 @@ import {
     PRINT_MAP_ANNOTATION_LAYER_SHOW,
     PRINT_MAP_LAYOUT_FULL,
     createOwnerPrintMapState,
-    resetOwnerPrintMapState,
 } from '../lib/printMapState.js';
 import { filterPrintMapAnnotations } from '../lib/printMapLayers.js';
 
@@ -1519,7 +1515,6 @@ export default function MyMapDetailPage() {
     const [activePrintStudioView, setActivePrintStudioView] = useState(null);
     const [printStudioLoadError, setPrintStudioLoadError] = useState('');
     const pendingPrintStudioViewRef = useRef(null);
-    const [printLayoutOpen, setPrintLayoutOpen] = useState(false);
     const [printAnnotationEditorOpen, setPrintAnnotationEditorOpen] = useState(false);
     const [printShortDescriptionMode, setPrintShortDescriptionMode] = useState(false);
     const [interactiveAnnotationEditorOpen, setInteractiveAnnotationEditorOpen] = useState(false);
@@ -1738,7 +1733,6 @@ export default function MyMapDetailPage() {
             setPrintMapState(createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS));
             setActivePrintStudioView(null);
             pendingPrintStudioViewRef.current = null;
-            setPrintLayoutOpen(false);
             setPrintAnnotationEditorOpen(false);
             setPrintShortDescriptionMode(false);
         }
@@ -1782,7 +1776,6 @@ export default function MyMapDetailPage() {
                     snapshot.design,
                     createMapStudioExportSettings(),
                 ));
-                setPrintLayoutOpen(false);
                 setPrintAnnotationEditorOpen(false);
             })
             .catch((error) => {
@@ -1798,19 +1791,6 @@ export default function MyMapDetailPage() {
             cancelled = true;
         };
     }, [activePrintStudioView, isPrintView, mapId, mapStyle, printStudioViewId, t]);
-
-    useEffect(() => {
-        if (!isPrintView || !printLayoutOpen) return undefined;
-
-        const handlePrintLayoutKeyDown = (event) => {
-            if (event.key !== 'Escape') return;
-            event.preventDefault();
-            setPrintLayoutOpen(false);
-        };
-
-        window.addEventListener('keydown', handlePrintLayoutKeyDown);
-        return () => window.removeEventListener('keydown', handlePrintLayoutKeyDown);
-    }, [isPrintView, printLayoutOpen]);
 
     useEffect(() => {
         if (isPrintView && canEditPrintAnnotations) return;
@@ -3264,7 +3244,6 @@ export default function MyMapDetailPage() {
                 createMapStudioExportSettings(),
             )
             : createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS));
-        setPrintLayoutOpen(false);
         setPrintAnnotationEditorOpen(false);
         setPrintShortDescriptionMode(false);
         const nextParams = new URLSearchParams(searchParams);
@@ -3326,7 +3305,6 @@ export default function MyMapDetailPage() {
         printAnnotations.saveNow();
         setPrintAnnotationEditorOpen(false);
         setPrintShortDescriptionMode(false);
-        setPrintLayoutOpen(false);
         setActivePrintStudioView(null);
         setPrintStudioLoadError('');
         pendingPrintStudioViewRef.current = null;
@@ -3334,17 +3312,6 @@ export default function MyMapDetailPage() {
         nextParams.delete('view');
         nextParams.delete('studioView');
         setSearchParams(nextParams);
-    }
-
-    function resetPrintMap() {
-        if (activePrintStudioView) {
-            setPrintMapState(buildMapStudioPrintState(
-                activePrintStudioView.design,
-                createMapStudioExportSettings(),
-            ));
-            return;
-        }
-        setPrintMapState((current) => resetOwnerPrintMapState(current, mapStyle));
     }
 
     function togglePrintAnnotationEditor() {
@@ -3355,7 +3322,6 @@ export default function MyMapDetailPage() {
         }
 
         printAnnotations.reload();
-        setPrintLayoutOpen(false);
         setPrintMapState((current) => ({
             ...current,
             annotationLayer: PRINT_MAP_ANNOTATION_LAYER_SHOW,
@@ -3486,26 +3452,10 @@ export default function MyMapDetailPage() {
                                 <ArrowLeft size={16} />
                                 {t('backToInteractiveView')}
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => setPrintLayoutOpen((current) => !current)}
-                                className={`btn-ghost min-h-11 w-full justify-center border px-3 text-xs sm:w-auto sm:text-sm ${
-                                    printLayoutOpen
-                                        ? 'border-brand-600 bg-brand-50 text-brand-800'
-                                        : 'border-slate-200 text-slate-700'
-                                }`}
-                                aria-expanded={printLayoutOpen}
-                                aria-controls="owner-print-layout-controls"
-                                data-print-layout-trigger="true"
-                            >
-                                <LayoutTemplate size={16} aria-hidden="true" />
-                                {t('printLayout')}
-                            </button>
                             {!activePrintStudioView ? (<>
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setPrintLayoutOpen(false);
                                     setPrintAnnotationEditorOpen(false);
                                     openCategoryOrder();
                                 }}
@@ -3519,7 +3469,6 @@ export default function MyMapDetailPage() {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setPrintLayoutOpen(false);
                                     setPrintAnnotationEditorOpen(false);
                                     openPersonalPlacePicker();
                                 }}
@@ -3559,7 +3508,6 @@ export default function MyMapDetailPage() {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    setPrintLayoutOpen(false);
                                     setPrintAnnotationEditorOpen(false);
                                     setPrintShortDescriptionMode((current) => !current);
                                 }}
@@ -3575,14 +3523,6 @@ export default function MyMapDetailPage() {
                                 {t('addShortDescription')}
                             </button>
                             </>) : null}
-                            <button
-                                type="button"
-                                onClick={resetPrintMap}
-                                className="btn-ghost min-h-11 w-full justify-center border border-slate-200 px-3 text-xs text-slate-700 sm:w-auto sm:text-sm"
-                            >
-                                <RotateCcw size={16} />
-                                Reset print map
-                            </button>
                             <Suspense fallback={(
                                 <span className="btn-ghost min-h-11 w-full justify-center border border-slate-200 px-3 text-xs text-slate-500 sm:w-auto sm:text-sm">
                                     {t('loadingPage')}
@@ -3636,20 +3576,6 @@ export default function MyMapDetailPage() {
                             >
                                 Annotations appear in every layout. Editing opens in Full map.
                             </p>
-                        ) : null}
-                        {printLayoutOpen ? (
-                            <div
-                                id="owner-print-layout-controls"
-                                className="w-full lg:absolute lg:right-4 lg:top-[calc(100%+12px)] lg:z-20 lg:max-h-[calc(100dvh-12rem)] lg:w-[400px] lg:max-w-[calc(100vw-2rem)] lg:overflow-y-auto lg:overscroll-contain lg:rounded-2xl lg:bg-white lg:shadow-2xl"
-                                data-print-layout-panel="true"
-                            >
-                                <PrintLayoutControls
-                                    value={printMapState}
-                                    onChange={setPrintMapState}
-                                    onClose={() => setPrintLayoutOpen(false)}
-                                    mapStudioExport={Boolean(activePrintStudioView)}
-                                />
-                            </div>
                         ) : null}
                     </div>
                 </div>
@@ -3993,6 +3919,12 @@ export default function MyMapDetailPage() {
 
                 <div className="mx-auto w-full max-w-[1800px] space-y-4 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 2xl:px-14 xl:space-y-5">
                     {useDesktopOwnerLayout ? (
+                        <div data-map-studio-top-row="true">
+                            {ownerMapStudioPanel}
+                        </div>
+                    ) : null}
+
+                    {useDesktopOwnerLayout ? (
                         <div>
                             <OwnerHeader
                                 directory={directory}
@@ -4006,7 +3938,7 @@ export default function MyMapDetailPage() {
                         </div>
                     ) : null}
 
-                    {ownerMapStudioPanel}
+                    {!useDesktopOwnerLayout ? ownerMapStudioPanel : null}
 
                     {useDesktopOwnerLayout ? (
                         <div

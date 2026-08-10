@@ -11,7 +11,7 @@ import {
     PRINT_MAP_PAGE_LAYOUT_FULL,
     PRINT_MAP_PAGE_LAYOUT_STANDARD,
     PRINT_MAP_PIN_SIZE_STANDARD,
-    PRINT_MAP_QUALITY_STANDARD,
+    PRINT_MAP_QUALITY_HIGH,
     PRINT_MAP_RESOURCE_LAYER_SHOW,
     PRINT_MAP_RESOURCE_PLACEMENT_BESIDE,
     PRINT_MAP_RESOURCE_PLACEMENT_NEXT_PAGE,
@@ -562,8 +562,10 @@ export function saveMapStudioView(document, session) {
 export function createMapStudioExportSettings(value = {}) {
     return {
         schemaVersion: MAP_STUDIO_SCHEMA_VERSION,
-        imageQuality: normalizePrintMapQuality(value?.imageQuality ?? PRINT_MAP_QUALITY_STANDARD),
-        margins: normalizePrintMapMargin(normalizeExportMargin(value?.margins)),
+        imageQuality: normalizePrintMapQuality(value?.imageQuality ?? PRINT_MAP_QUALITY_HIGH),
+        margins: normalizePrintMapMargin(normalizeExportMargin(
+            value?.margins ?? MAP_STUDIO_EXPORT_MARGIN_WIDE,
+        )),
     };
 }
 

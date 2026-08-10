@@ -15,6 +15,38 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-10 Map Studio top-row and Export View refinement (release candidate)
+
+- Candidate behavior: the owner Map Studio named-view toolbar is the first
+  desktop control row in both classic and V2 My Map layouts, ahead of map
+  details and map actions. The former `Print View` action is labelled `Export
+  View` in all four supported languages. Export View no longer mounts the
+  duplicate Print layout panel or exposes `Reset print map`; its output-only
+  defaults are fixed to High resolution and Wide margins.
+- Safety and blast radius: the existing `?view=print` route, selected-view
+  snapshot, DirectoryPrintView renderer, PNG/PDF readiness, map interaction,
+  annotations, personal places, persistent Map Studio design, Shared
+  Map/embed snapshots, APIs, schema, authentication, and privacy boundaries
+  remain unchanged. Small-screen navigation stays first and the Map Studio
+  panel remains immediately below it so mobile map controls are not displaced.
+- Reproduction: open an owned My Map on desktop in the classic and V2 layouts.
+  Confirm Map Studio is the first row and retains view selection, actions,
+  dirty status, discard, and save behavior. Confirm the action toolbar says
+  `Export View`. Enter Export View and confirm there is no Print layout or
+  Reset print map action; save PNG/PDF and verify the export state uses High
+  resolution and Wide margins.
+- Acceptance criteria: visual order and keyboard reading order agree on
+  desktop; mobile navigation remains first; owner view state is neither reset
+  nor persisted accidentally; Export View retains Back, content-edit actions
+  where applicable, export readiness, PNG/PDF output, Detailed/Live map
+  behavior, and preview-to-output parity; quality and margins resolve
+  deterministically to High/Wide without user controls.
+- Verification before deploy: focused Map Studio, Export View, state, i18n,
+  and print-workspace coverage passes 57/57; full client coverage passes
+  638/638; full server coverage passes 548/548; map-lockdown passes 85/85; and
+  the exact six-root production client build passes. Diff review, commit, and
+  deployment verification are pending.
+
 ## 2026-08-10 My Map explicit resource-removal mode (production release)
 
 - Production behavior: owner resource cards no longer carry persistent Remove

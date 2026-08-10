@@ -316,6 +316,16 @@ test('export settings stay outside persistent design and adapt to the locked Pri
     assert.equal(printState.margins, MAP_STUDIO_EXPORT_MARGIN_WIDE);
 });
 
+test('Export View defaults output-only settings to high resolution and wide margins', () => {
+    const exportSettings = createMapStudioExportSettings();
+    const printState = buildMapStudioPrintState(createMapStudioDesign(), exportSettings);
+
+    assert.equal(exportSettings.imageQuality, PRINT_MAP_QUALITY_HIGH);
+    assert.equal(exportSettings.margins, MAP_STUDIO_EXPORT_MARGIN_WIDE);
+    assert.equal(printState.mapQuality, PRINT_MAP_QUALITY_HIGH);
+    assert.equal(printState.margins, MAP_STUDIO_EXPORT_MARGIN_WIDE);
+});
+
 test('schema v1 views migrate additively into the unified v2 layout model', () => {
     const migrated = migrateMapStudioDocument({
         schemaVersion: 1,
