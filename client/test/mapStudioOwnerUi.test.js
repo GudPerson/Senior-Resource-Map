@@ -62,6 +62,9 @@ test('runtime design stays owner-scoped while exploration remains temporary', ()
 test('sharing publishes only the selected persisted view and blocks unsaved owner state', () => {
     assert.match(ownerPageSource, /mapStudioRuntimeSnapshot\?\.ownerDirty \|\| mapStudioRuntimeSnapshot\?\.designDirty/);
     assert.match(ownerPageSource, /t\('mapStudioSaveBeforeShare'\)/);
+    assert.match(ownerPageSource, /await printAnnotations\.flushPendingChanges\(\)/);
+    assert.match(ownerPageSource, /if \(!annotationsReadyForShare\)[\s\S]*setShareError\(t\('failedPublishShare'\)\)[\s\S]*return false;/);
+    assert.match(ownerPageSource, /await printAnnotations\.flushPendingChanges\(\)[\s\S]*await api\.publishMyMapShare/);
     assert.match(ownerPageSource, /\{ studioViewId: mapStudioRuntimeSnapshot\.activeViewId \}/);
     assert.match(ownerPageSource, /await loadMap\(\);[\s\S]*return true;/);
     assert.match(ownerPageSource, /setShareError\(err\.message \|\| t\('failedPublishShare'\)\);[\s\S]*return false;/);

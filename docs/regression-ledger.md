@@ -15,6 +15,36 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-10 embed shared-annotation publication flush (local candidate)
+
+- Current behavior: `Update shared link` now waits for the owner annotation
+  document's pending save queue to settle before it creates the frozen public
+  snapshot. One bounded follow-up save covers an annotation edit that arrives
+  while the first save is in flight. Publication is blocked when the document
+  is still dirty, so the embed cannot silently receive an older annotation
+  revision.
+- Privacy and blast radius: this changes only client-side action ordering. The
+  server still publishes only annotations explicitly marked `Share this
+  annotation`, filters them through the selected saved Studio view, strips the
+  private share flag, and keeps ordinary Shared Map responses annotation-free.
+  No private annotation, personal place, owner state, schema, API payload,
+  authentication, framing, resource, map-style, Print View, or export contract
+  changes.
+- Reproduction: edit or create an annotation, enable `Share this annotation`,
+  and immediately open Share and select `Update shared link` before the normal
+  autosave delay completes. The action must save the annotation document first,
+  publish second, then reload the embed preview with the opted-in annotation.
+  Simulate an annotation-save failure and confirm the snapshot is not updated.
+- Acceptance criteria: annotation persistence completes before the share POST;
+  a save failure blocks publication; a successful update includes only the
+  opted-in, selected-view-visible annotations; private annotations remain
+  absent; the embed remains frozen until the next explicit update.
+- Pre-release verification: focused owner/share/embed/annotation/privacy tests
+  pass 99/99; full client/source coverage passes 632/632; the full server suite
+  passes; owner-map lockdown passes 85/85; the exact six-root production client
+  build passes with only the existing Browserslist age notice. No production
+  deployment or data mutation was performed.
+
 ## 2026-08-10 owner embed-preview snapshot refresh
 
 - Current behavior: the Website embed preview inside the owner Share dialog

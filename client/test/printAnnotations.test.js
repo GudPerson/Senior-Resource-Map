@@ -23,6 +23,11 @@ import {
     translatePrintAnnotationPoints,
 } from '../src/lib/printAnnotations.js';
 
+const printAnnotationsHookSource = fs.readFileSync(
+    new URL('../src/hooks/usePrintAnnotations.js', import.meta.url),
+    'utf8',
+);
+
 const POLYGON_POINTS = [
     [1.381, 103.741],
     [1.384, 103.746],
@@ -76,6 +81,14 @@ test('print annotation normalization supports pins, lines, area shapes, and cont
         type: 'polygon',
         points: POLYGON_POINTS.slice(0, 2),
     }), null);
+});
+
+test('annotation persistence exposes a verified flush for frozen share publication', () => {
+    assert.match(
+        printAnnotationsHookSource,
+        /const flushPendingChanges = useCallback\(async \(\) => \{[\s\S]*await saveNow\(\);[\s\S]*return !dirtyRef\.current;/,
+    );
+    assert.match(printAnnotationsHookSource, /flushPendingChanges,/);
 });
 
 test('annotation control-point moves preserve the latest geometry and translate circle centres', () => {

@@ -177,6 +177,17 @@ export function usePrintAnnotations({
         return queuedSave;
     }, [enabled, mapId, storageKey]);
 
+    const flushPendingChanges = useCallback(async () => {
+        if (!enabled || !mapId) return false;
+
+        // A save may have started just before sharing while a final annotation
+        // edit was still arriving. Allow one bounded follow-up pass so the
+        // frozen snapshot never races ahead of that persisted document.
+        await saveNow();
+        if (dirtyRef.current) await saveNow();
+        return !dirtyRef.current;
+    }, [enabled, mapId, saveNow]);
+
     useEffect(() => {
         if (status !== 'unsaved' || !enabled || !autosave) return undefined;
         if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
@@ -253,6 +264,7 @@ export function usePrintAnnotations({
         error,
         replaceAnnotations,
         saveNow,
+        flushPendingChanges,
         reload,
         undo,
         redo,

@@ -2990,6 +2990,11 @@ export default function MyMapDetailPage() {
         setShareError('');
         try {
             void options;
+            const annotationsReadyForShare = await printAnnotations.flushPendingChanges();
+            if (!annotationsReadyForShare) {
+                setShareError(t('failedPublishShare'));
+                return false;
+            }
             await api.publishMyMapShare(directory.id, mapStudioRuntimeSnapshot?.documentRevision > 0
                 ? { studioViewId: mapStudioRuntimeSnapshot.activeViewId }
                 : {});
