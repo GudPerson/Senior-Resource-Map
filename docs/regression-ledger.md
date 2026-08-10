@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-10 Map Studio top-row and Export View refinement (release candidate)
+## 2026-08-10 Map Studio top-row and Export View refinement (production release)
 
 - Candidate behavior: the owner Map Studio named-view toolbar is the first
   desktop control row in both classic and V2 My Map layouts, ahead of map
@@ -41,11 +41,23 @@ Rules:
   where applicable, export readiness, PNG/PDF output, Detailed/Live map
   behavior, and preview-to-output parity; quality and margins resolve
   deterministically to High/Wide without user controls.
-- Verification before deploy: focused Map Studio, Export View, state, i18n,
+- Verification and release: focused Map Studio, Export View, state, i18n,
   and print-workspace coverage passes 57/57; full client coverage passes
   638/638; full server coverage passes 548/548; map-lockdown passes 85/85; and
-  the exact six-root production client build passes. Diff review, commit, and
-  deployment verification are pending.
+  the exact six-root production client build and diff/secret checks pass.
+  Implementation commit `3c3fb845` is pushed on
+  `codex/map-studio-export-view-refinement` and fast-forwarded to `main`. After
+  the Git-triggered build briefly served SPA HTML for new lazy chunks, the
+  exact validated artifact was republished with Pages Functions, `_headers`,
+  and `_routes.json` at `https://e8f1f675.senior-resource-map.pages.dev`.
+  That immutable deployment and settled `app.carearound.sg` match all 82 local
+  public files across 164 byte/SHA-256 comparisons with zero failures;
+  aggregate manifest SHA-256 is
+  `24220b4adf0ec456d435df0ab450243e2f7359f143787ece51fa93bbc166857a`.
+  Production API health and ordinary anti-framing pass. Live bundles contain
+  `Export View` and contain neither `Reset print map` nor `Print layout`. No
+  Worker, schema, database, authentication, secret, snapshot, or production
+  data changed.
 
 ## 2026-08-10 My Map explicit resource-removal mode (production release)
 

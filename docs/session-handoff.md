@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-10 (Asia/Singapore)
 
-## Map Studio top-row and Export View refinement candidate (2026-08-10)
+## Map Studio top-row and Export View refinement release (2026-08-10)
 
 - The desktop owner Map Studio named-view toolbar is now the first control row
   in classic and V2 My Map. Mobile keeps its navigation/control header first,
@@ -17,8 +17,16 @@ Last updated: 2026-08-10 (Asia/Singapore)
 - Focused Map Studio/Export View/state/i18n/print coverage passes 57/57, full
   client coverage passes 638/638, full server coverage passes 548/548,
   map-lockdown passes 85/85, and the exact six-root production client build
-  passes on `codex/map-studio-export-view-refinement`. Commit, push, Pages
-  deployment, and production verification are pending.
+  passes. Implementation commit `3c3fb845` is on
+  `codex/map-studio-export-view-refinement` and `main`.
+- The final exact Pages artifact with Functions and routing is live at
+  `https://e8f1f675.senior-resource-map.pages.dev`. It and the settled custom
+  domain match all 82 local public files across 164 byte/SHA-256 comparisons
+  with zero failures (aggregate manifest
+  `24220b4adf0ec456d435df0ab450243e2f7359f143787ece51fa93bbc166857a`).
+  API health and ordinary anti-framing pass; live bundles contain `Export View`
+  and contain neither `Reset print map` nor `Print layout`. No Worker, schema,
+  database, auth, secret, snapshot, or production data changed.
 
 ## My Map explicit resource-removal mode release (2026-08-10)
 
