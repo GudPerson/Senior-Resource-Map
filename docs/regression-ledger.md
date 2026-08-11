@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-11 Map Studio category-specific numbered-pin shapes (local candidate)
+## 2026-08-11 Map Studio category-specific numbered-pin shapes and Detailed recovery (production release)
 
 - Candidate behavior: the owner action formerly labelled `Arrange categories`
   is now `Refine categories` in all four supported languages. Its existing
@@ -51,16 +51,23 @@ Rules:
   Shared Map/embed; shape outlines stay near 0.75 pt without hiding the
   category fill or number; v1/v2 Map Studio documents normalize to valid v3
   state.
-- Verification: focused shape/state/UI/adapter/embed/server coverage passes
+- Verification and release: focused shape/state/UI/adapter/embed/server coverage passes
   46/46; marker and shared-card source contracts pass 51/51; full client
   coverage passes 648/648; full server coverage passes 549/549;
   map-lockdown passes 87/87; and the exact six-root production client build
-  passes. This remains a local release candidate on
-  `codex/map-studio-category-pin-shapes`; no commit, push, Worker, schema,
-  Pages, database, secret, authentication, snapshot, or production data has
-  changed.
+  passes. Implementation commit `27f786419` is pushed on
+  `codex/map-studio-category-pin-shapes` and `main`. Compatible Worker version
+  `e27cfaa3-fc97-40dd-8c3a-50a5130331d5` was deployed before the client. The
+  exact Pages artifact, including Functions, `_headers`, and `_routes.json`, is
+  live at `https://ad33360d.senior-resource-map.pages.dev`; it and settled
+  `app.carearound.sg` match all 82 local public files across 164 MIME/byte/hash
+  comparisons with zero failures (aggregate SHA-256
+  `bf9da0c098e8253b9c0adc44db702dfed806fd58abaf16f15bf604bfe441242a`).
+  Production API health, ordinary anti-framing, and the map-only embed framing
+  boundary pass. No schema, database, secret, authentication, frozen snapshot,
+  or production data changed.
 
-### 2026-08-11 local Detailed and resize UAT recovery
+### 2026-08-11 Detailed and resize recovery
 
 - Local UAT now enables the immutable zoom-14 Default and Gray overview atlas
   through the established same-origin map proxy, matching the production
@@ -95,8 +102,13 @@ Rules:
   height 685 px at zoom 15 stays Detailed through the overview recovery tier
   before and after pan (15-18 fixed chunks, zero live tiles); reset returns to
   zoom 14 overview Detailed (40 fixed chunks, zero live tiles). No
-  Detailed-unavailable message appeared. Production configuration and assets
-  remain unchanged.
+  Detailed-unavailable message appeared. Signed-in production UAT on map 258
+  then confirmed the five shape choices for all 12 categories without creating
+  unsaved changes; zoom 14 used overview Detailed (40 chunks), default-height
+  zoom 15 used native Detailed (18 chunks), and the fully extended 737 px map
+  stayed on Detailed overview recovery before and after pan (15-24 chunks).
+  Every production state had zero live Standard-map tiles and no unavailable
+  message. Production map assets and configuration remain unchanged.
 
 ## 2026-08-10 Map Studio top-row and Export View refinement (production release)
 

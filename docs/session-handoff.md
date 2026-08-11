@@ -2,7 +2,7 @@
 
 Last updated: 2026-08-11 (Asia/Singapore)
 
-## Map Studio category-specific numbered-pin shapes candidate (2026-08-11)
+## Map Studio category-specific numbered-pin shapes and Detailed recovery release (2026-08-11)
 
 - `Arrange categories` is now `Refine categories` in all four supported
   languages. The existing category reorder flow remains and each category now
@@ -25,10 +25,15 @@ Last updated: 2026-08-11 (Asia/Singapore)
   server coverage passes 549/549; map-lockdown passes 87/87; and the exact
   six-root production client build passes on
   `codex/map-studio-category-pin-shapes`.
-- This is a local candidate only. No commit, push, Worker/schema application,
-  Pages deployment, database, secret, authentication, snapshot, or production
-  data change has been made. Owner visual UAT should verify the five geometries
-  at Standard/Large/Extra large sizes before release approval.
+- Implementation commit `27f786419` is on
+  `codex/map-studio-category-pin-shapes` and `main`. Compatible Worker version
+  `e27cfaa3-fc97-40dd-8c3a-50a5130331d5` and exact Pages deployment
+  `https://ad33360d.senior-resource-map.pages.dev` are live. The immutable and
+  custom domains match all 82 public files across 164 MIME/byte/hash checks
+  with zero failures (aggregate SHA-256
+  `bf9da0c098e8253b9c0adc44db702dfed806fd58abaf16f15bf604bfe441242a`). API
+  health, ordinary anti-framing, and embed-specific framing pass. No schema,
+  database, secret, auth, frozen snapshot, or production data changed.
 - Local UAT recovery on 2026-08-11 also makes the default `dev:client` load the
   production zoom-14 Default/Gray overview atlas through the same-origin proxy.
   The interactive desktop extender now reaches 92% of viewport height, capped
@@ -43,7 +48,11 @@ Last updated: 2026-08-11 (Asia/Singapore)
   Detailed overview recovery before/after pan, and reset returns to zoom 14
   overview; every state had fixed chunks, zero live tiles, and no unavailable
   message. Full client coverage passes 648/648, map-lockdown passes 87/87, and
-  the exact production Detailed-map build passes.
+  the exact production Detailed-map build passes. Signed-in production map-258
+  UAT confirms all five shape choices across 12 categories without dirtying the
+  view; zoom 14 overview, default-height zoom 15 native, and fully extended
+  737 px zoom 15 recovery all remain Detailed with fixed chunks, zero Standard
+  tiles, and no unavailable message before and after pan.
 
 ## Map Studio top-row and Export View refinement release (2026-08-10)
 
