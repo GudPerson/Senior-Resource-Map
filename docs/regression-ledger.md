@@ -15,6 +15,44 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-11 Personal-place interactive short-description recovery (production release)
+
+- Current behavior: `Edit content` -> `Add short description` now exposes the
+  existing add/edit description action on owner-only personal-place cards in
+  interactive My Map, including compact `Names + descriptions` and `Names
+  only` layouts. Personal places with saved text open the same multi-description
+  editor as managed resources; empty personal places receive the normal add
+  action. Full-detail cards keep their existing personal-place row and do not
+  render a duplicate description action.
+- Architecture and privacy boundary: the presentation layer now resolves a
+  personal-place row as the card's description target when there is no repeated
+  managed hard-resource row. Persistence continues through the existing
+  authenticated map-link endpoint, so descriptions stay private and specific
+  to that My Map. No API, schema, reusable personal-place library record,
+  Shared Map/embed snapshot, owner permission, map geometry, clustering,
+  annotations, Export View, or PNG/PDF behavior changed.
+- Known-good reference: implementation commit `ae166ddb`, restoring the
+  interactive parity intended by the 2026-08-01 personal-place short-description
+  release without moving description fields back into the personal-place
+  create/edit form.
+- Reproduction: open an owned My Map containing a personal place, choose `Edit
+  content` -> `Add short description`, and inspect the personal-place card in a
+  compact label layout. Open its add/edit action, cancel, switch to Full details,
+  and confirm the action remains available exactly once.
+- Acceptance criteria: personal-place cards can add, edit, style, and remove
+  their map-specific short descriptions from interactive My Map; the action is
+  visible while description editing is active regardless of card label detail;
+  managed-resource actions remain unchanged; Full details has no duplicate
+  control; and personal-place privacy, reuse, edit/remove, Print/Export,
+  Shared Map/embed, and all locked map behavior remain intact.
+- Verification: focused My Map/personal-place/card/Print/Map Studio coverage
+  passes 99/99; full client coverage passes 659/659; server coverage passes
+  549/549; map-lockdown passes 88/88; and both the ordinary client build and
+  configured six-root Detailed production build pass. Signed-in local UAT on
+  map 258 confirmed the personal-place `Ivory Heights` edit action appears in
+  the compact interactive layout and opens the standard styled multi-description
+  editor; the dialog was cancelled without changing data.
+
 ## 2026-08-11 Map Studio Export viewport parity recovery (production release)
 
 - Candidate behavior: Export View now receives the active interactive camera,

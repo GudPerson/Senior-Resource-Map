@@ -2,6 +2,23 @@
 
 Last updated: 2026-08-11 (Asia/Singapore)
 
+## Personal-place interactive short-description recovery (2026-08-11)
+
+- Implementation commit `ae166ddb` restores `Add short description` / edit
+  actions for owner-only personal-place cards in interactive My Map compact
+  layouts. Description-edit mode now reveals the action independently of label
+  detail, while Full details keeps the existing resource row and avoids a
+  duplicate action.
+- The fix reuses the existing map-specific personal-place description API and
+  editor. It does not change the personal-place library record, API/schema,
+  permissions, Shared Map/embed snapshot, map behavior, annotations, Export
+  View, or PNG/PDF output.
+- Focused coverage passes 99/99; full client coverage passes 659/659; server
+  coverage passes 549/549; map-lockdown passes 88/88; and both normal and
+  six-root Detailed builds pass. Signed-in local map-258 UAT confirmed the
+  `Ivory Heights` personal-place card opens the standard description editor;
+  the dialog was cancelled without changing data.
+
 ## Map Studio Export viewport parity recovery release (2026-08-11)
 
 - The current branch is `codex/map-studio-export-route-parity`. Implementation
