@@ -150,6 +150,21 @@ test('My Map short descriptions stay separate from Map Notes and suppress repeat
     assert.match(listSource, /const showResourceName = !repeatsPlaceName/);
     assert.match(listSource, /normalizeMapShortDescriptorItems/);
     assert.match(listSource, /function getPrimaryManagedPlaceRow/);
+    assert.match(
+        listSource,
+        /function getPrimaryShortDescriptionRow[\s\S]*?find\(\(row\) => isPersonalPlaceRow\(row\)\)/,
+        'personal places should supply the primary short-description row in compact card layouts',
+    );
+    assert.match(
+        listSource,
+        /const interactiveShortDescriptionEditing = interactive[\s\S]*?Boolean\(onEditResourceShortDescription\)/,
+        'interactive short-description mode should reveal the card action independently of label detail',
+    );
+    assert.match(
+        listSource,
+        /showInteractiveResourceRows && visibleRows\.includes\(primaryShortDescriptionRow\)/,
+        'full-detail cards should keep the existing personal-place row without duplicating its description action',
+    );
     assert.match(listSource, /<PrimaryMapShortDescription/);
     assert.match(listSource, /t\('addShortDescription'\)/);
     assert.match(detailSource, /const \[printShortDescriptionMode, setPrintShortDescriptionMode\]/);

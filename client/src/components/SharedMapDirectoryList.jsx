@@ -1107,6 +1107,12 @@ function getPrimaryManagedPlaceRow(group) {
     )) || null;
 }
 
+function getPrimaryShortDescriptionRow(group) {
+    return getPrimaryManagedPlaceRow(group)
+        || (group?.rows || []).find((row) => isPersonalPlaceRow(row))
+        || null;
+}
+
 function hasRowShortDescription(row) {
     return getRowShortDescriptionItems(row).length > 0;
 }
@@ -1921,12 +1927,18 @@ function DirectoryNestedPlaceSection({
     const titleClassName = compactInteractive ? 'text-[0.9375rem]' : 'text-[1.0625rem]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(nestedPlace);
     const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(nestedPlace);
+    const primaryShortDescriptionRow = getPrimaryShortDescriptionRow(nestedPlace);
     const canRemovePrimaryResource = mode === 'owner'
         && Boolean(primaryManagedPlaceRow && onRemoveResource);
     const normalizedLabelDetail = normalizePrintMapLabelDetail(labelDetail);
-    const showDescriptions = normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS
+    const shortDescriptionEditing = mode === 'owner'
+        && Boolean(onEditResourceShortDescription);
+    const showDescriptions = shortDescriptionEditing
+        || normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_NAMES_DESCRIPTIONS
         || normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const showResourceRows = normalizedLabelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
+    const primaryDescriptionRenderedInResourceRows = showResourceRows
+        && visibleRows.includes(primaryShortDescriptionRow);
 
     return (
         <div className={compactInteractive ? 'space-y-1.5' : 'space-y-2'}>
@@ -1947,9 +1959,9 @@ function DirectoryNestedPlaceSection({
                 />
             </div>
 
-            {showDescriptions ? (
+            {showDescriptions && !primaryDescriptionRenderedInResourceRows ? (
                 <PrimaryMapShortDescription
-                    row={primaryManagedPlaceRow}
+                    row={primaryShortDescriptionRow}
                     mode={mode}
                     compact={compactInteractive}
                     onEditResourceShortDescription={onEditResourceShortDescription}
@@ -2066,9 +2078,15 @@ function DirectoryPlaceGroupCard({
     const printHighlightClassName = 'border-orange-400 ring-2 ring-orange-300 shadow-[0_0_0_3px_rgba(249,115,22,0.16)]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
     const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(group);
+    const primaryShortDescriptionRow = getPrimaryShortDescriptionRow(group);
     const canRemovePrimaryResource = interactive
         && mode === 'owner'
         && Boolean(primaryManagedPlaceRow && onRemoveResource);
+    const interactiveShortDescriptionEditing = interactive
+        && mode === 'owner'
+        && Boolean(onEditResourceShortDescription);
+    const showPrimaryInteractiveShortDescription = (interactiveShortDescriptionEditing || showInteractiveDescriptions)
+        && !(showInteractiveResourceRows && visibleRows.includes(primaryShortDescriptionRow));
     const canFocusCardOnMap = Boolean(interactive && onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
 
     function handleCardClick(event) {
@@ -2457,9 +2475,9 @@ function DirectoryPlaceGroupCard({
                             compact={compactInteractive}
                         />
                     </div>
-                    {showInteractiveDescriptions ? (
+                    {showPrimaryInteractiveShortDescription ? (
                         <PrimaryMapShortDescription
-                            row={primaryManagedPlaceRow}
+                            row={primaryShortDescriptionRow}
                             mode={mode}
                             compact={compactInteractive}
                             onEditResourceShortDescription={onEditResourceShortDescription}
