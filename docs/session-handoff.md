@@ -18,6 +18,14 @@ Last updated: 2026-08-11 (Asia/Singapore)
   six-root Detailed builds pass. Signed-in local map-258 UAT confirmed the
   `Ivory Heights` personal-place card opens the standard description editor;
   the dialog was cancelled without changing data.
+- `main` contains implementation commit `ae166ddbe` and release-record commit
+  `29037eb0e`. The exact validated artifact is deployed at
+  `https://d9769d3a.senior-resource-map.pages.dev`; all 82 public files match
+  `https://app.carearound.sg` by MIME, bytes, and SHA-256 at aggregate digest
+  `829119cc0503b1c1647e096cf4c73fcc636aea91af4d953f9000e5c6e6ba261c`.
+  App/embed framing headers and API health pass. Signed-in production UAT on
+  map 258 confirmed one personal-place edit-description action, the existing
+  styled multi-description editor, and a non-mutating Cancel path.
 
 ## Map Studio Export viewport parity recovery release (2026-08-11)
 

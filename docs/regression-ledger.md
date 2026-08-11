@@ -52,6 +52,20 @@ Rules:
   map 258 confirmed the personal-place `Ivory Heights` edit action appears in
   the compact interactive layout and opens the standard styled multi-description
   editor; the dialog was cancelled without changing data.
+- Production release: `main` contains implementation commit `ae166ddbe` and
+  release-record commit `29037eb0e`. The validated 82-file client artifact was
+  deployed with Functions and routing files at
+  `https://d9769d3a.senior-resource-map.pages.dev`; the immutable deployment
+  and `https://app.carearound.sg` match the local artifact by MIME, bytes, and
+  SHA-256 at aggregate digest
+  `829119cc0503b1c1647e096cf4c73fcc636aea91af4d953f9000e5c6e6ba261c`.
+  Production framing checks retained `DENY` / `frame-ancestors 'none'` for the
+  ordinary app and the established `no-store`, no-X-Frame-Options, exact
+  `frame-ancestors 'self' https://gudauth.app` contract for the enabled embed;
+  API health returned 200. Signed-in production UAT on map 258 confirmed
+  `Edit content` -> `Add short description` exposes exactly one `Edit short
+  description: Ivory Heights` action and opens the existing styled
+  multi-description editor; Cancel left live data unchanged.
 
 ## 2026-08-11 Map Studio Export viewport parity recovery (production release)
 
