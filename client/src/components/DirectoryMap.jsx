@@ -46,6 +46,7 @@ import { getCollisionPushDistances } from '../lib/mapCollisionPolicy.js';
 import {
     FIXED_TOWN_OVERVIEW_MIN_ZOOM,
     areWsenBoundsContained,
+    isFixedTownSurfaceViewportCovered,
     isFixedTownSurfaceZoomEligible,
     normalizeFixedTownStandardZoom,
     resolveFixedTownMinimumZoomSnap,
@@ -61,6 +62,11 @@ import {
     createPersonalPlaceIconDataUrl,
     renderPersonalPlaceIconMarkup,
 } from '../lib/personalPlaceCategories.jsx';
+import {
+    getCategoryPinShape,
+    getCategoryPinShapePath,
+    getCategoryPinShapeTextY,
+} from '../lib/categoryPinShapes.js';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
@@ -248,7 +254,13 @@ function normalizeStylePixel(value) {
     return Number.isFinite(number) ? number : 0;
 }
 
-function normalizePrintBadgeItems(number, items = null, fallbackColor = '#0f766e') {
+function normalizePrintBadgeItems(
+    number,
+    items = null,
+    fallbackColor = '#0f766e',
+    fallbackShape = 'circle',
+    numberedPinShapesByCategory = {},
+) {
     const fallbackLabel = String(number || '?').trim() || '?';
     const sourceItems = Array.isArray(items) && items.length
         ? items
@@ -260,6 +272,9 @@ function normalizePrintBadgeItems(number, items = null, fallbackColor = '#0f766e
             label,
             color: normalizeMarkerColor(item?.color || item?.categoryColor, fallbackColor),
             placeKey: item?.placeKey || null,
+            shape: item?.shape || (item?.categoryKey
+                ? getCategoryPinShape(numberedPinShapesByCategory, item.categoryKey)
+                : fallbackShape),
         };
     });
 }
@@ -543,27 +558,36 @@ function createPrintResourceBadgeMarker(number, {
     offsetX = 0,
     offsetY = 0,
     scale = 1,
+    shape = 'circle',
+    numberedPinShapesByCategory = {},
 } = {}) {
     const isSelected = emphasis === 'primary';
     const badgeColor = normalizeMarkerColor(color);
     const x = normalizeMarkerOffset(offsetX);
     const y = normalizeMarkerOffset(offsetY);
     const label = String(number || '?').trim() || '?';
-    const badgeItems = normalizePrintBadgeItems(number, items, badgeColor);
-    const markerKey = badgeItems.map((item) => `${item.placeKey || ''}:${item.label}`).join('|') || placeKey || label;
+    const badgeItems = normalizePrintBadgeItems(
+        number,
+        items,
+        badgeColor,
+        shape,
+        numberedPinShapesByCategory,
+    );
+    const markerKey = badgeItems.map((item) => `${item.placeKey || ''}:${item.label}:${item.shape}`).join('|') || placeKey || label;
     const badgeScale = normalizePrintBadgeScale(scale);
     const badgeDiameter = DIRECTORY_PRINT_BADGE_DIAMETER * badgeScale;
     const lobeLayout = getPrintBadgeLobeLayout(badgeItems.length, badgeScale);
-    const shadowColor = isSelected ? '0 10px 18px rgba(194, 65, 12, 0.28)' : '0 6px 12px rgba(15, 23, 42, 0.18)';
-    const focusGlow = isSelected ? ', 0 0 0 5px rgba(249,115,22,0.24)' : '';
     const lobeHtml = badgeItems.map((item, index) => {
         const lobe = lobeLayout.lobes[index] || { left: 0, top: 0 };
-        const baseFontSize = item.label.length > 2 ? 8.5 : (item.label.length > 1 ? 10 : 11.5);
-        const fontSize = baseFontSize * badgeScale;
+        const fontSize = item.label.length > 2 ? 31 : (item.label.length > 1 ? 37 : 42);
+        const markerFilter = isSelected
+            ? 'drop-shadow(0 8px 9px rgba(194,65,12,0.26)) drop-shadow(0 0 4px rgba(249,115,22,0.38))'
+            : 'drop-shadow(0 5px 6px rgba(15,23,42,0.18))';
         return `
             <span
                 class="directory-print-badge-marker__lobe"
                 data-print-lobe-place-key="${escapeHtml(item.placeKey || '')}"
+                data-category-pin-shape="${escapeHtml(item.shape)}"
                 style="
                     position:absolute;
                     left:${lobe.left}px;
@@ -571,23 +595,30 @@ function createPrintResourceBadgeMarker(number, {
                     width:${badgeDiameter}px;
                     height:${badgeDiameter}px;
                     box-sizing:border-box;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    border:2px solid rgba(255,255,255,0.96);
-                    border-radius:999px;
-                    background:${item.color};
-                    color:#ffffff;
-                    font-family:var(--font-heading);
-                    font-size:${fontSize}px;
-                    font-weight:900;
-                    line-height:1;
-                    text-shadow:0 1px 2px rgba(15,23,42,0.18);
-                    box-shadow:${shadowColor}${focusGlow};
                     pointer-events:auto;
                 "
             >
-                ${escapeHtml(item.label)}
+                <svg viewBox="0 0 100 100" width="100%" height="100%" style="overflow:visible;filter:${markerFilter};" focusable="false" aria-hidden="true">
+                    <path
+                        d="${getCategoryPinShapePath(item.shape)}"
+                        fill="${item.color}"
+                        stroke="${isSelected ? '#f97316' : 'rgba(255,255,255,0.98)'}"
+                        stroke-width="1"
+                        stroke-linejoin="round"
+                        vector-effect="non-scaling-stroke"
+                    ></path>
+                    <text
+                        x="50"
+                        y="${getCategoryPinShapeTextY(item.shape)}"
+                        fill="#ffffff"
+                        font-family="var(--font-heading)"
+                        font-size="${fontSize}"
+                        font-weight="900"
+                        text-anchor="middle"
+                        dominant-baseline="middle"
+                        style="text-shadow:0 1px 2px rgba(15,23,42,0.2);"
+                    >${escapeHtml(item.label)}</text>
+                </svg>
             </span>
         `;
     }).join('');
@@ -2531,6 +2562,7 @@ export default function DirectoryMap({
     showPins = true,
     renderPins = null,
     placeNumberByKey = null,
+    numberedPinShapesByCategory = {},
     showPopup = true,
     showZoomControl = interactive,
     showAttribution = true,
@@ -2565,6 +2597,7 @@ export default function DirectoryMap({
     fixedTownSurfaceLockMinZoom = true,
     fixedTownSurfaceSnapToMinZoom = false,
     fixedTownSurfaceContainOnResize = false,
+    fixedTownSurfaceUseOverviewRecovery = false,
     fixedTownSurfaceFallbackBelowMinZoom = true,
     fixedTownSurfaceMaxDecodedBytes = null,
     fixedTownSurfaceFallbackScope = 'global',
@@ -2619,6 +2652,8 @@ export default function DirectoryMap({
     const [compactCategoryBubbles, setCompactCategoryBubbles] = useState(false);
     const [fixedTownSurfaceZoom, setFixedTownSurfaceZoom] = useState(null);
     const [fixedTownSurfaceViewportEligible, setFixedTownSurfaceViewportEligible] = useState(null);
+    const [fixedTownSurfaceViewportBounds, setFixedTownSurfaceViewportBounds] = useState(null);
+    const [fixedTownNativeMemoryFallbackZoom, setFixedTownNativeMemoryFallbackZoom] = useState(null);
     const [fixedTownManualLiveOverride, setFixedTownManualLiveOverride] = useState(false);
     const [fixedTownSurfaceFaultReason, setFixedTownSurfaceFaultReason] = useState('');
     const fixedTownSurfaceFaultZoomRef = useRef(null);
@@ -2633,6 +2668,26 @@ export default function DirectoryMap({
         ? Number(fixedTownOverviewSurfaceMinZoom)
         : FIXED_TOWN_OVERVIEW_MIN_ZOOM;
     const fixedTownOverviewConfigured = Boolean(fixedTownOverviewAssetBaseUrl);
+    const fixedTownNativeViewportCovered = isFixedTownSurfaceViewportCovered(
+        fixedTownSurfaceManifest,
+        fixedTownSurfaceViewportBounds,
+    );
+    const fixedTownOverviewViewportCovered = isFixedTownSurfaceViewportCovered(
+        fixedTownOverviewSurfaceManifest,
+        fixedTownSurfaceViewportBounds,
+    );
+    const fixedTownNativeViewportUnavailable = fixedTownNativeViewportCovered === false
+        || (
+            fixedTownNativeViewportCovered === null
+            && fixedTownSurfaceViewportEligible === false
+        );
+    const fixedTownNativeSurfaceUnavailable = fixedTownSurfaceUseOverviewRecovery && (
+        fixedTownNativeMemoryFallbackZoom !== null
+        || (
+            fixedTownNativeViewportUnavailable
+            && fixedTownOverviewViewportCovered !== false
+        )
+    );
     const resolvedFixedTownTransitionMinZoom = resolveFixedTownTransitionMinZoom({
         nativeMinZoom: resolvedNativeFixedTownSurfaceMinZoom,
         overviewMinZoom: resolvedOverviewFixedTownSurfaceMinZoom,
@@ -2643,6 +2698,7 @@ export default function DirectoryMap({
         nativeMinZoom: resolvedNativeFixedTownSurfaceMinZoom,
         overviewMinZoom: resolvedOverviewFixedTownSurfaceMinZoom,
         overviewConfigured: fixedTownOverviewConfigured,
+        nativeUnavailable: fixedTownNativeSurfaceUnavailable,
     });
     const usingFixedTownOverview = fixedTownSurfaceTier === 'overview';
     const activeFixedTownSurfaceManifest = usingFixedTownOverview
@@ -2671,7 +2727,12 @@ export default function DirectoryMap({
         && fixedTownSurfaceConfigured
         && activeFixedTownSurfacePending
         && fixedTownSurfaceViewportEligible !== false;
-    const fixedTownSurfaceInViewport = fixedTownSurfaceViewportEligible !== false;
+    const activeFixedTownSurfaceViewportCovered = usingFixedTownOverview
+        ? fixedTownOverviewViewportCovered
+        : fixedTownNativeViewportCovered;
+    const fixedTownSurfaceInViewport = (
+        activeFixedTownSurfaceViewportCovered ?? fixedTownSurfaceViewportEligible
+    ) !== false;
     const resolvedFixedTownSurfaceAvailable = configuredFixedTownSurfaceAvailable
         && (fixedTownSurfaceInViewport || shouldTrustFixedTownFocusSurface)
         && !fixedTownSurfaceFaultReason;
@@ -2694,6 +2755,7 @@ export default function DirectoryMap({
         if (nextMode === 'town') {
             setFixedTownManualLiveOverride(false);
             setFixedTownSurfaceFaultReason('');
+            setFixedTownNativeMemoryFallbackZoom(null);
             fixedTownSurfaceFaultZoomRef.current = null;
         } else if (townMapZoomEligible) {
             setFixedTownManualLiveOverride(true);
@@ -2706,12 +2768,28 @@ export default function DirectoryMap({
         if (basemapMode === 'auto' || basemapMode === 'town') {
             setFixedTownManualLiveOverride(false);
             setFixedTownSurfaceFaultReason('');
+            setFixedTownNativeMemoryFallbackZoom(null);
             fixedTownSurfaceFaultZoomRef.current = null;
         }
     }, [basemapMode]);
     const handleFixedTownSurfaceFallback = useCallback((details = {}) => {
         if (fixedTownSurfaceFallbackScope === 'local') {
             const reason = details.reason || 'surface-unavailable';
+            if (
+                reason === 'viewport-memory-limit'
+                && fixedTownSurfaceUseOverviewRecovery
+                && fixedTownSurfaceTier === 'native'
+                && fixedTownOverviewConfigured
+                && fixedTownOverviewViewportCovered !== false
+            ) {
+                const fallbackZoom = Number(details.zoom ?? fixedTownSurfaceZoom);
+                setFixedTownNativeMemoryFallbackZoom(Number.isFinite(fallbackZoom)
+                    ? fallbackZoom
+                    : resolvedNativeFixedTownSurfaceMinZoom);
+                setFixedTownSurfaceFaultReason('');
+                fixedTownSurfaceFaultZoomRef.current = null;
+                return;
+            }
             if (reason === 'outside-surface' && onFixedTownSurfaceViewportChange) {
                 setFixedTownSurfaceFaultReason('');
                 fixedTownSurfaceFaultZoomRef.current = null;
@@ -2728,10 +2806,40 @@ export default function DirectoryMap({
         onFixedTownSurfaceFallback?.(details);
     }, [
         fixedTownSurfaceFallbackScope,
+        fixedTownSurfaceUseOverviewRecovery,
+        fixedTownOverviewConfigured,
+        fixedTownOverviewViewportCovered,
+        fixedTownSurfaceTier,
         fixedTownSurfaceZoom,
         onFixedTownSurfaceFallback,
         onFixedTownSurfaceViewportChange,
+        resolvedNativeFixedTownSurfaceMinZoom,
     ]);
+
+    useEffect(() => {
+        if (fixedTownNativeMemoryFallbackZoom === null) return;
+        if (
+            !isFixedTownSurfaceZoomEligible(
+                fixedTownSurfaceZoom,
+                resolvedNativeFixedTownSurfaceMinZoom,
+            )
+            || shouldRetryFixedTownSurfaceMemoryFallback({
+                currentZoom: fixedTownSurfaceZoom,
+                fallbackZoom: fixedTownNativeMemoryFallbackZoom,
+            })
+        ) {
+            setFixedTownNativeMemoryFallbackZoom(null);
+        }
+    }, [
+        fixedTownNativeMemoryFallbackZoom,
+        fixedTownSurfaceZoom,
+        resolvedNativeFixedTownSurfaceMinZoom,
+    ]);
+
+    const handleFixedTownSurfaceViewportBoundsChange = useCallback((viewportBounds) => {
+        setFixedTownSurfaceViewportBounds(viewportBounds);
+        onFixedTownSurfaceViewportChange?.(viewportBounds);
+    }, [onFixedTownSurfaceViewportChange]);
 
     const fixedTownSurfaceTierRef = useRef(fixedTownSurfaceTier);
     useEffect(() => {
@@ -2790,6 +2898,7 @@ export default function DirectoryMap({
             townZoomEligible: townMapZoomEligible,
             zoom: fixedTownSurfaceZoom,
             fallbackReason: fixedTownSurfaceFaultReason,
+            surfaceTier: fixedTownSurfaceTier,
             onModeChange: handleMapModeChange,
             controlVariant: 'panel',
         })
@@ -2842,7 +2951,7 @@ export default function DirectoryMap({
         const activeKeys = [...activePlaceKeySet].sort().join('|');
         const markerKeys = displayMarkerPins.map((pin) => {
             const itemKey = (pin.printBadgeItems || [])
-                .map((item) => `${item?.label ?? item?.number ?? ''}:${item?.color ?? item?.categoryColor ?? ''}:${item?.placeKey ?? ''}`)
+                .map((item) => `${item?.label ?? item?.number ?? ''}:${item?.color ?? item?.categoryColor ?? ''}:${item?.placeKey ?? ''}:${item?.categoryKey ?? ''}:${item?.shape ?? ''}`)
                 .join(',');
             const categoryItemKey = (pin.categoryBubbleItems || [])
                 .map((item) => `${item?.placeKey ?? ''}:${item?.color ?? item?.categoryColor ?? ''}:${item?.iconUrl ?? item?.categoryIconUrl ?? ''}:${item?.iconKey ?? item?.categoryIconKey ?? ''}`)
@@ -3084,6 +3193,8 @@ export default function DirectoryMap({
                                     offsetX: pin.printOffsetX || 0,
                                     offsetY: pin.printOffsetY || 0,
                                     scale: printBadgeScale,
+                                    shape: getCategoryPinShape(numberedPinShapesByCategory, pin.categoryKey),
+                                    numberedPinShapesByCategory,
                                 }
                             )
                             : markerMode === 'category-bubble'
@@ -3175,6 +3286,8 @@ export default function DirectoryMap({
                         offsetX: pin.printOffsetX || 0,
                         offsetY: pin.printOffsetY || 0,
                         scale: printBadgeScale,
+                        shape: getCategoryPinShape(numberedPinShapesByCategory, pin.categoryKey),
+                        numberedPinShapesByCategory,
                     }
                 )
                 : markerMode === 'category-bubble'
@@ -3244,7 +3357,7 @@ export default function DirectoryMap({
                 />
             );
         });
-    }, [shouldCluster, showPins, displayMarkerPins, markerMode, printBadgeScale, resolvedMarkerScale, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
+    }, [shouldCluster, showPins, displayMarkerPins, markerMode, printBadgeScale, resolvedMarkerScale, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, numberedPinShapesByCategory, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
     const mapClickEnabled = interactive && typeof onMapClick === 'function';
     const currentAnchorPlacementHandlers = mapClickEnabled && anchorPoint?.kind === 'current'
@@ -3293,6 +3406,9 @@ export default function DirectoryMap({
             data-map-controlled-zoom={Number.isFinite(Number(mapViewState?.zoom)) ? Number(mapViewState.zoom) : undefined}
             data-map-basemap-mode={effectiveBasemapMode}
             data-fixed-town-surface-tier={effectiveBasemapMode === 'town' ? fixedTownSurfaceTier : undefined}
+            data-fixed-town-native-viewport-covered={fixedTownNativeViewportCovered ?? undefined}
+            data-fixed-town-overview-viewport-covered={fixedTownOverviewViewportCovered ?? undefined}
+            data-fixed-town-overview-recovery={fixedTownNativeSurfaceUnavailable ? 'true' : undefined}
             data-print-export-map-frame={onMapReadyForCapture ? 'true' : undefined}
             data-external-mobile-map-controls={mobileControlPortalTarget ? 'true' : undefined}
         >
@@ -3341,7 +3457,7 @@ export default function DirectoryMap({
                     )}
                     manifest={activeFixedTownSurfaceManifest}
                     onViewportEligibleChange={setFixedTownSurfaceViewportEligible}
-                    onViewportBoundsChange={onFixedTownSurfaceViewportChange}
+                    onViewportBoundsChange={handleFixedTownSurfaceViewportBoundsChange}
                 />
                 <DirectoryMapFixedTownMinZoomSnapSync
                     enabled={fixedTownSurfaceSnapToMinZoom

@@ -306,7 +306,7 @@ function OwnerEditContentMenu({
                         type="button"
                         role="menuitem"
                         onClick={() => runAction(onArrangeCategories)}
-                        disabled={categoryCount < 2}
+                        disabled={categoryCount < 1}
                         className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-700 transition hover:bg-brand-50 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed disabled:opacity-45"
                     >
                         <ListOrdered size={17} className="text-brand-700" aria-hidden="true" />
@@ -2433,14 +2433,17 @@ export default function MyMapDetailPage() {
         townZoomEligible = false,
         zoom = null,
         fallbackReason = '',
+        surfaceTier = '',
         onModeChange,
         controlVariant = 'overlay',
     } = {}) => {
-        const usingOverview = resolveFixedTownSurfaceTier({
-            zoom,
-            nativeMinZoom: FIXED_TOWN_SURFACE_MIN_ZOOM,
-            overviewConfigured: TOWN_MAP_OVERVIEW_ENABLED,
-        }) === 'overview';
+        const usingOverview = surfaceTier
+            ? surfaceTier === 'overview'
+            : resolveFixedTownSurfaceTier({
+                zoom,
+                nativeMinZoom: FIXED_TOWN_SURFACE_MIN_ZOOM,
+                overviewConfigured: TOWN_MAP_OVERVIEW_ENABLED,
+            }) === 'overview';
         const activeManifestState = usingOverview
             ? townMapOverviewManifestState
             : townMapManifestState;
@@ -2526,14 +2529,17 @@ export default function MyMapDetailPage() {
         townZoomEligible = false,
         zoom = null,
         fallbackReason = '',
+        surfaceTier = '',
         onModeChange,
         controlVariant = 'overlay',
     } = {}) => {
-        const usingOverview = resolveFixedTownSurfaceTier({
-            zoom,
-            nativeMinZoom: FIXED_TOWN_SURFACE_MIN_ZOOM,
-            overviewConfigured: TOWN_MAP_OVERVIEW_ENABLED,
-        }) === 'overview';
+        const usingOverview = surfaceTier
+            ? surfaceTier === 'overview'
+            : resolveFixedTownSurfaceTier({
+                zoom,
+                nativeMinZoom: FIXED_TOWN_SURFACE_MIN_ZOOM,
+                overviewConfigured: TOWN_MAP_OVERVIEW_ENABLED,
+            }) === 'overview';
         const activeManifestState = usingOverview
             ? printTownMapOverviewManifestState
             : printTownMapManifestState;
@@ -2660,17 +2666,22 @@ export default function MyMapDetailPage() {
     }
 
     function openCategoryOrder() {
-        if (categoryOrderOptions.length < 2) return;
+        if (categoryOrderOptions.length < 1) return;
         setCategoryOrderError('');
         setCategoryOrderOpen(true);
     }
 
-    async function handleUpdateCategoryOrder({ categoryOrder }) {
+    async function handleUpdateCategoryOrder({ categoryOrder, categoryShapes }) {
         if (!directory || categoryOrderSubmitting) return;
         setCategoryOrderSubmitting(true);
         setCategoryOrderError('');
         try {
             await api.updateMyMapCategoryOrder(directory.id, { categoryOrder });
+            if (mapStudioRuntimeSnapshot) {
+                mapStudioControllerRef.current?.patchDesign({
+                    pins: { categoryShapes },
+                }, { enterDesign: true });
+            }
             const refreshedDirectory = await loadMap();
             if (!refreshedDirectory) {
                 setCategoryOrderError(t('failedLoadMap'));
@@ -3425,6 +3436,7 @@ export default function MyMapDetailPage() {
         pinBadgeMode: mapStudioInteractiveModel?.directoryMap?.pinBadgeMode ?? 'count',
         pinCategoryIconMode: mapStudioInteractiveModel?.directoryMap?.pinCategoryIconMode ?? 'auto',
         clusterMarkerMode: mapStudioInteractiveModel?.directoryMap?.clusterMarkerMode ?? 'bubble',
+        numberedPinShapesByCategory: mapStudioInteractiveModel?.directoryMap?.numberedPinShapesByCategory ?? {},
         showPins: mapStudioInteractiveModel?.resourceLayer?.visible ?? true,
         onMapViewStateChange: mapStudioInteractiveModel
             ? handleInteractiveMapViewStateChange
@@ -3633,6 +3645,7 @@ export default function MyMapDetailPage() {
                     open={categoryOrderOpen}
                     categories={categoryOrderOptions}
                     initialOrder={directory.categoryOrder}
+                    initialCategoryShapes={mapStudioRuntimeSnapshot?.design?.pins?.categoryShapes}
                     submitting={categoryOrderSubmitting}
                     error={categoryOrderError}
                     onClose={() => {
@@ -3779,6 +3792,7 @@ export default function MyMapDetailPage() {
                     fixedTownSurfaceLockMinZoom={false}
                     fixedTownSurfaceFallbackBelowMinZoom={false}
                     fixedTownSurfaceFallbackScope="local"
+                    fixedTownSurfaceUseOverviewRecovery
                     onBasemapModeChange={handleBasemapModeChange}
                     onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                     onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
@@ -3810,6 +3824,7 @@ export default function MyMapDetailPage() {
                     open={categoryOrderOpen}
                     categories={categoryOrderOptions}
                     initialOrder={directory.categoryOrder}
+                    initialCategoryShapes={mapStudioRuntimeSnapshot?.design?.pins?.categoryShapes}
                     submitting={categoryOrderSubmitting}
                     error={categoryOrderError}
                     onClose={() => {
@@ -3989,6 +4004,7 @@ export default function MyMapDetailPage() {
                                     fixedTownSurfaceLockMinZoom={false}
                                     fixedTownSurfaceFallbackBelowMinZoom={false}
                                     fixedTownSurfaceFallbackScope="local"
+                                    fixedTownSurfaceUseOverviewRecovery
                                     onBasemapModeChange={handleBasemapModeChange}
                                     onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                                     onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
@@ -4031,6 +4047,7 @@ export default function MyMapDetailPage() {
                                 interactiveSideResourceColumnCount={mapStudioInteractiveModel?.layout?.sideResourceColumnCount}
                                 cardBadgeMode={mapStudioInteractiveModel?.cardIdentity?.mode || 'number'}
                                 showInteractiveNumberBadges={Boolean(mapStudioInteractiveModel?.cardIdentity?.showNumberBadge)}
+                                numberedPinShapesByCategory={mapStudioInteractiveModel?.cardIdentity?.numberedPinShapesByCategory}
                                 showDesktopHoverLogo
                                 preserveMobileMapFrameInFlow={TOWN_MAP_PROOF_ENABLED}
                                 desktopScrollTargetRef={desktopSelectionSnapRef}
@@ -4076,6 +4093,7 @@ export default function MyMapDetailPage() {
                                         fixedTownSurfaceLockMinZoom={false}
                                         fixedTownSurfaceFallbackBelowMinZoom={false}
                                         fixedTownSurfaceFallbackScope="local"
+                                        fixedTownSurfaceUseOverviewRecovery
                                         onBasemapModeChange={handleBasemapModeChange}
                                         onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
@@ -4126,6 +4144,7 @@ export default function MyMapDetailPage() {
                                         fixedTownSurfaceLockMinZoom={false}
                                         fixedTownSurfaceFallbackBelowMinZoom={false}
                                         fixedTownSurfaceFallbackScope="local"
+                                        fixedTownSurfaceUseOverviewRecovery
                                         onBasemapModeChange={handleBasemapModeChange}
                                         onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}

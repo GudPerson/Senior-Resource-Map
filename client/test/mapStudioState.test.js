@@ -70,13 +70,14 @@ test('a legacy My Map gets one versioned default view without changing existing 
     assert.deepEqual(document.views[0].design.pins, {
         style: 'category-bubble',
         size: 'standard',
+        categoryShapes: {},
     });
 });
 
 test('schema reads are explicit and reject unknown future versions instead of overwriting them', () => {
     assert.throws(
-        () => normalizeMapStudioDocument({ schemaVersion: 3, views: [] }),
-        /Unsupported Map Studio schema version: 3/,
+        () => normalizeMapStudioDocument({ schemaVersion: MAP_STUDIO_SCHEMA_VERSION + 1, views: [] }),
+        new RegExp(`Unsupported Map Studio schema version: ${MAP_STUDIO_SCHEMA_VERSION + 1}`),
     );
     assert.throws(
         () => normalizeMapStudioDocument({ views: [] }),
@@ -97,7 +98,14 @@ test('normalization bounds visual state and removes duplicate layer identifiers'
                 design: {
                     basemap: { style: 'gray', detailMode: 'unsupported' },
                     camera: { mode: MAP_STUDIO_CAMERA_FIXED, view: { center: [999, 999], zoom: 999 } },
-                    pins: { style: MAP_STUDIO_PIN_STYLE_NUMBERED, size: PRINT_MAP_PIN_SIZE_LARGE },
+                    pins: {
+                        style: MAP_STUDIO_PIN_STYLE_NUMBERED,
+                        size: PRINT_MAP_PIN_SIZE_LARGE,
+                        categoryShapes: {
+                            ' Active Ageing Centre (AAC) ': 'triangle',
+                            'senior care centre (scc)': 'invalid',
+                        },
+                    },
                     labels: { detail: PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES },
                     layers: {
                         resources: PRINT_MAP_RESOURCE_LAYER_HIDE,
@@ -126,6 +134,9 @@ test('normalization bounds visual state and removes duplicate layer identifiers'
     assert.equal(normalized.views[0].design.basemap.detailMode, 'auto');
     assert.deepEqual(normalized.views[0].design.layers.hiddenResourceLayerKeys, ['aac', 'scc']);
     assert.deepEqual(normalized.views[0].design.layers.hiddenAnnotationIds, ['note-1', 'note-2']);
+    assert.deepEqual(normalized.views[0].design.pins.categoryShapes, {
+        'active ageing centre (aac)': 'triangle',
+    });
 });
 
 test('invalid persistent view collections fail closed instead of being truncated or overwritten', () => {
@@ -326,7 +337,7 @@ test('Export View defaults output-only settings to high resolution and wide marg
     assert.equal(printState.margins, MAP_STUDIO_EXPORT_MARGIN_WIDE);
 });
 
-test('schema v1 views migrate additively into the unified v2 layout model', () => {
+test('schema v1 views migrate additively into the unified v3 design model', () => {
     const migrated = migrateMapStudioDocument({
         schemaVersion: 1,
         revision: 4,
@@ -353,6 +364,54 @@ test('schema v1 views migrate additively into the unified v2 layout model', () =
         sideResourceColumnCount: 1,
     });
     assert.equal(migrated.views[0].design.pins.style, MAP_STUDIO_PIN_STYLE_NUMBERED);
+    assert.deepEqual(migrated.views[0].design.pins.categoryShapes, {});
+});
+
+test('schema v2 views migrate additively with Circle as the numbered-pin shape fallback', () => {
+    const current = createMapStudioDocument();
+    const migrated = migrateMapStudioDocument({
+        ...current,
+        schemaVersion: 2,
+        views: current.views.map((view) => ({
+            ...view,
+            design: {
+                ...view.design,
+                pins: { style: 'numbered', size: 'large' },
+            },
+        })),
+    });
+
+    assert.equal(migrated.schemaVersion, MAP_STUDIO_SCHEMA_VERSION);
+    assert.deepEqual(migrated.views[0].design.pins, {
+        style: 'numbered',
+        size: 'large',
+        categoryShapes: {},
+    });
+});
+
+test('numbered pin shapes are persisted per named view and reach Export View', () => {
+    const document = createMapStudioDocument();
+    const session = createMapStudioSession(document, { mode: MAP_STUDIO_MODE_DESIGN });
+    const drafted = patchMapStudioDraft(session, {
+        pins: {
+            style: MAP_STUDIO_PIN_STYLE_NUMBERED,
+            categoryShapes: {
+                'active ageing centre (aac)': 'star',
+                'senior care centre (scc)': 'square',
+            },
+        },
+    });
+    const saved = saveMapStudioView(document, drafted);
+    const printState = buildMapStudioPrintState(saved.document.views[0].design);
+
+    assert.deepEqual(saved.document.views[0].design.pins.categoryShapes, {
+        'active ageing centre (aac)': 'star',
+        'senior care centre (scc)': 'square',
+    });
+    assert.deepEqual(printState.numberedPinShapesByCategory, {
+        'active ageing centre (aac)': 'star',
+        'senior care centre (scc)': 'square',
+    });
 });
 
 test('category icon Studio identity reaches the dedicated export marker renderer', () => {

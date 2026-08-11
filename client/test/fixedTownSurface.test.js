@@ -13,6 +13,7 @@ import {
     fetchFixedTownSurfaceManifest,
     fetchFixedTownSurfaceSource,
     isFixedTownSurfaceZoomEligible,
+    isFixedTownSurfaceViewportCovered,
     isPointWithinWsenBounds,
     normalizeFixedTownStandardZoom,
     normalizeFixedTownAssetBaseUrl,
@@ -677,6 +678,50 @@ test('zoom-14 overview tier never replaces the native zoom-15 tier', () => {
     assert.equal(resolveTier(14.99), 'overview');
     assert.equal(resolveTier(15), 'native');
     assert.equal(resolveTier(14, false), 'native');
+});
+
+test('continuous overview is a recovery tier when zoom-15 native coverage is unavailable', () => {
+    assert.equal(resolveFixedTownSurfaceTier({
+        zoom: 15,
+        nativeMinZoom: 15,
+        overviewMinZoom: 14,
+        overviewConfigured: true,
+        nativeUnavailable: true,
+    }), 'overview');
+    assert.equal(resolveFixedTownSurfaceTier({
+        zoom: 15,
+        nativeMinZoom: 15,
+        overviewMinZoom: 14,
+        overviewConfigured: false,
+        nativeUnavailable: true,
+    }), 'native');
+    assert.equal(resolveFixedTownSurfaceTier({
+        zoom: 13.9,
+        nativeMinZoom: 15,
+        overviewMinZoom: 14,
+        overviewConfigured: true,
+        nativeUnavailable: true,
+    }), 'native');
+});
+
+test('fixed town viewport coverage requires full bounds and at least one visible chunk', () => {
+    const manifest = {
+        bounds: { surface: [103.7, 1.3, 103.8, 1.4] },
+        chunks: [
+            { id: 'inside', bounds: [103.72, 1.32, 103.78, 1.38] },
+        ],
+    };
+
+    assert.equal(isFixedTownSurfaceViewportCovered(
+        manifest,
+        [103.73, 1.33, 103.77, 1.37],
+    ), true);
+    assert.equal(isFixedTownSurfaceViewportCovered(
+        manifest,
+        [103.69, 1.33, 103.77, 1.37],
+    ), false);
+    assert.equal(isFixedTownSurfaceViewportCovered(manifest, null), null);
+    assert.equal(isFixedTownSurfaceViewportCovered(null, [103.73, 1.33, 103.77, 1.37]), null);
 });
 
 test('fixed town transition threshold expands only when overview assets are configured', () => {

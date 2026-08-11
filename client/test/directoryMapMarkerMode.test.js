@@ -142,7 +142,7 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /DIRECTORY_PRINT_BADGE_DIAMETER = 25\.5/);
     assert.match(directoryMapSource, /printBadgeScale = 1/);
     assert.match(directoryMapSource, /const badgeDiameter = DIRECTORY_PRINT_BADGE_DIAMETER \* badgeScale/);
-    assert.match(directoryMapSource, /const fontSize = baseFontSize \* badgeScale/);
+    assert.match(directoryMapSource, /const fontSize = item\.label\.length > 2 \? 31 : \(item\.label\.length > 1 \? 37 : 42\)/);
     assert.match(directoryMapSource, /data-print-badge-scale="\$\{badgeScale\}"/);
     assert.match(directoryMapSource, /scale: printBadgeScale/);
     assert.match(directoryMapSource, /markerMode, printBadgeScale/);
@@ -158,9 +158,12 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /class="directory-print-badge-marker"[\s\S]*pointer-events:none/);
     assert.match(directoryMapSource, /class="directory-print-badge-marker__core"[\s\S]*pointer-events:none/);
     assert.match(directoryMapSource, /class="directory-print-badge-marker__lobe"[\s\S]*pointer-events:auto/);
-    assert.match(directoryMapSource, /background:\$\{item\.color\}/);
-    assert.match(directoryMapSource, /border:2px solid rgba\(255,255,255,0\.96\)/);
-    assert.match(directoryMapSource, /item\.label\.length > 2 \? 8\.5 : \(item\.label\.length > 1 \? 10 : 11\.5\)/);
+    assert.match(directoryMapSource, /data-category-pin-shape="\$\{escapeHtml\(item\.shape\)\}"/);
+    assert.match(directoryMapSource, /d="\$\{getCategoryPinShapePath\(item\.shape\)\}"/);
+    assert.match(directoryMapSource, /fill="\$\{item\.color\}"/);
+    assert.match(directoryMapSource, /stroke="\$\{isSelected \? '#f97316' : 'rgba\(255,255,255,0\.98\)'\}"/);
+    assert.match(directoryMapSource, /stroke-width="1"/);
+    assert.match(directoryMapSource, /y="\$\{getCategoryPinShapeTextY\(item\.shape\)\}"/);
     assert.match(directoryMapSource, /offsetX: pin\.printOffsetX \|\| 0/);
     assert.match(directoryMapSource, /offsetY: pin\.printOffsetY \|\| 0/);
     assert.match(directoryMapSource, /spreadCoincidentPins = true/);

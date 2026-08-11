@@ -1,6 +1,49 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-08-10 (Asia/Singapore)
+Last updated: 2026-08-11 (Asia/Singapore)
+
+## Map Studio category-specific numbered-pin shapes candidate (2026-08-11)
+
+- `Arrange categories` is now `Refine categories` in all four supported
+  languages. The existing category reorder flow remains and each category now
+  has an accessible Circle (default), Triangle, Star, Square, or Pentagon
+  selector.
+- Shapes are additive Map Studio v3 named-view design state. They stage in the
+  active draft, appear live on numbered map pins and corresponding resource
+  card badges, carry into Export View, and persist only through the existing
+  explicit `Save changes` action. Existing v1/v2 views migrate with Circle as
+  their unchanged default. Shape outlines use an approximately 0.75-point
+  stroke; selected items retain their orange tone and glow without a heavy
+  ring.
+- The logo container, category colours, marker coordinates, clustering,
+  collision handling, pin sizing, hover/selection, Detailed maps, annotations,
+  personal places, category order API, and export pipeline remain intact.
+  Shared Map/embed snapshots deliberately do not receive category shapes, so
+  their frozen public privacy boundary is unchanged.
+- Focused shape/state/UI/adapter/embed/server coverage passes 46/46; marker and
+  shared-card contracts pass 51/51; full client coverage passes 648/648; full
+  server coverage passes 549/549; map-lockdown passes 87/87; and the exact
+  six-root production client build passes on
+  `codex/map-studio-category-pin-shapes`.
+- This is a local candidate only. No commit, push, Worker/schema application,
+  Pages deployment, database, secret, authentication, snapshot, or production
+  data change has been made. Owner visual UAT should verify the five geometries
+  at Standard/Large/Extra large sizes before release approval.
+- Local UAT recovery on 2026-08-11 also makes the default `dev:client` load the
+  production zoom-14 Default/Gray overview atlas through the same-origin proxy.
+  The interactive desktop extender now reaches 92% of viewport height, capped
+  at 1040 px; default/compact heights and map camera behavior are unchanged.
+  A recurring zoom-15 pan regression is recovered without weakening strict
+  native containment or the decoded-memory ceiling: private owner My Map uses
+  the continuous Detailed atlas only when the native Detailed tier cannot cover
+  the expanded viewport. Native remains preferred at normal height; Export,
+  Shared/embed, Discover, and other map surfaces do not opt in. Focused coverage
+  passes 54/54. Signed-in local map-258 UAT proves native Detailed persists at
+  default-height zoom 15 before/after pan, maximum-height zoom 15 persists via
+  Detailed overview recovery before/after pan, and reset returns to zoom 14
+  overview; every state had fixed chunks, zero live tiles, and no unavailable
+  message. Full client coverage passes 648/648, map-lockdown passes 87/87, and
+  the exact production Detailed-map build passes.
 
 ## Map Studio top-row and Export View refinement release (2026-08-10)
 

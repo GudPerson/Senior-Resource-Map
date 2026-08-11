@@ -32,6 +32,12 @@ const requiredZoom14OverviewEnvironment = [
     'VITE_TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL=/@fs${PWD}/output/town-map-proof/zoom14-atlas/gray',
 ];
 
+const requiredProxiedZoom14OverviewEnvironment = [
+    'VITE_TOWN_MAP_ZOOM14_OVERVIEW_ENABLED=true',
+    'VITE_TOWN_MAP_OVERVIEW_ASSET_BASE_URL=/__carearound-town-maps/v3/zoom14-atlas-20260730/default',
+    'VITE_TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL=/__carearound-town-maps/v3/zoom14-atlas-20260730/gray',
+];
+
 const requiredProductionZoom14OverviewEnvironment = [
     'VITE_TOWN_MAP_ZOOM14_OVERVIEW_ENABLED=true',
     'VITE_TOWN_MAP_OVERVIEW_ASSET_BASE_URL=https://maps.carearound.sg/v3/zoom14-atlas-20260730/default',
@@ -44,17 +50,18 @@ test('default local client UAT keeps the complete Detailed map contract', () => 
     requiredLocalMapEnvironment.forEach((entry) => {
         assert.match(command, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     });
+    requiredProxiedZoom14OverviewEnvironment.forEach((entry) => {
+        assert.match(command, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    });
     assert.match(command, /--host localhost --port 5173/);
     assert.match(viteConfigSource, /['"]\/__carearound-town-maps['"]/);
     assert.match(viteConfigSource, /target:\s*['"]https:\/\/maps\.carearound\.sg['"]/);
     assert.match(viteConfigSource, /path\.replace\(\/\^\\\/__carearound-town-maps\//);
 });
 
-test('zoom-14 overview UAT stays opt-in and keeps the native zoom-15 roots', () => {
-    const defaultCommand = rootPackage.scripts['dev:client'];
+test('local-atlas zoom-14 UAT stays available and keeps the native zoom-15 roots', () => {
     const overviewCommand = rootPackage.scripts['dev:client:zoom14-overview'];
 
-    assert.doesNotMatch(defaultCommand, /VITE_TOWN_MAP_ZOOM14_OVERVIEW_ENABLED/);
     requiredLocalMapEnvironment.forEach((entry) => {
         assert.match(overviewCommand, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     });

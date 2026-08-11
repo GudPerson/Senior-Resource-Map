@@ -21,6 +21,7 @@ test('embedded map runtime maps the frozen public presentation to existing rende
         pinSize: 'extra-large',
         pinsVisible: false,
         annotationsVisible: false,
+        numberedPinShapesByCategory: { 'active ageing centre': 'star' },
         layout: { preset: 'map-focus' },
     }), {
         version: 1,

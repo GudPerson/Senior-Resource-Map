@@ -77,6 +77,8 @@ import ResourceRowIcon from './ResourceRowIcon.jsx';
 import CompactResourcePreviewCard, {
     COMPACT_RESOURCE_DETAIL_ACTION_CLASSNAME,
 } from './CompactResourcePreviewCard.jsx';
+import CategoryPinShapeBadge from './CategoryPinShapeBadge.jsx';
+import { getCategoryPinShape } from '../lib/categoryPinShapes.js';
 
 const DirectoryReturnPathContext = React.createContext('');
 
@@ -276,28 +278,19 @@ function normalizeBadgeFillColor(value) {
     return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(text) ? text : '#0f766e';
 }
 
-function PrintResourceNumberBadge({ value, color = null, compact = false }) {
+function PrintResourceNumberBadge({ value, color = null, shape = 'circle', compact = false }) {
     const label = String(value || '').replace(/^#/, '').trim();
     if (!label) return null;
     const badgeColor = normalizeBadgeFillColor(color);
 
     return (
-        <span
-            data-print-number-badge="true"
-            className={`inline-flex flex-shrink-0 items-center justify-center rounded-full border-2 px-0 font-black leading-none text-white ${
-                compact
-                    ? 'h-[20px] w-[20px] min-w-[20px] text-[11px]'
-                    : 'h-[28px] w-[28px] min-w-[28px] text-[13px]'
-            }`}
-            style={{
-                backgroundColor: badgeColor,
-                borderColor: 'rgba(255,255,255,0.96)',
-                boxShadow: '0 6px 12px rgba(15,23,42,0.14)',
-                textShadow: '0 1px 2px rgba(15,23,42,0.18)',
-            }}
-        >
-            {label}
-        </span>
+        <CategoryPinShapeBadge
+            shape={shape}
+            color={badgeColor}
+            label={label}
+            compact={compact}
+            className="print-color-adjust"
+        />
     );
 }
 
@@ -2022,6 +2015,7 @@ function DirectoryPlaceGroupCard({
     cardBadgeMode = 'number',
     showPrintNumberBadge = false,
     showInteractiveNumberBadge = false,
+    numberedPinShape = 'circle',
     printNumberBadgePosition = 'end',
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
 }) {
@@ -2063,6 +2057,7 @@ function DirectoryPlaceGroupCard({
         <PrintResourceNumberBadge
             value={group.number}
             color={group.categoryColor || clusterColorData?.core || null}
+            shape={numberedPinShape}
             compact={useCompactNamesOnlyCard}
         />
     ) : null;
@@ -3131,6 +3126,7 @@ function DirectoryGroupColumn({
     showCategoryPills = false,
     showPrintNumberBadges = false,
     showInteractiveNumberBadges = false,
+    numberedPinShapesByCategory = {},
     printNumberBadgePosition = 'end',
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
     printColumnCount = 1,
@@ -3197,6 +3193,10 @@ function DirectoryGroupColumn({
                             cardBadgeMode={cardBadgeMode}
                             showPrintNumberBadge={showPrintNumberBadges}
                             showInteractiveNumberBadge={showInteractiveNumberBadges}
+                            numberedPinShape={getCategoryPinShape(
+                                numberedPinShapesByCategory,
+                                group.categorySortKey || group.categoryLabel,
+                            )}
                             printNumberBadgePosition={printNumberBadgePosition}
                             printLabelDetail={printLabelDetail}
                             sectionRef={(node) => {
@@ -3332,6 +3332,7 @@ export default function SharedMapDirectoryList({
     cardBadgeMode = 'number',
     showPrintNumberBadges = false,
     showInteractiveNumberBadges = false,
+    numberedPinShapesByCategory = {},
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
     printResourcesBelow = false,
     printResourceColumnCount = 2,
@@ -3828,6 +3829,7 @@ export default function SharedMapDirectoryList({
                             logoRevealPlaceKeys={logoRevealPlaceKeys}
                             cardBadgeMode={cardBadgeMode}
                             showInteractiveNumberBadges={showInteractiveNumberBadges}
+                            numberedPinShapesByCategory={numberedPinShapesByCategory}
                             showCategoryPills={showCategoryPills}
                             printNumberBadgePosition="start"
                             printLabelDetail={printLabelDetail}
@@ -3946,6 +3948,7 @@ export default function SharedMapDirectoryList({
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
                         cardBadgeMode={cardBadgeMode}
                         showInteractiveNumberBadges={showInteractiveNumberBadges}
+                        numberedPinShapesByCategory={numberedPinShapesByCategory}
                         showCategoryPills={showCategoryPills}
                         printNumberBadgePosition={interactiveMapSide === 'right' ? 'end' : 'start'}
                         printLabelDetail={printLabelDetail}
@@ -4050,6 +4053,7 @@ export default function SharedMapDirectoryList({
                                 logoRevealPlaceKeys={logoRevealPlaceKeys}
                                 cardBadgeMode={cardBadgeMode}
                                 showInteractiveNumberBadges={showInteractiveNumberBadges}
+                                numberedPinShapesByCategory={numberedPinShapesByCategory}
                                 showCategoryPills={showCategoryPills}
                                 printNumberBadgePosition="start"
                                 printLabelDetail={printLabelDetail}
@@ -4110,6 +4114,7 @@ export default function SharedMapDirectoryList({
                 cardBadgeMode={cardBadgeMode}
                 showCategoryPills={showCategoryPills}
                 showPrintNumberBadges={showPrintNumberBadges}
+                numberedPinShapesByCategory={numberedPinShapesByCategory}
                 printNumberBadgePosition={badgePosition}
                 printLabelDetail={printLabelDetail}
             />
@@ -4201,6 +4206,7 @@ export default function SharedMapDirectoryList({
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
                         cardBadgeMode={cardBadgeMode}
                         showInteractiveNumberBadges={showInteractiveNumberBadges}
+                        numberedPinShapesByCategory={numberedPinShapesByCategory}
                         showCategoryPills={showCategoryPills}
                         showPrintNumberBadges={showPrintNumberBadges}
                         printNumberBadgePosition="end"
@@ -4260,6 +4266,7 @@ export default function SharedMapDirectoryList({
                                     logoRevealPlaceKeys={logoRevealPlaceKeys}
                                     cardBadgeMode={cardBadgeMode}
                                     showInteractiveNumberBadges={showInteractiveNumberBadges}
+                                    numberedPinShapesByCategory={numberedPinShapesByCategory}
                                     showCategoryPills={showCategoryPills}
                                     showPrintNumberBadges={showPrintNumberBadges}
                                     printNumberBadgePosition="end"
@@ -4309,6 +4316,7 @@ export default function SharedMapDirectoryList({
                         logoRevealPlaceKeys={logoRevealPlaceKeys}
                         cardBadgeMode={cardBadgeMode}
                         showInteractiveNumberBadges={showInteractiveNumberBadges}
+                        numberedPinShapesByCategory={numberedPinShapesByCategory}
                         showCategoryPills={showCategoryPills}
                         showPrintNumberBadges={showPrintNumberBadges}
                         printNumberBadgePosition="start"

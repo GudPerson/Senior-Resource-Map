@@ -31,6 +31,7 @@ test('interactive model preserves the locked category-bubble defaults', () => {
         mapViewState: null,
         markerMode: 'category-bubble',
         markerScale: 1,
+        numberedPinShapesByCategory: {},
         pinBadgeMode: 'none',
         pinCategoryIconMode: 'none',
         clusterMarkerMode: 'none',
@@ -42,7 +43,11 @@ test('interactive model preserves the locked category-bubble defaults', () => {
     assert.equal(model.layout.mapHeight, 'standard');
     assert.deepEqual(model.supportedPaths, MAP_STUDIO_INTERACTIVE_SUPPORTED_PATHS);
     assert.deepEqual(model.deferredPaths, MAP_STUDIO_INTERACTIVE_DEFERRED_PATHS);
-    assert.deepEqual(model.cardIdentity, { mode: 'logo', showNumberBadge: false });
+    assert.deepEqual(model.cardIdentity, {
+        mode: 'logo',
+        showNumberBadge: false,
+        numberedPinShapesByCategory: {},
+    });
 });
 
 test('interactive model maps only proven DirectoryMap design seams', () => {
@@ -53,6 +58,7 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
     };
     design.pins.style = MAP_STUDIO_PIN_STYLE_NUMBERED;
     design.pins.size = PRINT_MAP_PIN_SIZE_LARGE;
+    design.pins.categoryShapes = { 'active ageing centre (aac)': 'triangle' };
     design.layers.resources = PRINT_MAP_RESOURCE_LAYER_HIDE;
     design.layers.annotations = PRINT_MAP_ANNOTATION_LAYER_HIDE;
     design.layers.hiddenResourceLayerKeys = ['resource:carearound'];
@@ -72,6 +78,7 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
         mapViewState: { center: [1.385, 103.744], zoom: 16.5 },
         markerMode: 'print-badge',
         markerScale: 1.25,
+        numberedPinShapesByCategory: { 'active ageing centre (aac)': 'triangle' },
         pinBadgeMode: 'none',
         pinCategoryIconMode: 'none',
         clusterMarkerMode: 'none',
@@ -120,6 +127,7 @@ test('numbered pins keep individual collision-managed bubble identities', () => 
     assert.equal(model.directoryMap.clusterMarkerMode, 'none');
     assert.equal(model.cardIdentity.mode, 'logo');
     assert.equal(model.cardIdentity.showNumberBadge, true);
+    assert.deepEqual(model.cardIdentity.numberedPinShapesByCategory, {});
 });
 
 test('interactive model returns cloned camera and layer arrays', () => {

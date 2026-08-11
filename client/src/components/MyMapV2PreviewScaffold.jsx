@@ -65,6 +65,7 @@ export default function MyMapV2PreviewScaffold({
     fixedTownSurfaceLockMinZoom = true,
     fixedTownSurfaceFallbackBelowMinZoom = true,
     fixedTownSurfaceFallbackScope = 'global',
+    fixedTownSurfaceUseOverviewRecovery = false,
     onBasemapModeChange,
     onFixedTownSurfaceFallback,
     onFixedTownSurfaceMetricsChange,
@@ -118,6 +119,7 @@ export default function MyMapV2PreviewScaffold({
             clusterMarkerMode={directoryMapRuntime?.clusterMarkerMode || 'none'}
             showPins={mapStudioRuntime?.resourceLayer?.visible ?? true}
             placeNumberByKey={presentation.placeNumberByKey}
+            numberedPinShapesByCategory={directoryMapRuntime?.numberedPinShapesByCategory}
             emptyLabel={emptyLabel}
             mapHeightClassName={mapHeightClassName}
             layoutSignature={mapStudioRuntime?.layoutSignature || 'v2-map'}
@@ -143,6 +145,7 @@ export default function MyMapV2PreviewScaffold({
             fixedTownSurfaceLockMinZoom={fixedTownSurfaceLockMinZoom}
             fixedTownSurfaceFallbackBelowMinZoom={fixedTownSurfaceFallbackBelowMinZoom}
             fixedTownSurfaceFallbackScope={fixedTownSurfaceFallbackScope}
+            fixedTownSurfaceUseOverviewRecovery={fixedTownSurfaceUseOverviewRecovery}
             onBasemapModeChange={onBasemapModeChange}
             onFixedTownSurfaceFallback={onFixedTownSurfaceFallback}
             onFixedTownSurfaceMetricsChange={onFixedTownSurfaceMetricsChange}
@@ -217,6 +220,7 @@ export default function MyMapV2PreviewScaffold({
                         showMapLegend={false}
                         cardBadgeMode={mapStudioRuntime?.cardIdentity?.mode || 'logo'}
                         showInteractiveNumberBadges={Boolean(mapStudioRuntime?.cardIdentity?.showNumberBadge)}
+                        numberedPinShapesByCategory={mapStudioRuntime?.cardIdentity?.numberedPinShapesByCategory}
                         mobileFocusCardVariant="complete-preview"
                         printLabelDetail={mapStudioRuntime?.labels?.detail}
                         resourcePanelPlacement={mapStudioRuntime?.layout?.resourcePanel}

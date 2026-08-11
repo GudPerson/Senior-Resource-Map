@@ -502,6 +502,7 @@ function buildGroupedPins(groups = [], options = {}) {
                     lat: group.lat,
                     lng: group.lng,
                     curatedCount: group.curatedCount,
+                    categoryKey: normalizeMyMapCategoryKey(primaryCategoryEntry.label),
                     categoryIconUrl: primaryCategoryEntry.iconUrl
                         || group.rows.find((row) => row.categoryIconUrl)?.categoryIconUrl
                         || null,
@@ -528,6 +529,9 @@ function buildGroupedPins(groups = [], options = {}) {
                 lat: group.lat,
                 lng: group.lng,
                 curatedCount: group.curatedCount,
+                categoryKey: normalizeMyMapCategoryKey(
+                    primaryCategoryEntry.label || categoryEntries[0]?.label,
+                ),
                 categoryIconUrl: null,
                 categoryIconKey: null,
                 categoryColor: categoryColorSegments[0] || null,

@@ -15,6 +15,89 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-11 Map Studio category-specific numbered-pin shapes (local candidate)
+
+- Candidate behavior: the owner action formerly labelled `Arrange categories`
+  is now `Refine categories` in all four supported languages. Its existing
+  reorder workflow remains intact and each category also offers an accessible
+  single-choice shape selector: Circle (default), Triangle, Star, Square, or
+  Pentagon. The selected geometry applies to that category's separate numbered
+  badge on the interactive map, its matching resource cards, and Export View;
+  the resource logo container remains unchanged.
+- Persistence and architecture: category shapes are additive Map Studio v3
+  named-view design state under `pins.categoryShapes`. Circle remains the
+  implicit default so existing v1/v2 documents migrate without visual drift.
+  Reordering still uses the established category-order API. Shape changes are
+  staged in the selected named-view draft and persist only through the existing
+  explicit `Save changes` action; opening or applying Refine categories does
+  not silently save other Map Studio changes.
+- Safety and blast radius: marker coordinates, clustering, bubble collision,
+  pin sizing, hover/selection, detailed surfaces, category colours, category
+  order, short descriptions, annotations, personal places, PNG/PDF export,
+  authentication, and owner controls are preserved. The frozen Shared
+  Map/embed presentation allowlist intentionally excludes `categoryShapes`, so
+  this candidate does not expand the public snapshot or privacy boundary.
+- Reproduction: open an owned My Map with Numbered pins, choose `Edit content`
+  -> `Refine categories`, reorder a category if desired, and choose different
+  shapes for at least two categories. Apply refinements and confirm the live
+  map and matching card badges change while Map Studio reports unsaved changes.
+  Open Export View and confirm shape parity. Discard and repeat to verify the
+  previous saved shapes return; then save and reload to verify persistence.
+- Acceptance criteria: all five choices use native radio inputs and at
+  least a 44-pixel target; exactly one shape is active per category; Circle is
+  the default for existing views; category colour and number remain legible;
+  card logos are never replaced; interactive and Export View geometry match;
+  category order and shape changes can be applied together; no change reaches
+  Shared Map/embed; shape outlines stay near 0.75 pt without hiding the
+  category fill or number; v1/v2 Map Studio documents normalize to valid v3
+  state.
+- Verification: focused shape/state/UI/adapter/embed/server coverage passes
+  46/46; marker and shared-card source contracts pass 51/51; full client
+  coverage passes 648/648; full server coverage passes 549/549;
+  map-lockdown passes 87/87; and the exact six-root production client build
+  passes. This remains a local release candidate on
+  `codex/map-studio-category-pin-shapes`; no commit, push, Worker, schema,
+  Pages, database, secret, authentication, snapshot, or production data has
+  changed.
+
+### 2026-08-11 local Detailed and resize UAT recovery
+
+- Local UAT now enables the immutable zoom-14 Default and Gray overview atlas
+  through the established same-origin map proxy, matching the production
+  Detailed transition while retaining the zoom-15 native surfaces.
+- Recurring regression recovery: moving a zoom-15 owner map, especially after
+  extending it to the larger Map Studio height, must not switch Detailed back
+  to Standard. The strict native-surface containment and decoded-memory guards
+  remain unchanged. When the native zoom-15 surface cannot fully cover the
+  larger viewport, the private owner My Map now uses the already accepted
+  continuous Detailed atlas as a recovery tier. Native Detailed remains the
+  first choice whenever it can cover the viewport; Standard remains the final
+  fallback only when neither Detailed tier can cover it.
+- Blast-radius lock: the recovery tier is opt-in only for the private owner My
+  Map. Export View, Shared Map/embed snapshots, Discover, personal-place
+  privacy, annotations, clustering, pins, and the fixed-surface memory ceiling
+  are not changed. Partial native plates are never displayed.
+- The desktop vertical extender now reaches 92% of the viewport, capped at
+  1040 px, instead of 78%/840 px. Default and compact heights are unchanged;
+  resize remains bounded, keyboard-operable, and camera-preserving.
+- Reproduction: start the default local client, open owned map 258, select
+  Detailed or Automatic Detailed and verify the overview appears at zoom 14.
+  Zoom to 15 and pan at the default height: the native Detailed tier must stay
+  visible. Drag the bottom resize handle to its endpoint and pan again: the
+  continuous Detailed recovery tier must remain visible with no Standard-map
+  tiles or Detailed-unavailable message. Reset the map and confirm zoom 14
+  returns to the continuous Detailed atlas.
+- Verification: focused fixed-surface and owner-scaffold coverage passes 54/54;
+  full client coverage passes 648/648; map-lockdown passes 87/87; and the exact
+  production Detailed-map client build passes.
+  Signed-in local UAT on map 258 proves: default-height zoom 15 stays native
+  Detailed before and after pan (12-18 fixed chunks, zero live tiles); maximum
+  height 685 px at zoom 15 stays Detailed through the overview recovery tier
+  before and after pan (15-18 fixed chunks, zero live tiles); reset returns to
+  zoom 14 overview Detailed (40 fixed chunks, zero live tiles). No
+  Detailed-unavailable message appeared. Production configuration and assets
+  remain unchanged.
+
 ## 2026-08-10 Map Studio top-row and Export View refinement (production release)
 
 - Candidate behavior: the owner Map Studio named-view toolbar is the first

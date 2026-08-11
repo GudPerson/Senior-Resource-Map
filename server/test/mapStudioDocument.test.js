@@ -211,7 +211,7 @@ test('invalid stored Map Studio data fails closed instead of reaching the owner 
     );
 });
 
-test('stored schema v1 documents are returned as additive schema v2 views', () => {
+test('stored schema v1 documents are returned as additive schema v3 views', () => {
     const current = createDocument();
     const legacy = {
         schemaVersion: 1,
@@ -220,6 +220,10 @@ test('stored schema v1 documents are returned as additive schema v2 views', () =
             ...view,
             design: {
                 ...view.design,
+                pins: {
+                    style: view.design.pins.style,
+                    size: view.design.pins.size,
+                },
                 layout: { mapHeight: 'tall', resourcePanel: 'beside-map' },
             },
         })),
@@ -239,4 +243,31 @@ test('stored schema v1 documents are returned as additive schema v2 views', () =
         resourceColumnCount: 2,
         sideResourceColumnCount: 1,
     });
+    assert.deepEqual(formatted.document.views[0].design.pins.categoryShapes, {});
+});
+
+test('stored schema v2 documents migrate to v3 with Circle shape defaults', () => {
+    const current = createDocument();
+    const previous = {
+        schemaVersion: 2,
+        defaultViewId: current.defaultViewId,
+        views: current.views.map((view) => ({
+            ...view,
+            design: {
+                ...view.design,
+                pins: {
+                    style: view.design.pins.style,
+                    size: view.design.pins.size,
+                },
+            },
+        })),
+    };
+    const formatted = formatMapStudioDocument(25, {
+        schemaVersion: 2,
+        document: previous,
+        revision: 5,
+    });
+
+    assert.equal(formatted.document.schemaVersion, MAP_STUDIO_SCHEMA_VERSION);
+    assert.deepEqual(formatted.document.views[0].design.pins.categoryShapes, {});
 });

@@ -39,6 +39,18 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /basemapMode = 'live'/);
     assert.match(directoryMapSource, /resolveFixedTownBasemapMode\(/);
     assert.match(directoryMapSource, /resolveFixedTownSurfaceTier\(/);
+    assert.match(
+        directoryMapSource,
+        /const fixedTownSurfaceTier = resolveFixedTownSurfaceTier\(\{[\s\S]*?nativeUnavailable: fixedTownNativeSurfaceUnavailable,[\s\S]*?\}\);/,
+    );
+    assert.match(directoryMapSource, /fixedTownSurfaceUseOverviewRecovery = false/);
+    assert.match(directoryMapSource, /fixedTownNativeViewportCovered === null\s*&& fixedTownSurfaceViewportEligible === false/);
+    assert.match(directoryMapSource, /data-fixed-town-overview-recovery/);
+    assert.match(directoryMapSource, /isFixedTownSurfaceViewportCovered\(/);
+    assert.match(directoryMapSource, /fixedTownNativeMemoryFallbackZoom/);
+    assert.match(directoryMapSource, /fixedTownSurfaceTier === 'native'/);
+    assert.match(directoryMapSource, /reason === 'viewport-memory-limit'/);
+    assert.match(directoryMapSource, /surfaceTier: fixedTownSurfaceTier/);
     assert.match(directoryMapSource, /resolveFixedTownTransitionMinZoom\(/);
     assert.match(directoryMapSource, /fixedTownSurfaceTier === 'overview'/);
     assert.match(directoryMapSource, /activeFixedTownSurfaceManifest/);
@@ -259,6 +271,8 @@ test('town map proof is owner-only, local-flagged, and uses viewport coverage fo
     assert.match(ownerPageSource, /Detailed map is not ready for this area/);
     assert.doesNotMatch(ownerPageSource, /Detailed map covers Choa Chu Kang only/);
     assert.match(ownerPageSource, /onFixedTownSurfaceFallback=\{handleFixedTownSurfaceFallback\}/);
+    assert.match(ownerPageSource, /fixedTownSurfaceUseOverviewRecovery/);
+    assert.match(ownerScaffoldSource, /fixedTownSurfaceUseOverviewRecovery=\{fixedTownSurfaceUseOverviewRecovery\}/);
     assert.match(ownerScaffoldSource, /basemapMode=\{basemapMode\}/);
     assert.match(ownerScaffoldSource, /fixedTownSurfaceAvailable=\{fixedTownSurfaceAvailable\}/);
     assert.match(ownerScaffoldSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);

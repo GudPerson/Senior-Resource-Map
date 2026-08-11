@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 import { cleanOneLineText, validateRequestBody } from './inputValidation.js';
 
-export const MAP_STUDIO_SCHEMA_VERSION = 2;
+export const MAP_STUDIO_SCHEMA_VERSION = 3;
+const MAP_STUDIO_PREVIOUS_SCHEMA_VERSION = 2;
 const MAP_STUDIO_LEGACY_SCHEMA_VERSION = 1;
 export const MAP_STUDIO_MAX_VIEWS = 50;
 export const MAP_STUDIO_MAX_VIEW_NAME_LENGTH = 80;
@@ -73,6 +74,19 @@ const cameraSchema = z.object({
     }
 });
 
+const categoryPinShapesSchema = z.record(
+    z.string().trim().min(1).max(240),
+    z.enum(['triangle', 'star', 'square', 'pentagon']),
+).superRefine((value, context) => {
+    if (Object.keys(value).length > 500) {
+        context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [],
+            message: 'Numbered pin shapes may reference at most 500 categories',
+        });
+    }
+});
+
 const designSchema = z.object({
     basemap: z.object({
         style: z.enum(['default', 'gray']),
@@ -82,6 +96,7 @@ const designSchema = z.object({
     pins: z.object({
         style: z.enum(['category-bubble', 'numbered', 'category-icon']),
         size: z.enum(['standard', 'large', 'extra-large']),
+        categoryShapes: categoryPinShapesSchema,
     }).strict(),
     labels: z.object({
         detail: z.enum([
@@ -110,7 +125,14 @@ const designSchema = z.object({
     }).strict(),
 }).strict();
 
-const legacyDesignSchema = designSchema.extend({
+const previousDesignSchema = designSchema.extend({
+    pins: z.object({
+        style: z.enum(['category-bubble', 'numbered', 'category-icon']),
+        size: z.enum(['standard', 'large', 'extra-large']),
+    }).strict(),
+}).strict();
+
+const legacyDesignSchema = previousDesignSchema.extend({
     pins: z.object({
         style: z.enum(['category-bubble', 'numbered']),
         size: z.enum(['standard', 'large', 'extra-large']),
@@ -128,6 +150,10 @@ const viewSchema = z.object({
     design: designSchema,
 }).strict();
 
+const previousViewSchema = viewSchema.extend({
+    design: previousDesignSchema,
+}).strict();
+
 const legacyViewSchema = viewSchema.extend({
     design: legacyDesignSchema,
 }).strict();
@@ -136,6 +162,12 @@ const mapStudioStoredDocumentBaseSchema = z.object({
     schemaVersion: z.literal(MAP_STUDIO_SCHEMA_VERSION),
     defaultViewId: viewIdSchema,
     views: z.array(viewSchema).min(1).max(MAP_STUDIO_MAX_VIEWS),
+}).strict();
+
+const previousMapStudioStoredDocumentBaseSchema = z.object({
+    schemaVersion: z.literal(MAP_STUDIO_PREVIOUS_SCHEMA_VERSION),
+    defaultViewId: viewIdSchema,
+    views: z.array(previousViewSchema).min(1).max(MAP_STUDIO_MAX_VIEWS),
 }).strict();
 
 const legacyMapStudioStoredDocumentBaseSchema = z.object({
@@ -193,6 +225,9 @@ export const mapStudioStoredDocumentSchema = mapStudioStoredDocumentBaseSchema
 const legacyMapStudioStoredDocumentSchema = legacyMapStudioStoredDocumentBaseSchema
     .superRefine(refineMapStudioDocument);
 
+const previousMapStudioStoredDocumentSchema = previousMapStudioStoredDocumentBaseSchema
+    .superRefine(refineMapStudioDocument);
+
 const mapStudioDocumentInputSchema = mapStudioStoredDocumentBaseSchema
     .extend({
         revision: z.number().int().min(0).max(MAP_STUDIO_MAX_REVISION),
@@ -221,26 +256,33 @@ export function buildMapStudioStoredDocument(document) {
 
 function migrateStoredMapStudioDocument(document) {
     if (document.schemaVersion === MAP_STUDIO_SCHEMA_VERSION) return document;
+    const isLegacyDocument = document.schemaVersion === MAP_STUDIO_LEGACY_SCHEMA_VERSION;
     return {
         schemaVersion: MAP_STUDIO_SCHEMA_VERSION,
         defaultViewId: document.defaultViewId,
         views: document.views.map((view) => {
-            const resourcePanel = view.design.layout.resourcePanel;
+            const resourcePanel = isLegacyDocument ? view.design.layout.resourcePanel : null;
             return {
                 ...view,
                 design: {
                     ...view.design,
+                    pins: {
+                        ...view.design.pins,
+                        categoryShapes: {},
+                    },
                     layout: {
                         mapHeight: view.design.layout.mapHeight,
-                        preset: resourcePanel === 'below-map'
-                            ? 'full-map'
-                            : resourcePanel === 'beside-map'
-                                ? 'map-focus'
-                                : 'balanced',
-                        mapSide: 'left',
-                        mapWidth: 'wide',
-                        resourceColumnCount: 2,
-                        sideResourceColumnCount: 1,
+                        preset: isLegacyDocument
+                            ? resourcePanel === 'below-map'
+                                ? 'full-map'
+                                : resourcePanel === 'beside-map'
+                                    ? 'map-focus'
+                                    : 'balanced'
+                            : view.design.layout.preset,
+                        mapSide: isLegacyDocument ? 'left' : view.design.layout.mapSide,
+                        mapWidth: isLegacyDocument ? 'wide' : view.design.layout.mapWidth,
+                        resourceColumnCount: isLegacyDocument ? 2 : view.design.layout.resourceColumnCount,
+                        sideResourceColumnCount: isLegacyDocument ? 1 : view.design.layout.sideResourceColumnCount,
                     },
                 },
             };
@@ -260,7 +302,9 @@ export function formatMapStudioDocument(mapId, row = null) {
     const storedSchemaVersion = Number(row.schemaVersion ?? row.document?.schemaVersion);
     const schema = storedSchemaVersion === MAP_STUDIO_LEGACY_SCHEMA_VERSION
         ? legacyMapStudioStoredDocumentSchema
-        : mapStudioStoredDocumentSchema;
+        : storedSchemaVersion === MAP_STUDIO_PREVIOUS_SCHEMA_VERSION
+            ? previousMapStudioStoredDocumentSchema
+            : mapStudioStoredDocumentSchema;
     const parsed = schema.safeParse(row.document);
     if (!parsed.success) {
         throw createHttpError(500, 'Stored Map Studio design is invalid');
@@ -268,7 +312,11 @@ export function formatMapStudioDocument(mapId, row = null) {
     const storedRevision = Number(row.revision);
     if (
         storedSchemaVersion !== Number(parsed.data.schemaVersion)
-        || ![MAP_STUDIO_LEGACY_SCHEMA_VERSION, MAP_STUDIO_SCHEMA_VERSION].includes(storedSchemaVersion)
+        || ![
+            MAP_STUDIO_LEGACY_SCHEMA_VERSION,
+            MAP_STUDIO_PREVIOUS_SCHEMA_VERSION,
+            MAP_STUDIO_SCHEMA_VERSION,
+        ].includes(storedSchemaVersion)
         || !Number.isSafeInteger(storedRevision)
         || storedRevision < 1
     ) {

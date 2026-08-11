@@ -1587,6 +1587,18 @@ export function selectVisibleFixedTownChunks(chunks, viewportBounds) {
     return chunks.filter((chunk) => isRecord(chunk) && doWsenBoundsIntersect(chunk.bounds, viewportBounds));
 }
 
+export function isFixedTownSurfaceViewportCovered(manifest, viewportBounds) {
+    if (!isRecord(manifest) || !readWsenBounds(viewportBounds)) return null;
+    const surfaceBounds = manifest.bounds?.surface || manifest.bounds?.nominal;
+    if (!Array.isArray(manifest.chunks) || !manifest.chunks.length || !readWsenBounds(surfaceBounds)) {
+        return null;
+    }
+    return Boolean(
+        areWsenBoundsContained(viewportBounds, surfaceBounds)
+        && selectVisibleFixedTownChunks(manifest.chunks, viewportBounds).length > 0,
+    );
+}
+
 export function isFixedTownSurfaceZoomEligible(zoom, minZoom) {
     const normalizedZoom = Number(zoom);
     const normalizedMinZoom = Number(minZoom);
@@ -1600,6 +1612,7 @@ export function resolveFixedTownSurfaceTier({
     nativeMinZoom = 15,
     overviewMinZoom = FIXED_TOWN_OVERVIEW_MIN_ZOOM,
     overviewConfigured = false,
+    nativeUnavailable = false,
 } = {}) {
     const normalizedZoom = Number(zoom);
     const normalizedNativeMinZoom = Number(nativeMinZoom);
@@ -1610,7 +1623,7 @@ export function resolveFixedTownSurfaceTier({
     const overviewEligible = Number.isFinite(normalizedZoom)
         && Number.isFinite(normalizedOverviewMinZoom)
         && normalizedZoom >= normalizedOverviewMinZoom;
-    return overviewConfigured && overviewEligible && !nativeEligible
+    return overviewConfigured && overviewEligible && (!nativeEligible || nativeUnavailable)
         ? 'overview'
         : 'native';
 }

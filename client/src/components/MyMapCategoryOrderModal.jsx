@@ -2,6 +2,13 @@ import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Layers3, LoaderCircle, RotateCcw, X } from 'lucide-react';
 
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import CategoryPinShapeBadge from './CategoryPinShapeBadge.jsx';
+import {
+    CATEGORY_PIN_SHAPE_CIRCLE,
+    CATEGORY_PIN_SHAPE_OPTIONS,
+    getCategoryPinShape,
+    normalizeCategoryPinShapes,
+} from '../lib/categoryPinShapes.js';
 import {
     moveMyMapCategory,
     normalizeMyMapCategoryOrder,
@@ -20,6 +27,7 @@ export default function MyMapCategoryOrderModal({
     open,
     categories = [],
     initialOrder = [],
+    initialCategoryShapes = {},
     submitting = false,
     error = '',
     onClose,
@@ -28,12 +36,14 @@ export default function MyMapCategoryOrderModal({
     const { t } = useLocale();
     const [orderedCategories, setOrderedCategories] = useState([]);
     const [useDefaultOrder, setUseDefaultOrder] = useState(true);
+    const [categoryShapes, setCategoryShapes] = useState({});
 
     useEffect(() => {
         if (!open) return;
         setOrderedCategories(categories);
         setUseDefaultOrder(normalizeMyMapCategoryOrder(initialOrder).length === 0);
-    }, [categories, initialOrder, open]);
+        setCategoryShapes(normalizeCategoryPinShapes(initialCategoryShapes));
+    }, [categories, initialCategoryShapes, initialOrder, open]);
 
     if (!open) return null;
 
@@ -47,12 +57,22 @@ export default function MyMapCategoryOrderModal({
         setUseDefaultOrder(true);
     }
 
+    function selectCategoryShape(categoryKey, shape) {
+        setCategoryShapes((current) => {
+            const next = { ...current };
+            if (shape === CATEGORY_PIN_SHAPE_CIRCLE) delete next[categoryKey];
+            else next[categoryKey] = shape;
+            return next;
+        });
+    }
+
     async function handleSubmit(event) {
         event.preventDefault();
         await onSubmit?.({
             categoryOrder: useDefaultOrder
                 ? []
                 : orderedCategories.map((category) => category.key),
+            categoryShapes: normalizeCategoryPinShapes(categoryShapes),
         });
     }
 
@@ -62,7 +82,7 @@ export default function MyMapCategoryOrderModal({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="my-map-category-order-title"
-                className="flex max-h-[min(88vh,760px)] w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl"
+                className="flex max-h-[min(90vh,860px)] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl"
             >
                 <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>
@@ -70,10 +90,10 @@ export default function MyMapCategoryOrderModal({
                             {t('arrangeCategories')}
                         </p>
                         <h2 id="my-map-category-order-title" className="mt-2 text-2xl font-bold text-slate-900">
-                            {t('arrangeCategorySequence')}
+                            {t('refineCategorySequence')}
                         </h2>
                         <p className="mt-2 text-sm leading-6 text-slate-500">
-                            {t('arrangeCategorySequenceHelp')}
+                            {t('refineCategorySequenceHelp')}
                         </p>
                     </div>
                     <button
@@ -97,44 +117,93 @@ export default function MyMapCategoryOrderModal({
 
                         <div className="space-y-2">
                             {orderedCategories.map((category, index) => (
-                                <div key={category.key} className="flex min-h-16 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                                    <span
-                                        aria-hidden="true"
-                                        className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-white shadow-sm"
-                                        style={{ backgroundColor: category.color || '#E2E8F0' }}
-                                    >
-                                        {category.iconUrl ? (
-                                            <img src={category.iconUrl} alt="" className="h-full w-full object-contain" />
-                                        ) : (
-                                            <Layers3 size={18} className="text-slate-700" />
-                                        )}
-                                    </span>
-                                    <span className="min-w-0 flex-1 text-sm font-bold text-slate-900">
-                                        {category.label}
-                                    </span>
-                                    <span className="text-xs font-semibold tabular-nums text-slate-400" aria-hidden="true">
-                                        {index + 1}
-                                    </span>
-                                    <div className="flex items-center gap-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => moveCategory(index, index - 1)}
-                                            disabled={submitting || index === 0}
-                                            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
-                                            aria-label={t('moveCategoryEarlier', { name: category.label })}
+                                <div key={category.key} className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
+                                    <div className="flex min-h-11 items-center gap-3">
+                                        <span
+                                            aria-hidden="true"
+                                            className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-white shadow-sm"
+                                            style={{ backgroundColor: category.color || '#E2E8F0' }}
                                         >
-                                            <ArrowUp size={18} />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => moveCategory(index, index + 1)}
-                                            disabled={submitting || index === orderedCategories.length - 1}
-                                            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
-                                            aria-label={t('moveCategoryLater', { name: category.label })}
-                                        >
-                                            <ArrowDown size={18} />
-                                        </button>
+                                            {category.iconUrl ? (
+                                                <img src={category.iconUrl} alt="" className="h-full w-full object-contain" />
+                                            ) : (
+                                                <Layers3 size={18} className="text-slate-700" />
+                                            )}
+                                        </span>
+                                        <span className="min-w-0 flex-1 text-sm font-bold text-slate-900">
+                                            {category.label}
+                                        </span>
+                                        <span className="text-xs font-semibold tabular-nums text-slate-400" aria-hidden="true">
+                                            {index + 1}
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => moveCategory(index, index - 1)}
+                                                disabled={submitting || index === 0}
+                                                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed disabled:opacity-35"
+                                                aria-label={t('moveCategoryEarlier', { name: category.label })}
+                                            >
+                                                <ArrowUp size={18} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => moveCategory(index, index + 1)}
+                                                disabled={submitting || index === orderedCategories.length - 1}
+                                                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed disabled:opacity-35"
+                                                aria-label={t('moveCategoryLater', { name: category.label })}
+                                            >
+                                                <ArrowDown size={18} />
+                                            </button>
+                                        </div>
                                     </div>
+
+                                    <fieldset className="mt-3 border-t border-slate-100 pt-3">
+                                        <legend className="text-xs font-bold text-slate-600">
+                                            {t('categoryNumberedPinShape')}
+                                        </legend>
+                                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                                            {t('categoryNumberedPinShapeHelp')}
+                                        </p>
+                                        <div className="mt-2 grid grid-cols-5 gap-2">
+                                            {CATEGORY_PIN_SHAPE_OPTIONS.map((shape) => {
+                                                const selected = getCategoryPinShape(categoryShapes, category.key) === shape;
+                                                const shapeLabel = t(`categoryPinShape${shape.charAt(0).toUpperCase()}${shape.slice(1)}`);
+                                                return (
+                                                    <label
+                                                        key={shape}
+                                                        title={shapeLabel}
+                                                        className={`inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-2 transition focus-within:outline-none focus-within:ring-4 focus-within:ring-brand-100 ${
+                                                            selected
+                                                                ? 'border-brand-600 bg-brand-50 ring-2 ring-brand-200'
+                                                                : 'border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/50'
+                                                        } ${submitting ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                    >
+                                                        <input
+                                                            type="radio"
+                                                            name={`category-pin-shape-${category.key}`}
+                                                            value={shape}
+                                                            checked={selected}
+                                                            disabled={submitting}
+                                                            onChange={() => selectCategoryShape(category.key, shape)}
+                                                            aria-label={t('categoryPinShapeForCategory', {
+                                                                shape: shapeLabel,
+                                                                category: category.label,
+                                                            })}
+                                                            className="sr-only"
+                                                        />
+                                                        <CategoryPinShapeBadge
+                                                            shape={shape}
+                                                            color={category.color || '#0f766e'}
+                                                            selected={selected}
+                                                            compact
+                                                        />
+                                                        <span className="sr-only">{shapeLabel}</span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    </fieldset>
                                 </div>
                             ))}
                         </div>
@@ -161,11 +230,11 @@ export default function MyMapCategoryOrderModal({
                             </button>
                             <button
                                 type="submit"
-                                disabled={submitting || orderedCategories.length < 2}
+                                disabled={submitting || orderedCategories.length < 1}
                                 className="btn-primary h-11 flex-1 justify-center px-5 text-sm sm:flex-none"
                             >
                                 {submitting ? <LoaderCircle size={17} className="animate-spin" /> : null}
-                                {submitting ? t('saving') : t('saveCategoryOrder')}
+                                {submitting ? t('saving') : t('applyCategoryRefinements')}
                             </button>
                         </div>
                     </div>

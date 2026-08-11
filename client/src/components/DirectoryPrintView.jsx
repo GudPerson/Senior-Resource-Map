@@ -48,6 +48,7 @@ import {
     buildMapStudioResourceLayerCatalog,
     filterMapStudioDirectoryByLayers,
 } from '../lib/mapStudioPresentationAdapter.js';
+import { normalizeMyMapCategoryKey } from '../lib/myMapCategoryOrder.js';
 import {
     DEFAULT_PRINT_ANNOTATION_STYLE,
     PRINT_ANNOTATION_DRAW_TOOLS,
@@ -237,6 +238,9 @@ function withOwnerPrintBadgePins(presentation) {
             lat: firstGroup.lat,
             lng: firstGroup.lng,
             curatedCount: groups.reduce((total, group) => total + (group.curatedCount || Math.max(1, (group.rows || []).length)), 0),
+            categoryKey: normalizeMyMapCategoryKey(
+                firstGroup.categorySortKey || firstGroup.categoryLabel,
+            ),
             number: firstNumber,
             printNumberLabel: String(firstNumber),
             printBadgeItems: groups.map((group) => {
@@ -246,6 +250,9 @@ function withOwnerPrintBadgePins(presentation) {
                     label: String(number),
                     color: getPrintBadgeColor(group),
                     placeKey: group.placeKey,
+                    categoryKey: normalizeMyMapCategoryKey(
+                        group.categorySortKey || group.categoryLabel,
+                    ),
                 };
             }),
             categoryColor: getPrintBadgeColor(firstGroup),
@@ -690,6 +697,7 @@ function PrintDirectoryMap({
                 clusterMarkerMode={useV2Format ? 'none' : 'bubble'}
                 spreadCoincidentPins={!useV2Format}
                 placeNumberByKey={presentation.placeNumberByKey}
+                numberedPinShapesByCategory={printMapState?.numberedPinShapesByCategory}
                 showPopup={false}
                 showZoomControl={Boolean(printMapState && interactive)}
                 showZoomLevelCounter={Boolean(printMapState && interactive)}
@@ -1272,6 +1280,7 @@ export default function DirectoryPrintView({
                 )}
                 cardBadgeMode={useV2OwnerPrint ? studioCardBadgeMode : 'number'}
                 showPrintNumberBadges={useV2OwnerPrint && showStudioNumberIdentity}
+                numberedPinShapesByCategory={printMapState?.numberedPinShapesByCategory}
                 printLabelDetail={labelDetail}
                 printResourcesBelow={printResourcesBelow}
                 printResourceColumnCount={resourceColumnCount}

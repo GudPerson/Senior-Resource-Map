@@ -22,17 +22,17 @@ test('desktop map height bounds preserve the current frame and cap expansion to 
     assert.deepEqual(getDesktopMapHeightBounds(1000), {
         minimumHeight: 480,
         defaultHeight: 480,
-        maximumHeight: 780,
+        maximumHeight: 920,
     });
     assert.deepEqual(getDesktopMapHeightBounds(768), {
         minimumHeight: 440,
         defaultHeight: 440,
-        maximumHeight: 599,
+        maximumHeight: 707,
     });
     assert.deepEqual(getDesktopMapHeightBounds(1400), {
         minimumHeight: 672,
         defaultHeight: 672,
-        maximumHeight: 840,
+        maximumHeight: 1040,
     });
 });
 
@@ -40,7 +40,7 @@ test('desktop map height stays within the resize bounds', () => {
     const bounds = getDesktopMapHeightBounds(1000);
     assert.equal(clampDesktopMapHeight(200, bounds), 480);
     assert.equal(clampDesktopMapHeight(620.4, bounds), 620);
-    assert.equal(clampDesktopMapHeight(1200, bounds), 780);
+    assert.equal(clampDesktopMapHeight(1200, bounds), 920);
 });
 
 test('Map Studio height presets extend the owner frame without changing legacy bounds', () => {
@@ -49,11 +49,11 @@ test('Map Studio height presets extend the owner frame without changing legacy b
         minimumHeight: 380,
         compactHeight: 380,
         defaultHeight: 480,
-        maximumHeight: 780,
+        maximumHeight: 920,
     });
     assert.equal(resolveDesktopMapStudioHeightPreset('compact', bounds), 380);
     assert.equal(resolveDesktopMapStudioHeightPreset('standard', bounds), 480);
-    assert.equal(resolveDesktopMapStudioHeightPreset('tall', bounds), 780);
+    assert.equal(resolveDesktopMapStudioHeightPreset('tall', bounds), 920);
     assert.equal(getDesktopMapHeightBounds(1000).minimumHeight, 480);
 });
 

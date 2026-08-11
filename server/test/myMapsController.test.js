@@ -1600,6 +1600,7 @@ test('publishMyMap freezes only the selected saved view public presentation', as
     studioDocument.views[0].design.pins = {
         style: 'numbered',
         size: 'extra-large',
+        categoryShapes: { 'active ageing centre': 'star' },
     };
     studioDocument.views[0].design.layers.resources = 'hide';
     studioDocument.views[0].design.layers.annotations = 'hide';
@@ -1643,6 +1644,8 @@ test('publishMyMap freezes only the selected saved view public presentation', as
     assert.deepEqual(snapshot.embeddedAnnotations, []);
     assert.equal(snapshot.studioViewId, undefined);
     assert.equal(snapshot.studioDocument, undefined);
+    assert.equal(snapshot.embeddedPresentation.categoryShapes, undefined);
+    assert.equal(snapshot.embeddedPresentation.numberedPinShapesByCategory, undefined);
     assert.equal(snapshot.design, undefined);
     assert.equal(JSON.stringify(snapshot).includes('private-annotation'), false);
     assert.equal(JSON.stringify(snapshot).includes('hiddenResourceLayerKeys'), false);

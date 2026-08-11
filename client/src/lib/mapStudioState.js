@@ -1,4 +1,5 @@
 import { normalizeCareAroundMapStyle } from './mapTheme.js';
+import { normalizeCategoryPinShapes } from './categoryPinShapes.js';
 import {
     PRINT_MAP_ANNOTATION_LAYER_SHOW,
     PRINT_MAP_LABEL_DETAIL_FULL,
@@ -34,7 +35,7 @@ import {
     normalizePrintMapWidth,
 } from './printMapState.js';
 
-export const MAP_STUDIO_SCHEMA_VERSION = 2;
+export const MAP_STUDIO_SCHEMA_VERSION = 3;
 export const MAP_STUDIO_DEFAULT_VIEW_ID = 'view-default';
 export const MAP_STUDIO_DEFAULT_VIEW_NAME = 'Default view';
 export const MAP_STUDIO_MAX_VIEWS = 50;
@@ -185,6 +186,7 @@ export function createMapStudioDesign({
         pins: {
             style: MAP_STUDIO_PIN_STYLE_BUBBLE,
             size: PRINT_MAP_PIN_SIZE_STANDARD,
+            categoryShapes: {},
         },
         labels: {
             detail: PRINT_MAP_LABEL_DETAIL_FULL,
@@ -220,6 +222,7 @@ export function normalizeMapStudioDesign(value, defaults = {}) {
         pins: {
             style: normalizePinStyle(value?.pins?.style),
             size: normalizePrintMapPinSize(value?.pins?.size),
+            categoryShapes: normalizeCategoryPinShapes(value?.pins?.categoryShapes),
         },
         labels: {
             detail: normalizePrintMapLabelDetail(value?.labels?.detail),
@@ -318,25 +321,40 @@ export function migrateMapStudioDocument(value, defaults = {}) {
     if (value === null || value === undefined) {
         return createMapStudioDocument(defaults);
     }
-    if (Number(value?.schemaVersion) === 1 && MAP_STUDIO_SCHEMA_VERSION === 2) {
+    if ([1, 2].includes(Number(value?.schemaVersion)) && MAP_STUDIO_SCHEMA_VERSION === 3) {
         const migratedViews = (Array.isArray(value.views) ? value.views : []).map((view) => {
             const legacyResourcePanel = normalizeResourcePanel(view?.design?.layout?.resourcePanel);
-            const preset = legacyResourcePanel === MAP_STUDIO_RESOURCE_PANEL_BELOW
-                ? PRINT_MAP_LAYOUT_FULL
-                : legacyResourcePanel === MAP_STUDIO_RESOURCE_PANEL_BESIDE
-                    ? PRINT_MAP_LAYOUT_FOCUS
-                    : PRINT_MAP_LAYOUT_BALANCED;
+            const isLegacyView = Number(value?.schemaVersion) === 1;
+            const preset = isLegacyView
+                ? legacyResourcePanel === MAP_STUDIO_RESOURCE_PANEL_BELOW
+                    ? PRINT_MAP_LAYOUT_FULL
+                    : legacyResourcePanel === MAP_STUDIO_RESOURCE_PANEL_BESIDE
+                        ? PRINT_MAP_LAYOUT_FOCUS
+                        : PRINT_MAP_LAYOUT_BALANCED
+                : view?.design?.layout?.preset;
             return {
                 ...view,
                 design: {
                     ...(view?.design || {}),
+                    pins: {
+                        ...(view?.design?.pins || {}),
+                        categoryShapes: {},
+                    },
                     layout: {
                         mapHeight: view?.design?.layout?.mapHeight,
                         preset,
-                        mapSide: PRINT_MAP_SIDE_LEFT,
-                        mapWidth: PRINT_MAP_WIDTH_WIDE,
-                        resourceColumnCount: 2,
-                        sideResourceColumnCount: 1,
+                        mapSide: isLegacyView
+                            ? PRINT_MAP_SIDE_LEFT
+                            : view?.design?.layout?.mapSide,
+                        mapWidth: isLegacyView
+                            ? PRINT_MAP_WIDTH_WIDE
+                            : view?.design?.layout?.mapWidth,
+                        resourceColumnCount: isLegacyView
+                            ? 2
+                            : view?.design?.layout?.resourceColumnCount,
+                        sideResourceColumnCount: isLegacyView
+                            ? 1
+                            : view?.design?.layout?.sideResourceColumnCount,
                     },
                 },
             };
@@ -606,6 +624,7 @@ export function buildMapStudioPrintState(design, exportSettings = {}) {
         margins: normalizedExport.margins,
         resourceLayer: normalizedDesign.layers.resources,
         pinSize: normalizedDesign.pins.size,
+        numberedPinShapesByCategory: clone(normalizedDesign.pins.categoryShapes),
         studioMarkerMode: normalizedDesign.pins.style === MAP_STUDIO_PIN_STYLE_NUMBERED
             ? 'print-badge'
             : normalizedDesign.pins.style === MAP_STUDIO_PIN_STYLE_CATEGORY_ICON

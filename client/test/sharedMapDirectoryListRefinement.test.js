@@ -38,6 +38,10 @@ const compactResourcePreviewCardSource = readFileSync(
     new URL('../src/components/CompactResourcePreviewCard.jsx', import.meta.url),
     'utf8',
 );
+const categoryPinShapeBadgeSource = readFileSync(
+    new URL('../src/components/CategoryPinShapeBadge.jsx', import.meta.url),
+    'utf8',
+);
 
 function sourceBetween(source, startMarker, endMarker) {
     const start = source.indexOf(startMarker);
@@ -397,11 +401,14 @@ test('print V2 cards can opt into compact category-coloured resource badges', ()
     assert.match(printBadgeSource, /color = null/);
     assert.match(printBadgeSource, /const badgeColor = normalizeBadgeFillColor\(color\)/);
     assert.match(printBadgeSource, /compact = false/);
-    assert.match(printBadgeSource, /data-print-number-badge="true"/);
-    assert.match(printBadgeSource, /h-\[20px\] w-\[20px\] min-w-\[20px\] text-\[11px\]/);
-    assert.match(printBadgeSource, /h-\[28px\] w-\[28px\] min-w-\[28px\] text-\[13px\]/);
-    assert.match(printBadgeSource, /backgroundColor: badgeColor/);
-    assert.match(printBadgeSource, /borderColor: 'rgba\(255,255,255,0\.96\)'/);
+    assert.match(printBadgeSource, /<CategoryPinShapeBadge/);
+    assert.match(printBadgeSource, /shape=\{shape\}/);
+    assert.match(categoryPinShapeBadgeSource, /data-print-number-badge=\{text \? 'true' : undefined\}/);
+    assert.match(categoryPinShapeBadgeSource, /h-\[22px\] w-\[22px\] min-w-\[22px\]/);
+    assert.match(categoryPinShapeBadgeSource, /h-\[30px\] w-\[30px\] min-w-\[30px\]/);
+    assert.match(categoryPinShapeBadgeSource, /fill=\{normalizeFill\(color\)\}/);
+    assert.match(categoryPinShapeBadgeSource, /stroke=\{selected \? '#f97316' : 'rgba\(255,255,255,0\.98\)'\}/);
+    assert.match(categoryPinShapeBadgeSource, /strokeWidth=\{1\}/);
     assert.match(sharedMapDirectorySource, /showPrintNumberBadges = false/);
     assert.match(sharedMapDirectorySource, /showPrintNumberBadge = false/);
     assert.match(sharedMapDirectorySource, /color=\{group\.categoryColor \|\| clusterColorData\?\.core \|\| null\}/);

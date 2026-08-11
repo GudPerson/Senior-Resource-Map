@@ -22,6 +22,7 @@ export const MAP_STUDIO_INTERACTIVE_SUPPORTED_PATHS = Object.freeze([
     'camera',
     'pins.style',
     'pins.size',
+    'pins.categoryShapes',
     'labels.detail',
     'layers.resources',
     'layers.hiddenResourceLayerKeys',
@@ -66,6 +67,7 @@ export function buildMapStudioInteractiveModel(design, defaults = {}) {
                     ? 'category-icon'
                     : 'category-bubble',
             markerScale: getPrintMapPinScale(normalizedDesign.pins.size),
+            numberedPinShapesByCategory: clone(normalizedDesign.pins.categoryShapes),
             pinBadgeMode: 'none',
             pinCategoryIconMode: isCategoryIcon ? 'auto' : 'none',
             // Studio pin styles are all individual-marker presentations. The
@@ -82,6 +84,7 @@ export function buildMapStudioInteractiveModel(design, defaults = {}) {
             // nearest the map.
             mode: isCategoryIcon ? 'category-icon' : 'logo',
             showNumberBadge: isNumbered,
+            numberedPinShapesByCategory: clone(normalizedDesign.pins.categoryShapes),
         },
         annotationLayer: {
             visible: normalizedDesign.layers.annotations !== PRINT_MAP_ANNOTATION_LAYER_HIDE,
