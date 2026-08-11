@@ -263,6 +263,8 @@ test('my map v2 uses the restored normal map sizing without enabling full-map mo
     assert.match(myMapV2ScaffoldSource, /mapElement=\{renderMap\(desktopMapHeightClass\)\}/);
     assert.match(myMapV2ScaffoldSource, /heightPreset=\{mapStudioRuntime \? mapHeight : null\}/);
     assert.match(myMapV2ScaffoldSource, /heightResetKey=\{mapStudioRuntime\?\.heightResetKey \|\| ''\}/);
+    assert.match(myMapV2ScaffoldSource, /initialHeightPx=\{mapStudioRuntime\?\.mapHeightPx \?\? null\}/);
+    assert.match(myMapV2ScaffoldSource, /onHeightCommit=\{mapStudioRuntime\?\.onMapHeightChange \?\? null\}/);
     assert.match(myMapV2ScaffoldSource, /renderMobileMap=\{\(\) => renderMap\(mobileMapHeightClass\)\}/);
 });
 

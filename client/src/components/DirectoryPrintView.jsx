@@ -71,6 +71,7 @@ const PRINT_FULL_MAP_FIXED_SURFACE_MAX_DECODED_BYTES = 384 * 1024 * 1024;
 function PrintMapResizeHandle({ height, onChange, previewScale = 1, printMapState = null }) {
     const dragRef = useRef(null);
     const { defaultHeight, minHeight, maxHeight } = getPrintMapHeightBounds(printMapState);
+    const resolvedPreviewScale = Math.max(0.2, Number(previewScale) || 1);
 
     const applyHeight = (value) => onChange?.(clampPrintMapHeight(value, printMapState));
     const finishDrag = (event) => {
@@ -85,13 +86,13 @@ function PrintMapResizeHandle({ height, onChange, previewScale = 1, printMapStat
     return (
         <div
             role="separator"
-            aria-label="Resize print map height"
+            aria-label="Resize export map height"
             aria-orientation="horizontal"
             aria-valuemin={minHeight}
             aria-valuemax={maxHeight}
             aria-valuenow={height}
             tabIndex={0}
-            title="Drag to resize the print map. Use arrow keys to adjust, or double-click to reset."
+            title="Drag to resize the export map. Use arrow keys to adjust, or double-click to reset."
             onPointerDown={(event) => {
                 if (event.button !== 0) return;
                 event.preventDefault();
@@ -102,8 +103,7 @@ function PrintMapResizeHandle({ height, onChange, previewScale = 1, printMapStat
                 const drag = dragRef.current;
                 if (!drag || event.pointerId !== drag.pointerId) return;
                 event.preventDefault();
-                const scale = Math.max(0.2, Number(previewScale) || 1);
-                applyHeight(drag.startHeight + ((event.clientY - drag.startY) / scale));
+                applyHeight(drag.startHeight + ((event.clientY - drag.startY) / resolvedPreviewScale));
             }}
             onPointerUp={finishDrag}
             onPointerCancel={finishDrag}
@@ -118,10 +118,18 @@ function PrintMapResizeHandle({ height, onChange, previewScale = 1, printMapStat
                 event.preventDefault();
                 applyHeight(nextHeight);
             }}
-            className="absolute bottom-0 left-1/2 z-[1100] flex h-8 w-28 -translate-x-1/2 translate-y-1/2 cursor-ns-resize touch-none items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-md hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-100"
+            className="absolute bottom-0 left-1/2 z-[1100] flex h-11 w-28 -translate-x-1/2 translate-y-1/2 cursor-ns-resize touch-none items-center justify-center rounded-full border border-slate-200 bg-white/95 text-slate-500 shadow-md hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-100"
+            style={{
+                width: `${Math.ceil(112 / resolvedPreviewScale)}px`,
+                height: `${Math.ceil(44 / resolvedPreviewScale)}px`,
+            }}
             data-print-map-resize-handle="true"
         >
-            <GripHorizontal size={18} strokeWidth={2.4} aria-hidden="true" />
+            <GripHorizontal
+                size={Math.ceil(18 / resolvedPreviewScale)}
+                strokeWidth={2.4}
+                aria-hidden="true"
+            />
         </div>
     );
 }
@@ -718,7 +726,7 @@ function PrintDirectoryMap({
                 onMapStyleOverrideChange={printMapState && interactive && !designLocked ? handleControlledMapStyleChange : null}
                 mapStyleDescription={printMapState ? 'This choice applies only to this print preview.' : undefined}
                 mapViewState={printMapState?.view || null}
-                onMapViewStateChange={printMapState && interactive && !designLocked ? handleControlledMapViewChange : null}
+                onMapViewStateChange={printMapState && interactive ? handleControlledMapViewChange : null}
                 captureReadyKey={printMapState ? buildPrintMapCaptureKey(printMapState) : ''}
                 basemapMode={printMapState?.basemapMode || 'live'}
                 fixedTownSurfaceManifest={fixedTownSurfaceManifest}
@@ -958,6 +966,7 @@ export default function DirectoryPrintView({
     onRemovePersonalPlace = null,
     mapLayersEnabled = false,
     mapStudioDesignLocked = false,
+    mapStudioViewportEditable = false,
 }) {
     const useV2OwnerPrint = mode === 'owner';
     const unfilteredBasePresentation = buildDirectoryPresentation(directory, {
@@ -1076,7 +1085,8 @@ export default function DirectoryPrintView({
 
     const resourceCount = printDirectory?.summary?.resourceCount || 0;
     const mappedPlaceCount = presentation.mappedGroups.length;
-    const printMapInteractive = variant === 'screen' && !mapStudioDesignLocked;
+    const printMapInteractive = variant === 'screen'
+        && (!mapStudioDesignLocked || mapStudioViewportEditable);
     const patchPrintMapState = useCallback((patch) => {
         if (!onPrintMapStateChange) return;
         onPrintMapStateChange((current) => ({ ...current, ...patch }));

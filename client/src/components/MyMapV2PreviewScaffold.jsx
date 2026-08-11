@@ -238,6 +238,8 @@ export default function MyMapV2PreviewScaffold({
                                     mapElement={renderMap(desktopMapHeightClass)}
                                     heightPreset={mapStudioRuntime ? mapHeight : null}
                                     heightResetKey={mapStudioRuntime?.heightResetKey || ''}
+                                    initialHeightPx={mapStudioRuntime?.mapHeightPx ?? null}
+                                    onHeightCommit={mapStudioRuntime?.onMapHeightChange ?? null}
                                 />
                             ) : renderMap(desktopMapHeightClass)
                         )}

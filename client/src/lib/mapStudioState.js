@@ -587,9 +587,12 @@ export function createMapStudioExportSettings(value = {}) {
     };
 }
 
-export function buildMapStudioPrintState(design, exportSettings = {}) {
+export function buildMapStudioPrintState(design, exportSettings = {}, runtime = {}) {
     const normalizedDesign = normalizeMapStudioDesign(design);
     const normalizedExport = createMapStudioExportSettings(exportSettings);
+    const runtimeCameraView = normalizeCameraView(runtime?.cameraView);
+    const runtimeHeight = Number(runtime?.heightPx);
+    const hasRuntimeHeight = Number.isFinite(runtimeHeight) && runtimeHeight > 0;
     const usesFullMapLayout = normalizedDesign.layout.preset === PRINT_MAP_LAYOUT_FULL;
     const pageLayout = usesFullMapLayout
         ? PRINT_MAP_PAGE_LAYOUT_FULL
@@ -603,9 +606,11 @@ export function buildMapStudioPrintState(design, exportSettings = {}) {
             ? 560
             : PRINT_MAP_DEFAULT_HEIGHT_PX;
     const height = clampPrintMapHeight(
-        usesFullMapLayout
-            ? PRINT_MAP_FULL_PAGE_DEFAULT_HEIGHT_PX
-            : designHeight,
+        hasRuntimeHeight
+            ? runtimeHeight
+            : (usesFullMapLayout
+                ? PRINT_MAP_FULL_PAGE_DEFAULT_HEIGHT_PX
+                : designHeight),
         { pageLayout, layoutPreset: normalizedDesign.layout.preset },
     );
     return {
@@ -614,9 +619,11 @@ export function buildMapStudioPrintState(design, exportSettings = {}) {
         }),
         mapStyle: normalizedDesign.basemap.style,
         basemapMode: normalizedDesign.basemap.detailMode,
-        view: normalizedDesign.camera.mode === MAP_STUDIO_CAMERA_FIXED
-            ? clone(normalizedDesign.camera.view)
-            : null,
+        view: runtimeCameraView || (
+            normalizedDesign.camera.mode === MAP_STUDIO_CAMERA_FIXED
+                ? clone(normalizedDesign.camera.view)
+                : null
+        ),
         height,
         pageLayout,
         resourcePlacement,

@@ -66,6 +66,10 @@ import {
 } from '../lib/mapTheme.js';
 import { buildMapStudioInteractiveModel } from '../lib/mapStudioInteractiveAdapter.js';
 import {
+    patchMapStudioRouteViewport,
+    resolveMapStudioRouteViewport,
+} from '../lib/mapStudioRouteViewport.js';
+import {
     buildMapStudioPrintState,
     createMapStudioExportSettings,
 } from '../lib/mapStudioState.js';
@@ -1487,6 +1491,8 @@ export default function MyMapDetailPage() {
     const [basemapMode, setBasemapMode] = useState(() => (TOWN_MAP_PROOF_ENABLED ? 'auto' : 'live'));
     const mapStudioControllerRef = useRef(null);
     const [mapStudioRuntimeSnapshot, setMapStudioRuntimeSnapshot] = useState(null);
+    const mapStudioRouteViewportRef = useRef(null);
+    const [mapStudioRouteViewport, setMapStudioRouteViewport] = useState(null);
     const mapStudioInteractiveModel = useMemo(() => (
         mapStudioRuntimeSnapshot?.design
             ? buildMapStudioInteractiveModel(mapStudioRuntimeSnapshot.design)
@@ -1509,6 +1515,22 @@ export default function MyMapDetailPage() {
             mapStudioInteractiveModel?.layout?.sideResourceColumnCount,
         ].join(':')
         : 'legacy';
+    const mapStudioViewportContext = useMemo(() => ({
+        mapId,
+        viewId: mapStudioRuntimeSnapshot?.activeViewId || '',
+        heightPreset: mapStudioInteractiveModel?.layout?.mapHeight || 'standard',
+    }), [
+        mapId,
+        mapStudioInteractiveModel?.layout?.mapHeight,
+        mapStudioRuntimeSnapshot?.activeViewId,
+    ]);
+    const resolvedMapStudioRouteViewport = useMemo(() => (
+        resolveMapStudioRouteViewport(mapStudioRouteViewport, mapStudioViewportContext)
+    ), [mapStudioRouteViewport, mapStudioViewportContext]);
+    const interactiveMapViewState = resolvedMapStudioRouteViewport.cameraView
+        || mapStudioRuntimeSnapshot?.exploration?.cameraView
+        || mapStudioInteractiveModel?.directoryMap?.mapViewState
+        || null;
     const [printMapState, setPrintMapState] = useState(() => (
         createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS)
     ));
@@ -1614,7 +1636,9 @@ export default function MyMapDetailPage() {
     });
 
     const handleOwnerMapStudioSessionChange = useCallback((snapshot) => {
-        setMapStudioRuntimeSnapshot(snapshot);
+        // Print route unmounts the owner panel and reports a transient null snapshot.
+        // Keep the last same-map runtime so Back can restore the live camera and frame immediately.
+        if (snapshot) setMapStudioRuntimeSnapshot(snapshot);
     }, []);
 
     const handleMapStudioMapStyleChange = useCallback((nextStyle) => {
@@ -1625,12 +1649,29 @@ export default function MyMapDetailPage() {
         );
     }, [mapStudioRuntimeSnapshot]);
 
+    const updateMapStudioRouteViewport = useCallback((patch) => {
+        const next = patchMapStudioRouteViewport(
+            mapStudioRouteViewportRef.current,
+            mapStudioViewportContext,
+            patch,
+        );
+        mapStudioRouteViewportRef.current = next;
+        setMapStudioRouteViewport(next);
+    }, [mapStudioViewportContext]);
+
     const handleInteractiveMapViewStateChange = useCallback((cameraView) => {
+        updateMapStudioRouteViewport({ cameraView });
         mapStudioControllerRef.current?.patchExploration({ cameraView });
-    }, []);
+    }, [updateMapStudioRouteViewport]);
+
+    const handleInteractiveMapHeightChange = useCallback((heightPx) => {
+        updateMapStudioRouteViewport({ heightPx });
+    }, [updateMapStudioRouteViewport]);
 
     useEffect(() => {
         setMapStudioRuntimeSnapshot(null);
+        mapStudioRouteViewportRef.current = null;
+        setMapStudioRouteViewport(null);
         setResourceRemovalMode(false);
     }, [mapId]);
 
@@ -3246,6 +3287,13 @@ export default function MyMapDetailPage() {
                 designDirty: Boolean(mapStudioRuntimeSnapshot.designDirty),
             }
             : null;
+        const routeViewport = resolveMapStudioRouteViewport(
+            mapStudioRouteViewportRef.current,
+            mapStudioViewportContext,
+        );
+        const runtimeCameraView = routeViewport.cameraView
+            || mapStudioRuntimeSnapshot?.exploration?.cameraView
+            || null;
         pendingPrintStudioViewRef.current = studioSnapshot;
         setActivePrintStudioView(studioSnapshot);
         setPrintStudioLoadError('');
@@ -3253,6 +3301,10 @@ export default function MyMapDetailPage() {
             ? buildMapStudioPrintState(
                 studioSnapshot.design,
                 createMapStudioExportSettings(),
+                {
+                    cameraView: runtimeCameraView,
+                    heightPx: routeViewport.heightPx,
+                },
             )
             : createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS));
         setPrintAnnotationEditorOpen(false);
@@ -3414,11 +3466,17 @@ export default function MyMapDetailPage() {
     );
     const ownerMapStudioRuntime = mapStudioInteractiveModel ? {
         ...mapStudioInteractiveModel,
+        directoryMap: {
+            ...mapStudioInteractiveModel.directoryMap,
+            mapViewState: interactiveMapViewState,
+        },
         layoutSignature: `v2-map:${mapStudioLayoutSignature}`,
         heightResetKey: mapStudioRuntimeSnapshot.activeViewId,
+        mapHeightPx: resolvedMapStudioRouteViewport.heightPx,
         mapStyleDescription: t('mapStudioMapColourScope'),
         onMapStyleChange: handleMapStudioMapStyleChange,
         onMapViewStateChange: handleInteractiveMapViewStateChange,
+        onMapHeightChange: handleInteractiveMapHeightChange,
     } : null;
     const studioMapHeight = mapStudioInteractiveModel?.layout?.mapHeight || 'standard';
     const classicMapStudioMapProps = {
@@ -3430,7 +3488,7 @@ export default function MyMapDetailPage() {
         mapStyleDescription: mapStudioInteractiveModel
             ? t('mapStudioMapColourScope')
             : undefined,
-        mapViewState: mapStudioInteractiveModel?.directoryMap?.mapViewState ?? null,
+        mapViewState: interactiveMapViewState,
         markerScale: mapStudioInteractiveModel?.directoryMap?.markerScale ?? 1,
         printBadgeScale: mapStudioInteractiveModel?.directoryMap?.markerScale ?? 1,
         pinBadgeMode: mapStudioInteractiveModel?.directoryMap?.pinBadgeMode ?? 'count',
@@ -3571,6 +3629,14 @@ export default function MyMapDetailPage() {
                                 })
                                 : 'Your saved image will match this preview.'}
                         </p>
+                        {activePrintStudioView ? (
+                            <p
+                                className="w-full text-xs font-semibold text-slate-500"
+                                data-map-studio-export-viewport-help="true"
+                            >
+                                Resize or zoom this preview as needed. PNG/PDF will match it; Back returns to your interactive map.
+                            </p>
+                        ) : null}
                         {actionError ? (
                             <p role="alert" className="w-full text-sm font-semibold text-red-700">
                                 {actionError}
@@ -3638,6 +3704,7 @@ export default function MyMapDetailPage() {
                         onEditPersonalPlace={handleEditPersonalPlace}
                         onRemovePersonalPlace={handleRemoveResource}
                         mapStudioDesignLocked={Boolean(activePrintStudioView)}
+                        mapStudioViewportEditable={Boolean(activePrintStudioView)}
                     />
                 </div>
 

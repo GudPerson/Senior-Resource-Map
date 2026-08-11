@@ -34,6 +34,7 @@ import {
     PRINT_MAP_ANNOTATION_LAYER_HIDE,
     PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES,
     PRINT_MAP_LAYOUT_FOCUS,
+    PRINT_MAP_LAYOUT_FULL,
     PRINT_MAP_PAGE_LAYOUT_FULL,
     PRINT_MAP_PIN_SIZE_LARGE,
     PRINT_MAP_QUALITY_HIGH,
@@ -50,6 +51,72 @@ test('numbered Studio pins reuse the current coloured Print View badge renderer'
     const printState = buildMapStudioPrintState(design);
 
     assert.equal(printState.studioMarkerMode, 'print-badge');
+});
+
+test('Map Studio Export uses a temporary runtime camera without persisting it into the design', () => {
+    const design = createMapStudioDesign();
+    design.camera = {
+        mode: MAP_STUDIO_CAMERA_FIXED,
+        view: { center: [1.31, 103.71], zoom: 14 },
+    };
+    const originalDesign = structuredClone(design);
+    const runtimeCamera = { center: [1.3345, 103.7432], zoom: 15 };
+
+    const printState = buildMapStudioPrintState(
+        design,
+        createMapStudioExportSettings(),
+        { cameraView: runtimeCamera },
+    );
+
+    assert.deepEqual(printState.view, runtimeCamera);
+    assert.deepEqual(design, originalDesign);
+    assert.notEqual(printState.view, runtimeCamera);
+});
+
+test('Map Studio Export inherits a temporary interactive height without persisting it into the design', () => {
+    const design = createMapStudioDesign();
+    const originalDesign = structuredClone(design);
+
+    const printState = buildMapStudioPrintState(
+        design,
+        createMapStudioExportSettings(),
+        { heightPx: 685 },
+    );
+
+    assert.equal(printState.height, 685);
+    assert.deepEqual(design, originalDesign);
+});
+
+test('Map Studio Export keeps runtime height inside the existing layout safety bounds', () => {
+    const standardDesign = createMapStudioDesign();
+    const fullMapDesign = createMapStudioDesign();
+    fullMapDesign.layout.preset = PRINT_MAP_LAYOUT_FULL;
+
+    assert.equal(buildMapStudioPrintState(standardDesign, {}, { heightPx: 9999 }).height, 720);
+    assert.equal(buildMapStudioPrintState(fullMapDesign, {}, { heightPx: 400 }).height, 720);
+    assert.equal(buildMapStudioPrintState(fullMapDesign, {}, { heightPx: 1200 }).height, 1200);
+});
+
+test('Map Studio Export ignores an invalid runtime height and keeps the saved design height', () => {
+    const design = createMapStudioDesign();
+    design.layout.mapHeight = 'tall';
+
+    assert.equal(buildMapStudioPrintState(design, {}, { heightPx: 'invalid' }).height, 560);
+    assert.equal(buildMapStudioPrintState(design, {}, { heightPx: 0 }).height, 560);
+});
+
+test('Map Studio Export falls back to the saved fixed camera when a runtime camera is invalid', () => {
+    const design = createMapStudioDesign();
+    design.camera = {
+        mode: MAP_STUDIO_CAMERA_FIXED,
+        view: { center: [1.31, 103.71], zoom: 14 },
+    };
+
+    const printState = buildMapStudioPrintState(design, {}, {
+        cameraView: { center: [999, 999], zoom: 99 },
+    });
+
+    assert.deepEqual(printState.view, design.camera.view);
 });
 
 test('a legacy My Map gets one versioned default view without changing existing runtime behavior', () => {

@@ -73,7 +73,16 @@ test('desktop resize handle supports pointer, keyboard, reset, and map callback 
     assert.match(resizableSurfaceSource, /data-map-resize-handle="true"/);
     assert.match(resizableSurfaceSource, /heightPreset = null/);
     assert.match(resizableSurfaceSource, /heightResetKey = ''/);
-    assert.match(resizableSurfaceSource, /\[heightPreset, heightResetKey\]/);
+    assert.match(resizableSurfaceSource, /initialHeightPx = null/);
+    assert.match(resizableSurfaceSource, /onHeightCommit = null/);
+    assert.match(resizableSurfaceSource, /lastReportedHeightRef = useRef\(null\)/);
+    assert.match(resizableSurfaceSource, /lastReportedHeightRef\.current = null;[\s\S]*reportHeight\(\)/);
+    assert.match(resizableSurfaceSource, /lastReportedHeightRef\.current === resolvedHeight/);
+    assert.match(resizableSurfaceSource, /onHeightCommitRef\.current\(resolvedHeight\)/);
+    assert.match(resizableSurfaceSource, /const nextHeight = applyHeight\(Number\.isFinite\(suppliedHeight\)/);
+    assert.match(resizableSurfaceSource, /reportHeight\(nextHeight\)/);
+    assert.match(resizableSurfaceSource, /const nextHeight = applyHeight\(heightRef\.current\)/);
+    assert.match(resizableSurfaceSource, /\[heightPreset, heightResetKey, initialHeightPx\]/);
     assert.match(resizableSurfaceSource, /resolveDesktopMapStudioHeightPreset/);
 });
 

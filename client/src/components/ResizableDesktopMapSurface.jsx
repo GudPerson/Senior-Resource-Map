@@ -19,20 +19,27 @@ export default function ResizableDesktopMapSurface({
     onClusterChange,
     heightPreset = null,
     heightResetKey = '',
+    initialHeightPx = null,
+    onHeightCommit = null,
 }) {
     const { t } = useLocale();
     const initialBounds = heightPreset
         ? getDesktopMapStudioHeightBounds(typeof window === 'undefined' ? 900 : window.innerHeight)
         : getInitialBounds();
-    const initialHeight = heightPreset
-        ? resolveDesktopMapStudioHeightPreset(heightPreset, initialBounds)
-        : initialBounds.defaultHeight;
+    const suppliedInitialHeight = Number(initialHeightPx);
+    const initialHeight = Number.isFinite(suppliedInitialHeight) && suppliedInitialHeight > 0
+        ? clampDesktopMapHeight(suppliedInitialHeight, initialBounds)
+        : heightPreset
+            ? resolveDesktopMapStudioHeightPreset(heightPreset, initialBounds)
+            : initialBounds.defaultHeight;
     const boundsRef = useRef(initialBounds);
     const heightPresetRef = useRef(heightPreset);
     const heightRef = useRef(initialHeight);
     const dragRef = useRef(null);
     const resizeFrameRef = useRef(null);
     const bodyStyleRef = useRef(null);
+    const onHeightCommitRef = useRef(onHeightCommit);
+    const lastReportedHeightRef = useRef(null);
     const [height, setHeight] = useState(initialHeight);
 
     function restoreBodyInteraction() {
@@ -50,6 +57,15 @@ export default function ResizableDesktopMapSurface({
             resizeFrameRef.current = null;
             setHeight(heightRef.current);
         });
+        return clampedHeight;
+    }
+
+    function reportHeight(nextHeight = heightRef.current) {
+        if (typeof onHeightCommitRef.current !== 'function') return;
+        const resolvedHeight = clampDesktopMapHeight(nextHeight, boundsRef.current);
+        if (lastReportedHeightRef.current === resolvedHeight) return;
+        lastReportedHeightRef.current = resolvedHeight;
+        onHeightCommitRef.current(resolvedHeight);
     }
 
     function finishDrag(event) {
@@ -64,6 +80,7 @@ export default function ResizableDesktopMapSurface({
             resizeFrameRef.current = null;
         }
         setHeight(heightRef.current);
+        reportHeight();
         restoreBodyInteraction();
     }
 
@@ -109,13 +126,21 @@ export default function ResizableDesktopMapSurface({
         if (nextHeight === null) return;
         event.preventDefault();
         applyHeight(nextHeight);
+        reportHeight();
     }
 
     function resetHeight() {
         applyHeight(heightPresetRef.current
             ? resolveDesktopMapStudioHeightPreset(heightPresetRef.current, boundsRef.current)
             : boundsRef.current.defaultHeight);
+        reportHeight();
     }
+
+    useEffect(() => {
+        onHeightCommitRef.current = onHeightCommit;
+        lastReportedHeightRef.current = null;
+        reportHeight();
+    }, [onHeightCommit]);
 
     useEffect(() => {
         heightPresetRef.current = heightPreset;
@@ -123,10 +148,14 @@ export default function ResizableDesktopMapSurface({
             ? getDesktopMapStudioHeightBounds(window.innerHeight)
             : getDesktopMapHeightBounds(window.innerHeight);
         boundsRef.current = nextBounds;
-        applyHeight(heightPreset
-            ? resolveDesktopMapStudioHeightPreset(heightPreset, nextBounds)
-            : nextBounds.defaultHeight);
-    }, [heightPreset, heightResetKey]);
+        const suppliedHeight = Number(initialHeightPx);
+        const nextHeight = applyHeight(Number.isFinite(suppliedHeight) && suppliedHeight > 0
+            ? suppliedHeight
+            : heightPreset
+                ? resolveDesktopMapStudioHeightPreset(heightPreset, nextBounds)
+                : nextBounds.defaultHeight);
+        reportHeight(nextHeight);
+    }, [heightPreset, heightResetKey, initialHeightPx]);
 
     useEffect(() => {
         function handleViewportResize() {
@@ -134,7 +163,8 @@ export default function ResizableDesktopMapSurface({
                 ? getDesktopMapStudioHeightBounds(window.innerHeight)
                 : getDesktopMapHeightBounds(window.innerHeight);
             boundsRef.current = nextBounds;
-            applyHeight(heightRef.current);
+            const nextHeight = applyHeight(heightRef.current);
+            reportHeight(nextHeight);
         }
 
         window.addEventListener('resize', handleViewportResize, { passive: true });

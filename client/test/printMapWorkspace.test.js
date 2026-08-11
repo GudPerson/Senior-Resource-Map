@@ -572,6 +572,7 @@ test('owner print preview exposes controlled zoom, detail, colour, camera, and h
     assert.match(printViewSource, /role="separator"/);
     assert.match(printViewSource, /showZoomControl=\{Boolean\(printMapState && interactive\)\}/);
     assert.match(printViewSource, /showZoomLevelCounter=\{Boolean\(printMapState && interactive\)\}/);
+    assert.match(printViewSource, /onMapViewStateChange=\{printMapState && interactive \? handleControlledMapViewChange : null\}/);
     assert.match(printViewSource, /mapStyleOverride=\{printMapState\?\.mapStyle \|\| null\}/);
     assert.match(printViewSource, /mapViewState=\{printMapState\?\.view \|\| null\}/);
     assert.match(printViewSource, /basemapMode=\{printMapState\?\.basemapMode \|\| 'live'\}/);
@@ -592,6 +593,20 @@ test('owner print preview exposes controlled zoom, detail, colour, camera, and h
     assert.match(sharedMapDirectorySource, /data-print-export-page="map"/);
     assert.match(sharedMapDirectorySource, /data-print-export-page="resources"/);
     assert.match(printViewSource, /data-print-resource-page-header="true"/);
+});
+
+test('Map Studio keeps saved design controls locked while allowing temporary Export viewport edits', () => {
+    assert.match(
+        printViewSource,
+        /printMapInteractive = variant === 'screen'[\s\S]*&& \(!mapStudioDesignLocked \|\| mapStudioViewportEditable\)/,
+    );
+    assert.match(printViewSource, /mapStudioViewportEditable = false/);
+    assert.match(printViewSource, /onMapStyleOverrideChange=\{printMapState && interactive && !designLocked/);
+    assert.match(printViewSource, /mapModeControl=\{printMapState && interactive && !designLocked \? mapModeControl : null\}/);
+    assert.match(printViewSource, /showMapStyleControl=\{interactive && !designLocked\}/);
+    assert.match(printViewSource, /Math\.ceil\(112 \/ resolvedPreviewScale\)/);
+    assert.match(printViewSource, /Math\.ceil\(44 \/ resolvedPreviewScale\)/);
+    assert.match(printViewSource, /Math\.ceil\(18 \/ resolvedPreviewScale\)/);
 });
 
 test('visible preview and hidden image export consume the same frozen print map state and width', () => {

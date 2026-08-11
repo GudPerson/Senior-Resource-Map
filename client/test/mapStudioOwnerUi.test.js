@@ -56,6 +56,10 @@ test('runtime design stays owner-scoped while exploration remains temporary', ()
     assert.match(ownerPageSource, /townMapManifestStates\[interactiveMapStyle\]/);
     assert.match(ownerPageSource, /filterPrintMapAnnotations\(printAnnotations\.annotations/);
     assert.match(ownerPageSource, /classicMapStudioMapProps/);
+    assert.match(ownerPageSource, /mapViewState: interactiveMapViewState/);
+    assert.match(ownerPageSource, /mapHeightPx: resolvedMapStudioRouteViewport\.heightPx/);
+    assert.match(ownerPageSource, /onMapHeightChange: handleInteractiveMapHeightChange/);
+    assert.match(ownerPageSource, /if \(snapshot\) setMapStudioRuntimeSnapshot\(snapshot\)/);
     assert.match(ownerPageSource, /mapStudioLayoutSignature/);
 });
 
