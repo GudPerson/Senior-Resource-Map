@@ -2,6 +2,32 @@
 
 Last updated: 2026-08-11 (Asia/Singapore)
 
+## Map Studio Export viewport parity recovery release (2026-08-11)
+
+- The current branch is `codex/map-studio-export-route-parity`. Implementation
+  commit `6bc7feb7` passes the active interactive camera and actual rendered
+  height into temporary Export View state, then restores the pre-Export camera
+  and height after Back.
+- The handoff is deliberately session-only and scoped to the current map and
+  selected named view. It does not persist exploration, dirty the design, alter
+  saved view, or reach Shared Map/embed, APIs, schema, annotations, personal
+  places, pin shapes, authentication, or privacy boundaries. Export-only zoom
+  and height changes remain temporary, stay inside existing layout bounds, and
+  are shared by the ready preview and PNG/PDF renderer.
+- Focused coverage passes 87/87; full client coverage passes 659/659; server
+  coverage passes 549/549; map-lockdown passes 88/88; and both normal and
+  six-root Detailed builds pass. Signed-in local UAT on map 258 confirmed
+  440 px/zoom 14.3 inheritance, temporary 720 px/zoom 15.3 Export parity across
+  visible and hidden renderers, PNG/PDF actions, Back restoration, fresh reopen
+  reseeding, and a 112 x 44 px extender at a 390 px viewport without overflow.
+- `main` and the production Pages release now contain `6bc7feb7`. The configured
+  build deployed with Functions and routing files at
+  `https://3120cd0d.senior-resource-map.pages.dev`; all 82 local, immutable,
+  and custom-domain files match by MIME, bytes, and SHA-256 at aggregate digest
+  `e59bf1005f15ee1c9a5685cc916a5d2cbacceb9c73c22bdd1dbab71464d463a3`.
+  Production app/embed framing headers and API health passed. No Worker, API,
+  schema, database, secret, auth, Shared Map, or embed code was changed.
+
 ## Map Studio category-specific numbered-pin shapes and Detailed recovery release (2026-08-11)
 
 - `Arrange categories` is now `Refine categories` in all four supported

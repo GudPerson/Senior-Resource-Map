@@ -15,6 +15,60 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-11 Map Studio Export viewport parity recovery (production release)
+
+- Candidate behavior: Export View now receives the active interactive camera,
+  including unsaved pan and zoom, so its map opens on the same framing as the
+  owner map. Returning with `Back to interactive view` restores that live
+  camera and the actual rendered desktop map height for the same My Map and
+  selected named view.
+- State boundary: camera and rendered pixel height are route-session memory
+  only. They do not modify the named-view design, dirty status, explicit-save
+  payload, API, schema, local storage, or frozen Shared Map/embed snapshot.
+  They seed temporary Export View state within the existing 300-720 px standard
+  and 720-1440 px Full-map safety bounds. Export-only zoom and height changes
+  update that temporary preview state, and PNG/PDF use the same state; `Back`
+  restores the pre-Export interactive camera and height.
+- Known-good reference and root cause: the user-confirmed pre-shape owner flow
+  retained map framing across Export View. Comparison with implementation
+  commit `27f786419` confirms the pin-shape change did not modify the route
+  handoff. The regression exposed a latent gap: Export adapted persistent
+  design camera only, while the resizable owner frame kept its height entirely
+  inside the component that unmounts on `?view=print`.
+- Reproduction: open owned map 258, extend the desktop map to the resize
+  endpoint, zoom to 15, and pan away from the fitted view. Select `Export View`
+  and compare map framing. Select `Back to interactive view` and inspect the
+  zoom, centre, Detailed surface, and `data-map-height` value.
+- Acceptance criteria: Export uses the current centre, zoom, and actual rendered
+  map height without saving exploration; visible Export View exposes temporary
+  zoom and height controls; PNG/PDF match the final ready preview; Back restores
+  the pre-Export camera and height for the same map/view; another map or named
+  view cannot inherit that route state; changing the semantic height preset
+  does not apply stale height; Detailed remains available through its locked
+  zoom-14/15 tiers; shared/embed, annotations, personal places, pin shapes,
+  clustering, persistent layout, margins, and quality remain unchanged.
+- Verification: implementation commit `6bc7feb7`; route/state/resizer/owner/export
+  focused coverage passes 87/87; full client coverage passes 659/659; server
+  coverage passes 549/549; map-lockdown passes 88/88; and both the normal client
+  build and configured six-root Detailed production build pass. Signed-in local
+  UAT on map 258 confirmed untouched 440 px/zoom 14.3 parity on first Export,
+  temporary Export resize/zoom to 720 px/15.3 in both visible and hidden
+  renderers, readiness recovery, successful PNG/PDF actions, Back restoration
+  to 440 px/14.3, and fresh reseeding on reopen. At a 390 px viewport, the
+  extender remained 112 x 44 px with no horizontal overflow. Browser console
+  output contained Chrome-extension message-channel noise only, with no app
+  exception. `main` fast-forwarded to `6bc7feb7`; the exact configured build was
+  deployed with Pages Functions, `_headers`, `_routes.json`, and
+  `--skip-caching` at `https://3120cd0d.senior-resource-map.pages.dev`. All 82
+  local, immutable, and `https://app.carearound.sg` files matched by MIME, byte
+  count, and SHA-256 with aggregate digest
+  `e59bf1005f15ee1c9a5685cc916a5d2cbacceb9c73c22bdd1dbab71464d463a3`.
+  The custom-domain app route returned `200`, `X-Frame-Options: DENY`, and
+  `frame-ancestors 'none'`; an enabled embed returned `200`, `no-store`, no
+  `X-Frame-Options`, and its exact `'self' https://gudauth.app` allowlist. API
+  health returned `ok`. No Worker, database, schema, secret, authentication,
+  Shared Map, or embed implementation change is part of this release.
+
 ## 2026-08-11 Map Studio category-specific numbered-pin shapes and Detailed recovery (production release)
 
 - Candidate behavior: the owner action formerly labelled `Arrange categories`
