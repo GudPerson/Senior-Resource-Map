@@ -1,11 +1,11 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-08-12 (Asia/Singapore)
+Last updated: 2026-08-13 (Asia/Singapore)
 
-## My Map height and displayed-detail threshold recovery candidate (2026-08-12)
+## My Map height and displayed-detail threshold recovery release (2026-08-13)
 
-- Current branch: `codex/map-height-detail-threshold-recovery`, based on
-  `c9b71d3f27`. The change is uncommitted and not deployed.
+- Implementation commit `b18ae3664` is pushed on
+  `codex/map-height-detail-threshold-recovery` and `main`.
 - Balanced, Map focus, and Full map now share the accepted Full-map Export View
   endpoint of 1440 px while retaining their existing preset starting heights.
   The former interactive-only 92%-of-viewport/1040 px ceiling is removed.
@@ -35,7 +35,24 @@ Last updated: 2026-08-12 (Asia/Singapore)
   zoom 15.8, and contained camera, reached map PNG/PDF readiness with 40/40 fixed
   chunks and zero live tiles, and Back restored the same camera, zoom, height,
   and native tier. The browser was returned to Default, 440 px, displayed zoom
-  14 overview, with `No unsaved changes`. No data was saved or deployed.
+  14 overview, with `No unsaved changes`. No data was saved.
+- The exact 82-file client artifact, Pages Function, `_headers`, and
+  `_routes.json` are live at
+  `https://d10299ed.senior-resource-map.pages.dev`. Local, immutable, and
+  custom-domain artifacts match across 164 MIME/byte/SHA-256 comparisons with
+  zero failures at aggregate digest
+  `8aba61c8260683a399159df433572cb973e6bd79faf59265c9ad4bbf481575fb`.
+  API health, ordinary anti-framing, the enabled embed's exact framing, and an
+  unknown-token 404/no-store response pass. The deployed bundle retains all
+  six Detailed roots and locked containment/export markers.
+- Signed-in production UAT on map 258 confirmed the 440-1440 px interactive
+  range, zoom-14 overview, zoom-15 native block-number detail, and complete
+  native coverage at 1440 px with 20 fixed chunks and zero live tiles. Export
+  View exposed the same 1440 px maximum and reached ready PNG/PDF controls with
+  native detail and zero live tiles. Back returned the interactive map to
+  Default, 440 px, displayed zoom 14 overview, and `No unsaved changes`. No
+  Worker, API, schema, database, secret, authentication, Shared Map, embed
+  implementation, or production map data changed.
 
 ## Personal-place interactive short-description recovery (2026-08-11)
 

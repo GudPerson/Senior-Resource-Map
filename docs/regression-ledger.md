@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-12 My Map height and displayed-detail threshold recovery (candidate)
+## 2026-08-13 My Map height and displayed-detail threshold recovery (production release)
 
 - Current behavior: the desktop Map Studio extender now has one shared 1440 px
   endpoint in Balanced, Map focus, and Full map. Their existing Compact,
@@ -78,7 +78,26 @@ Rules:
   zoom 15.8, and contained camera; all 40 fixed chunks loaded, map PNG/PDF became
   ready, and Back restored the same height, zoom, camera, native tier, and zero
   live tiles. UAT ended at Default, 440 px, displayed zoom 14 overview, with no
-  unsaved changes. Nothing has been deployed.
+  unsaved changes.
+- Production release: implementation commit `b18ae3664` is on `main`. The exact
+  validated 82-file client artifact, Pages Function, `_headers`, and
+  `_routes.json` were deployed with caching skipped at
+  `https://d10299ed.senior-resource-map.pages.dev`. Local, immutable, and
+  `https://app.carearound.sg` artifacts match across 164 MIME/byte/SHA-256
+  comparisons with zero failures at aggregate digest
+  `8aba61c8260683a399159df433572cb973e6bd79faf59265c9ad4bbf481575fb`.
+  The custom-domain owner route returned 200 with XFO DENY and
+  `frame-ancestors 'none'`; the enabled embed retained 200, `no-store`, no XFO,
+  and exact `'self' https://gudauth.app https://carearound.sg` framing; an
+  unknown embed token returned 404/no-store; and API health returned `ok`.
+  Signed-in production UAT on map 258 confirmed the 440-1440 px interactive
+  range, zoom-14 overview, zoom-15 native block-number detail, and full native
+  coverage at 1440 px with 20 fixed chunks and zero live tiles. Export View
+  exposed the same 1440 px maximum, loaded native detail with zero live tiles,
+  and reached PNG/PDF readiness. Back restored Default, 440 px, displayed zoom
+  14 overview, and `No unsaved changes`. No Worker, API, schema, database,
+  secret, authentication, Shared Map, embed implementation, or production map
+  data changed.
 
 ## 2026-08-11 Personal-place interactive short-description recovery (production release)
 
