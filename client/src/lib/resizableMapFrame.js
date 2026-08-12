@@ -1,8 +1,9 @@
 export const DESKTOP_MAP_HEIGHT_RATIO = 0.48;
 export const DESKTOP_MAP_HEIGHT_MIN_PX = 440;
 export const DESKTOP_MAP_HEIGHT_DEFAULT_MAX_PX = 700;
-export const DESKTOP_MAP_HEIGHT_EXPANDED_RATIO = 0.92;
-export const DESKTOP_MAP_HEIGHT_EXPANDED_MAX_PX = 1040;
+export const DESKTOP_MAP_HEIGHT_TALL_RATIO = 0.92;
+export const DESKTOP_MAP_HEIGHT_TALL_MAX_PX = 1040;
+export const DESKTOP_MAP_HEIGHT_EXPANDED_MAX_PX = 1440;
 export const DESKTOP_MAP_HEIGHT_KEYBOARD_STEP_PX = 40;
 export const DESKTOP_MAP_STUDIO_COMPACT_RATIO = 0.38;
 export const DESKTOP_MAP_STUDIO_COMPACT_MIN_PX = 360;
@@ -20,10 +21,7 @@ export function getDesktopMapHeightBounds(viewportHeight) {
         DESKTOP_MAP_HEIGHT_MIN_PX,
         DESKTOP_MAP_HEIGHT_DEFAULT_MAX_PX,
     ));
-    const maximumHeight = Math.max(defaultHeight, Math.round(Math.min(
-        safeViewportHeight * DESKTOP_MAP_HEIGHT_EXPANDED_RATIO,
-        DESKTOP_MAP_HEIGHT_EXPANDED_MAX_PX,
-    )));
+    const maximumHeight = Math.max(defaultHeight, DESKTOP_MAP_HEIGHT_EXPANDED_MAX_PX);
 
     return {
         minimumHeight: defaultHeight,
@@ -41,16 +39,21 @@ export function getDesktopMapStudioHeightBounds(viewportHeight) {
         standardBounds.defaultHeight,
         Math.max(DESKTOP_MAP_STUDIO_COMPACT_MIN_PX, safeViewportHeight * DESKTOP_MAP_STUDIO_COMPACT_RATIO),
     ));
+    const tallHeight = Math.max(standardBounds.defaultHeight, Math.round(Math.min(
+        safeViewportHeight * DESKTOP_MAP_HEIGHT_TALL_RATIO,
+        DESKTOP_MAP_HEIGHT_TALL_MAX_PX,
+    )));
     return {
         ...standardBounds,
         minimumHeight: compactHeight,
         compactHeight,
+        tallHeight,
     };
 }
 
 export function resolveDesktopMapStudioHeightPreset(preset, bounds) {
     if (preset === 'compact') return Number(bounds?.compactHeight) || Number(bounds?.minimumHeight);
-    if (preset === 'tall') return Number(bounds?.maximumHeight);
+    if (preset === 'tall') return Number(bounds?.tallHeight) || Number(bounds?.maximumHeight);
     return Number(bounds?.defaultHeight);
 }
 

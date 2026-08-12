@@ -63,9 +63,10 @@ export default function MyMapV2PreviewScaffold({
     fixedTownOverviewSurfacePending = false,
     fixedTownSurfaceGrayscale = false,
     fixedTownSurfaceLockMinZoom = true,
+    fixedTownSurfaceContainOnResize = false,
+    fixedTownSurfaceMaxDecodedBytes = null,
     fixedTownSurfaceFallbackBelowMinZoom = true,
     fixedTownSurfaceFallbackScope = 'global',
-    fixedTownSurfaceUseOverviewRecovery = false,
     onBasemapModeChange,
     onFixedTownSurfaceFallback,
     onFixedTownSurfaceMetricsChange,
@@ -143,9 +144,10 @@ export default function MyMapV2PreviewScaffold({
             fixedTownOverviewSurfacePending={fixedTownOverviewSurfacePending}
             fixedTownSurfaceGrayscale={fixedTownSurfaceGrayscale}
             fixedTownSurfaceLockMinZoom={fixedTownSurfaceLockMinZoom}
+            fixedTownSurfaceContainOnResize={useDesktopLayout && fixedTownSurfaceContainOnResize}
+            fixedTownSurfaceMaxDecodedBytes={fixedTownSurfaceMaxDecodedBytes}
             fixedTownSurfaceFallbackBelowMinZoom={fixedTownSurfaceFallbackBelowMinZoom}
             fixedTownSurfaceFallbackScope={fixedTownSurfaceFallbackScope}
-            fixedTownSurfaceUseOverviewRecovery={fixedTownSurfaceUseOverviewRecovery}
             onBasemapModeChange={onBasemapModeChange}
             onFixedTownSurfaceFallback={onFixedTownSurfaceFallback}
             onFixedTownSurfaceMetricsChange={onFixedTownSurfaceMetricsChange}

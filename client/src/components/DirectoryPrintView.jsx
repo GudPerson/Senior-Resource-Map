@@ -48,6 +48,7 @@ import {
     buildMapStudioResourceLayerCatalog,
     filterMapStudioDirectoryByLayers,
 } from '../lib/mapStudioPresentationAdapter.js';
+import { FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES } from '../lib/fixedTownSurface.js';
 import { normalizeMyMapCategoryKey } from '../lib/myMapCategoryOrder.js';
 import {
     DEFAULT_PRINT_ANNOTATION_STYLE,
@@ -66,8 +67,6 @@ import {
 } from '../lib/printAnnotations.js';
 
 const PRINT_BADGE_COORDINATE_GROUPING_TOLERANCE = 0.0003;
-const PRINT_FULL_MAP_FIXED_SURFACE_MAX_DECODED_BYTES = 384 * 1024 * 1024;
-
 function PrintMapResizeHandle({ height, onChange, previewScale = 1, printMapState = null }) {
     const dragRef = useRef(null);
     const { defaultHeight, minHeight, maxHeight } = getPrintMapHeightBounds(printMapState);
@@ -743,7 +742,7 @@ function PrintDirectoryMap({
                 fixedTownSurfaceContainOnResize={Boolean(printMapState && interactive)}
                 fixedTownSurfaceFallbackBelowMinZoom={false}
                 fixedTownSurfaceMaxDecodedBytes={printMapState?.pageLayout === PRINT_MAP_PAGE_LAYOUT_FULL
-                    ? PRINT_FULL_MAP_FIXED_SURFACE_MAX_DECODED_BYTES
+                    ? FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES
                     : null}
                 fixedTownSurfaceFallbackScope="local"
                 onFixedTownSurfaceViewportChange={interactive ? onFixedTownSurfaceViewportChange : null}

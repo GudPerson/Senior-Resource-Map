@@ -15,6 +15,71 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-12 My Map height and displayed-detail threshold recovery (candidate)
+
+- Current behavior: the desktop Map Studio extender now has one shared 1440 px
+  endpoint in Balanced, Map focus, and Full map. Their existing Compact,
+  Standard, and Tall starting heights are unchanged. The endpoint deliberately
+  matches the already accepted Full-map Export View maximum instead of keeping
+  a second interactive-only 92%-of-viewport/1040 px ceiling.
+- Displayed zoom contract: the number shown in the map control is authoritative.
+  Displayed zoom 14 uses the continuous Detailed overview without block
+  numbers; displayed zoom 15 and every higher step use the native Detailed
+  surface with block numbers. A native zoom-15 surface must never be replaced
+  by the zoom-14 overview merely because the taller viewport needs more area.
+  The 2026-08-11 owner-only overview-recovery behavior at zoom 15 is therefore
+  historical and superseded by this candidate.
+- Containment and memory boundary: owner desktop My Map and Export View share
+  the existing strict fixed-surface containment path and the same named decoded
+  memory limits (256 MiB default, 384 MiB for their extended-height surfaces).
+  If a taller frame would exceed containment or the decoded limit, the camera
+  advances by 0.1 inside the same displayed integer step until the complete
+  native plate set fits. It does not raise the memory ceiling, show partial
+  plates, substitute the wrong detail tier, or introduce live-map tiles.
+- Blast radius: this is a client-only, owner-map and Export sizing recovery.
+  Map Studio presets and saved layout state, camera handoff, pins, category
+  shapes and colours, clustering, annotations, map notes, personal places,
+  resource cards, map style, PNG/PDF composition, Shared Map/embed snapshots,
+  Discover, API/schema, authentication, and privacy boundaries are unchanged.
+- Known-good reference and root cause: the user identified the current Full-map
+  Export View 1440 px endpoint as correct. Signed-in production inspection on
+  map 258 reproduced the mismatch: Full map interactive stopped at 685 px in a
+  745 px viewport while Export exposed 720-1440 px, and displayed zoom 15 used
+  the overview tier at an underlying fractional zoom. The former interactive
+  bound was independently capped at 92%/1040, and the former native-memory
+  recovery explicitly downgraded the tier to overview.
+- Reproduction: open owned map 258 on desktop and exercise Balanced, Map focus,
+  and Full map. Extend each map to its endpoint, reset, and verify its preset
+  start remains unchanged. At displayed zoom 14 inspect the overview detail;
+  advance to displayed zoom 15 and inspect block numbers. Repeat after extending
+  the frame, panning within the selected fixed surface, changing Default/Gray,
+  entering Export View, and returning to interactive view.
+- Acceptance criteria: all three interactive layouts can reach exactly 1440 px;
+  their preset start heights and reset behavior do not drift; Export and
+  interactive share the endpoint; displayed 14 always uses overview without
+  block numbers; displayed 15+ always uses native detail with block numbers;
+  same-stage fractional containment never changes the visible counter or tier;
+  decoded memory remains bounded; and no live tiles, partial fixed surfaces,
+  unavailable message, saved-state mutation, or adjacent map regression appears.
+- Verification: focused height/tier/owner/export coverage
+  passes 90/90; full client coverage passes 661/661; full server coverage passes
+  549/549; map-lockdown passes 89/89; `git diff --check` passes; and both the
+  ordinary client build and configured six-root Detailed production build pass.
+  A manifest/viewport audit at 1414 x 1440 confirmed that raw zoom 15 can exceed
+  the unchanged 384 MiB limit on the Jurong plates, while bounded 0.1 same-stage
+  containment produces a complete below-limit plate set. Signed-in local owner
+  UAT on map 258 at 1470 x 745 confirmed Balanced, Side map, and Full map each
+  reset to the saved Standard 440 px height and expose a 1440 px endpoint.
+  Default and Gray each loaded the overview tier at displayed zoom 14 and the
+  native block-number tier at displayed zoom 15, with zero live tiles. After a
+  real keyboard pan and extension to 1440 px, displayed zoom 15 remained native
+  and fully covered with 20/20 chunks loaded, about 278 MiB decoded, zero live
+  tiles, and no unavailable message. Export View inherited the exact 1440 px,
+  zoom 15.8, and contained camera; all 40 fixed chunks loaded, map PNG/PDF became
+  ready, and Back restored the same height, zoom, camera, native tier, and zero
+  live tiles. UAT ended at Default, 440 px, displayed zoom 14 overview, with no
+  unsaved changes. Nothing has been deployed.
+
 ## 2026-08-11 Personal-place interactive short-description recovery (production release)
 
 - Current behavior: `Edit content` -> `Add short description` now exposes the
@@ -173,7 +238,7 @@ Rules:
   boundary pass. No schema, database, secret, authentication, frozen snapshot,
   or production data changed.
 
-### 2026-08-11 Detailed and resize recovery
+### 2026-08-11 Detailed and resize recovery (superseded for displayed zoom 15)
 
 - Local UAT now enables the immutable zoom-14 Default and Gray overview atlas
   through the established same-origin map proxy, matching the production

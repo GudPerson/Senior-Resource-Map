@@ -21,6 +21,8 @@ const FIXED_TOWN_OVERVIEW_RETAINED_SCALE = 0.25;
 const FIXED_TOWN_OVERVIEW_EDITION = 'zoom14-overview-v1';
 const FIXED_TOWN_OVERVIEW_ATLAS_EDITION = 'zoom14-overview-atlas-v1';
 export const FIXED_TOWN_OVERVIEW_MIN_ZOOM = 14;
+export const FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES = 256 * 1024 * 1024;
+export const FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES = 384 * 1024 * 1024;
 const ACCEPTED_CHUNK_CANONICALIZATION = 'UTF-8 lines "<sha256>  <filename>\\n", sorted by filename';
 
 const ACCEPTED_W01_DEFAULT = Object.freeze({
@@ -1587,6 +1589,19 @@ export function selectVisibleFixedTownChunks(chunks, viewportBounds) {
     return chunks.filter((chunk) => isRecord(chunk) && doWsenBoundsIntersect(chunk.bounds, viewportBounds));
 }
 
+export function getFixedTownChunksDecodedBytes(chunks = []) {
+    return (Array.isArray(chunks) ? chunks : []).reduce((sum, chunk) => {
+        const [width, height] = Array.isArray(chunk?.pixelSize)
+            ? chunk.pixelSize.map(Number)
+            : [0, 0];
+        return sum + (
+            Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
+                ? width * height * 4
+                : 0
+        );
+    }, 0);
+}
+
 export function isFixedTownSurfaceViewportCovered(manifest, viewportBounds) {
     if (!isRecord(manifest) || !readWsenBounds(viewportBounds)) return null;
     const surfaceBounds = manifest.bounds?.surface || manifest.bounds?.nominal;
@@ -1612,18 +1627,10 @@ export function resolveFixedTownSurfaceTier({
     nativeMinZoom = 15,
     overviewMinZoom = FIXED_TOWN_OVERVIEW_MIN_ZOOM,
     overviewConfigured = false,
-    nativeUnavailable = false,
 } = {}) {
-    const normalizedZoom = Number(zoom);
-    const normalizedNativeMinZoom = Number(nativeMinZoom);
-    const normalizedOverviewMinZoom = Number(overviewMinZoom);
-    const nativeEligible = Number.isFinite(normalizedZoom)
-        && Number.isFinite(normalizedNativeMinZoom)
-        && normalizedZoom >= normalizedNativeMinZoom;
-    const overviewEligible = Number.isFinite(normalizedZoom)
-        && Number.isFinite(normalizedOverviewMinZoom)
-        && normalizedZoom >= normalizedOverviewMinZoom;
-    return overviewConfigured && overviewEligible && (!nativeEligible || nativeUnavailable)
+    const nativeEligible = isFixedTownSurfaceZoomEligible(zoom, nativeMinZoom);
+    const overviewEligible = isFixedTownSurfaceZoomEligible(zoom, overviewMinZoom);
+    return overviewConfigured && overviewEligible && !nativeEligible
         ? 'overview'
         : 'native';
 }
@@ -1649,15 +1656,13 @@ export function shouldDeferFixedTownContainmentToLowerTier({
     activeMinZoom,
     transitionMinZoom,
 } = {}) {
-    const normalizedZoom = Number(zoom);
     const normalizedActiveMinZoom = Number(activeMinZoom);
     const normalizedTransitionMinZoom = Number(transitionMinZoom);
-    return Number.isFinite(normalizedZoom)
-        && Number.isFinite(normalizedActiveMinZoom)
+    return Number.isFinite(normalizedActiveMinZoom)
         && Number.isFinite(normalizedTransitionMinZoom)
         && normalizedTransitionMinZoom < normalizedActiveMinZoom
-        && normalizedZoom >= normalizedTransitionMinZoom
-        && normalizedZoom < normalizedActiveMinZoom;
+        && isFixedTownSurfaceZoomEligible(zoom, normalizedTransitionMinZoom)
+        && !isFixedTownSurfaceZoomEligible(zoom, normalizedActiveMinZoom);
 }
 
 export function normalizeFixedTownStandardZoom(zoom, minZoom) {

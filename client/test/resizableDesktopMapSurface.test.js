@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import {
+    DESKTOP_MAP_HEIGHT_EXPANDED_MAX_PX,
     clampDesktopMapHeight,
     getDesktopMapHeightBounds,
     getDesktopMapStudioHeightBounds,
     resolveDesktopMapStudioHeightPreset,
 } from '../src/lib/resizableMapFrame.js';
+import { PRINT_MAP_FULL_PAGE_MAX_HEIGHT_PX } from '../src/lib/printMapState.js';
 
 const resizableSurfaceSource = readFileSync(
     new URL('../src/components/ResizableDesktopMapSurface.jsx', import.meta.url),
@@ -17,44 +19,65 @@ const directoryMapSource = readFileSync(
     new URL('../src/components/DirectoryMap.jsx', import.meta.url),
     'utf8',
 );
+const ownerScaffoldSource = readFileSync(
+    new URL('../src/components/MyMapV2PreviewScaffold.jsx', import.meta.url),
+    'utf8',
+);
+const directoryListSource = readFileSync(
+    new URL('../src/components/SharedMapDirectoryList.jsx', import.meta.url),
+    'utf8',
+);
 
-test('desktop map height bounds preserve the current frame and cap expansion to the viewport', () => {
+test('desktop map height bounds preserve the current frame and match the approved Export View ceiling', () => {
     assert.deepEqual(getDesktopMapHeightBounds(1000), {
         minimumHeight: 480,
         defaultHeight: 480,
-        maximumHeight: 920,
+        maximumHeight: 1440,
     });
     assert.deepEqual(getDesktopMapHeightBounds(768), {
         minimumHeight: 440,
         defaultHeight: 440,
-        maximumHeight: 707,
+        maximumHeight: 1440,
     });
     assert.deepEqual(getDesktopMapHeightBounds(1400), {
         minimumHeight: 672,
         defaultHeight: 672,
-        maximumHeight: 1040,
+        maximumHeight: 1440,
     });
+    assert.equal(DESKTOP_MAP_HEIGHT_EXPANDED_MAX_PX, PRINT_MAP_FULL_PAGE_MAX_HEIGHT_PX);
 });
 
 test('desktop map height stays within the resize bounds', () => {
     const bounds = getDesktopMapHeightBounds(1000);
     assert.equal(clampDesktopMapHeight(200, bounds), 480);
     assert.equal(clampDesktopMapHeight(620.4, bounds), 620);
-    assert.equal(clampDesktopMapHeight(1200, bounds), 920);
+    assert.equal(clampDesktopMapHeight(1200, bounds), 1200);
+    assert.equal(clampDesktopMapHeight(2000, bounds), 1440);
 });
 
-test('Map Studio height presets extend the owner frame without changing legacy bounds', () => {
+test('Map Studio keeps existing preset start heights while every layout can extend to Export height', () => {
     const bounds = getDesktopMapStudioHeightBounds(1000);
     assert.deepEqual(bounds, {
         minimumHeight: 380,
         compactHeight: 380,
         defaultHeight: 480,
-        maximumHeight: 920,
+        maximumHeight: 1440,
+        tallHeight: 920,
     });
     assert.equal(resolveDesktopMapStudioHeightPreset('compact', bounds), 380);
     assert.equal(resolveDesktopMapStudioHeightPreset('standard', bounds), 480);
     assert.equal(resolveDesktopMapStudioHeightPreset('tall', bounds), 920);
     assert.equal(getDesktopMapHeightBounds(1000).minimumHeight, 480);
+});
+
+test('Balanced, Map focus, and Full map all use the shared desktop extender endpoint', () => {
+    assert.match(ownerScaffoldSource, /renderDesktopMap=\{\(\) => \([\s\S]*<ResizableDesktopMapSurface/);
+    assert.match(directoryListSource, /interactiveLayoutPreset === 'map-focus'[\s\S]*renderDesktopMap\(\)/);
+    assert.match(directoryListSource, /interactiveLayoutPreset === 'full-map'[\s\S]*renderDesktopMap\(\)/);
+    assert.ok(
+        (directoryListSource.match(/renderDesktopMap\(\)/g) || []).length >= 3,
+        'every desktop layout branch should call the same map renderer',
+    );
 });
 
 test('desktop resize handle supports pointer, keyboard, reset, and map callback continuity', () => {

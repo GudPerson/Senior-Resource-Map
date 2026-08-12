@@ -79,6 +79,7 @@ import {
 } from '../lib/mapStudioPresentationAdapter.js';
 import { MY_MAP_UI_MODE_V2, getMyMapUiMode } from '../lib/myMapUiMode.js';
 import {
+    FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES,
     fetchFixedTownSurfaceManifest,
     fetchFixedTownSurfaceSource,
     isPointWithinWsenBounds,
@@ -3857,9 +3858,10 @@ export default function MyMapDetailPage() {
                     fixedTownOverviewSurfacePending={townMapOverviewSurfacePending}
                     fixedTownSurfaceGrayscale={false}
                     fixedTownSurfaceLockMinZoom={false}
+                    fixedTownSurfaceContainOnResize
+                    fixedTownSurfaceMaxDecodedBytes={FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES}
                     fixedTownSurfaceFallbackBelowMinZoom={false}
                     fixedTownSurfaceFallbackScope="local"
-                    fixedTownSurfaceUseOverviewRecovery
                     onBasemapModeChange={handleBasemapModeChange}
                     onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                     onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
@@ -4069,9 +4071,10 @@ export default function MyMapDetailPage() {
                                     fixedTownOverviewSurfacePending={townMapOverviewSurfacePending}
                                     fixedTownSurfaceGrayscale={false}
                                     fixedTownSurfaceLockMinZoom={false}
+                                    fixedTownSurfaceContainOnResize
+                                    fixedTownSurfaceMaxDecodedBytes={FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES}
                                     fixedTownSurfaceFallbackBelowMinZoom={false}
                                     fixedTownSurfaceFallbackScope="local"
-                                    fixedTownSurfaceUseOverviewRecovery
                                     onBasemapModeChange={handleBasemapModeChange}
                                     onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                                     onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
@@ -4158,9 +4161,10 @@ export default function MyMapDetailPage() {
                                         fixedTownOverviewSurfacePending={townMapOverviewSurfacePending}
                                         fixedTownSurfaceGrayscale={false}
                                         fixedTownSurfaceLockMinZoom={false}
+                                        fixedTownSurfaceContainOnResize
+                                        fixedTownSurfaceMaxDecodedBytes={FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES}
                                         fixedTownSurfaceFallbackBelowMinZoom={false}
                                         fixedTownSurfaceFallbackScope="local"
-                                        fixedTownSurfaceUseOverviewRecovery
                                         onBasemapModeChange={handleBasemapModeChange}
                                         onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
@@ -4211,7 +4215,6 @@ export default function MyMapDetailPage() {
                                         fixedTownSurfaceLockMinZoom={false}
                                         fixedTownSurfaceFallbackBelowMinZoom={false}
                                         fixedTownSurfaceFallbackScope="local"
-                                        fixedTownSurfaceUseOverviewRecovery
                                         onBasemapModeChange={handleBasemapModeChange}
                                         onFixedTownSurfaceFallback={handleFixedTownSurfaceFallback}
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}

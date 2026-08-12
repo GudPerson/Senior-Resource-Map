@@ -1,6 +1,41 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-08-11 (Asia/Singapore)
+Last updated: 2026-08-12 (Asia/Singapore)
+
+## My Map height and displayed-detail threshold recovery candidate (2026-08-12)
+
+- Current branch: `codex/map-height-detail-threshold-recovery`, based on
+  `c9b71d3f27`. The change is uncommitted and not deployed.
+- Balanced, Map focus, and Full map now share the accepted Full-map Export View
+  endpoint of 1440 px while retaining their existing preset starting heights.
+  The former interactive-only 92%-of-viewport/1040 px ceiling is removed.
+- The displayed zoom counter now owns the detail-tier contract: 14 is the
+  continuous Detailed overview without block numbers; 15+ is the native
+  Detailed surface with block numbers. This explicitly supersedes the
+  2026-08-11 owner-only behavior that could replace native detail with overview
+  at displayed zoom 15.
+- Tall-frame containment keeps the existing 256 MiB default and 384 MiB extended
+  decoded-memory limits. When needed, it advances the internal camera by 0.1
+  inside the same displayed zoom step until the complete plate set fits; it does
+  not increase the limit, show partial plates, use the wrong tier, or add live
+  map tiles. The memory constants and decoded-size calculation are shared by
+  My Map, Export View, and the fixed-surface renderer to prevent drift.
+- Focused coverage passes 90/90; full client coverage passes 661/661; server
+  coverage passes 549/549; map-lockdown passes 89/89; diff checking passes; and
+  both ordinary and exact six-root Detailed builds pass. Production inspection
+  reproduced the original 685 px interactive versus 1440 px Export mismatch
+  and the displayed-15 overview regression without mutating data.
+- Signed-in local owner UAT on map 258 at 1470 x 745 is complete. Balanced,
+  Side map, and Full map each reset to the saved 440 px Standard height and
+  reached 1440 px. Default and Gray used overview at displayed zoom 14 and
+  native block-number detail at displayed zoom 15, with fully loaded fixed
+  chunks and zero live tiles. A keyboard pan followed by 1440 px extension kept
+  displayed zoom 15 native and fully covered (20/20 chunks, about 278 MiB
+  decoded) with no unavailable message. Export View inherited the exact height,
+  zoom 15.8, and contained camera, reached map PNG/PDF readiness with 40/40 fixed
+  chunks and zero live tiles, and Back restored the same camera, zoom, height,
+  and native tier. The browser was returned to Default, 440 px, displayed zoom
+  14 overview, with `No unsaved changes`. No data was saved or deployed.
 
 ## Personal-place interactive short-description recovery (2026-08-11)
 

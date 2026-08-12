@@ -580,7 +580,7 @@ test('owner print preview exposes controlled zoom, detail, colour, camera, and h
     assert.match(printViewSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);
     assert.match(printViewSource, /fixedTownSurfaceSnapToMinZoom=\{Boolean\(printMapState && interactive\)\}/);
     assert.match(printViewSource, /fixedTownSurfaceContainOnResize=\{Boolean\(printMapState && interactive\)\}/);
-    assert.match(printViewSource, /PRINT_FULL_MAP_FIXED_SURFACE_MAX_DECODED_BYTES = 384 \* 1024 \* 1024/);
+    assert.match(printViewSource, /FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES/);
     assert.match(printViewSource, /fixedTownSurfaceMaxDecodedBytes=\{printMapState\?\.pageLayout === PRINT_MAP_PAGE_LAYOUT_FULL/);
     assert.match(printViewSource, /onFixedTownSurfaceViewportChange=\{interactive \? onFixedTownSurfaceViewportChange : null\}/);
     assert.match(printViewSource, /mapHeightPx=\{printMapState \? clampPrintMapHeight\(printMapState\.height, printMapState\) : null\}/);

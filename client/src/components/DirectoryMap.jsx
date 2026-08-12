@@ -45,11 +45,14 @@ import {
 import { getCollisionPushDistances } from '../lib/mapCollisionPolicy.js';
 import {
     FIXED_TOWN_OVERVIEW_MIN_ZOOM,
+    FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES,
     areWsenBoundsContained,
+    getFixedTownChunksDecodedBytes,
     isFixedTownSurfaceViewportCovered,
     isFixedTownSurfaceZoomEligible,
     normalizeFixedTownStandardZoom,
     resolveFixedTownMinimumZoomSnap,
+    resolveFixedTownDisplayZoomStep,
     resolveFixedTownBasemapMode,
     resolveFixedTownSurfaceTier,
     resolveFixedTownTransitionMinZoom,
@@ -2115,6 +2118,7 @@ function DirectoryMapFixedTownResizeContainmentSync({
     manifest = null,
     minZoom,
     transitionMinZoom = minZoom,
+    maxDecodedBytes = null,
 }) {
     const map = useMap();
 
@@ -2131,6 +2135,11 @@ function DirectoryMapFixedTownResizeContainmentSync({
 
         const [west, south, east, north] = surfaceBounds.map(Number);
         const leafletSurfaceBounds = L.latLngBounds([south, west], [north, east]);
+        const configuredMaxDecodedBytes = Number(maxDecodedBytes);
+        const decodedByteLimit = Number.isFinite(configuredMaxDecodedBytes)
+            && configuredMaxDecodedBytes > 0
+            ? configuredMaxDecodedBytes
+            : FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES;
         let frame = null;
 
         const keepExpandedViewportInsideSurface = () => {
@@ -2159,14 +2168,20 @@ function DirectoryMapFixedTownResizeContainmentSync({
                 currentBounds.getEast(),
                 currentBounds.getNorth(),
             ];
-            if (areWsenBoundsContained(viewportBounds, surfaceBounds)) return;
+            const viewportContained = areWsenBoundsContained(viewportBounds, surfaceBounds);
+            const visibleChunks = selectVisibleFixedTownChunks(manifest.chunks, viewportBounds);
+            const viewportWithinDecodedBudget = visibleChunks.length > 0
+                && getFixedTownChunksDecodedBytes(visibleChunks) <= decodedByteLimit;
+            if (viewportContained && viewportWithinDecodedBudget) return;
 
             // A genuine pan outside the selected surface must still use the normal
             // regular-map fallback. Only contain a resized or settled zoom viewport
             // whose camera centre remains within the active Detailed surface.
             if (!leafletSurfaceBounds.contains(map.getCenter())) return;
 
-            const requiredZoom = Number(map.getBoundsZoom(leafletSurfaceBounds, true));
+            const requiredZoom = viewportContained
+                ? currentZoom
+                : Number(map.getBoundsZoom(leafletSurfaceBounds, true));
             if (!Number.isFinite(requiredZoom)) return;
 
             const zoomSnap = 0.1;
@@ -2175,26 +2190,68 @@ function DirectoryMapFixedTownResizeContainmentSync({
             const nextZoomBase = minimumRequiredZoom > currentZoom
                 ? minimumRequiredZoom
                 : currentZoom + zoomSnap;
-            const nextZoom = Math.min(
-                Number.isFinite(maximumZoom) ? maximumZoom : requiredZoom,
+            const viewportHalf = map.getSize().divideBy(2);
+            const resolvedMaximumZoom = Number.isFinite(maximumZoom)
+                ? maximumZoom
+                : minimumRequiredZoom + 6;
+            const firstCandidateZoom = Math.min(
+                resolvedMaximumZoom,
                 Math.ceil(nextZoomBase / zoomSnap) * zoomSnap,
             );
-            const viewportHalf = map.getSize().divideBy(2);
-            const surfaceNorthWest = map.project(leafletSurfaceBounds.getNorthWest(), nextZoom);
-            const surfaceSouthEast = map.project(leafletSurfaceBounds.getSouthEast(), nextZoom);
-            const currentCenter = map.project(map.getCenter(), nextZoom);
-            const inset = 2;
-            const minimumX = surfaceNorthWest.x + viewportHalf.x + inset;
-            const maximumX = surfaceSouthEast.x - viewportHalf.x - inset;
-            const minimumY = surfaceNorthWest.y + viewportHalf.y + inset;
-            const maximumY = surfaceSouthEast.y - viewportHalf.y - inset;
-            if (minimumX > maximumX || minimumY > maximumY) return;
+            let nextCamera = null;
 
-            const nextCenter = L.point(
-                Math.min(maximumX, Math.max(minimumX, currentCenter.x)),
-                Math.min(maximumY, Math.max(minimumY, currentCenter.y)),
+            for (
+                let candidateZoom = firstCandidateZoom;
+                candidateZoom <= resolvedMaximumZoom + Number.EPSILON;
+                candidateZoom = Math.round((candidateZoom + zoomSnap) * 10) / 10
+            ) {
+                const surfaceNorthWest = map.project(leafletSurfaceBounds.getNorthWest(), candidateZoom);
+                const surfaceSouthEast = map.project(leafletSurfaceBounds.getSouthEast(), candidateZoom);
+                const currentCenter = map.project(map.getCenter(), candidateZoom);
+                const inset = 2;
+                const minimumX = surfaceNorthWest.x + viewportHalf.x + inset;
+                const maximumX = surfaceSouthEast.x - viewportHalf.x - inset;
+                const minimumY = surfaceNorthWest.y + viewportHalf.y + inset;
+                const maximumY = surfaceSouthEast.y - viewportHalf.y - inset;
+                if (minimumX > maximumX || minimumY > maximumY) continue;
+
+                const candidateCenter = L.point(
+                    Math.min(maximumX, Math.max(minimumX, currentCenter.x)),
+                    Math.min(maximumY, Math.max(minimumY, currentCenter.y)),
+                );
+                const candidateNorthWest = map.unproject(L.point(
+                    candidateCenter.x - viewportHalf.x,
+                    candidateCenter.y - viewportHalf.y,
+                ), candidateZoom);
+                const candidateSouthEast = map.unproject(L.point(
+                    candidateCenter.x + viewportHalf.x,
+                    candidateCenter.y + viewportHalf.y,
+                ), candidateZoom);
+                const candidateViewportBounds = [
+                    candidateNorthWest.lng,
+                    candidateSouthEast.lat,
+                    candidateSouthEast.lng,
+                    candidateNorthWest.lat,
+                ];
+                const candidateChunks = selectVisibleFixedTownChunks(
+                    manifest.chunks,
+                    candidateViewportBounds,
+                );
+                if (
+                    candidateChunks.length > 0
+                    && getFixedTownChunksDecodedBytes(candidateChunks) <= decodedByteLimit
+                ) {
+                    nextCamera = { center: candidateCenter, zoom: candidateZoom };
+                    break;
+                }
+            }
+
+            if (!nextCamera) return;
+            map.setView(
+                map.unproject(nextCamera.center, nextCamera.zoom),
+                nextCamera.zoom,
+                { animate: false },
             );
-            map.setView(map.unproject(nextCenter, nextZoom), nextZoom, { animate: false });
         };
         const scheduleContainment = () => {
             if (frame !== null) return;
@@ -2207,7 +2264,7 @@ function DirectoryMapFixedTownResizeContainmentSync({
             if (frame !== null) window.cancelAnimationFrame(frame);
             map.off('resize moveend zoomend', scheduleContainment);
         };
-    }, [enabled, manifest, map, minZoom, transitionMinZoom]);
+    }, [enabled, manifest, map, maxDecodedBytes, minZoom, transitionMinZoom]);
 
     return null;
 }
@@ -2597,7 +2654,6 @@ export default function DirectoryMap({
     fixedTownSurfaceLockMinZoom = true,
     fixedTownSurfaceSnapToMinZoom = false,
     fixedTownSurfaceContainOnResize = false,
-    fixedTownSurfaceUseOverviewRecovery = false,
     fixedTownSurfaceFallbackBelowMinZoom = true,
     fixedTownSurfaceMaxDecodedBytes = null,
     fixedTownSurfaceFallbackScope = 'global',
@@ -2653,7 +2709,6 @@ export default function DirectoryMap({
     const [fixedTownSurfaceZoom, setFixedTownSurfaceZoom] = useState(null);
     const [fixedTownSurfaceViewportEligible, setFixedTownSurfaceViewportEligible] = useState(null);
     const [fixedTownSurfaceViewportBounds, setFixedTownSurfaceViewportBounds] = useState(null);
-    const [fixedTownNativeMemoryFallbackZoom, setFixedTownNativeMemoryFallbackZoom] = useState(null);
     const [fixedTownManualLiveOverride, setFixedTownManualLiveOverride] = useState(false);
     const [fixedTownSurfaceFaultReason, setFixedTownSurfaceFaultReason] = useState('');
     const fixedTownSurfaceFaultZoomRef = useRef(null);
@@ -2676,29 +2731,20 @@ export default function DirectoryMap({
         fixedTownOverviewSurfaceManifest,
         fixedTownSurfaceViewportBounds,
     );
-    const fixedTownNativeViewportUnavailable = fixedTownNativeViewportCovered === false
-        || (
-            fixedTownNativeViewportCovered === null
-            && fixedTownSurfaceViewportEligible === false
-        );
-    const fixedTownNativeSurfaceUnavailable = fixedTownSurfaceUseOverviewRecovery && (
-        fixedTownNativeMemoryFallbackZoom !== null
-        || (
-            fixedTownNativeViewportUnavailable
-            && fixedTownOverviewViewportCovered !== false
-        )
-    );
     const resolvedFixedTownTransitionMinZoom = resolveFixedTownTransitionMinZoom({
         nativeMinZoom: resolvedNativeFixedTownSurfaceMinZoom,
         overviewMinZoom: resolvedOverviewFixedTownSurfaceMinZoom,
         overviewConfigured: fixedTownOverviewConfigured,
     });
-    const fixedTownSurfaceTier = resolveFixedTownSurfaceTier({
+    const fixedTownSurfaceDisplayZoom = resolveFixedTownDisplayZoomStep({
         zoom: fixedTownSurfaceZoom,
+        preserveContainmentStep: fixedTownSurfaceContainOnResize,
+    });
+    const fixedTownSurfaceTier = resolveFixedTownSurfaceTier({
+        zoom: fixedTownSurfaceDisplayZoom,
         nativeMinZoom: resolvedNativeFixedTownSurfaceMinZoom,
         overviewMinZoom: resolvedOverviewFixedTownSurfaceMinZoom,
         overviewConfigured: fixedTownOverviewConfigured,
-        nativeUnavailable: fixedTownNativeSurfaceUnavailable,
     });
     const usingFixedTownOverview = fixedTownSurfaceTier === 'overview';
     const activeFixedTownSurfaceManifest = usingFixedTownOverview
@@ -2755,7 +2801,6 @@ export default function DirectoryMap({
         if (nextMode === 'town') {
             setFixedTownManualLiveOverride(false);
             setFixedTownSurfaceFaultReason('');
-            setFixedTownNativeMemoryFallbackZoom(null);
             fixedTownSurfaceFaultZoomRef.current = null;
         } else if (townMapZoomEligible) {
             setFixedTownManualLiveOverride(true);
@@ -2768,28 +2813,12 @@ export default function DirectoryMap({
         if (basemapMode === 'auto' || basemapMode === 'town') {
             setFixedTownManualLiveOverride(false);
             setFixedTownSurfaceFaultReason('');
-            setFixedTownNativeMemoryFallbackZoom(null);
             fixedTownSurfaceFaultZoomRef.current = null;
         }
     }, [basemapMode]);
     const handleFixedTownSurfaceFallback = useCallback((details = {}) => {
         if (fixedTownSurfaceFallbackScope === 'local') {
             const reason = details.reason || 'surface-unavailable';
-            if (
-                reason === 'viewport-memory-limit'
-                && fixedTownSurfaceUseOverviewRecovery
-                && fixedTownSurfaceTier === 'native'
-                && fixedTownOverviewConfigured
-                && fixedTownOverviewViewportCovered !== false
-            ) {
-                const fallbackZoom = Number(details.zoom ?? fixedTownSurfaceZoom);
-                setFixedTownNativeMemoryFallbackZoom(Number.isFinite(fallbackZoom)
-                    ? fallbackZoom
-                    : resolvedNativeFixedTownSurfaceMinZoom);
-                setFixedTownSurfaceFaultReason('');
-                fixedTownSurfaceFaultZoomRef.current = null;
-                return;
-            }
             if (reason === 'outside-surface' && onFixedTownSurfaceViewportChange) {
                 setFixedTownSurfaceFaultReason('');
                 fixedTownSurfaceFaultZoomRef.current = null;
@@ -2806,34 +2835,9 @@ export default function DirectoryMap({
         onFixedTownSurfaceFallback?.(details);
     }, [
         fixedTownSurfaceFallbackScope,
-        fixedTownSurfaceUseOverviewRecovery,
-        fixedTownOverviewConfigured,
-        fixedTownOverviewViewportCovered,
-        fixedTownSurfaceTier,
         fixedTownSurfaceZoom,
         onFixedTownSurfaceFallback,
         onFixedTownSurfaceViewportChange,
-        resolvedNativeFixedTownSurfaceMinZoom,
-    ]);
-
-    useEffect(() => {
-        if (fixedTownNativeMemoryFallbackZoom === null) return;
-        if (
-            !isFixedTownSurfaceZoomEligible(
-                fixedTownSurfaceZoom,
-                resolvedNativeFixedTownSurfaceMinZoom,
-            )
-            || shouldRetryFixedTownSurfaceMemoryFallback({
-                currentZoom: fixedTownSurfaceZoom,
-                fallbackZoom: fixedTownNativeMemoryFallbackZoom,
-            })
-        ) {
-            setFixedTownNativeMemoryFallbackZoom(null);
-        }
-    }, [
-        fixedTownNativeMemoryFallbackZoom,
-        fixedTownSurfaceZoom,
-        resolvedNativeFixedTownSurfaceMinZoom,
     ]);
 
     const handleFixedTownSurfaceViewportBoundsChange = useCallback((viewportBounds) => {
@@ -3408,7 +3412,6 @@ export default function DirectoryMap({
             data-fixed-town-surface-tier={effectiveBasemapMode === 'town' ? fixedTownSurfaceTier : undefined}
             data-fixed-town-native-viewport-covered={fixedTownNativeViewportCovered ?? undefined}
             data-fixed-town-overview-viewport-covered={fixedTownOverviewViewportCovered ?? undefined}
-            data-fixed-town-overview-recovery={fixedTownNativeSurfaceUnavailable ? 'true' : undefined}
             data-print-export-map-frame={onMapReadyForCapture ? 'true' : undefined}
             data-external-mobile-map-controls={mobileControlPortalTarget ? 'true' : undefined}
         >
@@ -3440,6 +3443,7 @@ export default function DirectoryMap({
                         && townBasemapRequested
                         && fixedTownSurfaceConfigured}
                     manifest={activeFixedTownSurfaceManifest}
+                    maxDecodedBytes={fixedTownSurfaceMaxDecodedBytes}
                     minZoom={resolvedFixedTownSurfaceMinZoom}
                     transitionMinZoom={resolvedFixedTownTransitionMinZoom}
                 />

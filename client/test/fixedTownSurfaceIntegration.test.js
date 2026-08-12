@@ -10,6 +10,10 @@ const fixedTownSurfaceSource = await readFile(
     new URL('../src/components/FixedTownSurfaceLayer.jsx', import.meta.url),
     'utf8',
 );
+const fixedTownSurfaceLibSource = await readFile(
+    new URL('../src/lib/fixedTownSurface.js', import.meta.url),
+    'utf8',
+);
 const townMapControlSource = await readFile(
     new URL('../src/components/TownMapModeControl.jsx', import.meta.url),
     'utf8',
@@ -39,16 +43,13 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /basemapMode = 'live'/);
     assert.match(directoryMapSource, /resolveFixedTownBasemapMode\(/);
     assert.match(directoryMapSource, /resolveFixedTownSurfaceTier\(/);
-    assert.match(
-        directoryMapSource,
-        /const fixedTownSurfaceTier = resolveFixedTownSurfaceTier\(\{[\s\S]*?nativeUnavailable: fixedTownNativeSurfaceUnavailable,[\s\S]*?\}\);/,
-    );
-    assert.match(directoryMapSource, /fixedTownSurfaceUseOverviewRecovery = false/);
-    assert.match(directoryMapSource, /fixedTownNativeViewportCovered === null\s*&& fixedTownSurfaceViewportEligible === false/);
-    assert.match(directoryMapSource, /data-fixed-town-overview-recovery/);
+    assert.match(directoryMapSource, /const fixedTownSurfaceDisplayZoom = resolveFixedTownDisplayZoomStep\(\{/);
+    assert.match(directoryMapSource, /zoom: fixedTownSurfaceDisplayZoom/);
+    assert.doesNotMatch(directoryMapSource, /nativeUnavailable:/);
+    assert.doesNotMatch(directoryMapSource, /fixedTownSurfaceUseOverviewRecovery/);
+    assert.doesNotMatch(directoryMapSource, /data-fixed-town-overview-recovery/);
     assert.match(directoryMapSource, /isFixedTownSurfaceViewportCovered\(/);
-    assert.match(directoryMapSource, /fixedTownNativeMemoryFallbackZoom/);
-    assert.match(directoryMapSource, /fixedTownSurfaceTier === 'native'/);
+    assert.doesNotMatch(directoryMapSource, /fixedTownNativeMemoryFallbackZoom/);
     assert.match(directoryMapSource, /reason === 'viewport-memory-limit'/);
     assert.match(directoryMapSource, /surfaceTier: fixedTownSurfaceTier/);
     assert.match(directoryMapSource, /resolveFixedTownTransitionMinZoom\(/);
@@ -68,6 +69,9 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /shouldDeferFixedTownContainmentToLowerTier\(\{/);
     assert.match(directoryMapSource, /normalizeFixedTownStandardZoom/);
     assert.match(directoryMapSource, /selectVisibleFixedTownChunks\(manifest\.chunks, viewportBounds\)/);
+    assert.match(directoryMapSource, /getFixedTownChunksDecodedBytes\(visibleChunks\) <= decodedByteLimit/);
+    assert.match(directoryMapSource, /let candidateZoom = firstCandidateZoom/);
+    assert.match(directoryMapSource, /getFixedTownChunksDecodedBytes\(candidateChunks\) <= decodedByteLimit/);
     assert.match(directoryMapSource, /areWsenBoundsContained\(viewportBounds, surfaceBounds\)/);
     assert.match(
         directoryMapSource,
@@ -153,7 +157,7 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /const minimumRequiredZoom = Math\.max\(normalizedMinZoom, requiredZoom\)/);
     assert.match(directoryMapSource, /const nextZoomBase = minimumRequiredZoom > currentZoom/);
     assert.doesNotMatch(directoryMapSource, /Math\.max\(currentZoom \+ zoomSnap, normalizedMinZoom, requiredZoom\)/);
-    assert.match(directoryMapSource, /map\.unproject\(nextCenter, nextZoom\)/);
+    assert.match(directoryMapSource, /map\.unproject\(nextCamera\.center, nextCamera\.zoom\)/);
     assert.match(directoryMapSource, /keepExpandedViewportInsideSurface\(\);\s*map\.on\('resize moveend zoomend', scheduleContainment\)/);
     assert.match(directoryMapSource, /map\.on\('resize moveend zoomend', scheduleContainment\)/);
     assert.match(directoryMapSource, /map\.off\('resize moveend zoomend', scheduleContainment\)/);
@@ -186,15 +190,17 @@ test('fixed town surface culls chunks and removes overlays without becoming a ti
     assert.match(fixedTownSurfaceSource, /removeBackdrop\(\);\s*removeAttribution\(\);\s*onFallbackRef/);
     assert.match(fixedTownSurfaceSource, /areWsenBoundsContained\(viewportBounds, manifest\.bounds\?\.surface \|\| manifest\.bounds\?\.nominal\)/);
     assert.match(fixedTownSurfaceSource, /FIXED_TOWN_SURFACE_RETENTION_PAD = 0\.5/);
-    assert.match(fixedTownSurfaceSource, /FIXED_TOWN_SURFACE_MAX_DECODED_BYTES = 256 \* 1024 \* 1024/);
-    assert.match(fixedTownSurfaceSource, /maxDecodedBytes = FIXED_TOWN_SURFACE_MAX_DECODED_BYTES/);
+    assert.match(fixedTownSurfaceLibSource, /FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES = 256 \* 1024 \* 1024/);
+    assert.match(fixedTownSurfaceLibSource, /FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES = 384 \* 1024 \* 1024/);
+    assert.match(fixedTownSurfaceLibSource, /export function getFixedTownChunksDecodedBytes/);
+    assert.match(fixedTownSurfaceSource, /maxDecodedBytes = FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES/);
     assert.match(fixedTownSurfaceSource, /const decodedByteLimit =/);
     assert.match(fixedTownSurfaceSource, /FIXED_TOWN_SURFACE_CHUNK_RETRY_DELAYS_MS = \[350, 1200, 4000\]/);
     assert.match(fixedTownSurfaceSource, /zoom <= townMinZoom \+ FIXED_TOWN_SURFACE_LOW_ZOOM_RANGE/);
     assert.match(fixedTownSurfaceSource, /getViewportBounds\(map, retentionPad\)/);
-    assert.match(fixedTownSurfaceSource, /getDecodedBytes\(paddedChunks\)/);
+    assert.match(fixedTownSurfaceSource, /getFixedTownChunksDecodedBytes\(paddedChunks\)/);
     assert.match(fixedTownSurfaceSource, /const nextActiveChunks = new Map/);
-    assert.match(fixedTownSurfaceSource, /getDecodedBytes\(\[\.\.\.nextActiveChunks\.values\(\)\]\)/);
+    assert.match(fixedTownSurfaceSource, /getFixedTownChunksDecodedBytes\(\[\.\.\.nextActiveChunks\.values\(\)\]\)/);
     assert.match(fixedTownSurfaceSource, /map\.on\('move zoom', handleMapMove\)/);
     assert.match(fixedTownSurfaceSource, /map\.on\('zoomstart', handleMapZoomStart\)/);
     assert.match(fixedTownSurfaceSource, /map\.on\('zoomend', handleMapZoomEnd\)/);
@@ -271,8 +277,12 @@ test('town map proof is owner-only, local-flagged, and uses viewport coverage fo
     assert.match(ownerPageSource, /Detailed map is not ready for this area/);
     assert.doesNotMatch(ownerPageSource, /Detailed map covers Choa Chu Kang only/);
     assert.match(ownerPageSource, /onFixedTownSurfaceFallback=\{handleFixedTownSurfaceFallback\}/);
-    assert.match(ownerPageSource, /fixedTownSurfaceUseOverviewRecovery/);
-    assert.match(ownerScaffoldSource, /fixedTownSurfaceUseOverviewRecovery=\{fixedTownSurfaceUseOverviewRecovery\}/);
+    assert.doesNotMatch(ownerPageSource, /fixedTownSurfaceUseOverviewRecovery/);
+    assert.doesNotMatch(ownerScaffoldSource, /fixedTownSurfaceUseOverviewRecovery/);
+    assert.match(ownerPageSource, /FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES/);
+    assert.match(ownerPageSource, /fixedTownSurfaceContainOnResize/);
+    assert.match(ownerScaffoldSource, /fixedTownSurfaceContainOnResize=\{useDesktopLayout && fixedTownSurfaceContainOnResize\}/);
+    assert.match(ownerScaffoldSource, /fixedTownSurfaceMaxDecodedBytes=\{fixedTownSurfaceMaxDecodedBytes\}/);
     assert.match(ownerScaffoldSource, /basemapMode=\{basemapMode\}/);
     assert.match(ownerScaffoldSource, /fixedTownSurfaceAvailable=\{fixedTownSurfaceAvailable\}/);
     assert.match(ownerScaffoldSource, /fixedTownSurfacePending=\{fixedTownSurfacePending\}/);

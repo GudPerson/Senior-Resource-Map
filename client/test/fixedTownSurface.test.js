@@ -8,10 +8,13 @@ import {
     FIXED_TOWN_SURFACE_INDEX_SCHEMA_VERSION,
     FIXED_TOWN_SURFACE_SCHEMA_VERSION,
     FIXED_TOWN_OVERVIEW_MIN_ZOOM,
+    FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES,
+    FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES,
     areWsenBoundsContained,
     doWsenBoundsIntersect,
     fetchFixedTownSurfaceManifest,
     fetchFixedTownSurfaceSource,
+    getFixedTownChunksDecodedBytes,
     isFixedTownSurfaceZoomEligible,
     isFixedTownSurfaceViewportCovered,
     isPointWithinWsenBounds,
@@ -670,38 +673,39 @@ test('zoom-14 overview tier never replaces the native zoom-15 tier', () => {
     });
 
     assert.equal(resolveTier(null), 'native');
-    assert.equal(resolveTier(13.5), 'native');
-    assert.equal(resolveTier(13.99), 'native');
+    assert.equal(resolveTier(13.49), 'native');
+    assert.equal(resolveTier(13.5), 'overview');
+    assert.equal(resolveTier(13.99), 'overview');
     assert.equal(resolveTier(14), 'overview');
     assert.equal(resolveTier(14.49), 'overview');
-    assert.equal(resolveTier(14.5), 'overview');
-    assert.equal(resolveTier(14.99), 'overview');
+    assert.equal(resolveTier(14.5), 'native');
+    assert.equal(resolveTier(14.99), 'native');
     assert.equal(resolveTier(15), 'native');
     assert.equal(resolveTier(14, false), 'native');
 });
 
-test('continuous overview is a recovery tier when zoom-15 native coverage is unavailable', () => {
+test('native block-number detail cannot downgrade to the overview tier at displayed zoom 15', () => {
     assert.equal(resolveFixedTownSurfaceTier({
         zoom: 15,
+        nativeMinZoom: 15,
+        overviewMinZoom: 14,
+        overviewConfigured: true,
+        nativeUnavailable: true,
+    }), 'native');
+    assert.equal(resolveFixedTownSurfaceTier({
+        zoom: 14.5,
+        nativeMinZoom: 15,
+        overviewMinZoom: 14,
+        overviewConfigured: true,
+        nativeUnavailable: true,
+    }), 'native');
+    assert.equal(resolveFixedTownSurfaceTier({
+        zoom: 14.49,
         nativeMinZoom: 15,
         overviewMinZoom: 14,
         overviewConfigured: true,
         nativeUnavailable: true,
     }), 'overview');
-    assert.equal(resolveFixedTownSurfaceTier({
-        zoom: 15,
-        nativeMinZoom: 15,
-        overviewMinZoom: 14,
-        overviewConfigured: false,
-        nativeUnavailable: true,
-    }), 'native');
-    assert.equal(resolveFixedTownSurfaceTier({
-        zoom: 13.9,
-        nativeMinZoom: 15,
-        overviewMinZoom: 14,
-        overviewConfigured: true,
-        nativeUnavailable: true,
-    }), 'native');
 });
 
 test('fixed town viewport coverage requires full bounds and at least one visible chunk', () => {
@@ -745,10 +749,15 @@ test('fixed town transition threshold expands only when overview assets are conf
 
 test('native containment yields while a configured lower tier takes over', () => {
     assert.equal(shouldDeferFixedTownContainmentToLowerTier({
-        zoom: 14.6,
+        zoom: 14.49,
         activeMinZoom: 15,
         transitionMinZoom: 14,
     }), true);
+    assert.equal(shouldDeferFixedTownContainmentToLowerTier({
+        zoom: 14.5,
+        activeMinZoom: 15,
+        transitionMinZoom: 14,
+    }), false);
     assert.equal(shouldDeferFixedTownContainmentToLowerTier({
         zoom: 15,
         activeMinZoom: 15,
@@ -761,6 +770,11 @@ test('native containment yields while a configured lower tier takes over', () =>
     }), false);
     assert.equal(shouldDeferFixedTownContainmentToLowerTier({
         zoom: 13.9,
+        activeMinZoom: 15,
+        transitionMinZoom: 14,
+    }), true);
+    assert.equal(shouldDeferFixedTownContainmentToLowerTier({
+        zoom: 13.49,
         activeMinZoom: 15,
         transitionMinZoom: 14,
     }), false);
@@ -793,6 +807,19 @@ test('visible chunk selection returns only chunks intersecting the viewport', ()
     );
     assert.deepEqual(selectVisibleFixedTownChunks(chunks, null), []);
     assert.deepEqual(selectVisibleFixedTownChunks(null, [103.7, 1.33, 103.75, 1.38]), []);
+});
+
+test('town map decoded-memory budgets are shared and ignore malformed chunk sizes', () => {
+    assert.equal(FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES, 256 * 1024 * 1024);
+    assert.equal(FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES, 384 * 1024 * 1024);
+    assert.equal(getFixedTownChunksDecodedBytes([
+        { pixelSize: [100, 200] },
+        { pixelSize: ['50', '40'] },
+        { pixelSize: [-1, 200] },
+        { pixelSize: ['invalid', 20] },
+        {},
+    ]), (100 * 200 * 4) + (50 * 40 * 4));
+    assert.equal(getFixedTownChunksDecodedBytes(null), 0);
 });
 
 test('town map zoom eligibility follows Leaflet\'s rounded tile level', () => {
@@ -880,7 +907,7 @@ test('memory fallback retries after fractional containment advances within displ
     }), false);
 });
 
-test('print containment keeps fractional Detailed zooms in their visible integer step', () => {
+test('desktop containment keeps fractional Detailed zooms in their visible integer step', () => {
     assert.equal(resolveFixedTownDisplayZoomStep({
         zoom: 15.6,
         preserveContainmentStep: true,

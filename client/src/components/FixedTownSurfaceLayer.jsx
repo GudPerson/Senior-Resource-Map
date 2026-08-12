@@ -3,7 +3,9 @@ import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 
 import {
+    FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES,
     areWsenBoundsContained,
+    getFixedTownChunksDecodedBytes,
     isFixedTownSurfaceZoomEligible,
     resolveFixedTownChunkUrl,
     selectVisibleFixedTownChunks,
@@ -19,15 +21,7 @@ const FIXED_TOWN_SURFACE_SEAM_OVERLAP_CSS_PX = 0.55;
 const FIXED_TOWN_SURFACE_PRUNE_SETTLE_MS = 180;
 const FIXED_TOWN_SURFACE_RETENTION_PAD = 0.5;
 const FIXED_TOWN_SURFACE_LOW_ZOOM_RANGE = 1;
-const FIXED_TOWN_SURFACE_MAX_DECODED_BYTES = 256 * 1024 * 1024;
 const FIXED_TOWN_SURFACE_CHUNK_RETRY_DELAYS_MS = [350, 1200, 4000];
-
-function getDecodedBytes(chunks) {
-    return chunks.reduce((sum, chunk) => {
-        const [width, height] = Array.isArray(chunk.pixelSize) ? chunk.pixelSize.map(Number) : [0, 0];
-        return sum + (Number.isFinite(width) && Number.isFinite(height) ? width * height * 4 : 0);
-    }, 0);
-}
 
 function toLeafletBounds(bounds) {
     if (!Array.isArray(bounds) || bounds.length !== 4) return null;
@@ -71,7 +65,7 @@ export default function FixedTownSurfaceLayer({
     grayscale = false,
     lockMinZoom = true,
     fallbackBelowMinZoom = true,
-    maxDecodedBytes = FIXED_TOWN_SURFACE_MAX_DECODED_BYTES,
+    maxDecodedBytes = FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES,
     onFallback,
     onMetricsChange,
 }) {
@@ -110,7 +104,7 @@ export default function FixedTownSurfaceLayer({
         const decodedByteLimit = Number.isFinite(configuredMaxDecodedBytes)
             && configuredMaxDecodedBytes > 0
             ? configuredMaxDecodedBytes
-            : FIXED_TOWN_SURFACE_MAX_DECODED_BYTES;
+            : FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES;
         const townMinZoom = Math.max(
             Number.isFinite(previousMinZoom) ? previousMinZoom : FIXED_TOWN_SURFACE_MIN_ZOOM,
             Number.isFinite(configuredMinZoom) ? configuredMinZoom : FIXED_TOWN_SURFACE_MIN_ZOOM,
@@ -156,7 +150,7 @@ export default function FixedTownSurfaceLayer({
                 visibleChunkCount: visibleChunks.length,
                 loadedChunkCount: loadedChunkIds.size,
                 visibleTransferBytes: visibleChunks.reduce((sum, chunk) => sum + Number(chunk.byteSize || 0), 0),
-                visibleDecodedBytes: getDecodedBytes(visibleChunks),
+                visibleDecodedBytes: getFixedTownChunksDecodedBytes(visibleChunks),
             });
         };
 
@@ -224,7 +218,7 @@ export default function FixedTownSurfaceLayer({
                 if (pruneOffscreen) fallback('outside-surface', { zoom });
                 return;
             }
-            const visibleDecodedBytes = getDecodedBytes(visibleChunks);
+            const visibleDecodedBytes = getFixedTownChunksDecodedBytes(visibleChunks);
             if (visibleDecodedBytes > decodedByteLimit) {
                 fallback('viewport-memory-limit', {
                     zoom,
@@ -241,7 +235,7 @@ export default function FixedTownSurfaceLayer({
                 );
                 visibleChunks.forEach((chunk) => nextActiveChunks.set(String(chunk.id), chunk));
                 if (
-                    getDecodedBytes([...nextActiveChunks.values()])
+                    getFixedTownChunksDecodedBytes([...nextActiveChunks.values()])
                     > decodedByteLimit
                 ) {
                     [...overlays.keys()].forEach((chunkId) => {
@@ -259,7 +253,7 @@ export default function FixedTownSurfaceLayer({
                         manifest.chunks,
                         getViewportBounds(map, retentionPad),
                     );
-                const retainedChunks = getDecodedBytes(paddedChunks)
+                const retainedChunks = getFixedTownChunksDecodedBytes(paddedChunks)
                     <= decodedByteLimit
                     ? paddedChunks
                     : visibleChunks;
