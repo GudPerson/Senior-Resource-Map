@@ -2,10 +2,11 @@
 
 Last updated: 2026-08-19 (Asia/Singapore)
 
-## Mobile safe-area and Detailed-map stability recovery candidate (2026-08-19)
+## Mobile safe-area and Detailed-map stability recovery release (2026-08-19)
 
-- Current branch: `codex/mobile-safe-area-map-flicker-recovery`. The client-only
-  patch bounds the shared Create/Manage Map Resources dialog to the mobile
+- Implementation commit `f04454ad245cb504971752ec650571610a5782d9` is pushed
+  on `codex/mobile-safe-area-map-flicker-recovery` and `main`. The client-only
+  release bounds the shared Create/Manage Map Resources dialog to the mobile
   viewport, makes its resource rows the internal scroll surface, and gives the
   persistent action footer device-safe bottom clearance.
 - Mobile Full map now owns fixed-surface viewport reporting while it is open;
@@ -27,10 +28,20 @@ Last updated: 2026-08-19 (Asia/Singapore)
   loading overlay at displayed zoom 15 across repeated samples; the same held
   after keyboard panning. Cancel, Back, and Reset left data unchanged and
   returned to Default, displayed zoom 14 overview, and `No unsaved changes`.
-- Release is explicitly approved by the user. Commit, push, Pages deployment,
-  custom-domain artifact/header checks, and production smoke evidence remain
-  to be recorded below; no Worker, API, schema, database, secret, or map asset
-  deployment is in scope.
+- The exact configured six-root artifact, Pages Function, `_headers`, and
+  `_routes.json` were deployed at
+  `https://bfe67ab3.senior-resource-map.pages.dev`. A concurrent Git-triggered
+  Pages build briefly superseded the first direct deploy with an older entry;
+  the exact artifact was republished after that build settled. All 82 local,
+  immutable, and custom-domain files then matched by MIME, bytes, and SHA-256
+  at aggregate digest
+  `efa6051c6cfcbef9189941a007547771d19e96231e7ac9f3c4c37ed4cebbfa7c`.
+  API health, ordinary anti-framing, enabled-embed framing, unknown-embed
+  `404`/no-store behavior, the six Detailed roots, and locked map markers pass.
+  No Worker, API, schema, database, secret, authentication, map asset, Shared
+  Map snapshot, or embed implementation changed. The decisive remaining check
+  is confirmation on the Android device that originally exposed the native
+  navigation-bar overlap and zoom-15 flicker.
 
 ## My Map height and displayed-detail threshold recovery release (2026-08-13)
 

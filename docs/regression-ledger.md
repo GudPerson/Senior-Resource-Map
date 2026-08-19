@@ -15,9 +15,9 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-19 Mobile action safe-area and Detailed-map stability recovery (candidate)
+## 2026-08-19 Mobile action safe-area and Detailed-map stability recovery (production release)
 
-- Candidate behavior: the shared Create/Manage Map Resources dialog is bounded
+- Current behavior: the shared Create/Manage Map Resources dialog is bounded
   to the mobile viewport, keeps its resource list as the internal scroll area,
   and reserves the device bottom safe area plus 16 px for its action footer.
   Android navigation controls must no longer cover the Cancel or Create/Update
@@ -76,6 +76,23 @@ Rules:
   blank-backdrop transition. Back restored the inline map; Reset returned to
   Default, displayed zoom 14 overview with 16/16 loaded chunks, zero live
   tiles, no loading overlay, and `No unsaved changes`.
+- Production release: implementation commit
+  `f04454ad245cb504971752ec650571610a5782d9` is pushed on
+  `codex/mobile-safe-area-map-flicker-recovery` and `main`. The exact configured
+  six-root client artifact, Pages Function, `_headers`, and `_routes.json` were
+  deployed at `https://bfe67ab3.senior-resource-map.pages.dev`. A concurrent
+  Git-triggered Pages build briefly made an older entry bundle current after
+  the first direct deploy; the locked artifact was republished only after that
+  build settled. Local, immutable, and `https://app.carearound.sg` then matched
+  across all 82 public files by MIME, bytes, and SHA-256 at aggregate digest
+  `efa6051c6cfcbef9189941a007547771d19e96231e7ac9f3c4c37ed4cebbfa7c`.
+  API health returned `200`/`ok`; the ordinary app retained
+  `frame-ancestors 'none'` and `X-Frame-Options: DENY`; the enabled embed kept
+  its exact allowlist with no X-Frame-Options; and an unknown embed token
+  returned `404` with `Cache-Control: no-store`. All six Detailed roots and
+  the locked containment/export markers are present. No Worker API, schema,
+  database, secret, authentication, map asset, Shared Map snapshot, or embed
+  implementation changed.
 
 ## 2026-08-13 My Map height and displayed-detail threshold recovery (production release)
 
