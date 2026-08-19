@@ -256,6 +256,9 @@ test('town map proof is owner-only, local-flagged, and uses viewport coverage fo
     assert.match(ownerPageSource, /townMapViewportSurfaceId !== townMapManifestState\.activeSurfaceId/);
     assert.match(ownerPageSource, /townMapFocusSurfaceId/);
     assert.match(ownerPageSource, /townMapFocusSurfacePending/);
+    assert.match(ownerPageSource, /const townMapOverviewFocusSurfacePending = Boolean\([\s\S]*townMapFocusSurfaceId !== townMapOverviewManifestState\.activeSurfaceId/);
+    assert.match(ownerPageSource, /const townMapFocusSurfacePending = Boolean\([\s\S]*townMapFocusSurfaceId !== townMapManifestState\.activeSurfaceId/);
+    assert.match(ownerPageSource, /shouldKeepFixedTownSurfaceSelection\(\{/);
     assert.match(ownerPageSource, /const selectedSurface = townMapFocusSurfaceId[\s\S]*state\.index\.surfaces\.find/);
     assert.match(ownerPageSource, /townMapFocusSurfaceMismatch/);
     assert.match(ownerPageSource, /townMapFocusSurfaceId !== townMapManifestState\.activeSurfaceId/);

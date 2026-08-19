@@ -88,6 +88,7 @@ import {
     resolveFixedTownSurfaceManifestPath,
     resolveFixedTownSurfaceTier,
     selectFixedTownSurfaceForViewport,
+    shouldKeepFixedTownSurfaceSelection,
 } from '../lib/fixedTownSurface.js';
 import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
@@ -1332,14 +1333,15 @@ function useTownMapOverviewManifestStates({
                 selectionKeyRef.current[style] = selectionKey;
                 return;
             }
-            if (
-                selectionKeyRef.current[style] === selectionKey
-                && state.activeSurfaceId === activeSurfaceId
-                && (
-                    state.manifest
-                    || ['loading', 'error'].includes(state.activeManifestStatus)
-                )
-            ) {
+            if (shouldKeepFixedTownSurfaceSelection({
+                activeSurfaceId: state.activeSurfaceId,
+                nextSurfaceId: activeSurfaceId,
+                hasManifest: Boolean(state.manifest),
+                activeManifestStatus: state.activeManifestStatus,
+                previousSelectionKey: selectionKeyRef.current[style],
+                nextSelectionKey: selectionKey,
+            })) {
+                selectionKeyRef.current[style] = selectionKey;
                 return;
             }
             selectionKeyRef.current[style] = selectionKey;
@@ -2020,6 +2022,7 @@ export default function MyMapDetailPage() {
         && townMapOverviewManifestState.status === 'ready'
         && townMapOverviewManifestState.sourceType === 'index'
         && townMapFocusSurfaceId
+        && townMapFocusSurfaceId !== townMapOverviewManifestState.activeSurfaceId
     );
     const townMapOverviewAvailable = Boolean(
         TOWN_MAP_OVERVIEW_ENABLED
@@ -2110,18 +2113,15 @@ export default function MyMapDetailPage() {
                 townMapSelectionKeyRef.current[style] = selectionKey;
                 return;
             }
-            if (
-                townMapSelectionKeyRef.current[style] === selectionKey
-                && state.activeSurfaceId === activeSurfaceId
-                && state.manifest
-            ) {
-                return;
-            }
-            if (
-                townMapSelectionKeyRef.current[style] === selectionKey
-                && state.activeSurfaceId === activeSurfaceId
-                && ['loading', 'error'].includes(state.activeManifestStatus)
-            ) {
+            if (shouldKeepFixedTownSurfaceSelection({
+                activeSurfaceId: state.activeSurfaceId,
+                nextSurfaceId: activeSurfaceId,
+                hasManifest: Boolean(state.manifest),
+                activeManifestStatus: state.activeManifestStatus,
+                previousSelectionKey: townMapSelectionKeyRef.current[style],
+                nextSelectionKey: selectionKey,
+            })) {
+                townMapSelectionKeyRef.current[style] = selectionKey;
                 return;
             }
             townMapSelectionKeyRef.current[style] = selectionKey;
@@ -2232,6 +2232,7 @@ export default function MyMapDetailPage() {
         && townMapManifestState.status === 'ready'
         && townMapManifestState.sourceType === 'index'
         && townMapFocusSurfaceId
+        && townMapFocusSurfaceId !== townMapManifestState.activeSurfaceId
     );
     const townMapAvailable = Boolean(
         TOWN_MAP_PROOF_ENABLED

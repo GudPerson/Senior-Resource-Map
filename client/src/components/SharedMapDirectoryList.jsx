@@ -3784,6 +3784,9 @@ export default function SharedMapDirectoryList({
                                     onClusterChange: setClusterMapping,
                                     onViewSection: handleMobileMapViewSection,
                                     onClusterSelect: handleMobileMapClusterSelect,
+                                    onFixedTownSurfaceViewportChange: mobileFullMapOpen
+                                        ? undefined
+                                        : mobileMapElement.props?.onFixedTownSurfaceViewportChange,
                                     mapHeightClassName: mobileMapElement.props?.mapHeightClassName,
                                     layoutSignature: preserveMobileMapFrameInFlow
                                         ? mobileMapLayoutSignature

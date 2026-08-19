@@ -15,6 +15,68 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-19 Mobile action safe-area and Detailed-map stability recovery (candidate)
+
+- Candidate behavior: the shared Create/Manage Map Resources dialog is bounded
+  to the mobile viewport, keeps its resource list as the internal scroll area,
+  and reserves the device bottom safe area plus 16 px for its action footer.
+  Android navigation controls must no longer cover the Cancel or Create/Update
+  map buttons. The desktop centred-dialog presentation remains in place.
+- Detailed-map stability boundary: while mobile Full map is open, its visible
+  map is the only instance allowed to publish fixed-surface viewport changes;
+  the retained inline map remains mounted for return-state continuity but does
+  not compete for the islandwide surface selection. Ready and in-flight
+  manifests are also retained when viewport or resource points change within
+  the same town surface. An errored manifest can still retry when those inputs
+  change, and the loading message clears as soon as the requested surface is
+  the active surface.
+- Locked behavior preserved: displayed zoom 14 continues to use the Detailed
+  overview without block numbers, displayed zoom 15 and above continue to use
+  the native Detailed surface with block numbers, and the 256/384 MiB decoded
+  memory limits are unchanged. Balanced, Map focus, Full map, and Export View
+  retain their existing starts, reset behavior, shared 1440 px endpoint,
+  containment rules, and zero-live-tile Detailed contract.
+- Known-good reference and root cause: the user's Android screenshots show the
+  Manage Resources submit action extending behind the native navigation bar
+  and displayed zoom 15 alternating between loaded native detail and the gray
+  fixed-surface backdrop while loading remained visible. Signed-in production
+  inspection at a 390 x 844 viewport confirmed that mobile Full map keeps both
+  the inline and full `DirectoryMap` instances mounted; both previously wrote
+  different viewport bounds into one manifest selector. The selector also
+  keyed in-flight work to exact viewport/resource coordinates, so a same-town
+  update could clear and refetch the current manifest. The resource dialog was
+  vertically centred without a viewport maximum, making its footer overflow
+  below short screens.
+- Reproduction: on an Android-sized viewport, open owned map 258 and choose
+  `Manage resources`; scroll the saved-resource list and inspect both footer
+  buttons against the bottom system area. Close the dialog, open Full map,
+  advance from displayed zoom 14 to 15, pan within the same town, and sample
+  the visible fixed surface while it settles. Repeat Default/Gray, close and
+  reopen Full map, and verify interactive and Export height/detail locks.
+- Acceptance criteria: the dialog header and footer remain visible, only the
+  resource list scrolls, and all footer actions stay above the device safe
+  area; Full map has one viewport-selection publisher; same-town loading or
+  ready manifests are not restarted by viewport churn; changed inputs can
+  retry an errored selection; the visible native surface never returns to a
+  blank backdrop once ready; loading feedback is not stale; displayed 14/15
+  tiers, map-height endpoints, reset, memory, containment, Default/Gray,
+  Export View, notes, pins, cards, saved map state, API, schema, authentication,
+  Shared Map, and embed behavior do not regress.
+- Verification: focused safe-area/mobile-map/fixed-surface coverage
+  passes 83/83; full client coverage passes 663/663; full server coverage
+  passes 549/549; map-lockdown passes 90/90; `git diff --check` passes; and
+  both the ordinary production client build and configured six-root Detailed
+  build pass. Signed-in local owner UAT on map 258 at 390 x 844 confirmed the
+  Manage Resources dialog stayed inside the viewport, its 16,481 px resource
+  list scrolled internally, and its Update action retained a 17 px bottom gap;
+  Cancel closed the dialog without saving. Full map loaded 15/15 native chunks
+  at displayed zoom 15 on both Default and Gray with zero live tiles and no
+  loading overlay. Twenty repeated Default samples before and after a real
+  keyboard pan, plus ten Gray samples, retained all 15 loaded chunks without a
+  blank-backdrop transition. Back restored the inline map; Reset returned to
+  Default, displayed zoom 14 overview with 16/16 loaded chunks, zero live
+  tiles, no loading overlay, and `No unsaved changes`.
+
 ## 2026-08-13 My Map height and displayed-detail threshold recovery (production release)
 
 - Current behavior: the desktop Map Studio extender now has one shared 1440 px

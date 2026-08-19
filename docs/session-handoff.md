@@ -1,6 +1,36 @@
 # CareAround SG Fresh-Chat Handoff
 
-Last updated: 2026-08-13 (Asia/Singapore)
+Last updated: 2026-08-19 (Asia/Singapore)
+
+## Mobile safe-area and Detailed-map stability recovery candidate (2026-08-19)
+
+- Current branch: `codex/mobile-safe-area-map-flicker-recovery`. The client-only
+  patch bounds the shared Create/Manage Map Resources dialog to the mobile
+  viewport, makes its resource rows the internal scroll surface, and gives the
+  persistent action footer device-safe bottom clearance.
+- Mobile Full map now owns fixed-surface viewport reporting while it is open;
+  the retained inline map is silenced until return. Same-town ready/loading
+  manifests stay mounted across viewport churn, changed inputs can still retry
+  an errored manifest, and focus loading clears when the requested town surface
+  is already active. This targets the gray-backdrop/native-detail flicker and
+  stale loading indication reported at displayed zoom 15.
+- No detail threshold, map-height bound, containment, or memory limit changed:
+  displayed 14 remains overview without block numbers, displayed 15+ remains
+  native detail with block numbers, all three interactive layouts and Export
+  retain the 1440 px endpoint, and the 256/384 MiB decoded limits remain locked.
+- Automated gates are green: focused coverage 83/83, full client 663/663,
+  server 549/549, map-lockdown 90/90, ordinary client build, configured
+  six-root Detailed build, and diff checking. Signed-in local map-258 UAT at
+  390 x 844 confirmed the Manage Resources action footer stayed 17 px above the
+  viewport bottom while the 16,481 px list scrolled internally. Default and
+  Gray Full map each retained 15/15 native chunks, zero live tiles, and no
+  loading overlay at displayed zoom 15 across repeated samples; the same held
+  after keyboard panning. Cancel, Back, and Reset left data unchanged and
+  returned to Default, displayed zoom 14 overview, and `No unsaved changes`.
+- Release is explicitly approved by the user. Commit, push, Pages deployment,
+  custom-domain artifact/header checks, and production smoke evidence remain
+  to be recorded below; no Worker, API, schema, database, secret, or map asset
+  deployment is in scope.
 
 ## My Map height and displayed-detail threshold recovery release (2026-08-13)
 

@@ -1725,6 +1725,24 @@ export function shouldRetryFixedTownSurfaceMemoryFallback({
         && normalizedCurrentZoom - normalizedFallbackZoom >= 0.05;
 }
 
+export function shouldKeepFixedTownSurfaceSelection({
+    activeSurfaceId = '',
+    nextSurfaceId = '',
+    hasManifest = false,
+    activeManifestStatus = '',
+    previousSelectionKey = '',
+    nextSelectionKey = '',
+} = {}) {
+    if (!nextSurfaceId || String(activeSurfaceId) !== String(nextSurfaceId)) {
+        return false;
+    }
+    if (hasManifest || activeManifestStatus === 'loading') {
+        return true;
+    }
+    return activeManifestStatus === 'error'
+        && previousSelectionKey === nextSelectionKey;
+}
+
 export function resolveFixedTownDisplayZoomStep({
     zoom,
     preserveContainmentStep = false,

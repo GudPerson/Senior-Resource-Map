@@ -141,9 +141,9 @@ export default function CreateMapModal({
     }
 
     return (
-        <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-3xl rounded-[28px] border border-slate-200 bg-white shadow-2xl">
-                <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
+        <div className="fixed inset-0 z-[1400] flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+            <div className="flex max-h-[calc(100svh-0.75rem)] w-full max-w-3xl flex-col overflow-hidden rounded-t-[28px] border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100svh-2rem)] sm:rounded-[28px]">
+                <div className="flex shrink-0 items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">
                             {isCreateMode ? t('createMap') : t('chooseMapResources')}
@@ -170,7 +170,7 @@ export default function CreateMapModal({
 
                 <form
                     onSubmit={handleSubmit}
-                    className="px-5 py-5 sm:px-6"
+                    className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5 sm:px-6 sm:pb-5"
                     aria-busy={busy}
                 >
                     {busy ? (
@@ -204,7 +204,7 @@ export default function CreateMapModal({
                         </div>
                     ) : null}
 
-                    <div className="mb-4">
+                    <div className="mb-4 shrink-0">
                         <label htmlFor="create-map-search" className="block text-sm font-semibold text-slate-700">
                             {t('chooseSavedResources')}
                         </label>
@@ -255,7 +255,7 @@ export default function CreateMapModal({
                             <p className="mt-2 text-sm text-slate-500">{t('tryAnotherSearchOrClear')}</p>
                         </div>
                     ) : (
-                        <div className="max-h-[360px] space-y-3 overflow-y-auto pr-1">
+                        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 sm:max-h-[360px]">
                             {filteredAssets.map((asset) => {
                                 const key = buildSavedAssetKey(asset.resourceType, asset.resourceId);
                                 const checked = selectedKeys.has(key);
@@ -314,7 +314,7 @@ export default function CreateMapModal({
                         <p className="mt-4 text-sm font-medium text-red-600">{error}</p>
                     ) : null}
 
-                    <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="mt-5 flex shrink-0 flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm text-slate-500">
                             {t('selectedResourcesCount', {
                                 count: selectedAssets.length,

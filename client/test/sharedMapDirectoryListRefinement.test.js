@@ -340,6 +340,7 @@ test('mobile full map keeps explicit control with a pull-at-top fallback', () =>
     assert.match(sharedMapDirectorySource, /handleMobileTopPullWheel/);
     assert.match(mobileSource, /mobileFullMapOpen \? \(/);
     assert.match(mobileSource, /mobileFullMapElement/);
+    assert.match(mobileSource, /onFixedTownSurfaceViewportChange: mobileFullMapOpen[\s\S]*\? undefined[\s\S]*: mobileMapElement\.props\?\.onFixedTownSurfaceViewportChange/);
     assert.match(mobileSource, /layoutSignature: `\$\{mobileFullMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:full`/);
     assert.match(mobileSource, /focusedPlaceKey: mobileFullMapFocusRequest\.focusedPlaceKey \|\| mobileFullMapElement\.props\?\.focusedPlaceKey/);
     assert.match(mobileSource, /focusedPlaceKeys: mobileFullMapFocusRequest\.focusedPlaceKeys\.length[\s\S]*\? mobileFullMapFocusRequest\.focusedPlaceKeys[\s\S]*: mobileFullMapElement\.props\?\.focusedPlaceKeys/);

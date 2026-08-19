@@ -35,6 +35,7 @@ import {
     selectVisibleFixedTownChunks,
     shouldCapFixedTownRequestedLiveTiles,
     shouldDeferFixedTownContainmentToLowerTier,
+    shouldKeepFixedTownSurfaceSelection,
     shouldRetryFixedTownSurfaceMemoryFallback,
     validateFixedTownSurfaceIndex,
     validateFixedTownSurfaceManifest,
@@ -777,6 +778,40 @@ test('native containment yields while a configured lower tier takes over', () =>
         zoom: 13.49,
         activeMinZoom: 15,
         transitionMinZoom: 14,
+    }), false);
+});
+
+test('same-town selection stays stable while ready or loading and retries changed errors', () => {
+    const baseSelection = {
+        activeSurfaceId: 'W01',
+        nextSurfaceId: 'W01',
+        previousSelectionKey: 'default:W01:before',
+        nextSelectionKey: 'default:W01:after',
+    };
+
+    assert.equal(shouldKeepFixedTownSurfaceSelection({
+        ...baseSelection,
+        hasManifest: true,
+        activeManifestStatus: 'ready',
+    }), true);
+    assert.equal(shouldKeepFixedTownSurfaceSelection({
+        ...baseSelection,
+        activeManifestStatus: 'loading',
+    }), true);
+    assert.equal(shouldKeepFixedTownSurfaceSelection({
+        ...baseSelection,
+        activeManifestStatus: 'error',
+        nextSelectionKey: baseSelection.previousSelectionKey,
+    }), true);
+    assert.equal(shouldKeepFixedTownSurfaceSelection({
+        ...baseSelection,
+        activeManifestStatus: 'error',
+    }), false);
+    assert.equal(shouldKeepFixedTownSurfaceSelection({
+        ...baseSelection,
+        nextSurfaceId: 'E02',
+        hasManifest: true,
+        activeManifestStatus: 'ready',
     }), false);
 });
 

@@ -144,6 +144,13 @@ test('map resource management refreshes authoritative membership and exposes bus
     assert.match(createMapModalSource, /<LoaderCircle size=\{17\} className="animate-spin"/);
 });
 
+test('map resource management keeps mobile actions above the device safe area', () => {
+    assert.match(createMapModalSource, /max-h-\[calc\(100svh-0\.75rem\)\]/);
+    assert.match(createMapModalSource, /pb-\[calc\(env\(safe-area-inset-bottom\)\+16px\)\]/);
+    assert.match(createMapModalSource, /min-h-0 flex-1 space-y-3 overflow-y-auto/);
+    assert.match(createMapModalSource, /mt-5 flex shrink-0 flex-col gap-3 border-t/);
+});
+
 test('my maps list exposes an owner-only duplicate action that opens the copied map', () => {
     assert.match(apiSource, /duplicateMyMap: \(id\) => request\('POST', `\/my-maps\/\$\{id\}\/duplicate`\)/);
     assert.match(myDirectoryPageSource, /const \[duplicatingMapId, setDuplicatingMapId\] = useState\(null\)/);
