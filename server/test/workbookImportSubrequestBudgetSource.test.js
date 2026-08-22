@@ -43,3 +43,28 @@ test('Places workbook import keeps database prefetches and cache refreshes bound
     assert.match(placesReferenceBranch, /loadPartnerLookup/);
     assert.doesNotMatch(placesReferenceBranch, /loadSubregionLookup|loadAudienceZoneLookup/);
 });
+
+test('Standalone Offerings workbook import bulk-prefetches and bulk-syncs row relationships', () => {
+    const constants = sourceBetween('const WORKBOOK_CELL_MAX_CHARS', 'const filteredWorkbookFilterSchema');
+    const offeringsImport = sourceBetween('async function importStandaloneOfferings', 'async function importTemplates');
+    const rowValidationLoop = sourceBetweenText(offeringsImport, 'for (const row of rows)', 'const successfulRows =');
+    const importWorkbookData = source.slice(source.indexOf('export async function importWorkbookData'));
+    const importerDispatcher = sourceBetweenText(importWorkbookData, "} else if (resourceType === 'standalone-offerings')", "} else if (resourceType === 'templates')");
+
+    assert.match(constants, /OFFERING_IMPORT_PREFETCH_BATCH_SIZE = 1000/);
+    assert.match(constants, /OFFERING_IMPORT_WRITE_BATCH_SIZE = 100/);
+    assert.match(offeringsImport, /allLocationExternalKeys/);
+    assert.match(offeringsImport, /existingAssetMap/);
+    assert.match(offeringsImport, /loadAudienceZonesByIds/);
+    assert.match(offeringsImport, /db\.batch\(updateStatements\)/);
+    assert.match(offeringsImport, /db\.insert\(softAssets\)\s*\.values\(payloadChunk\)/);
+    assert.match(offeringsImport, /db\.delete\(softAssetTags\)\.where\(inArray\(softAssetTags\.softAssetId, successfulAssetIds\)\)/);
+    assert.match(offeringsImport, /db\.delete\(softAssetAudienceZones\)\.where\(inArray\(softAssetAudienceZones\.softAssetId, successfulAssetIds\)\)/);
+    assert.match(offeringsImport, /db\.delete\(softAssetLocations\)\.where\(inArray\(softAssetLocations\.softAssetId, successfulAssetIds\)\)/);
+    assert.doesNotMatch(rowValidationLoop, /await loadHardAssetByExternalKeys/);
+    assert.doesNotMatch(rowValidationLoop, /db\.query\.softAssets\.findFirst/);
+    assert.doesNotMatch(rowValidationLoop, /await syncAssetTags/);
+    assert.doesNotMatch(rowValidationLoop, /await syncSoftAssetAudienceZones/);
+    assert.match(importerDispatcher, /scheduleWorkbookPostImportTask/);
+    assert.match(importerDispatcher, /standalone-offerings-map-cache/);
+});

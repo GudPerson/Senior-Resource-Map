@@ -15,6 +15,58 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-22 Standalone Offerings workbook subrequest-budget recovery
+
+- Current behavior: Standalone Offerings workbook imports prefetch all linked
+  Places, existing Offerings, and requested Audience Zones in bounded batches.
+  Row validation, ownership/scope checks, hidden/member-only state, schedules,
+  tags, Audience Zones, and Place links retain the existing workbook contract,
+  while core records and relationship tables are written in database batches
+  instead of issuing several live database requests per row. Duplicate
+  `externalKey` values in one workbook fail explicitly rather than producing an
+  ambiguous partial import. Public map-cache refresh remains a post-import task
+  and is skipped when both the previous and imported records are outside the
+  public cache, including the hidden Centre-based Nursing experiment rows.
+- Known-good reference and root cause: production Worker version
+  `ea9fcbee-dba7-49fa-8ec2-e23ff04a1414` at commit `dd8db0542` accepted the
+  65-row `centre-based-nursing-production-import-remaining-65.xlsx` workbook
+  but made per-row Place lookup, Offering lookup, write, tag sync, Audience
+  Zone sync, Place-link sync, and later cache calls. It created four rows and
+  then reported the Cloudflare `Too many subrequests by single Worker
+  invocation` error on rows 5-66, resulting in the internally inconsistent
+  summary `65 total / 4 created / 62 failed`. The failing report SHA-256 is
+  `a004e469e4fd18b30239fad5c2e8933f5c60068ddde2e820af2da2568cf5fb71`;
+  the exact workbook SHA-256 is
+  `96d344a169de99806f1dd6bc1853f0cf56779fad9659da9c87340a665a73756a`.
+  The earlier workbook subrequest regression guard covered only the Places
+  importer, so it could remain green while Standalone Offerings regressed.
+- Reproduction: as Super Admin, import the exact 65-row workbook through Admin
+  Tools -> Data Tools -> Standalone Offerings. Before the fix, confirm the
+  import reaches the Worker subrequest ceiling after the first four core
+  writes. After the fix, import the same hidden records as either new rows or
+  updates and confirm all 65 complete without any subrequest error, every row
+  retains its stable `externalKey`, hidden state, service fields, and linked
+  Place, and no duplicate Offering is created.
+- Acceptance criteria: a 65-row hidden Standalone Offerings workbook must
+  complete both create and update paths on a fixed database round-trip budget,
+  independent of row count; there must be no database lookup, tag sync,
+  Audience Zone sync, Place-link write, or cache rebuild inside the row
+  validation loop; invalid rows must remain row-level report errors; existing
+  ownership, scope, schedule-version, visibility, tags, Audience Zones, and
+  Place-link behavior must remain authoritative; the importer must not change
+  schema, authentication, client behavior, or unrelated resource families.
+- Verification before deploy: the new behavioral budget coverage passes both
+  65-row create and 65-row update cases, with the importer using three and four
+  database round trips respectively in the test harness. Focused workbook
+  budget, parser, security, and schedule coverage passes 16/16; full server
+  coverage passes 552/552 with `npm run test:server`; and `git diff --check`
+  passes. The unchanged production client build passes, the Worker dry-run
+  bundles successfully at 631.50 KiB gzip with the existing KV/variable
+  bindings, Cloudflare deployment identity and Worker-write permission are
+  confirmed, and production smoke passes 6/6 using the local secret-bearing
+  `smoke.env` without printing its values. Production Worker release and
+  exact-workbook canary evidence remain pending at this checkpoint.
+
 ## 2026-08-19 Mobile action safe-area and Detailed-map stability recovery (production release)
 
 - Current behavior: the shared Create/Manage Map Resources dialog is bounded

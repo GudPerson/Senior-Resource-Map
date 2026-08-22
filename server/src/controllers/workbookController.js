@@ -8,21 +8,26 @@ import {
     hardAssets,
     offeringScheduleVersions,
     sensitiveAuditLogs,
+    softAssetAudienceZones,
     softAssetGroupMembers,
     softAssetLocations,
     softAssetParents,
     softAssetRegionCoverages,
     softAssetStaffMemberships,
+    softAssetTags,
     softAssets,
     subCategories,
     subregionPostalCodes,
     subregions,
+    tags,
     users,
 } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     assertManageableAudienceZones,
+    canUseAudienceZoneForHardAssetIds,
     getAssetAudienceZones,
+    loadAudienceZonesByIds,
     normalizeAudienceZoneIds,
     syncSoftAssetAudienceZones,
     syncSoftAssetParentAudienceZones,
@@ -92,6 +97,8 @@ const WORKBOOK_IMPORT_MAX_COLUMNS = 80;
 const WORKBOOK_CELL_MAX_CHARS = 20_000;
 const PLACE_IMPORT_PREFETCH_BATCH_SIZE = 1000;
 const PLACE_IMPORT_UPSERT_BATCH_SIZE = 250;
+const OFFERING_IMPORT_PREFETCH_BATCH_SIZE = 1000;
+const OFFERING_IMPORT_WRITE_BATCH_SIZE = 100;
 const ONEMAP_GEOCODE_MAX_ATTEMPTS = 4;
 const ONEMAP_GEOCODE_BASE_RETRY_DELAY_MS = 500;
 const ONEMAP_GEOCODE_MAX_RETRY_DELAY_MS = 3_000;
@@ -1818,9 +1825,45 @@ export function buildWorkbookSchedulePlan(row) {
     return null;
 }
 
-async function importStandaloneOfferings(db, actor, rows, references, env) {
+export async function importStandaloneOfferings(db, actor, rows, references, env, options = {}) {
     const report = buildImportReport('standalone-offerings');
     const affectedSubregions = new Set();
+    const preparedRows = [];
+
+    const allLocationExternalKeys = [...new Set(rows
+        .flatMap((row) => splitDelimitedList(row.locationExternalKeys))
+        .map((key) => normalizeText(key))
+        .filter(Boolean))];
+    const hardAssetMap = new Map();
+    for (const keyChunk of chunkArray(allLocationExternalKeys, OFFERING_IMPORT_PREFETCH_BATCH_SIZE)) {
+        const linkedAssets = await loadHardAssetByExternalKeys(db, keyChunk);
+        linkedAssets.forEach((asset) => hardAssetMap.set(asset.externalKey, asset));
+    }
+
+    const allExternalKeys = [...new Set(rows.map((row) => normalizeText(row.externalKey)).filter(Boolean))];
+    const existingAssetMap = new Map();
+    for (const keyChunk of chunkArray(allExternalKeys, OFFERING_IMPORT_PREFETCH_BATCH_SIZE)) {
+        const existingAssets = await db.query.softAssets.findMany({
+            where: inArray(softAssets.externalKey, keyChunk),
+            with: {
+                partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } },
+                locations: {
+                    with: { hardAsset: { with: { partner: { columns: { id: true, name: true, role: true, managerUserId: true } } } } },
+                },
+                audienceZones: { with: { audienceZone: { columns: { id: true } } } },
+            },
+        });
+        existingAssets.forEach((asset) => existingAssetMap.set(asset.externalKey, asset));
+    }
+
+    const requestedAudienceZoneIds = normalizeAudienceZoneIds(rows.flatMap((row) => (
+        splitDelimitedList(row.audienceZoneCodes)
+            .map((code) => references.audienceZoneLookup.get(code.toLowerCase())?.id)
+            .filter(Number.isInteger)
+    )));
+    const audienceZoneRows = await loadAudienceZonesByIds(db, requestedAudienceZoneIds);
+    const audienceZoneMap = new Map(audienceZoneRows.map((zone) => [zone.id, zone]));
+    const seenExternalKeys = new Set();
 
     for (const row of rows) {
         report.totalRows += 1;
@@ -1837,9 +1880,13 @@ async function importStandaloneOfferings(db, actor, rows, references, env) {
             if (!externalKey || !name || !bucket || !subCategory) {
                 throw new Error('externalKey, name, bucket, subCategory, ownershipMode, and audienceMode are required.');
             }
+            if (seenExternalKeys.has(externalKey)) {
+                throw new Error(`Duplicate externalKey "${externalKey}" appears more than once in this workbook.`);
+            }
+            seenExternalKeys.add(externalKey);
 
             const locationKeys = splitDelimitedList(row.locationExternalKeys);
-            const linkedHardAssets = await loadHardAssetByExternalKeys(db, locationKeys);
+            const linkedHardAssets = locationKeys.map((key) => hardAssetMap.get(key)).filter(Boolean);
             if (linkedHardAssets.length !== locationKeys.length) {
                 throw new Error('One or more locationExternalKeys do not map to existing places.');
             }
@@ -1866,23 +1913,23 @@ async function importStandaloneOfferings(db, actor, rows, references, env) {
                 if (audienceZoneIds.length === 0) {
                     throw new Error('Select at least one audience zone for audience-zone offerings.');
                 }
-                await assertManageableAudienceZones(db, actor, audienceZoneIds);
+                const linkedHardAssetIds = linkedHardAssets.map((asset) => asset.id);
+                for (const audienceZoneId of audienceZoneIds) {
+                    const zone = audienceZoneMap.get(audienceZoneId);
+                    if (!zone) {
+                        throw new Error(`Audience zone "${audienceZoneId}" was not found.`);
+                    }
+                    if (!canUseAudienceZoneForHardAssetIds(actor, zone, linkedHardAssetIds)) {
+                        throw new Error(`Audience zone "${zone.name || audienceZoneId}" is outside your allowed scope.`);
+                    }
+                }
             }
 
             const body = {
                 subregionId: targetSubregion?.id || null,
             };
             const finalSubregionId = determineSoftSubregion(actor, body, linkedHardAssets);
-            const existing = await db.query.softAssets.findFirst({
-                where: eq(softAssets.externalKey, externalKey),
-                with: {
-                    partner: { columns: { id: true, username: true, name: true, role: true, managerUserId: true } },
-                    locations: {
-                        with: { hardAsset: { with: { partner: { columns: { id: true, name: true, role: true, managerUserId: true } } } } },
-                    },
-                    audienceZones: { with: { audienceZone: { columns: { id: true } } } },
-                },
-            });
+            const existing = existingAssetMap.get(externalKey) || null;
 
             if (existing && existing.assetMode !== 'standalone') {
                 throw new Error('Only standalone offerings can be imported through this workbook.');
@@ -1895,14 +1942,11 @@ async function importStandaloneOfferings(db, actor, rows, references, env) {
             const scheduleMutation = schedulePlan
                 ? buildOfferingScheduleMutation(existing || {}, schedulePlan, { source: 'workbook' })
                 : null;
+            const isHidden = parseBoolean(row.isHidden, false);
+            const isMemberOnly = parseBoolean(row.isMemberOnly, false);
 
             const payload = {
-                externalKey: existing?.externalKey || await resolveOrCreateExternalKey(db, softAssets, softAssets.externalKey, {
-                    requestedKey: externalKey,
-                    prefix: 'offering',
-                    name,
-                    ignoreId: existing?.id || null,
-                }),
+                externalKey: existing?.externalKey || externalKey,
                 assetMode: 'standalone',
                 partnerId: owner?.id || null,
                 createdByUserId: existing?.createdByUserId || actor.id,
@@ -1920,14 +1964,14 @@ async function importStandaloneOfferings(db, actor, rows, references, env) {
                 bannerUrl: normalizeText(row.bannerUrl) || null,
                 galleryUrls: normalizeGalleryUrls(splitPipeList(row.galleryUrls)),
                 audienceMode,
-                isMemberOnly: parseBoolean(row.isMemberOnly, false),
+                isMemberOnly,
                 contactPhone: normalizeText(row.contactPhone) || null,
                 whatsappContact: normalizeText(row.whatsappContact) || null,
                 contactEmail: normalizeText(row.contactEmail) || null,
                 ctaLabel: normalizeText(row.ctaLabel) || null,
                 ctaUrl: normalizeText(row.ctaUrl) || null,
                 venueNote: normalizeText(row.venueNote) || null,
-                isHidden: parseBoolean(row.isHidden, false),
+                isHidden,
                 hideFrom: parseNullableDate(row.hideFrom),
                 hideUntil: parseNullableDate(row.hideUntil),
                 isDeleted: false,
@@ -1935,61 +1979,150 @@ async function importStandaloneOfferings(db, actor, rows, references, env) {
                 ...(scheduleMutation?.changed ? scheduleMutation.patch : {}),
             };
 
-            let assetId;
-            if (existing) {
-                const updateQuery = db.update(softAssets).set(payload).where(eq(softAssets.id, existing.id));
-                const versionRows = scheduleMutation?.changed
-                    ? buildOfferingScheduleVersionRows(existing.id, scheduleMutation, actor.id)
-                    : [];
-                if (versionRows.length && typeof db.batch === 'function') {
-                    await db.batch([
-                        updateQuery,
-                        db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing(),
-                    ]);
-                } else {
-                    await updateQuery;
-                    if (versionRows.length) {
-                        await db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing();
-                    }
-                }
-                assetId = existing.id;
-                report.updatedCount += 1;
-            } else {
-                const [created] = await db.insert(softAssets).values(payload).returning({ id: softAssets.id });
-                assetId = created.id;
-                const versionRows = scheduleMutation?.changed
-                    ? buildOfferingScheduleVersionRows(assetId, scheduleMutation, actor.id)
-                    : [];
-                if (versionRows.length) {
-                    try {
-                        await db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing();
-                    } catch (versionError) {
-                        await db.delete(softAssets).where(eq(softAssets.id, assetId));
-                        throw versionError;
-                    }
-                }
-                report.createdCount += 1;
+            const wasPubliclyCached = Boolean(existing)
+                && !existing.isHidden
+                && !existing.isMemberOnly
+                && existing.audienceMode === 'public';
+            const willBePubliclyCached = !isHidden && !isMemberOnly && audienceMode === 'public';
+            if (wasPubliclyCached || willBePubliclyCached) {
+                affectedSubregions.add(finalSubregionId);
+                if (existing?.subregionId) affectedSubregions.add(existing.subregionId);
             }
 
-            await syncAssetTags(db, assetId, 'soft', splitDelimitedList(row.tags));
-            await syncSoftAssetAudienceZones(db, assetId, audienceZoneIds);
-            await db.delete(softAssetLocations).where(eq(softAssetLocations.softAssetId, assetId));
-            for (const hardAsset of linkedHardAssets) {
-                await db.insert(softAssetLocations).values({
-                    softAssetId: assetId,
-                    hardAssetId: hardAsset.id,
-                });
-            }
-
-            affectedSubregions.add(finalSubregionId);
-            if (existing?.subregionId) affectedSubregions.add(existing.subregionId);
+            preparedRows.push({
+                rowNumber,
+                externalKey,
+                existing,
+                payload,
+                scheduleMutation,
+                tagNames: normalizeTagList(splitDelimitedList(row.tags)),
+                audienceZoneIds,
+                linkedHardAssets,
+                writeSucceeded: false,
+                assetId: null,
+            });
         } catch (error) {
             rowError(report, rowNumber, error.message);
         }
     }
 
-    for (const subregionId of affectedSubregions) {
-        await rebuildMapCache(getCacheRegionId(subregionId), env);
+    if (typeof db.batch !== 'function') {
+        throw new Error('Bulk workbook import is unavailable for the configured database driver.');
+    }
+
+    const existingRows = preparedRows.filter((row) => row.existing);
+    for (const rowChunk of chunkArray(existingRows, OFFERING_IMPORT_WRITE_BATCH_SIZE)) {
+        const updateStatements = [];
+        for (const prepared of rowChunk) {
+            updateStatements.push(
+                db.update(softAssets).set(prepared.payload).where(eq(softAssets.id, prepared.existing.id))
+            );
+            const versionRows = prepared.scheduleMutation?.changed
+                ? buildOfferingScheduleVersionRows(prepared.existing.id, prepared.scheduleMutation, actor.id)
+                : [];
+            if (versionRows.length > 0) {
+                updateStatements.push(db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing());
+            }
+        }
+
+        try {
+            await db.batch(updateStatements);
+            rowChunk.forEach((prepared) => {
+                prepared.assetId = prepared.existing.id;
+                prepared.writeSucceeded = true;
+                report.updatedCount += 1;
+            });
+        } catch (error) {
+            rowChunk.forEach((prepared) => rowError(report, prepared.rowNumber, error.message));
+        }
+    }
+
+    const newRows = preparedRows.filter((row) => !row.existing);
+    for (const rowChunk of chunkArray(newRows, OFFERING_IMPORT_WRITE_BATCH_SIZE)) {
+        const payloadChunk = rowChunk.map((prepared) => prepared.payload);
+        try {
+            const createdRows = await db.insert(softAssets)
+                .values(payloadChunk)
+                .onConflictDoNothing({ target: softAssets.externalKey })
+                .returning({ id: softAssets.id, externalKey: softAssets.externalKey });
+            const createdByExternalKey = new Map(createdRows.map((created) => [created.externalKey, created]));
+            rowChunk.forEach((prepared) => {
+                const created = createdByExternalKey.get(prepared.externalKey);
+                if (!created) {
+                    rowError(report, prepared.rowNumber, `externalKey "${prepared.externalKey}" already exists. Export the latest workbook and retry.`);
+                    return;
+                }
+                prepared.assetId = created.id;
+                prepared.writeSucceeded = true;
+                report.createdCount += 1;
+            });
+        } catch (error) {
+            rowChunk.forEach((prepared) => rowError(report, prepared.rowNumber, error.message));
+        }
+    }
+
+    const successfulRows = preparedRows.filter((row) => row.writeSucceeded && Number.isInteger(row.assetId));
+    const successfulAssetIds = successfulRows.map((row) => row.assetId);
+    const createdAssetIds = successfulRows.filter((row) => !row.existing).map((row) => row.assetId);
+
+    if (successfulRows.length > 0) {
+        const allTagNames = [...new Set(successfulRows.flatMap((row) => row.tagNames))];
+        for (const tagChunk of chunkArray(allTagNames, OFFERING_IMPORT_PREFETCH_BATCH_SIZE)) {
+            await db.insert(tags).values(tagChunk.map((name) => ({ name }))).onConflictDoNothing();
+        }
+
+        const tagIdMap = new Map();
+        for (const tagChunk of chunkArray(allTagNames, OFFERING_IMPORT_PREFETCH_BATCH_SIZE)) {
+            const tagRows = await db.select({ id: tags.id, name: tags.name }).from(tags).where(inArray(tags.name, tagChunk));
+            tagRows.forEach((tag) => tagIdMap.set(tag.name, tag.id));
+        }
+
+        const tagMappings = successfulRows.flatMap((row) => row.tagNames
+            .map((name) => tagIdMap.get(name))
+            .filter(Number.isInteger)
+            .map((tagId) => ({ softAssetId: row.assetId, tagId })));
+        const audienceZoneMappings = successfulRows.flatMap((row) => row.audienceZoneIds
+            .map((audienceZoneId) => ({ softAssetId: row.assetId, audienceZoneId })));
+        const locationMappings = successfulRows.flatMap((row) => row.linkedHardAssets
+            .map((hardAsset) => ({ softAssetId: row.assetId, hardAssetId: hardAsset.id })));
+        const newScheduleVersionRows = successfulRows
+            .filter((row) => !row.existing && row.scheduleMutation?.changed)
+            .flatMap((row) => buildOfferingScheduleVersionRows(row.assetId, row.scheduleMutation, actor.id));
+
+        const relationshipStatements = [
+            db.delete(softAssetTags).where(inArray(softAssetTags.softAssetId, successfulAssetIds)),
+            db.delete(softAssetAudienceZones).where(inArray(softAssetAudienceZones.softAssetId, successfulAssetIds)),
+            db.delete(softAssetLocations).where(inArray(softAssetLocations.softAssetId, successfulAssetIds)),
+        ];
+        for (const mappingChunk of chunkArray(tagMappings, OFFERING_IMPORT_WRITE_BATCH_SIZE)) {
+            relationshipStatements.push(db.insert(softAssetTags).values(mappingChunk));
+        }
+        for (const mappingChunk of chunkArray(audienceZoneMappings, OFFERING_IMPORT_WRITE_BATCH_SIZE)) {
+            relationshipStatements.push(db.insert(softAssetAudienceZones).values(mappingChunk));
+        }
+        for (const mappingChunk of chunkArray(locationMappings, OFFERING_IMPORT_WRITE_BATCH_SIZE)) {
+            relationshipStatements.push(db.insert(softAssetLocations).values(mappingChunk));
+        }
+        for (const versionChunk of chunkArray(newScheduleVersionRows, OFFERING_IMPORT_WRITE_BATCH_SIZE)) {
+            relationshipStatements.push(db.insert(offeringScheduleVersions).values(versionChunk).onConflictDoNothing());
+        }
+
+        try {
+            await db.batch(relationshipStatements);
+        } catch (error) {
+            if (createdAssetIds.length > 0) {
+                await db.delete(softAssets).where(inArray(softAssets.id, createdAssetIds));
+            }
+            throw error;
+        }
+    }
+
+    if (affectedSubregions.size > 0) {
+        if (typeof options.scheduleCacheRebuild === 'function') {
+            options.scheduleCacheRebuild([...affectedSubregions]);
+        } else {
+            await rebuildPlaceImportMapCaches([...affectedSubregions], env);
+        }
     }
 
     return report;
@@ -2509,7 +2642,13 @@ export async function importWorkbookData(c) {
                 ),
             });
         } else if (resourceType === 'standalone-offerings') {
-            report = await importStandaloneOfferings(db, actor, rows, references, c.env);
+            report = await importStandaloneOfferings(db, actor, rows, references, c.env, {
+                scheduleCacheRebuild: (subregionIds) => scheduleWorkbookPostImportTask(
+                    c,
+                    'standalone-offerings-map-cache',
+                    () => rebuildPlaceImportMapCaches(subregionIds, c.env)
+                ),
+            });
         } else if (resourceType === 'templates') {
             report = await importTemplates(db, actor, rows, references, c.env);
         } else if (resourceType === 'groups') {
