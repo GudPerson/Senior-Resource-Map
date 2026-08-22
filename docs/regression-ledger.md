@@ -64,8 +64,27 @@ Rules:
   bundles successfully at 631.50 KiB gzip with the existing KV/variable
   bindings, Cloudflare deployment identity and Worker-write permission are
   confirmed, and production smoke passes 6/6 using the local secret-bearing
-  `smoke.env` without printing its values. Production Worker release and
-  exact-workbook canary evidence remain pending at this checkpoint.
+  `smoke.env` without printing its values.
+- Production release and canary: implementation commit `b55a28a2b` is pushed
+  on `codex/standalone-offering-import-budget-regression` and `main`. The
+  Worker-only release is live as version
+  `2c36328c-93c5-4135-9728-4258fec4d9e2`; production API health returned
+  `200`/`ok`. Re-importing the exact 65-row workbook through the signed-in
+  production Standalone Offerings tool completed `65 total / 0 created / 65
+  updated / 0 skipped / 0 failed`, with no row-level errors. The saved import
+  report SHA-256 is
+  `66a80a8d72b0c037838b56707dfc76dc17b5d2f007f7a8102fb859e2cd232f70`.
+  A fresh production export (SHA-256
+  `439c433ec04a73efacecf7e18ee9869e1c59c97b95970eaa4d4c94b07eda278a`)
+  contains 173 Standalone Offerings. All 65 approved rows match exactly once
+  on stable key and every source-controlled field; the complete
+  Centre-based Nursing set contains 66 rows and 66 unique keys, with all 66
+  hidden and linked to a Place. There are no duplicate external keys anywhere
+  in the export. The canary remains linked to
+  `place-4s-active-ageing-centre-eunos-crescent-400003`, and Ghim Moh remains
+  linked to `place-active-global-ghim-moh-active-ageing-centre-care`. No
+  Pages/client, schema, authentication, or visibility-boundary deployment was
+  part of this release.
 
 ## 2026-08-19 Mobile action safe-area and Detailed-map stability recovery (production release)
 
