@@ -19,6 +19,7 @@ function sourceBetweenText(text, startMarker, endMarker) {
 test('Places workbook import keeps database prefetches and cache refreshes bounded', () => {
     const constants = sourceBetween('const WORKBOOK_CELL_MAX_CHARS', 'const filteredWorkbookFilterSchema');
     const placesImport = sourceBetween('async function importPlaces', 'export function buildWorkbookSchedulePlan');
+    const placesRowValidationLoop = sourceBetweenText(placesImport, 'for (const row of processedRows)', 'const preparedRows =');
     const importWorkbookData = source.slice(source.indexOf('export async function importWorkbookData'));
     const importerDispatcher = sourceBetweenText(importWorkbookData, "if (resourceType === 'places')", "} else if (resourceType === 'standalone-offerings')");
     const importReferences = sourceBetween('async function buildImportReferences', 'function buildReferenceRows');
@@ -30,6 +31,10 @@ test('Places workbook import keeps database prefetches and cache refreshes bound
     assert.doesNotMatch(placesImport, /UPSERT_BATCH_SIZE = 100/);
     assert.match(placesImport, /PLACE_IMPORT_PREFETCH_BATCH_SIZE/);
     assert.match(placesImport, /PLACE_IMPORT_UPSERT_BATCH_SIZE/);
+    assert.match(placesImport, /db\.insert\(hardAssets\)[\s\S]*\.returning\(\{ id: hardAssets\.id, externalKey: hardAssets\.externalKey \}\)/);
+    assert.match(placesImport, /db\.delete\(hardAssetTags\)\.where\(inArray\(hardAssetTags\.hardAssetId, successfulAssetIds\)\)/);
+    assert.match(placesImport, /db\.insert\(hardAssetTags\)\.values\(mappingChunk\)/);
+    assert.doesNotMatch(placesRowValidationLoop, /await syncAssetTags/);
     assert.match(placesImport, /normalizePostalCode\(row\.postalCode\) \|\| normalizeText\(row\.postalCode\)/);
     assert.match(placesImport, /knownLocation/);
     assert.match(placesImport, /geocodeLocationMap/);

@@ -15,6 +15,53 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-23 Places workbook tag-persistence recovery
+
+- Current behavior: the Places workbook importer keeps its bounded postal,
+  existing-Place, core-upsert, and deferred map-cache paths, then resolves the
+  returned Place ids and replaces their tag mappings in database batches. Tag
+  names are normalized and deduplicated, missing global tag rows are created in
+  bounded chunks, and a blank workbook `tags` cell clears the imported Place's
+  mappings. There is no tag lookup or relationship write inside the row
+  validation loop.
+- Known-good reference and root cause: the original workbook importer at commit
+  `74b64bc37c` called `syncAssetTags` after every Place write. Commit
+  `3fc14ad9f4` on 2026-04-16 converted Places to bulk ingestion to stay below
+  Cloudflare subrequest limits but removed tag persistence without replacing it
+  with a bulk relationship write. Production reproduced the silent loss with
+  hidden canary `GLOW (Nanyang)`: the one-row workbook SHA-256 is
+  `fab6e9ac54cd1b23ce4c97f2c7f2f9fad0ed6b5fb2f40ffe89b47ae9674b978b`.
+  The import reported `1 total / 1 created / 0 updated / 0 skipped / 0 errors`,
+  while a fresh 4,273-row Places export (SHA-256
+  `7519b14229d81c3d4c919e33ed0a30e97a843799cb34bf0fe784ba875112f5fe`)
+  contained the canary exactly once with the correct hidden state and all other
+  source-controlled fields, but an empty `tags` value instead of `active ageing
+  centre, aac`. Coordinate-only differences were within stored export
+  precision.
+- Reproduction: as Super Admin, import a hidden Places workbook row containing
+  a stable `externalKey` and two tags, then export current Places data. Before
+  the fix, the import reports success and the Place exists once, but the export
+  returns no tags. After the fix, re-import the same stable key and confirm it
+  updates rather than duplicates, remains hidden, and exports both normalized
+  tags.
+- Acceptance criteria: 65-row hidden Place create and update imports must each
+  persist two tags per Place with a database round-trip count independent of
+  row count; tag creation, lookup, deletion, and mapping insertion must be
+  batched outside row validation; blank tags must retain the established
+  replace-and-clear contract; stable keys, ownership/scope checks, postal
+  routing, supplied coordinates, hidden state, contact fields, deferred cache
+  refresh, and import reporting must remain unchanged. No client, schema,
+  authentication, permissions, Discover visibility, or unrelated resource
+  family may change.
+- Verification before deploy: the failing regression first reproduced both
+  65-row cases with zero saved tags. After the fix, focused Places workbook,
+  subrequest-budget, tag, parser/security, and contact coverage passes 18/18;
+  full server coverage passes 555/555 with `npm run test:server`; the unchanged
+  client build passes; production smoke passes 6/6; `git diff --check` passes;
+  Cloudflare identity and Worker-write permission are confirmed; and the Worker
+  dry-run bundles successfully at 631.79 KiB gzip with the existing bindings.
+  Production Worker release and same-canary update verification are pending.
+
 ## 2026-08-22 Standalone Offerings workbook subrequest-budget recovery
 
 - Current behavior: Standalone Offerings workbook imports prefetch all linked

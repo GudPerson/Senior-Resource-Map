@@ -6,6 +6,7 @@ import { getDb } from '../db/index.js';
 import {
     audienceZones,
     hardAssets,
+    hardAssetTags,
     offeringScheduleVersions,
     sensitiveAuditLogs,
     softAssetAudienceZones,
@@ -1545,10 +1546,10 @@ function scheduleWorkbookPostImportTask(c, taskName, task) {
     }
 }
 
-async function importPlaces(db, actor, rows, references, env, options = {}) {
+export async function importPlaces(db, actor, rows, references, env, options = {}) {
     const report = buildImportReport('places');
     const affectedSubregions = new Set();
-    const payloadMap = new Map();
+    const preparedRowMap = new Map();
     const existingFinalKeysBeforeUpsert = new Set();
     const geocodeLocationMap = new Map();
 
@@ -1728,7 +1729,10 @@ async function importPlaces(db, actor, rows, references, env, options = {}) {
                 updatedAt: new Date(),
             };
 
-            payloadMap.set(finalKey, payload);
+            preparedRowMap.set(finalKey, {
+                payload,
+                tagNames: normalizeTagList(splitDelimitedList(row.tags)),
+            });
             affectedSubregions.add(derivedSubregion.id);
         } catch (err) {
             report.failedCount += 1;
@@ -1736,12 +1740,14 @@ async function importPlaces(db, actor, rows, references, env, options = {}) {
         }
     }
 
-    const payloads = Array.from(payloadMap.values());
+    const preparedRows = Array.from(preparedRowMap.values());
+    const payloads = preparedRows.map((prepared) => prepared.payload);
+    const upsertedAssets = [];
 
     // 5. Final Bulk Upsert
     if (payloads.length > 0) {
         for (const payloadChunk of chunkArray(payloads, PLACE_IMPORT_UPSERT_BATCH_SIZE)) {
-            await db.insert(hardAssets)
+            const upsertedChunk = await db.insert(hardAssets)
                 .values(payloadChunk)
                 .onConflictDoUpdate({
                     target: [hardAssets.externalKey],
@@ -1768,12 +1774,57 @@ async function importPlaces(db, actor, rows, references, env, options = {}) {
                         hideUntil: sql`EXCLUDED.hide_until`,
                         updatedAt: sql`EXCLUDED.updated_at`
                     }
-                });
+                })
+                .returning({ id: hardAssets.id, externalKey: hardAssets.externalKey });
+            upsertedAssets.push(...upsertedChunk);
         }
 
         report.createdCount = payloads.filter((payload) => !existingFinalKeysBeforeUpsert.has(payload.externalKey)).length;
         report.updatedCount = payloads.filter((payload) => existingFinalKeysBeforeUpsert.has(payload.externalKey)).length;
         report.skippedCount = 0;
+    }
+
+    if (upsertedAssets.length > 0) {
+        if (typeof db.batch !== 'function') {
+            throw new Error('Bulk workbook import is unavailable for the configured database driver.');
+        }
+
+        const assetIdByExternalKey = new Map(upsertedAssets.map((asset) => [asset.externalKey, asset.id]));
+        const successfulRows = preparedRows.map((prepared) => ({
+            ...prepared,
+            assetId: assetIdByExternalKey.get(prepared.payload.externalKey),
+        }));
+        if (successfulRows.some((prepared) => !Number.isInteger(prepared.assetId))) {
+            throw new Error('Places import could not resolve every upserted Place for tag persistence.');
+        }
+
+        const allTagNames = [...new Set(successfulRows.flatMap((prepared) => prepared.tagNames))];
+        for (const tagChunk of chunkArray(allTagNames, PLACE_IMPORT_PREFETCH_BATCH_SIZE)) {
+            await db.insert(tags).values(tagChunk.map((name) => ({ name }))).onConflictDoNothing();
+        }
+
+        const tagIdMap = new Map();
+        for (const tagChunk of chunkArray(allTagNames, PLACE_IMPORT_PREFETCH_BATCH_SIZE)) {
+            const tagRows = await db.select({ id: tags.id, name: tags.name }).from(tags).where(inArray(tags.name, tagChunk));
+            tagRows.forEach((tag) => tagIdMap.set(tag.name, tag.id));
+        }
+        const unresolvedTagNames = allTagNames.filter((name) => !Number.isInteger(tagIdMap.get(name)));
+        if (unresolvedTagNames.length > 0) {
+            throw new Error('Places import could not resolve every requested tag.');
+        }
+
+        const successfulAssetIds = successfulRows.map((prepared) => prepared.assetId);
+        const tagMappings = successfulRows.flatMap((prepared) => prepared.tagNames.map((name) => ({
+            hardAssetId: prepared.assetId,
+            tagId: tagIdMap.get(name),
+        })));
+        const relationshipStatements = [
+            db.delete(hardAssetTags).where(inArray(hardAssetTags.hardAssetId, successfulAssetIds)),
+        ];
+        for (const mappingChunk of chunkArray(tagMappings, PLACE_IMPORT_UPSERT_BATCH_SIZE)) {
+            relationshipStatements.push(db.insert(hardAssetTags).values(mappingChunk));
+        }
+        await db.batch(relationshipStatements);
     }
 
     if (affectedSubregions.size > 0) {
