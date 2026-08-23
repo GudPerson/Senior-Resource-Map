@@ -77,6 +77,26 @@ Rules:
   Places were not imported. No Pages/client, schema, authentication,
   permissions, Discover visibility, or unrelated resource-family deployment was
   part of this release.
+- Approved AAC batch import: the remaining workbook contains 256 unique rows
+  (SHA-256
+  `3366e2b11fa76f8fa288412c20086ef8ef7dc830e2af66aca4a6de326bdc6765`):
+  237 updates to existing public AAC Places and 19 new hidden AAC Places. Its
+  signed-in production Places import completed `256 total / 19 created / 237
+  updated / 0 skipped / 0 failed`, with no warnings or row-level errors. The
+  saved import-report SHA-256 is
+  `4927e8f653d6ae271566cf9393bdd345b3eaebefbde272999971f153e5e33e29`.
+  A fresh production Places export contains 4,292 rows (SHA-256
+  `bbf76dfc2d102a3994273f44e321c55b96db61279c651794decaad9673b14613`).
+  All 256 batch keys appear exactly once, all 7,168 source-field comparisons
+  round-trip after treating HTML `&amp;` and visible `&` as equivalent in one
+  opening-hours value, the 19 new rows remain hidden, the 237 updates remain
+  public, and no external key is duplicated anywhere. All 4,036 pre-existing
+  Places outside the batch are unchanged, the original hidden GLOW canary
+  remains unique with both normalized tags, and the two held SCC migration
+  cases remain excluded. The Admin total settled from 4,460 to 4,479, matching
+  the 19 new Places, and production API health returned `200`/`ok`. No code,
+  Worker, Pages/client, schema, authentication, permission, or visibility-rule
+  deployment was part of the batch import.
 
 ## 2026-08-22 Standalone Offerings workbook subrequest-budget recovery
 
