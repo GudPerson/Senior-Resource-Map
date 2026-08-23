@@ -60,7 +60,23 @@ Rules:
   client build passes; production smoke passes 6/6; `git diff --check` passes;
   Cloudflare identity and Worker-write permission are confirmed; and the Worker
   dry-run bundles successfully at 631.79 KiB gzip with the existing bindings.
-  Production Worker release and same-canary update verification are pending.
+- Production release and canary: implementation commit `9e5a5e82` is pushed on
+  `codex/places-import-tag-regression` and `main`. The Worker-only release is
+  live as version `b38d826a-9168-4dc1-a599-a22519772a6b`; production API health
+  returned `200`/`ok`. Re-importing the exact one-row hidden workbook through
+  the signed-in production Places tool completed `1 total / 0 created / 1
+  updated / 0 skipped / 0 failed`, with no warnings or row-level errors. The
+  saved import report SHA-256 is
+  `c4bc122b972a3794876f01a52c8e5df9cf85a3371b75ec2efa573fab41fc98cb`.
+  A fresh 4,273-row production Places export (SHA-256
+  `e9c6e2249c01584d4f1d71e874430d2da05172df6418685595432605bd1d491e`)
+  contains `GLOW (Nanyang)` exactly once by stable key and by name plus postal
+  code. All 28 source-controlled workbook fields round-trip, including normalized
+  tags `active ageing centre, aac`; the Place remains hidden and retains category
+  `Active Ageing Centre (AAC)` and postal code `640706`. The remaining 256 AAC
+  Places were not imported. No Pages/client, schema, authentication,
+  permissions, Discover visibility, or unrelated resource-family deployment was
+  part of this release.
 
 ## 2026-08-22 Standalone Offerings workbook subrequest-budget recovery
 
