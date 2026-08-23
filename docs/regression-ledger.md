@@ -97,6 +97,27 @@ Rules:
   the 19 new Places, and production API health returned `200`/`ok`. No code,
   Worker, Pages/client, schema, authentication, permission, or visibility-rule
   deployment was part of the batch import.
+- Approved AAC public visibility promotion: the 19 new AAC Places were
+  promoted from hidden to public with the visibility-only Places workbook
+  `carearound-aac-production-publish-19.xlsx` (SHA-256
+  `c6a9fa43e30e7a9873a1af4caa991f29704d4e2d9ca564fe6ae9342e52e5b7df`).
+  Pre-upload verification proved 19 unique stable keys, all currently hidden,
+  with zero changes across the other 513 field comparisons. The signed-in
+  production import completed `19 total / 0 created / 19 updated / 0 skipped /
+  0 failed`, with zero warnings and no row-level errors; the saved report
+  SHA-256 is
+  `94afb7a60dc206e868ad30b68784a35520d2907213d3a4f4d86dd07dcaa31981`.
+  A fresh 4,292-row production export (SHA-256
+  `85d388ea785491672e6360607766e247db808c2fb62d3e554344814b90509979`)
+  shows all 19 keys exactly once and public, all 532 workbook-field comparisons
+  round-trip, and `isHidden` is the only changed field for each record. There
+  are no duplicate external keys and no drift across the other 4,273 Places.
+  The original `GLOW (Nanyang)` canary remains unique, tagged, and hidden. All
+  19 promoted name-plus-postal pairs appear exactly once in the unauthenticated
+  production Discover cache; API health returned `200`/`ok`; full server
+  coverage passes 555/555. The Admin total remains 4,479. No code, Worker,
+  Pages/client, schema, authentication, permission, or category change was
+  part of this visibility-only import.
 
 ## 2026-08-22 Standalone Offerings workbook subrequest-budget recovery
 
