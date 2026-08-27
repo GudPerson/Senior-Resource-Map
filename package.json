@@ -69,7 +69,7 @@
     "test:server": "npm run test --workspace=server",
     "test:client": "npm run test --workspace=client",
     "check:modules": "node scripts/validate-module-graph.mjs",
-    "check:diff": "git diff --check",
+    "check:diff": "git diff --check -- . ':(exclude)node_modules/**'",
     "check:static": "npm run verify:migrations --workspace=server && npm run check:modules && npm run check:diff",
     "test:smoke:install-browser": "npx playwright install chromium",
     "test:smoke": "npx playwright test --config=playwright.smoke.config.mjs",
