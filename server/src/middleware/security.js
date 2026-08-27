@@ -1,3 +1,8 @@
+import { getCookie } from 'hono/cookie';
+
+import { SESSION_COOKIE_NAME, SESSION_HEADER_NAME } from '../utils/sessionAuth.js';
+import { resolveAllowedRequestOrigin } from '../utils/requestOrigins.js';
+
 const DEFAULT_ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const DEFAULT_JSON_BODY_LIMIT_BYTES = 2 * 1024 * 1024;
@@ -121,6 +126,43 @@ export async function requestBodyGuard(c, next) {
     }
 
     await next();
+}
+
+function getRequestOrigin(c) {
+    const origin = String(c.req.header('origin') || '').trim();
+    if (origin) return origin;
+
+    const referer = String(c.req.header('referer') || '').trim();
+    if (!referer) return '';
+    try {
+        return new URL(referer).origin;
+    } catch {
+        return '';
+    }
+}
+
+export async function cookieSessionCsrfGuard(c, next) {
+    if (!BODY_METHODS.has(c.req.method.toUpperCase())) {
+        await next();
+        return;
+    }
+
+    const hasSessionCookie = Boolean(getCookie(c, SESSION_COOKIE_NAME));
+    const hasSessionHeader = Boolean(String(c.req.header(SESSION_HEADER_NAME) || '').trim());
+    if (!hasSessionCookie || hasSessionHeader) {
+        await next();
+        return;
+    }
+
+    const requestOrigin = getRequestOrigin(c);
+    if (resolveAllowedRequestOrigin(requestOrigin, c.env) === requestOrigin) {
+        await next();
+        return;
+    }
+
+    return c.json({
+        error: 'This request could not be verified. Refresh CareAround SG and try again.',
+    }, 403);
 }
 
 function normalizeIp(value) {

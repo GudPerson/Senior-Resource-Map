@@ -6,10 +6,9 @@ const pageSource = readFileSync(
     new URL('../src/pages/MyMapDetailPage.jsx', import.meta.url),
     'utf8',
 );
-const i18nSource = readFileSync(
-    new URL('../src/lib/i18n.js', import.meta.url),
-    'utf8',
-);
+const i18nSource = ['en.js', 'zh-CN.js', 'ms.js', 'ta.js']
+    .map((localeFile) => readFileSync(new URL(`../src/locales/${localeFile}`, import.meta.url), 'utf8'))
+    .join('\n');
 
 test('My Map detail page uses an unfiltered presentation for PDF export', () => {
     assert.match(pageSource, /MyMapPdfExportButton/);

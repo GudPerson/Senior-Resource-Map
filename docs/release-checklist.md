@@ -352,13 +352,24 @@ Then run the release aggregate:
 npm run verify:release
 ```
 
-`verify:release` currently runs:
+`verify:release` first runs the credential-free `verify:quality` gate:
 
+- migration ownership and hash validation;
+- relative-import resolution and cycle detection;
+- whitespace/diff validation;
 - `npm run test:server`
+- `npm run test:client`
 - `npm run build:client`
-- `npm run test:smoke`
 
-If smoke credentials are unavailable, do not pretend the smoke gate passed. Record the missing credential constraint and run the narrower checks that do not need secrets, such as API health, public Discover load, and behavior-specific unauthenticated probes.
+It then runs `npm run test:smoke` against the explicitly configured target. The
+same credential-free quality gate is required by
+`.github/workflows/quality.yml` for pull requests and pushes to `main` using the
+repository Node version in `.nvmrc`.
+
+If smoke credentials, a safe target, or browser runtime are unavailable, do not
+pretend the release gate passed. Record that `verify:quality` passed and the
+smoke gate remains pending; run only separately approved public or
+behavior-specific probes.
 
 ## 4. Behavior-Specific Checks
 
@@ -373,13 +384,21 @@ Do not deploy a stabilization fix until the relevant ledger row has been reviewe
 
 ## 5. Schema Deployment Gate
 
-For changes that touch `server/src/db/schema.js` or `server/src/utils/boundarySchema.js`, apply the explicit schema bootstrap to the intended Neon database before deploying the Worker:
+For every release, validate repository migration ownership:
 
 ```bash
-npm run bootstrap:boundary-schema --workspace=server
+npm run verify:migrations --workspace=server
 ```
 
-Production runtime schema bootstrap remains disabled by default. Do not rely on normal API traffic to create new tables, columns, or indexes.
+For changes that touch `server/src/db/schema.js`, include the next ordered migration, Drizzle metadata and named ownership entry described in `docs/database-migrations.md`. Production runtime schema bootstrap remains disabled by default. Do not add new DDL only to `server/src/utils/boundarySchema.js`, and do not rely on API traffic to create tables, columns or indexes.
+
+Migration `0000_carearound_current_schema_baseline` is for a fresh database only. Do not execute it against an existing CareAround environment. Existing development, staging or production databases require a separately approved read-only schema comparison and baseline-registration plan. Any schema-changing production release also requires a verified backup/restore point, rehearsed forward-fix or restore decision, and explicit approval for the exact environment and migration IDs.
+
+For an observability-affecting release, verify `X-Request-ID` and `Server-Timing`
+on health and one affected API route. For public cache changes, also verify the
+cache status, age and stale headers and one privacy-safe structured rebuild
+event. Use `docs/operations-observability.md`; do not add request bodies,
+session tokens, share tokens, personal data or resource content to logs.
 
 ## 6. Deploy Commands
 

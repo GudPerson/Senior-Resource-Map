@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
-import { hardAssets, offeringScheduleVersions, softAssetGroupMembers, softAssetRegionCoverages, softAssets, softAssetLocations, softAssetStaffMemberships, subregionPostalCodes, users } from '../db/schema.js';
+import { hardAssets, offeringScheduleVersions, softAssetAudienceZones, softAssetGroupMembers, softAssetRegionCoverages, softAssets, softAssetLocations, softAssetStaffMemberships, subregionPostalCodes, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     assertManageableAudienceZones,
@@ -36,7 +36,16 @@ import {
     attachHardAssetRegionMatches,
     attachStandaloneSoftAssetCoverage,
 } from '../utils/regionScope.js';
-import { syncAssetTags } from '../utils/tags.js';
+import {
+    buildAssetTagReplacementQueries,
+    prepareAssetTagIds,
+    syncAssetTags,
+} from '../utils/tags.js';
+import {
+    buildReplacementQueries,
+    buildResourceWriteLockQuery,
+    executeAtomicBatch,
+} from '../utils/atomicWrites.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { loadScopedBoundaryContext, resolveSoftAssetBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
 import {
@@ -107,6 +116,11 @@ import {
     safelyRecordAuditLog,
 } from '../utils/auditTrail.js';
 import { shouldGrantCreatorDefaultSoftAssetOwner } from '../utils/assetCreatorOwnership.js';
+import { buildPublicSoftAssetDto } from '../utils/publicResourceDtos.js';
+
+function buildSoftAssetResponse(asset, viewer) {
+    return normalizeRole(viewer?.role) === 'guest' ? buildPublicSoftAssetDto(asset) : asset;
+}
 
 async function recordSoftAssetAudit(db, actor, asset, action, changedFields = [], metadata = {}) {
     if (!asset?.id) return;
@@ -1230,14 +1244,24 @@ async function updateGroupSoftAsset(c, db, user, existing, body) {
         updatedAt: new Date(),
     };
 
-    await db.update(softAssets).set(updatePatch).where(eq(softAssets.id, existing.id));
-
     const tagsChanged = body.newTags !== undefined && softAssetTagListsChanged(existing.tags, body.newTags || []);
-    if (tagsChanged) {
-        await syncAssetTags(db, existing.id, 'soft', body.newTags || []);
-    }
-
-    await syncSoftAssetRegionCoverages(db, existing.id, nextCoverageRegionIds, user);
+    const tagIds = tagsChanged ? await prepareAssetTagIds(db, body.newTags || []) : [];
+    await executeAtomicBatch(db, [
+        buildResourceWriteLockQuery(db, 'softAsset', existing.id),
+        db.update(softAssets).set(updatePatch).where(eq(softAssets.id, existing.id)),
+        ...(tagsChanged ? buildAssetTagReplacementQueries(db, existing.id, 'soft', tagIds) : []),
+        ...buildReplacementQueries(
+            db,
+            softAssetRegionCoverages,
+            eq(softAssetRegionCoverages.softAssetId, existing.id),
+            nextCoverageRegionIds.map((subregionId) => ({
+                softAssetId: existing.id,
+                subregionId,
+                createdByUserId: user?.id || null,
+            })),
+            { onConflictDoNothing: true },
+        ),
+    ], 'Group update');
 
     const savedGroup = { ...existing, ...updatePatch, id: existing.id };
     const translationStatus = softAssetTranslationFieldsChanged(existing, updatePatch)
@@ -1595,10 +1619,10 @@ export const getSoftAssets = async (c) => {
             );
 
             return c.json({
-                data: pagedSummaries.map((asset) => ({
+                data: pagedSummaries.map((asset) => buildSoftAssetResponse({
                     ...asset,
                     organizationLinks: organizationContextsByResource.get(`soft:${asset.id}`) || [],
-                })),
+                }, user)),
                 pagination,
             });
         }
@@ -1655,7 +1679,7 @@ export const getSoftAssets = async (c) => {
         const formattedWithTranslations = await attachSoftAssetTranslations(db, pagedWithOrganizationContext);
 
         return c.json({
-            data: formattedWithTranslations,
+            data: formattedWithTranslations.map((asset) => buildSoftAssetResponse(asset, user)),
             pagination,
         });
     } catch (err) {
@@ -1710,7 +1734,7 @@ export const getSoftAssetById = async (c) => {
             return c.json({ error: 'Not found' }, 404);
         }
 
-        return c.json(await attachSoftAssetTranslations(db, {
+        const responseAsset = await attachSoftAssetTranslations(db, {
             ...formatted,
             schedulePlan: serializeOfferingSchedulePlan(asset),
             calendarScheduleSource: asset.calendarScheduleSource || 'legacy',
@@ -1719,7 +1743,8 @@ export const getSoftAssetById = async (c) => {
             primaryRegionId: asset.subregionId || null,
             organizationLinks: (await loadOrganizationContextsForResources(db, [{ resourceType: 'soft', resourceId: asset.id }])).get(`soft:${asset.id}`) || [],
             permissions,
-        }));
+        });
+        return c.json(buildSoftAssetResponse(responseAsset, user));
     } catch (err) {
         console.error('getSoftAssetById Error:', err);
         return c.json({ error: err.message || 'Failed to fetch soft asset' }, err.status || 500);
@@ -2191,41 +2216,51 @@ export const updateSoftAsset = async (c) => {
         const versionRows = scheduleMutation?.changed
             ? buildOfferingScheduleVersionRows(id, scheduleMutation, user.id)
             : [];
-        let updatedRows = [];
-        if (versionRows.length && typeof db.batch === 'function') {
-            [updatedRows] = await db.batch([
-                updateQuery,
-                db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing(),
-            ]);
-        } else {
-            updatedRows = await updateQuery;
-            if (versionRows.length) {
-                await db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing();
-            }
-        }
+        const tagsChanged = body.newTags !== undefined && softAssetTagListsChanged(existing.tags, body.newTags || []);
+        const tagIds = tagsChanged ? await prepareAssetTagIds(db, body.newTags || []) : [];
+        const locationPatchRequested = body.locationIds !== undefined || body.locationId !== undefined;
+        const coreWriteQueries = [
+            buildResourceWriteLockQuery(db, 'softAsset', id),
+            updateQuery,
+            ...(versionRows.length
+                ? [db.insert(offeringScheduleVersions).values(versionRows)]
+                : []),
+            ...(locationPatchRequested
+                ? buildReplacementQueries(
+                    db,
+                    softAssetLocations,
+                    eq(softAssetLocations.softAssetId, id),
+                    linkedHardAssets.map((hardAsset) => ({
+                        softAssetId: id,
+                        hardAssetId: hardAsset.id,
+                    })),
+                )
+                : []),
+            ...(tagsChanged ? buildAssetTagReplacementQueries(db, id, 'soft', tagIds) : []),
+            ...buildReplacementQueries(
+                db,
+                softAssetAudienceZones,
+                eq(softAssetAudienceZones.softAssetId, id),
+                nextAudienceZoneIds.map((audienceZoneId) => ({ softAssetId: id, audienceZoneId })),
+            ),
+            ...buildReplacementQueries(
+                db,
+                softAssetRegionCoverages,
+                eq(softAssetRegionCoverages.softAssetId, id),
+                nextCoverageRegionIds.map((subregionId) => ({
+                    softAssetId: id,
+                    subregionId,
+                    createdByUserId: user?.id || null,
+                })),
+                { onConflictDoNothing: true },
+            ),
+        ];
+        const [, updatedRows] = await executeAtomicBatch(db, coreWriteQueries, 'Offering update');
         if (scheduleMutation?.changed && (!Array.isArray(updatedRows) || updatedRows.length === 0)) {
             const error = new Error('This schedule changed while you were saving. Refresh the Offering and review the latest sessions.');
             error.status = 409;
             throw error;
         }
-
-        if (body.locationIds !== undefined || body.locationId !== undefined) {
-            await db.delete(softAssetLocations).where(eq(softAssetLocations.softAssetId, id));
-            for (const hardAsset of linkedHardAssets) {
-                await db.insert(softAssetLocations).values({
-                    softAssetId: id,
-                    hardAssetId: hardAsset.id,
-                });
-            }
-        }
-
-        const tagsChanged = body.newTags !== undefined && softAssetTagListsChanged(existing.tags, body.newTags || []);
-        if (tagsChanged) {
-            await syncAssetTags(db, id, 'soft', body.newTags || []);
-        }
-
-        await syncSoftAssetAudienceZones(db, id, nextAudienceZoneIds);
-        await syncSoftAssetRegionCoverages(db, id, nextCoverageRegionIds, user);
 
         const savedAsset = { ...existing, ...updatePatch, id };
         const translationStatus = softAssetTranslationFieldsChanged(existing, updatePatch)

@@ -2,6 +2,10 @@ import { sql } from 'drizzle-orm';
 import { ensureMapEmbedSchema } from './mapEmbedSchema.js';
 import { ensureMapStudioSchema } from './mapStudioSchema.js';
 
+// Transitional compatibility bootstrap for local and explicitly authorised
+// environments. The ordered files in server/drizzle are authoritative for all
+// future schema evolution. Do not add new DDL here without a migration and an
+// explicit update to the migration ownership manifest.
 let ensureBoundarySchemaPromise = null;
 let ensureGroupAssetSchemaPromise = null;
 let ensureUserPreferenceColumnsPromise = null;

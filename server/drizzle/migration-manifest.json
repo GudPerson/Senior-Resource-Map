@@ -1,0 +1,41 @@
+{
+  "formatVersion": 1,
+  "authoritativeSchema": "src/db/schema.js",
+  "currentSchemaSha256": "66293719c5bff73a5e68374cbaba1d5fbad61fdc79c8c1dec51702a3be030d79",
+  "runtimeCompatibilityBootstrap": "src/utils/boundarySchema.js",
+  "runtimeCompatibilityBootstrapSha256": "6bd3b4a1b699781d477ead9bd905b45cda276de2b73c974457c166de6033ea18",
+  "migrations": [
+    {
+      "id": "0000_carearound_current_schema_baseline",
+      "file": "drizzle/0000_carearound_current_schema_baseline.sql",
+      "sha256": "95b2c67b9c59a6a2f6928f7c4445d1402c3e11e882933b01bd1f0c38e84d036a",
+      "snapshotFile": "drizzle/meta/0000_snapshot.json",
+      "snapshotSha256": "d76cff3400cd237d7f4b76b00dc8014335e5e65736043813672bb89b9d4447fa",
+      "type": "current-schema-baseline",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "Fresh databases can be discarded and recreated. Existing databases must be fingerprinted and marked as baselined; never apply 0000 over them. Production recovery requires a separately approved provider restore or reviewed forward repair.",
+      "environmentStatus": "Repository baseline only; no development, staging or production database was inspected or changed.",
+      "cautions": [
+        "Generated from Drizzle schema with partial and expression index predicates manually restored and validator-locked.",
+        "Must be compared with each existing environment before that environment is enrolled in ordered migrations."
+      ]
+    },
+    {
+      "id": "0001_normalized_login_indexes",
+      "file": "drizzle/0001_normalized_login_indexes.sql",
+      "sha256": "cfc31fe6c7402c0311a55b3783b8429461c7f871da26922198b029549f773305",
+      "snapshotFile": "drizzle/meta/0001_snapshot.json",
+      "snapshotSha256": "b096400ce83bd13de0f164db6553265800e8ad037e50c6eeb85adeddf2528dee",
+      "type": "additive-performance-indexes",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "The application query is compatible before and after index creation. If index rollout causes an operational problem, roll back the application and remove only these two additive indexes through a separately reviewed forward repair; no user data is transformed.",
+      "environmentStatus": "Generated and validated in the repository only; not applied to any database.",
+      "cautions": [
+        "Preflight aborts safely if legacy usernames or emails collide after lowercasing and does not print the identifiers.",
+        "Index creation can lock or consume resources on a large users table; apply only in an approved window after measuring the target environment."
+      ]
+    }
+  ]
+}

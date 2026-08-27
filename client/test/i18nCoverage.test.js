@@ -3,13 +3,19 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 import { LOCALES, translateUi } from '../src/lib/i18n.js';
+import { enDictionary } from '../src/locales/en.js';
+import { msDictionary } from '../src/locales/ms.js';
+import { taDictionary } from '../src/locales/ta.js';
+import { zhCnDictionary } from '../src/locales/zh-CN.js';
 import * as softAssetBuckets from '../src/lib/softAssetBuckets.js';
 
 function readDictionaries() {
-    const source = fs.readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
-    const match = source.match(/const dictionaries = ([\s\S]*?);\n\nexport function getIntlLocale/);
-    assert.ok(match, 'i18n dictionaries block should be readable');
-    return Function(`return (${match[1]});`)();
+    return {
+        en: enDictionary,
+        'zh-CN': zhCnDictionary,
+        ms: msDictionary,
+        ta: taDictionary,
+    };
 }
 
 test('every supported UI locale defines the same keys as English', () => {

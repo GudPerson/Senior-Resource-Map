@@ -21,6 +21,7 @@ import {
     optionalOneLineTextSchema,
     validateRequestBody,
 } from '../utils/inputValidation.js';
+import { newPasswordSchema, validateNewPassword } from '../utils/passwordPolicy.js';
 
 function accessError(message, status = 403) {
     const error = new Error(message);
@@ -44,9 +45,7 @@ const profileUpdateBodySchema = z.object({
     gender: optionalOneLineTextSchema(40),
     propertyType: optionalOneLineTextSchema(80),
     volunteerInterest: optionalOneLineTextSchema(40),
-    password: z.string({
-        invalid_type_error: 'Password must be text.',
-    }).min(1, 'Password is required.').max(1024, 'Password is too long.').optional(),
+    password: newPasswordSchema.optional(),
 });
 
 const recoveryEmailSchema = z.string().email();
@@ -555,7 +554,7 @@ export const createUser = async (c) => {
 
         await ensureUniqueUserIdentifiers(db, username, email);
 
-        const passwordHash = await bcrypt.hash(password, 12);
+        const passwordHash = await bcrypt.hash(validateNewPassword(password), 12);
 
         const [newUser] = await db.insert(users).values({
             username,
@@ -633,7 +632,7 @@ export const bulkCreateUsers = async (c) => {
 
                 await ensureUniqueUserIdentifiers(db, username, email);
 
-                const passwordHash = await bcrypt.hash(normalizeText(row.password) || 'SRM2024!temp', 12);
+                const passwordHash = await bcrypt.hash(validateNewPassword(row.password), 12);
                 const [newUser] = await db.insert(users).values({
                     username,
                     email,

@@ -209,7 +209,6 @@ export default function AuthPage({ isPartner = false }) {
                             onError={handleGoogleError}
                             theme="outline"
                             size="large"
-                            width="100%"
                             text={tab === 'login' ? 'signin_with' : 'signup_with'}
                         />
                         {tab === 'register' || tab === 'login' ? (
@@ -242,6 +241,7 @@ export default function AuthPage({ isPartner = false }) {
                                     placeholder={t('namePlaceholder')}
                                     value={form.name}
                                     onChange={set('name')}
+                                    autoComplete="name"
                                     className=" input-field"
                                 />
                             </div>
@@ -274,6 +274,7 @@ export default function AuthPage({ isPartner = false }) {
                             placeholder={isPartner ? t('enterUsername') : t('emailPlaceholder')}
                             value={isPartner ? form.username : form.email}
                             onChange={isPartner ? set('username') : set('email')}
+                            autoComplete={tab === 'register' ? 'email' : 'username'}
                             className=" input-field"
                         />
                     </div>
@@ -284,9 +285,12 @@ export default function AuthPage({ isPartner = false }) {
                                 id="auth-password"
                                 type={showPass ? 'text' : 'password'}
                                 required
+                                minLength={tab === 'register' ? 12 : undefined}
+                                aria-describedby={tab === 'register' ? 'auth-password-help' : undefined}
                                 placeholder="••••••••"
                                 value={form.password}
                                 onChange={set('password')}
+                                autoComplete={tab === 'register' ? 'new-password' : 'current-password'}
                                 className=" input-field pr-12"
                             />
                             <button
@@ -298,6 +302,11 @@ export default function AuthPage({ isPartner = false }) {
                                 {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                         </div>
+                        {tab === 'register' ? (
+                            <p id="auth-password-help" className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                                {t('newPasswordMinimum')}
+                            </p>
+                        ) : null}
                     </div>
 
                     {error && (

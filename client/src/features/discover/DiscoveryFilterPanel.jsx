@@ -286,6 +286,15 @@ function MobileFilterSheet({
             onOpenChange={onOpenChange}
             title={t('discoveryChooseWhatToShow')}
             description={t('discoveryChooseWhatToShowHelp')}
+            headerActions={(
+                <button
+                    type="button"
+                    onClick={() => onOpenChange(false)}
+                    className="btn-ghost min-h-[44px] shrink-0 justify-center px-4 text-[13px] font-bold"
+                >
+                    {t('done')}
+                </button>
+            )}
         >
             <form onSubmit={handleMobileSearchSubmit} className="space-y-4">
                         <div className="space-y-2">

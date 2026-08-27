@@ -3,7 +3,11 @@ import test from 'node:test';
 import { Hono } from 'hono';
 
 import app from '../src/app.js';
-import { authRateLimit, createRateLimiter } from '../src/middleware/security.js';
+import {
+    authRateLimit,
+    cookieSessionCsrfGuard,
+    createRateLimiter,
+} from '../src/middleware/security.js';
 
 test('security headers are set on API responses', async () => {
     const response = await app.fetch(
@@ -55,6 +59,80 @@ test('CORS honours explicitly configured runtime origins', async () => {
 
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('access-control-allow-origin'), 'https://staging.carearound.sg');
+});
+
+test('cookie-authenticated unsafe requests require a trusted CareAround origin', async () => {
+    const guarded = new Hono();
+    guarded.use('*', cookieSessionCsrfGuard);
+    guarded.post('/mutate', (c) => c.json({ updated: true }));
+
+    const trusted = await guarded.request('/mutate', {
+        method: 'POST',
+        headers: {
+            Cookie: 'sc_token=signed-session',
+            Origin: 'https://app.carearound.sg',
+        },
+    }, { NODE_ENV: 'production' });
+    assert.equal(trusted.status, 200);
+
+    const untrusted = await guarded.request('/mutate', {
+        method: 'POST',
+        headers: {
+            Cookie: 'sc_token=signed-session',
+            Origin: 'https://attacker.example',
+        },
+    }, { NODE_ENV: 'production' });
+    assert.equal(untrusted.status, 403);
+    assert.match((await untrusted.json()).error, /could not be verified/i);
+
+    const missingOrigin = await guarded.request('/mutate', {
+        method: 'POST',
+        headers: { Cookie: 'sc_token=signed-session' },
+    }, { NODE_ENV: 'production' });
+    assert.equal(missingOrigin.status, 403);
+});
+
+test('CSRF guard preserves public mutations, read-only cookie requests, and header-token clients', async () => {
+    const guarded = new Hono();
+    guarded.use('*', cookieSessionCsrfGuard);
+    guarded.get('/read', (c) => c.json({ ok: true }));
+    guarded.post('/mutate', (c) => c.json({ updated: true }));
+
+    assert.equal((await guarded.request('/mutate', { method: 'POST' })).status, 200);
+    assert.equal((await guarded.request('/read', {
+        headers: { Cookie: 'sc_token=signed-session' },
+    })).status, 200);
+    assert.equal((await guarded.request('/mutate', {
+        method: 'POST',
+        headers: {
+            Cookie: 'sc_token=signed-session',
+            'X-Session-Token': 'explicit-session',
+        },
+    })).status, 200);
+});
+
+test('CSRF guard accepts configured and CareAround preview origins', async () => {
+    const guarded = new Hono();
+    guarded.use('*', cookieSessionCsrfGuard);
+    guarded.post('/mutate', (c) => c.json({ updated: true }));
+    const env = {
+        NODE_ENV: 'production',
+        ALLOWED_ORIGINS: 'https://staging.carearound.sg',
+    };
+
+    for (const origin of [
+        'https://staging.carearound.sg',
+        'https://db93dedb.senior-resource-map.pages.dev',
+    ]) {
+        const response = await guarded.request('/mutate', {
+            method: 'POST',
+            headers: {
+                Cookie: 'sc_token=signed-session',
+                Origin: origin,
+            },
+        }, env);
+        assert.equal(response.status, 200);
+    }
 });
 
 test('request body guard rejects oversized JSON before route handlers', async () => {

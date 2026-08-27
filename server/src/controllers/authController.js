@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { getDb } from '../db/index.js';
 import { sensitiveAuditLogs, users, userSubregions } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { normalizeRole } from '../utils/roles.js';
 import { canDirectlyManageUser } from '../utils/ownership.js';
 import { loadHardAssetStaffAccessForUser } from '../utils/hardAssetStaff.js';
@@ -19,13 +19,9 @@ import {
     requiredOneLineTextSchema,
     validateRequestBody,
 } from '../utils/inputValidation.js';
+import { loginPasswordSchema, newPasswordSchema } from '../utils/passwordPolicy.js';
 
 const IMPERSONATION_SESSION_TTL_SECONDS = 12 * 60 * 60;
-
-const passwordSchema = z.string({
-    required_error: 'Password is required.',
-    invalid_type_error: 'Password must be text.',
-}).min(1, 'Password is required.').max(1024, 'Password is too long.');
 
 const profileRegistrationFieldsSchema = {
     postalCode: optionalOneLineTextSchema(20),
@@ -40,7 +36,7 @@ const profileRegistrationFieldsSchema = {
 const registerBodySchema = z.object({
     username: optionalOneLineTextSchema(120),
     email: requiredOneLineTextSchema('Email address', 320),
-    password: passwordSchema,
+    password: newPasswordSchema,
     name: requiredOneLineTextSchema('Name', 160),
     role: optionalOneLineTextSchema(40),
     ...profileRegistrationFieldsSchema,
@@ -49,7 +45,7 @@ const registerBodySchema = z.object({
 const loginBodySchema = z.object({
     username: optionalOneLineTextSchema(120),
     email: optionalOneLineTextSchema(320),
-    password: passwordSchema,
+    password: loginPasswordSchema,
     isPartnerLogin: z.boolean().optional(),
 }).refine((body) => Boolean(body.username || body.email), {
     path: ['email'],
@@ -331,9 +327,9 @@ export const login = async (c) => {
         await ensureBoundarySchema(db, c.env);
         await ensureUserPreferenceColumns(db, c.env);
         const isEmail = loginId.includes('@');
+        const normalizedLoginId = loginId.toLowerCase();
 
-        // Try exact match first
-        let [user] = await db.select({
+        const [user] = await db.select({
             id: users.id,
             username: users.username,
             email: users.email,
@@ -350,41 +346,10 @@ export const login = async (c) => {
                 volunteerInterest: users.volunteerInterest,
                 managerUserId: users.managerUserId,
             }).from(users).where(
-                isEmail ? eq(users.email, loginId) : eq(users.username, loginId)
-        );
-
-        // Fallback: case-insensitive lookup
-        if (!user) {
-            [user] = await db.select({
-                id: users.id,
-                username: users.username,
-                email: users.email,
-                passwordHash: users.passwordHash,
-                name: users.name,
-                role: users.role,
-                phone: users.phone,
-                postalCode: users.postalCode,
-                dateOfBirth: users.dateOfBirth,
-                chasCard: users.chasCard,
-                caregiverStatus: users.caregiverStatus,
-                gender: users.gender,
-                propertyType: users.propertyType,
-                volunteerInterest: users.volunteerInterest,
-                managerUserId: users.managerUserId,
-            }).from(users).where(
-                isEmail ? eq(users.email, loginId.toLowerCase()) : eq(users.username, loginId)
-            );
-        }
-
-        // Last resort: fetch by lowercase comparison
-        if (!user) {
-            const allUsers = await db.select().from(users);
-            user = allUsers.find(u =>
                 isEmail
-                    ? u.email.toLowerCase() === loginId.toLowerCase()
-                    : u.username.toLowerCase() === loginId.toLowerCase()
-            );
-        }
+                    ? sql`lower(${users.email}) = ${normalizedLoginId}`
+                    : sql`lower(${users.username}) = ${normalizedLoginId}`
+            ).limit(1);
 
         if (!user) return c.json({ error: 'Invalid credentials' }, 401);
 

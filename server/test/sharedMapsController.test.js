@@ -140,6 +140,59 @@ function createHardAsset(overrides = {}) {
     };
 }
 
+function createSoftAsset(overrides = {}) {
+    return {
+        id: 44,
+        name: 'Neighbourhood activity',
+        assetMode: 'standalone',
+        audienceMode: 'public',
+        isMemberOnly: false,
+        isHidden: false,
+        hideFrom: null,
+        hideUntil: null,
+        isDeleted: false,
+        partner: null,
+        locations: [],
+        ...overrides,
+    };
+}
+
+function createSoftSnapshotDirectory() {
+    return createSnapshotDirectory({
+        summary: {
+            resourceCount: 1,
+            placeCount: 1,
+            mappablePlaceCount: 0,
+        },
+        assets: [{
+            assetKey: 'soft-44',
+            resourceType: 'soft',
+            resourceId: 44,
+            status: 'available',
+        }],
+        places: [{
+            placeKey: 'soft-44',
+            placeId: null,
+            name: 'Neighbourhood activity',
+            address: null,
+            lat: null,
+            lng: null,
+            hasCoordinates: false,
+            rows: [{
+                rowKey: '12:soft-44',
+                resourceType: 'soft',
+                resourceId: 44,
+                assetKey: 'soft-44',
+                name: 'Neighbourhood activity',
+                status: 'available',
+                detailPath: '/resource/soft/44',
+                saveEligible: true,
+            }],
+        }],
+        pins: [],
+    });
+}
+
 function attachAssets(state, map) {
     if (!map) return null;
     return {
@@ -162,6 +215,7 @@ function createFakeDb({
     mapAssetNotes = [],
     shareSnapshots = [],
     hardAsset = null,
+    softAsset = null,
 } = {}) {
     const state = {
         maps: maps.map((item) => ({ ...item })),
@@ -169,6 +223,7 @@ function createFakeDb({
         mapAssetNotes: mapAssetNotes.map((item) => ({ ...item })),
         shareSnapshots: shareSnapshots.map((item) => ({ ...item })),
         hardAsset,
+        softAsset,
         nextMapId: maps.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextMapAssetId: mapAssets.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
         nextMapAssetNoteId: mapAssetNotes.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1,
@@ -191,7 +246,7 @@ function createFakeDb({
                 findFirst: async () => state.hardAsset,
             },
             softAssets: {
-                findFirst: async () => null,
+                findFirst: async () => state.softAsset,
             },
         },
         insert(table) {
@@ -349,6 +404,63 @@ test('getSharedMapDirectory removes frozen hard assets that are no longer public
     assert.equal(directory.summary.resourceCount, 0);
     assert.equal(directory.summary.placeCount, 0);
     assert.equal(directory.summary.mappablePlaceCount, 0);
+});
+
+test('getSharedMapDirectory revokes every withdrawn frozen Offering or Group', async () => {
+    const withdrawnAssets = [
+        createSoftAsset({ isHidden: true }),
+        createSoftAsset({ isDeleted: true }),
+        createSoftAsset({
+            hideFrom: new Date(Date.now() - 60_000).toISOString(),
+            hideUntil: new Date(Date.now() + 60_000).toISOString(),
+        }),
+        createSoftAsset({
+            assetMode: 'child',
+            hostHardAsset: createHardAsset({ isHidden: true }),
+        }),
+        createSoftAsset({
+            assetMode: 'group',
+            audienceMode: 'target_regions',
+            coverageRegionIds: [12],
+        }),
+    ];
+
+    for (const softAsset of withdrawnAssets) {
+        const db = createFakeDb({
+            maps: [createSharedMap()],
+            mapAssets: [createMapAsset({ resourceType: 'soft', resourceId: 44 })],
+            shareSnapshots: [{
+                mapId: 3,
+                shareToken: 'shared-token',
+                snapshot: createSoftSnapshotDirectory(),
+            }],
+            softAsset,
+        });
+
+        const directory = await getSharedMapDirectory(db, 'shared-token', GUEST_USER);
+        assert.deepEqual(directory.assets, []);
+        assert.deepEqual(directory.places, []);
+        assert.deepEqual(directory.pins, []);
+        assert.equal(directory.summary.resourceCount, 0);
+    }
+});
+
+test('getSharedMapDirectory retains a frozen Offering that remains publicly visible', async () => {
+    const db = createFakeDb({
+        maps: [createSharedMap()],
+        mapAssets: [createMapAsset({ resourceType: 'soft', resourceId: 44 })],
+        shareSnapshots: [{
+            mapId: 3,
+            shareToken: 'shared-token',
+            snapshot: createSoftSnapshotDirectory(),
+        }],
+        softAsset: createSoftAsset(),
+    });
+
+    const directory = await getSharedMapDirectory(db, 'shared-token', GUEST_USER);
+    assert.equal(directory.assets.length, 1);
+    assert.equal(directory.places.length, 1);
+    assert.equal(directory.summary.resourceCount, 1);
 });
 
 test('getSharedMapDirectory returns a clean unavailable error when a token is invalid', async () => {

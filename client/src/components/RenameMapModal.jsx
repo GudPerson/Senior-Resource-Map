@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Pencil, X } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { handleModalKeyboardEvent } from '../lib/modalKeyboard.js';
 
 export default function RenameMapModal({
     isOpen,
@@ -12,6 +13,7 @@ export default function RenameMapModal({
 }) {
     const { t } = useLocale();
     const [name, setName] = useState('');
+    const titleId = useId();
 
     useEffect(() => {
         if (!isOpen) return;
@@ -28,13 +30,25 @@ export default function RenameMapModal({
         await onSubmit?.(name.trim());
     }
 
+    function handleDialogKeyDown(event) {
+        handleModalKeyboardEvent(event, {
+            onEscape: submitting ? null : onClose,
+        });
+    }
+
     return (
-        <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+        <div role="presentation" className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                onKeyDown={handleDialogKeyDown}
+                className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white shadow-2xl"
+            >
                 <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{t('renameMap')}</p>
-                        <h2 className="mt-2 text-2xl font-bold text-slate-900">{t('updateMapName')}</h2>
+                        <h2 id={titleId} className="mt-2 text-2xl font-bold text-slate-900">{t('updateMapName')}</h2>
                     </div>
                     <button
                         type="button"

@@ -17,10 +17,12 @@ import {
 import { buildSavedAssetSnapshot } from '../src/utils/savedAssets.js';
 import { createSessionToken, SESSION_HEADER_NAME } from '../src/utils/sessionAuth.js';
 
+const TEST_LIVE_USERS = new Map();
+
 const TEST_ENV = {
     NODE_ENV: 'production',
     JWT_SECRET: 'access-control-test-secret',
-    AUTH_TEST_LIVE_SESSION_USER_RESOLVER: async (user) => user,
+    AUTH_TEST_LIVE_SESSION_USER_RESOLVER: async (claims) => TEST_LIVE_USERS.get(claims.id) || claims,
 };
 
 function createActor(overrides = {}) {
@@ -37,6 +39,7 @@ function createActor(overrides = {}) {
 }
 
 async function createToken(user) {
+    TEST_LIVE_USERS.set(user.id, user);
     return createSessionToken(user, { env: TEST_ENV });
 }
 
@@ -371,11 +374,7 @@ test('route authorization no longer accepts legacy partner staff as resource ope
             subregionIds: [4],
         }],
     });
-    const token = await createSessionToken(staffUser, { env: TEST_ENV }, {
-        extraClaims: {
-            partnerStaffAccess: staffUser.partnerStaffAccess,
-        },
-    });
+    const token = await createToken(staffUser);
 
     const response = await route.fetch(
         new Request('https://app.carearound.sg/restricted', {
@@ -406,11 +405,7 @@ test('resource operator authorization accepts direct hard-asset staff but not br
             subregionId: 4,
         }],
     });
-    const token = await createSessionToken(assetStaffUser, { env: TEST_ENV }, {
-        extraClaims: {
-            hardAssetStaffAccess: assetStaffUser.hardAssetStaffAccess,
-        },
-    });
+    const token = await createToken(assetStaffUser);
 
     const response = await route.fetch(
         new Request('https://app.carearound.sg/restricted', {

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Code2, Copy, ExternalLink, Globe2, Link2, LockKeyhole, Plus, Trash2, X } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { handleModalKeyboardEvent } from '../lib/modalKeyboard.js';
 import { hasSharedMapUpdates } from '../lib/shareMapStatus.js';
 
 function buildShareUrl(sharePath) {
@@ -78,6 +79,8 @@ export default function ShareMapModal({
     const [embedPreviewRevision, setEmbedPreviewRevision] = useState(0);
     const [includeAnnotationsSelection, setIncludeAnnotationsSelection] = useState(null);
     const includeAnnotationsRef = useRef(null);
+    const closeButtonRef = useRef(null);
+    const titleId = useId();
     const shareUrl = useMemo(() => buildShareUrl(map?.share?.sharePath || map?.sharePath), [map?.share?.sharePath, map?.sharePath]);
     const embedUrl = useMemo(() => buildEmbedUrl(map?.share?.embedPath || map?.embedPath), [map?.share?.embedPath, map?.embedPath]);
     const embedPreviewUrl = useMemo(
@@ -120,6 +123,16 @@ export default function ShareMapModal({
         if (!includeAnnotationsRef.current) return;
         includeAnnotationsRef.current.indeterminate = includesSomeAnnotations;
     }, [includesSomeAnnotations]);
+
+    useLayoutEffect(() => {
+        if (!isOpen || typeof document === 'undefined') return undefined;
+        const returnFocusTarget = document.activeElement;
+        closeButtonRef.current?.focus();
+
+        return () => {
+            window.requestAnimationFrame(() => returnFocusTarget?.focus?.());
+        };
+    }, [isOpen]);
 
     if (!isOpen || !map) return null;
 
@@ -186,17 +199,28 @@ export default function ShareMapModal({
         }
     }
 
+    function handleDialogKeyDown(event) {
+        handleModalKeyboardEvent(event, { onEscape: onClose });
+    }
+
     return (
-        <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-            <div className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+        <div role="presentation" className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                onKeyDown={handleDialogKeyDown}
+                className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-2xl"
+            >
                 <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{t('shareDirectory')}</p>
-                        <h2 className="mt-2 text-2xl font-bold text-slate-900">
+                        <h2 id={titleId} className="mt-2 text-2xl font-bold text-slate-900">
                             {isShared ? t('shareLinkLiveTitle') : t('sharePrivateTitle')}
                         </h2>
                     </div>
                     <button
+                        ref={closeButtonRef}
                         type="button"
                         onClick={onClose}
                         className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"

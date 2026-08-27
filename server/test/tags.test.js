@@ -16,6 +16,10 @@ function createFakeTagDb(initialTags = []) {
         hardMappings,
         softMappings,
         db: {
+            async batch(queries) {
+                calls.push({ kind: 'batch', count: queries.length });
+                return Promise.all(queries);
+            },
             delete(table) {
                 calls.push({ kind: 'delete', table });
                 return {
@@ -70,7 +74,8 @@ test('syncAssetTags batches tag lookup and mapping inserts', async () => {
 
     await syncAssetTags(fake.db, 42, 'hard', ['Senior', 'caregiver', 'senior', '']);
 
-    assert.equal(fake.calls.filter((call) => call.kind === 'select').length, 2);
+    assert.equal(fake.calls.filter((call) => call.kind === 'select').length, 1);
+    assert.deepEqual(fake.calls.filter((call) => call.kind === 'batch').map((call) => call.count), [2]);
     assert.deepEqual(fake.calls
         .filter((call) => call.kind === 'insert' && call.table === hardAssetTags)
         .map((call) => call.count), [2]);

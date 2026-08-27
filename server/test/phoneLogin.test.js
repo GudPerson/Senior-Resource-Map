@@ -6,6 +6,7 @@ import {
     completePhoneLoginSignup,
     createPhoneLoginStore,
     hashPhoneLoginAttemptToken,
+    isPhoneLoginAttemptExpired,
     pollPhoneLoginAttempt,
     startPhoneLoginAttempt,
 } from '../src/utils/phoneLogin.js';
@@ -64,6 +65,15 @@ function createMemoryStore({
         async updateAttempt(attemptId, values) {
             const attempt = state.attempts.find((item) => item.id === attemptId);
             Object.assign(attempt, values, { updatedAt: new Date('2026-05-08T10:05:00.000Z') });
+            return attempt;
+        },
+        async consumeAttempt(attemptId, expectedTokenHash, values) {
+            const attempt = state.attempts.find((item) => item.id === attemptId);
+            if (!attempt || attempt.attemptTokenHash !== expectedTokenHash) return null;
+            Object.assign(attempt, values, {
+                attemptTokenHash: null,
+                updatedAt: new Date('2026-05-08T10:05:00.000Z'),
+            });
             return attempt;
         },
         async findVerifiedIdentitiesByPhone(phoneE164) {
@@ -200,6 +210,118 @@ test('verified phone login resolves exactly one active verified phone identity',
     assert.equal(result.user.id, BASE_USER.id);
     assert.equal(store.state.attempts[0].resolvedUserId, BASE_USER.id);
     assert.equal(store.state.attempts[0].verifiedPhoneE164, '+6583682962');
+    assert.equal(store.state.attempts[0].attemptTokenHash, null);
+});
+
+test('verified phone login verifier is consumed after one session result', async () => {
+    const store = createMemoryStore({
+        identities: [{
+            id: 5,
+            userId: BASE_USER.id,
+            phoneE164: '+6583682962',
+            status: 'verified',
+            source: 'gudauth',
+            revokedAt: null,
+        }],
+        attempts: [await createSecuredAttempt({
+            id: 22,
+            provider: 'gudauth',
+            providerChallengeId: 'login-challenge-22',
+            requestedPhoneE164: '+6583682962',
+            status: 'pending',
+            expiresAt: new Date(Date.now() + 60_000),
+        })],
+    });
+    const gudAuthClient = {
+        async getChallenge() {
+            return { status: 'verified', phoneE164: '+6583682962' };
+        },
+    };
+
+    const first = await pollPhoneLoginAttempt({
+        store,
+        gudAuthClient,
+        attemptId: 22,
+        attemptToken: TEST_ATTEMPT_TOKEN,
+    });
+    assert.equal(first.user.id, BASE_USER.id);
+
+    await assert.rejects(
+        () => pollPhoneLoginAttempt({
+            store,
+            gudAuthClient,
+            attemptId: 22,
+            attemptToken: TEST_ATTEMPT_TOKEN,
+        }),
+        (error) => error.status === 403 && error.code === 'attempt_verifier_required',
+    );
+});
+
+test('concurrent verified phone polls issue only one successful session result', async () => {
+    const store = createMemoryStore({
+        identities: [{
+            id: 5,
+            userId: BASE_USER.id,
+            phoneE164: '+6583682962',
+            status: 'verified',
+            source: 'gudauth',
+            revokedAt: null,
+        }],
+        attempts: [await createSecuredAttempt({
+            id: 23,
+            provider: 'gudauth',
+            providerChallengeId: 'login-challenge-23',
+            requestedPhoneE164: '+6583682962',
+            status: 'pending',
+            expiresAt: new Date(Date.now() + 60_000),
+        })],
+    });
+    const gudAuthClient = {
+        async getChallenge() {
+            return { status: 'verified', phoneE164: '+6583682962' };
+        },
+    };
+
+    const results = await Promise.allSettled([
+        pollPhoneLoginAttempt({ store, gudAuthClient, attemptId: 23, attemptToken: TEST_ATTEMPT_TOKEN }),
+        pollPhoneLoginAttempt({ store, gudAuthClient, attemptId: 23, attemptToken: TEST_ATTEMPT_TOKEN }),
+    ]);
+
+    assert.equal(results.filter((result) => result.status === 'fulfilled').length, 1);
+    const rejected = results.find((result) => result.status === 'rejected');
+    assert.equal(rejected.reason.code, 'attempt_already_used');
+});
+
+test('expired phone login attempts never reach session issuance', async () => {
+    const attempt = await createSecuredAttempt({
+        id: 24,
+        provider: 'gudauth',
+        providerChallengeId: 'login-challenge-24',
+        requestedPhoneE164: '+6583682962',
+        resolvedUserId: BASE_USER.id,
+        status: 'verified',
+        expiresAt: new Date(Date.now() - 60_000),
+    });
+    const store = createMemoryStore({ attempts: [attempt] });
+    let providerCalls = 0;
+
+    assert.equal(isPhoneLoginAttemptExpired(attempt), true);
+    const result = await pollPhoneLoginAttempt({
+        store,
+        gudAuthClient: {
+            async getChallenge() {
+                providerCalls += 1;
+                return { status: 'verified', phoneE164: '+6583682962' };
+            },
+        },
+        attemptId: 24,
+        attemptToken: TEST_ATTEMPT_TOKEN,
+    });
+
+    assert.equal(result.status, 'expired');
+    assert.equal(result.user, undefined);
+    assert.equal(providerCalls, 0);
+    assert.equal(store.state.attempts[0].attemptTokenHash, null);
 });
 
 test('verified phone login rejects public attempt id polling without the browser verifier', async () => {
@@ -417,6 +539,7 @@ test('phone-first signup creates a standard user and verified phone identity aft
     assert.equal(result.user.email, 'phone+6590011859.7@phone.carearound.invalid');
     assert.equal(result.user.username, 'phone_6590011859_7');
     assert.deepEqual(result.user.subregionIds, [12]);
+    assert.equal(store.state.attempts[0].attemptTokenHash, null);
 
     const identity = store.state.identities.find((item) => item.userId === result.user.id);
     assert.equal(identity.phoneE164, '+6590011859');

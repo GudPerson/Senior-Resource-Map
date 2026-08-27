@@ -528,6 +528,43 @@ function canExposeSoftAsset(asset, visibleLocations) {
     return allLocations.length === 0 || visibleLocations.length > 0;
 }
 
+export function isLiveMyMapAssetVisible(resourceType, liveAsset, visibilityUser = { role: 'guest' }, resolutionContext = {}) {
+    if (!liveAsset) return false;
+    const allowedPartnerAudienceIds = resolutionContext.allowedPartnerAudienceIds instanceof Set
+        ? resolutionContext.allowedPartnerAudienceIds
+        : new Set();
+    const allowedAudienceZoneIds = resolutionContext.allowedAudienceZoneIds instanceof Set
+        ? resolutionContext.allowedAudienceZoneIds
+        : new Set();
+
+    if (resourceType === 'hard') {
+        return isAssetVisible(liveAsset, visibilityUser, {
+            ownerPartner: liveAsset.partner,
+            allowedPartnerAudienceIds,
+            allowedAudienceZoneIds,
+        });
+    }
+
+    if (resourceType === 'soft') {
+        const allLocations = getSoftAssetLocations(liveAsset);
+        const visibleLocations = allLocations.filter((location) => isAssetVisible(location, visibilityUser, {
+            ownerPartner: location.partner,
+            allowedPartnerAudienceIds,
+            allowedAudienceZoneIds,
+        }));
+        const assetVisible = isAssetVisible(liveAsset, visibilityUser, {
+            ownerPartner: liveAsset.partner,
+            allowedPartnerAudienceIds,
+            allowedAudienceZoneIds,
+            treatMemberOnlyAsVisible: true,
+        });
+
+        return assetVisible && canExposeSoftAsset(liveAsset, visibleLocations);
+    }
+
+    return false;
+}
+
 async function loadLiveAsset(db, resourceType, resourceId) {
     if (resourceType === 'hard') {
         return db.query.hardAssets.findFirst({
@@ -546,7 +583,7 @@ async function loadLiveAsset(db, resourceType, resourceId) {
     return null;
 }
 
-async function loadLiveAssetsByKey(db, mapAssets = []) {
+export async function loadLiveAssetsByKey(db, mapAssets = []) {
     const assetsByKey = new Map();
     const hardIds = [...new Set(mapAssets
         .filter((asset) => asset?.resourceType === 'hard' && Number.isInteger(asset?.resourceId))
@@ -1048,28 +1085,12 @@ export async function buildMyMapDirectory(db, {
         let sourceSnapshot = liveSnapshot || snapshot;
 
         if (liveAsset) {
-            if (mapAsset.resourceType === 'hard') {
-                isLiveVisible = isAssetVisible(liveAsset, effectiveVisibilityUser, {
-                    ownerPartner: liveAsset.partner,
-                    allowedPartnerAudienceIds: effectiveResolutionContext.allowedPartnerAudienceIds,
-                    allowedAudienceZoneIds: effectiveResolutionContext.allowedAudienceZoneIds,
-                });
-            } else {
-                const allLocations = getSoftAssetLocations(liveAsset);
-                const visibleLocations = allLocations.filter((location) => isAssetVisible(location, effectiveVisibilityUser, {
-                    ownerPartner: location.partner,
-                    allowedPartnerAudienceIds: effectiveResolutionContext.allowedPartnerAudienceIds,
-                    allowedAudienceZoneIds: effectiveResolutionContext.allowedAudienceZoneIds,
-                }));
-                const assetVisible = isAssetVisible(liveAsset, effectiveVisibilityUser, {
-                    ownerPartner: liveAsset.partner,
-                    allowedPartnerAudienceIds: effectiveResolutionContext.allowedPartnerAudienceIds,
-                    allowedAudienceZoneIds: effectiveResolutionContext.allowedAudienceZoneIds,
-                    treatMemberOnlyAsVisible: true,
-                });
-
-                isLiveVisible = assetVisible && canExposeSoftAsset(liveAsset, visibleLocations);
-            }
+            isLiveVisible = isLiveMyMapAssetVisible(
+                mapAsset.resourceType,
+                liveAsset,
+                effectiveVisibilityUser,
+                effectiveResolutionContext,
+            );
         }
 
         if (!isLiveVisible) {

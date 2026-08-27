@@ -193,6 +193,9 @@ export default function ProfilePage() {
         if (isSettingRecoveryEmail && !form.password) {
             return setError(t('recoveryEmailPasswordRequired'));
         }
+        if (form.password && form.password.length < 12) {
+            return setError(t('newPasswordMinimum'));
+        }
         if (form.password && form.password !== form.confirmPassword) {
             return setError(t('passwordMismatch'));
         }
@@ -425,7 +428,8 @@ export default function ProfilePage() {
                     <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide"><Lock size={13} className="inline mr-1" />{hasPhoneOnlyEmail ? t('recoveryEmailTitle') : t('changePasswordOptional')}</p>
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1">{t('newPassword')}</label>
-                        <input id="profile-password" type="password" value={form.password} onChange={set('password')} placeholder={hasPhoneOnlyEmail ? t('recoveryPasswordPlaceholder') : t('leaveBlankPassword')} className=" input-field" />
+                        <input id="profile-password" type="password" minLength={12} aria-describedby="profile-password-help" value={form.password} onChange={set('password')} placeholder={hasPhoneOnlyEmail ? t('recoveryPasswordPlaceholder') : t('leaveBlankPassword')} className=" input-field" />
+                        <p id="profile-password-help" className="mt-1 text-xs text-slate-500">{t('newPasswordMinimum')}</p>
                     </div>
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1">{t('confirmNewPassword')}</label>

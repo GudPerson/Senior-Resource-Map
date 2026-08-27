@@ -7423,6 +7423,205 @@ Active next recovery family:
   `/dashboard`, `/dashboard/resources`, and `/dashboard/admin`; Resources search
   `rn/rc` returned results and Admin hydrated its resources table.
 
+- 2026-08-26 credential and session-control stabilisation: all new or changed
+  passwords now use one shared server policy with a 12-character minimum, while
+  sign-in continues to accept existing shorter passwords so legacy accounts are
+  not locked out. Admin bulk user import no longer substitutes a shared fallback
+  password: blank or short row passwords are rejected before hashing, and the
+  client template and forms state the same requirement. Phone-verifier attempt
+  tokens are consumed exactly once with a compare-and-set update, including the
+  existing-user and new-user completion paths; terminal verified attempts also
+  honour server-side expiry. Unsafe requests that rely only on the ambient
+  session cookie now require an approved CareAround `Origin` or `Referer`, while
+  public auth requests, safe reads, and explicit `X-Session-Token` clients retain
+  their existing paths. Newly issued JWTs contain only the account id, expiry,
+  and minimal User View context; live profile, role, and access data continue to
+  be hydrated from the database. Existing signed sessions remain readable until
+  their normal expiry. Acceptance evidence: focused password/auth/UI coverage
+  passed 13/13; focused phone login coverage passed 15/15; focused
+  CSRF/session/My Maps coverage passed 63/63; focused token/privacy coverage
+  passed 25/25; full client coverage passed 683/683; the production-configured
+  client build passed; and the final full server run passed 567/567 with
+  `git diff --check` clean. No production account, secret, database schema,
+  deployment setting, external account, or deployed environment was accessed or
+  changed. A production account audit and release remain separate approval
+  gates.
+
+- 2026-08-26 public visibility, frozen snapshot, and guest DTO stabilisation:
+  aggregate and Region cache queries now apply the same scheduled hide-window
+  semantics as live resource APIs to Places, Offerings, child Offerings, and
+  their host Places. Cache schema version 6 stores resource and host hide
+  boundaries so every public cache read can re-evaluate time changes without
+  waiting for another rebuild; those control fields are stripped before the
+  response reaches the client. Frozen Shared Map and embedded-map snapshots now
+  batch-load and revalidate both Place and Offering/Group records using the live
+  guest visibility model. Hidden, deleted, currently time-hidden, host-withdrawn,
+  and newly region-restricted Offerings/Groups are removed from assets, rows,
+  pins, counts, and copied-map inputs. Guest Place and Offering routes now pass
+  through explicit allowlisted DTOs that keep catalogue content but recursively
+  exclude ownership, staff, source/provenance, eligibility-rule, permission, and
+  governance relations; authenticated management responses retain their prior
+  fields. Acceptance evidence: focused cache/visibility coverage passed 14/14;
+  focused My Map/shared snapshot coverage passed 56/56; focused DTO/privacy and
+  related resource coverage passed 44/44; and the final full server run passed
+  573/573 with `git diff --check` clean. No production cache, database, schema,
+  deployment, share token, or external account was accessed or changed. Cache
+  rebuilding and deployment remain separate release approvals.
+
+- 2026-08-26 atomic resource writes and migration-ownership stabilisation:
+  Place updates now commit the primary row and any tag replacement through one
+  Neon HTTP batch transaction. Standalone Offering updates commit the primary
+  row, reviewed schedule-version row, linked Places, tags, Audience Zones, and
+  service Region coverage together; Group updates commit the primary row, tags,
+  and target Regions together. A transaction-scoped advisory lock serialises
+  competing replace-style writes for the same resource, and integrity-sensitive
+  operations fail closed when batch support is unavailable. Shared tag
+  vocabulary rows are prepared before the batch, but existing resource mappings
+  are not changed unless the full core write commits. Schedule-version conflicts
+  no longer use conflict suppression inside the update batch. Repository schema
+  ownership now starts with ordered baseline
+  `server/drizzle/0000_carearound_current_schema_baseline.sql`, its Drizzle
+  snapshot/journal, and a hash-locked manifest naming ownership and recovery
+  strategy. `server/src/db/schema.js` is authoritative for future changes;
+  `boundarySchema.js` is frozen as transitional compatibility DDL. The migration
+  validator checks ordering, ownership, hashes, destructive statements, and the
+  partial/expression index predicates that the installed generator did not
+  preserve correctly without review. Acceptance evidence: focused atomic-write
+  and tag coverage passed 8/8; migration ownership validation passed; the final
+  full server suite passed 580/580; and `git diff --check` was clean. No database
+  was connected to, fingerprinted, migrated, baselined, restored, or changed.
+  Existing-environment comparison, backup/restore rehearsal, migration journal
+  registration, and any deployment remain separate approval gates.
+
+- 2026-08-26 unified quality and release gate: `npm run verify:quality` is now
+  the one credential-free repository gate for ordered migration validation,
+  relative-import resolution and cycle detection, `git diff --check`, the full
+  server suite, the full client suite, TypeScript/Vite compilation, and the
+  production client build. `npm run verify:release` runs that complete gate
+  before the existing credentialed Playwright smoke suite, so a release cannot
+  bypass client tests as the former aggregate did. Repository-owned GitHub CI
+  applies `verify:quality` to pull requests and pushes to `main` with the pinned
+  Node runtime and locked dependency install. Acceptance evidence: the module
+  graph checked 408 source modules and 1,221 relative edges with no cycle; the
+  migration validator passed; full server coverage passed 580/580; full client
+  coverage passed 683/683; the client build passed; the CI YAML parsed
+  successfully; and `git diff --check` passed. The credentialed browser smoke
+  was intentionally not run because no separately approved target/session was
+  supplied; therefore the local quality gate is green but no release or
+  production-smoke claim is made. No deployment, remote CI run, external
+  account, production API, or database was accessed.
+
+- 2026-08-27 incremental module-boundary stabilisation: the 4,554-line i18n
+  monolith is now a 40-line coordinator over separate English, Chinese, Malay,
+  and Tamil dictionary modules, while preserving the existing locale list,
+  fallback, interpolation, and `translateUi` API. A parity contract verifies
+  that every locale exposes the same keys, and source-level regression tests now
+  inspect the owning locale modules instead of depending on the retired
+  single-file layout. The duplicated prepared-WhatsApp-window implementation in
+  the phone sign-in and phone verification panels now lives in one shared,
+  fail-closed helper; both panels retain their prior user flow and popup-blocker
+  handling. Acceptance evidence: focused locale architecture/coverage passed
+  8/8; focused WhatsApp launch coverage passed 11/11; the adjusted source-level
+  regression set passed 51/51; the final module graph validated 414 source
+  modules and 1,229 relative import edges with no cycles; full client coverage
+  passed 689/689; and the production client build passed. No route, API,
+  database, permission, deployment, or production behaviour was changed.
+
+- 2026-08-27 performance and privacy-safe observability stabilisation: password
+  sign-in now performs one bounded case-normalised username/email lookup rather
+  than falling back to loading and scanning the users table. Ordered migration
+  `server/drizzle/0001_normalized_login_indexes.sql` adds matching unique
+  expression indexes only after a privacy-safe duplicate preflight; the
+  migration is manifest-locked and intentionally remains unapplied. Every API
+  response now carries a request id and server-duration header. Structured
+  request logs are emitted only for errors, slow requests, or an explicitly
+  configured sample and exclude query strings, request bodies, headers, IP
+  addresses, user identifiers, tokens, and credentials. Public map/discovery
+  cache responses expose bounded hit/miss/legacy/refreshed, age, and stale
+  signals, while cache rebuild logs contain only outcome, Region/aggregate
+  context, row count, and duration. Operational thresholds and safe fields are
+  documented in `docs/operations-observability.md`. Final acceptance evidence:
+  ordered migration validation passed for both migrations; the module graph
+  passed with 414 modules and 1,229 edges and no cycle; full server coverage
+  passed 590/590; full client coverage passed 689/689; `git diff --check`
+  passed; and the production client build passed. The credentialed browser smoke
+  was not run because no approved target/session was supplied. No schema was
+  applied, no data or account was inspected, no alert provider was configured,
+  no remote CI was run, and nothing was deployed.
+
+- 2026-08-27 provisional local browser UAT and regression recovery: the earlier
+  UAT pass was revoked after confirming that the tested remediation had not been
+  deployed to production. Fresh local browser UAT found and recovered eight
+  client regressions without changing APIs, schema, permissions, public
+  visibility, ranking, map data, accounts, or production data. Phone sign-in
+  and verification now import the shared prepared-WhatsApp-window helpers they
+  render, preventing the login-page `ReferenceError`; mobile Sign in and Logout
+  controls now have accessible names; the Google Identity button no longer
+  receives an invalid percentage width; login and registration fields expose
+  appropriate password-manager autocomplete metadata; the mobile Discover
+  filter sheet has a visible localised Done action; and Discover persists the
+  active resource-type filter in `type=` so resource detail and browser Back do
+  not silently restore all resource types. Create Map and Rename Map overlays
+  also now expose modal-dialog semantics, keep keyboard focus inside the active
+  overlay, and close with Escape while they are not submitting. The Share Map
+  overlay now follows the same modal-dialog boundary, moves initial focus into
+  the dialog, traps keyboard focus, closes with Escape, and returns focus to
+  the Share action after closing. Regression
+  coverage is owned by
+  `client/test/whatsAppLaunchWindow.test.js`,
+  `client/test/navbarAccessibility.test.js`,
+  `client/test/googleLoginButton.test.js`,
+  `client/test/passwordPolicyUi.test.js`,
+  `client/test/discoveryMobileFilterSheetAccessibility.test.js`, and
+  `client/test/discoveryUrlState.test.js`, with the map-dialog recovery covered
+  by `client/test/myMapModalAccessibility.test.js` and
+  `client/test/modalKeyboard.test.js`. Guest browser UAT at 390x844 and
+  1440x900 covered route fallback, public directory pagination, search and
+  no-result recovery, Place and Programme/service detail, programme-to-place
+  navigation, browser Back restoration, postal ranking, mobile Browse/map,
+  zoom/reset and Default/Gray map settings, card density, desktop
+  collapse/expand and rail resize, sharing, accessibility controls, and
+  English/Chinese/Malay/Tamil UI. Evidence is under
+  `output/playwright/remediation-uat/`. An isolated controlled-response browser
+  sweep also verified anonymous protected-route redirects, client role gates,
+  saved-resource search/sort, My Maps search/sort, and the client create,
+  rename, duplicate, and delete interactions without calling an external
+  database. The controlled My Map detail sweep additionally verified resource
+  search and map focus, note editing/sharing/add-and-flush behavior, share-link
+  publication, exact-origin embed validation and settings payloads, Export View
+  readiness, successful PNG/PDF downloads, and the compact 390x844 action
+  drawer. The generated PNG was visually reviewed for the resource card, title,
+  QR code, map, and attribution. All controlled-response checks are UI evidence
+  only and are not claimed as authenticated integration UAT. The refreshed
+  unified local quality gate validated two ordered migrations, 416 modules and
+  1,233 relative import edges with no cycle, full server coverage 590/590, full
+  client coverage 704/704, clean diff whitespace, and the production client
+  build. The map-lockdown gate passed 90/90 and its production-configured client
+  build. The configured local database was then explicitly approved as
+  disposable UAT data for bounded user, favourite, map, share, and administrator
+  fixtures. Real password-authenticated browser UAT passed for Standard User,
+  Admin, and Super Admin roles. The Standard User journey saved one real public
+  resource, confirmed it in My Directory, created a one-resource My Map, saved
+  and shared one note, published a frozen share snapshot, and verified the title,
+  resource, shared note, and absence of owner controls in a separate unauthenticated
+  browser. The same real map passed desktop and 390x844 owner/guest checks, Export
+  View readiness, PNG/PDF downloads, and visual PNG review for the title, resource
+  card, QR code, map, and attribution. Admin UAT confirmed regional Admin Tools,
+  seven scoped managed users, fixed User-only account creation, no unowned-resource
+  delete access, zero personally managed resources, and redirect away from Audit
+  Trail. Super Admin UAT confirmed all three bounded fixtures in Admin Tools,
+  enabled User/Admin/Super Admin creation choices, and Audit Trail access. The
+  optional local aggregate discovery cache was absent and returned an observed
+  cache miss, but Discover recovered through its database fallback and loaded
+  3,480 visible resources; this is recorded as a local cache/readiness observation,
+  not a functional failure. Cleanup removed exactly three test users, one favourite,
+  one map, one shared map snapshot, and one map note after live foreign-key metadata
+  confirmed only CASCADE or SET NULL behavior. Post-cleanup database checks were
+  zero and the former guest link reported that the shared map was no longer
+  available. No schema, non-test account, external authentication provider, or
+  production data was changed. No deployment has been authorised or performed,
+  so production remains on the prior release and production UAT is still pending.
+
 ## Recovery workflow
 
 For each regression family:

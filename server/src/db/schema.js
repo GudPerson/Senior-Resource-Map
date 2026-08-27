@@ -39,6 +39,10 @@ export const users = pgTable('users', {
   volunteerInterest: varchar('volunteer_interest', { length: 10 }),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
+  normalizedUsernameUnique: uniqueIndex('users_username_normalized_unique')
+    .on(sql`lower(${table.username})`),
+  normalizedEmailUnique: uniqueIndex('users_email_normalized_unique')
+    .on(sql`lower(${table.email})`),
   googleSubjectUnique: uniqueIndex('users_google_subject_unique')
     .on(table.googleSubject)
     .where(sql`${table.googleSubject} IS NOT NULL`),

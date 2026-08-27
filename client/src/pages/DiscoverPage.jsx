@@ -5,6 +5,7 @@ import { Drawer } from 'vaul';
 
 import { api } from '../lib/api.js';
 import { getDistance } from '../lib/geo.js';
+import { applyDiscoveryTabParam, normalizeDiscoveryTabParam } from '../lib/discoveryUrlState.js';
 import { stripMarkdownLite } from '../lib/markdownLite.js';
 import { fetchAllPaginatedResults } from '../lib/paginatedResults.js';
 import { normalizeDiscoveryCacheRows } from '../lib/discoveryCache.js';
@@ -474,7 +475,7 @@ export default function DiscoverPage() {
     const [directoryError, setDirectoryError] = useState('');
     const [searchParams, setSearchParams] = useSearchParams();
     const [search, setSearch] = useState(() => searchParams.get('q') || '');
-    const [activeTab, setActiveTab] = useState('all');
+    const [activeTab, setActiveTab] = useState(() => normalizeDiscoveryTabParam(searchParams.get('type')));
     const [discoverySubregions, setDiscoverySubregions] = useState([]);
     const [selectedDiscoverySubregionId, setSelectedDiscoverySubregionId] = useState('');
     const [favoritesActionNotice, setFavoritesActionNotice] = useState('');
@@ -581,7 +582,7 @@ export default function DiscoverPage() {
 
     // Sync state to URL
     useEffect(() => {
-        const nextParams = new URLSearchParams(searchParams);
+        const nextParams = applyDiscoveryTabParam(searchParams, activeTab);
         
         if (search.trim()) {
             nextParams.set('q', search.trim());
@@ -599,7 +600,7 @@ export default function DiscoverPage() {
         if (nextParams.toString() !== searchParams.toString()) {
             setSearchParams(nextParams, { replace: true });
         }
-    }, [search, searchOrigin, setSearchParams, searchParams]);
+    }, [activeTab, search, searchOrigin, setSearchParams, searchParams]);
 
     useEffect(() => {
         let isActive = true;

@@ -1578,7 +1578,7 @@ export default function AdminPage() {
         const demoSubregionRef = currentRole === 'super_admin'
             ? 'SR-CLW1'
             : (currentUser?.subregionIds || []).join(',');
-        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd123', '+6591234567', '680153', templateRoleLabel, demoSubregionRef];
+        const demoRow = ['johndoe', 'john@example.com', 'John Doe', 'P@ssw0rd1234', '+6591234567', '680153', templateRoleLabel, demoSubregionRef];
         downloadFile('\uFEFF' + Papa.unparse({ fields: headers, data: [demoRow] }), 'user_upload_template.csv', 'text/csv;charset=utf-8');
     }
 
@@ -3700,8 +3700,8 @@ export default function AdminPage() {
                             <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-100">
                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">CSV Requirements</h3>
                                 <ul className="text-xs text-slate-600 space-y-1">
-                                    <li>• Required: <code className="bg-slate-200 px-1 rounded">username</code>, <code className="bg-slate-200 px-1 rounded">email</code>, <code className="bg-slate-200 px-1 rounded">postalCode</code> for all non-super-admin rows</li>
-                                    <li>• Optional: <code className="bg-slate-200 px-1 rounded">name</code>, <code className="bg-slate-200 px-1 rounded">password</code>, <code className="bg-slate-200 px-1 rounded">phone</code></li>
+                                    <li>• Required: <code className="bg-slate-200 px-1 rounded">username</code>, <code className="bg-slate-200 px-1 rounded">email</code>, <code className="bg-slate-200 px-1 rounded">password</code>, and <code className="bg-slate-200 px-1 rounded">postalCode</code> for all non-super-admin rows</li>
+                                    <li>• Passwords must contain at least 12 characters. Optional: <code className="bg-slate-200 px-1 rounded">name</code>, <code className="bg-slate-200 px-1 rounded">phone</code></li>
                                     <li>• Role: <code className="bg-slate-200 px-1 rounded">role</code></li>
                                     <li>• Support coverage is derived from each user's postal-code region and the active Admin Region Scope</li>
                                     <li>• Legacy <code className="bg-slate-200 px-1 rounded">subregionIds</code> is optional and must match the postal-code-derived region if supplied</li>

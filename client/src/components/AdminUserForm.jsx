@@ -201,10 +201,12 @@ export default function AdminUserForm({ currentUser, onCreated }) {
                     <input
                         type="password"
                         required
+                        minLength={12}
                         className="input-field w-full"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     />
+                    <p className="text-xs text-slate-500">Use at least 12 characters.</p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

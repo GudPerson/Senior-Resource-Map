@@ -4,7 +4,14 @@ import assert from 'node:assert/strict';
 import { Hono } from 'hono';
 
 import { hydrateRequestUserFromDb } from '../src/middleware/auth.js';
-import { buildSessionPayload, clearAuthCookie, getSessionSecret, setAuthCookie } from '../src/utils/sessionAuth.js';
+import {
+    buildSessionPayload,
+    clearAuthCookie,
+    createSessionToken,
+    getSessionSecret,
+    setAuthCookie,
+    verifySessionToken,
+} from '../src/utils/sessionAuth.js';
 
 test('production session cookie is cross-site compatible', async () => {
     const app = new Hono();
@@ -113,6 +120,65 @@ test('session payload can carry partner staff access without changing the user r
         staffRole: 'editor',
         subregionIds: [4],
     }]);
+});
+
+test('signed session claims exclude profile data and live access lists', async () => {
+    const context = { env: { NODE_ENV: 'development', JWT_SECRET: 'session-claims-test-secret' } };
+    const token = await createSessionToken({
+        id: 80,
+        username: 'staff',
+        email: 'staff@example.com',
+        role: 'standard',
+        name: 'Staff Member',
+        phone: '+6500000000',
+        postalCode: '160024',
+        dateOfBirth: '1950-01-01',
+        subregionIds: [4],
+        hardAssetStaffAccess: [{ hardAssetId: 12, staffRole: 'staff' }],
+    }, context, {
+        extraClaims: {
+            organizationAccess: [{ organizationId: 3, role: 'staff' }],
+        },
+    });
+
+    const claims = await verifySessionToken(token, context);
+    assert.equal(claims.id, 80);
+    assert.equal(typeof claims.exp, 'number');
+    for (const field of [
+        'username',
+        'email',
+        'role',
+        'name',
+        'phone',
+        'postalCode',
+        'dateOfBirth',
+        'subregionIds',
+        'hardAssetStaffAccess',
+        'organizationAccess',
+    ]) {
+        assert.equal(Object.hasOwn(claims, field), false, `${field} must not be signed into the session token`);
+    }
+});
+
+test('user-view session claims retain only minimal impersonation context', async () => {
+    const context = { env: { NODE_ENV: 'development', JWT_SECRET: 'user-view-claims-test-secret' } };
+    const token = await createSessionToken({ id: 91 }, context, {
+        extraClaims: {
+            isImpersonating: true,
+            impersonatedBy: {
+                id: 7,
+                username: 'super-admin',
+                email: 'admin@example.com',
+                name: 'Admin Name',
+                role: 'super_admin',
+            },
+        },
+    });
+
+    const claims = await verifySessionToken(token, context);
+    assert.equal(claims.id, 91);
+    assert.equal(claims.isImpersonating, true);
+    assert.deepEqual(claims.impersonatedBy, { id: 7, name: 'Admin Name' });
 });
 
 test('production sessions require an explicit JWT secret', () => {

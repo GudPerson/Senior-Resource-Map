@@ -151,6 +151,24 @@ function isTerminalAttemptStatus(status) {
     ].includes(status);
 }
 
+export function isPhoneLoginAttemptExpired(attempt, now = Date.now()) {
+    if (!attempt?.expiresAt) return false;
+    const expiresAt = new Date(attempt.expiresAt).getTime();
+    return Number.isFinite(expiresAt) && expiresAt <= now;
+}
+
+async function consumePhoneLoginAttempt(store, attempt, expectedTokenHash, values = {}) {
+    const updated = await store.consumeAttempt(attempt.id, expectedTokenHash, values);
+    if (!updated) {
+        throw createPhoneLoginError(
+            'This WhatsApp sign-in has already been used. Please start again.',
+            409,
+            'attempt_already_used',
+        );
+    }
+    return updated;
+}
+
 function serializeAttemptStatus(attempt, extra = {}) {
     return {
         attemptId: attempt.id,
@@ -204,7 +222,7 @@ function createRandomPasswordSeed() {
     return Array.from(bytes).map((value) => value.toString(16).padStart(2, '0')).join('');
 }
 
-async function resolveVerifiedLoginIdentity({ store, attempt, phoneE164 }) {
+async function resolveVerifiedLoginIdentity({ store, attempt, attemptTokenHash, phoneE164 }) {
     const identities = await store.findVerifiedIdentitiesByPhone(phoneE164);
 
     if (!identities.length) {
@@ -252,7 +270,7 @@ async function resolveVerifiedLoginIdentity({ store, attempt, phoneE164 }) {
         return serializeAttemptStatus(updated, { reason: 'identity_user_missing' });
     }
 
-    const updated = await store.updateAttempt(attempt.id, {
+    const updated = await consumePhoneLoginAttempt(store, attempt, attemptTokenHash, {
         status: PHONE_LOGIN_ATTEMPT_STATUS.verified,
         verifiedPhoneE164: phoneE164,
         providerStatus: PHONE_LOGIN_ATTEMPT_STATUS.verified,
@@ -281,6 +299,20 @@ export function createPhoneLoginStore(db) {
                 .where(eq(phoneLoginAttempts.id, attemptId))
                 .returning();
             return row;
+        },
+        async consumeAttempt(attemptId, expectedTokenHash, values) {
+            const [row] = await db.update(phoneLoginAttempts)
+                .set({
+                    ...values,
+                    attemptTokenHash: null,
+                    updatedAt: new Date(),
+                })
+                .where(and(
+                    eq(phoneLoginAttempts.id, attemptId),
+                    eq(phoneLoginAttempts.attemptTokenHash, expectedTokenHash),
+                ))
+                .returning();
+            return row || null;
         },
         async findVerifiedIdentitiesByPhone(phoneE164) {
             return db.select()
@@ -430,12 +462,23 @@ export async function pollPhoneLoginAttempt({ store, gudAuthClient, attemptId, a
     if (!attempt) {
         throw createPhoneLoginError('Phone sign-in attempt was not found.', 404, 'attempt_not_found');
     }
+    const attemptTokenHash = attempt.attemptTokenHash;
     await verifyPhoneLoginAttemptToken(attempt, attemptToken);
+
+    if (isPhoneLoginAttemptExpired(attempt)) {
+        const updated = await store.updateAttempt(attempt.id, {
+            status: PHONE_LOGIN_ATTEMPT_STATUS.expired,
+            failureReason: PHONE_LOGIN_ATTEMPT_STATUS.expired,
+            attemptTokenHash: null,
+        });
+        return serializeAttemptStatus(updated);
+    }
 
     if (isTerminalAttemptStatus(attempt.status)) {
         if (attempt.status === PHONE_LOGIN_ATTEMPT_STATUS.verified && attempt.resolvedUserId) {
+            const consumed = await consumePhoneLoginAttempt(store, attempt, attemptTokenHash);
             const user = await store.getUserWithSubregions(attempt.resolvedUserId);
-            return serializeAttemptStatus(attempt, user ? { user } : {});
+            return serializeAttemptStatus(consumed, user ? { user } : {});
         }
         return serializeAttemptStatus(attempt);
     }
@@ -477,6 +520,7 @@ export async function pollPhoneLoginAttempt({ store, gudAuthClient, attemptId, a
     return resolveVerifiedLoginIdentity({
         store,
         attempt,
+        attemptTokenHash,
         phoneE164: verifiedPhoneE164,
     });
 }
@@ -486,7 +530,17 @@ export async function completePhoneLoginSignup({ store, attemptId, attemptToken,
     if (!attempt) {
         throw createPhoneLoginError('Phone sign-up attempt was not found.', 404, 'attempt_not_found');
     }
+    const attemptTokenHash = attempt.attemptTokenHash;
     await verifyPhoneLoginAttemptToken(attempt, attemptToken);
+
+    if (isPhoneLoginAttemptExpired(attempt)) {
+        const updated = await store.updateAttempt(attempt.id, {
+            status: PHONE_LOGIN_ATTEMPT_STATUS.expired,
+            failureReason: PHONE_LOGIN_ATTEMPT_STATUS.expired,
+            attemptTokenHash: null,
+        });
+        return serializeAttemptStatus(updated);
+    }
 
     if (
         attempt.status !== PHONE_LOGIN_ATTEMPT_STATUS.signupRequired
@@ -532,7 +586,7 @@ export async function completePhoneLoginSignup({ store, attemptId, attemptToken,
         derivedSubregionId: derivedSubregion?.id || null,
     });
 
-    const updated = await store.updateAttempt(attempt.id, {
+    const updated = await consumePhoneLoginAttempt(store, attempt, attemptTokenHash, {
         status: PHONE_LOGIN_ATTEMPT_STATUS.verified,
         resolvedUserId: user.id,
         verifiedPhoneE164: phoneE164,

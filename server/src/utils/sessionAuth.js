@@ -70,6 +70,28 @@ export function buildSessionPayload(user, extraClaims = {}) {
     };
 }
 
+function buildImpersonationClaims(extraClaims = {}) {
+    if (!extraClaims?.isImpersonating) return {};
+
+    const impersonatedBy = extraClaims.impersonatedBy;
+    return {
+        isImpersonating: true,
+        impersonatedBy: impersonatedBy && typeof impersonatedBy === 'object'
+            ? {
+                id: impersonatedBy.id,
+                name: impersonatedBy.name,
+            }
+            : null,
+    };
+}
+
+export function buildSessionClaims(user, extraClaims = {}) {
+    return {
+        id: user.id,
+        ...buildImpersonationClaims(extraClaims),
+    };
+}
+
 export async function createSessionToken(user, c, options = {}) {
     const {
         expiresInSeconds = DEFAULT_SESSION_TTL_SECONDS,
@@ -78,7 +100,7 @@ export async function createSessionToken(user, c, options = {}) {
 
     return await sign(
         {
-            ...buildSessionPayload(user, extraClaims),
+            ...buildSessionClaims(user, extraClaims),
             exp: Math.floor(Date.now() / 1000) + expiresInSeconds,
         },
         getSessionSecret(c),

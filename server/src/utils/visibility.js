@@ -1,6 +1,19 @@
 import { normalizeRole } from './roles.js';
 import { getAssetAudienceZoneIds } from './audienceZones.js';
 
+export function isAssetScheduledHidden(asset, now = new Date()) {
+    const currentTime = now instanceof Date ? now : new Date(now);
+    const from = asset?.hideFrom ? new Date(asset.hideFrom) : null;
+    const until = asset?.hideUntil ? new Date(asset.hideUntil) : null;
+
+    if (from && until) {
+        return currentTime >= from && currentTime <= until;
+    }
+    if (from) return currentTime >= from;
+    if (until) return currentTime <= until;
+    return false;
+}
+
 export function isAssetVisible(asset, user, options = {}) {
     if (asset.isDeleted) return false;
     const role = normalizeRole(user?.role);
@@ -67,18 +80,7 @@ export function isAssetVisible(asset, user, options = {}) {
     // Manually hidden (unless you are owner/admin)
     if (asset.isHidden) return false;
 
-    // Scheduled hiding
-    const now = new Date();
-    const from = asset.hideFrom ? new Date(asset.hideFrom) : null;
-    const until = asset.hideUntil ? new Date(asset.hideUntil) : null;
-
-    if (from && until) {
-        if (now >= from && now <= until) return false;
-    } else if (from && now >= from) {
-        return false;
-    } else if (until && now <= until) {
-        return false;
-    }
+    if (isAssetScheduledHidden(asset)) return false;
 
     return true;
 }

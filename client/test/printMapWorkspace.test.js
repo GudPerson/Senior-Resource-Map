@@ -66,7 +66,9 @@ const ownerPrintViewSource = ownerPageSource.slice(
 );
 const directoryMapSource = readFileSync(new URL('../src/components/DirectoryMap.jsx', import.meta.url), 'utf8');
 const sharedMapDirectorySource = readFileSync(new URL('../src/components/SharedMapDirectoryList.jsx', import.meta.url), 'utf8');
-const i18nSource = readFileSync(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
+const i18nSource = ['en.js', 'zh-CN.js', 'ms.js', 'ta.js']
+    .map((localeFile) => readFileSync(new URL(`../src/locales/${localeFile}`, import.meta.url), 'utf8'))
+    .join('\n');
 const rootPackage = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
 
 test('owner Export View starts from a safe high-resolution, wide-margin baseline', () => {

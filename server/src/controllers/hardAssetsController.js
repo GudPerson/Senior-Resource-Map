@@ -24,7 +24,12 @@ import {
 import { buildHardAssetSearchWhere } from '../utils/hardAssetSearch.js';
 import { attachHardAssetRegionMatches } from '../utils/regionScope.js';
 import { formatHardAssetListSummary } from '../utils/hardAssetListSummary.js';
-import { syncAssetTags } from '../utils/tags.js';
+import {
+    buildAssetTagReplacementQueries,
+    prepareAssetTagIds,
+    syncAssetTags,
+} from '../utils/tags.js';
+import { buildResourceWriteLockQuery, executeAtomicBatch } from '../utils/atomicWrites.js';
 import { rebuildMapCache } from '../utils/cacheBuilder.js';
 import { loadScopedBoundaryContext, resolvePostalBoundaryStatus } from '../utils/subregionBoundaryStatus.js';
 import { resolveOrCreateExternalKey } from '../utils/externalKeys.js';
@@ -62,6 +67,7 @@ import {
     safelyRecordAuditLog,
 } from '../utils/auditTrail.js';
 import { shouldGrantCreatorDefaultHardAssetOwner } from '../utils/assetCreatorOwnership.js';
+import { buildPublicHardAssetDto } from '../utils/publicResourceDtos.js';
 
 const getCacheRegionId = (...ids) => ids.find((value) => value !== undefined && value !== null && value !== '') || 'all';
 
@@ -121,6 +127,10 @@ function isSingaporeCountry(value) {
 
 function isQueryFlagEnabled(value) {
     return ['1', 'true', 'yes', 'on'].includes(String(value || '').trim().toLowerCase());
+}
+
+function buildHardAssetResponse(asset, viewer) {
+    return normalizeRole(viewer?.role) === 'guest' ? buildPublicHardAssetDto(asset) : asset;
 }
 
 async function resolvePlaceWritableSubregionByPostal(db, postalCode, country, user, entityLabel = 'Postal code') {
@@ -1337,7 +1347,7 @@ export const getHardAssets = async (c) => {
             }));
 
             return c.json({
-                data: formatted,
+                data: formatted.map((asset) => buildHardAssetResponse(asset, user)),
                 pagination: buildResourceListPagination({ totalCount, page, pageSize }),
             });
         }
@@ -1390,7 +1400,7 @@ export const getHardAssets = async (c) => {
             }));
 
             return c.json({
-                data: formatted,
+                data: formatted.map((asset) => buildHardAssetResponse(asset, user)),
                 pagination,
             });
         }
@@ -1523,7 +1533,7 @@ export const getHardAssets = async (c) => {
         const formattedWithTranslations = await attachHardAssetTranslations(db, formatted);
 
         return c.json({
-            data: formattedWithTranslations,
+            data: formattedWithTranslations.map((asset) => buildHardAssetResponse(asset, user)),
             pagination,
         });
     } catch (err) {
@@ -1666,7 +1676,7 @@ export const getHardAssetById = async (c) => {
             permissions: buildHardAssetPermissionSummary(user, assetWithRegions),
         });
 
-        return c.json(formatted);
+        return c.json(buildHardAssetResponse(formatted, user));
     } catch (err) {
         console.error(err);
         return c.json({ error: err.message || 'Failed to fetch hard asset' }, err.status || 500);
@@ -2002,14 +2012,15 @@ export const updateHardAsset = async (c) => {
             hideUntil: body.hideUntil !== undefined ? (body.hideUntil ? new Date(body.hideUntil) : null) : existing.hideUntil,
             updatedAt: new Date(),
         };
-        await db.update(hardAssets).set(updatePatch).where(eq(hardAssets.id, id));
-
         const postSaveIssues = [];
         const tagsChanged = body.newTags !== undefined && tagListsChanged(existing.tags, body.newTags || []);
-        if (tagsChanged) {
-            const tagSyncStatus = await runHardAssetPostSaveTask('tags', () => syncAssetTags(db, id, 'hard', body.newTags));
-            if (!tagSyncStatus.ok) postSaveIssues.push(tagSyncStatus);
-        }
+        const tagIds = tagsChanged ? await prepareAssetTagIds(db, body.newTags || []) : [];
+        const coreWriteQueries = [
+            buildResourceWriteLockQuery(db, 'hardAsset', id),
+            db.update(hardAssets).set(updatePatch).where(eq(hardAssets.id, id)),
+            ...(tagsChanged ? buildAssetTagReplacementQueries(db, id, 'hard', tagIds) : []),
+        ];
+        await executeAtomicBatch(db, coreWriteQueries, 'hard asset update');
 
         const savedAsset = { ...existing, ...updatePatch, id };
         const translationStatus = hardAssetTranslationFieldsChanged(existing, updatePatch)

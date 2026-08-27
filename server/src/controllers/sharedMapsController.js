@@ -1,7 +1,7 @@
 import { and, asc, eq } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
-import { hardAssets, myMapAssetNotes, myMapAssets, myMaps } from '../db/schema.js';
+import { myMapAssetNotes, myMapAssets, myMaps } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import {
     applyEmbeddedResourceContactSnapshot,
@@ -13,10 +13,14 @@ import {
     filterEmbeddedMapDirectoryByResourceAllowlist,
     normalizeEmbeddedMapPresentationSnapshot,
 } from '../utils/embeddedMapPresentation.js';
-import { buildMyMapDirectory, normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
+import {
+    buildMyMapDirectory,
+    isLiveMyMapAssetVisible,
+    loadLiveAssetsByKey,
+    normalizeMyMapAssetSnapshot,
+} from '../utils/myMapDirectory.js';
 import { normalizeRole } from '../utils/roles.js';
 import { translateSharedMapNotes } from '../utils/sharedNoteTranslations.js';
-import { isAssetVisible } from '../utils/visibility.js';
 import { normalizeEmbeddedPrintAnnotationSnapshot } from './printAnnotationsController.js';
 
 function createHttpError(status, message) {
@@ -179,15 +183,26 @@ function normalizeSnapshotDirectory(map, viewerUser, {
 async function filterSnapshotDirectoryByLiveVisibility(db, directory) {
     if (!directory) return null;
     const hiddenKeys = new Set();
+    const snapshotAssets = (directory.assets || [])
+        .map((asset) => ({
+            resourceType: asset?.resourceType,
+            resourceId: Number.parseInt(String(asset?.resourceId ?? ''), 10),
+        }))
+        .filter((asset) => (
+            ['hard', 'soft'].includes(asset.resourceType)
+            && Number.isInteger(asset.resourceId)
+            && asset.resourceId > 0
+        ));
+    const liveAssetsByKey = await loadLiveAssetsByKey(db, snapshotAssets);
+    const guestVisibilityContext = {
+        allowedPartnerAudienceIds: new Set(),
+        allowedAudienceZoneIds: new Set(),
+    };
 
-    for (const asset of directory.assets || []) {
-        const resourceId = Number.parseInt(String(asset?.resourceId ?? ''), 10);
-        if (asset?.resourceType !== 'hard' || !Number.isInteger(resourceId) || resourceId <= 0) continue;
-        const liveAsset = await db.query.hardAssets.findFirst({
-            where: eq(hardAssets.id, resourceId),
-        });
-        if (!liveAsset || !isAssetVisible(liveAsset, { role: 'guest' }, { ownerPartner: liveAsset.partner })) {
-            hiddenKeys.add(`${asset.resourceType}:${resourceId}`);
+    for (const asset of snapshotAssets) {
+        const liveAsset = liveAssetsByKey.get(`${asset.resourceType}-${asset.resourceId}`) || null;
+        if (!isLiveMyMapAssetVisible(asset.resourceType, liveAsset, { role: 'guest' }, guestVisibilityContext)) {
+            hiddenKeys.add(`${asset.resourceType}:${asset.resourceId}`);
         }
     }
 
@@ -377,8 +392,8 @@ export async function copySharedMapToMyMaps(db, viewerUser, token) {
     }
 
     const name = await resolveUniqueCopyName(db, viewerUser.id, map.name);
-    const snapshotDirectory = normalizeSnapshotDirectory(map, viewerUser);
-    const snapshotAssets = snapshotDirectory ? getSharedSnapshotAssets(snapshotDirectory) : null;
+    const snapshotDirectory = await getSharedMapDirectory(db, token, viewerUser);
+    const snapshotAssets = getSharedSnapshotAssets(snapshotDirectory);
     const [createdMap] = await db.insert(myMaps).values({
         userId: viewerUser.id,
         name,
@@ -420,59 +435,13 @@ export async function copySharedMapToMyMaps(db, viewerUser, token) {
         if (noteRows.length > 0) {
             await db.insert(myMapAssetNotes).values(noteRows);
         }
-    } else if ((map.assets || []).length > 0) {
-        const timestamp = new Date();
-        const insertedAssets = await db.insert(myMapAssets).values(
-            map.assets.map((asset) => ({
-                mapId: createdMap.id,
-                resourceType: asset.resourceType,
-                resourceId: asset.resourceId,
-                privateNote: null,
-                handoffNote: null,
-                notesUpdatedAt: null,
-                snapshot: normalizeMyMapAssetSnapshot(asset.resourceType, asset.resourceId, asset.snapshot),
-            }))
-        ).returning();
-
-        const noteRows = insertedAssets.flatMap((mapAsset, assetIndex) => {
-            const sourceAsset = map.assets[assetIndex];
-            const explicitNotes = Array.isArray(sourceAsset?.notes) ? sourceAsset.notes : [];
-            if (explicitNotes.length > 0) {
-                return explicitNotes
-                    .filter((note) => note?.isShared && String(note?.noteText || note?.text || '').trim())
-                    .map((note, noteIndex) => ({
-                        mapAssetId: mapAsset.id,
-                        noteText: String(note.noteText || note.text).trim(),
-                        isShared: false,
-                        sortOrder: noteIndex,
-                        createdAt: timestamp,
-                        updatedAt: timestamp,
-                    }));
-            }
-
-            const legacyNote = map.shareIncludesHandoffNotes ? String(sourceAsset?.handoffNote || '').trim() : '';
-            return legacyNote
-                ? [{
-                    mapAssetId: mapAsset.id,
-                    noteText: legacyNote,
-                    isShared: false,
-                    sortOrder: 0,
-                    createdAt: timestamp,
-                    updatedAt: timestamp,
-                }]
-                : [];
-        });
-
-        if (noteRows.length > 0) {
-            await db.insert(myMapAssetNotes).values(noteRows);
-        }
     }
 
     return {
         id: createdMap.id,
         name: createdMap.name,
         description: createdMap.description || null,
-        assetCount: snapshotAssets?.length ?? (map.assets || []).length,
+        assetCount: snapshotAssets.length,
         isShared: false,
         shareToken: null,
         sharePath: null,

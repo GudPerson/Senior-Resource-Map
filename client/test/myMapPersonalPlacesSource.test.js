@@ -123,7 +123,7 @@ test('personal place image upload does not reset an in-progress editor draft', (
 test('new personal-place flow makes the map-location step explicit', () => {
     const detailSource = readSource('../src/pages/MyMapDetailPage.jsx');
     const chooserSource = readSource('../src/components/personalPlaces/AddPersonalPlaceChooserModal.jsx');
-    const i18nSource = readSource('../src/lib/i18n.js');
+    const i18nSource = readSource('../src/locales/en.js');
 
     assert.match(chooserSource, /Choose map location/);
     assert.doesNotMatch(chooserSource, />\s*Create new\s*</);

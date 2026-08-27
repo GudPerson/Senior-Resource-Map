@@ -2,7 +2,24 @@ import { sql } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { dataStore } from './dataStore.js';
 
-export const MAP_CACHE_SCHEMA_VERSION = 5;
+export const MAP_CACHE_SCHEMA_VERSION = 6;
+
+const CACHE_QUERY_ALIASES = new Set(['h', 's', 'l']);
+
+export function buildCacheScheduleVisibilityPredicate(tableAlias) {
+    if (!CACHE_QUERY_ALIASES.has(tableAlias)) {
+        throw new Error('Unsupported cache visibility table alias');
+    }
+    const hideFrom = sql.raw(`${tableAlias}.hide_from`);
+    const hideUntil = sql.raw(`${tableAlias}.hide_until`);
+    return sql`
+        AND NOT (
+            (${hideFrom} IS NOT NULL AND ${hideUntil} IS NOT NULL AND CURRENT_TIMESTAMP BETWEEN ${hideFrom} AND ${hideUntil})
+            OR (${hideFrom} IS NOT NULL AND ${hideUntil} IS NULL AND CURRENT_TIMESTAMP >= ${hideFrom})
+            OR (${hideFrom} IS NULL AND ${hideUntil} IS NOT NULL AND CURRENT_TIMESTAMP <= ${hideUntil})
+        )
+    `;
+}
 
 /**
  * Rebuilds the edge cache JSON for a specific subregion
@@ -25,6 +42,10 @@ export function buildMapCacheQuery(subregionId) {
                 h.logo_url,
                 h.banner_url,
                 h.updated_at,
+                h.hide_from,
+                h.hide_until,
+                h.hide_from as location_hide_from,
+                h.hide_until as location_hide_until,
                 h.phone,
                 h.whatsapp_contact,
                 h.website,
@@ -60,6 +81,7 @@ export function buildMapCacheQuery(subregionId) {
             FROM hard_assets h
             WHERE h.is_deleted = false
               AND h.is_hidden = false
+              ${buildCacheScheduleVisibilityPredicate('h')}
               AND h.lat IS NOT NULL
               AND h.lng IS NOT NULL
             UNION ALL
@@ -76,6 +98,10 @@ export function buildMapCacheQuery(subregionId) {
                 s.logo_url,
                 s.banner_url,
                 s.updated_at,
+                s.hide_from,
+                s.hide_until,
+                l.hide_from as location_hide_from,
+                l.hide_until as location_hide_until,
                 s.contact_phone as phone,
                 s.whatsapp_contact,
                 s.cta_url as website,
@@ -114,10 +140,12 @@ export function buildMapCacheQuery(subregionId) {
             WHERE s.is_deleted = false
               AND COALESCE(s.asset_mode, 'standalone') = 'standalone'
               AND s.is_hidden = false
+              ${buildCacheScheduleVisibilityPredicate('s')}
               AND s.is_member_only = false
               AND s.audience_mode = 'public'
               AND l.is_deleted = false
               AND l.is_hidden = false
+              ${buildCacheScheduleVisibilityPredicate('l')}
               AND l.lat IS NOT NULL
               AND l.lng IS NOT NULL
             UNION ALL
@@ -134,6 +162,10 @@ export function buildMapCacheQuery(subregionId) {
                 s.logo_url,
                 s.banner_url,
                 s.updated_at,
+                s.hide_from,
+                s.hide_until,
+                NULL::timestamp as location_hide_from,
+                NULL::timestamp as location_hide_until,
                 s.contact_phone as phone,
                 s.whatsapp_contact,
                 s.cta_url as website,
@@ -165,6 +197,7 @@ export function buildMapCacheQuery(subregionId) {
             WHERE s.is_deleted = false
               AND COALESCE(s.asset_mode, 'standalone') = 'standalone'
               AND s.is_hidden = false
+              ${buildCacheScheduleVisibilityPredicate('s')}
               AND s.is_member_only = false
               AND s.audience_mode = 'public'
               AND NOT EXISTS (
@@ -186,6 +219,10 @@ export function buildMapCacheQuery(subregionId) {
                 s.logo_url,
                 s.banner_url,
                 s.updated_at,
+                s.hide_from,
+                s.hide_until,
+                l.hide_from as location_hide_from,
+                l.hide_until as location_hide_until,
                 s.contact_phone as phone,
                 s.whatsapp_contact,
                 s.cta_url as website,
@@ -223,10 +260,12 @@ export function buildMapCacheQuery(subregionId) {
             WHERE s.is_deleted = false
               AND COALESCE(s.asset_mode, 'standalone') = 'child'
               AND s.is_hidden = false
+              ${buildCacheScheduleVisibilityPredicate('s')}
               AND s.is_member_only = false
               AND s.audience_mode = 'public'
               AND l.is_deleted = false
               AND l.is_hidden = false
+              ${buildCacheScheduleVisibilityPredicate('l')}
               AND l.lat IS NOT NULL
               AND l.lng IS NOT NULL
         `
@@ -244,6 +283,10 @@ export function buildMapCacheQuery(subregionId) {
                 h.logo_url,
                 h.banner_url,
                 h.updated_at,
+                h.hide_from,
+                h.hide_until,
+                h.hide_from as location_hide_from,
+                h.hide_until as location_hide_until,
                 h.phone,
                 h.whatsapp_contact,
                 h.website,
@@ -280,6 +323,7 @@ export function buildMapCacheQuery(subregionId) {
             WHERE h.subregion_id = ${subregionId}
               AND h.is_deleted = false
               AND h.is_hidden = false
+              ${buildCacheScheduleVisibilityPredicate('h')}
               AND h.lat IS NOT NULL
               AND h.lng IS NOT NULL
             UNION ALL
@@ -296,6 +340,10 @@ export function buildMapCacheQuery(subregionId) {
                 s.logo_url,
                 s.banner_url,
                 s.updated_at,
+                s.hide_from,
+                s.hide_until,
+                l.hide_from as location_hide_from,
+                l.hide_until as location_hide_until,
                 s.contact_phone as phone,
                 s.whatsapp_contact,
                 s.cta_url as website,
@@ -335,10 +383,12 @@ export function buildMapCacheQuery(subregionId) {
               AND COALESCE(s.asset_mode, 'standalone') = 'standalone'
               AND s.is_deleted = false
               AND s.is_hidden = false
+              ${buildCacheScheduleVisibilityPredicate('s')}
               AND s.is_member_only = false
               AND s.audience_mode = 'public'
               AND l.is_deleted = false
               AND l.is_hidden = false
+              ${buildCacheScheduleVisibilityPredicate('l')}
               AND l.lat IS NOT NULL
               AND l.lng IS NOT NULL
             UNION ALL
@@ -355,6 +405,10 @@ export function buildMapCacheQuery(subregionId) {
                 s.logo_url,
                 s.banner_url,
                 s.updated_at,
+                s.hide_from,
+                s.hide_until,
+                NULL::timestamp as location_hide_from,
+                NULL::timestamp as location_hide_until,
                 s.contact_phone as phone,
                 s.whatsapp_contact,
                 s.cta_url as website,
@@ -386,6 +440,7 @@ export function buildMapCacheQuery(subregionId) {
             WHERE s.is_deleted = false
               AND COALESCE(s.asset_mode, 'standalone') = 'standalone'
               AND s.is_hidden = false
+              ${buildCacheScheduleVisibilityPredicate('s')}
               AND s.is_member_only = false
               AND s.audience_mode = 'public'
               AND (
@@ -416,6 +471,10 @@ export function buildMapCacheQuery(subregionId) {
                 s.logo_url,
                 s.banner_url,
                 s.updated_at,
+                s.hide_from,
+                s.hide_until,
+                l.hide_from as location_hide_from,
+                l.hide_until as location_hide_until,
                 s.contact_phone as phone,
                 s.whatsapp_contact,
                 s.cta_url as website,
@@ -454,21 +513,27 @@ export function buildMapCacheQuery(subregionId) {
               AND COALESCE(s.asset_mode, 'standalone') = 'child'
               AND s.is_deleted = false
               AND s.is_hidden = false
+              ${buildCacheScheduleVisibilityPredicate('s')}
               AND s.is_member_only = false
               AND s.audience_mode = 'public'
               AND l.is_deleted = false
               AND l.is_hidden = false
+              ${buildCacheScheduleVisibilityPredicate('l')}
               AND l.lat IS NOT NULL
               AND l.lng IS NOT NULL
         `;
 }
 
 export const rebuildMapCache = async (subregionId, envVars, deps = {}) => {
+    const log = deps.log || console.log;
+    const logError = deps.logError || console.error;
     if (!subregionId) {
-        console.error("rebuildMapCache requires a subregionId");
-        return;
+        logError(JSON.stringify({ event: 'map_cache_rebuild', outcome: 'invalid_request' }));
+        return { ok: false, outcome: 'invalid_request' };
     }
 
+    const now = deps.now || Date.now;
+    const startedAt = now();
     try {
         const db = deps.db || getDb(envVars);
         const store = deps.store || dataStore;
@@ -480,16 +545,36 @@ export const rebuildMapCache = async (subregionId, envVars, deps = {}) => {
         const blobKey = `locations-cache-region-${subregionId}.json`;
         await store.setJSON(blobKey, {
             version: MAP_CACHE_SCHEMA_VERSION,
-            generatedAt: new Date().toISOString(),
+            generatedAt: new Date(now()).toISOString(),
             data: rows,
         }, envVars);
-        console.log(`✅ Edge cache updated for subregion ${subregionId}: ${blobKey}`);
+        const durationMs = Math.max(0, now() - startedAt);
+        const event = {
+            event: 'map_cache_rebuild',
+            outcome: 'success',
+            region: String(subregionId),
+            rowCount: Array.isArray(rows) ? rows.length : 0,
+            durationMs,
+            aggregateRequested: subregionId !== 'all' && shouldRebuildAggregate,
+        };
+        log(JSON.stringify(event));
 
         if (subregionId !== 'all' && shouldRebuildAggregate) {
             await rebuildMapCache('all', envVars, deps);
         }
 
+        return { ok: true, ...event, blobKey };
+
     } catch (error) {
-        console.error(`❌ Failed to rebuild map cache for region ${subregionId}:`, error.message);
+        const event = {
+            event: 'map_cache_rebuild',
+            outcome: 'error',
+            region: String(subregionId),
+            durationMs: Math.max(0, now() - startedAt),
+            errorType: String(error?.name || 'Error').slice(0, 80),
+            errorCode: error?.code ? String(error.code).slice(0, 80) : undefined,
+        };
+        logError(JSON.stringify(event));
+        return { ok: false, ...event };
     }
 };

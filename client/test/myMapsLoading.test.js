@@ -33,7 +33,7 @@ const apiSource = readFileSync(
     'utf8',
 );
 const i18nSource = readFileSync(
-    new URL('../src/lib/i18n.js', import.meta.url),
+    new URL('../src/locales/en.js', import.meta.url),
     'utf8',
 );
 const appSource = readFileSync(

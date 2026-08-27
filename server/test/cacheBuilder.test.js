@@ -1,12 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { PgDialect } from 'drizzle-orm/pg-core';
 
-import { MAP_CACHE_SCHEMA_VERSION, buildMapCacheQuery, rebuildMapCache } from '../src/utils/cacheBuilder.js';
+import {
+    MAP_CACHE_SCHEMA_VERSION,
+    buildCacheScheduleVisibilityPredicate,
+    buildMapCacheQuery,
+    rebuildMapCache,
+} from '../src/utils/cacheBuilder.js';
 
 function stringifyQuery(query) {
-    return query.queryChunks
-        .map((chunk) => typeof chunk === 'string' ? chunk : (chunk?.value ?? String(chunk)))
-        .join(' ');
+    return new PgDialect().sqlToQuery(query).sql;
 }
 
 test('buildMapCacheQuery keeps member-only and partner-boundary soft assets out of public cache', () => {
@@ -26,6 +30,20 @@ test('buildMapCacheQuery keeps member-only and partner-boundary soft assets out 
     assert.match(queryText, /COALESCE\(s\.asset_mode, 'standalone'\) = 'child'/);
     assert.match(queryText, /s\.host_hard_asset_id = l\.id/);
     assert.match(queryText, /l\.is_hidden = false/);
+    assert.match(queryText, /h\.hide_from/);
+    assert.match(queryText, /s\.hide_from/);
+    assert.match(queryText, /l\.hide_from/);
+    assert.match(queryText, /CURRENT_TIMESTAMP BETWEEN/);
+    assert.match(queryText, /location_hide_from/);
+    assert.match(queryText, /location_hide_until/);
+});
+
+test('cache schedule predicates accept only fixed internal table aliases', () => {
+    assert.match(stringifyQuery(buildCacheScheduleVisibilityPredicate('s')), /s\.hide_from/);
+    assert.throws(
+        () => buildCacheScheduleVisibilityPredicate('s; DROP TABLE soft_assets'),
+        /Unsupported cache visibility table alias/,
+    );
 });
 
 test('rebuildMapCache writes both the scoped cache and the aggregate cache', async () => {
@@ -86,4 +104,32 @@ test('rebuildMapCache can skip aggregate recursion for batched refreshes', async
         writes.map((entry) => entry.key),
         ['locations-cache-region-12.json']
     );
+});
+
+test('rebuildMapCache emits privacy-safe duration and row-count events', async () => {
+    const events = [];
+    const times = [1000, 1010, 1025];
+    const result = await rebuildMapCache(12, { MAP_CACHE: {} }, {
+        db: {
+            async execute() {
+                return { rows: [{ id: 1 }, { id: 2 }] };
+            },
+        },
+        store: { async setJSON() {} },
+        rebuildAggregate: false,
+        now: () => times.shift(),
+        log: (value) => events.push(JSON.parse(value)),
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.rowCount, 2);
+    assert.deepEqual(events, [{
+        event: 'map_cache_rebuild',
+        outcome: 'success',
+        region: '12',
+        rowCount: 2,
+        durationMs: 25,
+        aggregateRequested: false,
+    }]);
+    assert.doesNotMatch(JSON.stringify(events), /title|description|address/);
 });

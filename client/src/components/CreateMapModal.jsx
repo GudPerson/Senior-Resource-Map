@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { LoaderCircle, Map, Search, X } from 'lucide-react';
 
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
+import { handleModalKeyboardEvent } from '../lib/modalKeyboard.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 
 const EMPTY_ASSET_KEYS = [];
@@ -32,6 +33,7 @@ export default function CreateMapModal({
     const [filter, setFilter] = useState('all');
     const [selectedKeys, setSelectedKeys] = useState(new Set());
     const [validationError, setValidationError] = useState('');
+    const titleId = useId();
 
     const isCreateMode = mode === 'create';
     const busy = loading || submitting;
@@ -140,15 +142,27 @@ export default function CreateMapModal({
         });
     }
 
+    function handleDialogKeyDown(event) {
+        handleModalKeyboardEvent(event, {
+            onEscape: busy ? null : onClose,
+        });
+    }
+
     return (
-        <div className="fixed inset-0 z-[1400] flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-            <div className="flex max-h-[calc(100svh-0.75rem)] w-full max-w-3xl flex-col overflow-hidden rounded-t-[28px] border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100svh-2rem)] sm:rounded-[28px]">
+        <div role="presentation" className="fixed inset-0 z-[1400] flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                onKeyDown={handleDialogKeyDown}
+                className="flex max-h-[calc(100svh-0.75rem)] w-full max-w-3xl flex-col overflow-hidden rounded-t-[28px] border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100svh-2rem)] sm:rounded-[28px]"
+            >
                 <div className="flex shrink-0 items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">
                             {isCreateMode ? t('createMap') : t('chooseMapResources')}
                         </p>
-                        <h2 className="mt-2 text-2xl font-bold text-slate-900">
+                        <h2 id={titleId} className="mt-2 text-2xl font-bold text-slate-900">
                             {isCreateMode ? t('createMapFromSaved') : t('chooseWhatStaysInMap')}
                         </h2>
                         <p className="mt-2 text-sm text-slate-500">

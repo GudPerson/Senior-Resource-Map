@@ -171,6 +171,8 @@ export default function Navbar() {
                                     <button
                                         id="nav-logout"
                                         onClick={handleLogout}
+                                        title={isImpersonating ? t('exitUserView') : t('logout')}
+                                        aria-label={isImpersonating ? t('exitUserView') : t('logout')}
                                         className="navbar-auth-button btn-ghost text-xs sm:text-sm px-2.5 py-2"
                                     >
                                         <LogOut size={16} />
@@ -181,6 +183,8 @@ export default function Navbar() {
                                 <Link
                                     to="/login"
                                     id="nav-login"
+                                    title={t('login')}
+                                    aria-label={t('login')}
                                     className="navbar-auth-button btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2"
                                 >
                                     <LogIn size={16} />
