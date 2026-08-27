@@ -1,9 +1,9 @@
 {
   "formatVersion": 1,
   "authoritativeSchema": "src/db/schema.js",
-  "currentSchemaSha256": "66293719c5bff73a5e68374cbaba1d5fbad61fdc79c8c1dec51702a3be030d79",
+  "currentSchemaSha256": "915981b68ec6361604eb98facf6981d6d8aab549a6b6cc3b899c5dc94f75b33e",
   "runtimeCompatibilityBootstrap": "src/utils/boundarySchema.js",
-  "runtimeCompatibilityBootstrapSha256": "6bd3b4a1b699781d477ead9bd905b45cda276de2b73c974457c166de6033ea18",
+  "runtimeCompatibilityBootstrapSha256": "8a9bdb2545fe0ce03c37aaf11ddee97ae5f04834d586c2381c3e04360f60c63f",
   "migrations": [
     {
       "id": "0000_carearound_current_schema_baseline",
@@ -35,6 +35,20 @@
       "cautions": [
         "Preflight aborts safely if legacy usernames or emails collide after lowercasing and does not print the identifiers.",
         "Index creation can lock or consume resources on a large users table; apply only in an approved window after measuring the target environment."
+      ]
+    },
+    {
+      "id": "0002_gudauth_challenge_verifier_columns",
+      "file": "drizzle/0002_gudauth_challenge_verifier_columns.sql",
+      "sha256": "7822dd19e58aa60546ad94ace4820945431e0b5cc85e0a44701a903be5cd89fd",
+      "type": "additive-auth-provider-state",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "The application is compatible with the nullable columns present. If rollback is required, roll back the Worker first; removing the columns is optional and must be handled as a separately reviewed forward repair after confirming no in-flight phone login or phone-link attempts depend on the stored GudAuth verifier hash material.",
+      "environmentStatus": "Generated and validated in the repository only; not applied to any database at commit time.",
+      "cautions": [
+        "Stores only the GudAuth-issued challenge verifier needed for server-to-provider polling; the value must never be returned to browsers, logs, or public APIs.",
+        "Apply this additive migration before deploying the Worker code that writes the new column."
       ]
     }
   ]

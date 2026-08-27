@@ -110,6 +110,10 @@ function extractChallengeId(challenge) {
     return String(challengePayload?.id || challengePayload?.challengeId || '').trim();
 }
 
+function extractChallengeVerifier(challenge) {
+    return String(challenge?.data?.challengeVerifier || challenge?.challengeVerifier || '').trim();
+}
+
 function extractProviderPhone(challenge) {
     const challengePayload = getProviderChallengePayload(challenge);
     return challengePayload?.phoneE164
@@ -444,6 +448,7 @@ export async function startPhoneLoginAttempt({ store, gudAuthClient, input = {} 
     const sanitizedChallenge = sanitizeChallenge(challenge);
     const updatedAttempt = await store.updateAttempt(attempt.id, {
         providerChallengeId,
+        providerChallengeVerifier: extractChallengeVerifier(challenge),
         providerStatus: getProviderStatus(challenge),
         expiresAt: sanitizedChallenge?.expiresAt ? new Date(sanitizedChallenge.expiresAt) : null,
     });
@@ -487,7 +492,7 @@ export async function pollPhoneLoginAttempt({ store, gudAuthClient, attemptId, a
         throw createPhoneLoginError('Phone sign-in attempt is missing its provider challenge.', 500, 'missing_provider_challenge');
     }
 
-    const challenge = await gudAuthClient.getChallenge(attempt.providerChallengeId);
+    const challenge = await gudAuthClient.getChallenge(attempt.providerChallengeId, attempt.providerChallengeVerifier);
     const challengeState = normalizeChallengeState(challenge);
 
     if (challengeState === PHONE_LOGIN_ATTEMPT_STATUS.pending) {

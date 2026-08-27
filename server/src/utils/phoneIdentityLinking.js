@@ -74,6 +74,10 @@ function extractChallengeId(challenge) {
     return String(challengePayload?.id || challengePayload?.challengeId || '').trim();
 }
 
+function extractChallengeVerifier(challenge) {
+    return String(challenge?.data?.challengeVerifier || challenge?.challengeVerifier || '').trim();
+}
+
 function extractProviderSubject(challenge) {
     const challengePayload = getProviderChallengePayload(challenge);
     return String(challengePayload?.subject || challengePayload?.providerSubject || challengePayload?.verifiedSubject || '').trim() || null;
@@ -357,6 +361,7 @@ export async function startPhoneIdentityLinkAttempt({ store, gudAuthClient, user
 
     const updatedAttempt = await store.updateAttempt(attempt.id, {
         providerChallengeId,
+        providerChallengeVerifier: extractChallengeVerifier(challenge),
         providerStatus: challenge.status || null,
         expiresAt: challenge.expiresAt ? new Date(challenge.expiresAt) : null,
     });
@@ -440,7 +445,7 @@ export async function pollPhoneIdentityLinkAttempt({ store, gudAuthClient, user,
         throw createPhoneLinkError('Phone verification attempt is missing its provider challenge.', 500, 'missing_provider_challenge');
     }
 
-    const challenge = await gudAuthClient.getChallenge(attempt.providerChallengeId);
+    const challenge = await gudAuthClient.getChallenge(attempt.providerChallengeId, attempt.providerChallengeVerifier);
     const challengeState = normalizeChallengeState(challenge);
 
     if (challengeState === PHONE_LINK_ATTEMPT_STATUS.pending) {

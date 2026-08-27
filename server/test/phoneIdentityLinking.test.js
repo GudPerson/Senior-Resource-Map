@@ -193,6 +193,7 @@ test('starting a link creates a CareAround attempt and calls GudAuth server-side
             calls.push(payload);
             return {
                 id: 'gudauth-challenge-1',
+                challengeVerifier: 'a'.repeat(64),
                 status: 'pending',
                 expiresAt: '2026-05-06T10:15:00.000Z',
             };
@@ -210,6 +211,8 @@ test('starting a link creates a CareAround attempt and calls GudAuth server-side
     assert.equal(result.attemptId, 1);
     assert.equal(result.challenge.id, 'gudauth-challenge-1');
     assert.equal(store.state.attempts[0].providerChallengeId, 'gudauth-challenge-1');
+    assert.equal(store.state.attempts[0].providerChallengeVerifier, 'a'.repeat(64));
+    assert.doesNotMatch(JSON.stringify(result), /a{64}/);
     assert.equal(store.state.attempts[0].requestedPhoneE164, '+6583682962');
     assert.deepEqual(calls, [{
         phoneNumber: '+6583682962',
@@ -306,14 +309,16 @@ test('verified GudAuth phone upgrades the current user legacy identity', async (
             userId: DEFAULT_USER.id,
             provider: 'gudauth',
             providerChallengeId: 'gudauth-challenge-3',
+            providerChallengeVerifier: 'b'.repeat(64),
             requestedPhoneE164: '+6583682962',
             status: 'pending',
         }],
     });
     const originalUserPhone = store.state.users[0].phone;
     const gudAuthClient = {
-        async getChallenge(id) {
+        async getChallenge(id, challengeVerifier) {
             assert.equal(id, 'gudauth-challenge-3');
+            assert.equal(challengeVerifier, 'b'.repeat(64));
             return {
                 id,
                 status: 'verified',

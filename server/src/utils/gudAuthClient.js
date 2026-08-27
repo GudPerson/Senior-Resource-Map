@@ -88,7 +88,7 @@ export function createGudAuthClient(env = {}, options = {}) {
         nowInSeconds = () => Math.floor(Date.now() / 1000),
     } = options;
 
-    async function request(method, pathname, body) {
+    async function request(method, pathname, body, extraHeaders = {}) {
         const config = assertGudAuthConfig(env);
         if (typeof fetchImpl !== 'function') {
             throw createGudAuthConfigError('WhatsApp phone verification cannot make provider requests in this environment.');
@@ -114,6 +114,7 @@ export function createGudAuthClient(env = {}, options = {}) {
                 'X-GudOTP-Product': config.productId,
                 'X-GudOTP-Timestamp': timestamp,
                 'X-GudOTP-Signature': signature,
+                ...extraHeaders,
             };
 
             if (rawBody) {
@@ -142,9 +143,10 @@ export function createGudAuthClient(env = {}, options = {}) {
         createChallenge(payload) {
             return request('POST', '/api/integrations/challenges', payload);
         },
-        getChallenge(challengeId) {
-            return request('GET', `/api/integrations/challenges/${encodePathSegment(challengeId)}`);
+        getChallenge(challengeId, challengeVerifier) {
+            const verifier = String(challengeVerifier || '').trim();
+            const headers = verifier ? { 'X-GudOTP-Challenge-Verifier': verifier } : {};
+            return request('GET', `/api/integrations/challenges/${encodePathSegment(challengeId)}`, undefined, headers);
         },
     };
 }
-

@@ -15,6 +15,13 @@
       "when": 1787759900477,
       "tag": "0001_normalized_login_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787955000000,
+      "tag": "0002_gudauth_challenge_verifier_columns",
+      "breakpoints": true
     }
   ]
 }

@@ -57,7 +57,7 @@ test('GudAuth client signs POST and GET requests without exposing secrets', asyn
         phoneNumber: '+6583682962',
         referenceId: 'carearound-phone-link:12',
     });
-    await client.getChallenge('challenge-123');
+    await client.getChallenge('challenge-123', 'a'.repeat(64));
 
     assert.equal(calls.length, 2);
     assert.equal(calls[0].url, 'https://gudauth.app/api/integrations/challenges');
@@ -74,6 +74,8 @@ test('GudAuth client signs POST and GET requests without exposing secrets', asyn
     assert.equal(calls[1].url, 'https://gudauth.app/api/integrations/challenges/challenge-123');
     assert.equal(calls[1].options.method, 'GET');
     assert.equal(calls[1].options.body, undefined);
+    assert.equal(calls[1].options.headers['X-GudOTP-Challenge-Verifier'], 'a'.repeat(64));
+    assert.doesNotMatch(JSON.stringify(calls[1]), /super-secret-value/);
 
     const getCanonical = buildGudAuthCanonicalString({
         timestamp: '1777777777',

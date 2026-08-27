@@ -70,12 +70,21 @@ test('runtime schema bootstrap includes pre-session phone login attempts table',
         statements.some((statement) => (
             statement.includes('create table if not exists phone_login_attempts')
             && statement.includes('attempt_token_hash varchar(128)')
+            && statement.includes('provider_challenge_verifier varchar(128)')
         )),
-        'expected phone_login_attempts verifier hash column in table SQL',
+        'expected phone_login_attempts verifier columns in table SQL',
     );
     assert.ok(
         statements.some((statement) => statement.includes('alter table phone_login_attempts add column if not exists attempt_token_hash varchar(128)')),
         'expected phone_login_attempts verifier hash migration SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table phone_login_attempts add column if not exists provider_challenge_verifier varchar(128)')),
+        'expected phone_login_attempts provider challenge verifier migration SQL',
+    );
+    assert.ok(
+        statements.some((statement) => statement.includes('alter table phone_verification_attempts add column if not exists provider_challenge_verifier varchar(128)')),
+        'expected phone_verification_attempts provider challenge verifier migration SQL',
     );
     assert.ok(
         statements.some((statement) => (

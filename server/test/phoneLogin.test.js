@@ -147,6 +147,7 @@ test('phone login start creates a GudAuth challenge without a browser-side GudAu
                             status: 'pending',
                             expiresAt: '2026-05-08T10:15:00.000Z',
                         },
+                        challengeVerifier: 'a'.repeat(64),
                         deepLink: 'https://wa.me/6587651901?text=WAP-111222',
                     },
                 };
@@ -160,6 +161,8 @@ test('phone login start creates a GudAuth challenge without a browser-side GudAu
     assert.match(result.attemptToken, /^[a-f0-9]{64}$/);
     assert.equal(store.state.attempts[0].attemptTokenHash.length, 64);
     assert.notEqual(store.state.attempts[0].attemptTokenHash, result.attemptToken);
+    assert.equal(store.state.attempts[0].providerChallengeVerifier, 'a'.repeat(64));
+    assert.doesNotMatch(JSON.stringify(result), /a{64}/);
     assert.equal(result.phone, '+65****2962');
     assert.equal(result.challenge.id, 'login-challenge-1');
     assert.equal(result.challenge.whatsappUrl, 'https://wa.me/6587651901?text=WAP-111222');
@@ -184,6 +187,7 @@ test('verified phone login resolves exactly one active verified phone identity',
             id: 2,
             provider: 'gudauth',
             providerChallengeId: 'login-challenge-2',
+            providerChallengeVerifier: 'b'.repeat(64),
             requestedPhoneE164: '+6583682962',
             status: 'pending',
         })],
@@ -192,8 +196,9 @@ test('verified phone login resolves exactly one active verified phone identity',
     const result = await pollPhoneLoginAttempt({
         store,
         gudAuthClient: {
-            async getChallenge(id) {
+            async getChallenge(id, challengeVerifier) {
                 assert.equal(id, 'login-challenge-2');
+                assert.equal(challengeVerifier, 'b'.repeat(64));
                 return {
                     id,
                     status: 'verified',

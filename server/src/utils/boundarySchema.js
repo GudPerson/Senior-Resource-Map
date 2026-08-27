@@ -105,6 +105,8 @@ export async function ensureBoundarySchema(db, envVars = {}) {
             await db.execute(sql`ALTER TABLE hard_assets ADD COLUMN IF NOT EXISTS verification_confidence VARCHAR(40)`);
             await db.execute(sql`ALTER TABLE user_favorites ADD COLUMN IF NOT EXISTS snapshot JSONB`);
             await db.execute(sql`ALTER TABLE phone_login_attempts ADD COLUMN IF NOT EXISTS attempt_token_hash VARCHAR(128)`);
+            await db.execute(sql`ALTER TABLE phone_login_attempts ADD COLUMN IF NOT EXISTS provider_challenge_verifier VARCHAR(128)`);
+            await db.execute(sql`ALTER TABLE phone_verification_attempts ADD COLUMN IF NOT EXISTS provider_challenge_verifier VARCHAR(128)`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS calendar_enabled BOOLEAN NOT NULL DEFAULT FALSE`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS calendar_starts_at TIMESTAMPTZ`);
             await db.execute(sql`ALTER TABLE soft_assets ADD COLUMN IF NOT EXISTS calendar_ends_at TIMESTAMPTZ`);
@@ -673,6 +675,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                     provider VARCHAR(40) NOT NULL DEFAULT 'gudauth',
                     provider_challenge_id VARCHAR(255),
+                    provider_challenge_verifier VARCHAR(128),
                     requested_phone_e164 VARCHAR(32),
                     verified_phone_e164 VARCHAR(32),
                     status VARCHAR(40) NOT NULL DEFAULT 'pending',
@@ -688,6 +691,7 @@ export async function ensureBoundarySchema(db, envVars = {}) {
                     id SERIAL PRIMARY KEY,
                     provider VARCHAR(40) NOT NULL DEFAULT 'gudauth',
                     provider_challenge_id VARCHAR(255),
+                    provider_challenge_verifier VARCHAR(128),
                     attempt_token_hash VARCHAR(128),
                     requested_phone_e164 VARCHAR(32),
                     verified_phone_e164 VARCHAR(32),
