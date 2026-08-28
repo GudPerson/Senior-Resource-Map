@@ -7682,7 +7682,14 @@ Active next recovery family:
   fixtures were removed through the authenticated API, zero remained, and the
   complete production smoke suite then passed 6/6. The CSRF guard, production
   app code, database schema/data, dependencies, secrets, and runtime settings
-  were not changed by the closeout.
+  were not changed by the closeout. Release follow-up: `main` advanced to
+  `f5d7db465`; GitHub quality run `33143696960` passed; Cloudflare Pages Git
+  deployment `https://55f0288b.senior-resource-map.pages.dev` completed from
+  source `f5d7db4`; the deployment and `https://app.carearound.sg` both returned
+  200 and served byte-identical `assets/index-C7PWBBaG.js`; `/discover` returned
+  200; production API health returned OK; and the post-deployment credentialed
+  production smoke suite passed 6/6 with zero smoke-map fixtures remaining. No
+  Worker deployment was required or performed.
 
 ## Recovery workflow
 

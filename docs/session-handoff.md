@@ -22,7 +22,16 @@ The Phase 1 closeout was prepared in the isolated worktree:
 - base: production GudAuth recovery on `main` at `44d426d38`
 - existing contract commit: `9fdc296a8 test: lock GudAuth create-to-poll contract`
 
-Ignore untracked `graft/` indexes and generated Playwright output when reviewing release source. Stage only the explicitly named closeout files.
+The closeout release is now on `main`:
+
+- release evidence commit: `f5d7db465 chore: close Phase 1 stabilisation evidence`
+- GitHub quality gate: passed, run `33143696960`
+- Cloudflare Pages production deployment: `https://55f0288b.senior-resource-map.pages.dev`
+- custom-domain parity: `https://app.carearound.sg` and the Pages deployment both served `assets/index-C7PWBBaG.js` with SHA-256 `28dc428f0af30a030bb40bf316cced80c070552e9b44bca117b4f73119498d35`
+- post-deployment production smoke: 6/6 passed; zero smoke-map fixtures remained
+- Worker/API deploy: not required and not performed
+
+Ignore untracked `graft/` indexes and generated Playwright output when reviewing release source. Stage only explicitly named task files.
 
 ## Stable production behaviour
 

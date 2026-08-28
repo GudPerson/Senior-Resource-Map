@@ -22,15 +22,16 @@ This closeout converts the final Phase 1 follow-ups into reproducible evidence w
 - No secret or provider-setting change.
 - No application runtime change.
 
-## Release gate
+## Release evidence
 
-This document is not release evidence by itself. Before closeout release, record:
-
-- complete quality gate result;
-- credentialed production smoke result;
-- GitHub quality workflow result for the released commit;
-- production app and API health after the release;
-- exact released commit and whether an automatic Pages build occurred.
+- Released evidence commit: `f5d7db465` on `main`.
+- Complete local quality gate: passed; server 594/594, client 700/700, production client build passed.
+- GitHub quality workflow: passed, run `33143696960`.
+- Cloudflare Pages Git deployment: `https://55f0288b.senior-resource-map.pages.dev` from source `f5d7db4`.
+- Custom-domain parity: the Pages deployment and `https://app.carearound.sg` returned 200 and served byte-identical `assets/index-C7PWBBaG.js`.
+- Production API health and `/discover`: 200/OK.
+- Post-deployment credentialed production smoke: 6/6 passed; zero smoke-map fixtures remained.
+- No Worker deploy, database change, dependency change, secret change, or runtime-code change was performed.
 
 ## Residual gates after closeout
 
