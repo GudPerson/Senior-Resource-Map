@@ -44,7 +44,7 @@ The first dependency remediation batch is released:
 - pull request and release commit: PR 43, merged to `main` at `37b4b792b`
 - GitHub quality gates: passed on the pull request (`33148675184`) and post-merge `main` (`33148740622`)
 - Worker deployment: version `f287a000-5d17-4a48-b945-db1b655a3f0c`, after the clean synchronized-main release guard passed
-- Pages deployment: `https://c93cad3a.senior-resource-map.pages.dev`
+- Pages deployment: `https://8c879035.senior-resource-map.pages.dev`
 - custom-domain parity: all 82 static files matched; entry `assets/index-Bnvtvecv.js`, SHA-256 `e307ffb30fd6e6192550b69e56ded8a1ab1708d00de056f5fd81e08310095864`
 - production verification: API health and `/discover` returned 200/OK; credentialed smoke passed 6/6 with temporary-map cleanup
 - legacy Netlify preview checks failed but are not part of CareAround's supported Cloudflare release path

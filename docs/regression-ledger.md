@@ -7710,7 +7710,7 @@ Active next recovery family:
   batch was merged at `37b4b792b`; the clean-main Worker release guard passed
   before Worker version `f287a000-5d17-4a48-b945-db1b655a3f0c` deployed. The
   exact Pages artifact deployed at
-  `https://c93cad3a.senior-resource-map.pages.dev`; it and the production custom
+  `https://8c879035.senior-resource-map.pages.dev`; it and the production custom
   domain served `assets/index-Bnvtvecv.js` with SHA-256
   `e307ffb30fd6e6192550b69e56ded8a1ab1708d00de056f5fd81e08310095864`.
   Custom-domain parity passed for all 82 static files, including the configured

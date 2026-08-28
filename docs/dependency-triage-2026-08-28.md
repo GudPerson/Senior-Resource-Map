@@ -41,7 +41,7 @@ release evidence.
 The production Worker release-line guard confirmed clean, synchronized `main`
 before deploying Worker version `f287a000-5d17-4a48-b945-db1b655a3f0c`.
 The exact production-configured client artifact was then published to
-`https://c93cad3a.senior-resource-map.pages.dev`. The Pages deployment and
+`https://8c879035.senior-resource-map.pages.dev`. The Pages deployment and
 `https://app.carearound.sg` served `assets/index-Bnvtvecv.js` with SHA-256
 `e307ffb30fd6e6192550b69e56ded8a1ab1708d00de056f5fd81e08310095864`.
 All 82 deployed static files matched the validated local artifact byte for
