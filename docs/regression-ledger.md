@@ -7652,6 +7652,38 @@ Active next recovery family:
   production data was changed. No deployment has been authorised or performed,
   so production remains on the prior release and production UAT is still pending.
 
+- 2026-08-28 GudAuth and Phase 1 stabilisation closeout: production WhatsApp
+  login was restored by `44d426d38` and the product owner confirmed the
+  corrected create-WhatsApp-return-to-original-tab flow in production. The
+  follow-up regression contract now proves that GudAuth challenge creation,
+  verifier storage, browser-safe response shaping, and verifier-backed polling
+  stay connected without exposing the verifier to the client. A reusable
+  metadata-only schema audit compares `server/src/db/schema.js` with PostgreSQL
+  catalogue structure while recording only hashed database identifiers. The
+  2026-08-28 production comparison confirmed 60/60 tables, 604/604 columns, and
+  no type drift; it also recorded six stricter database nullability rules, the
+  two intentionally unapplied normalized login indexes, legacy constraint/index
+  differences, and unused legacy enum values. Zero production resources
+  currently use the two legacy `partner_id` links whose production delete action
+  differs from source. A privacy-safe historical audit compared all 18 current
+  account hashes with the removed bulk-import fallback credential in memory and
+  found zero matches; no account was changed. Backup retention and restore-test
+  evidence remain provider-owned and unverified, so all production migrations
+  remain frozen. A fresh dependency audit reported 15 affected packages (8
+  high, 6 moderate, 1 low, 0 critical); applicability and a separated patch/tool
+  upgrade order are recorded in `docs/dependency-triage-2026-08-28.md`, with no
+  package or lockfile change in this closeout. Local quality evidence passed the
+  migration validator, 415-module/1,232-edge no-cycle graph, full server coverage
+  594/594, full client coverage 700/700, `git diff --check`, and the production
+  client build. Credentialed production smoke initially exposed a test-harness
+  cleanup regression: the direct map-delete request omitted the `Origin` header
+  required by the established CSRF guard and received 403. The harness now sends
+  the app origin for unsafe setup/cleanup requests; four accumulated smoke-map
+  fixtures were removed through the authenticated API, zero remained, and the
+  complete production smoke suite then passed 6/6. The CSRF guard, production
+  app code, database schema/data, dependencies, secrets, and runtime settings
+  were not changed by the closeout.
+
 ## Recovery workflow
 
 For each regression family:

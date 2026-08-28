@@ -179,13 +179,19 @@ function savedResourceDetailLink(page) {
 }
 
 async function requestSetupJson(page, path, { method = 'GET', data = undefined } = {}) {
-    const apiBase = resolveApiBase(process.env.SMOKE_BASE_URL || page.url() || 'http://127.0.0.1:5173');
+    const appBase = process.env.SMOKE_BASE_URL || page.url() || 'http://127.0.0.1:5173';
+    const apiBase = resolveApiBase(appBase);
+    const requestOrigin = new URL(appBase).origin;
+    const normalizedMethod = method.toUpperCase();
     let lastError = null;
 
     for (let attempt = 1; attempt <= SETUP_API_ATTEMPTS; attempt += 1) {
         try {
             const response = await page.context().request.fetch(`${apiBase}${path}`, {
                 method,
+                ...(!['GET', 'HEAD', 'OPTIONS'].includes(normalizedMethod)
+                    ? { headers: { Origin: requestOrigin } }
+                    : {}),
                 ...(data !== undefined ? { data } : {}),
                 timeout: SETUP_API_TIMEOUT_MS,
             });
@@ -283,7 +289,7 @@ test('postal import wizard can search and open a draft without losing the queue'
     await expect(page.getByText('Resolved postal anchor')).toBeVisible({ timeout: 15_000 });
 });
 
-test('create-map flow can select saved assets and submit the modal path', async ({ page }, testInfo) => {
+test('create-map flow can select saved assets and submit the modal path', async ({ page }) => {
     await loginAsPartner(page);
     await ensureSavedAsset(page);
 
@@ -310,9 +316,8 @@ test('create-map flow can select saved assets and submit the modal path', async 
     expect(mapIdMatch?.[1]).toBeTruthy();
 
     const mapId = mapIdMatch[1];
-    const apiBase = resolveApiBase(String(testInfo.project.use.baseURL));
-    const deleteResponse = await page.context().request.delete(`${apiBase}/my-maps/${mapId}`);
-    expect(deleteResponse.ok(), 'created smoke map should be removable during cleanup').toBeTruthy();
+    const deleteResult = await requestSetupJson(page, `/my-maps/${mapId}`, { method: 'DELETE' });
+    expect(deleteResult?.success, 'created smoke map should be removable during cleanup').toBeTruthy();
 });
 
 test('saved resource detail still opens from the discover side of the product', async ({ page }) => {
