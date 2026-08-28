@@ -31,7 +31,7 @@ The closeout release is now on `main`:
 - post-deployment production smoke: 6/6 passed; zero smoke-map fixtures remained
 - Worker/API deploy: not required and not performed
 
-The first dependency remediation batch is isolated and release-pending:
+The first dependency remediation batch is released:
 
 - path: `/Users/sweetbuns/CareAroundSG-dependency-patch`
 - branch: `codex/dependency-patch-web-api-20260828`
@@ -41,7 +41,13 @@ The first dependency remediation batch is isolated and release-pending:
 - Drizzle ORM/Kit, schema, migrations, database configuration, application source, and production data: unchanged
 - local verification: migration validator passed; 415 modules / 1,232 relative imports with no cycle; server 594/594; client 700/700; standard and production-configured Detailed-map builds passed
 - fresh audit: 0 critical, 2 high, 5 moderate, 1 low; all remaining findings are outside this batch
-- release state: not pushed or deployed; production smoke pending release approval
+- pull request and release commit: PR 43, merged to `main` at `37b4b792b`
+- GitHub quality gates: passed on the pull request (`33148675184`) and post-merge `main` (`33148740622`)
+- Worker deployment: version `f287a000-5d17-4a48-b945-db1b655a3f0c`, after the clean synchronized-main release guard passed
+- Pages deployment: `https://c93cad3a.senior-resource-map.pages.dev`
+- custom-domain parity: all 82 static files matched; entry `assets/index-Bnvtvecv.js`, SHA-256 `e307ffb30fd6e6192550b69e56ded8a1ab1708d00de056f5fd81e08310095864`
+- production verification: API health and `/discover` returned 200/OK; credentialed smoke passed 6/6 with temporary-map cleanup
+- legacy Netlify preview checks failed but are not part of CareAround's supported Cloudflare release path
 
 Ignore untracked `graft/` indexes and generated Playwright output when reviewing release source. Stage only explicitly named task files.
 
@@ -74,18 +80,18 @@ Ignore untracked `graft/` indexes and generated Playwright output when reviewing
 ## Do not do
 
 - Do not run a production migration or schema bootstrap.
-- Do not change dependencies or the lockfile as part of this closeout.
+- Do not combine the remaining PDF/export or Drizzle dependency work with unrelated feature or schema changes.
 - Do not expose or rotate secrets.
 - Do not delete or reset the primary dirty checkout.
 - Do not mix the filtered-export work into this closeout.
 - Do not claim migration-ready backup/restore coverage until a scheduled snapshot exists and a non-production recovery rehearsal is recorded.
-- Do not push or deploy the dependency candidate without explicit release approval and post-deployment smoke.
+- Do not rerun or expand this completed dependency release without a new scoped review.
 
 ## Remaining risks and next decision
 
-1. **Dependency remediation:** the Hono/React Router/Vite/PostCSS candidate is locally green and reduces the audit to 2 high, 5 moderate, and 1 low affected packages. Release review and production smoke remain pending; Drizzle ORM/Kit stays separate because it has database-wide blast radius.
+1. **Dependency remediation:** the Hono/React Router/Vite/PostCSS batch is released and production-smoked. The audit is reduced to 2 high, 5 moderate, and 1 low affected packages. The PDF/export batch should remain separate, and Drizzle ORM/Kit still requires a dedicated compatibility project because it has database-wide blast radius.
 2. **Migration readiness:** production schema changes remain frozen until scheduled snapshots exist, recovery is rehearsed outside the production branch, and a reviewed reconciliation plan exists.
 3. **Schema drift:** source and production differ in nullability, two legacy foreign-key actions, one legacy audience-zone link, a share-token index definition, and legacy enums.
 4. **Private-file quota:** aggregate storage quota control remains the one original Phase 1 finding not implemented.
 
-Recommended next step: review and explicitly approve release of the isolated dependency candidate, then run the normal merge/deploy gate and post-deployment smoke. Keep the PDF/export and Drizzle compatibility work as later, separate goals.
+Recommended next step: begin the separate PDF/export dependency check, including PNG/PDF/Print View regression coverage, without touching Drizzle or production schema. Keep the Drizzle compatibility project behind the database-recovery and reconciliation gates.

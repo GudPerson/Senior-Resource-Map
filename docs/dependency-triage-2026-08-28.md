@@ -27,7 +27,32 @@ React Router 7.18.2 is a same-major minor update rather than a literal patch. It
 
 After the candidate lockfile was installed, `npm audit --json` reported 0 critical, 2 high, 5 moderate, and 1 low affected packages (8 total). No Hono, Hono Node adapter, React Router, Vite, PostCSS, or Nano ID finding remains. The residual findings are intentionally separated: Drizzle ORM/Kit and their old build-tool chain, jsPDF's optional DOMPurify path, and one low Babel build-tool advisory.
 
-Candidate verification passed ordered migration validation, the 415-module/1,232-edge no-cycle check, server 594/594, client 700/700, `git diff --check`, the standard client build, and the production-configured Detailed-map build. Deployment and post-deployment smoke remain pending explicit release approval.
+Candidate verification passed ordered migration validation, the 415-module/1,232-edge no-cycle check, server 594/594, client 700/700, `git diff --check`, the standard client build, and the production-configured Detailed-map build.
+
+## First-batch release evidence
+
+The approved batch was merged through pull request 43 to `main` at
+`37b4b792b` on 2026-08-28. The pull-request and post-merge GitHub quality gates
+passed (`33148675184` and `33148740622`); Cloudflare Pages also reported
+successful builds. Legacy Netlify preview checks failed, but Netlify is not a
+supported CareAround release path and no Netlify deployment was accepted as
+release evidence.
+
+The production Worker release-line guard confirmed clean, synchronized `main`
+before deploying Worker version `f287a000-5d17-4a48-b945-db1b655a3f0c`.
+The exact production-configured client artifact was then published to
+`https://c93cad3a.senior-resource-map.pages.dev`. The Pages deployment and
+`https://app.carearound.sg` served `assets/index-Bnvtvecv.js` with SHA-256
+`e307ffb30fd6e6192550b69e56ded8a1ab1708d00de056f5fd81e08310095864`.
+All 82 deployed static files matched the validated local artifact byte for
+byte, and the required API plus six fixed-map roots remained present.
+
+Production API health and `/discover` returned 200/OK. The credentialed
+production smoke suite passed 6/6, covering public load, partner login and
+managed resources, postal-import draft review, temporary map creation with
+cleanup, saved-resource detail, and the schedule editor without saving. No
+schema, migration, production-data, secret, Neon recovery setting, or provider
+configuration changed in this release.
 
 ## Direct dependencies
 

@@ -37,5 +37,5 @@ This closeout converts the final Phase 1 follow-ups into reproducible evidence w
 
 1. Provider-console evidence now confirms a six-hour point-in-time history window, no snapshots, and no backup schedule. Production migrations remain frozen until scheduled snapshots exist and a non-production restore/preview rehearsal is recorded.
 2. Schema drift requires a separately reviewed reconciliation plan.
-3. Dependency advisories require the staged upgrade work in `docs/dependency-triage-2026-08-28.md`.
+3. The first web/API dependency batch is released and production-smoked. The separate PDF/export and Drizzle compatibility batches remain as documented in `docs/dependency-triage-2026-08-28.md`.
 4. Aggregate private-file storage quotas remain the one original Phase 1 finding not implemented.

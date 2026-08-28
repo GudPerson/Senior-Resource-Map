@@ -7691,7 +7691,7 @@ Active next recovery family:
   production smoke suite passed 6/6 with zero smoke-map fixtures remaining. No
   Worker deployment was required or performed.
 
-- 2026-08-28 patch web/API dependency candidate: the isolated
+- 2026-08-28 patch web/API dependency release: the isolated
   `codex/dependency-patch-web-api-20260828` branch updates Hono 4.12.16 to
   4.12.34, the Hono Node adapter 1.19.14 to 1.19.17, React Router 7.13.1 to
   7.18.2, Vite 7.3.2 to 7.3.6, PostCSS 8.5.13 to 8.5.26, and compatible
@@ -7705,9 +7705,21 @@ Active next recovery family:
   one low Babel build-tool advisory. Verification passed the ordered migration
   validator, 415-module/1,232-edge no-cycle graph, server 594/594, client
   700/700, `git diff --check`, the standard client build, and the
-  production-configured Detailed-map build. This is a release candidate only;
-  no push, deployment, production smoke, or production setting change has been
-  performed.
+  production-configured Detailed-map build. Pull request 43 and the post-merge
+  `main` quality gate passed (`33148675184` and `33148740622`). The dependency
+  batch was merged at `37b4b792b`; the clean-main Worker release guard passed
+  before Worker version `f287a000-5d17-4a48-b945-db1b655a3f0c` deployed. The
+  exact Pages artifact deployed at
+  `https://c93cad3a.senior-resource-map.pages.dev`; it and the production custom
+  domain served `assets/index-Bnvtvecv.js` with SHA-256
+  `e307ffb30fd6e6192550b69e56ded8a1ab1708d00de056f5fd81e08310095864`.
+  Custom-domain parity passed for all 82 static files, including the configured
+  API and six fixed-map roots. Production API health and `/discover` returned
+  200/OK, and the credentialed smoke suite passed 6/6 with temporary-map
+  cleanup. No schema, migration, production-data, secret, Neon recovery
+  setting, or provider configuration changed. The failed Netlify preview
+  checks remain legacy non-release-path noise; both Cloudflare and GitHub
+  release gates passed.
 
 ## Recovery workflow
 
