@@ -15,6 +15,36 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-28 GudAuth create-to-poll verifier contract regression coverage
+
+- Current behavior: CareAround stores the short-lived GudAuth challenge
+  verifier returned when a WhatsApp login or phone-link challenge is created
+  and sends the same verifier back to GudAuth on later server-side polls. The
+  verifier remains server-side and is excluded from browser responses. The
+  separate CareAround browser attempt token remains hashed, required, and
+  single-use for phone-login polling.
+- Production reproduction and cause: a fresh WhatsApp login could create a
+  challenge and open WhatsApp, then the original CareAround tab showed
+  `Challenge not found.` while polling. GudAuth had hardened its integration
+  poll contract to require the per-challenge verifier header, but CareAround
+  was polling with the public challenge id alone. The deployed compatibility
+  fix is commit `44d426d38`; the user confirmed on 2026-08-28 that a fresh
+  production login completed successfully and login was back to its expected
+  behavior.
+- Reproduction and acceptance: start a new WhatsApp login, send the prepared
+  message, and return to the original browser tab. Challenge creation must
+  persist the provider verifier, every provider poll must use that same value,
+  and neither the start nor poll response may expose it to the browser. Existing
+  phone-login attempt-token ownership, expiry, replay protection, verified
+  identity lookup, signup-required handling, and phone-link behavior must remain
+  unchanged.
+- Verification after production recovery: the focused GudAuth, phone-login,
+  phone-link, and schema contract tests pass 44/44, including one continuous
+  create-to-poll regression test. Full server validation passes 591/591. This
+  follow-up changes tests and this ledger only; it does not change runtime code,
+  schema, dependencies, secrets, accounts, production data, or deployment
+  state.
+
 ## 2026-08-23 Places workbook tag-persistence recovery
 
 - Current behavior: the Places workbook importer keeps its bounded postal,

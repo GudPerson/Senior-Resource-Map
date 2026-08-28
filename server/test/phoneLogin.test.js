@@ -173,6 +173,58 @@ test('phone login start creates a GudAuth challenge without a browser-side GudAu
     }]);
 });
 
+test('phone login carries the provider verifier from challenge creation into polling without exposing it', async () => {
+    const store = createMemoryStore();
+    const providerChallengeVerifier = 'c'.repeat(64);
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
+    const pollCalls = [];
+    const gudAuthClient = {
+        async createChallenge() {
+            return {
+                ok: true,
+                data: {
+                    challenge: {
+                        id: 'login-challenge-contract',
+                        status: 'pending',
+                        expiresAt,
+                    },
+                    challengeVerifier: providerChallengeVerifier,
+                    deepLink: 'https://wa.me/6587651901?text=WAP-333444',
+                },
+            };
+        },
+        async getChallenge(challengeId, challengeVerifier) {
+            pollCalls.push({ challengeId, challengeVerifier });
+            return {
+                id: challengeId,
+                status: 'pending',
+                expiresAt,
+                challengeVerifier: providerChallengeVerifier,
+            };
+        },
+    };
+
+    const started = await startPhoneLoginAttempt({
+        store,
+        gudAuthClient,
+        input: { phone: '83682962' },
+    });
+    const polled = await pollPhoneLoginAttempt({
+        store,
+        gudAuthClient,
+        attemptId: started.attemptId,
+        attemptToken: started.attemptToken,
+    });
+
+    assert.deepEqual(pollCalls, [{
+        challengeId: 'login-challenge-contract',
+        challengeVerifier: providerChallengeVerifier,
+    }]);
+    assert.equal(polled.status, 'pending');
+    assert.equal(store.state.attempts[0].providerChallengeVerifier, providerChallengeVerifier);
+    assert.doesNotMatch(JSON.stringify({ started, polled }), /c{64}/);
+});
+
 test('verified phone login resolves exactly one active verified phone identity', async () => {
     const store = createMemoryStore({
         identities: [{
