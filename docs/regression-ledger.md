@@ -7721,6 +7721,26 @@ Active next recovery family:
   checks remain legacy non-release-path noise; both Cloudflare and GitHub
   release gates passed.
 
+- 2026-08-28 PDF/export dependency candidate: the isolated
+  `codex/dependency-patch-pdf-export-20260828` branch, based on released `main`
+  at `65c95b134`, changes only the root lockfile dependency entry for jsPDF's
+  optional DOMPurify path from 3.4.8 to compatible 3.4.14. CareAround already
+  uses current jsPDF 4.2.1 and jsPDF AutoTable 5.0.8; package manifests,
+  application source, Drizzle ORM/Kit, schema, migrations, database
+  configuration, runtime settings, secrets, and production data are unchanged.
+  The audit fell from 8 affected packages to 7 (0 critical, 2 high, 4 moderate,
+  1 low), and no PDF/export-related finding remains. Focused PDF/PNG/Print View
+  and map-export coverage passed 89/89; the locked map-export gate passed 90/90;
+  the ordered migration validator, 415-module/1,232-edge no-cycle graph, server
+  594/594, client 700/700, `git diff --check`, the standard client build, and
+  the exact production-configured six-root build all passed. Runtime verification
+  generated a real two-page A3 PDF through `createPrintMapPdfDocument`, rendered
+  both pages, and visually confirmed correct landscape/portrait centring with no
+  clipping, overlap, black boxes, or broken content. PDF metadata reported
+  jsPDF 4.2.1, no embedded JavaScript, and no encryption. This is a local
+  candidate only: it has not been pushed, merged, or deployed, and production
+  PDF/export UAT remains pending a separate scoped release approval.
+
 ## Recovery workflow
 
 For each regression family:

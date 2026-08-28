@@ -54,6 +54,36 @@ cleanup, saved-resource detail, and the schedule editor without saving. No
 schema, migration, production-data, secret, Neon recovery setting, or provider
 configuration changed in this release.
 
+## PDF/export dependency candidate
+
+The separate branch `codex/dependency-patch-pdf-export-20260828`, based on
+released `main` at `65c95b134`, carries one lockfile-only change:
+
+- `dompurify` 3.4.8 -> 3.4.14 through jsPDF's compatible optional range
+
+CareAround already uses the current jsPDF 4.2.1 and jsPDF AutoTable 5.0.8, so
+no direct dependency or application-source change is required. The candidate
+does not change package manifests, Drizzle ORM/Kit, schema files, migrations,
+database configuration, runtime settings, secrets, or production data.
+
+After installing the candidate lockfile, `npm audit --json` reported 0 critical,
+2 high, 4 moderate, and 1 low affected packages (7 total). No PDF/export-related
+finding remains. The residual findings are the separately parked Drizzle
+ORM/Kit and build-tool chain plus one low Babel build-tool advisory.
+
+Candidate verification passed focused PDF/PNG/Print View and map-export coverage
+89/89, the locked map-export gate 90/90, ordered migration validation, the
+415-module/1,232-edge no-cycle check, server 594/594, client 700/700,
+`git diff --check`, the standard client build, and the exact production-configured
+six-root build. A real two-page A3 document was generated with jsPDF 4.2.1,
+rendered to images, and visually inspected: both landscape and portrait pages
+were centred, unclipped, and free of broken or overlapping content. The PDF
+contained no JavaScript and was not encrypted.
+
+This is a validated local candidate only. It has not been pushed, merged, or
+deployed; production remains on the prior released lockfile until a separate
+scoped release is approved.
+
 ## Direct dependencies
 
 | Dependency | Installed | Role in CareAround SG | Assessment | Recommended direction |
@@ -68,7 +98,7 @@ configuration changed in this release.
 
 ## Transitive dependencies
 
-- `dompurify` 3.4.8 is optional through `jspdf`, used by client export tooling rather than imported directly by CareAround source. Treat it as runtime-reachable through PDF generation until a built-bundle check proves otherwise. Resolve through a compatible `jspdf`/lockfile update and repeat export UAT.
+- `dompurify` was optional through `jspdf`, used by client export tooling rather than imported directly by CareAround source. The isolated PDF/export candidate resolves it from 3.4.8 to compatible 3.4.14 and verifies that the updated sanitizer is present in the production-style bundle; focused and rendered PDF checks pass.
 - `nanoid` 3.3.11 is brought in by PostCSS and is build tooling in this repository.
 - `brace-expansion` 2.0.2 is brought in by the old Drizzle Kit toolchain.
 - `@babel/core` 7.29.0 is brought in by the Vite React plugin and is build tooling.
@@ -77,7 +107,7 @@ configuration changed in this release.
 ## Safest implementation order
 
 1. **Patch-only web/API batch:** Hono, the Node adapter, React Router, Vite/PostCSS, and compatible transitives. Commit lockfile changes together only when `npm install` produces the reviewed versions. Run the complete quality gate and production smoke before release.
-2. **PDF/export dependency check:** update the compatible jsPDF/DomPurify path and run PNG/PDF/print regression checks.
+2. **PDF/export dependency check:** the compatible DOMPurify lock update and PNG/PDF/print regression checks are complete on an isolated branch; release remains pending separate approval and production UAT.
 3. **Drizzle compatibility project:** upgrade Drizzle ORM and Drizzle Kit without applying any database change; validate query generation, schema comparison, migration generation, and full functional coverage.
 4. Rerun `npm audit` and record residual advisories plus code-level applicability.
 
