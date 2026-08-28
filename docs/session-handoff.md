@@ -31,6 +31,18 @@ The closeout release is now on `main`:
 - post-deployment production smoke: 6/6 passed; zero smoke-map fixtures remained
 - Worker/API deploy: not required and not performed
 
+The first dependency remediation batch is isolated and release-pending:
+
+- path: `/Users/sweetbuns/CareAroundSG-dependency-patch`
+- branch: `codex/dependency-patch-web-api-20260828`
+- base: released `main` at `b264dd3cf`
+- source scope: `client/package.json`, `server/package.json`, `package-lock.json`, and closeout/handoff evidence only
+- updated packages: Hono 4.12.34, Hono Node adapter 1.19.17, React Router 7.18.2, Vite 7.3.6, PostCSS 8.5.26, and Nano ID 3.3.18
+- Drizzle ORM/Kit, schema, migrations, database configuration, application source, and production data: unchanged
+- local verification: migration validator passed; 415 modules / 1,232 relative imports with no cycle; server 594/594; client 700/700; standard and production-configured Detailed-map builds passed
+- fresh audit: 0 critical, 2 high, 5 moderate, 1 low; all remaining findings are outside this batch
+- release state: not pushed or deployed; production smoke pending release approval
+
 Ignore untracked `graft/` indexes and generated Playwright output when reviewing release source. Stage only explicitly named task files.
 
 ## Stable production behaviour
@@ -57,7 +69,7 @@ Ignore untracked `graft/` indexes and generated Playwright output when reviewing
 - All 18 current production accounts were checked in memory against the removed bulk-import fallback credential; zero matched and no account was changed.
 - No hard or soft asset currently uses the two legacy `partner_id` ownership links whose production delete action differs from source.
 - Structural drift remains and is documented. The normalized login indexes are not applied.
-- Provider backup retention, point-in-time recovery, and restore-test evidence are not available in the repository and remain unverified.
+- Dated provider-console evidence confirms a six-hour point-in-time recovery window, no snapshots, and no backup schedule. A restore rehearsal has not been performed.
 
 ## Do not do
 
@@ -66,13 +78,14 @@ Ignore untracked `graft/` indexes and generated Playwright output when reviewing
 - Do not expose or rotate secrets.
 - Do not delete or reset the primary dirty checkout.
 - Do not mix the filtered-export work into this closeout.
-- Do not claim provider backup/restore readiness without dated provider-console evidence.
+- Do not claim migration-ready backup/restore coverage until a scheduled snapshot exists and a non-production recovery rehearsal is recorded.
+- Do not push or deploy the dependency candidate without explicit release approval and post-deployment smoke.
 
 ## Remaining risks and next decision
 
-1. **Dependency remediation:** 8 high, 6 moderate, and 1 low affected packages remain. Start with a patch-only web/API branch; keep the Drizzle ORM/Kit upgrade separate because it has database-wide blast radius.
-2. **Migration readiness:** production schema changes remain frozen until provider backup/restore evidence and a reviewed reconciliation plan exist.
+1. **Dependency remediation:** the Hono/React Router/Vite/PostCSS candidate is locally green and reduces the audit to 2 high, 5 moderate, and 1 low affected packages. Release review and production smoke remain pending; Drizzle ORM/Kit stays separate because it has database-wide blast radius.
+2. **Migration readiness:** production schema changes remain frozen until scheduled snapshots exist, recovery is rehearsed outside the production branch, and a reviewed reconciliation plan exists.
 3. **Schema drift:** source and production differ in nullability, two legacy foreign-key actions, one legacy audience-zone link, a share-token index definition, and legacy enums.
 4. **Private-file quota:** aggregate storage quota control remains the one original Phase 1 finding not implemented.
 
-Recommended next step after this closeout: open one isolated patch-only dependency stabilisation goal for Hono, React Router, Vite/PostCSS, and compatible transitive fixes, with no Drizzle or database change in that batch.
+Recommended next step: review and explicitly approve release of the isolated dependency candidate, then run the normal merge/deploy gate and post-deployment smoke. Keep the PDF/export and Drizzle compatibility work as later, separate goals.

@@ -7691,6 +7691,24 @@ Active next recovery family:
   production smoke suite passed 6/6 with zero smoke-map fixtures remaining. No
   Worker deployment was required or performed.
 
+- 2026-08-28 patch web/API dependency candidate: the isolated
+  `codex/dependency-patch-web-api-20260828` branch updates Hono 4.12.16 to
+  4.12.34, the Hono Node adapter 1.19.14 to 1.19.17, React Router 7.13.1 to
+  7.18.2, Vite 7.3.2 to 7.3.6, PostCSS 8.5.13 to 8.5.26, and compatible
+  Nano ID 3.3.11 to 3.3.18. React Router requires the same-major 7.18.2 line
+  because the literal 7.13.2 patch remains inside later high-severity advisory
+  ranges. Drizzle ORM/Kit, database schema and migrations, application source,
+  runtime configuration, production data, auth secrets, and provider settings
+  are unchanged. The fresh audit fell from 15 affected packages to 8: no Hono,
+  Hono Node adapter, React Router, Vite, PostCSS, or Nano ID finding remains;
+  residual findings belong to the separate Drizzle and PDF/export batches plus
+  one low Babel build-tool advisory. Verification passed the ordered migration
+  validator, 415-module/1,232-edge no-cycle graph, server 594/594, client
+  700/700, `git diff --check`, the standard client build, and the
+  production-configured Detailed-map build. This is a release candidate only;
+  no push, deployment, production smoke, or production setting change has been
+  performed.
+
 ## Recovery workflow
 
 For each regression family:
