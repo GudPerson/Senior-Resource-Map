@@ -1,6 +1,6 @@
 # Dependency advisory triage — 2026-08-28
 
-## Current evidence
+## Baseline evidence
 
 A fresh read-only `npm audit --json` against the committed lockfile reported:
 
@@ -11,6 +11,23 @@ A fresh read-only `npm audit --json` against the committed lockfile reported:
 - 15 total affected packages
 
 An audit severity is a warning about an affected package version, not proof that CareAround SG exposes every described exploit. No dependency, manifest, or lockfile was changed during this closeout.
+
+## Patch web/API candidate
+
+The isolated branch `codex/dependency-patch-web-api-20260828`, based on released `main` at `b264dd3cf`, now carries only the first remediation batch:
+
+- `hono` 4.12.16 -> 4.12.34
+- `@hono/node-server` 1.19.14 -> 1.19.17
+- `react-router-dom` / `react-router` 7.13.1 -> 7.18.2
+- `vite` 7.3.2 -> 7.3.6
+- `postcss` 8.5.13 -> 8.5.26
+- compatible `nanoid` 3.3.11 -> 3.3.18
+
+React Router 7.18.2 is a same-major minor update rather than a literal patch. It is the minimum current advisory-clearing line; 7.13.2 remains affected by later high-severity advisories. The batch does not change Drizzle ORM, Drizzle Kit, schema files, migrations, database configuration, application source, or production data.
+
+After the candidate lockfile was installed, `npm audit --json` reported 0 critical, 2 high, 5 moderate, and 1 low affected packages (8 total). No Hono, Hono Node adapter, React Router, Vite, PostCSS, or Nano ID finding remains. The residual findings are intentionally separated: Drizzle ORM/Kit and their old build-tool chain, jsPDF's optional DOMPurify path, and one low Babel build-tool advisory.
+
+Candidate verification passed ordered migration validation, the 415-module/1,232-edge no-cycle check, server 594/594, client 700/700, `git diff --check`, the standard client build, and the production-configured Detailed-map build. Deployment and post-deployment smoke remain pending explicit release approval.
 
 ## Direct dependencies
 

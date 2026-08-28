@@ -43,18 +43,20 @@ This closes the historical-account exposure check for the current production acc
 
 ## Backup and restore evidence
 
-The repository correctly requires a provider-owned restore point and rehearsal before any production schema change. It does not contain current provider retention, point-in-time recovery, or restore-test evidence, and the database connection does not expose account-level backup settings. Therefore:
+The repository correctly requires a provider-owned restore point and rehearsal before any production schema change. On 2026-08-28, the product owner opened the production branch's Neon **Backup & Restore** and **History window** screens. No connection value, credential, project identifier, or personal data was copied into the repository. The provider-console evidence confirmed:
 
-- current backup retention: **not verified**
-- point-in-time recovery window: **not verified**
-- most recent restore rehearsal: **not verified**
-- accountable provider-console owner: **not recorded in the repository**
+- point-in-time recovery window: **6 hours**
+- manual snapshots: **none**
+- scheduled snapshots: **no schedule configured**
+- most recent restore rehearsal: **not performed**
+- provider-console owner: **product owner / project administrator**
 
-This uncertainty does not block a test/documentation-only release, because that release does not change production schema or data. It **does block every production migration** until a named owner captures dated provider-console evidence and a restore/forward-repair decision.
+This closes the earlier evidence gap but confirms that production recovery is not yet migration-ready. A problem noticed within six hours may be recoverable through point-in-time history; the console showed no retained snapshot for an older recovery point. This does not block a dependency-only release with no database or schema change. It **does block every production migration** until a scheduled snapshot exists and a non-production restore or preview rehearsal is recorded with a restore/forward-repair decision.
 
 ## Recommended direction
 
 1. Keep production migrations frozen.
-2. Obtain provider-console backup retention and restore-test evidence.
-3. Prepare one reviewed schema-reconciliation plan covering the six nullability rules, the two `partner_id` delete actions, the audience-zone legacy link, the share-token index definition, and legacy enums.
-4. Treat the two normalized login indexes as an exact, separately approved migration after duplicate preflight, backup evidence, and rollback/forward-repair rehearsal.
+2. After explicit approval, schedule daily snapshots at 18:00 UTC and retain them for 14 days; this recommendation was reviewed but not applied during the assessment.
+3. After the first scheduled snapshot exists, rehearse recovery into a non-production preview/branch without restoring over the live production branch.
+4. Prepare one reviewed schema-reconciliation plan covering the six nullability rules, the two `partner_id` delete actions, the audience-zone legacy link, the share-token index definition, and legacy enums.
+5. Treat the two normalized login indexes as an exact, separately approved migration after duplicate preflight, backup evidence, and rollback/forward-repair rehearsal.
