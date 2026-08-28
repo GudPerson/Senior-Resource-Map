@@ -7721,7 +7721,7 @@ Active next recovery family:
   checks remain legacy non-release-path noise; both Cloudflare and GitHub
   release gates passed.
 
-- 2026-08-28 PDF/export dependency candidate: the isolated
+- 2026-08-28 PDF/export dependency release: the isolated
   `codex/dependency-patch-pdf-export-20260828` branch, based on released `main`
   at `65c95b134`, changes only the root lockfile dependency entry for jsPDF's
   optional DOMPurify path from 3.4.8 to compatible 3.4.14. CareAround already
@@ -7737,9 +7737,29 @@ Active next recovery family:
   generated a real two-page A3 PDF through `createPrintMapPdfDocument`, rendered
   both pages, and visually confirmed correct landscape/portrait centring with no
   clipping, overlap, black boxes, or broken content. PDF metadata reported
-  jsPDF 4.2.1, no embedded JavaScript, and no encryption. This is a local
-  candidate only: it has not been pushed, merged, or deployed, and production
-  PDF/export UAT remains pending a separate scoped release approval.
+  jsPDF 4.2.1, no embedded JavaScript, and no encryption. Release follow-up:
+  pull request 44 merged the candidate to `main` at `608e79c655`; the pull-request
+  and post-merge GitHub quality gates passed (`33155357558` and `33155425036`),
+  and the supported Cloudflare Pages preview check passed. The exact validated
+  82-file client artifact deployed to
+  `https://cdd609b0.senior-resource-map.pages.dev`; every static file matched the
+  local artifact and `https://app.carearound.sg` by bytes and SHA-256, with
+  aggregate SHA-256
+  `c3065b275deb7e30514ab7072ef8a5c989b5b94714ea621e12b1c31c5402d2e4`.
+  The app root and `/discover` returned 200, API health returned OK, all six
+  fixed-map roots and required export markers remained present, and retired
+  labels remained absent. Authenticated production Export View UAT reached the
+  ready state and downloaded a 7,280,650-byte one-page A3 PDF. Rendering showed
+  the map, QR code, resource columns, labels, and pins without clipping, overlap,
+  black boxes, or corruption. The production PDF reported jsPDF 4.2.1, no
+  embedded JavaScript, no encryption, and SHA-256
+  `9e416c4279f9dded3b14620cd02289392be6158812887b63da5777d54eb7b1f3`.
+  The credential-based aggregate production smoke was not rerun because its
+  credentials were absent from the release shell; targeted authenticated export
+  UAT passed and the same-day prior 6/6 smoke remains the latest aggregate
+  result. No Worker, schema, migration, production-data, secret, Neon recovery
+  setting, or provider configuration changed. Legacy Netlify preview failures
+  remain non-release-path noise.
 
 ## Recovery workflow
 

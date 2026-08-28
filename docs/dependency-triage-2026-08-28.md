@@ -54,7 +54,7 @@ cleanup, saved-resource detail, and the schedule editor without saving. No
 schema, migration, production-data, secret, Neon recovery setting, or provider
 configuration changed in this release.
 
-## PDF/export dependency candidate
+## PDF/export dependency release
 
 The separate branch `codex/dependency-patch-pdf-export-20260828`, based on
 released `main` at `65c95b134`, carries one lockfile-only change:
@@ -80,9 +80,32 @@ rendered to images, and visually inspected: both landscape and portrait pages
 were centred, unclipped, and free of broken or overlapping content. The PDF
 contained no JavaScript and was not encrypted.
 
-This is a validated local candidate only. It has not been pushed, merged, or
-deployed; production remains on the prior released lockfile until a separate
-scoped release is approved.
+The approved candidate was merged through pull request 44 to `main` at
+`608e79c655` on 2026-08-28. The pull-request and post-merge GitHub quality gates
+passed (`33155357558` and `33155425036`), and the supported Cloudflare Pages
+preview check passed. Legacy Netlify preview checks failed again, but Netlify is
+not a supported CareAround release path.
+
+The exact validated 82-file client artifact was published to
+`https://cdd609b0.senior-resource-map.pages.dev`. Every file matched the local
+artifact and `https://app.carearound.sg` by byte length and SHA-256; the aggregate
+manifest SHA-256 is
+`c3065b275deb7e30514ab7072ef8a5c989b5b94714ea621e12b1c31c5402d2e4`.
+All six fixed-map roots and required export markers remained present, while the
+retired labels remained absent. The production app and `/discover` returned 200,
+and the production API health endpoint returned OK.
+
+Authenticated production Export View UAT reached `Map ready to download`,
+downloaded a 7,280,650-byte A3 PDF, and visually verified its rendered map, QR
+code, resource columns, labels, and pins with no clipping, overlap, black boxes,
+or corruption. The PDF reported jsPDF 4.2.1, no JavaScript, and no encryption;
+its SHA-256 is
+`9e416c4279f9dded3b14620cd02289392be6158812887b63da5777d54eb7b1f3`.
+The credential-based aggregate production smoke was not rerun because its
+credentials were absent from the release shell; this targeted authenticated
+export UAT and the same-day prior 6/6 smoke are recorded separately. No Worker,
+schema, migration, production-data, secret, Neon recovery setting, or provider
+configuration changed in this release.
 
 ## Direct dependencies
 
@@ -107,7 +130,7 @@ scoped release is approved.
 ## Safest implementation order
 
 1. **Patch-only web/API batch:** Hono, the Node adapter, React Router, Vite/PostCSS, and compatible transitives. Commit lockfile changes together only when `npm install` produces the reviewed versions. Run the complete quality gate and production smoke before release.
-2. **PDF/export dependency check:** the compatible DOMPurify lock update and PNG/PDF/print regression checks are complete on an isolated branch; release remains pending separate approval and production UAT.
+2. **PDF/export dependency check:** released through the compatible DOMPurify lock update; local PNG/PDF/print coverage, exact artifact parity, and authenticated production Export View PDF UAT passed.
 3. **Drizzle compatibility project:** upgrade Drizzle ORM and Drizzle Kit without applying any database change; validate query generation, schema comparison, migration generation, and full functional coverage.
 4. Rerun `npm audit` and record residual advisories plus code-level applicability.
 

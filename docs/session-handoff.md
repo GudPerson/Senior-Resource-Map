@@ -49,8 +49,7 @@ The first dependency remediation batch is released:
 - production verification: API health and `/discover` returned 200/OK; credentialed smoke passed 6/6 with temporary-map cleanup
 - legacy Netlify preview checks failed but are not part of CareAround's supported Cloudflare release path
 
-The separate PDF/export dependency candidate is locally validated but not
-released:
+The separate PDF/export dependency batch is released:
 
 - path: `/Users/sweetbuns/CareAroundSG-pdf-export-dependency`
 - branch: `codex/dependency-patch-pdf-export-20260828`
@@ -62,7 +61,14 @@ released:
 - focused verification: PDF/PNG/Print View and map export 89/89; locked map-export gate 90/90
 - full local verification: migration validator; 415 modules / 1,232 relative imports with no cycle; server 594/594; client 700/700; standard and exact production-configured six-root builds passed
 - rendered runtime verification: a two-page A3 jsPDF document passed landscape/portrait visual inspection with no clipping, overlap, broken content, embedded JavaScript, or encryption
-- push, merge, Cloudflare Pages deployment, and authenticated production Export View UAT: not performed
+- pull request and release commit: PR 44, merged to `main` at `608e79c655`
+- GitHub quality gates: passed on the pull request (`33155357558`) and post-merge `main` (`33155425036`); the supported Cloudflare Pages preview check also passed
+- Pages deployment: `https://cdd609b0.senior-resource-map.pages.dev`
+- custom-domain parity: all 82 static files matched the local artifact, immutable deployment, and `https://app.carearound.sg`; aggregate SHA-256 `c3065b275deb7e30514ab7072ef8a5c989b5b94714ea621e12b1c31c5402d2e4`
+- production verification: app root and `/discover` returned 200; API health returned OK; all six map roots and locked export markers passed
+- authenticated production Export View UAT: reached ready state and downloaded a valid 7,280,650-byte one-page A3 PDF; rendered visual inspection passed; SHA-256 `9e416c4279f9dded3b14620cd02289392be6158812887b63da5777d54eb7b1f3`
+- credential-based aggregate production smoke: not rerun because credentials were absent from this shell; targeted authenticated export UAT passed and the same-day prior 6/6 production smoke remains the latest aggregate result
+- Worker/API deployment: not required and not performed
 
 Ignore untracked `graft/` indexes and generated Playwright output when reviewing release source. Stage only explicitly named task files.
 
@@ -104,9 +110,9 @@ Ignore untracked `graft/` indexes and generated Playwright output when reviewing
 
 ## Remaining risks and next decision
 
-1. **Dependency remediation:** the Hono/React Router/Vite/PostCSS batch is released and production-smoked. The separate PDF/export candidate is locally validated and reduces the audit to 2 high, 4 moderate, and 1 low affected packages, with no PDF/export finding remaining. It is not yet pushed or deployed. Drizzle ORM/Kit still requires a dedicated compatibility project because it has database-wide blast radius.
+1. **Dependency remediation:** the Hono/React Router/Vite/PostCSS and separate PDF/export batches are released. The audit is reduced to 2 high, 4 moderate, and 1 low affected packages, with no web/API or PDF/export finding remaining. Drizzle ORM/Kit still requires a dedicated compatibility project because it has database-wide blast radius.
 2. **Migration readiness:** production schema changes remain frozen until scheduled snapshots exist, recovery is rehearsed outside the production branch, and a reviewed reconciliation plan exists.
 3. **Schema drift:** source and production differ in nullability, two legacy foreign-key actions, one legacy audience-zone link, a share-token index definition, and legacy enums.
 4. **Private-file quota:** aggregate storage quota control remains the one original Phase 1 finding not implemented.
 
-Recommended next step: conduct a scoped client-only release review for the validated PDF/export candidate. If approved, push it through the existing GitHub quality gate, deploy only the Cloudflare Pages client artifact, verify custom-domain artifact parity, and complete one authenticated production Export View PDF UAT. No Worker, Drizzle, schema, migration, or production-data change is required. Keep the Drizzle compatibility project behind the database-recovery and reconciliation gates.
+Recommended next step: confirm that Neon scheduled snapshots are actually active, then plan a non-production restore rehearsal and schema-reconciliation review. Keep Drizzle, schema migrations, and production data changes frozen until those recovery gates are evidenced.
