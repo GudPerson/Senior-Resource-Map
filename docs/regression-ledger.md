@@ -15,9 +15,9 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-29 My Map manual pin-number colour override (release candidate)
+## 2026-08-29 My Map manual pin-number colour override (released)
 
-- Candidate behavior: each category in `Edit content` -> `Refine categories`
+- Current production behavior: each category in `Edit content` -> `Refine categories`
   keeps Automatic number colour as its default and can opt into a manual number
   colour. The editor shows a live numbered-pin preview using the category's
   selected shape, fill, ring, and resolved number colour. `Use defaults` clears
@@ -40,7 +40,7 @@ Rules:
   reload the named view; then verify Export View uses the same number colour.
   Switching back to Automatic must restore contrast-derived light/dark text
   without resetting custom fill/ring colours.
-- Verification before release: focused client/server/style/UI/export checks
+- Verification and release evidence: focused client/server/style/UI/export checks
   pass 95/95; full client coverage passes 712/712; full server coverage passes
   598/598; the locked map gate passes 90/90; migration ordering, the 420-module
   graph with 1,252 import edges, and diff checks pass; and both the standard and
@@ -49,6 +49,18 @@ Rules:
   component UAT at 1,200 x 740 px confirmed the production-styled preview,
   Automatic/Custom pressed states, enabled/disabled number picker, immediate
   white-number preview update, and return to Automatic without submitting.
+  Production source commit `ce2d0a0fd` was released as Worker version
+  `4089385a-916d-40af-b9b9-4c33b5b80f90` and immutable Pages deployment
+  `https://8441ea5c.senior-resource-map.pages.dev`. All 85 public files matched
+  the local artifact, immutable deployment, and `https://app.carearound.sg` by
+  bytes and SHA-256; aggregate manifest SHA-256
+  `d4a3d572b16fc537e251f3a1d881646f19577a10045012250291229bddfbc24f`.
+  The production API health endpoint returned OK, and the ordinary app retained
+  CSP `frame-ancestors 'none'` plus `X-Frame-Options: DENY`. Non-persistent,
+  authenticated production UAT in a fresh tab confirmed all 12 category cards
+  expose Automatic/Custom number-colour controls, Custom enables the picker,
+  and the live preview reports Custom; cancelling left the map with no unsaved
+  changes. No database migration or production-data operation was performed.
 
 ## 2026-08-29 My Map table display, numbered-pin colours, and Excel export (released)
 
