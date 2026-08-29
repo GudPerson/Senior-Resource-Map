@@ -42,7 +42,11 @@ test('stored schema v3 documents created before table and pin colours receive sa
 test('server persistence accepts safe per-category pin colours and table display', () => {
     const document = createDocument();
     document.views[0].design.pins.categoryStyles = {
-        'active ageing centre (aac)': { fillColor: '#123456', ringColor: '#ABCDEF' },
+        'active ageing centre (aac)': {
+            fillColor: '#123456',
+            ringColor: '#ABCDEF',
+            labelColor: '#FEDCBA',
+        },
     };
     document.views[0].design.layout.resourceDisplay = 'table';
 
@@ -53,6 +57,22 @@ test('server persistence rejects unsafe pin colour values', () => {
     const document = createDocument();
     document.views[0].design.pins.categoryStyles = {
         unsafe: { fillColor: 'url(javascript:alert(1))', ringColor: '#FFFFFF' },
+    };
+
+    assert.throws(
+        () => validateMapStudioDocumentInput(document),
+        /Map Studio design is invalid/,
+    );
+});
+
+test('server persistence rejects unsafe numbered-pin label colour values', () => {
+    const document = createDocument();
+    document.views[0].design.pins.categoryStyles = {
+        unsafe: {
+            fillColor: '#123456',
+            ringColor: '#FFFFFF',
+            labelColor: 'url(javascript:alert(1))',
+        },
     };
 
     assert.throws(

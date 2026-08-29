@@ -10,6 +10,7 @@ import {
     normalizeCategoryPinShapes,
 } from '../lib/categoryPinShapes.js';
 import {
+    getCategoryPinLabelColorOverride,
     getCategoryPinStyle,
     normalizeCategoryPinStyles,
 } from '../lib/categoryPinStyles.js';
@@ -74,13 +75,54 @@ export default function MyMapCategoryOrderModal({
     }
 
     function updateCategoryColor(category, field, color) {
-        setCategoryStyles((current) => ({
-            ...current,
-            [category.key]: {
-                ...getCategoryPinStyle(current, category.key, category.color),
-                [field]: color.toUpperCase(),
-            },
-        }));
+        setCategoryStyles((current) => {
+            const resolvedStyle = getCategoryPinStyle(current, category.key, category.color);
+            const labelColorOverride = getCategoryPinLabelColorOverride(current, category.key);
+            return {
+                ...current,
+                [category.key]: {
+                    fillColor: resolvedStyle.fillColor,
+                    ringColor: resolvedStyle.ringColor,
+                    ...(labelColorOverride ? { labelColor: labelColorOverride } : {}),
+                    [field]: color.toUpperCase(),
+                },
+            };
+        });
+    }
+
+    function enableCategoryLabelColorOverride(category) {
+        setCategoryStyles((current) => {
+            const resolvedStyle = getCategoryPinStyle(current, category.key, category.color);
+            return {
+                ...current,
+                [category.key]: {
+                    fillColor: resolvedStyle.fillColor,
+                    ringColor: resolvedStyle.ringColor,
+                    labelColor: resolvedStyle.labelColor,
+                },
+            };
+        });
+    }
+
+    function useAutomaticCategoryLabelColor(category) {
+        setCategoryStyles((current) => {
+            const resolvedStyle = getCategoryPinStyle(current, category.key, category.color);
+            const defaultStyle = getCategoryPinStyle({}, category.key, category.color);
+            const next = { ...current };
+
+            if (
+                resolvedStyle.fillColor === defaultStyle.fillColor
+                && resolvedStyle.ringColor === defaultStyle.ringColor
+            ) {
+                delete next[category.key];
+            } else {
+                next[category.key] = {
+                    fillColor: resolvedStyle.fillColor,
+                    ringColor: resolvedStyle.ringColor,
+                };
+            }
+            return next;
+        });
     }
 
     function resetCategoryColors(category) {
@@ -142,8 +184,14 @@ export default function MyMapCategoryOrderModal({
                         ) : null}
 
                         <div className="space-y-2">
-                            {orderedCategories.map((category, index) => (
-                                <div key={category.key} className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
+                            {orderedCategories.map((category, index) => {
+                                const pinStyle = getCategoryPinStyle(categoryStyles, category.key, category.color);
+                                const pinShape = getCategoryPinShape(categoryShapes, category.key);
+                                const hasLabelColorOverride = Boolean(
+                                    getCategoryPinLabelColorOverride(categoryStyles, category.key),
+                                );
+                                return (
+                                    <div key={category.key} className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
                                     <div className="flex min-h-11 items-center gap-3">
                                         <span
                                             aria-hidden="true"
@@ -238,12 +286,37 @@ export default function MyMapCategoryOrderModal({
                                         <p className="mt-1 text-xs leading-5 text-slate-500">
                                             {t('categoryNumberedPinColoursHelp')}
                                         </p>
-                                        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                                        <div
+                                            className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+                                            data-category-pin-preview={category.key}
+                                            role="img"
+                                            aria-label={t('categoryPinPreviewForCategory', { category: category.label })}
+                                        >
+                                            <div className="flex min-w-16 flex-col gap-1">
+                                                <span className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
+                                                    {t('categoryPinPreview')}
+                                                </span>
+                                                <span className="text-[11px] font-semibold text-slate-500">
+                                                    {hasLabelColorOverride
+                                                        ? t('categoryPinNumberColourCustom')
+                                                        : t('categoryPinNumberColourAutomatic')}
+                                                </span>
+                                            </div>
+                                            <CategoryPinShapeBadge
+                                                shape={pinShape}
+                                                color={pinStyle.fillColor}
+                                                ringColor={pinStyle.ringColor}
+                                                labelColor={pinStyle.labelColor}
+                                                label={index + 1}
+                                                preview
+                                            />
+                                        </div>
+                                        <div className="mt-3 grid gap-3 sm:grid-cols-3 sm:items-end">
                                             <label className="text-xs font-bold text-slate-600">
                                                 <span className="mb-1 block">{t('categoryPinFillColour')}</span>
                                                 <input
                                                     type="color"
-                                                    value={getCategoryPinStyle(categoryStyles, category.key, category.color).fillColor}
+                                                    value={pinStyle.fillColor}
                                                     onChange={(event) => updateCategoryColor(category, 'fillColor', event.target.value)}
                                                     disabled={submitting}
                                                     className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed"
@@ -254,25 +327,71 @@ export default function MyMapCategoryOrderModal({
                                                 <span className="mb-1 block">{t('categoryPinRingColour')}</span>
                                                 <input
                                                     type="color"
-                                                    value={getCategoryPinStyle(categoryStyles, category.key, category.color).ringColor}
+                                                    value={pinStyle.ringColor}
                                                     onChange={(event) => updateCategoryColor(category, 'ringColor', event.target.value)}
                                                     disabled={submitting}
                                                     className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed"
                                                     aria-label={t('categoryPinRingColourForCategory', { category: category.label })}
                                                 />
                                             </label>
+                                            <label className="text-xs font-bold text-slate-600">
+                                                <span className="mb-1 block">{t('categoryPinNumberColour')}</span>
+                                                <input
+                                                    type="color"
+                                                    value={pinStyle.labelColor}
+                                                    onChange={(event) => updateCategoryColor(category, 'labelColor', event.target.value)}
+                                                    disabled={submitting || !hasLabelColorOverride}
+                                                    className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
+                                                    aria-label={t('categoryPinNumberColourForCategory', { category: category.label })}
+                                                />
+                                            </label>
+                                        </div>
+                                        <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                                            <div
+                                                role="group"
+                                                aria-label={t('categoryPinNumberColourForCategory', { category: category.label })}
+                                                className="inline-flex rounded-xl border border-slate-200 bg-white p-1"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={() => useAutomaticCategoryLabelColor(category)}
+                                                    disabled={submitting}
+                                                    aria-pressed={!hasLabelColorOverride}
+                                                    className={`min-h-9 rounded-lg px-3 text-xs font-bold transition ${
+                                                        !hasLabelColorOverride
+                                                            ? 'bg-brand-50 text-brand-800 shadow-sm'
+                                                            : 'text-slate-600 hover:bg-slate-50'
+                                                    }`}
+                                                >
+                                                    {t('categoryPinNumberColourAutomatic')}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => enableCategoryLabelColorOverride(category)}
+                                                    disabled={submitting}
+                                                    aria-pressed={hasLabelColorOverride}
+                                                    className={`min-h-9 rounded-lg px-3 text-xs font-bold transition ${
+                                                        hasLabelColorOverride
+                                                            ? 'bg-brand-50 text-brand-800 shadow-sm'
+                                                            : 'text-slate-600 hover:bg-slate-50'
+                                                    }`}
+                                                >
+                                                    {t('categoryPinNumberColourCustom')}
+                                                </button>
+                                            </div>
                                             <button
                                                 type="button"
                                                 onClick={() => resetCategoryColors(category)}
                                                 disabled={submitting}
-                                                className="btn-ghost h-11 justify-center border border-slate-200 px-3 text-xs text-slate-700"
+                                                className="btn-ghost min-h-11 justify-center border border-slate-200 px-3 text-xs text-slate-700"
                                             >
                                                 {t('categoryPinUseDefaultColours')}
                                             </button>
                                         </div>
                                     </fieldset>
-                                </div>
-                            ))}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 

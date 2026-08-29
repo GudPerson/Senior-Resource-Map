@@ -18,8 +18,13 @@ export function normalizeCategoryPinStyles(value, { limit = 500 } = {}) {
         const key = normalizeMyMapCategoryKey(rawKey).slice(0, 240);
         const fillColor = normalizeCategoryPinColor(rawStyle?.fillColor);
         const ringColor = normalizeCategoryPinColor(rawStyle?.ringColor);
+        const labelColor = normalizeCategoryPinColor(rawStyle?.labelColor);
         if (!key || !fillColor || !ringColor) continue;
-        normalized[key] = { fillColor, ringColor };
+        normalized[key] = {
+            fillColor,
+            ringColor,
+            ...(labelColor ? { labelColor } : {}),
+        };
         if (Object.keys(normalized).length >= limit) break;
     }
     return normalized;
@@ -49,11 +54,21 @@ export function getCategoryPinLabelColor(fillColor) {
 export function getCategoryPinStyle(categoryStyles, categoryKey, categoryColor = null) {
     const key = normalizeMyMapCategoryKey(categoryKey);
     const style = key ? categoryStyles?.[key] : null;
+    const fillColor = normalizeCategoryPinColor(
+        style?.fillColor,
+        normalizeCategoryPinColor(categoryColor, CATEGORY_PIN_DEFAULT_FILL_COLOR),
+    );
     return {
-        fillColor: normalizeCategoryPinColor(
-            style?.fillColor,
-            normalizeCategoryPinColor(categoryColor, CATEGORY_PIN_DEFAULT_FILL_COLOR),
-        ),
+        fillColor,
         ringColor: normalizeCategoryPinColor(style?.ringColor, CATEGORY_PIN_DEFAULT_RING_COLOR),
+        labelColor: normalizeCategoryPinColor(
+            style?.labelColor,
+            getCategoryPinLabelColor(fillColor),
+        ),
     };
+}
+
+export function getCategoryPinLabelColorOverride(categoryStyles, categoryKey) {
+    const key = normalizeMyMapCategoryKey(categoryKey);
+    return key ? normalizeCategoryPinColor(categoryStyles?.[key]?.labelColor) : null;
 }
