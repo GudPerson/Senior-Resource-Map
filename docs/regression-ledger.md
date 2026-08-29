@@ -15,9 +15,9 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-29 My Map table detail, columns, and category-index refinement (release candidate)
+## 2026-08-29 My Map table detail, columns, and category-index refinement (released)
 
-- Candidate behavior: the existing `Card detail` setting now governs the owner
+- Current production behavior: the existing `Card detail` setting now governs the owner
   Table display as well as Cards. Names only hides logos, addresses, descriptions,
   and personal-place badges; Names + logos, Names + addresses, and Names +
   descriptions reveal only their named detail; Full details retains all supported
@@ -56,8 +56,19 @@ Rules:
   Full details, Names only, saved category shapes/styles, plain row indices, and
   the narrow-row stacking fallback. A 390 x 844 px pass confirmed a readable
   one-column Names + descriptions layout with no horizontal clipping. The harness
-  and its browser artifacts were removed after review. No production deployment or
-  production-data operation has been performed for this candidate.
+  and its browser artifacts were removed after review.
+- Release evidence: source commit `952830704be7d2fcf9ee607cef80934b35456c7e`
+  was pushed to both the scoped feature branch and `main`. Cloudflare Pages
+  deployment `https://fc08f737.senior-resource-map.pages.dev` compiled the Pages
+  Functions and uploaded the exact locked-map build. All 85 static files matched
+  the validated local artifact by byte count and SHA-256 on both the immutable
+  deployment and `https://app.carearound.sg`; the entry and My Map lazy bundle
+  returned JavaScript MIME types, ordinary app HTML retained CSP
+  `frame-ancestors 'none'` and `X-Frame-Options: DENY`, and API health returned
+  status `ok`. Production smoke passed 6/6, including authenticated map creation
+  and cleanup. Signed-in visual UAT against the owner's existing production maps
+  remains the final user acceptance step; no Worker, schema, dependency, secret,
+  or production-data migration was included in this release.
 
 ## 2026-08-29 My Map manual pin-number colour override (released)
 
