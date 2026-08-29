@@ -70,6 +70,10 @@ import {
     getCategoryPinShapePath,
     getCategoryPinShapeTextY,
 } from '../lib/categoryPinShapes.js';
+import {
+    getCategoryPinLabelColor,
+    getCategoryPinStyle,
+} from '../lib/categoryPinStyles.js';
 
 const DEFAULT_CENTER = [1.3521, 103.8198];
 const DEFAULT_ZOOM = 11;
@@ -263,17 +267,26 @@ function normalizePrintBadgeItems(
     fallbackColor = '#0f766e',
     fallbackShape = 'circle',
     numberedPinShapesByCategory = {},
+    numberedPinStylesByCategory = {},
+    fallbackCategoryKey = '',
 ) {
     const fallbackLabel = String(number || '?').trim() || '?';
     const sourceItems = Array.isArray(items) && items.length
         ? items
-        : [{ label: fallbackLabel, color: fallbackColor }];
+        : [{ label: fallbackLabel, color: fallbackColor, categoryKey: fallbackCategoryKey }];
 
     return sourceItems.map((item, index) => {
         const label = String(item?.label ?? item?.number ?? (index + 1)).trim() || '?';
+        const style = getCategoryPinStyle(
+            numberedPinStylesByCategory,
+            item?.categoryKey || fallbackCategoryKey,
+            item?.color || item?.categoryColor || fallbackColor,
+        );
         return {
             label,
-            color: normalizeMarkerColor(item?.color || item?.categoryColor, fallbackColor),
+            color: style.fillColor,
+            ringColor: style.ringColor,
+            labelColor: getCategoryPinLabelColor(style.fillColor),
             placeKey: item?.placeKey || null,
             shape: item?.shape || (item?.categoryKey
                 ? getCategoryPinShape(numberedPinShapesByCategory, item.categoryKey)
@@ -563,6 +576,8 @@ function createPrintResourceBadgeMarker(number, {
     scale = 1,
     shape = 'circle',
     numberedPinShapesByCategory = {},
+    numberedPinStylesByCategory = {},
+    categoryKey = '',
 } = {}) {
     const isSelected = emphasis === 'primary';
     const badgeColor = normalizeMarkerColor(color);
@@ -575,6 +590,8 @@ function createPrintResourceBadgeMarker(number, {
         badgeColor,
         shape,
         numberedPinShapesByCategory,
+        numberedPinStylesByCategory,
+        categoryKey,
     );
     const markerKey = badgeItems.map((item) => `${item.placeKey || ''}:${item.label}:${item.shape}`).join('|') || placeKey || label;
     const badgeScale = normalizePrintBadgeScale(scale);
@@ -605,7 +622,7 @@ function createPrintResourceBadgeMarker(number, {
                     <path
                         d="${getCategoryPinShapePath(item.shape)}"
                         fill="${item.color}"
-                        stroke="${isSelected ? '#f97316' : 'rgba(255,255,255,0.98)'}"
+                        stroke="${item.ringColor}"
                         stroke-width="1"
                         stroke-linejoin="round"
                         vector-effect="non-scaling-stroke"
@@ -613,7 +630,7 @@ function createPrintResourceBadgeMarker(number, {
                     <text
                         x="50"
                         y="${getCategoryPinShapeTextY(item.shape)}"
-                        fill="#ffffff"
+                        fill="${item.labelColor}"
                         font-family="var(--font-heading)"
                         font-size="${fontSize}"
                         font-weight="900"
@@ -2620,6 +2637,7 @@ export default function DirectoryMap({
     renderPins = null,
     placeNumberByKey = null,
     numberedPinShapesByCategory = {},
+    numberedPinStylesByCategory = {},
     showPopup = true,
     showZoomControl = interactive,
     showAttribution = true,
@@ -3199,6 +3217,8 @@ export default function DirectoryMap({
                                     scale: printBadgeScale,
                                     shape: getCategoryPinShape(numberedPinShapesByCategory, pin.categoryKey),
                                     numberedPinShapesByCategory,
+                                    numberedPinStylesByCategory,
+                                    categoryKey: pin.categoryKey,
                                 }
                             )
                             : markerMode === 'category-bubble'
@@ -3292,6 +3312,8 @@ export default function DirectoryMap({
                         scale: printBadgeScale,
                         shape: getCategoryPinShape(numberedPinShapesByCategory, pin.categoryKey),
                         numberedPinShapesByCategory,
+                        numberedPinStylesByCategory,
+                        categoryKey: pin.categoryKey,
                     }
                 )
                 : markerMode === 'category-bubble'
@@ -3361,7 +3383,7 @@ export default function DirectoryMap({
                 />
             );
         });
-    }, [shouldCluster, showPins, displayMarkerPins, markerMode, printBadgeScale, resolvedMarkerScale, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, numberedPinShapesByCategory, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
+    }, [shouldCluster, showPins, displayMarkerPins, markerMode, printBadgeScale, resolvedMarkerScale, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, numberedPinShapesByCategory, numberedPinStylesByCategory, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
 
     const mapClickEnabled = interactive && typeof onMapClick === 'function';
     const currentAnchorPlacementHandlers = mapClickEnabled && anchorPoint?.kind === 'current'

@@ -31,6 +31,7 @@ import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
 import EditMapDetailsModal from '../components/EditMapDetailsModal.jsx';
 import { FIXED_TOWN_SURFACE_MIN_ZOOM } from '../components/FixedTownSurfaceLayer.jsx';
 import MyMapPdfExportButton from '../components/MyMapPdfExportButton.jsx';
+import MyMapExcelExportButton from '../components/MyMapExcelExportButton.jsx';
 import MyMapCategoryOrderModal from '../components/MyMapCategoryOrderModal.jsx';
 import MyMapV2PreviewScaffold from '../components/MyMapV2PreviewScaffold.jsx';
 import MapAssetShortDescriptionModal from '../components/MapAssetShortDescriptionModal.jsx';
@@ -1949,11 +1950,18 @@ export default function MyMapDetailPage() {
     }, [mapId, searchParams]);
     const printQrDirectoryUrl = sharedDirectoryUrl || ownerInteractiveDirectoryUrl;
     const renderPdfExportButton = useCallback((className = '') => (
-        <MyMapPdfExportButton
-            directory={directory}
-            presentation={pdfPresentation}
-            className={className}
-        />
+        <>
+            <MyMapPdfExportButton
+                directory={directory}
+                presentation={pdfPresentation}
+                className={className}
+            />
+            <MyMapExcelExportButton
+                directory={directory}
+                presentation={pdfPresentation}
+                className={className}
+            />
+        </>
     ), [directory, pdfPresentation]);
 
     const townMapCoveragePoints = useMemo(() => {
@@ -2714,7 +2722,7 @@ export default function MyMapDetailPage() {
         setCategoryOrderOpen(true);
     }
 
-    async function handleUpdateCategoryOrder({ categoryOrder, categoryShapes }) {
+    async function handleUpdateCategoryOrder({ categoryOrder, categoryShapes, categoryStyles }) {
         if (!directory || categoryOrderSubmitting) return;
         setCategoryOrderSubmitting(true);
         setCategoryOrderError('');
@@ -2722,7 +2730,7 @@ export default function MyMapDetailPage() {
             await api.updateMyMapCategoryOrder(directory.id, { categoryOrder });
             if (mapStudioRuntimeSnapshot) {
                 mapStudioControllerRef.current?.patchDesign({
-                    pins: { categoryShapes },
+                    pins: { categoryShapes, categoryStyles },
                 }, { enterDesign: true });
             }
             const refreshedDirectory = await loadMap();
@@ -3497,6 +3505,7 @@ export default function MyMapDetailPage() {
         pinCategoryIconMode: mapStudioInteractiveModel?.directoryMap?.pinCategoryIconMode ?? 'auto',
         clusterMarkerMode: mapStudioInteractiveModel?.directoryMap?.clusterMarkerMode ?? 'bubble',
         numberedPinShapesByCategory: mapStudioInteractiveModel?.directoryMap?.numberedPinShapesByCategory ?? {},
+        numberedPinStylesByCategory: mapStudioInteractiveModel?.directoryMap?.numberedPinStylesByCategory ?? {},
         showPins: mapStudioInteractiveModel?.resourceLayer?.visible ?? true,
         onMapViewStateChange: mapStudioInteractiveModel
             ? handleInteractiveMapViewStateChange
@@ -3715,6 +3724,7 @@ export default function MyMapDetailPage() {
                     categories={categoryOrderOptions}
                     initialOrder={directory.categoryOrder}
                     initialCategoryShapes={mapStudioRuntimeSnapshot?.design?.pins?.categoryShapes}
+                    initialCategoryStyles={mapStudioRuntimeSnapshot?.design?.pins?.categoryStyles}
                     submitting={categoryOrderSubmitting}
                     error={categoryOrderError}
                     onClose={() => {
@@ -3895,6 +3905,7 @@ export default function MyMapDetailPage() {
                     categories={categoryOrderOptions}
                     initialOrder={directory.categoryOrder}
                     initialCategoryShapes={mapStudioRuntimeSnapshot?.design?.pins?.categoryShapes}
+                    initialCategoryStyles={mapStudioRuntimeSnapshot?.design?.pins?.categoryStyles}
                     submitting={categoryOrderSubmitting}
                     error={categoryOrderError}
                     onClose={() => {
@@ -4093,6 +4104,7 @@ export default function MyMapDetailPage() {
                     ) : (
                         <>
                             <SharedMapDirectoryList
+                                directory={directory}
                                 presentation={interactivePresentation}
                                 mode="owner"
                                 layout={useDesktopOwnerLayout ? 'desktop' : 'responsive'}
@@ -4119,6 +4131,8 @@ export default function MyMapDetailPage() {
                                 cardBadgeMode={mapStudioInteractiveModel?.cardIdentity?.mode || 'number'}
                                 showInteractiveNumberBadges={Boolean(mapStudioInteractiveModel?.cardIdentity?.showNumberBadge)}
                                 numberedPinShapesByCategory={mapStudioInteractiveModel?.cardIdentity?.numberedPinShapesByCategory}
+                                numberedPinStylesByCategory={mapStudioInteractiveModel?.cardIdentity?.numberedPinStylesByCategory}
+                                resourceDisplay={mapStudioInteractiveModel?.layout?.resourceDisplay}
                                 showDesktopHoverLogo
                                 preserveMobileMapFrameInFlow={TOWN_MAP_PROOF_ENABLED}
                                 desktopScrollTargetRef={desktopSelectionSnapRef}

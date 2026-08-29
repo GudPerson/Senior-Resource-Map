@@ -26,6 +26,41 @@ test('server persistence validation accepts the normalized client Map Studio doc
     assert.deepEqual(validateMapStudioDocumentInput(document), document);
 });
 
+test('stored schema v3 documents created before table and pin colours receive safe defaults', () => {
+    const legacyRow = buildMapStudioStoredDocument(createDocument());
+    delete legacyRow.views[0].design.pins.categoryStyles;
+    delete legacyRow.views[0].design.layout.resourceDisplay;
+    const normalized = formatMapStudioDocument(25, {
+        schemaVersion: MAP_STUDIO_SCHEMA_VERSION,
+        document: legacyRow,
+        revision: 2,
+    });
+    assert.deepEqual(normalized.document.views[0].design.pins.categoryStyles, {});
+    assert.equal(normalized.document.views[0].design.layout.resourceDisplay, 'cards');
+});
+
+test('server persistence accepts safe per-category pin colours and table display', () => {
+    const document = createDocument();
+    document.views[0].design.pins.categoryStyles = {
+        'active ageing centre (aac)': { fillColor: '#123456', ringColor: '#ABCDEF' },
+    };
+    document.views[0].design.layout.resourceDisplay = 'table';
+
+    assert.deepEqual(validateMapStudioDocumentInput(document), document);
+});
+
+test('server persistence rejects unsafe pin colour values', () => {
+    const document = createDocument();
+    document.views[0].design.pins.categoryStyles = {
+        unsafe: { fillColor: 'url(javascript:alert(1))', ringColor: '#FFFFFF' },
+    };
+
+    assert.throws(
+        () => validateMapStudioDocumentInput(document),
+        /Map Studio design is invalid/,
+    );
+});
+
 test('server persistence rejects temporary exploration and export state', () => {
     const document = createDocument();
 
@@ -242,8 +277,11 @@ test('stored schema v1 documents are returned as additive schema v3 views', () =
         mapWidth: 'wide',
         resourceColumnCount: 2,
         sideResourceColumnCount: 1,
+        resourceDisplay: 'cards',
     });
     assert.deepEqual(formatted.document.views[0].design.pins.categoryShapes, {});
+    assert.deepEqual(formatted.document.views[0].design.pins.categoryStyles, {});
+    assert.equal(formatted.document.views[0].design.layout.resourceDisplay, 'cards');
 });
 
 test('stored schema v2 documents migrate to v3 with Circle shape defaults', () => {
@@ -270,4 +308,6 @@ test('stored schema v2 documents migrate to v3 with Circle shape defaults', () =
 
     assert.equal(formatted.document.schemaVersion, MAP_STUDIO_SCHEMA_VERSION);
     assert.deepEqual(formatted.document.views[0].design.pins.categoryShapes, {});
+    assert.deepEqual(formatted.document.views[0].design.pins.categoryStyles, {});
+    assert.equal(formatted.document.views[0].design.layout.resourceDisplay, 'cards');
 });

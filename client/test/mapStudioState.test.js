@@ -138,7 +138,9 @@ test('a legacy My Map gets one versioned default view without changing existing 
         style: 'category-bubble',
         size: 'standard',
         categoryShapes: {},
+        categoryStyles: {},
     });
+    assert.equal(document.views[0].design.layout.resourceDisplay, 'cards');
 });
 
 test('schema reads are explicit and reject unknown future versions instead of overwriting them', () => {
@@ -150,6 +152,16 @@ test('schema reads are explicit and reject unknown future versions instead of ov
         () => normalizeMapStudioDocument({ views: [] }),
         /Unsupported Map Studio schema version: missing/,
     );
+});
+
+test('older schema v3 documents receive backward-compatible card and pin-colour defaults', () => {
+    const document = createMapStudioDocument();
+    delete document.views[0].design.pins.categoryStyles;
+    delete document.views[0].design.layout.resourceDisplay;
+
+    const normalized = normalizeMapStudioDocument(document);
+    assert.deepEqual(normalized.views[0].design.pins.categoryStyles, {});
+    assert.equal(normalized.views[0].design.layout.resourceDisplay, 'cards');
 });
 
 test('normalization bounds visual state and removes duplicate layer identifiers', () => {
@@ -172,6 +184,13 @@ test('normalization bounds visual state and removes duplicate layer identifiers'
                             ' Active Ageing Centre (AAC) ': 'triangle',
                             'senior care centre (scc)': 'invalid',
                         },
+                        categoryStyles: {
+                            ' Active Ageing Centre (AAC) ': {
+                                fillColor: '#123abc',
+                                ringColor: '#FEDCBA',
+                            },
+                            unsafe: { fillColor: 'red', ringColor: '#FFFFFF' },
+                        },
                     },
                     labels: { detail: PRINT_MAP_LABEL_DETAIL_NAMES_ADDRESSES },
                     layers: {
@@ -187,6 +206,7 @@ test('normalization bounds visual state and removes duplicate layer identifiers'
                         mapWidth: PRINT_MAP_WIDTH_EXTRA_WIDE,
                         resourceColumnCount: 4,
                         sideResourceColumnCount: 2,
+                        resourceDisplay: 'table',
                     },
                 },
             },
@@ -204,6 +224,10 @@ test('normalization bounds visual state and removes duplicate layer identifiers'
     assert.deepEqual(normalized.views[0].design.pins.categoryShapes, {
         'active ageing centre (aac)': 'triangle',
     });
+    assert.deepEqual(normalized.views[0].design.pins.categoryStyles, {
+        'active ageing centre (aac)': { fillColor: '#123ABC', ringColor: '#FEDCBA' },
+    });
+    assert.equal(normalized.views[0].design.layout.resourceDisplay, 'table');
 });
 
 test('invalid persistent view collections fail closed instead of being truncated or overwritten', () => {
@@ -429,6 +453,7 @@ test('schema v1 views migrate additively into the unified v3 design model', () =
         mapWidth: 'wide',
         resourceColumnCount: 2,
         sideResourceColumnCount: 1,
+        resourceDisplay: 'cards',
     });
     assert.equal(migrated.views[0].design.pins.style, MAP_STUDIO_PIN_STYLE_NUMBERED);
     assert.deepEqual(migrated.views[0].design.pins.categoryShapes, {});
@@ -453,6 +478,7 @@ test('schema v2 views migrate additively with Circle as the numbered-pin shape f
         style: 'numbered',
         size: 'large',
         categoryShapes: {},
+        categoryStyles: {},
     });
 });
 

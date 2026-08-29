@@ -10,6 +10,10 @@ import {
     normalizeCategoryPinShapes,
 } from '../lib/categoryPinShapes.js';
 import {
+    getCategoryPinStyle,
+    normalizeCategoryPinStyles,
+} from '../lib/categoryPinStyles.js';
+import {
     moveMyMapCategory,
     normalizeMyMapCategoryOrder,
 } from '../lib/myMapCategoryOrder.js';
@@ -28,6 +32,7 @@ export default function MyMapCategoryOrderModal({
     categories = [],
     initialOrder = [],
     initialCategoryShapes = {},
+    initialCategoryStyles = {},
     submitting = false,
     error = '',
     onClose,
@@ -37,13 +42,15 @@ export default function MyMapCategoryOrderModal({
     const [orderedCategories, setOrderedCategories] = useState([]);
     const [useDefaultOrder, setUseDefaultOrder] = useState(true);
     const [categoryShapes, setCategoryShapes] = useState({});
+    const [categoryStyles, setCategoryStyles] = useState({});
 
     useEffect(() => {
         if (!open) return;
         setOrderedCategories(categories);
         setUseDefaultOrder(normalizeMyMapCategoryOrder(initialOrder).length === 0);
         setCategoryShapes(normalizeCategoryPinShapes(initialCategoryShapes));
-    }, [categories, initialCategoryShapes, initialOrder, open]);
+        setCategoryStyles(normalizeCategoryPinStyles(initialCategoryStyles));
+    }, [categories, initialCategoryShapes, initialCategoryStyles, initialOrder, open]);
 
     if (!open) return null;
 
@@ -66,6 +73,24 @@ export default function MyMapCategoryOrderModal({
         });
     }
 
+    function updateCategoryColor(category, field, color) {
+        setCategoryStyles((current) => ({
+            ...current,
+            [category.key]: {
+                ...getCategoryPinStyle(current, category.key, category.color),
+                [field]: color.toUpperCase(),
+            },
+        }));
+    }
+
+    function resetCategoryColors(category) {
+        setCategoryStyles((current) => {
+            const next = { ...current };
+            delete next[category.key];
+            return next;
+        });
+    }
+
     async function handleSubmit(event) {
         event.preventDefault();
         await onSubmit?.({
@@ -73,6 +98,7 @@ export default function MyMapCategoryOrderModal({
                 ? []
                 : orderedCategories.map((category) => category.key),
             categoryShapes: normalizeCategoryPinShapes(categoryShapes),
+            categoryStyles: normalizeCategoryPinStyles(categoryStyles),
         });
     }
 
@@ -202,6 +228,47 @@ export default function MyMapCategoryOrderModal({
                                                     </label>
                                                 );
                                             })}
+                                        </div>
+                                    </fieldset>
+
+                                    <fieldset className="mt-3 border-t border-slate-100 pt-3">
+                                        <legend className="text-xs font-bold text-slate-600">
+                                            {t('categoryNumberedPinColours')}
+                                        </legend>
+                                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                                            {t('categoryNumberedPinColoursHelp')}
+                                        </p>
+                                        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                                            <label className="text-xs font-bold text-slate-600">
+                                                <span className="mb-1 block">{t('categoryPinFillColour')}</span>
+                                                <input
+                                                    type="color"
+                                                    value={getCategoryPinStyle(categoryStyles, category.key, category.color).fillColor}
+                                                    onChange={(event) => updateCategoryColor(category, 'fillColor', event.target.value)}
+                                                    disabled={submitting}
+                                                    className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed"
+                                                    aria-label={t('categoryPinFillColourForCategory', { category: category.label })}
+                                                />
+                                            </label>
+                                            <label className="text-xs font-bold text-slate-600">
+                                                <span className="mb-1 block">{t('categoryPinRingColour')}</span>
+                                                <input
+                                                    type="color"
+                                                    value={getCategoryPinStyle(categoryStyles, category.key, category.color).ringColor}
+                                                    onChange={(event) => updateCategoryColor(category, 'ringColor', event.target.value)}
+                                                    disabled={submitting}
+                                                    className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed"
+                                                    aria-label={t('categoryPinRingColourForCategory', { category: category.label })}
+                                                />
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => resetCategoryColors(category)}
+                                                disabled={submitting}
+                                                className="btn-ghost h-11 justify-center border border-slate-200 px-3 text-xs text-slate-700"
+                                            >
+                                                {t('categoryPinUseDefaultColours')}
+                                            </button>
                                         </div>
                                     </fieldset>
                                 </div>

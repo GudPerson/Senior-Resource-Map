@@ -23,10 +23,21 @@ test('Refine categories exposes five accessible numbered-pin shape choices per c
 });
 
 test('category refinements stage shapes in the selected view without auto-saving Studio', () => {
-    assert.match(ownerPageSource, /handleUpdateCategoryOrder\(\{ categoryOrder, categoryShapes \}\)/);
-    assert.match(ownerPageSource, /patchDesign\(\{[\s\S]*pins: \{ categoryShapes \}/);
+    assert.match(ownerPageSource, /handleUpdateCategoryOrder\(\{ categoryOrder, categoryShapes, categoryStyles \}\)/);
+    assert.match(ownerPageSource, /patchDesign\(\{[\s\S]*pins: \{ categoryShapes, categoryStyles \}/);
     assert.doesNotMatch(ownerPageSource, /handleUpdateCategoryOrder[\s\S]{0,900}saveMapStudio/);
     assert.match(ownerPageSource, /initialCategoryShapes=\{mapStudioRuntimeSnapshot\?\.design\?\.pins\?\.categoryShapes\}/);
+});
+
+test('category refinements stage numbered-pin fill and ring colours with the selected view', () => {
+    assert.match(modalSource, /initialCategoryStyles/);
+    assert.match(modalSource, /type="color"/);
+    assert.match(modalSource, /categoryStyles: normalizeCategoryPinStyles\(categoryStyles\)/);
+    assert.match(ownerPageSource, /handleUpdateCategoryOrder\(\{ categoryOrder, categoryShapes, categoryStyles \}\)/);
+    assert.match(ownerPageSource, /pins: \{ categoryShapes, categoryStyles \}/);
+    assert.match(directoryMapSource, /numberedPinStylesByCategory/);
+    assert.match(directoryListSource, /numberedPinStylesByCategory/);
+    assert.match(printViewSource, /numberedPinStylesByCategory=\{printMapState\?\.numberedPinStylesByCategory\}/);
 });
 
 test('numbered pin geometry reaches interactive map cards and Export View', () => {
@@ -40,4 +51,5 @@ test('numbered pin geometry reaches interactive map cards and Export View', () =
 test('the frozen embed presentation remains on its explicit public allowlist', () => {
     assert.doesNotMatch(embedPresentationSource, /numberedPinShapesByCategory/);
     assert.doesNotMatch(embedPresentationSource, /categoryShapes/);
+    assert.doesNotMatch(embedPresentationSource, /categoryStyles|numberedPinStylesByCategory|resourceDisplay/);
 });

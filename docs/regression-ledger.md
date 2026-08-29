@@ -15,6 +15,81 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-28 My Map table display, numbered-pin colours, and Excel export (local candidate)
+
+- Current candidate behavior: an owned My Map can save either the established
+  category-card display or a responsive table display in its selected Map
+  Studio named view. The table keeps category grouping, map numbers, resource
+  names, addresses, personal-place labels, every formatted short description,
+  and the existing card-to-map hover/click relationship. Existing named views
+  default to Cards, so opening an older map does not change its presentation.
+- Numbered-pin styling: `Edit content` -> `Refine categories` now lets the map
+  owner set both the numbered-pin fill and ring colour per category, alongside
+  the established category order and pin shape. Missing or invalid custom
+  colours fall back to the existing category fill and white ring. The orange
+  selected-pin halo remains a separate interaction cue and does not overwrite
+  the saved ring colour. Pin numbers automatically switch between light and
+  dark text so very light or dark custom fills remain readable. Changes stay
+  in the selected named-view draft until
+  the owner uses the existing `Save changes` action.
+- Excel and privacy boundary: the owner toolbar adds an Excel export beside the
+  existing PDF action. The workbook contains `Summary`, `Map Assets`, and
+  `Descriptions` sheets covering mapped and list-only assets, personal places,
+  addresses, category and map number, and every formatted short description.
+  Formula-like user text is neutralized before export. Private map notes are
+  deliberately excluded. Excel generation remains click-time lazy-loaded.
+- Architecture and blast-radius boundary: the additive state remains Map
+  Studio schema v3 (`layout.resourceDisplay` and `pins.categoryStyles`) with
+  normalizing defaults for older v1, v2, and v3 documents; there is no database
+  migration. Cards/Table and custom colours are owner My Map and owner Export
+  View presentation only. Frozen Shared Map snapshots, public Shared Map,
+  embed, Discover, permissions, authentication, resource membership, personal-
+  place persistence, notes, PNG/PDF output, map coordinates, clustering,
+  Detailed surfaces, API routes, dependencies, and production data are not
+  expanded or changed.
+- Known-good reference: local candidate branch
+  `codex/my-map-table-pin-excel-20260828`, based on `origin/main` commit
+  `03e466dac`. No commit, push, Worker deploy, Pages deploy, production-schema
+  operation, or production-data operation has been performed for this
+  candidate. Database persistence UAT used only the disposable schema-only
+  Neon branch `carearound-map-table-pin-excel-uat-20260829`.
+- Reproduction and acceptance: open an owned map with numbered pins and a
+  personal place. Switch Cards to Table, verify the same grouped assets,
+  descriptions, map focus, and compact mobile readability, then save and reload
+  the named view. In Refine categories, set distinct fill/ring colours, apply,
+  check numbered markers and badges plus the orange selected halo, then discard
+  and save/reload in separate passes. Open Export View and verify display and
+  pin parity. Export Excel and confirm all assets, the personal place, and all
+  descriptions are present while private notes are absent. Open the same map
+  through a Shared Map and embed and confirm their established presentation is
+  unchanged.
+- Automated and mock verification: red-first focused coverage failed against the prior
+  implementation, then passed 59/59 after the candidate was added. Final full
+  client coverage passes 710/710 and final full server coverage passes 597/597.
+  Module-boundary analysis passes 420
+  modules and 1,251 import edges with no circular dependencies. The standard
+  client build passed, Map lockdown passed 90/90 including its production-style
+  build, and a generated workbook was imported, range-inspected, rendered, and
+  visually reviewed with all three sheets readable and no private fixture note.
+- Disposable database persistence UAT on 2026-08-29: a temporary standard user,
+  personal place, map, two styled descriptions, private-note sentinel, saved
+  Studio view, and frozen share were created only on the verified non-production
+  branch. Saving and then reloading the owner view returned Table display plus
+  custom pin fill `#112233` and ring `#FF00AA` from Studio revision 1. The saved
+  desktop, 390 px mobile, and Export View presentations retained the table,
+  descriptions, map number, and colours; mobile document width remained 390 px
+  with no horizontal overflow. The downloaded workbook contained exactly the
+  three expected sheets, one personal-place asset, and two descriptions. It had
+  no formulas or formula errors, neutralized formula-like description text, and
+  did not contain the private-note sentinel. The unauthenticated Shared Map
+  contained zero resources and exposed neither the personal place, descriptions,
+  private note, owner table component, nor Excel action. The share was then
+  unpublished, its URL returned 404, and cleanup verification found zero test
+  users, maps, or personal places. The cold first request on the schema-only
+  branch took about 84 seconds while runtime schema preparation completed;
+  subsequent feature requests completed normally for this remote local-UAT
+  setup. No production account, map, share, schema, or data was touched.
+
 ## 2026-08-28 GudAuth create-to-poll verifier contract regression coverage
 
 - Current behavior: CareAround stores the short-lived GudAuth challenge

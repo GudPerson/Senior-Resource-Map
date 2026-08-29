@@ -25,6 +25,16 @@ test('i18n public translation behavior keeps locale, fallback and interpolation 
     assert.equal(translateUi('en', 'missingTranslationKey'), 'missingTranslationKey');
 });
 
+test('category pin colour labels interpolate the category name in every locale', () => {
+    for (const { code } of LOCALES) {
+        for (const key of ['categoryPinFillColourForCategory', 'categoryPinRingColourForCategory']) {
+            const label = translateUi(code, key, { category: 'AAC' });
+            assert.match(label, /AAC/);
+            assert.doesNotMatch(label, /\{\{?category\}?\}/);
+        }
+    }
+});
+
 test('i18n coordinator stays small and delegates content to locale modules', async () => {
     const source = await readFile(new URL('../src/lib/i18n.js', import.meta.url), 'utf8');
     assert.ok(source.split('\n').length < 100);

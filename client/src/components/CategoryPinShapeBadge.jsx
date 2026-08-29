@@ -3,6 +3,7 @@ import {
     getCategoryPinShapeTextY,
     normalizeCategoryPinShape,
 } from '../lib/categoryPinShapes.js';
+import { getCategoryPinLabelColor } from '../lib/categoryPinStyles.js';
 
 function normalizeFill(value) {
     const color = String(value || '').trim();
@@ -12,6 +13,7 @@ function normalizeFill(value) {
 export default function CategoryPinShapeBadge({
     shape = 'circle',
     color = '#0f766e',
+    ringColor = '#ffffff',
     label = '',
     compact = false,
     selected = false,
@@ -40,7 +42,7 @@ export default function CategoryPinShapeBadge({
                 <path
                     d={getCategoryPinShapePath(normalizedShape)}
                     fill={normalizeFill(color)}
-                    stroke={selected ? '#f97316' : 'rgba(255,255,255,0.98)'}
+                    stroke={normalizeFill(ringColor)}
                     strokeWidth={1}
                     strokeLinejoin="round"
                     vectorEffect="non-scaling-stroke"
@@ -49,7 +51,7 @@ export default function CategoryPinShapeBadge({
                     <text
                         x="50"
                         y={getCategoryPinShapeTextY(normalizedShape)}
-                        fill="#fff"
+                        fill={getCategoryPinLabelColor(color)}
                         fontFamily="var(--font-heading)"
                         fontSize={fontSize}
                         fontWeight="900"

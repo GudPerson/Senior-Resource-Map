@@ -121,6 +121,7 @@ export default function MyMapV2PreviewScaffold({
             showPins={mapStudioRuntime?.resourceLayer?.visible ?? true}
             placeNumberByKey={presentation.placeNumberByKey}
             numberedPinShapesByCategory={directoryMapRuntime?.numberedPinShapesByCategory}
+            numberedPinStylesByCategory={directoryMapRuntime?.numberedPinStylesByCategory}
             emptyLabel={emptyLabel}
             mapHeightClassName={mapHeightClassName}
             layoutSignature={mapStudioRuntime?.layoutSignature || 'v2-map'}
@@ -204,6 +205,7 @@ export default function MyMapV2PreviewScaffold({
                     </div>
                 ) : (
                     <SharedMapDirectoryList
+                        directory={directory}
                         presentation={presentation}
                         mode="owner"
                         layout={useDesktopBodyLayout ? 'desktop' : 'responsive'}
@@ -223,6 +225,8 @@ export default function MyMapV2PreviewScaffold({
                         cardBadgeMode={mapStudioRuntime?.cardIdentity?.mode || 'logo'}
                         showInteractiveNumberBadges={Boolean(mapStudioRuntime?.cardIdentity?.showNumberBadge)}
                         numberedPinShapesByCategory={mapStudioRuntime?.cardIdentity?.numberedPinShapesByCategory}
+                        numberedPinStylesByCategory={mapStudioRuntime?.cardIdentity?.numberedPinStylesByCategory}
+                        resourceDisplay={mapStudioRuntime?.layout?.resourceDisplay}
                         mobileFocusCardVariant="complete-preview"
                         printLabelDetail={mapStudioRuntime?.labels?.detail}
                         resourcePanelPlacement={mapStudioRuntime?.layout?.resourcePanel}

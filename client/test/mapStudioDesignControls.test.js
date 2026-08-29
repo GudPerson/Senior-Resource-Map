@@ -33,6 +33,9 @@ test('standalone Map Studio controls expose the complete adapter-ready interacti
     assert.match(controlsSource, /PRINT_MAP_LAYOUT_FULL/);
     assert.match(controlsSource, /sideResourceColumnCount/);
     assert.match(controlsSource, /resourceColumnCount/);
+    assert.match(controlsSource, /MAP_STUDIO_RESOURCE_DISPLAY_CARDS/);
+    assert.match(controlsSource, /MAP_STUDIO_RESOURCE_DISPLAY_TABLE/);
+    assert.match(controlsSource, /layout: \{ resourceDisplay: MAP_STUDIO_RESOURCE_DISPLAY_TABLE \}/);
     assert.match(controlsSource, /data-map-studio-resource-layers="true"/);
     assert.match(controlsSource, /<details[^>]+data-map-studio-resource-layers="true"/);
     assert.match(controlsSource, /mapStudioResourceCategoriesSummary/);

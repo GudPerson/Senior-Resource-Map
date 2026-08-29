@@ -1,5 +1,6 @@
 import { normalizeCareAroundMapStyle } from './mapTheme.js';
 import { normalizeCategoryPinShapes } from './categoryPinShapes.js';
+import { normalizeCategoryPinStyles } from './categoryPinStyles.js';
 import {
     PRINT_MAP_ANNOTATION_LAYER_SHOW,
     PRINT_MAP_LABEL_DETAIL_FULL,
@@ -58,6 +59,8 @@ export const MAP_STUDIO_MAP_HEIGHT_TALL = 'tall';
 export const MAP_STUDIO_RESOURCE_PANEL_RESPONSIVE = 'responsive';
 export const MAP_STUDIO_RESOURCE_PANEL_BELOW = 'below-map';
 export const MAP_STUDIO_RESOURCE_PANEL_BESIDE = 'beside-map';
+export const MAP_STUDIO_RESOURCE_DISPLAY_CARDS = 'cards';
+export const MAP_STUDIO_RESOURCE_DISPLAY_TABLE = 'table';
 export const MAP_STUDIO_EXPORT_MARGIN_NARROW = 'narrow';
 export const MAP_STUDIO_EXPORT_MARGIN_STANDARD = 'standard';
 export const MAP_STUDIO_EXPORT_MARGIN_WIDE = 'wide';
@@ -114,6 +117,12 @@ function normalizeResourcePanel(value) {
     ].includes(value)
         ? value
         : MAP_STUDIO_RESOURCE_PANEL_RESPONSIVE;
+}
+
+function normalizeResourceDisplay(value) {
+    return value === MAP_STUDIO_RESOURCE_DISPLAY_TABLE
+        ? MAP_STUDIO_RESOURCE_DISPLAY_TABLE
+        : MAP_STUDIO_RESOURCE_DISPLAY_CARDS;
 }
 
 function normalizeExportMargin(value) {
@@ -187,6 +196,7 @@ export function createMapStudioDesign({
             style: MAP_STUDIO_PIN_STYLE_BUBBLE,
             size: PRINT_MAP_PIN_SIZE_STANDARD,
             categoryShapes: {},
+            categoryStyles: {},
         },
         labels: {
             detail: PRINT_MAP_LABEL_DETAIL_FULL,
@@ -204,6 +214,7 @@ export function createMapStudioDesign({
             mapWidth: PRINT_MAP_WIDTH_WIDE,
             resourceColumnCount: 2,
             sideResourceColumnCount: 1,
+            resourceDisplay: MAP_STUDIO_RESOURCE_DISPLAY_CARDS,
         },
     };
 }
@@ -223,6 +234,7 @@ export function normalizeMapStudioDesign(value, defaults = {}) {
             style: normalizePinStyle(value?.pins?.style),
             size: normalizePrintMapPinSize(value?.pins?.size),
             categoryShapes: normalizeCategoryPinShapes(value?.pins?.categoryShapes),
+            categoryStyles: normalizeCategoryPinStyles(value?.pins?.categoryStyles),
         },
         labels: {
             detail: normalizePrintMapLabelDetail(value?.labels?.detail),
@@ -248,6 +260,7 @@ export function normalizeMapStudioDesign(value, defaults = {}) {
             sideResourceColumnCount: normalizePrintMapSideResourceColumnCount(
                 value?.layout?.sideResourceColumnCount,
             ),
+            resourceDisplay: normalizeResourceDisplay(value?.layout?.resourceDisplay),
         },
     };
 }
@@ -339,6 +352,7 @@ export function migrateMapStudioDocument(value, defaults = {}) {
                     pins: {
                         ...(view?.design?.pins || {}),
                         categoryShapes: {},
+                        categoryStyles: {},
                     },
                     layout: {
                         mapHeight: view?.design?.layout?.mapHeight,
@@ -355,6 +369,7 @@ export function migrateMapStudioDocument(value, defaults = {}) {
                         sideResourceColumnCount: isLegacyView
                             ? 1
                             : view?.design?.layout?.sideResourceColumnCount,
+                        resourceDisplay: MAP_STUDIO_RESOURCE_DISPLAY_CARDS,
                     },
                 },
             };
@@ -632,6 +647,7 @@ export function buildMapStudioPrintState(design, exportSettings = {}, runtime = 
         resourceLayer: normalizedDesign.layers.resources,
         pinSize: normalizedDesign.pins.size,
         numberedPinShapesByCategory: clone(normalizedDesign.pins.categoryShapes),
+        numberedPinStylesByCategory: clone(normalizedDesign.pins.categoryStyles),
         studioMarkerMode: normalizedDesign.pins.style === MAP_STUDIO_PIN_STYLE_NUMBERED
             ? 'print-badge'
             : normalizedDesign.pins.style === MAP_STUDIO_PIN_STYLE_CATEGORY_ICON
@@ -646,6 +662,7 @@ export function buildMapStudioPrintState(design, exportSettings = {}, runtime = 
         labelDetail: normalizedDesign.labels.detail,
         resourceColumnCount: normalizedDesign.layout.resourceColumnCount,
         sideResourceColumnCount: normalizedDesign.layout.sideResourceColumnCount,
+        resourceDisplay: normalizedDesign.layout.resourceDisplay,
     };
 }
 

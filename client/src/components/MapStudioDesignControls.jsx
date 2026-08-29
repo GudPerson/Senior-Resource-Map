@@ -6,6 +6,8 @@ import {
     MAP_STUDIO_PIN_STYLE_BUBBLE,
     MAP_STUDIO_PIN_STYLE_CATEGORY_ICON,
     MAP_STUDIO_PIN_STYLE_NUMBERED,
+    MAP_STUDIO_RESOURCE_DISPLAY_CARDS,
+    MAP_STUDIO_RESOURCE_DISPLAY_TABLE,
     normalizeMapStudioDesign,
 } from '../lib/mapStudioState.js';
 import {
@@ -228,6 +230,11 @@ export default function MapStudioDesignControls({
                             {labelOptions.map((option) => (
                                 <ChoiceButton key={option.value} selected={value.labels.detail === option.value} label={option.label} onClick={() => onPatch?.({ labels: { detail: option.value } })} disabled={disabled} />
                             ))}
+                        </DesignFieldset>
+
+                        <DesignFieldset legend={t('mapStudioResourceDisplay')} description={t('mapStudioResourceDisplayHelp')}>
+                            <ChoiceButton selected={value.layout.resourceDisplay === MAP_STUDIO_RESOURCE_DISPLAY_CARDS} label={t('mapStudioResourceDisplayCards')} onClick={() => onPatch?.({ layout: { resourceDisplay: MAP_STUDIO_RESOURCE_DISPLAY_CARDS } })} disabled={disabled} />
+                            <ChoiceButton selected={value.layout.resourceDisplay === MAP_STUDIO_RESOURCE_DISPLAY_TABLE} label={t('mapStudioResourceDisplayTable')} onClick={() => onPatch?.({ layout: { resourceDisplay: MAP_STUDIO_RESOURCE_DISPLAY_TABLE } })} disabled={disabled} />
                         </DesignFieldset>
 
                         <DesignFieldset legend={t('printLayoutType')} description={

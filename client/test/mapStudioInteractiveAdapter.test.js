@@ -32,6 +32,7 @@ test('interactive model preserves the locked category-bubble defaults', () => {
         markerMode: 'category-bubble',
         markerScale: 1,
         numberedPinShapesByCategory: {},
+        numberedPinStylesByCategory: {},
         pinBadgeMode: 'none',
         pinCategoryIconMode: 'none',
         clusterMarkerMode: 'none',
@@ -47,6 +48,7 @@ test('interactive model preserves the locked category-bubble defaults', () => {
         mode: 'logo',
         showNumberBadge: false,
         numberedPinShapesByCategory: {},
+        numberedPinStylesByCategory: {},
     });
 });
 
@@ -59,6 +61,9 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
     design.pins.style = MAP_STUDIO_PIN_STYLE_NUMBERED;
     design.pins.size = PRINT_MAP_PIN_SIZE_LARGE;
     design.pins.categoryShapes = { 'active ageing centre (aac)': 'triangle' };
+    design.pins.categoryStyles = {
+        'active ageing centre (aac)': { fillColor: '#123456', ringColor: '#ABCDEF' },
+    };
     design.layers.resources = PRINT_MAP_RESOURCE_LAYER_HIDE;
     design.layers.annotations = PRINT_MAP_ANNOTATION_LAYER_HIDE;
     design.layers.hiddenResourceLayerKeys = ['resource:carearound'];
@@ -69,6 +74,7 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
     design.layout.mapWidth = 'extra-wide';
     design.layout.resourceColumnCount = 4;
     design.layout.sideResourceColumnCount = 2;
+    design.layout.resourceDisplay = 'table';
 
     const model = buildMapStudioInteractiveModel(design);
 
@@ -79,6 +85,9 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
         markerMode: 'print-badge',
         markerScale: 1.25,
         numberedPinShapesByCategory: { 'active ageing centre (aac)': 'triangle' },
+        numberedPinStylesByCategory: {
+            'active ageing centre (aac)': { fillColor: '#123456', ringColor: '#ABCDEF' },
+        },
         pinBadgeMode: 'none',
         pinCategoryIconMode: 'none',
         clusterMarkerMode: 'none',
@@ -101,6 +110,7 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
         mapWidth: 'extra-wide',
         resourceColumnCount: 4,
         sideResourceColumnCount: 2,
+        resourceDisplay: 'table',
         resourcePanelSupport: 'supported',
     });
     assert.deepEqual(model.deferredPaths, []);
@@ -128,6 +138,7 @@ test('numbered pins keep individual collision-managed bubble identities', () => 
     assert.equal(model.cardIdentity.mode, 'logo');
     assert.equal(model.cardIdentity.showNumberBadge, true);
     assert.deepEqual(model.cardIdentity.numberedPinShapesByCategory, {});
+    assert.deepEqual(model.cardIdentity.numberedPinStylesByCategory, {});
 });
 
 test('interactive model returns cloned camera and layer arrays', () => {

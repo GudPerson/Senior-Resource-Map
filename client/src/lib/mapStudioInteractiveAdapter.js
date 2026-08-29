@@ -23,6 +23,7 @@ export const MAP_STUDIO_INTERACTIVE_SUPPORTED_PATHS = Object.freeze([
     'pins.style',
     'pins.size',
     'pins.categoryShapes',
+    'pins.categoryStyles',
     'labels.detail',
     'layers.resources',
     'layers.hiddenResourceLayerKeys',
@@ -34,6 +35,7 @@ export const MAP_STUDIO_INTERACTIVE_SUPPORTED_PATHS = Object.freeze([
     'layout.mapWidth',
     'layout.resourceColumnCount',
     'layout.sideResourceColumnCount',
+    'layout.resourceDisplay',
 ]);
 
 export const MAP_STUDIO_INTERACTIVE_DEFERRED_PATHS = Object.freeze([]);
@@ -68,6 +70,7 @@ export function buildMapStudioInteractiveModel(design, defaults = {}) {
                     : 'category-bubble',
             markerScale: getPrintMapPinScale(normalizedDesign.pins.size),
             numberedPinShapesByCategory: clone(normalizedDesign.pins.categoryShapes),
+            numberedPinStylesByCategory: clone(normalizedDesign.pins.categoryStyles),
             pinBadgeMode: 'none',
             pinCategoryIconMode: isCategoryIcon ? 'auto' : 'none',
             // Studio pin styles are all individual-marker presentations. The
@@ -85,6 +88,7 @@ export function buildMapStudioInteractiveModel(design, defaults = {}) {
             mode: isCategoryIcon ? 'category-icon' : 'logo',
             showNumberBadge: isNumbered,
             numberedPinShapesByCategory: clone(normalizedDesign.pins.categoryShapes),
+            numberedPinStylesByCategory: clone(normalizedDesign.pins.categoryStyles),
         },
         annotationLayer: {
             visible: normalizedDesign.layers.annotations !== PRINT_MAP_ANNOTATION_LAYER_HIDE,
@@ -110,6 +114,7 @@ export function buildMapStudioInteractiveModel(design, defaults = {}) {
             mapWidth: normalizedDesign.layout.mapWidth,
             resourceColumnCount: normalizedDesign.layout.resourceColumnCount,
             sideResourceColumnCount: normalizedDesign.layout.sideResourceColumnCount,
+            resourceDisplay: normalizedDesign.layout.resourceDisplay,
             resourcePanelSupport: 'supported',
         },
         supportedPaths: [...MAP_STUDIO_INTERACTIVE_SUPPORTED_PATHS],

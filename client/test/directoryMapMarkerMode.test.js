@@ -161,7 +161,8 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /data-category-pin-shape="\$\{escapeHtml\(item\.shape\)\}"/);
     assert.match(directoryMapSource, /d="\$\{getCategoryPinShapePath\(item\.shape\)\}"/);
     assert.match(directoryMapSource, /fill="\$\{item\.color\}"/);
-    assert.match(directoryMapSource, /stroke="\$\{isSelected \? '#f97316' : 'rgba\(255,255,255,0\.98\)'\}"/);
+    assert.match(directoryMapSource, /stroke="\$\{item\.ringColor\}"/);
+    assert.match(directoryMapSource, /isSelected[\s\S]*drop-shadow\(0 0 4px rgba\(249,115,22,0\.38\)\)/);
     assert.match(directoryMapSource, /stroke-width="1"/);
     assert.match(directoryMapSource, /y="\$\{getCategoryPinShapeTextY\(item\.shape\)\}"/);
     assert.match(directoryMapSource, /offsetX: pin\.printOffsetX \|\| 0/);

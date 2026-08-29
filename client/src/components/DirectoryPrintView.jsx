@@ -705,6 +705,7 @@ function PrintDirectoryMap({
                 spreadCoincidentPins={!useV2Format}
                 placeNumberByKey={presentation.placeNumberByKey}
                 numberedPinShapesByCategory={printMapState?.numberedPinShapesByCategory}
+                numberedPinStylesByCategory={printMapState?.numberedPinStylesByCategory}
                 showPopup={false}
                 showZoomControl={Boolean(printMapState && interactive)}
                 showZoomLevelCounter={Boolean(printMapState && interactive)}
@@ -1200,6 +1201,7 @@ export default function DirectoryPrintView({
             }}
         >
             <SharedMapDirectoryList
+                directory={directory}
                 presentation={presentation}
                 mode={mode}
                 layout="print"
@@ -1290,6 +1292,8 @@ export default function DirectoryPrintView({
                 cardBadgeMode={useV2OwnerPrint ? studioCardBadgeMode : 'number'}
                 showPrintNumberBadges={useV2OwnerPrint && showStudioNumberIdentity}
                 numberedPinShapesByCategory={printMapState?.numberedPinShapesByCategory}
+                numberedPinStylesByCategory={printMapState?.numberedPinStylesByCategory}
+                resourceDisplay={printMapState?.resourceDisplay}
                 printLabelDetail={labelDetail}
                 printResourcesBelow={printResourcesBelow}
                 printResourceColumnCount={resourceColumnCount}

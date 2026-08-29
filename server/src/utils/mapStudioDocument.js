@@ -87,6 +87,23 @@ const categoryPinShapesSchema = z.record(
     }
 });
 
+const hexColorSchema = z.string().regex(/^#[0-9A-F]{6}$/);
+const categoryPinStylesSchema = z.record(
+    z.string().trim().min(1).max(240),
+    z.object({
+        fillColor: hexColorSchema,
+        ringColor: hexColorSchema,
+    }).strict(),
+).superRefine((value, context) => {
+    if (Object.keys(value).length > 500) {
+        context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [],
+            message: 'Numbered pin styles may reference at most 500 categories',
+        });
+    }
+});
+
 const designSchema = z.object({
     basemap: z.object({
         style: z.enum(['default', 'gray']),
@@ -97,6 +114,7 @@ const designSchema = z.object({
         style: z.enum(['category-bubble', 'numbered', 'category-icon']),
         size: z.enum(['standard', 'large', 'extra-large']),
         categoryShapes: categoryPinShapesSchema,
+        categoryStyles: categoryPinStylesSchema.default({}),
     }).strict(),
     labels: z.object({
         detail: z.enum([
@@ -122,6 +140,7 @@ const designSchema = z.object({
             z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6),
         ]),
         sideResourceColumnCount: z.union([z.literal(1), z.literal(2)]),
+        resourceDisplay: z.enum(['cards', 'table']).default('cards'),
     }).strict(),
 }).strict();
 
@@ -269,6 +288,7 @@ function migrateStoredMapStudioDocument(document) {
                     pins: {
                         ...view.design.pins,
                         categoryShapes: {},
+                        categoryStyles: {},
                     },
                     layout: {
                         mapHeight: view.design.layout.mapHeight,
@@ -283,6 +303,7 @@ function migrateStoredMapStudioDocument(document) {
                         mapWidth: isLegacyDocument ? 'wide' : view.design.layout.mapWidth,
                         resourceColumnCount: isLegacyDocument ? 2 : view.design.layout.resourceColumnCount,
                         sideResourceColumnCount: isLegacyDocument ? 1 : view.design.layout.sideResourceColumnCount,
+                        resourceDisplay: 'cards',
                     },
                 },
             };
