@@ -71,7 +71,6 @@ import {
     getCategoryPinShapeTextY,
 } from '../lib/categoryPinShapes.js';
 import {
-    getCategoryPinLabelColor,
     getCategoryPinStyle,
 } from '../lib/categoryPinStyles.js';
 
@@ -286,7 +285,7 @@ function normalizePrintBadgeItems(
             label,
             color: style.fillColor,
             ringColor: style.ringColor,
-            labelColor: getCategoryPinLabelColor(style.fillColor),
+            labelColor: style.labelColor,
             placeKey: item?.placeKey || null,
             shape: item?.shape || (item?.categoryKey
                 ? getCategoryPinShape(numberedPinShapesByCategory, item.categoryKey)

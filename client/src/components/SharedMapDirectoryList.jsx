@@ -280,7 +280,14 @@ function normalizeBadgeFillColor(value) {
     return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(text) ? text : '#0f766e';
 }
 
-function PrintResourceNumberBadge({ value, color = null, ringColor = '#ffffff', shape = 'circle', compact = false }) {
+function PrintResourceNumberBadge({
+    value,
+    color = null,
+    ringColor = '#ffffff',
+    labelColor = null,
+    shape = 'circle',
+    compact = false,
+}) {
     const label = String(value || '').replace(/^#/, '').trim();
     if (!label) return null;
     const badgeColor = normalizeBadgeFillColor(color);
@@ -290,6 +297,7 @@ function PrintResourceNumberBadge({ value, color = null, ringColor = '#ffffff', 
             shape={shape}
             color={badgeColor}
             ringColor={ringColor}
+            labelColor={labelColor}
             label={label}
             compact={compact}
             className="print-color-adjust"
@@ -2074,6 +2082,7 @@ function DirectoryPlaceGroupCard({
             value={group.number}
             color={numberedPinStyle?.fillColor || group.categoryColor || clusterColorData?.core || null}
             ringColor={numberedPinStyle?.ringColor}
+            labelColor={numberedPinStyle?.labelColor}
             shape={numberedPinShape}
             compact={useCompactNamesOnlyCard}
         />

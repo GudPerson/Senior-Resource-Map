@@ -15,6 +15,41 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-29 My Map manual pin-number colour override (release candidate)
+
+- Candidate behavior: each category in `Edit content` -> `Refine categories`
+  keeps Automatic number colour as its default and can opt into a manual number
+  colour. The editor shows a live numbered-pin preview using the category's
+  selected shape, fill, ring, and resolved number colour. `Use defaults` clears
+  all three colour overrides, while switching only the number colour back to
+  Automatic preserves any custom fill and ring.
+- Compatibility and safety boundary: the optional `labelColor` extends the
+  existing Map Studio schema-v3 `pins.categoryStyles` record without a database
+  migration or version change. Existing saved views omit the field and retain
+  automatic light/dark contrast. Hex-colour validation applies at both client
+  normalization and the Worker document boundary. The override reaches owner
+  interactive map pins, matching table/card number badges, and Export View;
+  frozen Shared Map/embed snapshots, map membership, coordinates, clustering,
+  authentication, permissions, notes, personal places, Excel contents, and
+  production data remain unchanged.
+- Reproduction and acceptance: open an owned numbered-pin map, choose `Edit
+  content` -> `Refine categories`, and verify each category initially shows an
+  accurate preview marked Automatic. Choose Custom, select a number colour,
+  and confirm the preview changes immediately while the fill and ring remain
+  unchanged. Apply the refinement and verify marker/card/table parity; save and
+  reload the named view; then verify Export View uses the same number colour.
+  Switching back to Automatic must restore contrast-derived light/dark text
+  without resetting custom fill/ring colours.
+- Verification before release: focused client/server/style/UI/export checks
+  pass 95/95; full client coverage passes 712/712; full server coverage passes
+  598/598; the locked map gate passes 90/90; migration ordering, the 420-module
+  graph with 1,252 import edges, and diff checks pass; and both the standard and
+  exact six-root production client builds pass. The only build advisory is the
+  pre-existing stale Browserslist dataset notice. A non-persistent browser
+  component UAT at 1,200 x 740 px confirmed the production-styled preview,
+  Automatic/Custom pressed states, enabled/disabled number picker, immediate
+  white-number preview update, and return to Automatic without submitting.
+
 ## 2026-08-29 My Map table display, numbered-pin colours, and Excel export (released)
 
 - Current production behavior: an owned My Map can save either the established

@@ -52,6 +52,7 @@ export default function MyMapResourceTable({
                                                 shape={getCategoryPinShape(numberedPinShapesByCategory, category.name)}
                                                 color={pinStyle.fillColor}
                                                 ringColor={pinStyle.ringColor}
+                                                labelColor={pinStyle.labelColor}
                                                 label={asset.sourceMapNumber}
                                             />
                                         )}

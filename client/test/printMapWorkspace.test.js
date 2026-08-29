@@ -193,6 +193,12 @@ test('capture key changes for every visual print map setting', () => {
         buildPrintMapCaptureKey({ ...baseline, margins: PRINT_MAP_MARGIN_NARROW }),
         buildPrintMapCaptureKey({ ...baseline, resourceLayer: PRINT_MAP_RESOURCE_LAYER_HIDE }),
         buildPrintMapCaptureKey({ ...baseline, pinSize: PRINT_MAP_PIN_SIZE_LARGE }),
+        buildPrintMapCaptureKey({
+            ...baseline,
+            numberedPinStylesByCategory: {
+                aac: { fillColor: '#123456', ringColor: '#FFFFFF', labelColor: '#FEDCBA' },
+            },
+        }),
         buildPrintMapCaptureKey({ ...baseline, studioMarkerMode: 'category-bubble' }),
         buildPrintMapCaptureKey({ ...baseline, annotationLayer: 'hide' }),
         buildPrintMapCaptureKey({ ...baseline, hiddenResourceLayerKeys: ['resource:carearound'] }),
@@ -205,7 +211,7 @@ test('capture key changes for every visual print map setting', () => {
         buildPrintMapCaptureKey({ ...baseline, resourceColumnCount: 4 }),
         buildPrintMapCaptureKey({ ...baseline, sideResourceColumnCount: 2 }),
     ]);
-    assert.equal(keys.size, 22);
+    assert.equal(keys.size, 23);
 });
 
 test('Full layout exports the map and resources as separate image pages', () => {

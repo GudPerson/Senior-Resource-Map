@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     getCategoryPinLabelColor,
+    getCategoryPinLabelColorOverride,
     getCategoryPinStyle,
     normalizeCategoryPinStyles,
 } from '../src/lib/categoryPinStyles.js';
@@ -12,15 +13,22 @@ test('category pin styles normalize keys and accept only six-digit hex colours',
         ' Active Ageing Centre (AAC) ': {
             fillColor: '#123abc',
             ringColor: '#FEDCBA',
+            labelColor: '#0f172a',
         },
         Unsafe: {
-            fillColor: 'red',
-            ringColor: 'url(javascript:alert(1))',
+            fillColor: '#123456',
+            ringColor: '#FFFFFF',
+            labelColor: 'url(javascript:alert(1))',
         },
     }), {
         'active ageing centre (aac)': {
             fillColor: '#123ABC',
             ringColor: '#FEDCBA',
+            labelColor: '#0F172A',
+        },
+        unsafe: {
+            fillColor: '#123456',
+            ringColor: '#FFFFFF',
         },
     });
 });
@@ -36,5 +44,24 @@ test('category pin styles preserve today\'s category fill and white ring default
     assert.deepEqual(getCategoryPinStyle({}, 'AAC', '#ef4444'), {
         fillColor: '#EF4444',
         ringColor: '#FFFFFF',
+        labelColor: '#0F172A',
     });
+});
+
+test('category pin styles use a safe manual number colour only when explicitly stored', () => {
+    const styles = {
+        aac: {
+            fillColor: '#FFFFFF',
+            ringColor: '#123456',
+            labelColor: '#EF4444',
+        },
+    };
+
+    assert.deepEqual(getCategoryPinStyle(styles, 'AAC'), {
+        fillColor: '#FFFFFF',
+        ringColor: '#123456',
+        labelColor: '#EF4444',
+    });
+    assert.equal(getCategoryPinLabelColorOverride(styles, 'AAC'), '#EF4444');
+    assert.equal(getCategoryPinLabelColorOverride({}, 'AAC'), null);
 });

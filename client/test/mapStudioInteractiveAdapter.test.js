@@ -62,7 +62,11 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
     design.pins.size = PRINT_MAP_PIN_SIZE_LARGE;
     design.pins.categoryShapes = { 'active ageing centre (aac)': 'triangle' };
     design.pins.categoryStyles = {
-        'active ageing centre (aac)': { fillColor: '#123456', ringColor: '#ABCDEF' },
+        'active ageing centre (aac)': {
+            fillColor: '#123456',
+            ringColor: '#ABCDEF',
+            labelColor: '#FEDCBA',
+        },
     };
     design.layers.resources = PRINT_MAP_RESOURCE_LAYER_HIDE;
     design.layers.annotations = PRINT_MAP_ANNOTATION_LAYER_HIDE;
@@ -86,7 +90,11 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
         markerScale: 1.25,
         numberedPinShapesByCategory: { 'active ageing centre (aac)': 'triangle' },
         numberedPinStylesByCategory: {
-            'active ageing centre (aac)': { fillColor: '#123456', ringColor: '#ABCDEF' },
+            'active ageing centre (aac)': {
+                fillColor: '#123456',
+                ringColor: '#ABCDEF',
+                labelColor: '#FEDCBA',
+            },
         },
         pinBadgeMode: 'none',
         pinCategoryIconMode: 'none',

@@ -3,7 +3,10 @@ import {
     getCategoryPinShapeTextY,
     normalizeCategoryPinShape,
 } from '../lib/categoryPinShapes.js';
-import { getCategoryPinLabelColor } from '../lib/categoryPinStyles.js';
+import {
+    getCategoryPinLabelColor,
+    normalizeCategoryPinColor,
+} from '../lib/categoryPinStyles.js';
 
 function normalizeFill(value) {
     const color = String(value || '').trim();
@@ -14,17 +17,21 @@ export default function CategoryPinShapeBadge({
     shape = 'circle',
     color = '#0f766e',
     ringColor = '#ffffff',
+    labelColor = null,
     label = '',
     compact = false,
+    preview = false,
     selected = false,
     className = '',
 }) {
     const normalizedShape = normalizeCategoryPinShape(shape);
     const text = String(label || '').replace(/^#/, '').trim();
     const fontSize = text.length > 2 ? 31 : text.length > 1 ? 37 : 42;
-    const sizeClassName = compact
-        ? 'h-[22px] w-[22px] min-w-[22px]'
-        : 'h-[30px] w-[30px] min-w-[30px]';
+    const sizeClassName = preview
+        ? 'h-12 w-12 min-w-12'
+        : compact
+            ? 'h-[22px] w-[22px] min-w-[22px]'
+            : 'h-[30px] w-[30px] min-w-[30px]';
 
     return (
         <span
@@ -51,7 +58,7 @@ export default function CategoryPinShapeBadge({
                     <text
                         x="50"
                         y={getCategoryPinShapeTextY(normalizedShape)}
-                        fill={getCategoryPinLabelColor(color)}
+                        fill={normalizeCategoryPinColor(labelColor, getCategoryPinLabelColor(color))}
                         fontFamily="var(--font-heading)"
                         fontSize={fontSize}
                         fontWeight="900"

@@ -435,6 +435,7 @@ export function buildPrintMapCaptureKey(state) {
         normalizePrintMapResourceLayer(state?.resourceLayer),
         normalizePrintMapPinSize(state?.pinSize),
         JSON.stringify(state?.numberedPinShapesByCategory || {}),
+        JSON.stringify(state?.numberedPinStylesByCategory || {}),
         ['category-bubble', 'number', 'print-badge'].includes(state?.studioMarkerMode)
             ? state.studioMarkerMode
             : 'legacy-print-badge',
