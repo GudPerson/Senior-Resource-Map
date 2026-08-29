@@ -15,9 +15,9 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-28 My Map table display, numbered-pin colours, and Excel export (local candidate)
+## 2026-08-29 My Map table display, numbered-pin colours, and Excel export (released)
 
-- Current candidate behavior: an owned My Map can save either the established
+- Current production behavior: an owned My Map can save either the established
   category-card display or a responsive table display in its selected Map
   Studio named view. The table keeps category grouping, map numbers, resource
   names, addresses, personal-place labels, every formatted short description,
@@ -47,12 +47,14 @@ Rules:
   place persistence, notes, PNG/PDF output, map coordinates, clustering,
   Detailed surfaces, API routes, dependencies, and production data are not
   expanded or changed.
-- Known-good reference: local candidate branch
-  `codex/my-map-table-pin-excel-20260828`, based on `origin/main` commit
-  `03e466dac`. No commit, push, Worker deploy, Pages deploy, production-schema
-  operation, or production-data operation has been performed for this
-  candidate. Database persistence UAT used only the disposable schema-only
-  Neon branch `carearound-map-table-pin-excel-uat-20260829`.
+- Known-good reference: release commit `3e0f71efa` on `main`, originally
+  prepared on `codex/my-map-table-pin-excel-20260828` from base
+  `03e466dacc`. The API was released as Worker version
+  `8014f982-04a6-4853-98b0-3f110884b11b`. The exact validated client artifact
+  was republished after the competing Git-triggered Pages build settled, using
+  production deployment `https://ad16d2c5.senior-resource-map.pages.dev`.
+  There was no database migration, schema operation, dependency change, or
+  production-data transformation.
 - Reproduction and acceptance: open an owned map with numbered pins and a
   personal place. Switch Cards to Table, verify the same grouped assets,
   descriptions, map focus, and compact mobile readability, then save and reload
@@ -67,7 +69,7 @@ Rules:
   implementation, then passed 59/59 after the candidate was added. Final full
   client coverage passes 710/710 and final full server coverage passes 597/597.
   Module-boundary analysis passes 420
-  modules and 1,251 import edges with no circular dependencies. The standard
+  modules and 1,252 import edges with no circular dependencies. The standard
   client build passed, Map lockdown passed 90/90 including its production-style
   build, and a generated workbook was imported, range-inspected, rendered, and
   visually reviewed with all three sheets readable and no private fixture note.
@@ -89,6 +91,17 @@ Rules:
   branch took about 84 seconds while runtime schema preparation completed;
   subsequent feature requests completed normally for this remote local-UAT
   setup. No production account, map, share, schema, or data was touched.
+- Production release verification on 2026-08-29: all 85 public files on the
+  immutable Pages deployment and `https://app.carearound.sg` matched the exact
+  validated local `client/dist` bytes; the API health check returned OK. The
+  credentialed production smoke suite passed 6/6. A temporary production UAT
+  map then saved Table display, saved custom pin fill `#123456` and ring
+  `#ABCDEF`, and returned all three values after page reload and API round-trip.
+  The production Excel action downloaded a valid 20,237-byte workbook with
+  `Summary`, `Map Assets`, and `Descriptions` sheets and one expected fixture
+  asset row. Cleanup verification found zero temporary release maps. Generated
+  UAT maps and any temporary saved-resource setup were removed; no persistent
+  fixture was retained.
 
 ## 2026-08-28 GudAuth create-to-poll verifier contract regression coverage
 
