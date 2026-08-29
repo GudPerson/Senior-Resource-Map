@@ -739,6 +739,7 @@ export const msDictionary = {
     failedDownloadExcel: 'Muat turun Excel gagal. Cuba lagi.',
     mapAssetTableNumber: 'No.',
     mapAssetTableResource: 'Sumber / alamat',
+    mapAssetTableResourceName: 'Sumber',
     mapAssetTableDescriptions: 'Penerangan',
     mapAssetListOnly: 'Senarai sahaja',
     mapAssetNoDescriptions: 'Tiada penerangan',

@@ -739,6 +739,7 @@ export const zhCnDictionary = {
     failedDownloadExcel: 'Excel 下载失败。请再试一次。',
     mapAssetTableNumber: '编号',
     mapAssetTableResource: '资源／地址',
+    mapAssetTableResourceName: '资源',
     mapAssetTableDescriptions: '描述',
     mapAssetListOnly: '仅列表',
     mapAssetNoDescriptions: '没有描述',

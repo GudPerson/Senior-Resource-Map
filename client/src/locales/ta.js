@@ -739,6 +739,7 @@ export const taDictionary = {
     failedDownloadExcel: 'Excel பதிவிறக்கம் தோல்வியடைந்தது. மீண்டும் முயற்சிக்கவும்.',
     mapAssetTableNumber: 'எண்',
     mapAssetTableResource: 'வளம் / முகவரி',
+    mapAssetTableResourceName: 'வளம்',
     mapAssetTableDescriptions: 'விளக்கங்கள்',
     mapAssetListOnly: 'பட்டியல் மட்டும்',
     mapAssetNoDescriptions: 'விளக்கங்கள் இல்லை',

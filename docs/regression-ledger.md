@@ -15,6 +15,50 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-29 My Map table detail, columns, and category-index refinement (release candidate)
+
+- Candidate behavior: the existing `Card detail` setting now governs the owner
+  Table display as well as Cards. Names only hides logos, addresses, descriptions,
+  and personal-place badges; Names + logos, Names + addresses, and Names +
+  descriptions reveal only their named detail; Full details retains all supported
+  table information. The existing Card columns setting also governs the number of
+  ordered category-table columns: one to six below a desktop/full map, one or two
+  beside a map, and one on mobile.
+- Reference hierarchy: each category table now begins with its selected pin shape,
+  fill, and ring on the same row as the category name. Individual asset rows use a
+  plain map-number index instead of repeating the shaped pin. At three to six
+  category columns, descriptions stack beneath the resource so narrow tables do
+  not collapse text letter by letter; one- and two-column tables retain the wider
+  side-by-side resource and description layout.
+- Compatibility and safety boundary: this is a client-only presentation change to
+  the existing owner My Map Table renderer. It reuses the saved Map Studio detail,
+  column, category-order, shape, fill, and ring settings without adding persistent
+  fields or changing their normalization. Owner Export View inherits the same
+  Table detail, column, category-shape, and row-index presentation. Cards, map
+  markers, map focus/hover, export mechanics, Excel contents, personal-place
+  persistence, frozen Shared Maps, embeds, authentication, permissions, API
+  routes, dependencies, schema, and production data remain unchanged.
+- Reproduction and acceptance: open an owned map, select Table, then exercise all
+  five Card detail choices and confirm only the intended information is visible.
+  Exercise every available Card columns choice and confirm category order is
+  preserved, the layout stays readable, and descriptions stack in the narrow
+  three-to-six-column layouts. Confirm each category header shows one saved pin
+  shape and style with no number, while every asset row shows only its plain number
+  or the established List only label. At mobile width the table must remain one
+  column with no horizontal overflow. Cards must remain unchanged, and the same
+  saved table presentation must reach owner Export View.
+- Verification before release: focused table, ledger, Map Studio, shared-map,
+  Export View, fixed-map, and locale checks pass 109/109; full client coverage
+  passes 715/715; the locked map gate passes 90/90; migration ordering, the
+  421-module graph with 1,255 import edges, and diff checks pass; and both ordinary
+  and exact six-root production client builds pass. A temporary, non-persistent
+  component UAT at 1,440 px confirmed one-, three-, and six-column rendering,
+  Full details, Names only, saved category shapes/styles, plain row indices, and
+  the narrow-row stacking fallback. A 390 x 844 px pass confirmed a readable
+  one-column Names + descriptions layout with no horizontal clipping. The harness
+  and its browser artifacts were removed after review. No production deployment or
+  production-data operation has been performed for this candidate.
+
 ## 2026-08-29 My Map manual pin-number colour override (released)
 
 - Current production behavior: each category in `Edit content` -> `Refine categories`

@@ -754,6 +754,7 @@ export const enDictionary = {
     failedDownloadExcel: 'Excel download failed. Try again.',
     mapAssetTableNumber: 'No.',
     mapAssetTableResource: 'Resource / address',
+    mapAssetTableResourceName: 'Resource',
     mapAssetTableDescriptions: 'Descriptions',
     mapAssetListOnly: 'List only',
     mapAssetNoDescriptions: 'No descriptions',

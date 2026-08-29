@@ -3447,6 +3447,17 @@ export default function SharedMapDirectoryList({
     const normalizedPrintSideResourceColumnCount = normalizePrintMapSideResourceColumnCount(
         printSideResourceColumnCount,
     );
+    const ownerTableColumnCount = resolvedLayout === 'mobile'
+        ? 1
+        : resolvedLayout === 'print'
+            ? (printResourcesBelow
+                ? normalizedPrintResourceColumnCount
+                : normalizedPrintSideResourceColumnCount)
+            : (resourcePanelPlacement === 'below-map' || interactiveLayoutPreset === 'full-map')
+                ? normalizePrintMapResourceColumnCount(interactiveResourceColumnCount)
+                : (resourcePanelPlacement === 'beside-map' || interactiveLayoutPreset === 'map-focus')
+                    ? normalizePrintMapSideResourceColumnCount(interactiveSideResourceColumnCount)
+                    : 1;
     const printResourceColumns = useMemo(
         () => splitPrintResourceGroups(displayGroups, normalizedPrintResourceColumnCount),
         [displayGroups, normalizedPrintResourceColumnCount],
@@ -3803,6 +3814,8 @@ export default function SharedMapDirectoryList({
                         onHoverPlaceEnd={onHoverPlaceEnd}
                         numberedPinShapesByCategory={numberedPinShapesByCategory}
                         numberedPinStylesByCategory={numberedPinStylesByCategory}
+                        labelDetail={printLabelDetail}
+                        columnCount={ownerTableColumnCount}
                     />
                 </div>
             </DirectoryReturnPathContext.Provider>
