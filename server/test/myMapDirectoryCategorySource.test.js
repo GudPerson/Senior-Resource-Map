@@ -59,6 +59,7 @@ test('large My Maps batch live Place hydration instead of issuing one query per 
         name: `Resource ${index + 1}`,
         subCategory: 'Community place',
         address: `${index + 1} Example Street`,
+        postalCode: String(600000 + index + 1),
         lat: String(1.3 + index / 10000),
         lng: String(103.7 + index / 10000),
         hours: null,
@@ -75,8 +76,9 @@ test('large My Maps batch live Place hydration instead of issuing one query per 
         query: {
             subCategories: { findMany: async () => [] },
             hardAssets: {
-                findMany: async () => {
+                findMany: async (query) => {
                     batchReads += 1;
+                    assert.equal(query.columns.postalCode, true);
                     return liveAssets;
                 },
                 findFirst: async () => {
@@ -118,6 +120,7 @@ test('large My Maps batch live Place hydration instead of issuing one query per 
     assert.equal(snapshotUpdates.length, 60);
     assert.equal(batchReads, 1);
     assert.equal(perAssetReads, 0);
+    assert.equal(directory.places[0].postalCode, '600001');
 });
 
 test('hosted programme rows expose the host place category for My Map V2 presentation', async () => {
@@ -151,6 +154,7 @@ test('hosted programme rows expose the host place category for My Map V2 present
             logoUrl: 'https://example.test/reach-logo.png',
             subCategory: 'Active Ageing Centre (AAC)',
             address: '377A Bukit Batok Street 31 Singapore 651377',
+            postalCode: '651377',
             lat: '1.363',
             lng: '103.751',
             isHidden: false,
@@ -173,7 +177,10 @@ test('hosted programme rows expose the host place category for My Map V2 present
                 findFirst: async () => null,
             },
             softAssets: {
-                findFirst: async () => liveSoftAsset,
+                findFirst: async (query) => {
+                    assert.equal(query.with.hostHardAsset.columns.postalCode, true);
+                    return liveSoftAsset;
+                },
             },
         },
     };
@@ -233,6 +240,7 @@ test('hosted programme rows expose the host place category for My Map V2 present
     assert.equal(row.categoryColor, '#38bdf8');
     assert.equal(row.categoryIconUrl, '/icons/programmes.svg');
     assert.equal(row.logoUrl, 'https://example.test/reach-logo.png');
+    assert.equal(directory.places[0].postalCode, '651377');
     assert.equal(row.mapSubCategory, 'Active Ageing Centre (AAC)');
     assert.equal(row.mapCategoryColor, '#f59e0b');
     assert.equal(row.mapCategoryIconUrl, '/icons/aac.svg');
