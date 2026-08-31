@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-08-31 My Map Excel postal-code column (validated for release)
+## 2026-08-31 My Map Excel postal-code column (released)
 
 - Candidate behavior: an owned My Map Excel export now includes a dedicated
   `Postal code` column after `Address` on the `Map Assets` sheet. The value is
@@ -42,6 +42,21 @@ Rules:
   the new seven-column `Map Assets` layout plus text-preserved postal codes after
   serialization and reload. No dependency, lockfile, Worker, database, schema,
   secret, or production-data change is required for this client-only release.
+- Release evidence: source commit `bfd09d95b3841173fe63bb03ea999c8fca5304cf`
+  was pushed to the scoped feature branch and `main`; GitHub quality run
+  `33362123474` passed. The exact six-root map build deployed through Pages
+  Functions at `https://61db94e5.senior-resource-map.pages.dev`. Its 85-file
+  local manifest has SHA-256
+  `9c6a8af6bccff1f7aa0de36faad6802dbc50cd203c255199700aedbea9bffccb`;
+  all 83 remotely served files matched the local artifact byte-for-byte on both
+  the immutable deployment and `https://app.carearound.sg` (the remaining two
+  files are Pages `_headers` and `_routes.json` configuration). The entry and
+  My Map Excel bundles returned JavaScript MIME types, the Excel bundle retained
+  the `Postal code` marker, ordinary app routes retained CSP
+  `frame-ancestors 'none'` and `X-Frame-Options: DENY`, API health returned
+  status `ok`, and authenticated production smoke passed 6/6. No Worker,
+  database, schema, dependency, lockfile, secret, or production-data change was
+  made.
 
 ## 2026-08-29 My Map table detail, columns, and category-index refinement (released)
 
