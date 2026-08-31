@@ -541,3 +541,28 @@ test('v2 card presentation keeps a postal-only Singapore address visible', () =>
     assert.equal(group.shortLocationLine, 'Singapore 680153');
     assert.equal(group.rows[0].locationLabel, 'Singapore 680153');
 });
+
+test('directory presentation preserves structured postal codes on list-only rows', () => {
+    const presentation = buildDirectoryPresentation({
+        places: [{
+            placeKey: 'fallback-hard-999',
+            placeId: 999,
+            name: 'List-only place',
+            address: 'Address without embedded code',
+            postalCode: '012345',
+            lat: null,
+            lng: null,
+            hasCoordinates: false,
+            rows: [{
+                rowKey: 'fallback-hard-999:hard',
+                assetKey: 'hard-999',
+                resourceType: 'hard',
+                resourceId: 999,
+                name: 'List-only resource',
+                subCategory: 'Community care',
+            }],
+        }],
+    }, { presentationMode: 'v2-cards' });
+
+    assert.equal(presentation.unmappedRows[0].postalCode, '012345');
+});

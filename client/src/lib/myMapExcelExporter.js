@@ -22,6 +22,17 @@ function setSheetLayout(sheet, widths) {
     if (sheet['!ref']) sheet['!autofilter'] = { ref: sheet['!ref'] };
 }
 
+function setTextColumn(XLSX, sheet, columnIndex) {
+    if (!sheet['!ref']) return;
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    for (let rowIndex = range.s.r + 1; rowIndex <= range.e.r; rowIndex += 1) {
+        const cell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })];
+        if (!cell) continue;
+        cell.t = 's';
+        cell.z = '@';
+    }
+}
+
 export async function createMyMapExcelWorkbook({
     directory,
     presentation,
@@ -44,9 +55,10 @@ export async function createMyMapExcelWorkbook({
     summary['!cols'] = [{ wch: 24 }, { wch: 58 }];
 
     const assets = XLSX.utils.json_to_sheet(rows.assets, {
-        header: ['Map no.', 'Resource name', 'Category', 'Address', 'Type', 'Description count'],
+        header: ['Map no.', 'Resource name', 'Category', 'Address', 'Postal code', 'Type', 'Description count'],
     });
-    setSheetLayout(assets, [12, 36, 28, 48, 18, 18]);
+    setSheetLayout(assets, [12, 36, 28, 48, 16, 18, 18]);
+    setTextColumn(XLSX, assets, 4);
 
     const descriptions = XLSX.utils.json_to_sheet(rows.descriptions, {
         header: ['Map no.', 'Resource name', 'Category', 'Description no.', 'Description', 'Text colour', 'Highlight colour'],

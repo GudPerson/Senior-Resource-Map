@@ -32,6 +32,7 @@ test('asset ledger includes saved assets, personal places, and every formatted s
                 placeKey: 'place-1',
                 number: 7,
                 name: 'Mapped place',
+                postalCode: '012345',
                 rows: [
                     row({
                         resourceId: 1,
@@ -48,6 +49,7 @@ test('asset ledger includes saved assets, personal places, and every formatted s
                         assetKey: 'personal-place-9',
                         name: 'My activity room',
                         subCategory: 'Personal places',
+                        postalCode: '600347',
                         mapShortDescriptors: [{ text: 'Call before visiting', sortOrder: 0 }],
                     }),
                 ],
@@ -73,6 +75,8 @@ test('asset ledger includes saved assets, personal places, and every formatted s
     assert.equal(workbookRows.descriptions.length, 3);
     assert.equal(workbookRows.assets.find((asset) => asset['Resource name'] === 'AAC One').Type, 'Place');
     assert.equal(workbookRows.assets.find((asset) => asset['Resource name'] === 'My activity room').Type, 'Personal place');
+    assert.equal(workbookRows.assets.find((asset) => asset['Resource name'] === 'AAC One')['Postal code'], '012345');
+    assert.equal(workbookRows.assets.find((asset) => asset['Resource name'] === 'My activity room')['Postal code'], '600347');
     assert.doesNotMatch(JSON.stringify(workbookRows), /Private owner note/);
 });
 

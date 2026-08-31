@@ -26,6 +26,12 @@ function getAddress(row, place) {
         || 'Address unavailable';
 }
 
+function getPostalCode(row, place, group) {
+    return cleanText(row?.postalCode)
+        || cleanText(place?.postalCode)
+        || cleanText(group?.postalCode);
+}
+
 function getMapNumber(row, group, place, presentation) {
     const candidates = [
         row?.sourceMapNumber,
@@ -71,6 +77,7 @@ function buildAsset(entry, presentation) {
         logoUrl: cleanText(row?.logoUrl),
         category: getCategory(row),
         address: getAddress(row, place),
+        postalCode: getPostalCode(row, place, group),
         sourceMapNumber: mapped ? getMapNumber(row, group, place, presentation) : 'List only',
         placeKey: cleanText(row?.placeKey || place?.placeKey || group?.placeKey),
         categoryColor: cleanText(row?.categoryColor || group?.categoryColor),
@@ -152,6 +159,7 @@ export function buildMyMapAssetWorkbookRows(ledger) {
         'Resource name': toSafeExcelText(asset.name),
         Category: toSafeExcelText(asset.category),
         Address: toSafeExcelText(asset.address),
+        'Postal code': toSafeExcelText(asset.postalCode),
         Type: toSafeExcelText(getAssetTypeLabel(asset)),
         'Description count': asset.descriptions.length,
     }));

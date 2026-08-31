@@ -15,6 +15,34 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-31 My Map Excel postal-code column (validated for release)
+
+- Candidate behavior: an owned My Map Excel export now includes a dedicated
+  `Postal code` column after `Address` on the `Map Assets` sheet. The value is
+  carried from the directory's existing resolved postal code for mapped assets,
+  list-only resources, and personal places. Assets without a known postal code
+  remain blank; the exporter does not invent one.
+- Compatibility and safety boundary: this is a client-only, additive export
+  change. It adds no database field, API request, dependency, or persistent map
+  setting, and does not change the visible Cards/Table/map presentation, map
+  numbering, frozen Shared Maps, authentication, permissions, private map notes,
+  or production data. Postal-code cells are stored as Excel text so Singapore
+  codes beginning with zero retain all six digits.
+- Reproduction and acceptance: export Excel from an owned My Map containing a
+  mapped resource, a list-only resource, and a personal place. Confirm `Map
+  Assets` contains `Postal code` after `Address`; each known code matches the
+  source directory data; `012345` remains six digits after saving and reopening;
+  unknown codes are blank; and the Summary and Descriptions sheets retain their
+  established contents with private map notes excluded.
+- Verification before release: the focused directory-presentation, asset-ledger,
+  Excel-export, and export-scope checks pass 21/21; full client coverage passes
+  716/716; the locked map gate passes 90/90; and both the ordinary and exact
+  six-root production client builds pass. The supplied three-sheet export was
+  inspected without modification, and a temporary generated workbook confirmed
+  the new seven-column `Map Assets` layout plus text-preserved postal codes after
+  serialization and reload. No dependency, lockfile, Worker, database, schema,
+  secret, or production-data change is required for this client-only release.
+
 ## 2026-08-29 My Map table detail, columns, and category-index refinement (released)
 
 - Current production behavior: the existing `Card detail` setting now governs the owner

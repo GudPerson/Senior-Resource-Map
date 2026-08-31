@@ -816,6 +816,10 @@ export function buildDirectoryPresentation(directory, {
                 ...row,
                 placeKey: place.placeKey,
                 placeName: place.name,
+                postalCode: resolvePostalGroupCode({
+                    postalCode: row.postalCode || place.postalCode,
+                    address: row.address || place.address,
+                }),
                 shortLocationLine: rowLocationLine,
                 locationLabel: rowLocationLine || place.name,
             };
