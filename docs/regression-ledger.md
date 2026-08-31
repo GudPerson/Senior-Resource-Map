@@ -15,6 +15,38 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-08-31 Singapore Place coordinate and My Map postal integrity (release candidate)
+
+- Candidate behavior: creating or changing a Singapore Place postal code now
+  resolves coordinates from an exact OneMap postal match, including when the
+  postal is already assigned to a configured Region. It no longer falls through
+  to Nominatim for Singapore, whose broad result for `601309` placed the resource
+  in the wrong part of Singapore. Non-Singapore Place geocoding retains the
+  established Nominatim postal and free-text fallback.
+- My Map data boundary: live Place snapshots now preserve the existing postal
+  code through snapshot creation and normalization, so the released `Postal
+  code` Excel column receives the known value. Personal-place handling and blank
+  output for genuinely unknown postals remain unchanged.
+- Compatibility and safety boundary: this is a Worker-only correction to the
+  existing Place geocoding and My Map directory snapshot paths. It adds no
+  schema, migration, dependency, client bundle, permission, authentication,
+  visibility, sharing, note, or export-format change. Singapore lookup fails
+  closed when OneMap has no exact match instead of accepting an approximate
+  fallback. The approved production-data scope is limited to correcting Place
+  `37145` after release and verifying its existing My Map 258 export.
+- Reproduction and acceptance: save Singapore postal `601309` and confirm only
+  OneMap is called and the coordinates are latitude `1.347290585868534`,
+  longitude `103.7339164391061`; confirm a non-exact OneMap response is rejected;
+  confirm a non-Singapore postal still uses Nominatim; and build a My Map Place
+  snapshot with postal `680123` and confirm the normalized Place retains it.
+  Before release, the focused geocoding and snapshot checks passed 17/17 and
+  the broader Singapore postal/My Map checks passed 71/71. The unified quality
+  gate passed the three ordered migrations, the 421-module/1,255-edge acyclic
+  import graph, `git diff --check`, full server coverage 602/602, full client
+  coverage 716/716, and the production client build. Worker publication, the
+  one-record correction, API/Audit Trail confirmation, and downloaded Excel
+  verification remain release gates.
+
 ## 2026-08-31 My Map Excel postal-code column (released)
 
 - Candidate behavior: an owned My Map Excel export now includes a dedicated

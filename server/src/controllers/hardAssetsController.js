@@ -9,7 +9,11 @@ import { getPrimaryPartnerStaffAccess, hasAnyPartnerStaffAccess } from '../utils
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
 import { resolveWritableSubregionByPostal } from '../utils/subregionRouting.js';
-import { loadSingaporeFallbackRegion, resolveSingaporePostalFallback } from '../utils/singaporePostalFallback.js';
+import {
+    loadSingaporeFallbackRegion,
+    resolveSingaporePostalFallback,
+    validateSingaporePostalCodeWithOneMap,
+} from '../utils/singaporePostalFallback.js';
 import { isAssetVisible } from '../utils/visibility.js';
 import {
     buildResourceListPagination,
@@ -203,17 +207,24 @@ function buildFreshnessUpdate(body, existing, user) {
     };
 }
 
-async function geocode(postalCode, country) {
+export async function geocodePostalCode(postalCode, country, fetchImpl = fetch) {
+    if (isSingaporeCountry(country)) {
+        const oneMapResult = await validateSingaporePostalCodeWithOneMap(postalCode, fetchImpl);
+        return oneMapResult.valid
+            ? { lat: oneMapResult.lat, lng: oneMapResult.lng }
+            : null;
+    }
+
     const headers = { 'User-Agent': 'SeniorCareConnect/1.0' };
     const url1 = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(postalCode)}&country=${encodeURIComponent(country)}&format=json&limit=1`;
-    const res1 = await fetch(url1, { headers });
+    const res1 = await fetchImpl(url1, { headers });
     const data1 = await res1.json();
     if (data1.length) {
         return { lat: parseFloat(data1[0].lat), lng: parseFloat(data1[0].lon) };
     }
     const countryName = COUNTRY_NAMES[country] || country;
     const url2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(postalCode + ' ' + countryName)}&format=json&limit=1`;
-    const res2 = await fetch(url2, { headers });
+    const res2 = await fetchImpl(url2, { headers });
     const data2 = await res2.json();
     if (data2.length) {
         return { lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon) };
@@ -1820,7 +1831,7 @@ export const createHardAsset = async (c) => {
         const { owner } = await resolveAssetOwner(db, user, body, derivedSubregion.id);
         const coords = derivedRouting.oneMapLocation
             ? { lat: derivedRouting.oneMapLocation.lat, lng: derivedRouting.oneMapLocation.lng }
-            : await geocode(postalCode, country);
+            : await geocodePostalCode(postalCode, country);
         if (!coords) {
             return c.json({ error: `Could not find location for postal code "${postalCode}" in "${country}".` }, 400);
         }
@@ -1976,7 +1987,7 @@ export const updateHardAsset = async (c) => {
         if (nextPostalCode !== existing.postalCode || nextCountry !== existing.country) {
             const coords = derivedRouting.oneMapLocation
                 ? { lat: derivedRouting.oneMapLocation.lat, lng: derivedRouting.oneMapLocation.lng }
-                : await geocode(nextPostalCode, nextCountry);
+                : await geocodePostalCode(nextPostalCode, nextCountry);
             if (!coords) {
                 return c.json({ error: `Could not find location for postal code "${nextPostalCode}" in "${nextCountry}".` }, 400);
             }

@@ -447,6 +447,7 @@ test('saved asset and my map snapshots do not include restricted fields', () => 
         name: 'Test Centre',
         subCategory: 'AAC',
         address: 'Singapore 680123',
+        postalCode: '680123',
         lat: '1.23',
         lng: '103.45',
         hours: '9am-5pm',
@@ -472,4 +473,5 @@ test('saved asset and my map snapshots do not include restricted fields', () => 
     assert.equal(Object.hasOwn(mapSnapshot, 'privateNotes'), false);
     assert.equal(Object.hasOwn(mapSnapshot, 'privateFiles'), false);
     assert.equal(Object.hasOwn(mapSnapshot, 'privateResourceContent'), false);
+    assert.equal(mapSnapshot.places[0].postalCode, '680123');
 });

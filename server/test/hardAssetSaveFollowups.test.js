@@ -4,10 +4,73 @@ import assert from 'node:assert/strict';
 import {
     buildHardAssetPostSaveStatus,
     formatHardAssetSaveError,
+    geocodePostalCode,
     hardAssetTranslationFieldsChanged,
     runHardAssetPostSaveTask,
     scheduleHardAssetPostSaveTask,
 } from '../src/controllers/hardAssetsController.js';
+
+function jsonResponse(payload, status = 200) {
+    return new Response(JSON.stringify(payload), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+test('Singapore postal geocoding uses the exact OneMap result without calling Nominatim', async () => {
+    const requestedUrls = [];
+    const result = await geocodePostalCode('601309', 'SG', async (url) => {
+        requestedUrls.push(String(url));
+        return jsonResponse({
+            results: [{
+                POSTAL: '601309',
+                ADDRESS: '309A JURONG EAST STREET 32 SINGAPORE 601309',
+                LATITUDE: '1.347290585868534',
+                LONGITUDE: '103.7339164391061',
+            }],
+        });
+    });
+
+    assert.deepEqual(result, {
+        lat: 1.347290585868534,
+        lng: 103.7339164391061,
+    });
+    assert.equal(requestedUrls.length, 1);
+    assert.match(requestedUrls[0], /^https:\/\/www\.onemap\.gov\.sg\//);
+    assert.doesNotMatch(requestedUrls[0], /nominatim/i);
+});
+
+test('Singapore postal geocoding fails closed when OneMap has no exact match', async () => {
+    const requestedUrls = [];
+    const result = await geocodePostalCode('601309', 'Singapore', async (url) => {
+        requestedUrls.push(String(url));
+        return jsonResponse({
+            results: [{
+                POSTAL: '601308',
+                LATITUDE: '1.347',
+                LONGITUDE: '103.733',
+            }],
+        });
+    });
+
+    assert.equal(result, null);
+    assert.equal(requestedUrls.length, 1);
+    assert.match(requestedUrls[0], /^https:\/\/www\.onemap\.gov\.sg\//);
+});
+
+test('non-Singapore postal geocoding retains the existing Nominatim fallback', async () => {
+    const requestedUrls = [];
+    const result = await geocodePostalCode('2000', 'AU', async (url) => {
+        requestedUrls.push(String(url));
+        return requestedUrls.length === 1
+            ? jsonResponse([])
+            : jsonResponse([{ lat: '-33.8688', lon: '151.2093' }]);
+    });
+
+    assert.deepEqual(result, { lat: -33.8688, lng: 151.2093 });
+    assert.equal(requestedUrls.length, 2);
+    assert.ok(requestedUrls.every((url) => url.startsWith('https://nominatim.openstreetmap.org/')));
+});
 
 test('formatHardAssetSaveError hides Worker subrequest implementation details', () => {
     const message = formatHardAssetSaveError(new Error(
