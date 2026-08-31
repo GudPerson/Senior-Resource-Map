@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { drizzle } from 'drizzle-orm/neon-http';
 
 import {
     buildReplacementQueries,
@@ -64,7 +65,11 @@ test('resource write locks use distinct namespaces and validate identifiers', ()
     const db = {
         select(selection) {
             selections.push(selection);
-            return { selection };
+            return {
+                from(source) {
+                    return { selection, source };
+                },
+            };
         },
     };
 
@@ -74,4 +79,23 @@ test('resource write locks use distinct namespaces and validate identifiers', ()
     assert.notDeepEqual(selections[0], selections[1]);
     assert.throws(() => buildResourceWriteLockQuery(db, 'unknown', 7), /Unsupported resource/);
     assert.throws(() => buildResourceWriteLockQuery(db, 'hardAsset', 0), /positive integer/);
+});
+
+test('resource write locks execute through the Neon HTTP batch driver', async () => {
+    const calls = [];
+    const neonClient = (query, params, options) => {
+        calls.push({ query, params, options });
+        return Promise.resolve({ rows: [[null]] });
+    };
+    neonClient.transaction = async (queries) => Promise.all(queries);
+    const db = drizzle(neonClient);
+
+    const query = buildResourceWriteLockQuery(db, 'hardAsset', 7);
+    const result = await executeAtomicBatch(db, [query], 'resource lock test');
+
+    assert.deepEqual(calls.map(({ query: sqlText, params }) => ({ sqlText, params })), [{
+        sqlText: 'select pg_advisory_xact_lock($1, $2) from (select 1) as resource_write_lock',
+        params: [43101, 7],
+    }]);
+    assert.deepEqual(result, [[{ locked: null }]]);
 });

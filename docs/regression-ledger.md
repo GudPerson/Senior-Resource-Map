@@ -7756,6 +7756,23 @@ Active next recovery family:
   Existing-environment comparison, backup/restore rehearsal, migration journal
   registration, and any deployment remain separate approval gates.
 
+- 2026-08-31 Neon HTTP atomic resource-save compatibility follow-up: production
+  Place editing exposed `query._prepare is not a function` before any resource
+  row or audit event was written. The advisory-lock helper had returned
+  Drizzle's unfinished `PgSelectBuilder`; Neon HTTP batch execution requires a
+  complete prepared query. Resource lock queries now retain the existing
+  transaction-scoped advisory-lock and atomic batch contract while completing
+  the one-row lock select before it enters the batch. This protects the shared
+  Place, Offering, Group, and tag-replacement batch path without adding a
+  sequential fallback or changing schema, permissions, postal validation,
+  authentication, or client behavior. Acceptance evidence: the focused atomic
+  and resource-integrity suite passed 8/8, including an in-memory execution
+  through the installed Neon HTTP batch driver; migration and module checks
+  passed; the full server suite passed 599/599; the full client suite passed
+  716/716; the client build passed; and `git diff --check` was clean. Production
+  Worker publication and the approved one-record postal correction remain the
+  explicit release and data-verification steps for this follow-up.
+
 - 2026-08-26 unified quality and release gate: `npm run verify:quality` is now
   the one credential-free repository gate for ordered migration validation,
   relative-import resolution and cycle detection, `git diff --check`, the full

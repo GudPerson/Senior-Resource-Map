@@ -24,7 +24,9 @@ export function buildResourceWriteLockQuery(db, resourceType, resourceId) {
         throw new Error(`Unsupported resource write lock type: ${resourceType}`);
     }
     const id = requirePositiveInteger(resourceId, 'Resource id');
-    return db.select({ locked: sql`pg_advisory_xact_lock(${namespace}, ${id})` });
+    return db
+        .select({ locked: sql`pg_advisory_xact_lock(${namespace}, ${id})` })
+        .from(sql`(select 1) as resource_write_lock`);
 }
 
 /**
