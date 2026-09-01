@@ -140,8 +140,21 @@ test('map resource management refreshes authoritative membership and exposes bus
     assert.match(myMapDetailPageSource, /loading=\{addLoading \|\| savedAssetsLoading\}/);
     assert.match(createMapModalSource, /initialAssetKeySignature/);
     assert.match(createMapModalSource, /data-testid="create-map-loading-status"/);
-    assert.match(createMapModalSource, /aria-busy=\{busy\}/);
+    assert.match(createMapModalSource, /aria-busy=\{dialogBusy\}/);
     assert.match(createMapModalSource, /<LoaderCircle size=\{17\} className="animate-spin"/);
+});
+
+test('map resource management can search all resources, save through shared favourites, and select the result', () => {
+    assert.match(myMapDetailPageSource, /toggleSavedAsset,/);
+    assert.match(myMapDetailPageSource, /async function handleSaveManageCatalogAsset\(asset\)/);
+    assert.match(myMapDetailPageSource, /const result = await toggleSavedAsset\(/);
+    assert.match(myMapDetailPageSource, /allowCatalogSearch/);
+    assert.match(myMapDetailPageSource, /onSaveCatalogAsset=\{handleSaveManageCatalogAsset\}/);
+    assert.match(createMapModalSource, /loadManageMapResourceCatalog\(\{/);
+    assert.match(createMapModalSource, /filterManageMapResourceCatalog\(\{/);
+    assert.match(createMapModalSource, /data-testid=\{`manage-map-save-add-\$\{key\}`\}/);
+    assert.match(createMapModalSource, /const savedAsset = await onSaveCatalogAsset\(asset\)/);
+    assert.match(createMapModalSource, /addAssetAndHostsToSelection\(/);
 });
 
 test('map resource management keeps mobile actions above the device safe area', () => {

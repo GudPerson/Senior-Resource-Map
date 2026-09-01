@@ -1446,6 +1446,7 @@ export default function MyMapDetailPage() {
         savedAssets,
         savedAssetsLoading,
         savedAssetsLoadError,
+        toggleSavedAsset,
     } = useSavedAssets();
     const currentMapCacheKey = getMyMapDetailCacheKey(user, mapId);
     const [directory, setDirectory] = useState(() => getCachedMyMapDetail(user, mapId));
@@ -2785,6 +2786,24 @@ export default function MyMapDetailPage() {
         }
     }
 
+    async function handleSaveManageCatalogAsset(asset) {
+        const key = `${asset.resourceType}-${asset.resourceId}`;
+        const existing = savedAssets.find((savedAsset) => (
+            `${savedAsset.resourceType}-${savedAsset.resourceId}` === key
+        ));
+        if (existing) return existing;
+
+        const result = await toggleSavedAsset(
+            asset.resourceType,
+            asset.resourceId,
+            asset,
+        );
+        if (!result?.saved || !result?.item) {
+            throw new Error(t('failedSaveResourceFromMap'));
+        }
+        return result.item;
+    }
+
     async function openManageAssets() {
         if (addLoading || addSubmitting) return;
         setPersonalPlacePickerActive(false);
@@ -3891,6 +3910,8 @@ export default function MyMapDetailPage() {
                     interactionDisabled={!addReady || Boolean(savedAssetsLoadError)}
                     submitting={addSubmitting}
                     error={addError || savedAssetsLoadError}
+                    allowCatalogSearch
+                    onSaveCatalogAsset={handleSaveManageCatalogAsset}
                     onClose={() => {
                         if (addLoading || addSubmitting) return;
                         setAddOpen(false);
@@ -4255,6 +4276,8 @@ export default function MyMapDetailPage() {
                 interactionDisabled={!addReady || Boolean(savedAssetsLoadError)}
                 submitting={addSubmitting}
                 error={addError || savedAssetsLoadError}
+                allowCatalogSearch
+                onSaveCatalogAsset={handleSaveManageCatalogAsset}
                 onClose={() => {
                     if (addLoading || addSubmitting) return;
                     setAddOpen(false);

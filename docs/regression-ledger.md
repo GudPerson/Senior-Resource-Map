@@ -15,6 +15,54 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-01 My Map inline resource search and save (release candidate)
+
+- Candidate behavior: an owner can open `Manage resources` on an existing My
+  Map and search both My Directory and the wider CareAround resource catalogue
+  in the same dialog. Existing saved resources retain their established
+  checkboxes. Matching unsaved Places, Offerings, and discover-ready Groups
+  appear under `Available to save and add`; one `Save and add` action uses the
+  shared favourites service, saves the result to My Directory, and selects it
+  for the pending map update.
+- Architecture and blast radius: map membership still accepts only resources
+  saved in My Directory. The feature reuses the public Discovery cache, the
+  existing paginated resource-list fallback, `SavedAssetsContext`, and the
+  existing authoritative map-membership mutation/reconciliation flow. It adds
+  no schema, Worker route, permission, visibility, ranking, sharing, numbering,
+  map-rendering, production-data, or dependency change. Catalogue loading is
+  lazy after two search characters, excludes already-saved records, and caps
+  displayed unsaved matches at 40 so opening the dialog remains lightweight.
+- Known-good reference: `CreateMapModal.jsx`,
+  `manageMapResourceCatalog.js`, `MyMapDetailPage.jsx`, and focused
+  `manageMapResourceCatalog.test.js` / `myMapsLoading.test.js` coverage on
+  branch `codex/manage-resources-inline-search-20260901`, based on released
+  `main` commit `0445c8c76`.
+- Reproduction steps: sign in as a map owner, open an existing My Map, choose
+  `Manage resources`, and enter at least two characters from a resource that is
+  visible in Discover but is not saved in My Directory. Confirm it appears in
+  `Available to save and add`, choose `Save and add`, and confirm the same row
+  moves into the saved checklist already ticked. Choose `Update map`, reopen
+  the dialog, and confirm the resource remains saved and selected. Repeat with
+  the Place and Offering filters, a search with no matches, and a simulated
+  catalogue failure/retry.
+- Acceptance criteria: saving must use the existing favourites API and update
+  My Directory; unsaved catalogue records must never be written directly to a
+  map; existing resource selection, automatic host-Place selection, removal,
+  stale-membership reconciliation, loading/error handling, mobile safe-area
+  actions, permissions, and visibility must remain unchanged; and catalogue
+  failure must leave the existing saved-resource checklist usable.
+- Verification before deploy: focused catalogue, My Map loading, and modal
+  accessibility coverage passed 18/18. The 2026-09-01 release rerun passed
+  `npm run verify:quality`, including migration ownership, 423 source modules
+  and 1,263 relative imports with no cycles, the full server suite at 610/610,
+  the full client suite at 722/722, diff integrity, and the standard client
+  build. `npm run verify:map-lockdown` passed 90/90 and completed the exact
+  six-root production client build. Credentialed smoke was unavailable because
+  this isolated worktree had no smoke credential file; no credentialed smoke
+  result is claimed. The user explicitly approved the scoped commit, push, and
+  deployment; authenticated owner UAT on an existing map remains the
+  post-deployment behavior acceptance check.
+
 ## 2026-09-01 Personal Place creation-time postal verification (release candidate)
 
 - Current behavior: new and edited Personal Places with an address must carry an
