@@ -26,6 +26,10 @@ const directoryPrintViewSource = readFileSync(
     new URL('../src/components/DirectoryPrintView.jsx', import.meta.url),
     'utf8',
 );
+const directoryPresentationSource = readFileSync(
+    new URL('../src/lib/directoryPresentation.js', import.meta.url),
+    'utf8',
+);
 const navbarSource = readFileSync(
     new URL('../src/components/layout/Navbar.jsx', import.meta.url),
     'utf8',
@@ -151,7 +155,7 @@ test('my map v2 preserves category bubbles by default while allowing the scoped 
 test('owner print can use V2 print cards without hiding the app toolbar or changing shared print', () => {
     assert.match(directoryPrintViewSource, /const useV2OwnerPrint = mode === 'owner'/);
     assert.match(directoryPrintViewSource, /presentationMode: useV2OwnerPrint \? 'v2-cards' : 'default'/);
-    assert.match(directoryPrintViewSource, /withOwnerPrintBadgePins\(basePresentation\)/);
+    assert.match(directoryPrintViewSource, /buildOwnerNumberedPinPresentation\(basePresentation\)/);
     assert.match(directoryPrintViewSource, /markerMode=\{printMapState\?\.studioMarkerMode \|\| \(useV2Format \? 'print-badge' : 'number'\)\}/);
     assert.match(directoryPrintViewSource, /pinBadgeMode=\{useV2Format \? 'none' : 'count'\}/);
     assert.match(directoryPrintViewSource, /studioMarkerMode === 'category-icon'/);
@@ -175,29 +179,30 @@ test('owner print screen preview reserves scaled height instead of clipping the 
 });
 
 test('owner print builds one composite badge pin per mapped V2 coordinate group', () => {
-    assert.match(directoryPrintViewSource, /function withOwnerPrintBadgePins/);
-    assert.match(directoryPrintViewSource, /presentation\?\.displayGroups\?\.length/);
-    assert.match(directoryPrintViewSource, /const mappedBadgeGroups = displayGroups\.filter/);
-    assert.match(directoryPrintViewSource, /lat\.toFixed\(4\)/);
-    assert.match(directoryPrintViewSource, /lng\.toFixed\(4\)/);
-    assert.match(directoryPrintViewSource, /PRINT_BADGE_COORDINATE_GROUPING_TOLERANCE/);
-    assert.match(directoryPrintViewSource, /function shouldSharePrintBadgeCoordinate/);
-    assert.match(directoryPrintViewSource, /const existingCoordinateEntry = \[\.\.\.groupsByCoordinate\.entries\(\)\]\.find/);
-    assert.match(directoryPrintViewSource, /const coordinateGroupEntries = \[\.\.\.groupsByCoordinate\.entries\(\)\]/);
-    assert.match(directoryPrintViewSource, /const compositePlaceKey = groups\.length > 1/);
-    assert.match(directoryPrintViewSource, /pinKey: groups\.length > 1 \? `print:\$\{coordinateKey\}` : `print:\$\{firstGroup\.placeKey\}`/);
-    assert.match(directoryPrintViewSource, /placeKey: compositePlaceKey/);
-    assert.match(directoryPrintViewSource, /printBadgeItems: groups\.map/);
-    assert.match(directoryPrintViewSource, /memberPlaceKeys/);
-    assert.match(directoryPrintViewSource, /hoverPlaceKeysByKey\[compositePlaceKey\] = memberPlaceKeys/);
-    assert.match(directoryPrintViewSource, /groupKeyByPlaceKey\[memberPlaceKey\] = compositePlaceKey/);
+    assert.match(directoryPresentationSource, /function buildOwnerNumberedPinPresentation/);
+    assert.match(directoryPresentationSource, /presentation\?\.displayGroups\?\.length/);
+    assert.match(directoryPresentationSource, /const mappedBadgeGroups = displayGroups\.filter/);
+    assert.match(directoryPresentationSource, /lat\.toFixed\(4\)/);
+    assert.match(directoryPresentationSource, /lng\.toFixed\(4\)/);
+    assert.match(directoryPresentationSource, /NUMBERED_PIN_COORDINATE_GROUPING_TOLERANCE/);
+    assert.match(directoryPresentationSource, /function shouldShareNumberedPinCoordinate/);
+    assert.match(directoryPresentationSource, /const existingCoordinateEntry = \[\.\.\.groupsByCoordinate\.entries\(\)\]\.find/);
+    assert.match(directoryPresentationSource, /const pins = \[\.\.\.groupsByCoordinate\.entries\(\)\]\.map/);
+    assert.match(directoryPresentationSource, /const compositePlaceKey = groups\.length > 1/);
+    assert.match(directoryPresentationSource, /pinKey: groups\.length > 1 \? `print:\$\{coordinateKey\}` : `print:\$\{firstGroup\.placeKey\}`/);
+    assert.match(directoryPresentationSource, /placeKey: compositePlaceKey/);
+    assert.match(directoryPresentationSource, /printBadgeItems: groups\.map/);
+    assert.match(directoryPresentationSource, /memberPlaceKeys/);
+    assert.match(directoryPresentationSource, /hoverPlaceKeysByKey\[compositePlaceKey\] = memberPlaceKeys/);
+    assert.match(directoryPresentationSource, /groupKeyByPlaceKey\[memberPlaceKey\] = compositePlaceKey/);
     assert.match(directoryPrintViewSource, /getPrintHoverPlaceKeys\(resolvedPlaceKey\)/);
 });
 
 test('my map v2 uses the dedicated V2 card-ordering presentation', () => {
     assert.match(myMapDetailPageSource, /presentationMode: 'v2-cards'/);
-    assert.match(myMapDetailPageSource, /const ownerPresentation = isV2View \? v2Presentation : interactivePresentation/);
-    assert.match(myMapDetailPageSource, /presentation=\{v2Presentation\}/);
+    assert.match(myMapDetailPageSource, /const baseOwnerPresentation = isV2View \? v2Presentation : interactivePresentation/);
+    assert.match(myMapDetailPageSource, /buildOwnerNumberedPinPresentation\(baseOwnerPresentation\)/);
+    assert.match(myMapDetailPageSource, /presentation=\{ownerPresentation\}/);
     assert.match(myMapDetailPageSource, /ownerPresentation\.hoverPlaceKeysByKey/);
     assert.match(myMapDetailPageSource, /focusPlaceOnMap\(placeKey\)[\s\S]*ownerPresentation\.groupKeyByPlaceKey/);
     assert.match(myMapDetailPageSource, /<SharedMapDirectoryList[\s\S]*onHoverPlaceStart=\{handleMapHoverStart\}[\s\S]*onHoverPlaceEnd=\{handleMapHoverEnd\}/);

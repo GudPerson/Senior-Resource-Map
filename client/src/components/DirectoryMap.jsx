@@ -845,6 +845,12 @@ function getCategoryBubblePlaceKeyFromEvent(event, fallbackPlaceKey) {
     return element?.dataset?.categoryBubblePlaceKey || fallbackPlaceKey || null;
 }
 
+function getPrintBadgePlaceKeyFromEvent(event, fallbackPlaceKey) {
+    const target = event?.originalEvent?.target;
+    const element = target?.closest?.('.directory-print-badge-marker__lobe[data-print-lobe-place-key]');
+    return element?.dataset?.printLobePlaceKey || fallbackPlaceKey || null;
+}
+
 function getDirectoryClusterAssetCount(children = []) {
     return children.reduce((total, marker) => {
         const assetCount = Number(marker.options?.icon?.options?.assetCount || marker.options?.assetCount || 0);
@@ -2744,6 +2750,7 @@ export default function DirectoryMap({
     const resolvedMarkerScale = normalizePrintBadgeScale(markerScale);
     const lastPlaceActivationRef = useRef({ token: null, at: 0 });
     const lastCategoryBubbleHoverKeyRef = useRef(null);
+    const lastPrintBadgeHoverKeyRef = useRef(null);
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
     const [compactCategoryBubbles, setCompactCategoryBubbles] = useState(false);
     const [fixedTownSurfaceZoom, setFixedTownSurfaceZoom] = useState(null);
@@ -3169,16 +3176,23 @@ export default function DirectoryMap({
         return false;
     }
 
-    const getMarkerEventPlaceKey = (event, pin) => (
-        markerMode === 'category-bubble'
-            ? getCategoryBubblePlaceKeyFromEvent(event, pin.placeKey)
-            : pin.placeKey
-    );
+    const getMarkerEventPlaceKey = (event, pin) => {
+        if (markerMode === 'category-bubble') {
+            return getCategoryBubblePlaceKeyFromEvent(event, pin.placeKey);
+        }
+        if (markerMode === 'print-badge') {
+            return getPrintBadgePlaceKeyFromEvent(event, pin.placeKey);
+        }
+        return pin.placeKey;
+    };
 
     const handleMarkerHoverStart = (event, pin) => {
         const placeKey = getMarkerEventPlaceKey(event, pin);
         if (markerMode === 'category-bubble') {
             lastCategoryBubbleHoverKeyRef.current = placeKey ? String(placeKey) : null;
+        }
+        if (markerMode === 'print-badge') {
+            lastPrintBadgeHoverKeyRef.current = placeKey ? String(placeKey) : null;
         }
         onHoverPlaceStart?.(placeKey);
     };
@@ -3186,9 +3200,14 @@ export default function DirectoryMap({
     const handleMarkerHoverEnd = (event, pin) => {
         const placeKey = markerMode === 'category-bubble'
             ? (lastCategoryBubbleHoverKeyRef.current || getMarkerEventPlaceKey(event, pin))
-            : getMarkerEventPlaceKey(event, pin);
+            : markerMode === 'print-badge'
+                ? (lastPrintBadgeHoverKeyRef.current || getMarkerEventPlaceKey(event, pin))
+                : getMarkerEventPlaceKey(event, pin);
         if (markerMode === 'category-bubble') {
             lastCategoryBubbleHoverKeyRef.current = null;
+        }
+        if (markerMode === 'print-badge') {
+            lastPrintBadgeHoverKeyRef.current = null;
         }
         onHoverPlaceEnd?.(placeKey);
     };

@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildDirectoryPresentation } from '../src/lib/directoryPresentation.js';
+import {
+    buildDirectoryPresentation,
+    buildOwnerNumberedPinPresentation,
+} from '../src/lib/directoryPresentation.js';
 
 function hardPlace({
     key,
@@ -126,6 +129,24 @@ test('v2 card presentation orders by mapped status, category, and resource name'
         'Zoo Senior Care',
         'Alpha Meals Support',
     ]);
+});
+
+test('owner numbered pins keep every resource number visible at a shared postal code', () => {
+    const basePresentation = buildDirectoryPresentation(directory, { presentationMode: 'v2-cards' });
+    const numberedPresentation = buildOwnerNumberedPinPresentation(basePresentation);
+    const sharedPostalPin = numberedPresentation.pins.find((pin) => pin.printBadgeItems?.length === 2);
+
+    assert.ok(sharedPostalPin);
+    assert.deepEqual(sharedPostalPin.printBadgeItems.map((item) => item.label), ['1', '2']);
+    assert.deepEqual(sharedPostalPin.printBadgeItems.map((item) => item.placeKey), ['hard-10', 'hard-20']);
+    assert.deepEqual(sharedPostalPin.memberPlaceKeys, ['hard-10', 'hard-20']);
+    assert.equal(numberedPresentation.groupKeyByPlaceKey['hard-10'], sharedPostalPin.placeKey);
+    assert.equal(numberedPresentation.groupKeyByPlaceKey['hard-20'], sharedPostalPin.placeKey);
+    assert.deepEqual(
+        numberedPresentation.hoverPlaceKeysByKey[sharedPostalPin.placeKey],
+        ['hard-10', 'hard-20'],
+    );
+    assert.equal(basePresentation.pins[0].categoryBubbleItems.length, 2);
 });
 
 test('v2 card presentation applies a map category sequence without reordering resources inside a category', () => {

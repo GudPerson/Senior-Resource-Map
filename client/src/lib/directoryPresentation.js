@@ -548,6 +548,150 @@ function buildGroupedPins(groups = [], options = {}) {
         });
 }
 
+const NUMBERED_PIN_COORDINATE_GROUPING_TOLERANCE = 0.0003;
+
+function normalizeNumberedPinNumber(value) {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function getNumberedPinNumber(group = {}, placeNumberByKey = {}) {
+    return normalizeNumberedPinNumber(group.number || placeNumberByKey?.[group.placeKey]);
+}
+
+function getNumberedPinColor(group = {}) {
+    const rowColor = (group.rows || []).find((row) => row?.categoryColor)?.categoryColor;
+    return group.categoryColor || rowColor || null;
+}
+
+function getNumberedPinCoordinateKey(group = {}) {
+    const lat = Number.parseFloat(group.lat);
+    const lng = Number.parseFloat(group.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return '';
+    return `${lat.toFixed(4)}:${lng.toFixed(4)}`;
+}
+
+function shouldShareNumberedPinCoordinate(left = {}, right = {}) {
+    const leftPostal = String(left.postalCode || '').trim();
+    const rightPostal = String(right.postalCode || '').trim();
+    if (leftPostal && rightPostal && leftPostal === rightPostal) return true;
+
+    const leftLat = Number.parseFloat(left.lat);
+    const leftLng = Number.parseFloat(left.lng);
+    const rightLat = Number.parseFloat(right.lat);
+    const rightLng = Number.parseFloat(right.lng);
+    if (![leftLat, leftLng, rightLat, rightLng].every(Number.isFinite)) return false;
+
+    return Math.abs(leftLat - rightLat) <= NUMBERED_PIN_COORDINATE_GROUPING_TOLERANCE
+        && Math.abs(leftLng - rightLng) <= NUMBERED_PIN_COORDINATE_GROUPING_TOLERANCE;
+}
+
+/**
+ * Build the owner-only numbered-pin presentation used by interactive Map Studio
+ * and Export View. Resources that resolve to one postal/coordinate location stay
+ * grouped at one map anchor while retaining one visible, addressable number lobe
+ * per resource card.
+ */
+export function buildOwnerNumberedPinPresentation(presentation) {
+    const displayGroups = presentation?.displayGroups?.length
+        ? presentation.displayGroups
+        : (presentation?.mappedGroups || []);
+    const mappedBadgeGroups = displayGroups.filter((group) => (
+        group?.hasCoordinates
+        && group.lat !== null
+        && group.lng !== null
+        && getNumberedPinNumber(group, presentation.placeNumberByKey)
+    ));
+
+    const groupsByCoordinate = new Map();
+    mappedBadgeGroups.forEach((group) => {
+        const coordinateKey = getNumberedPinCoordinateKey(group);
+        if (!coordinateKey) return;
+        const existingCoordinateEntry = [...groupsByCoordinate.entries()].find(([, groups]) => (
+            groups.some((candidate) => shouldShareNumberedPinCoordinate(candidate, group))
+        ));
+        const resolvedCoordinateKey = existingCoordinateEntry?.[0] || coordinateKey;
+        groupsByCoordinate.set(resolvedCoordinateKey, [
+            ...(groupsByCoordinate.get(resolvedCoordinateKey) || []),
+            group,
+        ]);
+    });
+
+    const groupKeyByPlaceKey = {};
+    const hoverPlaceKeysByKey = {};
+    const pins = [...groupsByCoordinate.entries()].map(([coordinateKey, groups]) => {
+        const firstGroup = groups[0];
+        const firstNumber = getNumberedPinNumber(firstGroup, presentation.placeNumberByKey);
+        const memberPlaceKeys = groups.map((group) => group.placeKey).filter(Boolean);
+        const compositePlaceKey = groups.length > 1
+            ? `print-group:${coordinateKey}`
+            : firstGroup.placeKey;
+
+        memberPlaceKeys.forEach((memberPlaceKey) => {
+            groupKeyByPlaceKey[memberPlaceKey] = compositePlaceKey;
+        });
+        if (compositePlaceKey) {
+            groupKeyByPlaceKey[compositePlaceKey] = compositePlaceKey;
+            hoverPlaceKeysByKey[compositePlaceKey] = memberPlaceKeys;
+        }
+
+        return {
+            pinKey: groups.length > 1 ? `print:${coordinateKey}` : `print:${firstGroup.placeKey}`,
+            placeKey: compositePlaceKey,
+            placeId: firstGroup.placeId,
+            title: firstGroup.name,
+            address: firstGroup.address,
+            postalCode: firstGroup.postalCode || '',
+            lat: firstGroup.lat,
+            lng: firstGroup.lng,
+            curatedCount: groups.reduce((total, group) => (
+                total + (group.curatedCount || Math.max(1, (group.rows || []).length))
+            ), 0),
+            categoryKey: normalizeMyMapCategoryKey(
+                firstGroup.categorySortKey || firstGroup.categoryLabel,
+            ),
+            number: firstNumber,
+            printNumberLabel: String(firstNumber),
+            printBadgeItems: groups.map((group) => {
+                const number = getNumberedPinNumber(group, presentation.placeNumberByKey);
+                return {
+                    number,
+                    label: String(number),
+                    color: getNumberedPinColor(group),
+                    placeKey: group.placeKey,
+                    isPersonalPlace: (group.rows || []).some((row) => row?.resourceType === 'personal_place'),
+                    categoryKey: normalizeMyMapCategoryKey(
+                        group.categorySortKey || group.categoryLabel,
+                    ),
+                };
+            }),
+            categoryColor: getNumberedPinColor(firstGroup),
+            categoryColorSegments: [],
+            previewResourceNames: groups.flatMap((group) => (
+                (group.rows || []).slice(0, 1).map((row) => row.name)
+            )).slice(0, 3),
+            hiddenPreviewCount: Math.max(0, groups.length - 3),
+            isPostalGroup: false,
+            memberPlaceKeys,
+            printOffsetX: 0,
+            printOffsetY: 0,
+        };
+    });
+
+    displayGroups.forEach((group) => {
+        if (group?.placeKey && !groupKeyByPlaceKey[group.placeKey]) {
+            groupKeyByPlaceKey[group.placeKey] = group.placeKey;
+        }
+    });
+
+    return {
+        ...presentation,
+        pins,
+        groupKeyByPlaceKey,
+        hoverPlaceKeysByKey,
+    };
+}
+
 function buildUnmappedDisplayGroup(row, index, mappedPlaceKeys = new Set()) {
     const placeKey = `unmapped:${row.rowKey || row.assetKey || index}`;
     const categoryLabel = getRowCategoryLabel(row);
