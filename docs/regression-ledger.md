@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-01 My Map inline resource search and save (release candidate)
+## 2026-09-01 My Map inline resource search and save (released)
 
 - Candidate behavior: an owner can open `Manage resources` on an existing My
   Map and search both My Directory and the wider CareAround resource catalogue
@@ -62,6 +62,22 @@ Rules:
   result is claimed. The user explicitly approved the scoped commit, push, and
   deployment; authenticated owner UAT on an existing map remains the
   post-deployment behavior acceptance check.
+- Production release follow-up: implementation commit `6ce027c24` was pushed
+  to `codex/manage-resources-inline-search-20260901` and fast-forwarded to
+  `main`; GitHub quality run `33484071668` passed. Cloudflare Pages production
+  deployment `https://a8dcc2ff.senior-resource-map.pages.dev` uploaded all 83
+  files plus the Functions bundle and routes. The immutable deployment and
+  `https://app.carearound.sg` matched the exact validated artifact for all
+  83/83 public files, serving entry `assets/index-CtN3HXZV.js`, stylesheet
+  `assets/index-BUxysHtE.css`, and My Map chunk
+  `assets/MyMapDetailPage-Bg1zWM2U.js`; the inline-catalogue marker and all six
+  locked Detailed-map roots were present. App root, Discover, and Login
+  returned `200`; the production API health endpoint returned `status: ok`;
+  ordinary app routes retained anti-framing headers; and an unknown embed token
+  retained `404` plus `no-store`. No Worker/API, schema, migration, dependency,
+  configuration, secret, or production-data change was deployed. Credentialed
+  smoke was not run because its credential file was unavailable; authenticated
+  owner UAT remains pending.
 
 ## 2026-09-01 Personal Place creation-time postal verification (release candidate)
 
