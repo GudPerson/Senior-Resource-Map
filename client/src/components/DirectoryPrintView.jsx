@@ -7,7 +7,11 @@ import PrintAnnotationToolbar from './PrintAnnotationToolbar.jsx';
 import PrintMapLayersControl from './PrintMapLayersControl.jsx';
 import SharedMapDirectoryList from './SharedMapDirectoryList.jsx';
 import BrandLockup from './layout/BrandLockup.jsx';
-import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
+import {
+    buildDirectoryPresentation,
+    buildDirectoryShareUrl,
+    buildOwnerNumberedPinPresentation,
+} from '../lib/directoryPresentation.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getIntlLocale } from '../lib/i18n.js';
 import {
@@ -49,7 +53,6 @@ import {
     filterMapStudioDirectoryByLayers,
 } from '../lib/mapStudioPresentationAdapter.js';
 import { FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES } from '../lib/fixedTownSurface.js';
-import { normalizeMyMapCategoryKey } from '../lib/myMapCategoryOrder.js';
 import {
     DEFAULT_PRINT_ANNOTATION_STYLE,
     PRINT_ANNOTATION_DRAW_TOOLS,
@@ -66,7 +69,6 @@ import {
     normalizePrintAnnotationStyle,
 } from '../lib/printAnnotations.js';
 
-const PRINT_BADGE_COORDINATE_GROUPING_TOLERANCE = 0.0003;
 function PrintMapResizeHandle({ height, onChange, previewScale = 1, printMapState = null }) {
     const dragRef = useRef(null);
     const { defaultHeight, minHeight, maxHeight } = getPrintMapHeightBounds(printMapState);
@@ -153,139 +155,6 @@ function SummaryChip({ label, value, tone = 'neutral' }) {
             <span className="text-[13px] font-semibold">{value}</span>
         </div>
     );
-}
-
-function normalizePrintNumber(value) {
-    const number = Number(value);
-    return Number.isFinite(number) && number > 0 ? number : null;
-}
-
-function getPrintBadgeNumber(group = {}, placeNumberByKey = {}) {
-    return normalizePrintNumber(group.number || placeNumberByKey?.[group.placeKey]);
-}
-
-function getPrintBadgeColor(group = {}) {
-    const rowColor = (group.rows || []).find((row) => row?.categoryColor)?.categoryColor;
-    return group.categoryColor || rowColor || null;
-}
-
-function getPrintBadgeCoordinateKey(group = {}) {
-    const lat = Number.parseFloat(group.lat);
-    const lng = Number.parseFloat(group.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return '';
-    return `${lat.toFixed(4)}:${lng.toFixed(4)}`;
-}
-
-function shouldSharePrintBadgeCoordinate(left = {}, right = {}) {
-    const leftPostal = String(left.postalCode || '').trim();
-    const rightPostal = String(right.postalCode || '').trim();
-    if (leftPostal && rightPostal && leftPostal === rightPostal) return true;
-
-    const leftLat = Number.parseFloat(left.lat);
-    const leftLng = Number.parseFloat(left.lng);
-    const rightLat = Number.parseFloat(right.lat);
-    const rightLng = Number.parseFloat(right.lng);
-    if (![leftLat, leftLng, rightLat, rightLng].every(Number.isFinite)) return false;
-
-    return Math.abs(leftLat - rightLat) <= PRINT_BADGE_COORDINATE_GROUPING_TOLERANCE
-        && Math.abs(leftLng - rightLng) <= PRINT_BADGE_COORDINATE_GROUPING_TOLERANCE;
-}
-
-function withOwnerPrintBadgePins(presentation) {
-    const displayGroups = presentation?.displayGroups?.length
-        ? presentation.displayGroups
-        : (presentation?.mappedGroups || []);
-    const mappedBadgeGroups = displayGroups.filter((group) => (
-        group?.hasCoordinates
-        && group.lat !== null
-        && group.lng !== null
-        && getPrintBadgeNumber(group, presentation.placeNumberByKey)
-    ));
-
-    const groupsByCoordinate = new Map();
-    mappedBadgeGroups.forEach((group) => {
-        const coordinateKey = getPrintBadgeCoordinateKey(group);
-        if (!coordinateKey) return;
-        const existingCoordinateEntry = [...groupsByCoordinate.entries()].find(([, groups]) => (
-            groups.some((candidate) => shouldSharePrintBadgeCoordinate(candidate, group))
-        ));
-        const resolvedCoordinateKey = existingCoordinateEntry?.[0] || coordinateKey;
-        groupsByCoordinate.set(resolvedCoordinateKey, [
-            ...(groupsByCoordinate.get(resolvedCoordinateKey) || []),
-            group,
-        ]);
-    });
-
-    const groupKeyByPlaceKey = {};
-    const hoverPlaceKeysByKey = {};
-    const coordinateGroupEntries = [...groupsByCoordinate.entries()];
-    const pins = coordinateGroupEntries.map(([coordinateKey, groups]) => {
-        const firstGroup = groups[0];
-        const firstNumber = getPrintBadgeNumber(firstGroup, presentation.placeNumberByKey);
-        const memberPlaceKeys = groups.map((group) => group.placeKey).filter(Boolean);
-        const compositePlaceKey = groups.length > 1
-            ? `print-group:${coordinateKey}`
-            : firstGroup.placeKey;
-
-        memberPlaceKeys.forEach((memberPlaceKey) => {
-            groupKeyByPlaceKey[memberPlaceKey] = compositePlaceKey;
-        });
-        if (compositePlaceKey) {
-            groupKeyByPlaceKey[compositePlaceKey] = compositePlaceKey;
-            hoverPlaceKeysByKey[compositePlaceKey] = memberPlaceKeys;
-        }
-
-        return {
-            pinKey: groups.length > 1 ? `print:${coordinateKey}` : `print:${firstGroup.placeKey}`,
-            placeKey: compositePlaceKey,
-            placeId: firstGroup.placeId,
-            title: firstGroup.name,
-            address: firstGroup.address,
-            postalCode: firstGroup.postalCode || '',
-            lat: firstGroup.lat,
-            lng: firstGroup.lng,
-            curatedCount: groups.reduce((total, group) => total + (group.curatedCount || Math.max(1, (group.rows || []).length)), 0),
-            categoryKey: normalizeMyMapCategoryKey(
-                firstGroup.categorySortKey || firstGroup.categoryLabel,
-            ),
-            number: firstNumber,
-            printNumberLabel: String(firstNumber),
-            printBadgeItems: groups.map((group) => {
-                const number = getPrintBadgeNumber(group, presentation.placeNumberByKey);
-                return {
-                    number,
-                    label: String(number),
-                    color: getPrintBadgeColor(group),
-                    placeKey: group.placeKey,
-                    isPersonalPlace: (group.rows || []).some((row) => row?.resourceType === 'personal_place'),
-                    categoryKey: normalizeMyMapCategoryKey(
-                        group.categorySortKey || group.categoryLabel,
-                    ),
-                };
-            }),
-            categoryColor: getPrintBadgeColor(firstGroup),
-            categoryColorSegments: [],
-            previewResourceNames: groups.flatMap((group) => (group.rows || []).slice(0, 1).map((row) => row.name)).slice(0, 3),
-            hiddenPreviewCount: Math.max(0, groups.length - 3),
-            isPostalGroup: false,
-            memberPlaceKeys,
-            printOffsetX: 0,
-            printOffsetY: 0,
-        };
-    });
-
-    displayGroups.forEach((group) => {
-        if (group?.placeKey && !groupKeyByPlaceKey[group.placeKey]) {
-            groupKeyByPlaceKey[group.placeKey] = group.placeKey;
-        }
-    });
-
-    return {
-        ...presentation,
-        pins,
-        groupKeyByPlaceKey,
-        hoverPlaceKeysByKey,
-    };
 }
 
 function withOwnerPrintLayout(presentation, printLayoutConfig) {
@@ -1011,13 +880,13 @@ export default function DirectoryPrintView({
     const usesOwnerPrintBadgePins = useV2OwnerPrint
         && (!studioMarkerMode || studioMarkerMode === 'print-badge');
     const ownerPrintPresentation = usesOwnerPrintBadgePins
-        ? withOwnerPrintBadgePins(basePresentation)
+        ? buildOwnerNumberedPinPresentation(basePresentation)
         : basePresentation;
     const presentation = useV2OwnerPrint
         ? withOwnerPrintLayout(ownerPrintPresentation, printLayoutConfig)
         : ownerPrintPresentation;
     const resourceLayerModel = useV2OwnerPrint
-        ? buildPrintMapResourceLayers(withOwnerPrintBadgePins(unfilteredBasePresentation))
+        ? buildPrintMapResourceLayers(buildOwnerNumberedPinPresentation(unfilteredBasePresentation))
         : { groups: [], layerKeyByPlaceKey: {} };
     const visibleResourcePlaceKeys = showResourcePins
         ? getVisiblePrintResourcePlaceKeys(

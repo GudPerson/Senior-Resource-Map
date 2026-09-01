@@ -10,6 +10,10 @@ const directoryPrintViewSource = readFileSync(
     new URL('../src/components/DirectoryPrintView.jsx', import.meta.url),
     'utf8',
 );
+const directoryPresentationSource = readFileSync(
+    new URL('../src/lib/directoryPresentation.js', import.meta.url),
+    'utf8',
+);
 const discoverUtilsSource = readFileSync(
     new URL('../src/features/discover/discoverUtils.js', import.meta.url),
     'utf8',
@@ -181,10 +185,19 @@ test('directory map supports print badge markers without moving marker coordinat
 });
 
 test('personal-place numbered pins shed the legacy category-colour outline', () => {
-    assert.match(directoryPrintViewSource, /isPersonalPlace: \(group\.rows \|\| \[\]\)\.some\(\(row\) => row\?\.resourceType === 'personal_place'\)/);
+    assert.match(directoryPresentationSource, /isPersonalPlace: \(group\.rows \|\| \[\]\)\.some\(\(row\) => row\?\.resourceType === 'personal_place'\)/);
     assert.match(directoryMapSource, /const usesLegacyPersonalPlaceOutline = Boolean\(/);
     assert.match(directoryMapSource, /item\?\.isPersonalPlace[\s\S]*style\.fillColor === '#FFFFFF'[\s\S]*style\.ringColor\.toUpperCase\(\) === categoryColor\.toUpperCase\(\)/);
     assert.match(directoryMapSource, /usesLegacyPersonalPlaceOutline[\s\S]*getCategoryPinStyle\(\{\}, item\?\.categoryKey \|\| fallbackCategoryKey, categoryColor\)/);
+});
+
+test('interactive numbered pin lobes resolve hover and activation to their individual resources', () => {
+    assert.match(directoryMapSource, /function getPrintBadgePlaceKeyFromEvent\(event, fallbackPlaceKey\)/);
+    assert.match(directoryMapSource, /directory-print-badge-marker__lobe\[data-print-lobe-place-key\]/);
+    assert.match(directoryMapSource, /element\?\.dataset\?\.printLobePlaceKey \|\| fallbackPlaceKey/);
+    assert.match(directoryMapSource, /markerMode === 'print-badge'[\s\S]*getPrintBadgePlaceKeyFromEvent\(event, pin\.placeKey\)/);
+    assert.match(directoryMapSource, /lastPrintBadgeHoverKeyRef/);
+    assert.match(directoryMapSource, /handlePlaceActivate\(getMarkerEventPlaceKey\(event, pin\)\)/);
 });
 
 test('directory map can render interactive category bubble markers with visible lobe hit targets', () => {

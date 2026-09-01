@@ -15,6 +15,42 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-01 My Map same-postal numbered-pin parity recovery
+
+- Candidate behavior: owner Map Studio `Numbered pins` keeps one geographic
+  anchor for resources that share a postal code or effectively identical
+  coordinates, but renders one visible category-styled number lobe for every
+  corresponding resource card. Hovering or selecting a lobe resolves to that
+  exact resource. Category bubbles, category icons, card numbering, saved
+  category refinements, and Export View retain their established behavior.
+- Root cause and known-good reference: the V2 directory presentation correctly
+  retained every same-postal resource and its card number, while its base map
+  pin collapsed the postal group to the first member's number. Category bubbles
+  already expanded their per-resource items, and owner Export View already
+  built the accepted multi-lobe numbered presentation. Interactive Map Studio
+  selected the same `print-badge` renderer but passed it the unexpanded base
+  pin, hiding later resource numbers beneath the first. The recovery shares the
+  established owner numbered presentation between interactive Map Studio and
+  Export View and reuses the renderer's existing per-lobe place keys.
+- Reproduction: open an owned My Map containing at least two mapped resources
+  with the same six-digit postal code, choose `Category bubbles`, and confirm
+  both resources are visible side by side. Change only Pin style to `Numbered
+  pins`. Before the fix, only the earlier card number is visible; after the fix,
+  both matching card numbers are visible at the shared anchor and each lobe can
+  focus its own card.
+- Acceptance criteria: all mapped same-postal resources remain visible and
+  individually addressable in owner interactive numbered mode; their labels,
+  colours, shapes, ring styles, and numbering match the cards; single-resource
+  markers remain unchanged; category-bubble and category-icon modes remain
+  unchanged; Export View retains the same multi-number composition; and no API,
+  schema, database, authentication, secret, membership, saved-map document,
+  Shared Map/embed snapshot, coordinate, camera, or production data changes.
+- Verification before deploy: focused numbered-pin, Map Studio, V2 directory,
+  shape, and Export coverage passes 92/92; full client/source coverage passes
+  728/728; full server coverage passes 611/611; map lockdown passes 90/90; the
+  exact six-root production client build passes; and `git diff --check` passes
+  for the release changes. Production release evidence is pending.
+
 ## 2026-09-01 My Map inline resource search and save (released)
 
 - Candidate behavior: an owner can open `Manage resources` on an existing My

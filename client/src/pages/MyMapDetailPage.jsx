@@ -53,7 +53,11 @@ import {
     getGroupFocusFallbackResourceIds,
     mergeGroupFocusDetailsIntoDirectory,
 } from '../lib/directoryGroupFocus.js';
-import { buildDirectoryPresentation, buildDirectoryShareUrl } from '../lib/directoryPresentation.js';
+import {
+    buildDirectoryPresentation,
+    buildDirectoryShareUrl,
+    buildOwnerNumberedPinPresentation,
+} from '../lib/directoryPresentation.js';
 import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
 import { collectMyMapCategoryOptions } from '../lib/myMapCategoryOrder.js';
 import {
@@ -1935,7 +1939,12 @@ export default function MyMapDetailPage() {
     const categoryOrderOptions = useMemo(() => (
         collectMyMapCategoryOptions(townMapCoveragePresentation)
     ), [townMapCoveragePresentation]);
-    const ownerPresentation = isV2View ? v2Presentation : interactivePresentation;
+    const baseOwnerPresentation = isV2View ? v2Presentation : interactivePresentation;
+    const ownerPresentation = useMemo(() => (
+        mapStudioInteractiveModel?.directoryMap?.markerMode === 'print-badge'
+            ? buildOwnerNumberedPinPresentation(baseOwnerPresentation)
+            : baseOwnerPresentation
+    ), [baseOwnerPresentation, mapStudioInteractiveModel?.directoryMap?.markerMode]);
     const pdfPresentation = useMemo(() => (
         buildDirectoryPresentation(directory)
     ), [directory]);
@@ -3814,7 +3823,7 @@ export default function MyMapDetailPage() {
                     query={query}
                     onQueryChange={setQuery}
                     activeAnchor={activeAnchor}
-                    presentation={v2Presentation}
+                    presentation={ownerPresentation}
                     useDesktopLayout={useDesktopOwnerLayout}
                     useDesktopBodyLayout={useDesktopDirectoryBodyLayout}
                     focusedPlaceKey={effectiveFocusedPlaceKey}
@@ -4070,7 +4079,7 @@ export default function MyMapDetailPage() {
                             {personalPlacePickerActive || interactiveAnnotationEditorOpen ? (
                                 <DirectoryMap
                                     activeAnchor={activeAnchor}
-                                    pins={interactivePresentation.pins}
+                                    pins={ownerPresentation.pins}
                                     focusedPlaceKey={effectiveFocusedPlaceKey}
                                     focusedPlaceKeys={focusedPlaceKeys}
                                     activePlaceKey={activePlaceKey}
@@ -4085,7 +4094,7 @@ export default function MyMapDetailPage() {
                                     interactive
                                     {...classicMapStudioMapProps}
                                     markerMode={classicMarkerMode}
-                                    placeNumberByKey={interactivePresentation.placeNumberByKey}
+                                    placeNumberByKey={ownerPresentation.placeNumberByKey}
                                     emptyLabel={t('personalPlaceMapHint')}
                                     mapHeightClassName={resolveClassicMapHeightClass(studioMapHeight, 'desktop', true)}
                                     mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
@@ -4126,7 +4135,7 @@ export default function MyMapDetailPage() {
                         <>
                             <SharedMapDirectoryList
                                 directory={directory}
-                                presentation={interactivePresentation}
+                                presentation={ownerPresentation}
                                 mode="owner"
                                 layout={useDesktopOwnerLayout ? 'desktop' : 'responsive'}
                                 onViewOnMap={handleViewOnMap}
@@ -4161,7 +4170,7 @@ export default function MyMapDetailPage() {
                                 renderDesktopMap={() => (
                                     <DirectoryMap
                                         activeAnchor={activeAnchor}
-                                        pins={interactivePresentation.pins}
+                                        pins={ownerPresentation.pins}
                                         focusedPlaceKey={effectiveFocusedPlaceKey}
                                         focusedPlaceKeys={focusedPlaceKeys}
                                         activePlaceKey={activePlaceKey}
@@ -4178,7 +4187,7 @@ export default function MyMapDetailPage() {
                                         interactive={!directoryMapInteractionSuspended}
                                         {...classicMapStudioMapProps}
                                         markerMode={classicMarkerMode}
-                                        placeNumberByKey={interactivePresentation.placeNumberByKey}
+                                        placeNumberByKey={ownerPresentation.placeNumberByKey}
                                         emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                                         mapHeightClassName={resolveClassicMapHeightClass(studioMapHeight, 'desktop')}
                                         mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
@@ -4213,7 +4222,7 @@ export default function MyMapDetailPage() {
                                 renderMobileMap={() => (
                                     <DirectoryMap
                                         activeAnchor={activeAnchor}
-                                        pins={interactivePresentation.pins}
+                                        pins={ownerPresentation.pins}
                                         focusedPlaceKey={effectiveFocusedPlaceKey}
                                         focusedPlaceKeys={focusedPlaceKeys}
                                         activePlaceKey={activePlaceKey}
@@ -4230,7 +4239,7 @@ export default function MyMapDetailPage() {
                                         interactive={!directoryMapInteractionSuspended}
                                         {...classicMapStudioMapProps}
                                         markerMode={classicMarkerMode}
-                                        placeNumberByKey={interactivePresentation.placeNumberByKey}
+                                        placeNumberByKey={ownerPresentation.placeNumberByKey}
                                         emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                                         mapHeightClassName={resolveClassicMapHeightClass(studioMapHeight, 'mobile')}
                                         mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
