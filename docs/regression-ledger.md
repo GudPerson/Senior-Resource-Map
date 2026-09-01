@@ -49,7 +49,20 @@ Rules:
   shape, and Export coverage passes 92/92; full client/source coverage passes
   728/728; full server coverage passes 611/611; map lockdown passes 90/90; the
   exact six-root production client build passes; and `git diff --check` passes
-  for the release changes. Production release evidence is pending.
+  for the release changes.
+- Production release follow-up: implementation commit `e4369736` was merged by
+  PR #47 to `main` as `9f0d1af0`; the GitHub quality gate and Cloudflare preview
+  passed. Cloudflare Pages production deployment
+  `https://ece812d3.senior-resource-map.pages.dev` uploaded all 85 public files
+  plus the Functions bundle and routes. The immutable deployment and
+  `https://app.carearound.sg` matched the exact validated artifact across all
+  85/85 public files with aggregate SHA-256
+  `77dbae949d1903d002be5e514f77a80933e8a5f58092b42e678d383d358f3257`;
+  API health returned 200 and the app retained its locked framing headers.
+  Authenticated owner UAT on production Map 343 found three shared-location
+  numbered markers with two distinct, visible resource lobes each: `1`/`21`,
+  `2`/`4`, and `7`/`17`. The later-added resources retained unique place keys,
+  and the unsaved preview was cleared without saving or changing map data.
 
 ## 2026-09-01 My Map inline resource search and save (released)
 
