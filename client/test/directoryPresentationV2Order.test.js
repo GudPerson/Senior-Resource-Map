@@ -205,6 +205,7 @@ test('personal place rows participate in search, cards, and pins', () => {
     const missed = buildDirectoryPresentation(personalDirectory, { query: 'clinic', presentationMode: 'v2-cards' });
 
     assert.equal(presentation.pins.length, 1);
+    assert.equal(presentation.pins[0].categoryBubbleItems[0].isPersonalPlace, true);
     assert.equal(presentation.displayGroups[0].rows[0].resourceType, 'personal_place');
     assert.equal(presentation.displayGroups[0].categoryLabel, 'Shop');
     assert.equal(filtered.pins.length, 1);
@@ -501,6 +502,10 @@ test('v2 pins split colors across hard asset categories sharing a postal code', 
     assert.deepEqual(
         postalPin.categoryBubbleItems.map((item) => item.color),
         ['#ef4444', '#f59e0b'],
+    );
+    assert.deepEqual(
+        postalPin.categoryBubbleItems.map((item) => item.isPersonalPlace),
+        [false, false],
     );
 });
 

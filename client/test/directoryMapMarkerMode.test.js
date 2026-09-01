@@ -219,6 +219,7 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(directoryMapSource, /categoryBubbleItems: pin\.categoryBubbleItems \|\| null/);
     assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*class="directory-category-bubble-marker__content"/);
     assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*class="directory-category-bubble-marker__ring"/);
+    assert.match(directoryMapSource, /item\.isPersonalPlace \? '' : `[\s\S]*class="directory-category-bubble-marker__ring"/);
     assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*style="border-color:\$\{item\.color\};"/);
     assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*background:#ffffff/);
     assert.match(directoryMapSource, /function createCategoryBubbleMarker[\s\S]*color:\$\{item\.color\}/);
