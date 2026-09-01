@@ -45,12 +45,25 @@ test('server persistence accepts safe per-category pin colours and table display
         'active ageing centre (aac)': {
             fillColor: '#123456',
             ringColor: '#ABCDEF',
+            ringWeight: 'thick',
             labelColor: '#FEDCBA',
         },
     };
     document.views[0].design.layout.resourceDisplay = 'table';
 
     assert.deepEqual(validateMapStudioDocumentInput(document), document);
+});
+
+test('server persistence gives older pin styles the compatible thin outline', () => {
+    const document = createDocument();
+    document.views[0].design.pins.categoryStyles = {
+        aac: { fillColor: '#123456', ringColor: '#FFFFFF' },
+    };
+
+    assert.equal(
+        validateMapStudioDocumentInput(document).views[0].design.pins.categoryStyles.aac.ringWeight,
+        'thin',
+    );
 });
 
 test('server persistence rejects unsafe pin colour values', () => {

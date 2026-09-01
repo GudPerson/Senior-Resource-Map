@@ -284,6 +284,7 @@ function PrintResourceNumberBadge({
     value,
     color = null,
     ringColor = '#ffffff',
+    ringWeight = 'thin',
     labelColor = null,
     shape = 'circle',
     compact = false,
@@ -297,6 +298,7 @@ function PrintResourceNumberBadge({
             shape={shape}
             color={badgeColor}
             ringColor={ringColor}
+            ringWeight={ringWeight}
             labelColor={labelColor}
             label={label}
             compact={compact}
@@ -1116,6 +1118,12 @@ function getPrimaryManagedPlaceRow(group) {
     return (group?.rows || []).find((row) => (
         row?.resourceType === 'hard' && isRepeatedPrimaryRow(group, row)
     )) || null;
+}
+
+function getPrimaryRemovableRow(group) {
+    return getPrimaryManagedPlaceRow(group)
+        || (group?.rows || []).find((row) => isPersonalPlaceRow(row))
+        || null;
 }
 
 function getPrimaryShortDescriptionRow(group) {
@@ -1938,9 +1946,10 @@ function DirectoryNestedPlaceSection({
     const titleClassName = compactInteractive ? 'text-[0.9375rem]' : 'text-[1.0625rem]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(nestedPlace);
     const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(nestedPlace);
+    const primaryRemovableRow = getPrimaryRemovableRow(nestedPlace);
     const primaryShortDescriptionRow = getPrimaryShortDescriptionRow(nestedPlace);
     const canRemovePrimaryResource = mode === 'owner'
-        && Boolean(primaryManagedPlaceRow && onRemoveResource);
+        && Boolean(primaryRemovableRow && onRemoveResource);
     const normalizedLabelDetail = normalizePrintMapLabelDetail(labelDetail);
     const shortDescriptionEditing = mode === 'owner'
         && Boolean(onEditResourceShortDescription);
@@ -1982,7 +1991,7 @@ function DirectoryNestedPlaceSection({
             {canRemovePrimaryResource ? (
                 <div className="flex justify-end">
                     <OwnerMapResourceRemoveAction
-                        row={primaryManagedPlaceRow}
+                        row={primaryRemovableRow}
                         onRemoveResource={onRemoveResource}
                         card
                     />
@@ -2082,6 +2091,7 @@ function DirectoryPlaceGroupCard({
             value={group.number}
             color={numberedPinStyle?.fillColor || group.categoryColor || clusterColorData?.core || null}
             ringColor={numberedPinStyle?.ringColor}
+            ringWeight={numberedPinStyle?.ringWeight}
             labelColor={numberedPinStyle?.labelColor}
             shape={numberedPinShape}
             compact={useCompactNamesOnlyCard}
@@ -2092,10 +2102,11 @@ function DirectoryPlaceGroupCard({
     const printHighlightClassName = 'border-orange-400 ring-2 ring-orange-300 shadow-[0_0_0_3px_rgba(249,115,22,0.16)]';
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
     const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(group);
+    const primaryRemovableRow = getPrimaryRemovableRow(group);
     const primaryShortDescriptionRow = getPrimaryShortDescriptionRow(group);
     const canRemovePrimaryResource = interactive
         && mode === 'owner'
-        && Boolean(primaryManagedPlaceRow && onRemoveResource);
+        && Boolean(primaryRemovableRow && onRemoveResource);
     const interactiveShortDescriptionEditing = interactive
         && mode === 'owner'
         && Boolean(onEditResourceShortDescription);
@@ -2501,7 +2512,7 @@ function DirectoryPlaceGroupCard({
                     {canRemovePrimaryResource ? (
                         <div className="flex justify-end">
                             <OwnerMapResourceRemoveAction
-                                row={primaryManagedPlaceRow}
+                                row={primaryRemovableRow}
                                 onRemoveResource={onRemoveResource}
                                 card
                             />

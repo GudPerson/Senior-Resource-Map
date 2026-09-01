@@ -257,6 +257,7 @@ function withOwnerPrintBadgePins(presentation) {
                     label: String(number),
                     color: getPrintBadgeColor(group),
                     placeKey: group.placeKey,
+                    isPersonalPlace: (group.rows || []).some((row) => row?.resourceType === 'personal_place'),
                     categoryKey: normalizeMyMapCategoryKey(
                         group.categorySortKey || group.categoryLabel,
                     ),

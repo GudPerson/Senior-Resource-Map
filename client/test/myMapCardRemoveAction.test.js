@@ -33,11 +33,12 @@ test('owner removal actions are progressively disclosed from Edit content', () =
 
 test('the repeated primary Place exposes removal on the ordinary card shell', () => {
     assert.match(directoryListSource, /const primaryManagedPlaceRow = getPrimaryManagedPlaceRow\(group\)/);
+    assert.match(directoryListSource, /function getPrimaryRemovableRow\(group\)[\s\S]*find\(\(row\) => isPersonalPlaceRow\(row\)\)/);
     assert.match(
         directoryListSource,
-        /const canRemovePrimaryResource = interactive\s*&& mode === 'owner'\s*&& Boolean\(primaryManagedPlaceRow && onRemoveResource\)/,
+        /const canRemovePrimaryResource = interactive\s*&& mode === 'owner'\s*&& Boolean\(primaryRemovableRow && onRemoveResource\)/,
     );
-    assert.match(directoryListSource, /row=\{primaryManagedPlaceRow\}[\s\S]*onRemoveResource=\{onRemoveResource\}[\s\S]*card/);
+    assert.match(directoryListSource, /row=\{primaryRemovableRow\}[\s\S]*onRemoveResource=\{onRemoveResource\}[\s\S]*card/);
     assert.match(directoryListSource, /data-my-map-card-remove=\{card \? 'true' : undefined\}/);
     assert.match(directoryListSource, /!canFocusCardOnMap && !canRemovePrimaryResource/);
     assert.doesNotMatch(directoryListSource, /show(?:Interactive)?ResourceRows && canRemovePrimaryResource/);

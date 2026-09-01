@@ -40,16 +40,18 @@ test('category refinements stage numbered-pin fill and ring colours with the sel
     assert.match(printViewSource, /numberedPinStylesByCategory=\{printMapState\?\.numberedPinStylesByCategory\}/);
 });
 
-test('category refinements offer automatic or custom number colour with a renderer-backed preview', () => {
+test('category refinements offer direct number colour and three outline weights with a renderer-backed preview', () => {
     assert.match(modalSource, /data-category-pin-preview=\{category\.key\}/);
     assert.match(modalSource, /labelColor=\{pinStyle\.labelColor\}/);
     assert.match(modalSource, /label=\{index \+ 1\}/);
     assert.match(modalSource, /preview/);
-    assert.match(modalSource, /getCategoryPinLabelColorOverride/);
-    assert.match(modalSource, /categoryPinNumberColourAutomatic/);
-    assert.match(modalSource, /categoryPinNumberColourCustom/);
     assert.match(modalSource, /updateCategoryColor\(category, 'labelColor'/);
-    assert.match(directoryMapSource, /labelColor: style\.labelColor/);
+    assert.match(modalSource, /CATEGORY_PIN_RING_WEIGHT_OPTIONS\.map/);
+    assert.match(modalSource, /updateCategoryRingWeight\(category, ringWeight\)/);
+    assert.doesNotMatch(modalSource, /categoryPinNumberColourAutomatic/);
+    assert.doesNotMatch(modalSource, /categoryPinNumberColourCustom/);
+    assert.doesNotMatch(modalSource, /categoryPinUseDefaultColours/);
+    assert.match(directoryMapSource, /ringWeight: style\.ringWeight/);
     assert.match(directoryListSource, /labelColor=\{numberedPinStyle\?\.labelColor\}/);
 });
 

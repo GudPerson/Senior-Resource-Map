@@ -225,7 +225,7 @@ test('normalization bounds visual state and removes duplicate layer identifiers'
         'active ageing centre (aac)': 'triangle',
     });
     assert.deepEqual(normalized.views[0].design.pins.categoryStyles, {
-        'active ageing centre (aac)': { fillColor: '#123ABC', ringColor: '#FEDCBA' },
+        'active ageing centre (aac)': { fillColor: '#123ABC', ringColor: '#FEDCBA', ringWeight: 'thin' },
     });
     assert.equal(normalized.views[0].design.layout.resourceDisplay, 'table');
 });
