@@ -15,6 +15,31 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-01 My Map personal-place removal disclosure refinement
+
+- Candidate behavior: owner personal-place cards retain their normal `Edit`
+  action, but no longer show the inactive lower-row `Remove` action during
+  ordinary map browsing. The established top card `Remove` action appears only
+  while `Edit content` -> `Remove resources` is active and continues to use the
+  existing named confirmation and authoritative map reload.
+- Blast radius and known-good reference: the refinement removes only the
+  duplicate interactive personal-place row button in
+  `SharedMapDirectoryList.jsx`. Ordinary resource removal, the explicit
+  removal-mode toggle, personal-place editing, owner Print View controls,
+  membership APIs, reusable My Places records, Shared Map/embed, Map Studio,
+  schema, authentication, and production data remain unchanged. This restores
+  the progressive-disclosure contract released on 2026-08-10.
+- Reproduction and acceptance: open an owned My Map containing a personal
+  place and confirm its card shows `Edit` but no `Remove`. Enable `Remove
+  resources` and confirm exactly one functional top card `Remove` action
+  appears. Disable the mode and confirm it disappears while `Edit` remains.
+- Verification before deploy: focused personal-place, removal-mode, V2 map,
+  and Print View coverage passed (`60/60`); the complete client suite passed
+  (`728/728`); the owner map lockdown gate passed (`90/90`) together with the
+  exact six-root production client build; and `git diff --check` passed. Server
+  tests are not required because this is a client-only presentation change
+  with no API, persistence, authentication, or data-path changes.
+
 ## 2026-09-01 My Map same-postal numbered-pin parity recovery
 
 - Candidate behavior: owner Map Studio `Numbered pins` keeps one geographic

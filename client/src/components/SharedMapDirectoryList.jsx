@@ -1578,14 +1578,6 @@ function DirectoryResourceRow({
                             <Pencil size={13} />
                             {t('edit')}
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => onRemoveResource?.(row)}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 transition hover:text-red-600"
-                        >
-                            <Trash2 size={13} />
-                            {t('remove')}
-                        </button>
                     </div>
                 ) : null}
             </div>
