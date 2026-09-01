@@ -15,6 +15,30 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-02 My Map freeform annotation icon refinement
+
+- Candidate behavior: the owner annotation toolbar represents `Draw boundary`
+  with a filled, irregular PowerPoint-style freeform silhouette instead of the
+  generic pentagon symbol. The button name and the established point-by-point
+  boundary drawing workflow remain unchanged.
+- Blast radius and known-good reference: this is an icon-only change inside
+  `PrintAnnotationToolbar.jsx`. It does not change the polygon annotation type,
+  drawing state, control points, persistence, sharing, rendering, PNG/PDF
+  export, the Map layers control, or the separate pentagon category-pin choice.
+  The existing annotation workflow remains the known-good functional reference.
+- Reproduction and acceptance: open an owned My Map, choose `Full map`, then
+  `Edit content` -> `Annotations`. The final drawing tool must show the supplied
+  irregular closed freeform silhouette rather than a regular pentagon. Its
+  accessible label remains `Draw boundary`; selecting it must retain the same
+  multi-point preview, minimum-three-point, Done, Enter, Undo, save, and export
+  behavior.
+- Verification before deploy: focused annotation coverage passed (`17/17`);
+  the complete client suite passed (`728/728`); the owner map lockdown gate
+  passed (`90/90`) together with the exact six-root production client build;
+  and `git diff --check` passed. Server tests are not required because the
+  patch does not touch an API, persistence, authentication, schema, or data
+  path.
+
 ## 2026-09-01 My Map personal-place removal disclosure refinement
 
 - Candidate behavior: owner personal-place cards retain their normal `Edit`

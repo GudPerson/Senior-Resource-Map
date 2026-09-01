@@ -522,6 +522,13 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(toolbarSource, /Undo last point/);
     assert.match(toolbarSource, /Done drawing/);
     assert.match(toolbarSource, /Cancel tool/);
+    assert.match(toolbarSource, /function FreeformBoundaryIcon/);
+    assert.match(
+        toolbarSource,
+        /PRINT_ANNOTATION_TOOL_POLYGON, label: 'Draw boundary', Icon: FreeformBoundaryIcon/,
+    );
+    assert.match(toolbarSource, /FreeformBoundaryIcon[\s\S]*fill="currentColor"/);
+    assert.doesNotMatch(toolbarSource, /\bPentagon\b/);
     assert.match(toolbarSource, /data-print-annotation-helper/);
     assert.match(toolbarSource, /Step 1 of 2/);
     assert.match(toolbarSource, /Move the pointer to preview/);

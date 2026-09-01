@@ -11,7 +11,6 @@ import {
     Minus,
     Move,
     MousePointer2,
-    Pentagon,
     Redo2,
     RotateCw,
     Square,
@@ -37,6 +36,24 @@ import {
     isPrintAnnotationRotationSupported,
 } from '../lib/printAnnotations.js';
 
+function FreeformBoundaryIcon({ size = 16, ...props }) {
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+            {...props}
+        >
+            <path
+                d="M4.25 20.5V8.3L9.2 3.5H20L15.4 8.5C14.1 9.9 15.1 12.2 17 12.2H20.75V17L17 20.5H4.25Z"
+                fill="currentColor"
+            />
+        </svg>
+    );
+}
+
 const TOOL_OPTIONS = [
     { value: PRINT_ANNOTATION_TOOL_SELECT, label: 'Select or adjust', Icon: MousePointer2 },
     { value: PRINT_ANNOTATION_TOOL_MOVE, label: 'Move annotation', Icon: Move },
@@ -44,7 +61,7 @@ const TOOL_OPTIONS = [
     { value: PRINT_ANNOTATION_TOOL_LINE, label: 'Draw line', Icon: Minus },
     { value: PRINT_ANNOTATION_TOOL_RECTANGLE, label: 'Draw box', Icon: Square },
     { value: PRINT_ANNOTATION_TOOL_CIRCLE, label: 'Draw circle', Icon: Circle },
-    { value: PRINT_ANNOTATION_TOOL_POLYGON, label: 'Draw boundary', Icon: Pentagon },
+    { value: PRINT_ANNOTATION_TOOL_POLYGON, label: 'Draw boundary', Icon: FreeformBoundaryIcon },
 ];
 
 function getToolHelp(tool, draftPointCount, selectedAnnotation = null) {
