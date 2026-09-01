@@ -38,6 +38,15 @@ test('shared directory list treats personal places as owner-only local rows', ()
     assert.match(source, /\!\['hard', 'soft'\]\.includes\(row\?\.resourceType\)/);
 });
 
+test('personal-place category bubbles omit the redundant category-colour ring', () => {
+    const presentationSource = readSource('../src/lib/directoryPresentation.js');
+    const mapSource = readSource('../src/components/DirectoryMap.jsx');
+
+    assert.match(presentationSource, /isPersonalPlace: rows\.some\(\(row\) => row\?\.resourceType === 'personal_place'\)/);
+    assert.match(mapSource, /isPersonalPlace: Boolean\(item\?\.isPersonalPlace\)/);
+    assert.match(mapSource, /item\.isPersonalPlace \? '' : `[\s\S]*directory-category-bubble-marker__ring/);
+});
+
 test('My Places library supports reusable places and delete-everywhere semantics', () => {
     const directorySource = readSource('../src/pages/MyDirectoryPage.jsx');
     const librarySource = readSource('../src/components/personalPlaces/PersonalPlacesSection.jsx');

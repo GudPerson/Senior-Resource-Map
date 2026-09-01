@@ -322,6 +322,7 @@ function normalizeCategoryBubbleItems(items = null, pin = {}) {
             iconUrl: pin.categoryIconUrl || null,
             iconKey: pin.categoryIconKey || null,
             label: pin.title || '',
+            isPersonalPlace: Boolean(pin.isPersonalPlace),
         }];
 
     return sourceItems
@@ -331,6 +332,7 @@ function normalizeCategoryBubbleItems(items = null, pin = {}) {
             iconUrl: item?.iconUrl || item?.categoryIconUrl || null,
             iconKey: item?.iconKey || item?.categoryIconKey || pin.categoryIconKey || null,
             label: String(item?.label || item?.title || index + 1),
+            isPersonalPlace: Boolean(item?.isPersonalPlace),
         }))
         .filter((item) => item.placeKey);
 }
@@ -778,11 +780,13 @@ function createCategoryBubbleMarker(pin = {}, {
                 <span class="directory-category-bubble-marker__content">
                     ${content}
                 </span>
-                <span
-                    class="directory-category-bubble-marker__ring"
-                    style="border-color:${item.color};"
-                    aria-hidden="true"
-                ></span>
+                ${item.isPersonalPlace ? '' : `
+                    <span
+                        class="directory-category-bubble-marker__ring"
+                        style="border-color:${item.color};"
+                        aria-hidden="true"
+                    ></span>
+                `}
             </span>
         `;
     }).join('');

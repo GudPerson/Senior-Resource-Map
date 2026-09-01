@@ -203,13 +203,15 @@ function getCategoryBubbleItemsForGroup(group = {}, options = {}) {
 
     return groups
         .map((member) => {
-            const entry = getPrimaryCategoryEntry(member.rows || [], options);
+            const rows = member.rows || [];
+            const entry = getPrimaryCategoryEntry(rows, options);
             return {
                 placeKey: member.placeKey,
                 color: entry.color || null,
                 iconUrl: entry.iconUrl || null,
                 iconKey: entry.iconKey || null,
                 label: member.name || '',
+                isPersonalPlace: rows.some((row) => row?.resourceType === 'personal_place'),
             };
         })
         .filter((item) => item.placeKey);

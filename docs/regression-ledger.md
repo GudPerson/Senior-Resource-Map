@@ -8210,8 +8210,9 @@ Active next recovery family:
   saved hard resources while retaining the existing authoritative personal-place
   delete and map-reload path. Personal-place pins using the legacy white-fill /
   category-colour-ring combination are rendered with the category fill and the
-  standard white outline, removing the extra green outline without changing
-  explicit user-selected colours. Refine Categories now offers Thin, Medium,
+  standard white outline, while personal-place Category bubbles omit the
+  redundant category-colour ring around the icon; ordinary resource Category
+  bubbles retain their existing ring. Refine Categories now offers Thin, Medium,
   and Thick outline weights per category; the selected weight is stored in the
   existing Map Studio design document, while previously saved designs default
   safely to Thin. Number colour is a single direct colour input: its initial
@@ -8227,7 +8228,10 @@ Active next recovery family:
   directly editable, and confirm `#3B82F6` previews a white number. Automated
   evidence: full client coverage passed 725/725, the locked map gate passed
   90/90 plus the exact six-root production build, the standard client build
-  passed, and full server coverage passed 611/611. No database schema,
+  passed, and full server coverage passed 611/611. The follow-up Category-bubble
+  ring correction passed focused coverage 45/45, full client coverage 726/726,
+  the locked map gate 90/90 plus its exact six-root build, the standard client
+  build, full server coverage 611/611, and `git diff --check`. No database schema,
   migration, production data, authentication, permission, secret, provider, or
   shared/embed privacy contract changed.
 
