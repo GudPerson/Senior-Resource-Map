@@ -79,6 +79,46 @@ Rules:
   smoke was not run because its credential file was unavailable; authenticated
   owner UAT remains pending.
 
+## 2026-09-01 Create Map inline resource search and save (release candidate)
+
+- Candidate behavior: the `Create map` dialog now offers the same combined My
+  Directory and CareAround catalogue search as `Manage resources`. A user can
+  enter a map name, search for an unsaved Place, Offering, or discover-ready
+  Group, choose `Save and add`, and create the map without leaving the dialog.
+- Architecture and blast radius: this is a client-only extension of the
+  released `CreateMapModal` catalogue path. The Create Map caller uses the same
+  `SavedAssetsContext` favourites mutation as Discover and existing-map
+  management. The returned saved record is selected, and map creation still
+  submits only records present in My Directory. No Worker route, database,
+  schema, permission, visibility, ranking, sharing, map-rendering, dependency,
+  configuration, secret, or production-data change is included.
+- Known-good reference: released inline catalogue behaviour at commits
+  `6ce027c24` and `e12cdad59`, with the creation caller added on branch
+  `codex/create-map-inline-search-20260901`.
+- Reproduction steps: sign in, open `My Directory` > `My Maps`, choose `Create
+  map`, enter a map name, then enter at least two characters from a Discover
+  resource not yet saved in My Directory. Choose `Save and add`, confirm the
+  result moves to the saved checklist already selected, and choose `Create
+  map`. Confirm the new map opens with that resource and that the resource is
+  also present in My Directory. Repeat with a previously saved resource, each
+  type filter, no matches, and a catalogue failure/retry.
+- Acceptance criteria: unsaved catalogue records must never be written directly
+  to a map; saving must use the shared favourites API; the Create button must
+  remain disabled until the map has a name and at least one saved selected
+  resource; host-Place selection, the saved-only fallback, multilingual copy,
+  modal accessibility, mobile safe-area actions, existing-map management, and
+  all locked map surfaces must remain unchanged.
+- Verification before deploy: focused catalogue, My Maps, and modal
+  accessibility coverage passed 19/19. `npm run verify:quality` passed,
+  including migration ownership, 423 source modules and 1,263 relative imports
+  with no cycles, the full server suite at 610/610, the full client suite at
+  723/723, diff integrity, and the standard client build. `npm run
+  verify:map-lockdown` passed 90/90 and completed the exact six-root production
+  client build. Credentialed smoke is unavailable because this isolated
+  worktree has no smoke credential file; no authenticated result is claimed.
+  Post-deployment immutable/custom-domain artifact comparison and owner UAT
+  remain pending.
+
 ## 2026-09-01 Personal Place creation-time postal verification (release candidate)
 
 - Current behavior: new and edited Personal Places with an address must carry an

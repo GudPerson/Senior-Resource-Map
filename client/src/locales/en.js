@@ -655,8 +655,10 @@ export const enDictionary = {
     // Map modals
     chooseMapResources: 'Choose map resources',
     createMapFromSaved: 'Create a map from saved resources',
+    createMapWithResources: 'Create a map with CareAround resources',
     chooseWhatStaysInMap: 'Choose what stays in this map',
     pickSavedResourcesTogether: 'Pick the saved resources you want to keep together.',
+    pickSavedOrFindResourcesTogether: 'Choose from My Directory or search all CareAround resources here.',
     tickSavedResourcesIncluded: 'Tick the saved resources you want included in this map.',
     mapName: 'Map name',
     mapNamePlaceholder: 'For example, North-west support options',

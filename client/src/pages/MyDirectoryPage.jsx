@@ -368,6 +368,24 @@ export default function MyDirectoryPage() {
         }
     }
 
+    async function handleSaveCreateCatalogAsset(asset) {
+        const key = `${asset.resourceType}-${asset.resourceId}`;
+        const existing = savedAssets.find((savedAsset) => (
+            `${savedAsset.resourceType}-${savedAsset.resourceId}` === key
+        ));
+        if (existing) return existing;
+
+        const result = await toggleSavedAsset(
+            asset.resourceType,
+            asset.resourceId,
+            asset,
+        );
+        if (!result?.saved || !result?.item) {
+            throw new Error(t('failedSaveResourceFromMap'));
+        }
+        return result.item;
+    }
+
     async function handleRenameMap(name) {
         if (!renameTarget) return;
         setRenameSubmitting(true);
@@ -722,6 +740,8 @@ export default function MyDirectoryPage() {
                 savedAssets={savedAssets}
                 submitting={createSubmitting}
                 error={createError}
+                allowCatalogSearch
+                onSaveCatalogAsset={handleSaveCreateCatalogAsset}
                 onClose={() => {
                     if (createSubmitting) return;
                     setCreateModalOpen(false);

@@ -50,7 +50,7 @@ export default function CreateMapModal({
 
     const isCreateMode = mode === 'create';
     const busy = loading || submitting;
-    const canSearchCatalog = !isCreateMode && allowCatalogSearch && typeof onSaveCatalogAsset === 'function';
+    const canSearchCatalog = allowCatalogSearch && typeof onSaveCatalogAsset === 'function';
     const catalogActionBusy = catalogSavingKeys.size > 0;
     const dialogBusy = busy || catalogActionBusy;
     const normalizedQuery = normalizeText(query);
@@ -277,11 +277,13 @@ export default function CreateMapModal({
                             {isCreateMode ? t('createMap') : t('chooseMapResources')}
                         </p>
                         <h2 id={titleId} className="mt-2 text-2xl font-bold text-slate-900">
-                            {isCreateMode ? t('createMapFromSaved') : t('chooseWhatStaysInMap')}
+                            {isCreateMode
+                                ? (canSearchCatalog ? t('createMapWithResources') : t('createMapFromSaved'))
+                                : t('chooseWhatStaysInMap')}
                         </h2>
                         <p className="mt-2 text-sm text-slate-500">
                             {isCreateMode
-                                ? t('pickSavedResourcesTogether')
+                                ? (canSearchCatalog ? t('pickSavedOrFindResourcesTogether') : t('pickSavedResourcesTogether'))
                                 : t('tickSavedResourcesIncluded')}
                         </p>
                     </div>

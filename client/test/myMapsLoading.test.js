@@ -157,6 +157,18 @@ test('map resource management can search all resources, save through shared favo
     assert.match(createMapModalSource, /addAssetAndHostsToSelection\(/);
 });
 
+test('new map creation can search all resources, save through shared favourites, and select the result', () => {
+    assert.match(myDirectoryPageSource, /toggleSavedAsset,/);
+    assert.match(myDirectoryPageSource, /async function handleSaveCreateCatalogAsset\(asset\)/);
+    assert.match(myDirectoryPageSource, /const result = await toggleSavedAsset\(/);
+    assert.match(myDirectoryPageSource, /allowCatalogSearch/);
+    assert.match(myDirectoryPageSource, /onSaveCatalogAsset=\{handleSaveCreateCatalogAsset\}/);
+    assert.match(createMapModalSource, /const canSearchCatalog = allowCatalogSearch/);
+    assert.doesNotMatch(createMapModalSource, /const canSearchCatalog = !isCreateMode/);
+    assert.match(i18nSource, /createMapWithResources: 'Create a map with CareAround resources'/);
+    assert.match(i18nSource, /pickSavedOrFindResourcesTogether: 'Choose from My Directory or search all CareAround resources here\.'/);
+});
+
 test('map resource management keeps mobile actions above the device safe area', () => {
     assert.match(createMapModalSource, /max-h-\[calc\(100svh-0\.75rem\)\]/);
     assert.match(createMapModalSource, /pb-\[calc\(env\(safe-area-inset-bottom\)\+16px\)\]/);
