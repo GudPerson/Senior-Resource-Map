@@ -79,7 +79,7 @@ Rules:
   smoke was not run because its credential file was unavailable; authenticated
   owner UAT remains pending.
 
-## 2026-09-01 Create Map inline resource search and save (release candidate)
+## 2026-09-01 Create Map inline resource search and save (released)
 
 - Candidate behavior: the `Create map` dialog now offers the same combined My
   Directory and CareAround catalogue search as `Manage resources`. A user can
@@ -116,8 +116,25 @@ Rules:
   verify:map-lockdown` passed 90/90 and completed the exact six-root production
   client build. Credentialed smoke is unavailable because this isolated
   worktree has no smoke credential file; no authenticated result is claimed.
-  Post-deployment immutable/custom-domain artifact comparison and owner UAT
-  remain pending.
+  Owner UAT remains pending.
+- Production release follow-up: implementation commit `958e70372` was pushed
+  to `codex/create-map-inline-search-20260901` and fast-forwarded to `main`;
+  GitHub quality run `33486732540` passed. Cloudflare Pages production
+  deployment `https://daeafd8b.senior-resource-map.pages.dev` uploaded all 83
+  public files plus the Functions bundle and routes. The immutable deployment
+  and `https://app.carearound.sg` matched the exact validated artifact for all
+  83/83 public files with correct JavaScript and CSS MIME types, serving entry
+  `assets/index-BhFBapap.js`, stylesheet `assets/index-BUxysHtE.css`, Create Map
+  chunk `assets/MyDirectoryPage-DkeSOndF.js`, and shared My Maps chunk
+  `assets/myMapsLoading-D12ykp_T.js`. The Create Map catalogue copy, all six
+  locked Detailed-map roots, and required locked bundle markers were present;
+  retired markers remained absent. App root, Discover, and Login returned
+  `200`; the production API health endpoint returned `status: ok`; ordinary app
+  routes retained anti-framing headers; and an unknown embed token retained
+  `404` plus `no-store`. No Worker/API, schema, migration, dependency,
+  configuration, secret, or production-data change was deployed. Credentialed
+  smoke was not run because its credential file was unavailable; authenticated
+  owner UAT remains pending.
 
 ## 2026-09-01 Personal Place creation-time postal verification (release candidate)
 
