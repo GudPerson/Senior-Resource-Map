@@ -43,12 +43,14 @@ export default function PersonalPlaceEditorModal({
         categoryId: '',
         address: '',
         postalCode: '',
+        locationMode: 'addressed',
         lat: '',
         lng: '',
     });
     const [lookupQuery, setLookupQuery] = useState('');
     const [lookupBusy, setLookupBusy] = useState(false);
     const [lookupError, setLookupError] = useState('');
+    const [locationVerified, setLocationVerified] = useState(false);
     const initializedDraftKeyRef = useRef('');
     const draftKey = getPersonalPlaceDraftKey(open, draft);
 
@@ -62,15 +64,22 @@ export default function PersonalPlaceEditorModal({
         const fallbackCategory = activeCategories.find(
             (category) => category.name === draft?.categoryLabel
         );
+        const hasAddressedLocation = Boolean(
+            String(draft?.address || '').trim()
+            || String(draft?.postalCode || '').trim()
+        );
+        const locationMode = draft?.id && !hasAddressedLocation ? 'map_only' : 'addressed';
         setForm({
             name: draft?.name || '',
             logoUrl: draft?.logoUrl || '',
             categoryId: String(draft?.categoryId || draft?.category?.id || fallbackCategory?.id || activeCategories[0]?.id || ''),
             address: draft?.address || '',
             postalCode: draft?.postalCode || '',
+            locationMode,
             lat: formatCoordinate(draft?.lat),
             lng: formatCoordinate(draft?.lng),
         });
+        setLocationVerified(Boolean(draft?.id));
         setLookupQuery(draft?.postalCode || draft?.address || '');
         setLookupError('');
     }, [activeCategories, draft, draftKey, open]);
@@ -95,13 +104,37 @@ export default function PersonalPlaceEditorModal({
     ) || null;
     const parsedLat = Number.parseFloat(form.lat);
     const parsedLng = Number.parseFloat(form.lng);
+    const addressedLocationReady = form.locationMode === 'addressed'
+        && locationVerified
+        && /^\d{6}$/.test(form.postalCode.trim())
+        && Boolean(form.address.trim());
     const canSubmit = Boolean(form.name.trim())
         && Number.isFinite(parsedLat)
         && Number.isFinite(parsedLng)
+        && (form.locationMode === 'map_only' || addressedLocationReady)
         && !submitting;
 
     function updateField(field, value) {
-        setForm((current) => ({ ...current, [field]: value }));
+        setForm((current) => ({
+            ...current,
+            [field]: value,
+            ...(['address', 'postalCode'].includes(field) ? { locationMode: 'addressed' } : {}),
+        }));
+        if (['address', 'postalCode', 'lat', 'lng'].includes(field) && form.locationMode === 'addressed') {
+            setLocationVerified(false);
+        }
+    }
+
+    function handleLocationModeChange(mapOnly) {
+        setForm((current) => ({
+            ...current,
+            locationMode: mapOnly ? 'map_only' : 'addressed',
+            address: mapOnly ? '' : current.address,
+            postalCode: mapOnly ? '' : current.postalCode,
+        }));
+        setLookupQuery('');
+        setLookupError('');
+        setLocationVerified(mapOnly);
     }
 
     async function handleLookup() {
@@ -113,20 +146,36 @@ export default function PersonalPlaceEditorModal({
             const result = await searchOneMap(query);
             if (!result) {
                 setLookupError(t('personalPlaceLookupFailed'));
+                setLocationVerified(false);
                 return;
             }
             const nextAddress = result.address || form.address;
+            const nextPostalCode = result.postalCode || extractPostalCode(nextAddress);
+            const requestedPostalCode = /^\d{6}$/.test(query) ? query : '';
+            if (
+                !nextAddress
+                || !/^\d{6}$/.test(nextPostalCode)
+                || (requestedPostalCode && requestedPostalCode !== nextPostalCode)
+            ) {
+                setLookupError(t('personalPlaceLookupFailed'));
+                setLocationVerified(false);
+                return;
+            }
             setForm((current) => ({
                 ...current,
+                locationMode: 'addressed',
                 address: nextAddress,
-                postalCode: result.postalCode || extractPostalCode(nextAddress) || current.postalCode,
+                postalCode: nextPostalCode,
                 lat: formatCoordinate(result.lat),
                 lng: formatCoordinate(result.lng),
                 name: current.name || result.name || '',
             }));
+            setLookupQuery(nextPostalCode);
+            setLocationVerified(true);
         } catch (lookupFailure) {
             console.error(lookupFailure);
             setLookupError(t('personalPlaceLookupFailed'));
+            setLocationVerified(false);
         } finally {
             setLookupBusy(false);
         }
@@ -143,6 +192,7 @@ export default function PersonalPlaceEditorModal({
             categoryLabel: selectedCategory?.name || draft?.categoryLabel || '',
             address: form.address.trim(),
             postalCode: form.postalCode.trim(),
+            locationMode: form.locationMode,
             lat: parsedLat,
             lng: parsedLng,
         });
@@ -186,7 +236,21 @@ export default function PersonalPlaceEditorModal({
 
                 <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
                     <div className="space-y-4">
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                        <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                            <input
+                                type="checkbox"
+                                checked={form.locationMode === 'map_only'}
+                                onChange={(event) => handleLocationModeChange(event.target.checked)}
+                                className="mt-0.5 h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-200"
+                            />
+                            <span>
+                                <span className="block text-sm font-bold text-slate-800">{t('personalPlaceMapOnly')}</span>
+                                <span className="mt-0.5 block text-xs leading-5 text-slate-500">{t('personalPlaceMapOnlyHelp')}</span>
+                            </span>
+                        </label>
+
+                        {form.locationMode === 'addressed' ? (
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                             <label htmlFor="personal-place-lookup" className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
                                 {t('personalPlaceLookupLabel')}
                             </label>
@@ -210,7 +274,13 @@ export default function PersonalPlaceEditorModal({
                                 </button>
                             </div>
                             {lookupError ? <p className="mt-2 text-xs font-semibold text-red-600">{lookupError}</p> : null}
-                        </div>
+                            {locationVerified ? (
+                                <p className="mt-2 text-xs font-semibold text-emerald-700">{t('personalPlaceLocationVerified')}</p>
+                            ) : (
+                                <p className="mt-2 text-xs font-semibold text-amber-700">{t('personalPlaceLocationVerificationRequired')}</p>
+                            )}
+                            </div>
+                        ) : null}
 
                         <div className="grid gap-4 sm:grid-cols-2">
                             <label className="space-y-1.5 sm:col-span-2">
@@ -281,30 +351,34 @@ export default function PersonalPlaceEditorModal({
                                 </div>
                             </div>
 
-                            <label className="space-y-1.5">
-                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlacePostalCode')}</span>
-                                <input
-                                    type="text"
-                                    value={form.postalCode}
-                                    onChange={(event) => updateField('postalCode', event.target.value)}
-                                    maxLength={20}
-                                    inputMode="numeric"
-                                    className="input-field min-h-11"
-                                    placeholder="680153"
-                                />
-                            </label>
+                            {form.locationMode === 'addressed' ? (
+                                <>
+                                    <label className="space-y-1.5">
+                                        <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlacePostalCode')}</span>
+                                        <input
+                                            type="text"
+                                            value={form.postalCode}
+                                            onChange={(event) => updateField('postalCode', event.target.value)}
+                                            maxLength={20}
+                                            inputMode="numeric"
+                                            className="input-field min-h-11"
+                                            placeholder="680153"
+                                        />
+                                    </label>
 
-                            <label className="space-y-1.5 sm:col-span-2">
-                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlaceAddress')}</span>
-                                <input
-                                    type="text"
-                                    value={form.address}
-                                    onChange={(event) => updateField('address', event.target.value)}
-                                    maxLength={500}
-                                    className="input-field min-h-11"
-                                    placeholder={t('personalPlaceAddressPlaceholder')}
-                                />
-                            </label>
+                                    <label className="space-y-1.5 sm:col-span-2">
+                                        <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('personalPlaceAddress')}</span>
+                                        <input
+                                            type="text"
+                                            value={form.address}
+                                            onChange={(event) => updateField('address', event.target.value)}
+                                            maxLength={500}
+                                            className="input-field min-h-11"
+                                            placeholder={t('personalPlaceAddressPlaceholder')}
+                                        />
+                                    </label>
+                                </>
+                            ) : null}
 
                             <label className="space-y-1.5">
                                 <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{t('latitude')}</span>

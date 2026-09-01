@@ -135,6 +135,20 @@ test('new personal-place flow makes the map-location step explicit', () => {
     assert.match(i18nSource, /The place details form opens next\./);
 });
 
+test('personal-place editor verifies addressed locations and makes map-only points explicit', () => {
+    const editorSource = readSource('../src/components/personalPlaces/PersonalPlaceEditorModal.jsx');
+    const i18nSource = readSource('../src/locales/en.js');
+
+    assert.match(editorSource, /locationMode: 'addressed'/);
+    assert.match(editorSource, /locationVerified/);
+    assert.match(editorSource, /locationMode: form\.locationMode/);
+    assert.match(editorSource, /personalPlaceMapOnly/);
+    assert.match(editorSource, /personalPlaceLocationVerified/);
+    assert.match(editorSource, /form\.locationMode === 'map_only'/);
+    assert.match(i18nSource, /This point has no postal address/);
+    assert.match(i18nSource, /Location verified with OneMap/);
+});
+
 test('My Map short descriptions stay separate from Map Notes and suppress repeated card names', () => {
     const detailSource = readSource('../src/pages/MyMapDetailPage.jsx');
     const printViewSource = readSource('../src/components/DirectoryPrintView.jsx');

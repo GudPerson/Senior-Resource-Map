@@ -20,6 +20,7 @@ import {
     updatePersonalPlace,
 } from './personalPlacesController.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
+import { resolvePersonalPlaceLocation } from '../utils/personalPlaceLocation.js';
 import {
     buildEmbeddedResourceContactSnapshot,
     stripEmbeddedResourceContactsFromDirectory,
@@ -1376,7 +1377,10 @@ export const postMyMapPersonalPlace = async (c) => {
                 : personalPlaceBodySchema,
             'Personal place'
         );
-        const place = await createMyMapPersonalPlace(db, user, mapId, body);
+        const verifiedBody = body.personalPlaceId
+            ? body
+            : { ...body, ...await resolvePersonalPlaceLocation(body) };
+        const place = await createMyMapPersonalPlace(db, user, mapId, verifiedBody);
         return c.json(place, 201);
     } catch (err) {
         console.error('postMyMapPersonalPlace Error:', err);
@@ -1395,7 +1399,14 @@ export const patchMyMapPersonalPlace = async (c) => {
             return c.json({ error: 'Map id and personal place id are required' }, 400);
         }
         const body = validateRequestBody(await c.req.json(), personalPlaceBodySchema, 'Personal place');
-        const place = await updateMyMapPersonalPlace(db, user, mapId, personalPlaceId, body);
+        const location = await resolvePersonalPlaceLocation(body);
+        const place = await updateMyMapPersonalPlace(
+            db,
+            user,
+            mapId,
+            personalPlaceId,
+            { ...body, ...location },
+        );
         return c.json(place);
     } catch (err) {
         console.error('patchMyMapPersonalPlace Error:', err);

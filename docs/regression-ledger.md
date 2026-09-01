@@ -15,6 +15,40 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-01 Personal Place creation-time postal verification (release candidate)
+
+- Current behavior: new and edited Personal Places with an address must carry an
+  exact six-digit Singapore postal code. The client guides the owner through a
+  OneMap lookup, and the Worker independently revalidates the postal code before
+  every Personal Place write. The stored address, postal code, latitude, and
+  longitude come from the exact OneMap result rather than editable browser
+  values. A failed, non-exact, or unavailable OneMap lookup writes nothing.
+- Explicit exception: genuine coordinate-only points remain supported through
+  `This point has no postal address`. That mode clears and forbids address and
+  postal values instead of inventing them. Existing blank-address Personal
+  Places remain backward-compatible as map-only points; existing addressed
+  places are rechecked on their next edit.
+- Scope and privacy: the safeguard is shared by My Places and owned My Map
+  create/edit routes. It does not change the schema, standard Place creation,
+  workbook imports, map sharing, or the existing rule that Personal Places are
+  owner-only and excluded from public/shared snapshots.
+- Known-good reference: `server/src/utils/personalPlaceLocation.js`, the four
+  route gates in `personalPlacesController.js` and `myMapsController.js`, the
+  shared `PersonalPlaceEditorModal.jsx`, and the focused
+  `personalPlaceLocation.test.js`/`myMapPersonalPlacesSource.test.js` contracts.
+- Reproduction and acceptance: create a Personal Place, enter a Singapore
+  address or postal code, choose `Find location`, and confirm the verified
+  message appears before Save is enabled. Save and reopen it; confirm the
+  official address, exact postal code, and OneMap coordinates are retained.
+  Edit a location field and confirm verification is required again. Separately
+  select the no-postal-address option and confirm address/postal inputs are
+  removed while the selected map coordinates can still be saved. API payloads
+  that combine map-only mode with address data must return `400`; OneMap outages
+  must return `503` with no write.
+- Verification: on 2026-09-01, the focused location/editor suite passed 18/18,
+  the full Worker/server suite passed 610/610, the full client suite passed
+  717/717, and `npm run build:client` completed successfully.
+
 ## 2026-08-31 Singapore Place coordinate and My Map postal integrity (release candidate)
 
 - Candidate behavior: creating or changing a Singapore Place postal code now

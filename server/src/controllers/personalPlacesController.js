@@ -18,6 +18,7 @@ import {
     validateRequestBody,
 } from '../utils/inputValidation.js';
 import { normalizeRole } from '../utils/roles.js';
+import { resolvePersonalPlaceLocation } from '../utils/personalPlaceLocation.js';
 
 const PERSONAL_PLACE_SHORT_DESCRIPTION_MAX_LENGTH = 240;
 const PERSONAL_PLACE_LOGO_URL_MAX_LENGTH = 2000;
@@ -70,6 +71,7 @@ export const personalPlaceBodySchema = z.object({
     logoUrl: optionalOneLineTextSchema(PERSONAL_PLACE_LOGO_URL_MAX_LENGTH),
     address: optionalTextSchema(500),
     postalCode: optionalOneLineTextSchema(20),
+    locationMode: z.enum(['addressed', 'map_only']).optional(),
     lat: coordinateValueSchema('Latitude', -90, 90),
     lng: coordinateValueSchema('Longitude', -180, 180),
     shortDescription: optionalOneLineTextSchema(PERSONAL_PLACE_SHORT_DESCRIPTION_MAX_LENGTH),
@@ -549,7 +551,8 @@ export const postPersonalPlace = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
         const body = validateRequestBody(await c.req.json(), personalPlaceBodySchema, 'Personal place');
-        return c.json(await createPersonalPlace(db, user, body), 201);
+        const location = await resolvePersonalPlaceLocation(body);
+        return c.json(await createPersonalPlace(db, user, { ...body, ...location }), 201);
     } catch (err) {
         console.error('postPersonalPlace Error:', err);
         return c.json({ error: err.message || 'Failed to create personal place' }, err.status || 500);
@@ -564,7 +567,8 @@ export const patchPersonalPlace = async (c) => {
         const personalPlaceId = parsePositiveId(c.req.param('placeId'));
         if (!personalPlaceId) return c.json({ error: 'Personal place id is required' }, 400);
         const body = validateRequestBody(await c.req.json(), personalPlaceBodySchema, 'Personal place');
-        return c.json(await updatePersonalPlace(db, user, personalPlaceId, body));
+        const location = await resolvePersonalPlaceLocation(body);
+        return c.json(await updatePersonalPlace(db, user, personalPlaceId, { ...body, ...location }));
     } catch (err) {
         console.error('patchPersonalPlace Error:', err);
         return c.json({ error: err.message || 'Failed to update personal place' }, err.status || 500);
