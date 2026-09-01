@@ -38,6 +38,15 @@ Rules:
   and `git diff --check` passed. Server tests are not required because the
   patch does not touch an API, persistence, authentication, schema, or data
   path.
+- Production release and live proof (2026-09-02): Pages deployment
+  `3c1aea13.senior-resource-map.pages.dev` uploaded all 85 public files plus
+  the Functions bundle and `_routes.json`. The preview and custom-domain HTML
+  and icon-bearing bundle matched the exact validated artifact byte-for-byte;
+  the custom domain served the new filled freeform SVG with its unchanged
+  `Draw boundary` label. Read-only authenticated UAT on production Map 343
+  confirmed the irregular concave silhouette is visible in the annotation
+  toolbar and Map Studio still reported no unsaved changes. API health remained
+  healthy. No Worker or database deployment was required.
 
 ## 2026-09-01 My Map personal-place removal disclosure refinement
 
