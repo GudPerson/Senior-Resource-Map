@@ -39,6 +39,16 @@ Rules:
   exact six-root production client build; and `git diff --check` passed. Server
   tests are not required because this is a client-only presentation change
   with no API, persistence, authentication, or data-path changes.
+- Production release and live proof (2026-09-01): Pages deployment
+  `239e76c9.senior-resource-map.pages.dev` completed with the Functions bundle
+  and `_routes.json`. The custom-domain HTML served the verified entry and CSS,
+  and the entry, CSS, and `MyMapDetailPage` chunk matched the local release
+  artifact byte-for-byte. Authenticated Map 343 UAT showed six personal-place
+  `Edit` actions and zero removal actions in normal view; removal mode showed
+  one removal action for each of the 22 map assets while retaining all six
+  personal-place `Edit` actions; turning the mode off returned removal actions
+  to zero. `https://api.carearound.sg/api/health` remained healthy. No Worker or
+  database deployment was required.
 
 ## 2026-09-01 My Map same-postal numbered-pin parity recovery
 
