@@ -8205,6 +8205,32 @@ Active next recovery family:
   setting, or provider configuration changed. Legacy Netlify preview failures
   remain non-release-path noise.
 
+- 2026-09-01 My Map personal-place and numbered-pin refinement candidate: in
+  owner removal mode, personal-place cards now expose the same Remove action as
+  saved hard resources while retaining the existing authoritative personal-place
+  delete and map-reload path. Personal-place pins using the legacy white-fill /
+  category-colour-ring combination are rendered with the category fill and the
+  standard white outline, removing the extra green outline without changing
+  explicit user-selected colours. Refine Categories now offers Thin, Medium,
+  and Thick outline weights per category; the selected weight is stored in the
+  existing Map Studio design document, while previously saved designs default
+  safely to Thin. Number colour is a single direct colour input: its initial
+  value is still selected automatically as black or white from the pin fill,
+  and the updated luminance rule selects white for medium/dark blue such as
+  `#3B82F6`. The Automatic/Custom toggle and per-category Use defaults button
+  are no longer rendered. Owner-only removal controls and personal-place data
+  remain excluded from shared/embed output. Reproduction and acceptance: open
+  an owner map containing a personal place, enable removal mode, confirm Remove
+  is present and removes only that entry; inspect its numbered pin and confirm
+  no category-colour outer ring remains; open Refine Categories, confirm all
+  three outline weights preview and persist, confirm the number-colour input is
+  directly editable, and confirm `#3B82F6` previews a white number. Automated
+  evidence: full client coverage passed 725/725, the locked map gate passed
+  90/90 plus the exact six-root production build, the standard client build
+  passed, and full server coverage passed 611/611. No database schema,
+  migration, production data, authentication, permission, secret, provider, or
+  shared/embed privacy contract changed.
+
 ## Recovery workflow
 
 For each regression family:

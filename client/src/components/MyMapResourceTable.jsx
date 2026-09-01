@@ -68,6 +68,7 @@ export default function MyMapResourceTable({
                                         shape={categoryShape}
                                         color={pinStyle.fillColor}
                                         ringColor={pinStyle.ringColor}
+                                        ringWeight={pinStyle.ringWeight}
                                         compact
                                     />
                                     <span className="min-w-0 break-words">{category.name}</span>

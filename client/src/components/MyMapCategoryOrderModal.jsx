@@ -10,7 +10,7 @@ import {
     normalizeCategoryPinShapes,
 } from '../lib/categoryPinShapes.js';
 import {
-    getCategoryPinLabelColorOverride,
+    CATEGORY_PIN_RING_WEIGHT_OPTIONS,
     getCategoryPinStyle,
     normalizeCategoryPinStyles,
 } from '../lib/categoryPinStyles.js';
@@ -77,20 +77,22 @@ export default function MyMapCategoryOrderModal({
     function updateCategoryColor(category, field, color) {
         setCategoryStyles((current) => {
             const resolvedStyle = getCategoryPinStyle(current, category.key, category.color);
-            const labelColorOverride = getCategoryPinLabelColorOverride(current, category.key);
             return {
                 ...current,
                 [category.key]: {
                     fillColor: resolvedStyle.fillColor,
                     ringColor: resolvedStyle.ringColor,
-                    ...(labelColorOverride ? { labelColor: labelColorOverride } : {}),
+                    ringWeight: resolvedStyle.ringWeight,
+                    ...(current?.[category.key]?.labelColor
+                        ? { labelColor: current[category.key].labelColor }
+                        : {}),
                     [field]: color.toUpperCase(),
                 },
             };
         });
     }
 
-    function enableCategoryLabelColorOverride(category) {
+    function updateCategoryRingWeight(category, ringWeight) {
         setCategoryStyles((current) => {
             const resolvedStyle = getCategoryPinStyle(current, category.key, category.color);
             return {
@@ -98,38 +100,12 @@ export default function MyMapCategoryOrderModal({
                 [category.key]: {
                     fillColor: resolvedStyle.fillColor,
                     ringColor: resolvedStyle.ringColor,
-                    labelColor: resolvedStyle.labelColor,
+                    ringWeight,
+                    ...(current?.[category.key]?.labelColor
+                        ? { labelColor: current[category.key].labelColor }
+                        : {}),
                 },
             };
-        });
-    }
-
-    function useAutomaticCategoryLabelColor(category) {
-        setCategoryStyles((current) => {
-            const resolvedStyle = getCategoryPinStyle(current, category.key, category.color);
-            const defaultStyle = getCategoryPinStyle({}, category.key, category.color);
-            const next = { ...current };
-
-            if (
-                resolvedStyle.fillColor === defaultStyle.fillColor
-                && resolvedStyle.ringColor === defaultStyle.ringColor
-            ) {
-                delete next[category.key];
-            } else {
-                next[category.key] = {
-                    fillColor: resolvedStyle.fillColor,
-                    ringColor: resolvedStyle.ringColor,
-                };
-            }
-            return next;
-        });
-    }
-
-    function resetCategoryColors(category) {
-        setCategoryStyles((current) => {
-            const next = { ...current };
-            delete next[category.key];
-            return next;
         });
     }
 
@@ -187,9 +163,6 @@ export default function MyMapCategoryOrderModal({
                             {orderedCategories.map((category, index) => {
                                 const pinStyle = getCategoryPinStyle(categoryStyles, category.key, category.color);
                                 const pinShape = getCategoryPinShape(categoryShapes, category.key);
-                                const hasLabelColorOverride = Boolean(
-                                    getCategoryPinLabelColorOverride(categoryStyles, category.key),
-                                );
                                 return (
                                     <div key={category.key} className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
                                     <div className="flex min-h-11 items-center gap-3">
@@ -296,16 +269,12 @@ export default function MyMapCategoryOrderModal({
                                                 <span className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
                                                     {t('categoryPinPreview')}
                                                 </span>
-                                                <span className="text-[11px] font-semibold text-slate-500">
-                                                    {hasLabelColorOverride
-                                                        ? t('categoryPinNumberColourCustom')
-                                                        : t('categoryPinNumberColourAutomatic')}
-                                                </span>
                                             </div>
                                             <CategoryPinShapeBadge
                                                 shape={pinShape}
                                                 color={pinStyle.fillColor}
                                                 ringColor={pinStyle.ringColor}
+                                                ringWeight={pinStyle.ringWeight}
                                                 labelColor={pinStyle.labelColor}
                                                 label={index + 1}
                                                 preview
@@ -340,54 +309,48 @@ export default function MyMapCategoryOrderModal({
                                                     type="color"
                                                     value={pinStyle.labelColor}
                                                     onChange={(event) => updateCategoryColor(category, 'labelColor', event.target.value)}
-                                                    disabled={submitting || !hasLabelColorOverride}
-                                                    className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
+                                                    disabled={submitting}
+                                                    className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed"
                                                     aria-label={t('categoryPinNumberColourForCategory', { category: category.label })}
                                                 />
                                             </label>
                                         </div>
-                                        <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
-                                            <div
-                                                role="group"
-                                                aria-label={t('categoryPinNumberColourForCategory', { category: category.label })}
-                                                className="inline-flex rounded-xl border border-slate-200 bg-white p-1"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    onClick={() => useAutomaticCategoryLabelColor(category)}
-                                                    disabled={submitting}
-                                                    aria-pressed={!hasLabelColorOverride}
-                                                    className={`min-h-9 rounded-lg px-3 text-xs font-bold transition ${
-                                                        !hasLabelColorOverride
-                                                            ? 'bg-brand-50 text-brand-800 shadow-sm'
-                                                            : 'text-slate-600 hover:bg-slate-50'
-                                                    }`}
-                                                >
-                                                    {t('categoryPinNumberColourAutomatic')}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => enableCategoryLabelColorOverride(category)}
-                                                    disabled={submitting}
-                                                    aria-pressed={hasLabelColorOverride}
-                                                    className={`min-h-9 rounded-lg px-3 text-xs font-bold transition ${
-                                                        hasLabelColorOverride
-                                                            ? 'bg-brand-50 text-brand-800 shadow-sm'
-                                                            : 'text-slate-600 hover:bg-slate-50'
-                                                    }`}
-                                                >
-                                                    {t('categoryPinNumberColourCustom')}
-                                                </button>
+                                        <fieldset className="mt-3">
+                                            <legend className="text-xs font-bold text-slate-600">
+                                                {t('categoryPinRingWeight')}
+                                            </legend>
+                                            <div className="mt-2 grid grid-cols-3 gap-2">
+                                                {CATEGORY_PIN_RING_WEIGHT_OPTIONS.map((ringWeight) => {
+                                                    const selected = pinStyle.ringWeight === ringWeight;
+                                                    const label = t(`categoryPinRingWeight${ringWeight.charAt(0).toUpperCase()}${ringWeight.slice(1)}`);
+                                                    return (
+                                                        <label
+                                                            key={ringWeight}
+                                                            className={`inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border px-3 text-xs font-bold transition focus-within:outline-none focus-within:ring-4 focus-within:ring-brand-100 ${
+                                                                selected
+                                                                    ? 'border-brand-600 bg-brand-50 text-brand-800 ring-2 ring-brand-200'
+                                                                    : 'border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:bg-brand-50/50'
+                                                            } ${submitting ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name={`category-pin-ring-weight-${category.key}`}
+                                                                value={ringWeight}
+                                                                checked={selected}
+                                                                disabled={submitting}
+                                                                onChange={() => updateCategoryRingWeight(category, ringWeight)}
+                                                                aria-label={t('categoryPinRingWeightForCategory', {
+                                                                    weight: label,
+                                                                    category: category.label,
+                                                                })}
+                                                                className="sr-only"
+                                                            />
+                                                            {label}
+                                                        </label>
+                                                    );
+                                                })}
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => resetCategoryColors(category)}
-                                                disabled={submitting}
-                                                className="btn-ghost min-h-11 justify-center border border-slate-200 px-3 text-xs text-slate-700"
-                                            >
-                                                {t('categoryPinUseDefaultColours')}
-                                            </button>
-                                        </div>
+                                        </fieldset>
                                     </fieldset>
                                     </div>
                                 );

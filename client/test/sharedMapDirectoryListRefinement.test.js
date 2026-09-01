@@ -411,11 +411,12 @@ test('print V2 cards can opt into compact category-coloured resource badges', ()
     assert.match(categoryPinShapeBadgeSource, /stroke=\{normalizeFill\(ringColor\)\}/);
     assert.match(categoryPinShapeBadgeSource, /normalizeCategoryPinColor\(labelColor, getCategoryPinLabelColor\(color\)\)/);
     assert.match(categoryPinShapeBadgeSource, /selected[\s\S]*drop-shadow\(0 0 4px rgba\(249,115,22,0\.36\)\)/);
-    assert.match(categoryPinShapeBadgeSource, /strokeWidth=\{1\}/);
+    assert.match(categoryPinShapeBadgeSource, /strokeWidth=\{getCategoryPinRingStrokeWidth\(normalizedRingWeight\)\}/);
     assert.match(sharedMapDirectorySource, /showPrintNumberBadges = false/);
     assert.match(sharedMapDirectorySource, /showPrintNumberBadge = false/);
     assert.match(sharedMapDirectorySource, /color=\{numberedPinStyle\?\.fillColor \|\| group\.categoryColor \|\| clusterColorData\?\.core \|\| null\}/);
     assert.match(sharedMapDirectorySource, /ringColor=\{numberedPinStyle\?\.ringColor\}/);
+    assert.match(sharedMapDirectorySource, /ringWeight=\{numberedPinStyle\?\.ringWeight\}/);
     assert.match(sharedMapDirectorySource, /labelColor=\{numberedPinStyle\?\.labelColor\}/);
     assert.match(sharedMapDirectorySource, /compact=\{useCompactNamesOnlyCard\}/);
     assert.match(sharedMapDirectorySource, /const showPrimaryCardBadge = \(interactive \? interactiveCardBadgeMode : cardBadgeMode\) !== 'none'/);

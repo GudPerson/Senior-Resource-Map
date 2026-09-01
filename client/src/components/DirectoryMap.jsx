@@ -71,6 +71,8 @@ import {
     getCategoryPinShapeTextY,
 } from '../lib/categoryPinShapes.js';
 import {
+    getCategoryPinLabelColorOverride,
+    getCategoryPinRingStrokeWidth,
     getCategoryPinStyle,
 } from '../lib/categoryPinStyles.js';
 
@@ -281,12 +283,29 @@ function normalizePrintBadgeItems(
             item?.categoryKey || fallbackCategoryKey,
             item?.color || item?.categoryColor || fallbackColor,
         );
+        const categoryColor = normalizeMarkerColor(
+            item?.color || item?.categoryColor || fallbackColor,
+        );
+        const usesLegacyPersonalPlaceOutline = Boolean(
+            item?.isPersonalPlace
+            && style.fillColor === '#FFFFFF'
+            && style.ringColor.toUpperCase() === categoryColor.toUpperCase()
+        );
+        const labelColorOverride = getCategoryPinLabelColorOverride(
+            numberedPinStylesByCategory,
+            item?.categoryKey || fallbackCategoryKey,
+        );
+        const resolvedStyle = usesLegacyPersonalPlaceOutline
+            ? getCategoryPinStyle({}, item?.categoryKey || fallbackCategoryKey, categoryColor)
+            : style;
         return {
             label,
-            color: style.fillColor,
-            ringColor: style.ringColor,
-            labelColor: style.labelColor,
+            color: resolvedStyle.fillColor,
+            ringColor: resolvedStyle.ringColor,
+            ringWeight: style.ringWeight,
+            labelColor: labelColorOverride || resolvedStyle.labelColor,
             placeKey: item?.placeKey || null,
+            isPersonalPlace: Boolean(item?.isPersonalPlace),
             shape: item?.shape || (item?.categoryKey
                 ? getCategoryPinShape(numberedPinShapesByCategory, item.categoryKey)
                 : fallbackShape),
@@ -622,7 +641,7 @@ function createPrintResourceBadgeMarker(number, {
                         d="${getCategoryPinShapePath(item.shape)}"
                         fill="${item.color}"
                         stroke="${item.ringColor}"
-                        stroke-width="1"
+                        stroke-width="${getCategoryPinRingStrokeWidth(item.ringWeight)}"
                         stroke-linejoin="round"
                         vector-effect="non-scaling-stroke"
                     ></path>

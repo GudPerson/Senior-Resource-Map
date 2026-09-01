@@ -93,6 +93,7 @@ const categoryPinStylesSchema = z.record(
     z.object({
         fillColor: hexColorSchema,
         ringColor: hexColorSchema,
+        ringWeight: z.enum(['thin', 'medium', 'thick']).default('thin'),
         labelColor: hexColorSchema.optional(),
     }).strict(),
 ).superRefine((value, context) => {

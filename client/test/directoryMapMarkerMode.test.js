@@ -6,6 +6,10 @@ const directoryMapSource = readFileSync(
     new URL('../src/components/DirectoryMap.jsx', import.meta.url),
     'utf8',
 );
+const directoryPrintViewSource = readFileSync(
+    new URL('../src/components/DirectoryPrintView.jsx', import.meta.url),
+    'utf8',
+);
 const discoverUtilsSource = readFileSync(
     new URL('../src/features/discover/discoverUtils.js', import.meta.url),
     'utf8',
@@ -163,7 +167,7 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /fill="\$\{item\.color\}"/);
     assert.match(directoryMapSource, /stroke="\$\{item\.ringColor\}"/);
     assert.match(directoryMapSource, /isSelected[\s\S]*drop-shadow\(0 0 4px rgba\(249,115,22,0\.38\)\)/);
-    assert.match(directoryMapSource, /stroke-width="1"/);
+    assert.match(directoryMapSource, /stroke-width="\$\{getCategoryPinRingStrokeWidth\(item\.ringWeight\)\}"/);
     assert.match(directoryMapSource, /y="\$\{getCategoryPinShapeTextY\(item\.shape\)\}"/);
     assert.match(directoryMapSource, /offsetX: pin\.printOffsetX \|\| 0/);
     assert.match(directoryMapSource, /offsetY: pin\.printOffsetY \|\| 0/);
@@ -174,6 +178,13 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.doesNotMatch(discoverUtilsSource, /badgePlacement/);
     assert.doesNotMatch(directoryMapSource, /pinSpreadMode/);
     assert.doesNotMatch(directoryMapSource, /border:3px solid \$\{ringColor\}/);
+});
+
+test('personal-place numbered pins shed the legacy category-colour outline', () => {
+    assert.match(directoryPrintViewSource, /isPersonalPlace: \(group\.rows \|\| \[\]\)\.some\(\(row\) => row\?\.resourceType === 'personal_place'\)/);
+    assert.match(directoryMapSource, /const usesLegacyPersonalPlaceOutline = Boolean\(/);
+    assert.match(directoryMapSource, /item\?\.isPersonalPlace[\s\S]*style\.fillColor === '#FFFFFF'[\s\S]*style\.ringColor\.toUpperCase\(\) === categoryColor\.toUpperCase\(\)/);
+    assert.match(directoryMapSource, /usesLegacyPersonalPlaceOutline[\s\S]*getCategoryPinStyle\(\{\}, item\?\.categoryKey \|\| fallbackCategoryKey, categoryColor\)/);
 });
 
 test('directory map can render interactive category bubble markers with visible lobe hit targets', () => {

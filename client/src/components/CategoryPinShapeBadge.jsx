@@ -5,7 +5,9 @@ import {
 } from '../lib/categoryPinShapes.js';
 import {
     getCategoryPinLabelColor,
+    getCategoryPinRingStrokeWidth,
     normalizeCategoryPinColor,
+    normalizeCategoryPinRingWeight,
 } from '../lib/categoryPinStyles.js';
 
 function normalizeFill(value) {
@@ -17,6 +19,7 @@ export default function CategoryPinShapeBadge({
     shape = 'circle',
     color = '#0f766e',
     ringColor = '#ffffff',
+    ringWeight = 'thin',
     labelColor = null,
     label = '',
     compact = false,
@@ -25,6 +28,7 @@ export default function CategoryPinShapeBadge({
     className = '',
 }) {
     const normalizedShape = normalizeCategoryPinShape(shape);
+    const normalizedRingWeight = normalizeCategoryPinRingWeight(ringWeight);
     const text = String(label || '').replace(/^#/, '').trim();
     const fontSize = text.length > 2 ? 31 : text.length > 1 ? 37 : 42;
     const sizeClassName = preview
@@ -38,6 +42,7 @@ export default function CategoryPinShapeBadge({
             aria-hidden="true"
             data-print-number-badge={text ? 'true' : undefined}
             data-category-pin-shape={normalizedShape}
+            data-category-pin-ring-weight={normalizedRingWeight}
             className={`inline-flex flex-shrink-0 items-center justify-center ${sizeClassName} ${className}`}
             style={{
                 filter: selected
@@ -50,7 +55,7 @@ export default function CategoryPinShapeBadge({
                     d={getCategoryPinShapePath(normalizedShape)}
                     fill={normalizeFill(color)}
                     stroke={normalizeFill(ringColor)}
-                    strokeWidth={1}
+                    strokeWidth={getCategoryPinRingStrokeWidth(normalizedRingWeight)}
                     strokeLinejoin="round"
                     vectorEffect="non-scaling-stroke"
                 />

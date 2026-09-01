@@ -65,6 +65,7 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
         'active ageing centre (aac)': {
             fillColor: '#123456',
             ringColor: '#ABCDEF',
+            ringWeight: 'thick',
             labelColor: '#FEDCBA',
         },
     };
@@ -93,6 +94,7 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
             'active ageing centre (aac)': {
                 fillColor: '#123456',
                 ringColor: '#ABCDEF',
+                ringWeight: 'thick',
                 labelColor: '#FEDCBA',
             },
         },
