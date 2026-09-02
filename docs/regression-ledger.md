@@ -15,6 +15,32 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-02 owner Table Full-map export readiness recovery
+
+- Candidate behavior: an owner Print View using `Table` asset display with the
+  `Full map` layout renders the same distinct map and resource export pages as
+  the established Cards path. `Map ready to download` is shown only after both
+  requested page surfaces exist and the map capture is visibly usable.
+- Production reproduction and cause: authenticated production Map 343 with an
+  unsaved `Table` plus `Full map` preview showed `Map ready to download`, then
+  failed PNG/PDF export with `Export failed because one of the print pages is
+  not ready.` The table-specific owner branch returned before the established
+  Full-map page wrappers, so it produced a usable hidden map frame but no
+  `map` or `resources` export-page markers. The readiness probe checked only
+  the map frame, while the downloader correctly required both pages.
+- Blast radius and acceptance: the owner Table Full-map branch now reuses the
+  existing separate-page structure without changing table contents, numbering,
+  map state, Cards, Balanced, Side map, Shared Maps, APIs, persistence,
+  authentication, schema, data, or visibility. Table plus Full map must expose
+  both export pages; missing pages must keep readiness fail-closed; Cards plus
+  Full map and all existing map-lockdown behavior must remain unchanged.
+- Verification before deploy: the focused Print View suite passes `30/30`;
+  complete client coverage passes `729/729`; the owner map-lockdown gate passes
+  `91/91` together with the exact six-root production client build; static
+  migration/module/diff checks pass; and `git diff --check` passes. Server tests
+  are not required because this is a client-only composition and readiness fix
+  with no API, persistence, authentication, schema, or data-path change.
+
 ## 2026-09-02 My Map freeform annotation icon refinement
 
 - Candidate behavior: the owner annotation toolbar represents `Draw boundary`

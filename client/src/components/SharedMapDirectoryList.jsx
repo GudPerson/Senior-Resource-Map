@@ -3799,6 +3799,53 @@ export default function SharedMapDirectoryList({
 
     if (mode === 'owner' && resourceDisplay === 'table') {
         const tableMap = resolvedLayout === 'mobile' ? renderMobileMap?.() : renderDesktopMap?.();
+        const tableResources = (
+            <>
+                {printResourcePageHeader}
+                <MyMapResourceTable
+                    directory={directory}
+                    presentation={presentation}
+                    interactive={interactive}
+                    onViewOnMap={handleDirectoryViewOnMap}
+                    onHoverPlaceStart={onHoverPlaceStart}
+                    onHoverPlaceEnd={onHoverPlaceEnd}
+                    numberedPinShapesByCategory={numberedPinShapesByCategory}
+                    numberedPinStylesByCategory={numberedPinStylesByCategory}
+                    labelDetail={printLabelDetail}
+                    columnCount={ownerTableColumnCount}
+                />
+            </>
+        );
+
+        if (resolvedLayout === 'print' && printResourcesBelow) {
+            return (
+                <DirectoryReturnPathContext.Provider value={detailReturnPath}>
+                    <div
+                        className={`space-y-8 ${className}`}
+                        data-owner-resource-display="table"
+                        data-print-resources-below="true"
+                    >
+                        <section
+                            ref={desktopMapWrapperRef}
+                            className={`bg-white ${printPagePaddingClassName} ${desktopMapWrapperClassName}`.trim()}
+                            data-print-full-map-page="true"
+                            data-print-export-page="map"
+                        >
+                            {tableMap}
+                        </section>
+
+                        <section
+                            className={`bg-white ${printPagePaddingClassName} [break-before:page] [page-break-before:always]`}
+                            data-print-resource-page="true"
+                            data-print-export-page="resources"
+                        >
+                            {tableResources}
+                        </section>
+                    </div>
+                </DirectoryReturnPathContext.Provider>
+            );
+        }
+
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
                 <div className={`space-y-5 ${className}`} data-owner-resource-display="table">
@@ -3807,19 +3854,7 @@ export default function SharedMapDirectoryList({
                             {tableMap}
                         </div>
                     ) : null}
-                    {printResourcePageHeader}
-                    <MyMapResourceTable
-                        directory={directory}
-                        presentation={presentation}
-                        interactive={interactive}
-                        onViewOnMap={handleDirectoryViewOnMap}
-                        onHoverPlaceStart={onHoverPlaceStart}
-                        onHoverPlaceEnd={onHoverPlaceEnd}
-                        numberedPinShapesByCategory={numberedPinShapesByCategory}
-                        numberedPinStylesByCategory={numberedPinStylesByCategory}
-                        labelDetail={printLabelDetail}
-                        columnCount={ownerTableColumnCount}
-                    />
+                    {tableResources}
                 </div>
             </DirectoryReturnPathContext.Provider>
         );

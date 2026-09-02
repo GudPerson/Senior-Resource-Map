@@ -339,6 +339,13 @@ export default function MapImageExportButton({
                 if (readinessGeneration !== readinessGenerationRef.current) return;
 
                 await waitForPaintStabilization(3);
+                if (exportAsSeparatePages) {
+                    const mapPageNode = exportRef.current?.querySelector('[data-print-export-page="map"]');
+                    const resourcePageNode = exportRef.current?.querySelector('[data-print-export-page="resources"]');
+                    if (!mapPageNode || !resourcePageNode) {
+                        throw new Error('Map download preparation failed because one of the print pages is unavailable.');
+                    }
+                }
                 const mapFrameNode = exportRef.current?.querySelector('[data-print-export-map-frame="true"]');
                 if (!mapFrameNode) {
                     throw new Error('Map download preparation failed because the export map is unavailable.');
@@ -391,7 +398,7 @@ export default function MapImageExportButton({
             const waiters = readyWaitersRef.current.splice(0);
             waiters.forEach(({ reject }) => reject(captureError));
         }
-    }, [exportPreparationKey]);
+    }, [exportAsSeparatePages, exportPreparationKey]);
 
     const handleMapReadyForCapture = useCallback(() => {
         void verifyMapDownloadReadiness();
