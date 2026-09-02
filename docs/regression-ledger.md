@@ -40,6 +40,17 @@ Rules:
   imports with no cycles), and diff checks pass. Server tests are not required
   because this is a client-only typography change with no API, persistence,
   authentication, schema, or data-path change.
+- Production release and live proof (2026-09-02): source commit `c0fd4acc`
+  deployed through Cloudflare Pages at
+  `https://8613e34c.senior-resource-map.pages.dev`. Wrangler compiled and
+  uploaded the Pages Functions bundle, all `85` public files, `_headers`, and
+  `_routes.json`. Every served file on the immutable deployment and
+  `https://app.carearound.sg` matched the exact validated artifact byte-for-byte;
+  the table-bearing bundle SHA-256 is
+  `39f1c8b2c8a1955ad54673f43fea37528cf738372cd1d82bdd76e262bacbe22e`.
+  The owner map route returned `200`, retained `X-Frame-Options: DENY` and CSP
+  `frame-ancestors 'none'`, and API health remained `ok`. No Worker, database,
+  schema, secret, dependency, lockfile, or production-data change was made.
 
 ## 2026-09-02 owner Table Full-map export readiness recovery
 
