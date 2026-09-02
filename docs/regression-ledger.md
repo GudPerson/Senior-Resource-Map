@@ -15,6 +15,32 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-02 owner Table description font-size parity refinement
+
+- Candidate behavior: populated descriptions and the `No descriptions`
+  fallback in the owner My Map Table display use the same base text size as
+  resource names. Existing description highlights, text colours, weights,
+  wrapping, ordering, and the distinct muted fallback colour remain unchanged.
+- Blast radius and known-good reference: this is a two-class typography change
+  inside `MyMapResourceTable.jsx`, shared by the interactive owner Table display
+  and its Print View PNG/PDF export. The current resource-name size is the
+  visual reference. Cards, addresses, table headers, numbers, category pins,
+  map geometry, Shared Maps, persistence, APIs, authentication, schema, and
+  production data remain unchanged.
+- Reproduction and acceptance: open an owned map with Table display and
+  descriptions enabled, then compare a populated description and a
+  `No descriptions` fallback with their resource names. Both description paths
+  must use the same 16 px base size as the names without changing their other
+  styling or causing horizontal overflow. Confirm the same parity in owner
+  Print View and the export-backed table surface.
+- Verification before deploy: focused Table presentation and export-scope
+  checks pass `5/5`; complete client coverage passes `730/730`; the owner
+  map-lockdown gate passes `91/91`; the exact six-root production client build
+  passes; ordered migration, module-graph (`423` modules and `1,262` relative
+  imports with no cycles), and diff checks pass. Server tests are not required
+  because this is a client-only typography change with no API, persistence,
+  authentication, schema, or data-path change.
+
 ## 2026-09-02 owner Table Full-map export readiness recovery
 
 - Candidate behavior: an owner Print View using `Table` asset display with the
