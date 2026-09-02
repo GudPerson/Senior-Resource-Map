@@ -40,6 +40,17 @@ Rules:
   migration/module/diff checks pass; and `git diff --check` passes. Server tests
   are not required because this is a client-only composition and readiness fix
   with no API, persistence, authentication, schema, or data-path change.
+- Production release and live proof (2026-09-02): Pages deployment
+  `20a680a7.senior-resource-map.pages.dev` uploaded all 85 public files plus the
+  Functions bundle and `_routes.json`. The deployment and custom-domain HTML,
+  `MapImageExportButton`, and `MyMapDetailPage` bundles matched the exact
+  validated artifact byte-for-byte. Authenticated production Map 343 UAT using
+  an unsaved `Table` plus `Full map` preview produced both `map` and `resources`
+  export pages on the screen and hidden export surfaces, showed `Map ready to
+  download`, kept Resource PNG, Map PNG, and PDF enabled, and showed no missing
+  print-page failure. The verification tab was closed without saving the
+  temporary layout or downloading files. API health remained healthy. No
+  Worker or database deployment was required.
 
 ## 2026-09-02 My Map freeform annotation icon refinement
 
