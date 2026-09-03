@@ -15,6 +15,40 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-03 mobile My Map Map Studio drawer recovery
+
+- Candidate behavior: owner My Maps return to a map-first mobile layout. The
+  large Map Studio view-management card no longer occupies normal page space
+  above the map; `Map Studio` is available from the existing hamburger drawer,
+  and `Edit layout` opens the same Studio session directly inside that drawer.
+  Desktop retains the established Map Studio top row.
+- Architecture and blast radius: both classic and V2 mobile layouts pass their
+  single existing `MapStudioViewsPanel` instance into `MyMapMobileControls`.
+  The drawer stays mounted but inert and hidden while closed, so each map's
+  Studio document still loads once and continues to drive its saved view,
+  unsaved draft, pins, layers, camera, and layout without adding a parallel
+  state path. Shared Maps, embeds, Export View, APIs, persistence, schema,
+  authentication, and production data are unchanged.
+- Reproduction and acceptance: at a phone viewport, open an owned map and
+  confirm the compact map header is followed by the map rather than the full
+  Map Studio card. Open the hamburger drawer, choose `Map Studio`, and confirm
+  view selection, create, duplicate, rename, set default, delete, discard, and
+  save remain available; Back returns to the map-options list. `Edit layout`
+  must enter the same Studio section and settings without resetting or silently
+  saving the current map's state. Repeat in classic and V2 layouts, then confirm
+  desktop still shows its top-row panel and mobile focus-card, map-height,
+  Detailed-map, search, distance, notes, and safe-area behavior remain stable.
+- Verification before release (2026-09-03): PASS for the automated scope.
+  The focused Map Studio/mobile scaffold set passed `60/60`, the full client
+  suite passed `730/730`, the full server suite passed `611/611`, and the
+  locked-map suite passed `91/91`. `npm run verify:quality` and
+  `npm run verify:map-lockdown` completed their production builds, including
+  the exact six-root map contract; static validation covered the three ordered
+  migrations plus `423` source modules and `1,262` relative import edges with
+  no cycles. Authenticated `390x844` phone UAT remains the post-deploy gate for
+  the drawer transition, map-first landing position, focus cards, fixed-surface
+  return state, and per-map save/discard persistence.
+
 ## 2026-09-02 owner Table description font-size parity refinement
 
 - Candidate behavior: populated descriptions and the `No descriptions`

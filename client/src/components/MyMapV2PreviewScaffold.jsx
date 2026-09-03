@@ -186,8 +186,6 @@ export default function MyMapV2PreviewScaffold({
                     </div>
                 ) : null}
 
-                {!useDesktopLayout ? studioPanel : null}
-
                 {useDesktopLayout ? (
                     <div
                         ref={desktopScrollTargetRef}

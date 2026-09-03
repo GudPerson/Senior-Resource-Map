@@ -77,15 +77,24 @@ test('sharing publishes only the selected persisted view and blocks unsaved owne
     assert.match(ownerStateSource, /documentRevision: Number\(state\.persistedDocument\.revision\) \|\| 0/);
 });
 
-test('the owner panel is additive to both My Map layouts and remains outside Print View', () => {
+test('the owner panel stays mounted in the mobile drawer and remains a desktop top row outside Print View', () => {
     assert.match(ownerPageSource, /import MapStudioViewsPanel from '\.\.\/components\/MapStudioViewsPanel\.jsx';/);
     assert.match(ownerPageSource, /const ownerMapStudioPanel = \(/);
-    assert.match(ownerPageSource, /studioPanel=\{ownerMapStudioPanel\}/);
+    assert.match(ownerPageSource, /mapStudioPanel=\{ownerMapStudioPanel\}/);
+    assert.match(ownerPageSource, /studioPanel=\{useDesktopOwnerLayout \? ownerMapStudioPanel : null\}/);
     assert.match(v2ScaffoldSource, /studioPanel = null/);
     assert.match(ownerPageSource, /data-map-studio-top-row="true">[\s\S]*\{ownerMapStudioPanel\}/);
     assert.match(v2ScaffoldSource, /data-map-studio-top-row="true">[\s\S]*\{studioPanel\}/);
     assert.match(ownerPageSource, /data-map-studio-top-row="true"[\s\S]*<OwnerHeader/);
     assert.match(v2ScaffoldSource, /data-map-studio-top-row="true"[\s\S]*data-my-map-ui="v2"/);
+    assert.match(ownerPageSource, /mapStudioPanel = null/);
+    assert.match(ownerPageSource, /<Drawer\.Portal forceMount>[\s\S]*<Drawer\.Content[\s\S]*forceMount[\s\S]*inert=\{open \? undefined : true\}/);
+    assert.match(ownerPageSource, /Drawer\.Overlay[\s\S]*?data-\[state=closed\]:pointer-events-none data-\[state=closed\]:invisible/);
+    assert.match(ownerPageSource, /Drawer\.Content[\s\S]*?data-\[state=closed\]:pointer-events-none data-\[state=closed\]:invisible/);
+    assert.match(ownerPageSource, /data-mobile-map-studio-trigger="true"/);
+    assert.match(ownerPageSource, /data-mobile-map-studio-panel="true"[\s\S]*\{mapStudioPanel\}/);
+    assert.doesNotMatch(ownerPageSource, /\{!useDesktopOwnerLayout \? ownerMapStudioPanel : null\}/);
+    assert.doesNotMatch(v2ScaffoldSource, /\{!useDesktopLayout \? studioPanel : null\}/);
 
     const printBranch = ownerPageSource.slice(
         ownerPageSource.indexOf('if (isPrintView) {'),
