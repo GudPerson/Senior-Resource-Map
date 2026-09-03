@@ -17,7 +17,7 @@ Rules:
 
 ## 2026-09-03 mobile My Map Map Studio drawer recovery
 
-- Candidate behavior: owner My Maps return to a map-first mobile layout. The
+- Current behavior: owner My Maps return to a map-first mobile layout. The
   large Map Studio view-management card no longer occupies normal page space
   above the map; `Map Studio` is available from the existing hamburger drawer,
   and `Edit layout` opens the same Studio session directly inside that drawer.
@@ -57,6 +57,24 @@ Rules:
   Studio surface. The focused set again passed `60/60`, full quality passed
   server `611/611` and client `730/730`, locked maps passed `91/91`, and both
   production builds passed before the corrective publish.
+- Release proof (2026-09-03): implementation commits `e1df440d6` and
+  `2bb6cc267` were pushed to `codex/mobile-map-studio-drawer-20260903`. The
+  exact validated six-root client artifact was published explicitly to the
+  Cloudflare Pages production branch at
+  `https://ee7c2570.senior-resource-map.pages.dev`; its `index.html`, entry JS,
+  entry CSS, `MyMapDetailPage` chunk, and `MapStyleContext` chunk match the local
+  build and `https://app.carearound.sg` byte-for-byte by SHA-256, with correct
+  JavaScript/CSS MIME types. `/discover` and `/login` returned `200`, all six
+  fixed-map asset roots remained present, and production API health returned
+  OK. Authenticated production UAT on Map 25 at `390x844` confirmed the
+  map-first landing state, `Map Studio` in the hamburger drawer, the saved
+  `Default view · Default` document and view actions, Back to map options, and
+  restored `pointer-events: auto`, visible overflow, and page scrolling after
+  close. No CareAround console error was observed; reported errors belonged to
+  a Chrome extension. Credential-based aggregate smoke was not rerun because
+  smoke credentials were unavailable in the isolated release worktree. No
+  Worker/API, schema, migration, authentication, permission, secret, provider,
+  or production-data change was deployed.
 
 ## 2026-09-02 owner Table description font-size parity refinement
 
