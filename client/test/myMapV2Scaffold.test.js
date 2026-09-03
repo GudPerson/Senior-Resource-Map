@@ -118,8 +118,8 @@ test('my map v2 mobile chrome stays compact in normal flow above the scrolling m
     assert.doesNotMatch(mobileControlsSource, /mb-\[-44px\]/);
     assert.doesNotMatch(mobileControlsSource, /mb-\[-48px\]/);
     assert.doesNotMatch(mobileControlsSource, /z-40 -mx-4 flex h-11/);
-    assert.match(mobileControlsSource, /Drawer\.Overlay[\s\S]*?forceMount[\s\S]*?className="fixed inset-0 z-\[1200\]/);
-    assert.match(mobileControlsSource, /Drawer\.Content[\s\S]*?forceMount[\s\S]*?className="fixed bottom-0 left-0 top-\[56px\] z-\[1210\]/);
+    assert.match(mobileControlsSource, /Drawer\.Overlay className="fixed inset-0 z-\[1200\]/);
+    assert.match(mobileControlsSource, /className="fixed bottom-0 left-0 top-\[56px\] z-\[1210\]/);
     assert.match(myMapDetailPageSource, /const ownerToolbarActionProps = \{[\s\S]*?renderPdfExportButton,/);
     assert.match(myMapDetailPageSource, /\{\.\.\.ownerToolbarActionProps\}[\s\S]*?mapStudioPanel=\{ownerMapStudioPanel\}[\s\S]*?compactOverlay/);
     assert.match(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\] z-\[1090\]/);

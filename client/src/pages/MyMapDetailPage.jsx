@@ -526,8 +526,8 @@ function MyMapMobileControls({
 }) {
     const { t } = useLocale();
     const [open, setOpen] = useState(false);
-    const [drawerSection, setDrawerSection] = useState('menu');
-    const showingMapStudio = drawerSection === 'studio';
+    const [studioOpen, setStudioOpen] = useState(false);
+    const studioDialogRef = useRef(null);
     const headerClassName = compactOverlay
         ? 'sticky top-[56px] z-[1100] flex h-11 items-center border-b border-slate-200 bg-slate-50/95 px-4 shadow-[0_12px_24px_-24px_rgba(15,23,42,0.45)] backdrop-blur sm:top-[64px] sm:h-12 sm:px-6 xl:hidden disable-font-scaling'
         : 'sticky top-[56px] z-30 -mx-4 flex h-[60px] items-center border-b border-slate-200 bg-slate-50 px-6 backdrop-blur sm:top-[64px] sm:-mx-6 sm:h-[68px] xl:hidden disable-font-scaling';
@@ -537,7 +537,6 @@ function MyMapMobileControls({
 
     const closeDrawer = useCallback(() => {
         setOpen(false);
-        setDrawerSection('menu');
     }, []);
 
     const runDrawerAction = useCallback((action) => {
@@ -547,12 +546,40 @@ function MyMapMobileControls({
         });
     }, [closeDrawer]);
 
+    const openMapStudio = useCallback(() => {
+        setOpen(false);
+        window.requestAnimationFrame(() => setStudioOpen(true));
+    }, []);
+
     const openMapStudioLayout = useCallback(() => {
-        setDrawerSection('studio');
+        setOpen(false);
         window.requestAnimationFrame(() => {
-            onEditLayout?.();
+            setStudioOpen(true);
+            window.requestAnimationFrame(() => onEditLayout?.());
         });
     }, [onEditLayout]);
+
+    const returnToMapOptions = useCallback(() => {
+        setStudioOpen(false);
+        window.requestAnimationFrame(() => setOpen(true));
+    }, []);
+
+    useEffect(() => {
+        if (!studioOpen) return undefined;
+        const previousOverflow = document.body.style.overflow;
+        const handleKeyDown = (event) => {
+            if (event.defaultPrevented || event.key !== 'Escape') return;
+            event.preventDefault();
+            setStudioOpen(false);
+        };
+        document.body.style.overflow = 'hidden';
+        window.addEventListener('keydown', handleKeyDown);
+        window.requestAnimationFrame(() => studioDialogRef.current?.focus());
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [studioOpen]);
 
     return (
         <>
@@ -560,10 +587,7 @@ function MyMapMobileControls({
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                     <button
                         type="button"
-                        onClick={() => {
-                            setDrawerSection('menu');
-                            setOpen(true);
-                        }}
+                        onClick={() => setOpen(true)}
                         className={menuButtonClassName}
                         aria-label={t('openMapControls')}
                     >
@@ -586,25 +610,11 @@ function MyMapMobileControls({
                 </div>
             </div>
 
-            <Drawer.Root
-                direction="left"
-                open={open}
-                onOpenChange={(nextOpen) => {
-                    setOpen(nextOpen);
-                    if (!nextOpen) setDrawerSection('menu');
-                }}
-            >
-                <Drawer.Portal forceMount>
-                    <Drawer.Overlay
-                        forceMount
-                        aria-hidden={!open}
-                        className="fixed inset-0 z-[1200] bg-slate-950/35 data-[state=closed]:pointer-events-none data-[state=closed]:invisible xl:hidden"
-                    />
+            <Drawer.Root direction="left" open={open} onOpenChange={setOpen}>
+                <Drawer.Portal>
+                    <Drawer.Overlay className="fixed inset-0 z-[1200] bg-slate-950/35 xl:hidden" />
                     <Drawer.Content
-                        forceMount
-                        aria-hidden={!open}
-                        inert={open ? undefined : true}
-                        className="fixed bottom-0 left-0 top-[56px] z-[1210] flex w-[min(92vw,380px)] flex-col border-r bg-white shadow-2xl data-[state=closed]:pointer-events-none data-[state=closed]:invisible sm:top-[64px] xl:hidden"
+                        className="fixed bottom-0 left-0 top-[56px] z-[1210] flex w-[min(92vw,380px)] flex-col border-r bg-white shadow-2xl sm:top-[64px] xl:hidden"
                         style={{
                             borderColor: 'var(--color-border)',
                             background: 'linear-gradient(180deg, #ffffff 0%, #f6fcfb 100%)',
@@ -616,30 +626,18 @@ function MyMapMobileControls({
                         </Drawer.Description>
 
                         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
-                            {showingMapStudio ? (
+                            <div className="flex min-w-0 flex-1 items-center gap-1">
+                                <h2 className="min-w-0 flex-1 truncate text-[17px] font-bold text-slate-900">{directory.name}</h2>
                                 <button
                                     type="button"
-                                    onClick={() => setDrawerSection('menu')}
-                                    className="inline-flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl px-2 text-left text-[17px] font-bold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-4 focus:ring-brand-100"
-                                    aria-label={t('mapOptions')}
+                                    onClick={() => runDrawerAction(onEditDetails)}
+                                    className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-4 focus:ring-brand-100"
+                                    aria-label={t('editMapDetails')}
+                                    title={t('editMapDetails')}
                                 >
-                                    <ArrowLeft size={18} className="flex-shrink-0" aria-hidden="true" />
-                                    <span className="truncate">{t('mapStudioTitle')}</span>
+                                    <Pencil size={17} aria-hidden="true" />
                                 </button>
-                            ) : (
-                                <div className="flex min-w-0 flex-1 items-center gap-1">
-                                    <h2 className="min-w-0 flex-1 truncate text-[17px] font-bold text-slate-900">{directory.name}</h2>
-                                    <button
-                                        type="button"
-                                        onClick={() => runDrawerAction(onEditDetails)}
-                                        className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-4 focus:ring-brand-100"
-                                        aria-label={t('editMapDetails')}
-                                        title={t('editMapDetails')}
-                                    >
-                                        <Pencil size={17} aria-hidden="true" />
-                                    </button>
-                                </div>
-                            )}
+                            </div>
 
                             <button
                                 type="button"
@@ -651,10 +649,7 @@ function MyMapMobileControls({
                             </button>
                         </div>
 
-                        <div
-                            className={`min-h-0 flex-1 overflow-y-auto px-4 py-4 ${showingMapStudio ? 'hidden' : 'flex flex-col'}`}
-                            data-mobile-map-options-panel="true"
-                        >
+                        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4" data-mobile-map-options-panel="true">
                             <Link
                                 to="/my-directory?section=my-maps"
                                 onClick={closeDrawer}
@@ -688,10 +683,10 @@ function MyMapMobileControls({
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => setDrawerSection('studio')}
+                                    onClick={openMapStudio}
                                     disabled={!mapStudioPanel}
                                     className="btn-ghost h-12 w-full justify-center border border-slate-200 px-4 text-sm text-slate-700 disabled:cursor-wait disabled:opacity-45"
-                                    aria-expanded={showingMapStudio}
+                                    aria-expanded={studioOpen}
                                     aria-controls={`mobile-map-studio-${directory.id}`}
                                     data-mobile-map-studio-trigger="true"
                                 >
@@ -730,16 +725,53 @@ function MyMapMobileControls({
                             </div>
                         </div>
 
-                        <div
-                            id={`mobile-map-studio-${directory.id}`}
-                            className={`min-h-0 flex-1 overflow-y-auto p-3 ${showingMapStudio ? 'block' : 'hidden'}`}
-                            data-mobile-map-studio-panel="true"
-                        >
-                            {mapStudioPanel}
-                        </div>
                     </Drawer.Content>
                 </Drawer.Portal>
             </Drawer.Root>
+
+            <button
+                type="button"
+                aria-label={t('closeMapOptions')}
+                aria-hidden={!studioOpen}
+                tabIndex={-1}
+                onClick={() => setStudioOpen(false)}
+                className={`fixed inset-0 z-[1200] bg-slate-950/35 transition-opacity xl:hidden ${studioOpen ? 'pointer-events-auto visible opacity-100' : 'pointer-events-none invisible opacity-0'}`}
+            />
+            <section
+                ref={studioDialogRef}
+                id={`mobile-map-studio-${directory.id}`}
+                role="dialog"
+                aria-modal={studioOpen ? 'true' : undefined}
+                aria-label={t('mapStudioTitle')}
+                aria-hidden={!studioOpen}
+                inert={studioOpen ? undefined : true}
+                tabIndex={-1}
+                className={`fixed bottom-0 left-0 top-[56px] z-[1210] flex w-[min(92vw,380px)] flex-col border-r border-slate-200 bg-white shadow-2xl transition-[transform,visibility] duration-200 sm:top-[64px] xl:hidden ${studioOpen ? 'pointer-events-auto visible translate-x-0' : 'pointer-events-none invisible -translate-x-full'}`}
+                data-mobile-map-studio-panel="true"
+            >
+                <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
+                    <button
+                        type="button"
+                        onClick={returnToMapOptions}
+                        className="inline-flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl px-2 text-left text-[17px] font-bold text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-4 focus:ring-brand-100"
+                        aria-label={t('mapOptions')}
+                    >
+                        <ArrowLeft size={18} className="flex-shrink-0" aria-hidden="true" />
+                        <span className="truncate">{t('mapStudioTitle')}</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setStudioOpen(false)}
+                        aria-label={t('closeMapOptions')}
+                        className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                    {mapStudioPanel}
+                </div>
+            </section>
         </>
     );
 }

@@ -88,9 +88,9 @@ test('the owner panel stays mounted in the mobile drawer and remains a desktop t
     assert.match(ownerPageSource, /data-map-studio-top-row="true"[\s\S]*<OwnerHeader/);
     assert.match(v2ScaffoldSource, /data-map-studio-top-row="true"[\s\S]*data-my-map-ui="v2"/);
     assert.match(ownerPageSource, /mapStudioPanel = null/);
-    assert.match(ownerPageSource, /<Drawer\.Portal forceMount>[\s\S]*<Drawer\.Content[\s\S]*forceMount[\s\S]*inert=\{open \? undefined : true\}/);
-    assert.match(ownerPageSource, /Drawer\.Overlay[\s\S]*?data-\[state=closed\]:pointer-events-none data-\[state=closed\]:invisible/);
-    assert.match(ownerPageSource, /Drawer\.Content[\s\S]*?data-\[state=closed\]:pointer-events-none data-\[state=closed\]:invisible/);
+    assert.match(ownerPageSource, /<Drawer\.Portal>[\s\S]*<Drawer\.Content/);
+    assert.doesNotMatch(ownerPageSource, /<Drawer\.Portal forceMount>/);
+    assert.match(ownerPageSource, /role="dialog"[\s\S]*aria-modal=\{studioOpen \? 'true' : undefined\}[\s\S]*inert=\{studioOpen \? undefined : true\}/);
     assert.match(ownerPageSource, /data-mobile-map-studio-trigger="true"/);
     assert.match(ownerPageSource, /data-mobile-map-studio-panel="true"[\s\S]*\{mapStudioPanel\}/);
     assert.doesNotMatch(ownerPageSource, /\{!useDesktopOwnerLayout \? ownerMapStudioPanel : null\}/);

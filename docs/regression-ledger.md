@@ -24,11 +24,13 @@ Rules:
   Desktop retains the established Map Studio top row.
 - Architecture and blast radius: both classic and V2 mobile layouts pass their
   single existing `MapStudioViewsPanel` instance into `MyMapMobileControls`.
-  The drawer stays mounted but inert and hidden while closed, so each map's
-  Studio document still loads once and continues to drive its saved view,
-  unsaved draft, pins, layers, camera, and layout without adding a parallel
-  state path. Shared Maps, embeds, Export View, APIs, persistence, schema,
-  authentication, and production data are unchanged.
+  The existing Vaul map-options drawer keeps its normal mount lifecycle, while
+  the stateful Studio panel stays mounted in a separate inert, hidden mobile
+  drawer surface. Each map's Studio document therefore loads once and continues
+  to drive its saved view, unsaved draft, pins, layers, camera, and layout
+  without keeping a closed modal alive or adding a parallel state path. Shared
+  Maps, embeds, Export View, APIs, persistence, schema, authentication, and
+  production data are unchanged.
 - Reproduction and acceptance: at a phone viewport, open an owned map and
   confirm the compact map header is followed by the map rather than the full
   Map Studio card. Open the hamburger drawer, choose `Map Studio`, and confirm
@@ -48,6 +50,13 @@ Rules:
   no cycles. Authenticated `390x844` phone UAT remains the post-deploy gate for
   the drawer transition, map-first landing position, focus cards, fixed-surface
   return state, and per-map save/discard persistence.
+- Deployment correction: authenticated `390x844` inspection rejected the first
+  Pages artifact because force-mounting the Vaul dialog left the closed page
+  body non-interactive and scroll-locked. The corrective implementation restores
+  the proven Vaul lifecycle and persistently mounts only the separate inert
+  Studio surface. The focused set again passed `60/60`, full quality passed
+  server `611/611` and client `730/730`, locked maps passed `91/91`, and both
+  production builds passed before the corrective publish.
 
 ## 2026-09-02 owner Table description font-size parity refinement
 
