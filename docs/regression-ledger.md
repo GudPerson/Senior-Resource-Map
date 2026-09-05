@@ -175,6 +175,28 @@ Rules:
   desktop single hover and selection, mobile single selection at `390x844`,
   detail drill-in, usable body pointer/scroll state, and no horizontal overflow.
   No production data or frozen share snapshot was changed for this proof.
+- Single-pin follow-up release proof (2026-09-05): implementation commit
+  `ddc2aba7` was pushed on
+  `codex/category-pin-card-interaction-20260905`; pull request `#50` merged it
+  into `main` at `99546960e`. The pull-request and post-merge CareAround quality
+  gates passed (`33974175322` and `33974240392`); Netlify statuses remained on
+  the retired legacy release path. The clean synchronized-main exact six-root
+  client artifact published explicitly to Cloudflare Pages at
+  `https://f02996e3.senior-resource-map.pages.dev`; Wrangler compiled the Pages
+  Worker, uploaded all `85` public files plus `_headers`, the Functions bundle,
+  and `_routes.json`. All `85` served static files matched both the immutable
+  Pages deployment and `https://app.carearound.sg` byte-for-byte, with aggregate
+  SHA-256 digest
+  `1b214fc99ff334fda7af2c5ff31820e657be0e1e1de85e901881a0106052eba7`.
+  Production app, `/discover`, `/login`, the enabled embed, and API health
+  returned `200`; the unknown embed returned `404` and `no-store`. Ordinary
+  routes retained `X-Frame-Options: DENY` and `frame-ancestors 'none'`; the
+  enabled embed retained `no-store`, omitted `X-Frame-Options`, and kept its
+  exact approved `frame-ancestors`. Chrome production verification rendered
+  the existing public embed's four mapped resources with zero console/page
+  errors, usable body pointer/scroll state, and no horizontal overflow. No
+  Worker API, schema, migration, production-data, auth, permission, secret,
+  provider, or share-snapshot change was deployed.
 
 ## 2026-09-03 mobile My Map Map Studio drawer recovery
 
