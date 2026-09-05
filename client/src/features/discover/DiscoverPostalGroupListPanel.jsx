@@ -20,10 +20,16 @@ export default function DiscoverPostalGroupListPanel({
 }) {
     const { t } = useLocale();
 
-    if (!group?.isPostalGroup) return null;
+    if (!group) return null;
+
+    const isPostalGroup = Boolean(group.isPostalGroup);
+    const memberPins = isPostalGroup
+        ? (Array.isArray(group.memberPins) ? group.memberPins : [])
+        : [group];
+    if (!memberPins.length) return null;
 
     const horizontalMargin = isDesktop ? 20 : 12;
-    const memberCount = Math.max(1, Number(group?.memberPins?.length || 0));
+    const memberCount = memberPins.length;
     const preferredPanelWidth = isDesktop
         ? (memberCount <= 1 ? 420 : memberCount === 2 ? 640 : 700)
         : null;
@@ -37,7 +43,9 @@ export default function DiscoverPostalGroupListPanel({
         : fallbackWidth;
     const cardColumnCount = isDesktop && memberCount > 1 && panelWidth >= 620 ? 2 : 1;
     const cardRowCount = Math.ceil(memberCount / cardColumnCount);
-    const minVisibleHeight = isDesktop ? 190 : 170;
+    const minVisibleHeight = isPostalGroup
+        ? (isDesktop ? 190 : 170)
+        : (isDesktop ? 142 : 134);
     const preferredMaxHeight = isDesktop ? 520 : 420;
     const bottomPadding = isDesktop ? 24 : 16;
     const topPadding = isDesktop ? 12 : 16;
@@ -49,7 +57,9 @@ export default function DiscoverPostalGroupListPanel({
         preferredMaxHeight,
         Math.max(
             minVisibleHeight,
-            112 + (cardRowCount * estimatedCardHeight) + (Math.max(0, cardRowCount - 1) * 8),
+            (isPostalGroup ? 112 : 16)
+                + (cardRowCount * estimatedCardHeight)
+                + (Math.max(0, cardRowCount - 1) * 8),
         ),
     );
     const desiredTop = anchorLayout ? anchorLayout.y + belowGap : null;
@@ -91,7 +101,9 @@ export default function DiscoverPostalGroupListPanel({
         ? { width: `${fallbackWidth}px`, maxHeight: `${panelMaxHeight}px` }
         : undefined;
     const panelStyle = anchoredPanelStyle || fallbackPanelStyle;
-    const scrollAreaStyle = { maxHeight: `${Math.max(92, panelMaxHeight - 88)}px` };
+    const scrollAreaStyle = {
+        maxHeight: `${Math.max(92, panelMaxHeight - (isPostalGroup ? 88 : 0))}px`,
+    };
     const panelPositionClass = anchoredPanelStyle
         ? ''
         : (isDesktop ? 'left-1/2 top-1/2 max-w-[calc(100%-3rem)] -translate-x-1/2' : 'inset-x-3 bottom-5');
@@ -102,38 +114,52 @@ export default function DiscoverPostalGroupListPanel({
             style={panelStyle}
             onMouseEnter={() => onHoverPanelEnter?.(group)}
             onMouseLeave={() => onHoverPanelLeave?.(group)}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
         >
-            <div className="overflow-hidden rounded-[26px] border border-slate-200 bg-white/96 shadow-[0_28px_60px_-30px_rgba(15,23,42,0.45)] backdrop-blur">
-                <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-600">
-                            <Layers3 size={14} />
-                            {t('discoverySamePostalCode')}
+            <div className="relative overflow-hidden rounded-[26px] border border-slate-200 bg-white/96 shadow-[0_28px_60px_-30px_rgba(15,23,42,0.45)] backdrop-blur">
+                {isPostalGroup ? (
+                    <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-600">
+                                <Layers3 size={14} />
+                                {t('discoverySamePostalCode')}
+                            </div>
+                            <p className="mt-1 text-base font-bold leading-tight text-slate-900">
+                                {t('discoverySavedPlacesAtLocation', {
+                                    count: group.hardAssetCount,
+                                    label: group.hardAssetCount === 1 ? t('placesSingular') : t('placesPlural'),
+                                })}
+                            </p>
+                            {group.postalCode ? (
+                                <p className="mt-1 text-sm text-slate-500">{t('discoveryPostalCodeValue', { postalCode: group.postalCode })}</p>
+                            ) : null}
                         </div>
-                        <p className="mt-1 text-base font-bold leading-tight text-slate-900">
-                            {t('discoverySavedPlacesAtLocation', {
-                                count: group.hardAssetCount,
-                                label: group.hardAssetCount === 1 ? t('placesSingular') : t('placesPlural'),
-                            })}
-                        </p>
-                        {group.postalCode ? (
-                            <p className="mt-1 text-sm text-slate-500">{t('discoveryPostalCodeValue', { postalCode: group.postalCode })}</p>
-                        ) : null}
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
+                            aria-label={t('discoveryCloseGroupedList')}
+                        >
+                            <X size={18} />
+                        </button>
                     </div>
+                ) : (
                     <button
                         type="button"
                         onClick={onClose}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
-                        aria-label={t('discoveryCloseGroupedList')}
+                        className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-700"
+                        aria-label={t('close')}
                     >
                         <X size={18} />
                     </button>
-                </div>
+                )}
 
                 <div className="overflow-y-auto overscroll-contain px-3 py-3" style={scrollAreaStyle}>
                     <div className={cardColumnCount > 1 ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1 gap-2'}>
-                        {(group.memberPins || []).map((pin) => {
-                            const isHighlighted = highlightedPinKey === pin.pinKey;
+                        {memberPins.map((pin) => {
+                            const pinKey = String(pin.pinKey || pin.placeKey || '');
+                            const isHighlighted = highlightedPinKey === pinKey;
                             const offeringCount = pin.totalOfferingsCount || 0;
                             const offeringsLabel = t('discoveryProgrammeServiceCount', {
                                 count: offeringCount,
@@ -147,11 +173,15 @@ export default function DiscoverPostalGroupListPanel({
 
                             return (
                                 <button
-                                    key={pin.pinKey}
+                                    key={pinKey}
                                     type="button"
                                     onMouseEnter={() => onHoverPin?.(pin, group)}
-                                    onClick={() => onSelectPin?.(pin, group)}
-                                    className={`flex w-full items-start gap-3 rounded-[22px] border px-3 py-3 text-left transition ${
+                                    onClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        onSelectPin?.(pin, group);
+                                    }}
+                                    className={`flex w-full items-start gap-3 rounded-[22px] border px-3 py-3 text-left transition ${!isPostalGroup ? 'pr-14' : ''} ${
                                         isHighlighted
                                             ? 'border-brand-300 bg-brand-50/70 shadow-sm'
                                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'

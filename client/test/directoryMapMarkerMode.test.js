@@ -99,6 +99,16 @@ test('category pins reuse Discover badge semantics and same-postal chooser behav
     assert.match(discoverPostalGroupPanelSource, /discoveryProgrammeServiceCount/);
 });
 
+test('single and grouped category pins share the floating card interaction before opening details', () => {
+    assert.match(directoryMapSource, /if \(markerMode === 'category-icon' && categoryPinPanelIsDesktop\)/);
+    assert.match(directoryMapSource, /if \(markerMode === 'category-icon'\) \{[\s\S]*handleCategoryPinGroupActivate\(pin\)/);
+    assert.match(directoryMapSource, /String\(pin\.pinKey \|\| pin\.placeKey\) === visibleCategoryPinGroupKey/);
+    assert.match(directoryMapSource, /title=\{markerMode === 'category-icon'[\s\S]*\? undefined/);
+    assert.match(directoryMapSource, /onSelectPin=\{\(pin\) => \{[\s\S]*handlePlaceActivate\(placeKey\)[\s\S]*setSelectedCategoryPinGroupKey\(''\)/);
+    assert.match(discoverPostalGroupPanelSource, /const memberPins = isPostalGroup[\s\S]*: \[group\]/);
+    assert.match(discoverPostalGroupPanelSource, /event\.stopPropagation\(\);[\s\S]*onSelectPin\?\.\(pin, group\)/);
+});
+
 test('settled print badge passes recompute collisions instead of reusing stale pre-fit offsets', () => {
     assert.match(directoryMapSource, /const storedOffset = fixed[\s\S]*getPrintBadgeStoredOffset\(markerKey, solvedOffsetsRef\.current\)/);
     assert.doesNotMatch(directoryMapSource, /if \(isFocusedZoom && storedOffset/);

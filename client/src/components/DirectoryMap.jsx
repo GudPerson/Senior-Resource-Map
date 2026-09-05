@@ -2810,7 +2810,7 @@ export default function DirectoryMap({
     const visibleCategoryPinGroup = useMemo(() => (
         markerMode === 'category-icon'
             ? displayMarkerPins.find((pin) => (
-                pin.isPostalGroup && String(pin.pinKey || pin.placeKey) === visibleCategoryPinGroupKey
+                String(pin.pinKey || pin.placeKey) === visibleCategoryPinGroupKey
             )) || null
             : null
     ), [displayMarkerPins, markerMode, visibleCategoryPinGroupKey]);
@@ -3245,7 +3245,7 @@ export default function DirectoryMap({
     };
 
     const handleCategoryPinGroupActivate = (pin) => {
-        if (!interactive || !pin?.isPostalGroup) return;
+        if (!interactive || !pin) return;
 
         const token = String(pin.pinKey || pin.placeKey || '');
         const now = Date.now();
@@ -3257,6 +3257,7 @@ export default function DirectoryMap({
         }
         lastCategoryPinGroupActivationRef.current = { token, at: now };
         cancelCategoryPinHoverClose();
+        categoryPinPanelHighlightKeyRef.current = '';
         setHoveredCategoryPinGroupKey('');
         setCategoryPinPanelHighlightKey('');
         setSelectedCategoryPinGroupKey((current) => (current === token ? '' : token));
@@ -3309,7 +3310,7 @@ export default function DirectoryMap({
 
     const handleMarkerHoverStart = (event, pin) => {
         const placeKey = getMarkerEventPlaceKey(event, pin);
-        if (markerMode === 'category-icon' && pin.isPostalGroup && categoryPinPanelIsDesktop) {
+        if (markerMode === 'category-icon' && categoryPinPanelIsDesktop) {
             cancelCategoryPinHoverClose();
             if (!selectedCategoryPinGroupKey) {
                 setHoveredCategoryPinGroupKey(String(pin.pinKey || pin.placeKey));
@@ -3336,14 +3337,14 @@ export default function DirectoryMap({
         if (markerMode === 'print-badge') {
             lastPrintBadgeHoverKeyRef.current = null;
         }
-        if (markerMode === 'category-icon' && pin.isPostalGroup) {
+        if (markerMode === 'category-icon') {
             scheduleCategoryPinHoverClose(pin.pinKey || pin.placeKey);
         }
         onHoverPlaceEnd?.(placeKey);
     };
 
     const handleMarkerActivate = (event, pin) => {
-        if (markerMode === 'category-icon' && pin.isPostalGroup) {
+        if (markerMode === 'category-icon') {
             event?.originalEvent?.preventDefault?.();
             event?.originalEvent?.stopPropagation?.();
             handleCategoryPinGroupActivate(pin);
@@ -3382,7 +3383,6 @@ export default function DirectoryMap({
                             || pinMatchesPlaceKeys(pin, activePlaceKeySet)
                             || (
                                 markerMode === 'category-icon'
-                                && pin.isPostalGroup
                                 && String(pin.pinKey || pin.placeKey) === visibleCategoryPinGroupKey
                             );
 
@@ -3466,7 +3466,9 @@ export default function DirectoryMap({
                                 key={pin.pinKey || pin.placeKey}
                                 position={[pin.displayLat, pin.displayLng]}
                                 icon={icon}
-                                title={pin.title || pin.previewResourceNames?.join(', ') || 'Map resource'}
+                                title={markerMode === 'category-icon'
+                                    ? undefined
+                                    : (pin.title || pin.previewResourceNames?.join(', ') || 'Map resource')}
                                 alt={pin.title || pin.previewResourceNames?.join(', ') || 'Map resource'}
                                 zIndexOffset={getDirectoryMarkerZIndexOffset({
                                     markerMode,
@@ -3494,7 +3496,6 @@ export default function DirectoryMap({
                 || pinMatchesPlaceKeys(pin, activePlaceKeySet)
                 || (
                     markerMode === 'category-icon'
-                    && pin.isPostalGroup
                     && String(pin.pinKey || pin.placeKey) === visibleCategoryPinGroupKey
                 );
 
@@ -3578,7 +3579,9 @@ export default function DirectoryMap({
                     key={pin.pinKey || pin.placeKey}
                     position={[pin.displayLat, pin.displayLng]}
                     icon={icon}
-                    title={pin.title || pin.previewResourceNames?.join(', ') || 'Map resource'}
+                    title={markerMode === 'category-icon'
+                        ? undefined
+                        : (pin.title || pin.previewResourceNames?.join(', ') || 'Map resource')}
                     alt={pin.title || pin.previewResourceNames?.join(', ') || 'Map resource'}
                     zIndexOffset={getDirectoryMarkerZIndexOffset({
                         markerMode,
@@ -3881,8 +3884,15 @@ export default function DirectoryMap({
                         onHoverPlaceStart?.(pin.placeKey);
                     }}
                     onSelectPin={(pin) => {
-                        closeCategoryPinGroup();
-                        handlePlaceActivate(pin.placeKey);
+                        const placeKey = String(pin.placeKey || pin.pinKey || '');
+                        if (!placeKey) return;
+                        cancelCategoryPinHoverClose();
+                        categoryPinPanelHighlightKeyRef.current = '';
+                        setCategoryPinPanelHighlightKey('');
+                        handlePlaceActivate(placeKey);
+                        setSelectedCategoryPinGroupKey('');
+                        setHoveredCategoryPinGroupKey('');
+                        setCategoryPinGroupLayout(null);
                     }}
                 />
             ) : null}
