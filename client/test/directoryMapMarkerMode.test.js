@@ -18,6 +18,10 @@ const discoverUtilsSource = readFileSync(
     new URL('../src/features/discover/discoverUtils.js', import.meta.url),
     'utf8',
 );
+const discoverPostalGroupPanelSource = readFileSync(
+    new URL('../src/features/discover/DiscoverPostalGroupListPanel.jsx', import.meta.url),
+    'utf8',
+);
 const appCssSource = readFileSync(
     new URL('../src/index.css', import.meta.url),
     'utf8',
@@ -51,8 +55,8 @@ test('directory map applies the interactive marker scale to saved category pins'
     assert.match(directoryMapSource, /function scaleDirectorySavedPinIcon\(icon, scale = 1\)/);
     assert.match(directoryMapSource, /data-directory-marker-scale="\$\{markerScale\}"/);
     assert.match(directoryMapSource, /iconSize: \[scaledWidth, scaledHeight\]/);
-    assert.match(directoryMapSource, /scaleDirectorySavedPinIcon\(createSavedPlacePinIcon\(\{/);
-    assert.match(directoryMapSource, /\}\), resolvedMarkerScale\)/);
+    assert.match(directoryMapSource, /scaleDirectorySavedPinIcon\([\s\S]*?createSavedPlacePinIcon\(\{/);
+    assert.match(directoryMapSource, /\}\),\s*resolvedMarkerScale,\s*\)/);
 });
 
 test('directory map fits visible spread pin positions with enough top padding for pin artwork', () => {
@@ -80,8 +84,19 @@ test('directory map can hide individual pin count badges without changing the de
     assert.match(discoverUtilsSource, /showBadge = true/);
     assert.match(discoverUtilsSource, /const badgeMarkup = showBadge/);
     assert.match(directoryMapSource, /pinBadgeMode = 'count'/);
-    assert.match(directoryMapSource, /showBadge: pinBadgeMode !== 'none'/);
-    assert.match(directoryMapSource, /markerMode === 'category-icon' && pin\.isPostalGroup && pin\.curatedCount > 1/);
+    assert.match(directoryMapSource, /showBadge: markerMode === 'category-icon' \|\| pinBadgeMode !== 'none'/);
+});
+
+test('category pins reuse Discover badge semantics and same-postal chooser behavior', () => {
+    assert.match(directoryMapSource, /markerMode === 'category-icon' && pin\.isPostalGroup/);
+    assert.match(directoryMapSource, /createPostalGroupParentPinIcon\(\{/);
+    assert.match(directoryMapSource, /count: pin\.hardAssetCount \|\| pin\.postalGroupCount \|\| 0/);
+    assert.match(directoryMapSource, /badgeCount: pin\.totalOfferingsCount \|\| 0/);
+    assert.match(directoryMapSource, /count: markerMode === 'category-icon'[\s\S]*pin\.totalOfferingsCount/);
+    assert.match(directoryMapSource, /<DiscoverPostalGroupListPanel/);
+    assert.match(directoryMapSource, /<DirectoryTrackedPinLayoutReporter/);
+    assert.match(discoverPostalGroupPanelSource, /discoverySamePostalCode/);
+    assert.match(discoverPostalGroupPanelSource, /discoveryProgrammeServiceCount/);
 });
 
 test('settled print badge passes recompute collisions instead of reusing stale pre-fit offsets', () => {
@@ -270,7 +285,7 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(appCssSource, /\.directory-map--category-bubbles-compact[\s\S]*\.directory-category-bubble-marker__content[\s\S]*visibility: hidden/);
 });
 
-test('directory map can show V2 category colors inside the saved pin circle without recoloring the teal pin body', () => {
+test('category pins reuse Discovery artwork and programme-service badge semantics without recoloring the teal pin body', () => {
     assert.match(discoverUtilsSource, /color = null/);
     assert.match(discoverUtilsSource, /colorSegments = \[\]/);
     assert.match(discoverUtilsSource, /function buildSegmentedCssFill/);
@@ -286,8 +301,10 @@ test('directory map can show V2 category colors inside the saved pin circle with
     assert.match(directoryMapSource, /createPersonalPlaceIconDataUrl\(pin\.categoryIconKey, \{/);
     assert.match(directoryMapSource, /color: item\.color \|\| '#0f766e'/);
     assert.match(directoryMapSource, /iconUrl: categoryIconUrl/);
-    assert.match(directoryMapSource, /color: pin\.categoryColor \|\| null/);
-    assert.match(directoryMapSource, /colorSegments: pin\.categoryColorSegments \|\| \[\]/);
+    assert.match(directoryMapSource, /count: markerMode === 'category-icon'[\s\S]*?pin\.totalOfferingsCount \|\| 0/);
+    assert.match(directoryMapSource, /color: markerMode === 'category-icon' \? null : \(pin\.categoryColor \|\| null\)/);
+    assert.match(directoryMapSource, /colorSegments: markerMode === 'category-icon' \? \[\] : \(pin\.categoryColorSegments \|\| \[\]\)/);
+    assert.match(directoryMapSource, /showBadge: markerMode === 'category-icon' \|\| pinBadgeMode !== 'none'/);
     assert.match(directoryMapSource, /savedPinIcon\.options\.categoryColor = pin\.categoryColor \|\| null/);
     assert.match(directoryMapSource, /savedPinIcon\.options\.categoryColorSegments = pin\.categoryColorSegments \|\| \[\]/);
     assert.doesNotMatch(directoryMapSource, /pinSpreadMode/);

@@ -61,6 +61,7 @@ function createDirectory() {
                 hasCoordinates: true,
                 lat: 1.33,
                 lng: 103.74,
+                openProgrammeServiceCount: 4,
                 rows: [{
                     rowKey: 'hard-1',
                     resourceType: 'hard',
@@ -78,6 +79,7 @@ function createDirectory() {
                 hasCoordinates: true,
                 lat: 1.34,
                 lng: 103.75,
+                openProgrammeServiceCount: 1,
                 rows: [{
                     rowKey: 'hard-2',
                     resourceType: 'hard',
@@ -137,6 +139,12 @@ test('embedded map resolves a shared category pin to every public resource at th
     const sharedPin = presentation.pins.find((pin) => pin.isPostalGroup);
 
     assert.equal(sharedPin.curatedCount, 2);
+    assert.equal(sharedPin.hardAssetCount, 2);
+    assert.equal(sharedPin.totalOfferingsCount, 5);
+    assert.deepEqual(
+        sharedPin.memberPins.map((pin) => [pin.placeKey, pin.totalOfferingsCount]),
+        [['mapped-1', 4], ['mapped-2', 1]],
+    );
     assert.deepEqual(sharedPin.memberPlaceKeys, ['mapped-1', 'mapped-2']);
     assert.deepEqual(
         findEmbedPreviewGroups(presentation, sharedPin.placeKey).map((group) => group.placeKey),

@@ -142,6 +142,7 @@ function createFallbackPlace(resourceType, resourceId, snapshot = null) {
         lat,
         lng,
         hasCoordinates: lat !== null && lng !== null,
+        openProgrammeServiceCount: normalizeAvailabilityCount(snapshot?.openProgrammeServiceCount),
     };
 }
 
@@ -155,6 +156,7 @@ function normalizePlaceSnapshot(place, fallbackIndex = 0) {
         lat: parseCoordinate(place?.lat),
         lng: parseCoordinate(place?.lng),
         hasCoordinates: Boolean(place?.hasCoordinates) || hasCoordinates(place),
+        openProgrammeServiceCount: normalizeAvailabilityCount(place?.openProgrammeServiceCount),
     };
 
     if (!normalized.placeKey) {
@@ -240,6 +242,7 @@ function buildPlaceSnapshot(place, fallbackIndex = 0) {
         lat: parseCoordinate(place?.lat),
         lng: parseCoordinate(place?.lng),
         hasCoordinates: hasCoordinates(place),
+        openProgrammeServiceCount: countOpenToAllProgrammesAndServices(place),
     }, fallbackIndex);
 }
 
@@ -320,6 +323,44 @@ function snapshotNeedsRefresh(snapshot, nextSnapshot) {
         !== JSON.stringify(normalizeMyMapAssetSnapshot(nextSnapshot.resourceType, nextSnapshot.resourceId, nextSnapshot));
 }
 
+const hardAssetOfferingCountRelations = {
+    softAssets: {
+        columns: {
+            id: true,
+        },
+        with: {
+            softAsset: {
+                columns: {
+                    id: true,
+                    bucket: true,
+                    subCategory: true,
+                    audienceMode: true,
+                    isMemberOnly: true,
+                    eligibilityRules: true,
+                    isHidden: true,
+                    hideFrom: true,
+                    hideUntil: true,
+                    isDeleted: true,
+                },
+            },
+        },
+    },
+    hostedSoftAssets: {
+        columns: {
+            id: true,
+            bucket: true,
+            subCategory: true,
+            audienceMode: true,
+            isMemberOnly: true,
+            eligibilityRules: true,
+            isHidden: true,
+            hideFrom: true,
+            hideUntil: true,
+            isDeleted: true,
+        },
+    },
+};
+
 const hardAssetQuery = {
     columns: {
         id: true,
@@ -346,41 +387,7 @@ const hardAssetQuery = {
                 managerUserId: true,
             },
         },
-        softAssets: {
-            columns: {
-                id: true,
-            },
-            with: {
-                softAsset: {
-                    columns: {
-                        id: true,
-                        bucket: true,
-                        subCategory: true,
-                        audienceMode: true,
-                        isMemberOnly: true,
-                        eligibilityRules: true,
-                        isHidden: true,
-                        hideFrom: true,
-                        hideUntil: true,
-                        isDeleted: true,
-                    },
-                },
-            },
-        },
-        hostedSoftAssets: {
-            columns: {
-                id: true,
-                bucket: true,
-                subCategory: true,
-                audienceMode: true,
-                isMemberOnly: true,
-                eligibilityRules: true,
-                isHidden: true,
-                hideFrom: true,
-                hideUntil: true,
-                isDeleted: true,
-            },
-        },
+        ...hardAssetOfferingCountRelations,
     },
 };
 
@@ -406,6 +413,7 @@ const hardLocationQuery = {
                 managerUserId: true,
             },
         },
+        ...hardAssetOfferingCountRelations,
     },
 };
 
@@ -852,6 +860,10 @@ function addRowToPlace(placeMap, place, row) {
     if (existing) {
         existing.rows.push(row);
         existing.curatedCount += 1;
+        existing.openProgrammeServiceCount = Math.max(
+            existing.openProgrammeServiceCount,
+            normalizeAvailabilityCount(place.openProgrammeServiceCount),
+        );
         return;
     }
 
@@ -864,6 +876,7 @@ function addRowToPlace(placeMap, place, row) {
         lat: place.lat ?? null,
         lng: place.lng ?? null,
         hasCoordinates: Boolean(place.hasCoordinates),
+        openProgrammeServiceCount: normalizeAvailabilityCount(place.openProgrammeServiceCount),
         curatedCount: 1,
         rows: [row],
     });

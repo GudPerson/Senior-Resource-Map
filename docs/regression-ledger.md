@@ -72,6 +72,44 @@ Rules:
   `no-store`. No Worker API, database, schema, migration, dependency, secret,
   authentication, permission, share snapshot, or production-data change was
   deployed.
+- Discovery-parity follow-up candidate (2026-09-05): Category Pins now reuse
+  Discovery's actual pin builders and one shared same-postal chooser instead of
+  maintaining a second interpretation. A normal Category Pin badge reports the
+  guest-visible open Programme/Service/Promotion count for that Place. A
+  same-postal parent reports the number of Places in its centre and the summed
+  Programme/Service/Promotion count in the small badge; it opens the same
+  responsive chooser used by Discovery. Desktop supports hover preview and
+  selection, while touch/mobile uses the established map-interaction activation
+  followed by pin selection. The shared `DirectoryMap` path applies the same
+  behavior to owner My Map, Shared Map, and embedded-map surfaces. Category
+  bubbles, Numbered pins, category order, annotations, print/export, map camera,
+  and resource cards are unchanged.
+- Follow-up architecture and privacy boundary: `myMapDirectory` adds only a
+  derived per-Place `openProgrammeServiceCount` using the existing guest-visible
+  offering rule; no new table, route, permission, or live embed lookup was
+  added. Embedded maps remain frozen public snapshots. Existing published
+  embeds therefore retain a zero offering badge until their owner republishes
+  the snapshot; this preserves the established frozen-share/privacy contract.
+  No database schema, migration, production-data, authentication, secret, or
+  provider setting changes are included.
+- Follow-up reproduction and acceptance: open an owner, Shared, or embedded map
+  in `Category pins` style. A single Place with two guest-visible offerings must
+  show badge `2`. Two Places sharing one postal code with four and one offerings
+  must show centre `2`, badge `5`, and a chooser whose member cards show `4` and
+  `1`. Selecting a member must reuse the established resource focus path; Close
+  must remove the chooser and leave body pointer and scroll state usable. Repeat
+  on desktop and `390x844`; confirm no horizontal overflow and that Category
+  bubbles and Numbered pins remain unchanged.
+- Follow-up verification before release (2026-09-05): PASS. Full client coverage
+  passed `732/732`; full server coverage passed `611/611`; the locked owner-map
+  gate passed `74/74`; static validation covered all three ordered migrations
+  plus `424` source modules and `1,266` relative import edges with no cycles;
+  `git diff --check` passed; and the exact six-root production client build
+  passed. Chrome UAT against the local build and a non-persisted realistic
+  frozen-embed fixture passed at `1470x923` and `390x844`: centre `2`, badge `5`,
+  both member offering counts, chooser open/close, post-close pointer/scroll
+  recovery, and mobile overflow checks all passed. No production data or share
+  snapshot was changed by this proof.
 
 ## 2026-09-03 mobile My Map Map Studio drawer recovery
 
