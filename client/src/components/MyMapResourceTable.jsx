@@ -132,7 +132,7 @@ export default function MyMapResourceTable({
                                                                 {asset.descriptions.map((description, index) => (
                                                                     <span
                                                                         key={`${asset.assetKey}:description:${index}`}
-                                                                        className="rounded px-1.5 py-0.5 text-sm font-semibold leading-5 print-color-adjust"
+                                                                        className="rounded px-1.5 py-0.5 text-base font-semibold leading-5 print-color-adjust"
                                                                         style={getMapShortDescriptorPrintStyle(description)}
                                                                     >
                                                                         {description.text}
@@ -140,7 +140,7 @@ export default function MyMapResourceTable({
                                                                 ))}
                                                             </div>
                                                         ) : (
-                                                            <span className="text-sm text-slate-400">{t('mapAssetNoDescriptions')}</span>
+                                                            <span className="text-base text-slate-400">{t('mapAssetNoDescriptions')}</span>
                                                         )}
                                                     </div>
                                                 ) : null}

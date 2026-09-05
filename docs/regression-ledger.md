@@ -15,6 +15,305 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-05 embedded Category Pin shared-location chooser
+
+- Candidate behavior: `Category pins` is the user-facing name for the former
+  `Category icons` map style. When two or more public map resources resolve to
+  the same postal-code location, that style renders one category pin with a
+  visible resource-count badge. Selecting it in an embedded map opens a
+  compact shared-location chooser; selecting a resource then reuses the
+  established resource-detail preview, with a Back action to the chooser.
+  Category bubbles retain their relationship-first interaction and Numbered
+  pins retain their static plot-and-print behavior.
+- Architecture and blast radius: the existing presentation adapter and postal
+  grouping remain the single source of truth. `DirectoryMap` only restores a
+  count badge for multi-resource Category Pins, while the embed presentation
+  helper resolves a postal pin to its existing frozen, guest-safe resource
+  groups. The embedded page owns only chooser navigation state. Owner map
+  relationship highlighting, Category bubbles, Numbered pins, category order,
+  resource numbering, map geometry, share publication, public snapshot
+  sanitization, private notes, personal places, API contracts, persistence,
+  schema, authentication, and production data are unchanged.
+- Reproduction and acceptance: publish or locally preview an embedded map in
+  `Category pins` style with at least two public resources sharing a postal
+  code. Confirm one pin is shown with the correct selectable-resource count;
+  selecting it must list every resource at that location in category order,
+  selecting a member must show its existing detail card, Back must restore the
+  chooser, and Close must restore normal pointer and scroll behavior. A single
+  location must continue to open its detail directly. Repeat at desktop and
+  `390x844`; confirm Category bubbles and Numbered pins are unchanged.
+- Verification before release (2026-09-05): PASS. The focused embed, marker,
+  locale, and module-architecture set passed `38/38`; the full client suite
+  passed `731/731`; the full server baseline passed `611/611`; and the locked
+  map suite passed `91/91` with the exact six-root production map build. Static
+  validation covered all three ordered migrations plus `423` source modules
+  and `1,262` relative import edges with no cycles. Real-browser UAT against
+  local client code and a non-persisted duplicate-postal fixture passed at
+  desktop and `390x844`: one count-2 pin opened both resources, member drill-in
+  and Back worked, Close restored `pointer-events: auto` and visible overflow,
+  page scrolling remained available, and no console errors were observed.
+  No production data or frozen share snapshot was changed for this proof.
+- Release proof (2026-09-05): implementation commit `3d91c513` was pushed to
+  `codex/category-pin-shared-location-20260905`. The exact validated six-root
+  client artifact was published explicitly to the Cloudflare Pages production
+  branch at `https://07e6feed.senior-resource-map.pages.dev`; Wrangler compiled
+  the Pages Worker/Functions bundle and uploaded all `85` public files,
+  `_headers`, and `_routes.json`. The immutable deployment and
+  `https://app.carearound.sg` match the local `index.html`, entry JavaScript,
+  entry CSS, `EmbeddedMapPage`, and `MapStyleContext` files byte-for-byte by
+  SHA-256; the embedded-map bundle hash is
+  `990be8290160053e565eb46849cf32d108239c1c954d06ba21392536182b5877`.
+  `/discover` and `/login` returned `200` on both hosts, production API health
+  returned `200`, JavaScript and CSS MIME types were correct, and an existing
+  live embed rendered its four mapped resources with no console errors.
+  Ordinary routes retained `X-Frame-Options: DENY` and CSP
+  `frame-ancestors 'none'`; the enabled embed remained `no-store` and limited
+  to its approved frame ancestors, while an unknown token returned `404` and
+  `no-store`. No Worker API, database, schema, migration, dependency, secret,
+  authentication, permission, share snapshot, or production-data change was
+  deployed.
+- Discovery-parity follow-up candidate (2026-09-05): Category Pins now reuse
+  Discovery's actual pin builders and one shared same-postal chooser instead of
+  maintaining a second interpretation. A normal Category Pin badge reports the
+  guest-visible open Programme/Service/Promotion count for that Place. A
+  same-postal parent reports the number of Places in its centre and the summed
+  Programme/Service/Promotion count in the small badge; it opens the same
+  responsive chooser used by Discovery. Desktop supports hover preview and
+  selection, while touch/mobile uses the established map-interaction activation
+  followed by pin selection. The shared `DirectoryMap` path applies the same
+  behavior to owner My Map, Shared Map, and embedded-map surfaces. Category
+  bubbles, Numbered pins, category order, annotations, print/export, map camera,
+  and resource cards are unchanged.
+- Follow-up architecture and privacy boundary: `myMapDirectory` adds only a
+  derived per-Place `openProgrammeServiceCount` using the existing guest-visible
+  offering rule; no new table, route, permission, or live embed lookup was
+  added. Embedded maps remain frozen public snapshots. Existing published
+  embeds therefore retain a zero offering badge until their owner republishes
+  the snapshot; this preserves the established frozen-share/privacy contract.
+  No database schema, migration, production-data, authentication, secret, or
+  provider setting changes are included.
+- Follow-up reproduction and acceptance: open an owner, Shared, or embedded map
+  in `Category pins` style. A single Place with two guest-visible offerings must
+  show badge `2`. Two Places sharing one postal code with four and one offerings
+  must show centre `2`, badge `5`, and a chooser whose member cards show `4` and
+  `1`. Selecting a member must reuse the established resource focus path; Close
+  must remove the chooser and leave body pointer and scroll state usable. Repeat
+  on desktop and `390x844`; confirm no horizontal overflow and that Category
+  bubbles and Numbered pins remain unchanged.
+- Follow-up verification before release (2026-09-05): PASS. Full client coverage
+  passed `732/732`; full server coverage passed `611/611`; the locked owner-map
+  gate passed `74/74`; static validation covered all three ordered migrations
+  plus `424` source modules and `1,266` relative import edges with no cycles;
+  `git diff --check` passed; and the exact six-root production client build
+  passed. Chrome UAT against the local build and a non-persisted realistic
+  frozen-embed fixture passed at `1470x923` and `390x844`: centre `2`, badge `5`,
+  both member offering counts, chooser open/close, post-close pointer/scroll
+  recovery, and mobile overflow checks all passed. No production data or share
+  snapshot was changed by this proof.
+
+## 2026-09-03 mobile My Map Map Studio drawer recovery
+
+- Current behavior: owner My Maps return to a map-first mobile layout. The
+  large Map Studio view-management card no longer occupies normal page space
+  above the map; `Map Studio` is available from the existing hamburger drawer,
+  and `Edit layout` opens the same Studio session directly inside that drawer.
+  Desktop retains the established Map Studio top row.
+- Architecture and blast radius: both classic and V2 mobile layouts pass their
+  single existing `MapStudioViewsPanel` instance into `MyMapMobileControls`.
+  The existing Vaul map-options drawer keeps its normal mount lifecycle, while
+  the stateful Studio panel stays mounted in a separate inert, hidden mobile
+  drawer surface. Each map's Studio document therefore loads once and continues
+  to drive its saved view, unsaved draft, pins, layers, camera, and layout
+  without keeping a closed modal alive or adding a parallel state path. Shared
+  Maps, embeds, Export View, APIs, persistence, schema, authentication, and
+  production data are unchanged.
+- Reproduction and acceptance: at a phone viewport, open an owned map and
+  confirm the compact map header is followed by the map rather than the full
+  Map Studio card. Open the hamburger drawer, choose `Map Studio`, and confirm
+  view selection, create, duplicate, rename, set default, delete, discard, and
+  save remain available; Back returns to the map-options list. `Edit layout`
+  must enter the same Studio section and settings without resetting or silently
+  saving the current map's state. Repeat in classic and V2 layouts, then confirm
+  desktop still shows its top-row panel and mobile focus-card, map-height,
+  Detailed-map, search, distance, notes, and safe-area behavior remain stable.
+- Verification before release (2026-09-03): PASS for the automated scope.
+  The focused Map Studio/mobile scaffold set passed `60/60`, the full client
+  suite passed `730/730`, the full server suite passed `611/611`, and the
+  locked-map suite passed `91/91`. `npm run verify:quality` and
+  `npm run verify:map-lockdown` completed their production builds, including
+  the exact six-root map contract; static validation covered the three ordered
+  migrations plus `423` source modules and `1,262` relative import edges with
+  no cycles. Authenticated `390x844` phone UAT remains the post-deploy gate for
+  the drawer transition, map-first landing position, focus cards, fixed-surface
+  return state, and per-map save/discard persistence.
+- Deployment correction: authenticated `390x844` inspection rejected the first
+  Pages artifact because force-mounting the Vaul dialog left the closed page
+  body non-interactive and scroll-locked. The corrective implementation restores
+  the proven Vaul lifecycle and persistently mounts only the separate inert
+  Studio surface. The focused set again passed `60/60`, full quality passed
+  server `611/611` and client `730/730`, locked maps passed `91/91`, and both
+  production builds passed before the corrective publish.
+- Release proof (2026-09-03): implementation commits `e1df440d6` and
+  `2bb6cc267` were pushed to `codex/mobile-map-studio-drawer-20260903`. The
+  exact validated six-root client artifact was published explicitly to the
+  Cloudflare Pages production branch at
+  `https://ee7c2570.senior-resource-map.pages.dev`; its `index.html`, entry JS,
+  entry CSS, `MyMapDetailPage` chunk, and `MapStyleContext` chunk match the local
+  build and `https://app.carearound.sg` byte-for-byte by SHA-256, with correct
+  JavaScript/CSS MIME types. `/discover` and `/login` returned `200`, all six
+  fixed-map asset roots remained present, and production API health returned
+  OK. Authenticated production UAT on Map 25 at `390x844` confirmed the
+  map-first landing state, `Map Studio` in the hamburger drawer, the saved
+  `Default view · Default` document and view actions, Back to map options, and
+  restored `pointer-events: auto`, visible overflow, and page scrolling after
+  close. No CareAround console error was observed; reported errors belonged to
+  a Chrome extension. Credential-based aggregate smoke was not rerun because
+  smoke credentials were unavailable in the isolated release worktree. No
+  Worker/API, schema, migration, authentication, permission, secret, provider,
+  or production-data change was deployed.
+
+## 2026-09-02 owner Table description font-size parity refinement
+
+- Candidate behavior: populated descriptions and the `No descriptions`
+  fallback in the owner My Map Table display use the same base text size as
+  resource names. Existing description highlights, text colours, weights,
+  wrapping, ordering, and the distinct muted fallback colour remain unchanged.
+- Blast radius and known-good reference: this is a two-class typography change
+  inside `MyMapResourceTable.jsx`, shared by the interactive owner Table display
+  and its Print View PNG/PDF export. The current resource-name size is the
+  visual reference. Cards, addresses, table headers, numbers, category pins,
+  map geometry, Shared Maps, persistence, APIs, authentication, schema, and
+  production data remain unchanged.
+- Reproduction and acceptance: open an owned map with Table display and
+  descriptions enabled, then compare a populated description and a
+  `No descriptions` fallback with their resource names. Both description paths
+  must use the same 16 px base size as the names without changing their other
+  styling or causing horizontal overflow. Confirm the same parity in owner
+  Print View and the export-backed table surface.
+- Verification before deploy: focused Table presentation and export-scope
+  checks pass `5/5`; complete client coverage passes `730/730`; the owner
+  map-lockdown gate passes `91/91`; the exact six-root production client build
+  passes; ordered migration, module-graph (`423` modules and `1,262` relative
+  imports with no cycles), and diff checks pass. Server tests are not required
+  because this is a client-only typography change with no API, persistence,
+  authentication, schema, or data-path change.
+- Production release and live proof (2026-09-02): source commit `c0fd4acc`
+  deployed through Cloudflare Pages at
+  `https://8613e34c.senior-resource-map.pages.dev`. Wrangler compiled and
+  uploaded the Pages Functions bundle, all `85` public files, `_headers`, and
+  `_routes.json`. Every served file on the immutable deployment and
+  `https://app.carearound.sg` matched the exact validated artifact byte-for-byte;
+  the table-bearing bundle SHA-256 is
+  `39f1c8b2c8a1955ad54673f43fea37528cf738372cd1d82bdd76e262bacbe22e`.
+  The owner map route returned `200`, retained `X-Frame-Options: DENY` and CSP
+  `frame-ancestors 'none'`, and API health remained `ok`. No Worker, database,
+  schema, secret, dependency, lockfile, or production-data change was made.
+
+## 2026-09-02 owner Table Full-map export readiness recovery
+
+- Candidate behavior: an owner Print View using `Table` asset display with the
+  `Full map` layout renders the same distinct map and resource export pages as
+  the established Cards path. `Map ready to download` is shown only after both
+  requested page surfaces exist and the map capture is visibly usable.
+- Production reproduction and cause: authenticated production Map 343 with an
+  unsaved `Table` plus `Full map` preview showed `Map ready to download`, then
+  failed PNG/PDF export with `Export failed because one of the print pages is
+  not ready.` The table-specific owner branch returned before the established
+  Full-map page wrappers, so it produced a usable hidden map frame but no
+  `map` or `resources` export-page markers. The readiness probe checked only
+  the map frame, while the downloader correctly required both pages.
+- Blast radius and acceptance: the owner Table Full-map branch now reuses the
+  existing separate-page structure without changing table contents, numbering,
+  map state, Cards, Balanced, Side map, Shared Maps, APIs, persistence,
+  authentication, schema, data, or visibility. Table plus Full map must expose
+  both export pages; missing pages must keep readiness fail-closed; Cards plus
+  Full map and all existing map-lockdown behavior must remain unchanged.
+- Verification before deploy: the focused Print View suite passes `30/30`;
+  complete client coverage passes `729/729`; the owner map-lockdown gate passes
+  `91/91` together with the exact six-root production client build; static
+  migration/module/diff checks pass; and `git diff --check` passes. Server tests
+  are not required because this is a client-only composition and readiness fix
+  with no API, persistence, authentication, schema, or data-path change.
+- Production release and live proof (2026-09-02): Pages deployment
+  `20a680a7.senior-resource-map.pages.dev` uploaded all 85 public files plus the
+  Functions bundle and `_routes.json`. The deployment and custom-domain HTML,
+  `MapImageExportButton`, and `MyMapDetailPage` bundles matched the exact
+  validated artifact byte-for-byte. Authenticated production Map 343 UAT using
+  an unsaved `Table` plus `Full map` preview produced both `map` and `resources`
+  export pages on the screen and hidden export surfaces, showed `Map ready to
+  download`, kept Resource PNG, Map PNG, and PDF enabled, and showed no missing
+  print-page failure. The verification tab was closed without saving the
+  temporary layout or downloading files. API health remained healthy. No
+  Worker or database deployment was required.
+
+## 2026-09-02 My Map freeform annotation icon refinement
+
+- Candidate behavior: the owner annotation toolbar represents `Draw boundary`
+  with a filled, irregular PowerPoint-style freeform silhouette instead of the
+  generic pentagon symbol. The button name and the established point-by-point
+  boundary drawing workflow remain unchanged.
+- Blast radius and known-good reference: this is an icon-only change inside
+  `PrintAnnotationToolbar.jsx`. It does not change the polygon annotation type,
+  drawing state, control points, persistence, sharing, rendering, PNG/PDF
+  export, the Map layers control, or the separate pentagon category-pin choice.
+  The existing annotation workflow remains the known-good functional reference.
+- Reproduction and acceptance: open an owned My Map, choose `Full map`, then
+  `Edit content` -> `Annotations`. The final drawing tool must show the supplied
+  irregular closed freeform silhouette rather than a regular pentagon. Its
+  accessible label remains `Draw boundary`; selecting it must retain the same
+  multi-point preview, minimum-three-point, Done, Enter, Undo, save, and export
+  behavior.
+- Verification before deploy: focused annotation coverage passed (`17/17`);
+  the complete client suite passed (`728/728`); the owner map lockdown gate
+  passed (`90/90`) together with the exact six-root production client build;
+  and `git diff --check` passed. Server tests are not required because the
+  patch does not touch an API, persistence, authentication, schema, or data
+  path.
+- Production release and live proof (2026-09-02): Pages deployment
+  `3c1aea13.senior-resource-map.pages.dev` uploaded all 85 public files plus
+  the Functions bundle and `_routes.json`. The preview and custom-domain HTML
+  and icon-bearing bundle matched the exact validated artifact byte-for-byte;
+  the custom domain served the new filled freeform SVG with its unchanged
+  `Draw boundary` label. Read-only authenticated UAT on production Map 343
+  confirmed the irregular concave silhouette is visible in the annotation
+  toolbar and Map Studio still reported no unsaved changes. API health remained
+  healthy. No Worker or database deployment was required.
+
+## 2026-09-01 My Map personal-place removal disclosure refinement
+
+- Candidate behavior: owner personal-place cards retain their normal `Edit`
+  action, but no longer show the inactive lower-row `Remove` action during
+  ordinary map browsing. The established top card `Remove` action appears only
+  while `Edit content` -> `Remove resources` is active and continues to use the
+  existing named confirmation and authoritative map reload.
+- Blast radius and known-good reference: the refinement removes only the
+  duplicate interactive personal-place row button in
+  `SharedMapDirectoryList.jsx`. Ordinary resource removal, the explicit
+  removal-mode toggle, personal-place editing, owner Print View controls,
+  membership APIs, reusable My Places records, Shared Map/embed, Map Studio,
+  schema, authentication, and production data remain unchanged. This restores
+  the progressive-disclosure contract released on 2026-08-10.
+- Reproduction and acceptance: open an owned My Map containing a personal
+  place and confirm its card shows `Edit` but no `Remove`. Enable `Remove
+  resources` and confirm exactly one functional top card `Remove` action
+  appears. Disable the mode and confirm it disappears while `Edit` remains.
+- Verification before deploy: focused personal-place, removal-mode, V2 map,
+  and Print View coverage passed (`60/60`); the complete client suite passed
+  (`728/728`); the owner map lockdown gate passed (`90/90`) together with the
+  exact six-root production client build; and `git diff --check` passed. Server
+  tests are not required because this is a client-only presentation change
+  with no API, persistence, authentication, or data-path changes.
+- Production release and live proof (2026-09-01): Pages deployment
+  `239e76c9.senior-resource-map.pages.dev` completed with the Functions bundle
+  and `_routes.json`. The custom-domain HTML served the verified entry and CSS,
+  and the entry, CSS, and `MyMapDetailPage` chunk matched the local release
+  artifact byte-for-byte. Authenticated Map 343 UAT showed six personal-place
+  `Edit` actions and zero removal actions in normal view; removal mode showed
+  one removal action for each of the 22 map assets while retaining all six
+  personal-place `Edit` actions; turning the mode off returned removal actions
+  to zero. `https://api.carearound.sg/api/health` remained healthy. No Worker or
+  database deployment was required.
+
 ## 2026-09-01 My Map same-postal numbered-pin parity recovery
 
 - Candidate behavior: owner Map Studio `Numbered pins` keeps one geographic

@@ -172,14 +172,33 @@ export function getEmbedListOnlyResourceCount(directory) {
     return count;
 }
 
-export function findEmbedPreviewGroup(presentation, placeKey) {
+export function findEmbedPreviewGroups(presentation, placeKey) {
     const normalizedKey = String(placeKey || '').trim();
-    if (!normalizedKey) return null;
-    const resolvedKey = presentation?.groupKeyByPlaceKey?.[normalizedKey] || normalizedKey;
-    return (presentation?.mappedGroups || []).find((group) => (
-        String(group?.placeKey || '') === String(resolvedKey)
+    if (!normalizedKey) return [];
+
+    const mappedGroups = presentation?.mappedGroups || [];
+    const exactGroup = mappedGroups.find((group) => (
+        String(group?.placeKey || '') === normalizedKey
         || (group?.memberPlaceKeys || []).some((key) => String(key) === normalizedKey)
-    )) || null;
+    ));
+    if (exactGroup) return [exactGroup];
+
+    const selectedPin = (presentation?.pins || []).find((pin) => (
+        String(pin?.placeKey || '') === normalizedKey
+    ));
+    if (!selectedPin?.isPostalGroup) return [];
+
+    const memberPlaceKeys = new Set(
+        (selectedPin.memberPlaceKeys || []).map((key) => String(key)),
+    );
+    return mappedGroups.filter((group) => (
+        memberPlaceKeys.has(String(group?.placeKey || ''))
+        || (group?.memberPlaceKeys || []).some((key) => memberPlaceKeys.has(String(key)))
+    ));
+}
+
+export function findEmbedPreviewGroup(presentation, placeKey) {
+    return findEmbedPreviewGroups(presentation, placeKey)[0] || null;
 }
 
 export function buildEmbedResourcePreviewDetails(group, row) {

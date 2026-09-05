@@ -15,7 +15,9 @@ import FixedTownSurfaceLayer, { FIXED_TOWN_SURFACE_MIN_ZOOM } from './FixedTownS
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useMapStyle } from '../contexts/MapStyleContext.jsx';
 import homeAnchorImage from '../assets/home-anchor.png';
+import DiscoverPostalGroupListPanel from '../features/discover/DiscoverPostalGroupListPanel.jsx';
 import { createPostalGroupParentPinIcon, createSavedPlacePinIcon } from '../features/discover/discoverUtils.js';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import {
     CAREAROUND_BASEMAP_ATTRIBUTION,
     CAREAROUND_BASEMAP_MAX_ZOOM,
@@ -2507,6 +2509,42 @@ function DirectoryMapClickHandler({ enabled = false, onMapClick = null }) {
     return null;
 }
 
+function DirectoryTrackedPinLayoutReporter({ trackedPinKey = null, pins = [], onChange }) {
+    const map = useMap();
+    const pinLookup = useMemo(() => new Map((pins || []).map((pin) => [String(pin.pinKey), pin])), [pins]);
+
+    useEffect(() => {
+        if (typeof onChange !== 'function') return undefined;
+
+        const emitLayout = () => {
+            const pin = trackedPinKey ? pinLookup.get(String(trackedPinKey)) : null;
+            if (!pin) {
+                onChange(null);
+                return;
+            }
+
+            const point = map.latLngToContainerPoint([
+                pin.displayLat ?? pin.lat,
+                pin.displayLng ?? pin.lng,
+            ]);
+            const size = map.getSize();
+            onChange({
+                pinKey: String(trackedPinKey),
+                x: point.x,
+                y: point.y,
+                width: size.x,
+                height: size.y,
+            });
+        };
+
+        emitLayout();
+        map.on('move zoom resize', emitLayout);
+        return () => map.off('move zoom resize', emitLayout);
+    }, [map, onChange, pinLookup, trackedPinKey]);
+
+    return null;
+}
+
 function DirectoryMapController({
     activeAnchor,
     pins,
@@ -2749,9 +2787,17 @@ export default function DirectoryMap({
         : null;
     const resolvedMarkerScale = normalizePrintBadgeScale(markerScale);
     const lastPlaceActivationRef = useRef({ token: null, at: 0 });
+    const lastCategoryPinGroupActivationRef = useRef({ token: null, at: 0 });
+    const categoryPinHoverCloseTimeoutRef = useRef(null);
+    const categoryPinPanelHighlightKeyRef = useRef('');
     const lastCategoryBubbleHoverKeyRef = useRef(null);
     const lastPrintBadgeHoverKeyRef = useRef(null);
     const activePlaceKeySet = useMemo(() => new Set((activePlaceKeys || []).map((value) => String(value))), [activePlaceKeys]);
+    const categoryPinPanelIsDesktop = useMediaQuery('(min-width: 1024px)');
+    const [selectedCategoryPinGroupKey, setSelectedCategoryPinGroupKey] = useState('');
+    const [hoveredCategoryPinGroupKey, setHoveredCategoryPinGroupKey] = useState('');
+    const [categoryPinGroupLayout, setCategoryPinGroupLayout] = useState(null);
+    const [categoryPinPanelHighlightKey, setCategoryPinPanelHighlightKey] = useState('');
     const [compactCategoryBubbles, setCompactCategoryBubbles] = useState(false);
     const [fixedTownSurfaceZoom, setFixedTownSurfaceZoom] = useState(null);
     const [fixedTownSurfaceViewportEligible, setFixedTownSurfaceViewportEligible] = useState(null);
@@ -2760,6 +2806,14 @@ export default function DirectoryMap({
     const [fixedTownSurfaceFaultReason, setFixedTownSurfaceFaultReason] = useState('');
     const fixedTownSurfaceFaultZoomRef = useRef(null);
     const previousBasemapModeRef = useRef(basemapMode);
+    const visibleCategoryPinGroupKey = selectedCategoryPinGroupKey || hoveredCategoryPinGroupKey;
+    const visibleCategoryPinGroup = useMemo(() => (
+        markerMode === 'category-icon'
+            ? displayMarkerPins.find((pin) => (
+                pin.isPostalGroup && String(pin.pinKey || pin.placeKey) === visibleCategoryPinGroupKey
+            )) || null
+            : null
+    ), [displayMarkerPins, markerMode, visibleCategoryPinGroupKey]);
     const resolvedMapMinZoom = Number.isFinite(Number(mapMinZoom))
         ? Number(mapMinZoom)
         : CAREAROUND_BASEMAP_MIN_ZOOM;
@@ -3125,6 +3179,55 @@ export default function DirectoryMap({
         }
     }, [handleCaptureTilesLoaded, onFixedTownSurfaceMetricsChange, onMapReadyForCapture]);
 
+    const cancelCategoryPinHoverClose = useCallback(() => {
+        if (categoryPinHoverCloseTimeoutRef.current === null) return;
+        window.clearTimeout(categoryPinHoverCloseTimeoutRef.current);
+        categoryPinHoverCloseTimeoutRef.current = null;
+    }, []);
+
+    const clearCategoryPinPanelHighlight = useCallback(() => {
+        const highlightedPlaceKey = categoryPinPanelHighlightKeyRef.current;
+        categoryPinPanelHighlightKeyRef.current = '';
+        setCategoryPinPanelHighlightKey('');
+        if (highlightedPlaceKey) {
+            onHoverPlaceEnd?.(highlightedPlaceKey);
+        }
+    }, [onHoverPlaceEnd]);
+
+    const closeCategoryPinGroup = useCallback(() => {
+        cancelCategoryPinHoverClose();
+        clearCategoryPinPanelHighlight();
+        setSelectedCategoryPinGroupKey('');
+        setHoveredCategoryPinGroupKey('');
+        setCategoryPinGroupLayout(null);
+    }, [cancelCategoryPinHoverClose, clearCategoryPinPanelHighlight]);
+
+    const scheduleCategoryPinHoverClose = useCallback((pinKey) => {
+        if (!categoryPinPanelIsDesktop || selectedCategoryPinGroupKey || !pinKey) return;
+        cancelCategoryPinHoverClose();
+        categoryPinHoverCloseTimeoutRef.current = window.setTimeout(() => {
+            setHoveredCategoryPinGroupKey((current) => (current === String(pinKey) ? '' : current));
+            clearCategoryPinPanelHighlight();
+            categoryPinHoverCloseTimeoutRef.current = null;
+        }, 120);
+    }, [cancelCategoryPinHoverClose, categoryPinPanelIsDesktop, clearCategoryPinPanelHighlight, selectedCategoryPinGroupKey]);
+
+    useEffect(() => () => cancelCategoryPinHoverClose(), [cancelCategoryPinHoverClose]);
+
+    useEffect(() => {
+        if (markerMode !== 'category-icon') {
+            closeCategoryPinGroup();
+            return;
+        }
+        if (visibleCategoryPinGroupKey && !visibleCategoryPinGroup) {
+            closeCategoryPinGroup();
+            return;
+        }
+        if (!visibleCategoryPinGroup) {
+            setCategoryPinGroupLayout(null);
+        }
+    }, [closeCategoryPinGroup, markerMode, visibleCategoryPinGroup, visibleCategoryPinGroupKey]);
+
     const handlePlaceActivate = (placeKey) => {
         if (!interactive || !placeKey) return;
 
@@ -3139,6 +3242,24 @@ export default function DirectoryMap({
 
         lastPlaceActivationRef.current = { token, at: now };
         onViewSection?.(placeKey);
+    };
+
+    const handleCategoryPinGroupActivate = (pin) => {
+        if (!interactive || !pin?.isPostalGroup) return;
+
+        const token = String(pin.pinKey || pin.placeKey || '');
+        const now = Date.now();
+        if (
+            lastCategoryPinGroupActivationRef.current.token === token
+            && now - lastCategoryPinGroupActivationRef.current.at < 300
+        ) {
+            return;
+        }
+        lastCategoryPinGroupActivationRef.current = { token, at: now };
+        cancelCategoryPinHoverClose();
+        setHoveredCategoryPinGroupKey('');
+        setCategoryPinPanelHighlightKey('');
+        setSelectedCategoryPinGroupKey((current) => (current === token ? '' : token));
     };
 
     function handleCompactCategoryBubbleReveal(event) {
@@ -3188,6 +3309,12 @@ export default function DirectoryMap({
 
     const handleMarkerHoverStart = (event, pin) => {
         const placeKey = getMarkerEventPlaceKey(event, pin);
+        if (markerMode === 'category-icon' && pin.isPostalGroup && categoryPinPanelIsDesktop) {
+            cancelCategoryPinHoverClose();
+            if (!selectedCategoryPinGroupKey) {
+                setHoveredCategoryPinGroupKey(String(pin.pinKey || pin.placeKey));
+            }
+        }
         if (markerMode === 'category-bubble') {
             lastCategoryBubbleHoverKeyRef.current = placeKey ? String(placeKey) : null;
         }
@@ -3209,10 +3336,19 @@ export default function DirectoryMap({
         if (markerMode === 'print-badge') {
             lastPrintBadgeHoverKeyRef.current = null;
         }
+        if (markerMode === 'category-icon' && pin.isPostalGroup) {
+            scheduleCategoryPinHoverClose(pin.pinKey || pin.placeKey);
+        }
         onHoverPlaceEnd?.(placeKey);
     };
 
     const handleMarkerActivate = (event, pin) => {
+        if (markerMode === 'category-icon' && pin.isPostalGroup) {
+            event?.originalEvent?.preventDefault?.();
+            event?.originalEvent?.stopPropagation?.();
+            handleCategoryPinGroupActivate(pin);
+            return;
+        }
         if (markerMode === 'category-bubble' && compactCategoryBubbles) {
             if (handleCompactCategoryBubbleReveal(event)) return;
         }
@@ -3243,7 +3379,12 @@ export default function DirectoryMap({
                         const isDeepZoom = String(activeKey).endsWith(':zoom');
                         const cleanKey = isDeepZoom ? String(activeKey).replace(':zoom', '') : activeKey;
                         const isMatched = String(cleanKey) === String(pin.placeKey)
-                            || pinMatchesPlaceKeys(pin, activePlaceKeySet);
+                            || pinMatchesPlaceKeys(pin, activePlaceKeySet)
+                            || (
+                                markerMode === 'category-icon'
+                                && pin.isPostalGroup
+                                && String(pin.pinKey || pin.placeKey) === visibleCategoryPinGroupKey
+                            );
 
                         const icon = markerMode === 'print-badge'
                             ? createPrintResourceBadgeMarker(
@@ -3290,16 +3431,28 @@ export default function DirectoryMap({
                                             color: pin.categoryColor || '#0F172A',
                                         })
                                         : null));
-                                const savedPinIcon = scaleDirectorySavedPinIcon(createSavedPlacePinIcon({
-                                    count: pin.curatedCount,
-                                    emphasis: isMatched ? 'primary' : 'default',
-                                    tone: 'saved',
-                                    iconUrl: categoryIconUrl,
-                                    color: pin.categoryColor || null,
-                                    colorSegments: pin.categoryColorSegments || [],
-                                    placeKey: pin.placeKey,
-                                    showBadge: pinBadgeMode !== 'none',
-                                }), resolvedMarkerScale);
+                                const savedPinIcon = scaleDirectorySavedPinIcon(
+                                    markerMode === 'category-icon' && pin.isPostalGroup
+                                        ? createPostalGroupParentPinIcon({
+                                            count: pin.hardAssetCount || pin.postalGroupCount || 0,
+                                            badgeCount: pin.totalOfferingsCount || 0,
+                                            emphasis: isMatched ? 'primary' : 'default',
+                                            placeKey: pin.placeKey,
+                                        })
+                                        : createSavedPlacePinIcon({
+                                            count: markerMode === 'category-icon'
+                                                ? (pin.totalOfferingsCount || 0)
+                                                : pin.curatedCount,
+                                            emphasis: isMatched ? 'primary' : 'default',
+                                            tone: 'saved',
+                                            iconUrl: categoryIconUrl,
+                                            color: markerMode === 'category-icon' ? null : (pin.categoryColor || null),
+                                            colorSegments: markerMode === 'category-icon' ? [] : (pin.categoryColorSegments || []),
+                                            placeKey: pin.placeKey,
+                                            showBadge: markerMode === 'category-icon' || pinBadgeMode !== 'none',
+                                        }),
+                                    resolvedMarkerScale,
+                                );
                                 savedPinIcon.options.assetCount = getDirectoryPinAssetCount(pin);
                                 savedPinIcon.options.categoryIconUrl = categoryIconUrl;
                                 savedPinIcon.options.categoryColor = pin.categoryColor || null;
@@ -3338,7 +3491,12 @@ export default function DirectoryMap({
             const isDeepZoom = String(activeKey).endsWith(':zoom');
             const cleanKey = isDeepZoom ? String(activeKey).replace(':zoom', '') : activeKey;
             const isMatched = String(cleanKey) === String(pin.placeKey)
-                || pinMatchesPlaceKeys(pin, activePlaceKeySet);
+                || pinMatchesPlaceKeys(pin, activePlaceKeySet)
+                || (
+                    markerMode === 'category-icon'
+                    && pin.isPostalGroup
+                    && String(pin.pinKey || pin.placeKey) === visibleCategoryPinGroupKey
+                );
 
             const icon = markerMode === 'print-badge'
                 ? createPrintResourceBadgeMarker(
@@ -3385,16 +3543,28 @@ export default function DirectoryMap({
                                 color: pin.categoryColor || '#0F172A',
                             })
                             : null));
-                    const savedPinIcon = scaleDirectorySavedPinIcon(createSavedPlacePinIcon({
-                        count: pin.curatedCount,
-                        emphasis: isMatched ? 'primary' : 'default',
-                        tone: 'saved',
-                        iconUrl: categoryIconUrl,
-                        color: pin.categoryColor || null,
-                        colorSegments: pin.categoryColorSegments || [],
-                        placeKey: pin.placeKey,
-                        showBadge: pinBadgeMode !== 'none',
-                    }), resolvedMarkerScale);
+                    const savedPinIcon = scaleDirectorySavedPinIcon(
+                        markerMode === 'category-icon' && pin.isPostalGroup
+                            ? createPostalGroupParentPinIcon({
+                                count: pin.hardAssetCount || pin.postalGroupCount || 0,
+                                badgeCount: pin.totalOfferingsCount || 0,
+                                emphasis: isMatched ? 'primary' : 'default',
+                                placeKey: pin.placeKey,
+                            })
+                            : createSavedPlacePinIcon({
+                                count: markerMode === 'category-icon'
+                                    ? (pin.totalOfferingsCount || 0)
+                                    : pin.curatedCount,
+                                emphasis: isMatched ? 'primary' : 'default',
+                                tone: 'saved',
+                                iconUrl: categoryIconUrl,
+                                color: markerMode === 'category-icon' ? null : (pin.categoryColor || null),
+                                colorSegments: markerMode === 'category-icon' ? [] : (pin.categoryColorSegments || []),
+                                placeKey: pin.placeKey,
+                                showBadge: markerMode === 'category-icon' || pinBadgeMode !== 'none',
+                            }),
+                        resolvedMarkerScale,
+                    );
                     savedPinIcon.options.assetCount = getDirectoryPinAssetCount(pin);
                     savedPinIcon.options.categoryIconUrl = categoryIconUrl;
                     savedPinIcon.options.categoryColor = pin.categoryColor || null;
@@ -3424,15 +3594,21 @@ export default function DirectoryMap({
                 />
             );
         });
-    }, [shouldCluster, showPins, displayMarkerPins, markerMode, printBadgeScale, resolvedMarkerScale, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, numberedPinShapesByCategory, numberedPinStylesByCategory, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd]);
+    }, [shouldCluster, showPins, displayMarkerPins, markerMode, printBadgeScale, resolvedMarkerScale, pinBadgeMode, pinCategoryIconMode, clusterMarkerMode, placeNumberByKey, numberedPinShapesByCategory, numberedPinStylesByCategory, focusedPlaceKey, activePlaceKey, activePlaceKeySet, compactCategoryBubbles, interactive, handleMarkerActivate, onHoverPlaceStart, onHoverPlaceEnd, visibleCategoryPinGroupKey]);
 
-    const mapClickEnabled = interactive && typeof onMapClick === 'function';
+    const handleDirectoryMapClick = useCallback((payload) => {
+        closeCategoryPinGroup();
+        onMapClick?.(payload);
+    }, [closeCategoryPinGroup, onMapClick]);
+    const mapClickEnabled = interactive && (
+        typeof onMapClick === 'function' || Boolean(visibleCategoryPinGroup)
+    );
     const currentAnchorPlacementHandlers = mapClickEnabled && anchorPoint?.kind === 'current'
         ? {
             click: (event) => {
                 event?.originalEvent?.preventDefault?.();
                 event?.originalEvent?.stopPropagation?.();
-                onMapClick({
+                handleDirectoryMapClick({
                     lat: anchorPoint.lat,
                     lng: anchorPoint.lng,
                     originalEvent: event?.originalEvent || null,
@@ -3614,9 +3790,14 @@ export default function DirectoryMap({
                     onChange={onMapViewStateChange}
                     onSettled={onMapReadyForCapture ? handleCaptureMapSettled : null}
                 />
+                <DirectoryTrackedPinLayoutReporter
+                    trackedPinKey={visibleCategoryPinGroup?.pinKey || null}
+                    pins={displayMarkerPins}
+                    onChange={setCategoryPinGroupLayout}
+                />
                 <DirectoryMapClickHandler
                     enabled={mapClickEnabled}
-                    onMapClick={onMapClick}
+                    onMapClick={handleDirectoryMapClick}
                 />
                 <DirectoryMapRecenterControl
                     activeAnchor={anchorPoint}
@@ -3673,6 +3854,38 @@ export default function DirectoryMap({
                 {renderedMarkers}
                 {mapOverlay}
             </MapContainer>
+            {visibleCategoryPinGroup ? (
+                <DiscoverPostalGroupListPanel
+                    anchorLayout={categoryPinGroupLayout?.pinKey === String(visibleCategoryPinGroup.pinKey)
+                        ? categoryPinGroupLayout
+                        : null}
+                    group={visibleCategoryPinGroup}
+                    highlightedPinKey={categoryPinPanelHighlightKey || null}
+                    hoverPreview={!selectedCategoryPinGroupKey}
+                    isDesktop={categoryPinPanelIsDesktop}
+                    onClose={closeCategoryPinGroup}
+                    onHoverPanelEnter={() => {
+                        cancelCategoryPinHoverClose();
+                        if (!selectedCategoryPinGroupKey) {
+                            setHoveredCategoryPinGroupKey(String(visibleCategoryPinGroup.pinKey));
+                        }
+                    }}
+                    onHoverPanelLeave={() => {
+                        clearCategoryPinPanelHighlight();
+                        scheduleCategoryPinHoverClose(visibleCategoryPinGroup.pinKey);
+                    }}
+                    onHoverPin={(pin) => {
+                        const placeKey = String(pin.placeKey || pin.pinKey || '');
+                        categoryPinPanelHighlightKeyRef.current = placeKey;
+                        setCategoryPinPanelHighlightKey(String(pin.pinKey || placeKey));
+                        onHoverPlaceStart?.(pin.placeKey);
+                    }}
+                    onSelectPin={(pin) => {
+                        closeCategoryPinGroup();
+                        handlePlaceActivate(pin.placeKey);
+                    }}
+                />
+            ) : null}
             {surfaceOverlay}
             {resolvedSurfaceStatus ? (
                 <div

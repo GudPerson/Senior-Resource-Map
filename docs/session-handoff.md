@@ -1,6 +1,6 @@
 # CareAround SG session handoff
 
-Updated: 2026-08-28 (Asia/Singapore)
+Updated: 2026-09-05 (Asia/Singapore)
 
 ## Start here
 
@@ -14,6 +14,19 @@ Updated: 2026-08-28 (Asia/Singapore)
 ## Protected workspace state
 
 The primary checkout is intentionally dirty on `codex/offering-filtered-export-parity`. It contains unrelated user/agent work, including the filtered-export feature and local guardrail/tooling files. Do not stage, reset, merge, clean, or release from that checkout.
+
+The Category Pin Discovery-parity candidate is prepared in the isolated
+worktree `/private/tmp/carearound-mobile-map-studio-drawer-20260903` on branch
+`codex/category-pin-discovery-parity-20260905`. It reuses Discovery's pin
+builders and same-postal chooser across owner My Map, Shared Map, and embedded
+maps; centre counts mean Places and small badges mean guest-visible
+Programmes/Services/Promotions. The Worker-side directory snapshot now carries
+the existing guest-visible offering count per Place. Existing frozen embed
+snapshots must be republished to receive that new derived count. Local release
+gates passed: client `732/732`, server `611/611`, locked owner-map gate `74/74`,
+static graph `424` modules / `1,266` edges with no cycle, clean diff whitespace,
+the exact six-root production build, and Chrome desktop plus `390x844` embed
+interaction QA. The primary dirty checkout remains untouched.
 
 The Phase 1 closeout was prepared in the isolated worktree:
 

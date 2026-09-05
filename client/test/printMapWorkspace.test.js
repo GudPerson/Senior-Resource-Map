@@ -232,6 +232,27 @@ test('Full layout exports the map and resources as separate image pages', () => 
     }), true);
 });
 
+test('owner Table Full layout renders the same required export pages as Cards', () => {
+    const tableBranchStart = sharedMapDirectorySource.indexOf(
+        "if (mode === 'owner' && resourceDisplay === 'table')",
+    );
+    const tableBranchEnd = sharedMapDirectorySource.indexOf(
+        "if (resolvedLayout === 'mobile')",
+        tableBranchStart,
+    );
+
+    assert.notEqual(tableBranchStart, -1);
+    assert.notEqual(tableBranchEnd, -1);
+    assert.ok(tableBranchEnd > tableBranchStart);
+
+    const tableBranchSource = sharedMapDirectorySource.slice(tableBranchStart, tableBranchEnd);
+    assert.match(tableBranchSource, /if \(resolvedLayout === 'print' && printResourcesBelow\)/);
+    assert.match(tableBranchSource, /data-print-resources-below="true"/);
+    assert.match(tableBranchSource, /data-print-export-page="map"/);
+    assert.match(tableBranchSource, /data-print-export-page="resources"/);
+    assert.match(tableBranchSource, /data-owner-resource-display="table"/);
+});
+
 test('print layout presets keep Balanced and Side stable while Full owns the separate-page composition', () => {
     assert.deepEqual(getOwnerPrintLayoutConfig({ layoutPreset: PRINT_MAP_LAYOUT_BALANCED }), {
         layoutPreset: PRINT_MAP_LAYOUT_BALANCED,
@@ -770,6 +791,8 @@ test('map image export rejects blank map captures and saves large PNGs as blobs'
 test('map downloads wait for a verified export surface while resource PNG stays available', () => {
     assert.match(exportButtonSource, /MAP_READINESS_PROBE_MAX_ATTEMPTS/);
     assert.match(exportButtonSource, /verifyMapDownloadReadiness/);
+    assert.match(exportButtonSource, /if \(exportAsSeparatePages\)[\s\S]*data-print-export-page="map"[\s\S]*data-print-export-page="resources"/);
+    assert.match(exportButtonSource, /Map download preparation failed because one of the print pages is unavailable\./);
     assert.match(exportButtonSource, /await isMapCaptureVisiblyBlank/);
     assert.match(exportButtonSource, /data-print-export-readiness=\{mapDownloadStatus\}/);
     assert.match(exportButtonSource, /role="progressbar"/);

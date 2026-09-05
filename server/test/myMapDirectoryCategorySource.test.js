@@ -162,6 +162,33 @@ test('hosted programme rows expose the host place category for My Map V2 present
             hideUntil: null,
             isDeleted: false,
             partner: { id: 7, managerUserId: null },
+            softAssets: [],
+            hostedSoftAssets: [
+                {
+                    id: 702,
+                    bucket: 'Programmes',
+                    subCategory: 'Exercise',
+                    audienceMode: 'public',
+                    isMemberOnly: false,
+                    eligibilityRules: null,
+                    isHidden: false,
+                    hideFrom: null,
+                    hideUntil: null,
+                    isDeleted: false,
+                },
+                {
+                    id: 703,
+                    bucket: 'Services',
+                    subCategory: 'Care navigation',
+                    audienceMode: 'public',
+                    isMemberOnly: false,
+                    eligibilityRules: null,
+                    isHidden: false,
+                    hideFrom: null,
+                    hideUntil: null,
+                    isDeleted: false,
+                },
+            ],
         },
         locations: [],
     };
@@ -241,6 +268,7 @@ test('hosted programme rows expose the host place category for My Map V2 present
     assert.equal(row.categoryIconUrl, '/icons/programmes.svg');
     assert.equal(row.logoUrl, 'https://example.test/reach-logo.png');
     assert.equal(directory.places[0].postalCode, '651377');
+    assert.equal(directory.places[0].openProgrammeServiceCount, 2);
     assert.equal(row.mapSubCategory, 'Active Ageing Centre (AAC)');
     assert.equal(row.mapCategoryColor, '#f59e0b');
     assert.equal(row.mapCategoryIconUrl, '/icons/aac.svg');

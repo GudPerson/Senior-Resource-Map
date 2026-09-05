@@ -29,6 +29,15 @@ test('owner removal actions are progressively disclosed from Edit content', () =
     assert.match(myMapDetailSource, /onRemoveResource=\{resourceRemovalMode \? handleRemoveResource : null\}/);
     assert.doesNotMatch(myMapDetailSource, /onRemoveResource=\{handleRemoveResource\}/);
     assert.match(myMapDetailSource, /const contentModeActive = shortDescriptionMode \|\| annotationEditing \|\| resourceRemovalMode/);
+    assert.match(
+        directoryListSource,
+        /\{canManagePersonalPlace \? \([\s\S]*?onClick=\{\(\) => onEditPersonalPlace\?\.\(row\)\}[\s\S]*?t\('edit'\)/,
+    );
+    assert.equal(
+        directoryListSource.match(/onClick=\{\(\) => onRemoveResource\?\.\(row\)\}/g)?.length || 0,
+        1,
+        'personal-place rows must not add a second always-visible Remove action',
+    );
 });
 
 test('the repeated primary Place exposes removal on the ordinary card shell', () => {

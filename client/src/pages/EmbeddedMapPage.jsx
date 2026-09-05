@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ExternalLink, RotateCcw, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Layers3, RotateCcw, Search, X } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 
 import DirectoryMap from '../components/DirectoryMap.jsx';
@@ -17,7 +17,7 @@ import {
     buildEmbedCategoryOptions,
     buildEmbeddedMapRuntime,
     buildEmbeddedMapPresentation,
-    findEmbedPreviewGroup,
+    findEmbedPreviewGroups,
     getEmbedListOnlyResourceCount,
 } from '../lib/embedMapPresentation.js';
 
@@ -72,8 +72,69 @@ function EmbeddedMapUnavailable({ retryable, onRetry }) {
     );
 }
 
-function ResourcePreview({ group, fullMapUrl, onClose }) {
+function SharedLocationChooser({ groups, onSelect }) {
     const { t } = useLocale();
+    const resourceCount = groups.reduce((total, group) => total + (group?.rows?.length || 0), 0);
+
+    return (
+        <div>
+            <div className="border-b border-slate-100 px-3 pb-3 pr-12 pt-2 sm:px-2 sm:pt-1">
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-brand-700">
+                    <Layers3 size={14} aria-hidden="true" />
+                    {t('embedMapSharedLocation')}
+                </div>
+                <p className="mt-1 text-base font-extrabold text-slate-950">
+                    {t('embedMapResourcesAtLocation', { count: resourceCount })}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{t('embedMapChooseResource')}</p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+                {groups.map((group) => {
+                    const previewRow = group?.rows?.[0] || {};
+                    const iconUrl = group?.categoryIconUrl
+                        || previewRow.mapCategoryIconUrl
+                        || previewRow.categoryIconUrl
+                        || previewRow.logoUrl
+                        || null;
+                    const address = group?.shortLocationLine || group?.address || previewRow.address || '';
+
+                    return (
+                        <button
+                            key={group.placeKey}
+                            type="button"
+                            onClick={() => onSelect(group.placeKey)}
+                            className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm transition-[border-color,background-color,transform] duration-150 ease-out hover:border-brand-200 hover:bg-brand-50/50 active:scale-[0.98]"
+                        >
+                            <span
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm"
+                                style={iconUrl ? undefined : { backgroundColor: group?.categoryColor || '#0f766e' }}
+                            >
+                                {iconUrl ? <img src={iconUrl} alt="" className="h-7 w-7 object-contain" draggable="false" /> : null}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                {group?.categoryLabel ? (
+                                    <span className="block truncate text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                                        {group.categoryLabel}
+                                    </span>
+                                ) : null}
+                                <span className="mt-0.5 block text-sm font-extrabold leading-5 text-slate-900">{group.name}</span>
+                                {address ? <span className="mt-0.5 block text-xs leading-4 text-slate-500">{address}</span> : null}
+                            </span>
+                            <ChevronRight size={17} className="shrink-0 text-slate-400" aria-hidden="true" />
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function ResourcePreview({ groups, selectedMemberPlaceKey, fullMapUrl, onSelectMember, onBack, onClose }) {
+    const { t } = useLocale();
+    const selectedGroup = groups.find((group) => String(group?.placeKey || '') === String(selectedMemberPlaceKey || '')) || null;
+    const showChooser = groups.length > 1 && !selectedGroup;
+    const group = selectedGroup || groups[0] || null;
     const rows = group?.rows || [];
 
     return (
@@ -87,29 +148,46 @@ function ResourcePreview({ group, fullMapUrl, onClose }) {
                 <X size={18} />
             </button>
 
-            <div className="space-y-2">
-                {rows.slice(0, 4).map((row) => (
-                    <CompactResourcePreviewCard
-                        key={row.rowKey || row.assetKey || `${row.resourceType}:${row.resourceId}`}
-                        group={group}
-                        row={row}
-                        framed={rows.length > 1}
-                        reserveCloseSpace
-                        detailAction={row.detailPath ? (
-                            <a
-                                href={row.detailPath}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={COMPACT_RESOURCE_DETAIL_ACTION_CLASSNAME}
-                            >
-                                {t('embedMapOpenResource')} <ExternalLink size={12} />
-                            </a>
-                        ) : null}
-                    />
-                ))}
-            </div>
+            {showChooser ? (
+                <SharedLocationChooser groups={groups} onSelect={onSelectMember} />
+            ) : (
+                <>
+                    {groups.length > 1 ? (
+                        <button
+                            type="button"
+                            onClick={onBack}
+                            className="mb-2 inline-flex min-h-11 items-center gap-1 rounded-xl px-2 pr-12 text-sm font-bold text-brand-700 transition-[background-color,transform] duration-150 ease-out hover:bg-brand-50 active:scale-[0.98]"
+                        >
+                            <ChevronLeft size={17} aria-hidden="true" />
+                            {t('embedMapBackToLocation')}
+                        </button>
+                    ) : null}
 
-            {rows.length > 4 ? (
+                    <div className="space-y-2">
+                        {rows.slice(0, 4).map((row) => (
+                            <CompactResourcePreviewCard
+                                key={row.rowKey || row.assetKey || `${row.resourceType}:${row.resourceId}`}
+                                group={group}
+                                row={row}
+                                framed={rows.length > 1}
+                                reserveCloseSpace
+                                detailAction={row.detailPath ? (
+                                    <a
+                                        href={row.detailPath}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={COMPACT_RESOURCE_DETAIL_ACTION_CLASSNAME}
+                                    >
+                                        {t('embedMapOpenResource')} <ExternalLink size={12} />
+                                    </a>
+                                ) : null}
+                            />
+                        ))}
+                    </div>
+                </>
+            )}
+
+            {!showChooser && rows.length > 4 ? (
                 <a href={fullMapUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-brand-700">
                     {t('openFullMap')} <ExternalLink size={14} />
                 </a>
@@ -127,6 +205,7 @@ export default function EmbeddedMapPage() {
     const [query, setQuery] = useState('');
     const [selectedCategoryKeys, setSelectedCategoryKeys] = useState([]);
     const [selectedPlaceKey, setSelectedPlaceKey] = useState('');
+    const [selectedMemberPlaceKey, setSelectedMemberPlaceKey] = useState('');
     const [mapResetKey, setMapResetKey] = useState(0);
     const [touchInteractionEnabled, setTouchInteractionEnabled] = useState(false);
 
@@ -160,8 +239,8 @@ export default function EmbeddedMapPage() {
         query,
         selectedCategoryKeys,
     }), [directory, query, selectedCategoryKeys]);
-    const selectedGroup = useMemo(() => (
-        findEmbedPreviewGroup(presentation, selectedPlaceKey)
+    const selectedGroups = useMemo(() => (
+        findEmbedPreviewGroups(presentation, selectedPlaceKey)
     ), [presentation, selectedPlaceKey]);
     const listOnlyCount = useMemo(() => getEmbedListOnlyResourceCount(directory), [directory]);
     const mappedResourceCount = useMemo(() => (
@@ -199,6 +278,7 @@ export default function EmbeddedMapPage() {
 
     function toggleCategory(categoryKey) {
         setSelectedPlaceKey('');
+        setSelectedMemberPlaceKey('');
         setSelectedCategoryKeys((current) => (
             current.includes(categoryKey)
                 ? current.filter((key) => key !== categoryKey)
@@ -210,6 +290,7 @@ export default function EmbeddedMapPage() {
         setQuery('');
         setSelectedCategoryKeys([]);
         setSelectedPlaceKey('');
+        setSelectedMemberPlaceKey('');
         setMapResetKey((current) => current + 1);
     }
 
@@ -243,6 +324,7 @@ export default function EmbeddedMapPage() {
                             onChange={(event) => {
                                 setQuery(event.target.value);
                                 setSelectedPlaceKey('');
+                                setSelectedMemberPlaceKey('');
                             }}
                             placeholder={t('embedMapSearchPlaceholder')}
                             className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
@@ -265,6 +347,7 @@ export default function EmbeddedMapPage() {
                             onClick={() => {
                                 setSelectedCategoryKeys([]);
                                 setSelectedPlaceKey('');
+                                setSelectedMemberPlaceKey('');
                             }}
                             className={`min-h-11 shrink-0 rounded-full border px-4 text-xs font-bold ${selectedCategoryKeys.length === 0 ? 'border-brand-600 bg-brand-700 text-white' : 'border-slate-200 bg-white text-slate-700'}`}
                         >
@@ -292,7 +375,10 @@ export default function EmbeddedMapPage() {
                 <DirectoryMap
                     key={`embed-map-${mapResetKey}`}
                     pins={presentation.pins}
-                    onViewSection={(placeKey) => setSelectedPlaceKey(String(placeKey || ''))}
+                    onViewSection={(placeKey) => {
+                        setSelectedPlaceKey(String(placeKey || ''));
+                        setSelectedMemberPlaceKey('');
+                    }}
                     markerMode={embeddedMapRuntime.markerMode}
                     markerScale={embeddedMapRuntime.markerScale}
                     printBadgeScale={embeddedMapRuntime.printBadgeScale}
@@ -349,17 +435,23 @@ export default function EmbeddedMapPage() {
                     </button>
                 ) : null}
 
-                {selectedGroup ? (
+                {selectedGroups.length ? (
                     <ResourcePreview
-                        group={selectedGroup}
+                        groups={selectedGroups}
+                        selectedMemberPlaceKey={selectedMemberPlaceKey}
                         fullMapUrl={fullMapUrl}
-                        onClose={() => setSelectedPlaceKey('')}
+                        onSelectMember={setSelectedMemberPlaceKey}
+                        onBack={() => setSelectedMemberPlaceKey('')}
+                        onClose={() => {
+                            setSelectedPlaceKey('');
+                            setSelectedMemberPlaceKey('');
+                        }}
                     />
                 ) : null}
             </section>
 
             <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white px-3 py-2 text-xs text-slate-500 sm:px-4 sm:py-2.5">
-                {!selectedGroup ? <span>{t('embedMapSelectResource')}</span> : null}
+                {!selectedGroups.length ? <span>{t('embedMapSelectResource')}</span> : null}
                 <span className="ml-auto flex flex-wrap items-center justify-end gap-3">
                     {listOnlyCount > 0 ? (
                         <a href={fullMapUrl} target="_blank" rel="noreferrer" className="font-semibold text-brand-700 hover:underline">

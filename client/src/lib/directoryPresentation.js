@@ -461,6 +461,9 @@ function buildGroupedMappedGroups(mappedGroups = []) {
         const anchor = computePostalGroupAnchor(members);
         const firstMember = members[0] || null;
         const combinedCuratedCount = members.reduce((total, member) => total + (member.curatedCount || 0), 0);
+        const combinedOpenProgrammeServiceCount = members.reduce((total, member) => (
+            total + Math.max(0, Number(member.openProgrammeServiceCount || 0))
+        ), 0);
 
         return {
             placeKey: postalGroup.postalGroupKey,
@@ -475,12 +478,36 @@ function buildGroupedMappedGroups(mappedGroups = []) {
             distanceKm: firstMember?.distanceKm ?? null,
             distanceLabel: firstMember?.distanceLabel ?? null,
             curatedCount: combinedCuratedCount,
+            openProgrammeServiceCount: combinedOpenProgrammeServiceCount,
             rows: [],
             nestedPlaces: members,
             memberPlaceKeys: members.map((member) => member.placeKey).filter(Boolean),
             isPostalGroup: true,
         };
     });
+}
+
+function buildDiscoveryCompatiblePlacePin(group = {}, options = {}) {
+    const categoryEntries = getPinCategoryEntries(group, options);
+    const primaryCategoryEntry = getPrimaryCategoryEntry(group.rows || [], options);
+    const categoryColorSegments = categoryEntries.map((entry) => entry.color).filter(Boolean);
+
+    return {
+        pinKey: group.placeKey,
+        placeKey: group.placeKey,
+        postalCode: group.postalCode || '',
+        title: group.name,
+        address: group.address,
+        totalOfferingsCount: Math.max(0, Number(group.openProgrammeServiceCount || 0)),
+        categoryIconUrl: primaryCategoryEntry.iconUrl
+            || group.rows?.find((row) => row.categoryIconUrl)?.categoryIconUrl
+            || null,
+        categoryIconKey: primaryCategoryEntry.iconKey
+            || group.rows?.find((row) => row.categoryIconKey)?.categoryIconKey
+            || null,
+        categoryColor: primaryCategoryEntry.color || categoryColorSegments[0] || null,
+        logoUrl: group.rows?.find((row) => row.logoUrl)?.logoUrl || null,
+    };
 }
 
 function buildGroupedPins(groups = [], options = {}) {
@@ -504,6 +531,8 @@ function buildGroupedPins(groups = [], options = {}) {
                     lat: group.lat,
                     lng: group.lng,
                     curatedCount: group.curatedCount,
+                    openProgrammeServiceCount: Math.max(0, Number(group.openProgrammeServiceCount || 0)),
+                    totalOfferingsCount: Math.max(0, Number(group.openProgrammeServiceCount || 0)),
                     categoryKey: normalizeMyMapCategoryKey(primaryCategoryEntry.label),
                     categoryIconUrl: primaryCategoryEntry.iconUrl
                         || group.rows.find((row) => row.categoryIconUrl)?.categoryIconUrl
@@ -531,6 +560,8 @@ function buildGroupedPins(groups = [], options = {}) {
                 lat: group.lat,
                 lng: group.lng,
                 curatedCount: group.curatedCount,
+                openProgrammeServiceCount: Math.max(0, Number(group.openProgrammeServiceCount || 0)),
+                totalOfferingsCount: Math.max(0, Number(group.openProgrammeServiceCount || 0)),
                 categoryKey: normalizeMyMapCategoryKey(
                     primaryCategoryEntry.label || categoryEntries[0]?.label,
                 ),
@@ -543,6 +574,12 @@ function buildGroupedPins(groups = [], options = {}) {
                 hiddenPreviewCount: Math.max(0, group.nestedPlaces.length - 3),
                 isPostalGroup: true,
                 postalGroupCount: group.memberPlaceKeys.length,
+                hardAssetCount: group.memberPlaceKeys.length,
+                postalGroupKey: group.placeKey,
+                memberPins: group.nestedPlaces.map((member) => ({
+                    ...buildDiscoveryCompatiblePlacePin(member, options),
+                    postalGroupKey: group.placeKey,
+                })),
                 memberPlaceKeys: [...group.memberPlaceKeys],
             };
         });
