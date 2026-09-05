@@ -110,6 +110,34 @@ Rules:
   both member offering counts, chooser open/close, post-close pointer/scroll
   recovery, and mobile overflow checks all passed. No production data or share
   snapshot was changed by this proof.
+- Follow-up release proof (2026-09-05): implementation commit `2216d3c3` was
+  pushed on `codex/category-pin-discovery-parity-20260905`; pull request `#49`
+  merged the accumulated, already released map refinements and this follow-up
+  into `main` at `9d4f74f09`. The pull-request and post-merge CareAround quality
+  gates passed (`33970116870` and `33970176996`); the remaining Netlify statuses
+  failed on the retired legacy release path and did not block the supported
+  Cloudflare release. The clean synchronized-main Worker guard passed before
+  Worker version `eb5d3c46-bbff-468e-a4a4-f64fff416c91` deployed. The exact
+  six-root artifact published to Cloudflare Pages at
+  `https://b4097b10.senior-resource-map.pages.dev`; Wrangler compiled the Pages
+  Worker, uploaded all `85` files plus `_headers`, the Functions bundle, and
+  `_routes.json`. All `85` served static files matched both the immutable Pages
+  deployment and `https://app.carearound.sg` by SHA-256, with aggregate digest
+  `8e78dccf64ddf03ca1ab055b5879752128e0aa33e2fe60c765189556a3fe0c18`.
+  Production app, `/discover`, `/login`, preview routes, and API health returned
+  `200`/OK; all six map roots and required map/export markers remained present,
+  and retired labels remained absent. Ordinary routes retained
+  `X-Frame-Options: DENY` and `frame-ancestors 'none'`; the enabled embed stayed
+  `no-store`, omitted `X-Frame-Options`, and retained its exact approved
+  `frame-ancestors`, while an unknown embed token returned `404` and `no-store`.
+  Chrome production verification rendered the existing public embed's four
+  mapped resources with zero console errors and usable body pointer/scroll
+  state. The credentialed aggregate production smoke was not rerun because its
+  credentials were absent from the release shell; the focused Chrome desktop
+  and `390x844` Category Pin interaction proof plus production public checks are
+  the release evidence for this scoped change. No schema, migration,
+  production-data, auth, permission, secret, provider, or share-snapshot change
+  was performed.
 
 ## 2026-09-03 mobile My Map Map Studio drawer recovery
 

@@ -15,8 +15,8 @@ Updated: 2026-09-05 (Asia/Singapore)
 
 The primary checkout is intentionally dirty on `codex/offering-filtered-export-parity`. It contains unrelated user/agent work, including the filtered-export feature and local guardrail/tooling files. Do not stage, reset, merge, clean, or release from that checkout.
 
-The Category Pin Discovery-parity candidate is prepared in the isolated
-worktree `/private/tmp/carearound-mobile-map-studio-drawer-20260903` on branch
+The Category Pin Discovery-parity release was prepared in the isolated worktree
+`/private/tmp/carearound-mobile-map-studio-drawer-20260903` on branch
 `codex/category-pin-discovery-parity-20260905`. It reuses Discovery's pin
 builders and same-postal chooser across owner My Map, Shared Map, and embedded
 maps; centre counts mean Places and small badges mean guest-visible
@@ -26,7 +26,15 @@ snapshots must be republished to receive that new derived count. Local release
 gates passed: client `732/732`, server `611/611`, locked owner-map gate `74/74`,
 static graph `424` modules / `1,266` edges with no cycle, clean diff whitespace,
 the exact six-root production build, and Chrome desktop plus `390x844` embed
-interaction QA. The primary dirty checkout remains untouched.
+interaction QA. Implementation `2216d3c3` merged through PR `#49` to `main` at
+`9d4f74f09`; both supported GitHub quality gates passed. Production Worker
+version `eb5d3c46-bbff-468e-a4a4-f64fff416c91` and exact Pages deployment
+`https://b4097b10.senior-resource-map.pages.dev` are live. All `85` static files
+match the local artifact, immutable deployment, and `https://app.carearound.sg`
+with aggregate SHA-256
+`8e78dccf64ddf03ca1ab055b5879752128e0aa33e2fe60c765189556a3fe0c18`;
+production route, API-health, embed-header, six-root map marker, and public
+embed Chrome checks passed. The primary dirty checkout remains untouched.
 
 The Phase 1 closeout was prepared in the isolated worktree:
 
