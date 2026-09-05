@@ -15,6 +15,45 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-05 embedded Category Pin shared-location chooser
+
+- Candidate behavior: `Category pins` is the user-facing name for the former
+  `Category icons` map style. When two or more public map resources resolve to
+  the same postal-code location, that style renders one category pin with a
+  visible resource-count badge. Selecting it in an embedded map opens a
+  compact shared-location chooser; selecting a resource then reuses the
+  established resource-detail preview, with a Back action to the chooser.
+  Category bubbles retain their relationship-first interaction and Numbered
+  pins retain their static plot-and-print behavior.
+- Architecture and blast radius: the existing presentation adapter and postal
+  grouping remain the single source of truth. `DirectoryMap` only restores a
+  count badge for multi-resource Category Pins, while the embed presentation
+  helper resolves a postal pin to its existing frozen, guest-safe resource
+  groups. The embedded page owns only chooser navigation state. Owner map
+  relationship highlighting, Category bubbles, Numbered pins, category order,
+  resource numbering, map geometry, share publication, public snapshot
+  sanitization, private notes, personal places, API contracts, persistence,
+  schema, authentication, and production data are unchanged.
+- Reproduction and acceptance: publish or locally preview an embedded map in
+  `Category pins` style with at least two public resources sharing a postal
+  code. Confirm one pin is shown with the correct selectable-resource count;
+  selecting it must list every resource at that location in category order,
+  selecting a member must show its existing detail card, Back must restore the
+  chooser, and Close must restore normal pointer and scroll behavior. A single
+  location must continue to open its detail directly. Repeat at desktop and
+  `390x844`; confirm Category bubbles and Numbered pins are unchanged.
+- Verification before release (2026-09-05): PASS. The focused embed, marker,
+  locale, and module-architecture set passed `38/38`; the full client suite
+  passed `731/731`; the full server baseline passed `611/611`; and the locked
+  map suite passed `91/91` with the exact six-root production map build. Static
+  validation covered all three ordered migrations plus `423` source modules
+  and `1,262` relative import edges with no cycles. Real-browser UAT against
+  local client code and a non-persisted duplicate-postal fixture passed at
+  desktop and `390x844`: one count-2 pin opened both resources, member drill-in
+  and Back worked, Close restored `pointer-events: auto` and visible overflow,
+  page scrolling remained available, and no console errors were observed.
+  No production data or frozen share snapshot was changed for this proof.
+
 ## 2026-09-03 mobile My Map Map Studio drawer recovery
 
 - Current behavior: owner My Maps return to a map-first mobile layout. The

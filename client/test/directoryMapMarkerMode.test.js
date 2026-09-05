@@ -81,6 +81,7 @@ test('directory map can hide individual pin count badges without changing the de
     assert.match(discoverUtilsSource, /const badgeMarkup = showBadge/);
     assert.match(directoryMapSource, /pinBadgeMode = 'count'/);
     assert.match(directoryMapSource, /showBadge: pinBadgeMode !== 'none'/);
+    assert.match(directoryMapSource, /markerMode === 'category-icon' && pin\.isPostalGroup && pin\.curatedCount > 1/);
 });
 
 test('settled print badge passes recompute collisions instead of reusing stale pre-fit offsets', () => {

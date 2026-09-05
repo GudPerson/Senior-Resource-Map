@@ -8,6 +8,7 @@ import {
     DEFAULT_EMBEDDED_MAP_PRESENTATION,
     filterEmbedDirectoryByCategories,
     findEmbedPreviewGroup,
+    findEmbedPreviewGroups,
     getEmbedListOnlyResourceCount,
     buildEmbedResourcePreviewDetails,
 } from '../src/lib/embedMapPresentation.js';
@@ -122,6 +123,29 @@ test('embedded map presentation filters pins by category and text query', () => 
     assert.equal(presentation.pins.length, 1);
     assert.equal(presentation.pins[0].placeKey, 'mapped-1');
     assert.equal(findEmbedPreviewGroup(presentation, 'mapped-1')?.rows[0]?.resourceId, 1);
+});
+
+test('embedded map resolves a shared category pin to every public resource at that postal location', () => {
+    const directory = createDirectory();
+    directory.places[1] = {
+        ...directory.places[1],
+        address: '1 Example Street Singapore 600001',
+        lat: 1.3302,
+        lng: 103.7402,
+    };
+    const presentation = buildEmbeddedMapPresentation(directory);
+    const sharedPin = presentation.pins.find((pin) => pin.isPostalGroup);
+
+    assert.equal(sharedPin.curatedCount, 2);
+    assert.deepEqual(sharedPin.memberPlaceKeys, ['mapped-1', 'mapped-2']);
+    assert.deepEqual(
+        findEmbedPreviewGroups(presentation, sharedPin.placeKey).map((group) => group.placeKey),
+        ['mapped-2', 'mapped-1'],
+    );
+    assert.deepEqual(
+        findEmbedPreviewGroups(presentation, 'mapped-1').map((group) => group.placeKey),
+        ['mapped-1'],
+    );
 });
 
 test('selecting a Group category reveals its mapped member resources', () => {

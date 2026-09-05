@@ -47,6 +47,9 @@ test('map-only page uses the guest endpoint and omits private-map tool surfaces'
     assert.match(embeddedPageSource, /embedded-map-height-warning/);
     assert.match(embeddedPageSource, /mapHeightClassName="h-full"/);
     assert.match(embeddedPageSource, /<CompactResourcePreviewCard/);
+    assert.match(embeddedPageSource, /findEmbedPreviewGroups/);
+    assert.match(embeddedPageSource, /<SharedLocationChooser/);
+    assert.match(embeddedPageSource, /embedMapResourcesAtLocation/);
     assert.match(compactResourcePreviewCardSource, /function ResourcePreviewLogo/);
     assert.match(compactResourcePreviewCardSource, /function ResourceContactLinks/);
     assert.match(compactResourcePreviewCardSource, /function WebsiteIconMark/);

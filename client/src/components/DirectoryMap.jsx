@@ -3298,7 +3298,8 @@ export default function DirectoryMap({
                                     color: pin.categoryColor || null,
                                     colorSegments: pin.categoryColorSegments || [],
                                     placeKey: pin.placeKey,
-                                    showBadge: pinBadgeMode !== 'none',
+                                    showBadge: pinBadgeMode !== 'none'
+                                        || (markerMode === 'category-icon' && pin.isPostalGroup && pin.curatedCount > 1),
                                 }), resolvedMarkerScale);
                                 savedPinIcon.options.assetCount = getDirectoryPinAssetCount(pin);
                                 savedPinIcon.options.categoryIconUrl = categoryIconUrl;
@@ -3393,7 +3394,8 @@ export default function DirectoryMap({
                         color: pin.categoryColor || null,
                         colorSegments: pin.categoryColorSegments || [],
                         placeKey: pin.placeKey,
-                        showBadge: pinBadgeMode !== 'none',
+                        showBadge: pinBadgeMode !== 'none'
+                            || (markerMode === 'category-icon' && pin.isPostalGroup && pin.curatedCount > 1),
                     }), resolvedMarkerScale);
                     savedPinIcon.options.assetCount = getDirectoryPinAssetCount(pin);
                     savedPinIcon.options.categoryIconUrl = categoryIconUrl;
