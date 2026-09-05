@@ -84,7 +84,8 @@ test('map-only page uses the guest endpoint and omits private-map tool surfaces'
     assert.match(embeddedPageSource, /<PrintAnnotationLayer annotations=\{sharedAnnotations\} editable=\{false\}/);
     assert.match(embeddedPageSource, /mapOverlay=\{embeddedMapRuntime\.annotationsVisible \? sharedAnnotationOverlay : null\}/);
     assert.match(embeddedPageSource, /target="_blank"/);
-    assert.match(directoryMapSource, /title=\{pin\.title \|\| pin\.previewResourceNames\?\.join\(', '\) \|\| 'Map resource'\}/);
+    assert.match(directoryMapSource, /title=\{markerMode === 'category-icon'[\s\S]*\? undefined[\s\S]*pin\.title \|\| pin\.previewResourceNames\?\.join\(', '\) \|\| 'Map resource'/);
+    assert.match(directoryMapSource, /alt=\{pin\.title \|\| pin\.previewResourceNames\?\.join\(', '\) \|\| 'Map resource'\}/);
     assert.doesNotMatch(embeddedPageSource, /useAuth|SavedAssets|geolocation|removeMyMap|updateMyMap/);
     assert.match(embeddedDetailedMapSource, /VITE_TOWN_MAP_PROOF_ENABLED/);
     assert.match(embeddedDetailedMapSource, /VITE_TOWN_MAP_ASSET_BASE_URL/);

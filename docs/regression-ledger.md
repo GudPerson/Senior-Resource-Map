@@ -138,6 +138,43 @@ Rules:
   the release evidence for this scoped change. No schema, migration,
   production-data, auth, permission, secret, provider, or share-snapshot change
   was performed.
+- Single-pin floating-card follow-up candidate (2026-09-05): every Category Pin
+  now uses the same Discovery-derived floating resource-card interaction before
+  entering the established resource-detail preview. A single Place opens a
+  compact one-resource panel on desktop hover or pin selection and on mobile
+  pin selection; a same-postal parent retains its shared-location heading and
+  member list. Native browser title tooltips are suppressed for Category Pins
+  so they do not compete with the product surface, while accessible marker alt
+  text remains. Selecting any resource card now cancels the hover-close timer,
+  preserves the selected Place through the transition, and opens the existing
+  detail preview instead of merely dismissing the floating panel.
+- Single-pin follow-up architecture and blast radius: the existing shared
+  `DirectoryMap` Category Pin state and `DiscoverPostalGroupListPanel` are
+  generalized narrowly rather than adding another overlay or detail path. The
+  same client behavior therefore reaches owner My Map, Shared Map, and embedded
+  maps. Category bubbles, Numbered pins, map camera, postal grouping, offering
+  counts, resource ordering, annotations, print/export, APIs, persistence,
+  schema, authentication, frozen share snapshots, and production data are
+  unchanged.
+- Single-pin follow-up reproduction and acceptance: open an owner, Shared, or
+  embedded map in `Category pins` style. On desktop, hover a single Category Pin
+  and confirm its floating resource card appears; selecting the pin must keep
+  the same card available. On touch/mobile, activate map interaction and select
+  the pin. Selecting the resource card in either the single or same-postal
+  panel must open the established detail preview. Closing either surface must
+  leave body pointer and scroll state usable. Repeat at desktop and `390x844`,
+  confirm no horizontal overflow, and confirm Category bubbles and Numbered
+  pins remain unchanged.
+- Single-pin follow-up verification before release (2026-09-05): PASS. Focused
+  marker/embed coverage passed `32/32`; the full client suite passed `733/733`;
+  the full server baseline passed `611/611`; and the locked map suite passed
+  `91/91` with the exact six-root production map build. Static validation
+  covered all three ordered migrations plus `424` source modules and `1,266`
+  relative import edges with no cycles, and `git diff --check` passed. Chrome
+  UAT against a non-persisted frozen-embed fixture passed grouped selection,
+  desktop single hover and selection, mobile single selection at `390x844`,
+  detail drill-in, usable body pointer/scroll state, and no horizontal overflow.
+  No production data or frozen share snapshot was changed for this proof.
 
 ## 2026-09-03 mobile My Map Map Studio drawer recovery
 
