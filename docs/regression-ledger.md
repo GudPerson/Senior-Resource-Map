@@ -53,6 +53,25 @@ Rules:
   and Back worked, Close restored `pointer-events: auto` and visible overflow,
   page scrolling remained available, and no console errors were observed.
   No production data or frozen share snapshot was changed for this proof.
+- Release proof (2026-09-05): implementation commit `3d91c513` was pushed to
+  `codex/category-pin-shared-location-20260905`. The exact validated six-root
+  client artifact was published explicitly to the Cloudflare Pages production
+  branch at `https://07e6feed.senior-resource-map.pages.dev`; Wrangler compiled
+  the Pages Worker/Functions bundle and uploaded all `85` public files,
+  `_headers`, and `_routes.json`. The immutable deployment and
+  `https://app.carearound.sg` match the local `index.html`, entry JavaScript,
+  entry CSS, `EmbeddedMapPage`, and `MapStyleContext` files byte-for-byte by
+  SHA-256; the embedded-map bundle hash is
+  `990be8290160053e565eb46849cf32d108239c1c954d06ba21392536182b5877`.
+  `/discover` and `/login` returned `200` on both hosts, production API health
+  returned `200`, JavaScript and CSS MIME types were correct, and an existing
+  live embed rendered its four mapped resources with no console errors.
+  Ordinary routes retained `X-Frame-Options: DENY` and CSP
+  `frame-ancestors 'none'`; the enabled embed remained `no-store` and limited
+  to its approved frame ancestors, while an unknown token returned `404` and
+  `no-store`. No Worker API, database, schema, migration, dependency, secret,
+  authentication, permission, share snapshot, or production-data change was
+  deployed.
 
 ## 2026-09-03 mobile My Map Map Studio drawer recovery
 
