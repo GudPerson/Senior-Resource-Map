@@ -100,6 +100,12 @@ stable UX does not expose a Print Master button. Omitting any of the six map
 roots is a rollback or dormant-contract change, not the normal production
 build, and `npm run deploy:client` rejects omission.
 
+Discover Detailed has an additional, independent release flag. Keep
+`VITE_DISCOVER_DETAILED_MAP_ENABLED` omitted to preserve live OneMap on
+Discover. Add `VITE_DISCOVER_DETAILED_MAP_ENABLED=true` to the same six-root
+client build only after the Discover-specific ledger gate and release approval
+pass; the existing `VITE_TOWN_MAP_PROOF_ENABLED=true` remains required.
+
 CareAround Pages also contains the file-routed embed Function under
 `client/functions`. The standard `npm run deploy:client` is safe because it
 changes into `client` before running Wrangler. For a manual exact-artifact

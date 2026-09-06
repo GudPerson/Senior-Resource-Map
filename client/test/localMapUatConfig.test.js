@@ -11,6 +11,7 @@ const viteConfigSource = fs.readFileSync(
 );
 
 const requiredLocalMapEnvironment = [
+    'VITE_DISCOVER_DETAILED_MAP_ENABLED=true',
     'VITE_TOWN_MAP_PROOF_ENABLED=true',
     'VITE_TOWN_MAP_ASSET_BASE_URL=/__carearound-town-maps/v2/native-scale-20260722/default',
     'VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=/__carearound-town-maps/v2/native-scale-20260722/gray',
@@ -19,6 +20,7 @@ const requiredLocalMapEnvironment = [
 ];
 
 const requiredProductionMapEnvironment = [
+    'VITE_DISCOVER_DETAILED_MAP_ENABLED=true',
     'VITE_TOWN_MAP_PROOF_ENABLED=true',
     'VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/default',
     'VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/gray',
@@ -80,6 +82,7 @@ test('map lockdown verification keeps focused tests and the exact production bui
     const testCommand = rootPackage.scripts['test:map-lockdown'];
     [
         'fixedTownSurface.test.js',
+        'discoverDetailedMap.test.js',
         'fixedTownSurfaceIntegration.test.js',
         'mapSettingsControl.test.js',
         'printMapWorkspace.test.js',

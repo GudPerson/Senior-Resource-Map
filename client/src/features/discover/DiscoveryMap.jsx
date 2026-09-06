@@ -9,6 +9,7 @@ import MapSettingsControl from '../../components/MapSettingsControl.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { useMapStyle } from '../../contexts/MapStyleContext.jsx';
 import homeAnchorImage from '../../assets/home-anchor.png';
+import DiscoverDetailedBasemap from './DiscoverDetailedBasemap.jsx';
 import { createPostalGroupParentPinIcon, createSavedPlacePinIcon } from './discoverUtils.js';
 import {
     CAREAROUND_BASEMAP_ATTRIBUTION,
@@ -636,12 +637,17 @@ export function DiscoveryMap({
                 maxZoom={CAREAROUND_BASEMAP_MAX_ZOOM}
                 zoomSnap={DISCOVER_ZOOM_SNAP}
             >
-                <TileLayer
-                    key={`carearound-discover:${mapStyle}`}
-                    attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
-                    minNativeZoom={CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM}
-                    url={getCareAroundBasemapUrl(mapStyle)}
-                    maxNativeZoom={CAREAROUND_BASEMAP_NATIVE_ZOOM}
+                <DiscoverDetailedBasemap
+                    mapStyle={mapStyle}
+                    liveTiles={(
+                        <TileLayer
+                            key={`carearound-discover:${mapStyle}`}
+                            attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
+                            minNativeZoom={CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM}
+                            url={getCareAroundBasemapUrl(mapStyle)}
+                            maxNativeZoom={CAREAROUND_BASEMAP_NATIVE_ZOOM}
+                        />
+                    )}
                 />
                 <SavedMapCameraController
                     baseAnchorPoint={cameraAnchor}

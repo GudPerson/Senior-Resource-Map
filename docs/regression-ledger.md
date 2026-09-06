@@ -15,6 +15,75 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-06 feature-gated Discover Detailed basemap candidate
+
+- Candidate behavior: Discover retains its existing `DiscoveryMap` camera,
+  search, filter, saved-only, saved and transient pins, Category Pin,
+  same-postal chooser, cards, desktop split pane, and mobile Browse/Map flows.
+  When the new `VITE_DISCOVER_DETAILED_MAP_ENABLED=true` flag and the existing
+  fixed-map proof flag are both present, the basemap changes automatically by
+  displayed Leaflet zoom step: live OneMap through `13`, the established
+  overview surface at `14`, and the native block-number surface from `15`
+  upward. Default and Gray use their existing immutable asset roots. Without
+  the new flag, ordinary builds retain the current live-OneMap behavior.
+- Architecture and blast radius: `DiscoveryMap` is not replaced by
+  `DirectoryMap`. A Discover-only basemap child owns viewport observation,
+  retained ready/in-flight manifest requests, and the pure live-versus-fixed
+  decision, then delegates rendering, visible-chunk selection, off-screen
+  pruning, full-viewport containment, retry/fallback, and decoded-memory
+  accounting to the existing `FixedTownSurfaceLayer` and fixed-surface
+  helpers. Live tiles and a fixed surface are mutually exclusive; manifest
+  loading keeps the fixed-surface backdrop rather than flashing live tiles.
+  The standard `256 MiB` decoded-memory ceiling is unchanged. My Map, Shared
+  Map, embed, APIs, persistence, schema, authentication, map assets, and
+  production data are outside this patch and unchanged.
+- Known-good reference and reproduction: baseline is clean `origin/main` at
+  `fb5ecbdf606fa15fd0af57df1f1e46b990cb5799`; the active production Pages
+  deployment also reports that source revision. Run the feature-configured
+  local client and Worker, open `/discover`, search postal code `680123`, and
+  exercise zoom `13 -> 14 -> 15 -> 14 -> 13` in both Default and Gray. Repeat
+  with keyword/category filtering, Places and Programme/service tabs,
+  saved-only, address focus, reset, a same-postal saved-place group, desktop
+  split-pane resizing, and authenticated `390x844` Browse/Map transitions.
+  Pan across adjacent native plates and outside the fixed-map index. At every
+  step, require the whole viewport to be covered before mounting Detailed,
+  zero live-tile images while Detailed is active, and live OneMap after a
+  coverage, source, chunk, or memory failure.
+- Verification before release (2026-09-06): PASS for the local automated and
+  browser scope. `npm run verify:map-lockdown` passed `97/97` and the exact
+  feature-enabled six-root production build; the ordinary flag-disabled
+  `npm run build:client` also passed. Full client coverage passed `739/739`,
+  the unchanged server baseline passed `611/611`, and static validation passed
+  all three ordered migrations plus `426` source modules and `1,272` relative
+  import edges with no cycles; `git diff --check` passed. Deterministic tests
+  cover displayed fractional-step rounding, forward and reverse tier changes,
+  source/chunk/coverage fallback, live/fixed exclusivity, and the `256 MiB`
+  fail-closed path.
+- Real-browser evidence (2026-09-06): PASS against the feature-configured local
+  build at desktop and authenticated `390x844`. Default and Gray both reached
+  overview `SG14` at displayed `14` and native `W01`/`W02` at `15+`; sampled
+  transition states never contained live tiles and fixed image layers at the
+  same time. The desktop pane changed the visible map width from `750` to
+  `644` pixels, emitted the resize event, and retained all `16` active native
+  chunks with zero live tiles. Mobile rendered a `390x687` map, completed the
+  live/overview/native round trip, changed saved-only results from `4,090` to
+  `17`, and created one transient preview pin from address focus. Closing the
+  mobile filter restored body `pointer-events: auto` and visible overflow. A
+  non-persisted response fixture produced one count-`2` same-postal parent at
+  `680234`; selecting it opened both saved-place cards while the native fixed
+  surface remained exclusive. Native panning moved through `W01`, `W04`, and
+  `W05`, then outside coverage restored `12` live tiles and removed all fixed
+  image layers. The same-origin proxy returned `200` for the fixed-surface
+  index, selected `W01` manifest, and a manifest-listed JPEG chunk. The only
+  browser-console error was the expected local
+  discovery-cache `404`; the established fallback endpoints loaded the result
+  set, and there were no Detailed-map runtime errors. No favorite, map,
+  snapshot, production-data, or other persistent state was changed.
+- Release state: locally validated and approved for release on 2026-09-06. The
+  implementation commit, pushed branch, exact flagged Pages artifact, and
+  production verification evidence will be recorded here after deployment; the
+  Worker must not be deployed for this client-only change.
+
 ## 2026-09-05 embedded Category Pin shared-location chooser
 
 - Candidate behavior: `Category pins` is the user-facing name for the former
