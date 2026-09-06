@@ -1,6 +1,6 @@
 # CareAround SG session handoff
 
-Updated: 2026-09-05 (Asia/Singapore)
+Updated: 2026-09-06 (Asia/Singapore)
 
 ## Start here
 
@@ -13,12 +13,16 @@ Updated: 2026-09-05 (Asia/Singapore)
 
 ## 2026-09-06 My Directory map-safe bulk unsave
 
-- Release candidate: `codex/my-directory-safe-bulk-unsave` at `b31615668` in the isolated worktree `/Users/sweetbuns/CareAroundSG-worktrees/my-directory-safe-bulk-unsave`.
+- Released app code: `main` and `codex/my-directory-safe-bulk-unsave` at `0d9f439f0`; implementation commit `b31615668`; runtime import-collision fix `0d9f439f0`. Work was isolated in `/Users/sweetbuns/CareAroundSG-worktrees/my-directory-safe-bulk-unsave`.
 - Saved Resources now supports `All`, `Used in My Maps`, and `Not used in My Maps` filters plus a dedicated multi-select removal mode.
 - Bulk removal fails closed when map-usage status is unavailable, excludes resources used in any owner My Map in both the client and API, and rechecks usage immediately before deletion. Individual removal remains available after an explicit consequence warning.
 - Removal confirmations now state that an Offering can lose its saved schedule source from Care Calendar. Map-used resources are labelled and protected from bulk removal.
 - New authenticated API routes are `GET /api/favorites/map-usage` and `POST /api/favorites/bulk-remove-unused`; there is no schema or migration change.
-- Automated verification before release: full quality gate passed, including client `740/740`, server `613/613`, static import/cycle checks, migration validation, and the standard client build. The map-lockdown gate passed `91/91` plus the exact six-root production build, and the Worker dry run passed. Production deployment evidence is recorded below when completed.
+- Automated verification: client `740/740`, server `613/613`, map-lockdown `91/91`, migration validation, 426-module/1,270-edge no-cycle checks, the standard and exact six-root client builds, and the Worker dry run passed. GitHub quality runs `34030743537` and `34031383022` passed.
+- Production Worker version `8567e09a-73aa-48d7-8a4d-76540d967525` is live; API health returned 200 and both new routes returned 401 without authentication.
+- The final exact Pages artifact is `https://792ab20d.senior-resource-map.pages.dev`. All 85 static files matched the local build and `https://app.carearound.sg` with aggregate SHA-256 `606f1d026278d898cd6b69475fab28915056b58443b9f36dfa1d4cb5499a880d`.
+- The first Pages smoke exposed a My Directory runtime collision between the map icon import and JavaScript's `Map`; `0d9f439f0` aliases the icon and adds a regression assertion. The corrected production smoke passed 6/6.
+- Non-mutating Chrome UAT passed at desktop and 390x844: all three map-use filters, usage counts/badges, used-resource bulk protection, unused select-all, and both individual/bulk Care Calendar warnings were verified. Both confirmations were cancelled, so no saved resource was removed.
 - The primary checkout `/Users/sweetbuns/CareAroundSG` was returned to its original branch and its unrelated dirty/untracked work was not staged or altered.
 
 ## Protected workspace state
