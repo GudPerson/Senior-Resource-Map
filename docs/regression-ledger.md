@@ -15,6 +15,72 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-06 Discover 80%-linear derivative asset pilot
+
+- Candidate behavior and blast radius: a second, nested client flag,
+  `VITE_DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED=true`, lets Discover use
+  separately rooted 80%-linear JPEG derivatives of the established fixed-map
+  chunks. The bounded pilot contains native `C02` and `W04` plus overview
+  `SG14`, each in Default and Gray. Chunk geography, full-viewport
+  containment, displayed whole-number zoom semantics, ready/in-flight
+  manifest retention, visible-chunk loading, off-screen pruning, and live-tile
+  exclusion remain owned by the existing fixed-surface adapter. The pilot
+  always uses the standard `256 MiB` decoded-memory ceiling, even if the older
+  `384 MiB` UAT flag is also present. Its four Discover-only roots are
+  all-or-nothing; an incomplete pilot configuration uses the established
+  stable roots. My Map, Shared Map, embed, `DirectoryMap`, API, schema,
+  authentication, source map assets, and production data are unchanged.
+- Asset and integrity contract: the generator downloads only immutable source
+  manifests and their declared chunks from `https://maps.carearound.sg`,
+  verifies every source byte size and SHA-256, and creates JPEG quality-95,
+  4:4:4 derivatives using Pillow LANCZOS resampling at `0.8` linear scale.
+  Each output manifest records its source collection, source manifest, and
+  per-chunk hashes. The shared parser accepts only the exact derivative
+  edition, Discover-only scope, source profile/scale pair, output
+  profile/scale pair, resampling method, readability provenance, and hashes;
+  provenance drift fails closed. Existing stable manifests do not need the
+  derivative-only integrity fields. The generated pilot is ignored local
+  evidence under `output/town-map-proof/discover-derivative-pilot/`; it is not
+  a replacement for the immutable production roots.
+- Known-good reference and reproduction: the stable Discover behavior is the
+  2026-09-06 candidate and production evidence below. Run
+  `npm run town-map:discover-derivative-pilot:prepare`, verify with
+  `npm run town-map:discover-derivative-pilot:verify`, then run
+  `npm run dev:client:discover-derivative-pilot` alongside the local Worker.
+  Open `/discover?postal=160026`, exercise displayed zoom
+  `13 -> 14 -> 15` and the reverse in Default and Gray, resize the desktop
+  rail, open/close the mobile map and settings at `390x844`, and pan within and
+  beyond `C02`/`W04`. Require live OneMap at `13`, overview `SG14` at `14`,
+  native block-number imagery at `15+`, and zero live tiles beneath every
+  active derivative surface. Abort a derivative chunk request and require the
+  existing `chunk-load-error` live-OneMap fallback.
+- Verification before wider generation (2026-09-06): PASS for the bounded
+  local pilot, with authenticated mobile visual acceptance still a human UAT
+  gate. Independent asset verification passed all six surface/style records:
+  native `C02` and `W04` retain `63.99%` of source decoded pixels, overview
+  `SG14` retains `63.97%`, and derivative transport totals approximately
+  `324.27 MiB`. The map-lockdown suite passed `103/103`, full client coverage
+  passed `745/745`, and static validation passed all three ordered migrations
+  plus `427` source modules and `1,273` relative import edges with no cycles.
+  Both the unchanged stable six-root build and the exact derivative-pilot build
+  passed; script syntax and `git diff --check` passed. Real Chromium at
+  `1440x900` confirmed
+  live/overview/native forward and reverse transitions in Default and Gray,
+  `C02` native zoom-15 at `20/20` visible chunks and `177.5 MiB`, `SG14`
+  overview zoom-14 at `64/64` and `163.76 MiB`, and zero live tiles throughout
+  active Detailed states. Resizing the rail from `450` to `600` pixels retained
+  all six visible native chunks and zero live tiles. Native panning stayed on
+  `W04` while contained and restored live OneMap with zero fixed images after
+  crossing coverage. A forced native chunk failure produced
+  `chunk-load-error`, 25 live tiles, and zero fixed images. Public mobile
+  Chromium at `390x844` loaded native zoom-15 at `8/8` chunks and `72 MiB`,
+  overview zoom-14 at `24/24` and `61.41 MiB`, switched to Gray, and restored
+  body pointer events and overflow after closing settings. The local browser
+  session was signed out, so saved-only/authenticated behavior relies on the
+  unchanged Discover code paths and the prior authenticated evidence below;
+  it must be replayed before expanding or publishing this pilot. No asset was
+  uploaded, and no branch was pushed or deployed.
+
 ## 2026-09-06 Discover 384 MiB desktop UAT ceiling follow-up
 
 - Production diagnosis: authenticated Chrome reproduction at `1470x923`

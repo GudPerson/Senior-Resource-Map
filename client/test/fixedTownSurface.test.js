@@ -144,6 +144,73 @@ function buildOverviewAtlasManifest(style = 'default') {
     return manifest;
 }
 
+function applyRetainedScale(manifest, retainedScale) {
+    const columnWidths = new Map();
+    const rowHeights = new Map();
+    manifest.chunks.forEach((chunk) => {
+        const [left, top, right, bottom] = chunk.worldPixelBounds;
+        chunk.pixelSize = [
+            Math.round((right - left) * retainedScale),
+            Math.round((bottom - top) * retainedScale),
+        ];
+        chunk.sourceSha256 = chunk.sha256;
+        columnWidths.set(chunk.column, chunk.pixelSize[0]);
+        rowHeights.set(chunk.row, chunk.pixelSize[1]);
+    });
+    const [left, top, right, bottom] = manifest.source.worldPixelBounds.nominal;
+    manifest.retainedPixelDimensions.nominal = [
+        Math.round((right - left) * retainedScale),
+        Math.round((bottom - top) * retainedScale),
+    ];
+    manifest.retainedPixelDimensions.chunkGrid = [
+        [...columnWidths.entries()]
+            .sort(([leftColumn], [rightColumn]) => leftColumn - rightColumn)
+            .reduce((sum, [, width]) => sum + width, 0),
+        [...rowHeights.entries()]
+            .sort(([leftRow], [rightRow]) => leftRow - rightRow)
+            .reduce((sum, [, height]) => sum + height, 0),
+    ];
+}
+
+function buildDiscoverDerivativeManifest({ tier = 'native', style = 'default' } = {}) {
+    const manifest = tier === 'overview'
+        ? buildOverviewAtlasManifest(style)
+        : cloneManifest();
+    const sourceManifestSha256 = 'd'.repeat(64);
+    const sourceCollectionManifestSha256 = 'e'.repeat(64);
+    const isOverview = tier === 'overview';
+    manifest.map.id = isOverview ? 'SG14' : 'C02';
+    manifest.map.name = isOverview
+        ? 'Singapore Zoom-14 Detailed Map Atlas'
+        : 'Queenstown - Bukit Merah';
+    manifest.map.style = style;
+    manifest.map.version = isOverview
+        ? `sg14-discover${style === 'gray' ? '-gray' : ''}-s20-q95-g1-81bd26441edaff1d`
+        : `c02-discover${style === 'gray' ? '-gray' : ''}-s40-q95-g1-81bd26441edaff1d`;
+    if (style === 'gray') manifest.source.style = 'Grey';
+    manifest.source.retainedScale = isOverview ? 0.2 : 0.4;
+    manifest.source.profile = isOverview ? 'discover-overview-20' : 'discover-native-40';
+    manifest.source.profileLabel = isOverview
+        ? '20% z19 zoom-14 Discover derivative'
+        : '40% z19 Discover derivative';
+    manifest.source.readability.rasterResampled = true;
+    manifest.source.readability.embeddedImageStreamsPreserved = false;
+    manifest.source.derivative = {
+        edition: 'discover-derivative-v1',
+        scope: 'discover-only',
+        linearScale: 0.8,
+        resampling: 'LANCZOS',
+        sourceProfile: isOverview ? 'overview-25' : 'urban-50',
+        sourceRetainedScale: isOverview ? 0.25 : 0.5,
+        sourceManifestSha256,
+        sourceCollectionManifestSha256,
+    };
+    manifest.integrity.derivativeSourceManifestSha256 = sourceManifestSha256;
+    manifest.integrity.derivativeSourceCollectionManifestSha256 = sourceCollectionManifestSha256;
+    applyRetainedScale(manifest, manifest.source.retainedScale);
+    return manifest;
+}
+
 test('fixed town surface manifest accepts the complete v1 contract', () => {
     const manifest = buildManifest();
 
@@ -221,6 +288,30 @@ test('fixed town surface manifest accepts the complete zoom-14 atlas provenance 
     const atlasWithUntrackedScale = structuredClone(atlasManifest);
     atlasWithUntrackedScale.source.readability.scaleFactor = 0.5;
     assert.equal(validateFixedTownSurfaceManifest(atlasWithUntrackedScale), false);
+});
+
+test('fixed town surface manifest accepts only provenance-locked Discover derivatives', () => {
+    const native = buildDiscoverDerivativeManifest();
+    const overview = buildDiscoverDerivativeManifest({ tier: 'overview' });
+    const grayNative = buildDiscoverDerivativeManifest({ style: 'gray' });
+    const grayOverview = buildDiscoverDerivativeManifest({ tier: 'overview', style: 'gray' });
+
+    [native, overview, grayNative, grayOverview].forEach((manifest) => {
+        assert.equal(validateFixedTownSurfaceManifest(manifest), true, manifest.map.version);
+        assert.equal(parseFixedTownSurfaceManifest(manifest), manifest, `${manifest.map.version} parse`);
+    });
+
+    const wrongSourceProfile = structuredClone(native);
+    wrongSourceProfile.source.derivative.sourceProfile = 'sparse-40';
+    assert.equal(validateFixedTownSurfaceManifest(wrongSourceProfile), false);
+
+    const missingSourceChunkHash = structuredClone(native);
+    delete missingSourceChunkHash.chunks[0].sourceSha256;
+    assert.equal(validateFixedTownSurfaceManifest(missingSourceChunkHash), false);
+
+    const mismatchedProvenance = structuredClone(overview);
+    mismatchedProvenance.integrity.derivativeSourceManifestSha256 = 'f'.repeat(64);
+    assert.equal(validateFixedTownSurfaceManifest(mismatchedProvenance), false);
 });
 
 test('generated islandwide indexes and per-surface manifests pass the fixed-surface contract', () => {
