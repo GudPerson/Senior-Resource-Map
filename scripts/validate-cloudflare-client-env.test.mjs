@@ -20,10 +20,10 @@ const BASE_ENV = Object.freeze({
 const DERIVATIVE_ENV = Object.freeze({
   VITE_DISCOVER_DETAILED_MAP_ENABLED: 'true',
   VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED: 'true',
-  VITE_DISCOVER_DETAILED_DERIVATIVE_NATIVE_ASSET_BASE_URL: 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/native/default',
-  VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_NATIVE_ASSET_BASE_URL: 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/native/gray',
-  VITE_DISCOVER_DETAILED_DERIVATIVE_OVERVIEW_ASSET_BASE_URL: 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/overview/default',
-  VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_OVERVIEW_ASSET_BASE_URL: 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/overview/gray',
+  VITE_DISCOVER_DETAILED_DERIVATIVE_NATIVE_ASSET_BASE_URL: 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/default',
+  VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_NATIVE_ASSET_BASE_URL: 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/gray',
+  VITE_DISCOVER_DETAILED_DERIVATIVE_OVERVIEW_ASSET_BASE_URL: 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/default',
+  VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_OVERVIEW_ASSET_BASE_URL: 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/gray',
 });
 
 function runValidator(overrides = {}) {

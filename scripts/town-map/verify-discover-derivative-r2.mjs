@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const RELEASE_ROOT = 'v5/discover-derivative-v1-80-20260906';
+const RELEASE_ROOT = 'v5/discover-derivative-v1-80-20260906-r2';
 const PUBLIC_HOST = 'https://maps.carearound.sg';
 const FULL = !process.argv.includes('--sampled');
 

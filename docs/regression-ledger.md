@@ -40,7 +40,7 @@ Rules:
   profile/scale pairs, resampling method, readability provenance, and hashes;
   provenance drift fails closed. Existing stable manifests remain unchanged.
   Publication uses the immutable
-  `v5/discover-derivative-v1-80-20260906` namespace, requires every planned
+  `v5/discover-derivative-v1-80-20260906-r2` namespace, requires every planned
   key to be vacant, verifies one public JPEG canary per collection, publishes
   indexes last, and never overwrites or deletes an object.
 - Known-good reference and reproduction: the stable Discover contract is the
@@ -77,6 +77,13 @@ Rules:
   abort-on-existing-key policy.
   Remote publication, full public hash verification, exact release build,
   production deployment, and post-deploy UAT are recorded below when complete.
+  The first immutable publication root without the `-r2` suffix is intentionally
+  unreferenced: full public verification found that its collection indexes
+  retained source-manifest byte counts while correctly carrying derivative
+  manifest hashes. No client was deployed against it. The corrected generator
+  and local verifier now write and require each derivative manifest's actual
+  byte count; immutability requires the corrected release to use the fresh
+  `-r2` namespace rather than overwrite the rejected root.
 
 ## 2026-09-06 Discover 384 MiB desktop UAT ceiling follow-up
 

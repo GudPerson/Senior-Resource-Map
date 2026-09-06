@@ -117,10 +117,10 @@ npm run build:client:discover-derivative
 That command keeps all six stable My Map/Print View roots and adds these four
 Discover-only roots:
 
-- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/native/default`
-- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/native/gray`
-- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/overview/default`
-- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/overview/gray`
+- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/default`
+- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/gray`
+- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/default`
+- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/gray`
 
 All four derivative roots and `VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED=true`
 are required together. The deploy validator rejects an incomplete or different
@@ -137,7 +137,7 @@ npm run town-map:discover-derivative:verify
 npm run town-map:discover-derivative:r2:plan
 ```
 
-Publication uses the immutable `v5/discover-derivative-v1-80-20260906` root,
+Publication uses the immutable `v5/discover-derivative-v1-80-20260906-r2` root,
 requires every planned object to be vacant, verifies one public JPEG canary per
 collection, uploads all remaining chunks and surface manifests, and publishes
 the four collection indexes last. If publication is interrupted, use a new

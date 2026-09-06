@@ -6,10 +6,10 @@ const preferredTownMapPrintMasterUrl = 'https://maps.carearound.sg/v2/print-mast
 const preferredTownMapGrayPrintMasterUrl = 'https://maps.carearound.sg/v2/print-master-100-20260723/gray';
 const preferredTownMapOverviewUrl = 'https://maps.carearound.sg/v3/zoom14-atlas-20260730/default';
 const preferredTownMapGrayOverviewUrl = 'https://maps.carearound.sg/v3/zoom14-atlas-20260730/gray';
-const preferredDiscoverDerivativeNativeUrl = 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/native/default';
-const preferredDiscoverDerivativeGrayNativeUrl = 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/native/gray';
-const preferredDiscoverDerivativeOverviewUrl = 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/overview/default';
-const preferredDiscoverDerivativeGrayOverviewUrl = 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/overview/gray';
+const preferredDiscoverDerivativeNativeUrl = 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/default';
+const preferredDiscoverDerivativeGrayNativeUrl = 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/gray';
+const preferredDiscoverDerivativeOverviewUrl = 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/default';
+const preferredDiscoverDerivativeGrayOverviewUrl = 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/gray';
 const rollbackTownMapUrls = Object.freeze([
     'https://maps.carearound.sg/v1/islandwide',
     'https://maps.carearound.sg/v1/w01',

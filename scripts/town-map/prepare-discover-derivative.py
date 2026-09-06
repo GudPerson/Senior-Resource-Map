@@ -428,6 +428,7 @@ def prepare_surface(
             "chunkCount": len(chunks),
             "totalBytes": total_bytes,
             "chunkSetSha256": chunks_sha256,
+            "manifestBytes": manifest_meta["byteSize"],
             "manifestSha256": manifest_meta["sha256"],
         }
     )

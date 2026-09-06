@@ -19,7 +19,7 @@ const DEFAULT_OUTPUT_ROOT = path.join(
   'town-map-proof',
   'discover-derivative-v1-80-20260906',
 );
-const DEFAULT_RELEASE_ROOT = 'v5/discover-derivative-v1-80-20260906';
+const DEFAULT_RELEASE_ROOT = 'v5/discover-derivative-v1-80-20260906-r2';
 const PUBLIC_HOST = 'https://maps.carearound.sg';
 const ALLOWED_ORIGIN = 'https://app.carearound.sg';
 const APPLY = process.argv.includes('--apply');

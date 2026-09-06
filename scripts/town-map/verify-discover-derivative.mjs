@@ -130,6 +130,7 @@ async function validateCollection(outputRoot, expected) {
     const manifestSource = await readJsonBuffer(manifestPath, `${surface.id} manifest`);
     const manifest = parseFixedTownSurfaceManifest(manifestSource.value);
     invariant(manifest, `${expected.tier}/${expected.style}/${surface.id} fails the client contract`);
+    invariant(manifestSource.buffer.length === surface.manifestBytes, `${surface.id} manifest byte size drifted`);
     invariant(sha256(manifestSource.buffer) === surface.manifestSha256, `${surface.id} manifest hash drifted`);
     invariant(manifest.map.style === expected.style, `${surface.id} manifest style drifted`);
     invariant(manifest.source.derivative?.scope === 'discover-only', `${surface.id} is not Discover-only`);
