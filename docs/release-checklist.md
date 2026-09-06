@@ -106,6 +106,14 @@ Discover. Add `VITE_DISCOVER_DETAILED_MAP_ENABLED=true` to the same six-root
 client build only after the Discover-specific ledger gate and release approval
 pass; the existing `VITE_TOWN_MAP_PROOF_ENABLED=true` remains required.
 
+The standard Discover Detailed decoded-memory ceiling remains `256 MiB`. For
+the explicitly approved desktop UAT experiment only, add
+`VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED=true` alongside both flags
+above. Omitting that UAT flag retains the `256 MiB` ceiling. The UAT flag is
+Discover-only; it must not change My Map, Shared Map, embed, or the shared
+fixed-surface defaults, and it must not be included in a production build
+without a separate release approval backed by the Discover ledger gate.
+
 CareAround Pages also contains the file-routed embed Function under
 `client/functions`. The standard `npm run deploy:client` is safe because it
 changes into `client` before running Wrangler. For a manual exact-artifact

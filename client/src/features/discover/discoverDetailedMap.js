@@ -12,10 +12,19 @@ import {
 export const DISCOVER_DETAILED_NATIVE_MIN_ZOOM = 15;
 export const DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM = FIXED_TOWN_OVERVIEW_MIN_ZOOM;
 export const DISCOVER_DETAILED_MAX_DECODED_BYTES = FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES;
+export const DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES = 300 * 1024 * 1024;
 
 export function isDiscoverDetailedMapFeatureEnabled(environment = {}) {
     return environment.VITE_DISCOVER_DETAILED_MAP_ENABLED === 'true'
         && environment.VITE_TOWN_MAP_PROOF_ENABLED === 'true';
+}
+
+export function resolveDiscoverDetailedMaxDecodedBytes(environment = {}) {
+    const uatCeilingEnabled = isDiscoverDetailedMapFeatureEnabled(environment)
+        && environment.VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED === 'true';
+    return uatCeilingEnabled
+        ? DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES
+        : DISCOVER_DETAILED_MAX_DECODED_BYTES;
 }
 
 function liveDecision({ displayedZoom, reason, tier = 'live', pending = false }) {

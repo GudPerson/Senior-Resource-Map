@@ -16,14 +16,15 @@ import {
     normalizeCareAroundMapStyle,
 } from '../../lib/mapTheme.js';
 import {
-    DISCOVER_DETAILED_MAX_DECODED_BYTES,
     DISCOVER_DETAILED_NATIVE_MIN_ZOOM,
     DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM,
     isDiscoverDetailedMapFeatureEnabled,
     resolveDiscoverDetailedBasemap,
+    resolveDiscoverDetailedMaxDecodedBytes,
 } from './discoverDetailedMap.js';
 
 const DISCOVER_DETAILED_MAP_ENABLED = isDiscoverDetailedMapFeatureEnabled(import.meta.env);
+const DISCOVER_DETAILED_ACTIVE_MAX_DECODED_BYTES = resolveDiscoverDetailedMaxDecodedBytes(import.meta.env);
 const DISCOVER_DETAILED_OVERVIEW_ENABLED = DISCOVER_DETAILED_MAP_ENABLED
     && import.meta.env.VITE_TOWN_MAP_ZOOM14_OVERVIEW_ENABLED === 'true';
 const DISCOVER_NATIVE_ASSET_BASE_URLS = Object.freeze({
@@ -298,7 +299,7 @@ export default function DiscoverDetailedBasemap({
         native,
         overview,
         faultReason: activeFaultReason,
-        maxDecodedBytes: DISCOVER_DETAILED_MAX_DECODED_BYTES,
+        maxDecodedBytes: DISCOVER_DETAILED_ACTIVE_MAX_DECODED_BYTES,
     });
     const [metrics, setMetrics] = useState(null);
 
@@ -347,7 +348,7 @@ export default function DiscoverDetailedBasemap({
                     grayscale={resolvedMapStyle === CAREAROUND_MAP_STYLE_GRAY}
                     lockMinZoom={false}
                     fallbackBelowMinZoom={false}
-                    maxDecodedBytes={DISCOVER_DETAILED_MAX_DECODED_BYTES}
+                    maxDecodedBytes={DISCOVER_DETAILED_ACTIVE_MAX_DECODED_BYTES}
                     onFallback={handleFallback}
                     onMetricsChange={setMetrics}
                 />

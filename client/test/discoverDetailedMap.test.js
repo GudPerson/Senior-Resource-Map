@@ -4,8 +4,10 @@ import test from 'node:test';
 
 import {
     DISCOVER_DETAILED_MAX_DECODED_BYTES,
+    DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES,
     isDiscoverDetailedMapFeatureEnabled,
     resolveDiscoverDetailedBasemap,
+    resolveDiscoverDetailedMaxDecodedBytes,
 } from '../src/features/discover/discoverDetailedMap.js';
 
 const discoveryMapSource = await readFile(
@@ -68,6 +70,22 @@ test('Discover Detailed activation requires its own client flag and the establis
         VITE_DISCOVER_DETAILED_MAP_ENABLED: 'true',
         VITE_TOWN_MAP_PROOF_ENABLED: 'true',
     }), true);
+});
+
+test('Discover retains 256 MiB by default and raises only the explicitly feature-gated UAT ceiling to 300 MiB', () => {
+    assert.equal(resolveDiscoverDetailedMaxDecodedBytes({}), 256 * 1024 * 1024);
+    assert.equal(resolveDiscoverDetailedMaxDecodedBytes({
+        VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED: 'true',
+    }), 256 * 1024 * 1024);
+    assert.equal(resolveDiscoverDetailedMaxDecodedBytes({
+        VITE_DISCOVER_DETAILED_MAP_ENABLED: 'true',
+        VITE_TOWN_MAP_PROOF_ENABLED: 'true',
+    }), 256 * 1024 * 1024);
+    assert.equal(resolveDiscoverDetailedMaxDecodedBytes({
+        VITE_DISCOVER_DETAILED_MAP_ENABLED: 'true',
+        VITE_TOWN_MAP_PROOF_ENABLED: 'true',
+        VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED: 'true',
+    }), 300 * 1024 * 1024);
 });
 
 test('Discover uses live at displayed 13, overview at 14, native at 15, and reverses without changing fractional zoom', () => {
@@ -164,6 +182,40 @@ test('Discover enforces the standard 256 MiB decoded-memory ceiling before mount
     assert.equal(decision.renderSurface, false);
 });
 
+test('Discover UAT ceiling admits the observed 288 MiB viewport and still fails closed above 300 MiB', () => {
+    const eligible = resolveDiscoverDetailedBasemap({
+        enabled: true,
+        zoom: 14,
+        viewportBounds: VIEWPORT,
+        native: readySurface('native'),
+        overview: readySurface('overview', {
+            bytesPerChunk: 4 * 1024 * 1024,
+            chunkCount: 72,
+        }),
+        maxDecodedBytes: DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES,
+    });
+    const overLimit = resolveDiscoverDetailedBasemap({
+        enabled: true,
+        zoom: 14,
+        viewportBounds: VIEWPORT,
+        native: readySurface('native'),
+        overview: readySurface('overview', {
+            bytesPerChunk: 4 * 1024 * 1024,
+            chunkCount: 76,
+        }),
+        maxDecodedBytes: DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES,
+    });
+
+    assert.equal(DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES, 300 * 1024 * 1024);
+    assert.equal(eligible.visibleDecodedBytes, 288 * 1024 * 1024);
+    assert.equal(eligible.reason, 'surface-ready');
+    assert.equal(eligible.renderLiveTiles, false);
+    assert.equal(eligible.renderSurface, true);
+    assert.equal(overLimit.reason, 'viewport-memory-limit');
+    assert.equal(overLimit.renderLiveTiles, true);
+    assert.equal(overLimit.renderSurface, false);
+});
+
 test('Discover integrates a basemap-only adapter without replacing its map or touching My Map and embed loaders', () => {
     assert.match(discoveryMapSource, /<DiscoverDetailedBasemap/);
     assert.match(discoveryMapSource, /<SavedMapCameraController/);
@@ -172,6 +224,7 @@ test('Discover integrates a basemap-only adapter without replacing its map or to
     assert.doesNotMatch(discoveryMapSource, /<DirectoryMap|from ['"].*DirectoryMap/);
 
     assert.match(detailedBasemapDecisionSource, /VITE_DISCOVER_DETAILED_MAP_ENABLED/);
+    assert.match(detailedBasemapDecisionSource, /VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED/);
     assert.match(detailedBasemapSource, /VITE_TOWN_MAP_GRAY_ASSET_BASE_URL/);
     assert.match(detailedBasemapSource, /VITE_TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL/);
     assert.match(detailedBasemapSource, /<FixedTownSurfaceLayer/);
@@ -184,4 +237,6 @@ test('Discover integrates a basemap-only adapter without replacing its map or to
 
     assert.doesNotMatch(ownerMapSource, /VITE_DISCOVER_DETAILED_MAP_ENABLED/);
     assert.doesNotMatch(embeddedMapSource, /VITE_DISCOVER_DETAILED_MAP_ENABLED/);
+    assert.doesNotMatch(ownerMapSource, /VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED/);
+    assert.doesNotMatch(embeddedMapSource, /VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED/);
 });

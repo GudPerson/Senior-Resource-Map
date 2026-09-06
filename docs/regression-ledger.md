@@ -15,6 +15,59 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-06 Discover 300 MiB desktop UAT ceiling follow-up
+
+- Production diagnosis: authenticated Chrome reproduction at `1470x923`
+  matched the reported `/discover?postal=160026` layout with a `1020x859` map
+  viewport and the current production bundle. At displayed zoom `14`, the
+  fully contained `SG14` overview required `72` visible `1024x1024` chunks, or
+  exactly `288 MiB` decoded, so the established `256 MiB` guard returned live
+  OneMap with reason `viewport-memory-limit`. At displayed zoom `15`, native
+  `C02` required about `276.34 MiB` and used the same fallback. Coverage,
+  manifests, asset responses, and client loading were healthy; the browser
+  recorded zero console errors and warnings. This exposed a large-desktop
+  viewport gap not covered by the earlier `750 -> 644` pixel split-pane UAT.
+- Candidate behavior and blast radius: the default Discover ceiling remains
+  `256 MiB`. A second compile-time flag,
+  `VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED=true`, raises it to `300 MiB`
+  only when both the Discover Detailed and established fixed-map proof flags
+  are also enabled. The same resolved limit is passed to the pure eligibility
+  decision and `FixedTownSurfaceLayer`. No shared fixed-surface constant,
+  My Map, Shared Map, embed, search, filtering, saved/transient/category pins,
+  postal grouping, cards, camera, mobile layout, API, auth, schema, or map
+  asset behavior changes. Above `300 MiB`, the existing fail-closed live
+  OneMap fallback remains authoritative.
+- Acceptance and UAT gate: without the new flag, deterministic tests and the
+  compiled client must retain `256 MiB`. With it, the reported `288 MiB`
+  zoom-14 viewport and approximately `276.34 MiB` zoom-15 viewport must mount
+  Detailed with zero live tiles underneath in Default and Gray. Repeat
+  `13 -> 14 -> 15` and reverse transitions, boundary pans, desktop sidebar
+  resize/invalidation, and `390x844` mobile checks. A synthetic viewport above
+  `300 MiB` must still return `viewport-memory-limit`. Treat any Detailed/live
+  oscillation during ordinary pan or resize as a failed experiment, not as
+  production-ready evidence.
+- Verification before release (2026-09-06): PASS for the bounded UAT
+  experiment, not a production recommendation. The focused Discover contract
+  passed `8/8`, the shared map-lockdown gate passed `99/99`, full client tests
+  passed `741/741`, and both the standard `256 MiB` feature build and the
+  opt-in `300 MiB` feature build completed successfully. Clean local Chrome at
+  `1485x923` reproduced the reported `1020x859` map: Default and Gray zoom `14`
+  each loaded all `72` overview chunks (`288 MiB`) with zero live tiles, and
+  Gray zoom `15` loaded all `20` native chunks (about `277.32 MiB`) with zero
+  live tiles. The Gray `15 -> 14 -> 13 -> 14 -> 15` round trip preserved the
+  tier contract, and horizontal plus vertical 128-pixel pans at zoom `14`
+  stayed Detailed with `72/72` chunks. Sidebar resizing invalidated the map:
+  an `870x859` map retained Detailed at `256 MiB`; widening the map to
+  `1040x859` exceeded `300 MiB` and deterministically restored live OneMap
+  with zero fixed images; restoring `1020x859` restored Detailed `72/72` with
+  zero live tiles. Public mobile Chrome at `390x844` rendered a `390x687` Full
+  map and passed the same forward/reverse zoom contract with zero mixed-layer
+  states, errors, or warnings; body pointer events and overflow remained
+  normal. The authenticated local replay remains the user's UAT step at the
+  supplied localhost URL. No source above the Discover adapter, API, auth,
+  schema, asset, My Map, Shared Map, or embed path changed. This follow-up has
+  not been pushed or deployed.
+
 ## 2026-09-06 feature-gated Discover Detailed basemap candidate
 
 - Candidate behavior: Discover retains its existing `DiscoveryMap` camera,
