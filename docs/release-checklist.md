@@ -76,8 +76,9 @@ npm run build:client:discover-derivative
 
 It supplies the same-site Worker API and every approved versioned map root,
 runs the production environment validator, and then builds the client.
-`build:cloudflare` and `deploy:client` both delegate to this command so an
-ordinary Pages release cannot silently compile Discover Detailed out.
+The dashboard-facing `build:client`, `build:cloudflare`, and `deploy:client`
+commands all delegate to this exact build so an ordinary Pages release cannot
+silently compile Discover Detailed out.
 
 While the owner Detailed fixed-surface map is active in production, every
 client build must also keep its build-time activation and all versioned asset
@@ -107,8 +108,9 @@ build, and `npm run deploy:client` rejects omission.
 Discover Detailed has an additional, independent release flag. It is part of
 the current production contract, so `VITE_DISCOVER_DETAILED_MAP_ENABLED=true`
 and the nested derivative flag must accompany the same six-root client build.
-The bare `npm run build:client` command remains useful for diagnostics, but its
-output is not a deployable production artifact while Discover Detailed is live.
+The bare `npm run build:client:bare` command remains useful for diagnostics,
+but its output is not a deployable production artifact while Discover Detailed
+is live.
 
 The production Discover Detailed release uses the standard `256 MiB` decoded
 memory ceiling and the separately published 80%-linear derivative roots. Build

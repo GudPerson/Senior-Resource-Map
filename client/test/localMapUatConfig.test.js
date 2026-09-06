@@ -108,6 +108,7 @@ test('map lockdown verification keeps focused tests and the exact production bui
     requiredProductionZoom14OverviewEnvironment.forEach((entry) => {
         assert.match(buildCommand, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     });
+    assert.match(buildCommand, /npm run build:client:bare$/);
 });
 
 test('Cloudflare production commands cannot compile Discover Detailed out', () => {
@@ -125,12 +126,20 @@ test('Cloudflare production commands cannot compile Discover Detailed out', () =
 
     assert.match(derivativeBuild, /npm run build:client:validated$/);
     assert.equal(
+        rootPackage.scripts['build:client'],
+        'npm run build:client:discover-derivative'
+    );
+    assert.equal(
+        rootPackage.scripts['build:client:bare'],
+        'npm run build --workspace=client'
+    );
+    assert.equal(
         rootPackage.scripts['build:client:validated'],
-        'node scripts/validate-cloudflare-client-env.mjs && npm run build:client'
+        'node scripts/validate-cloudflare-client-env.mjs && npm run build:client:bare'
     );
     assert.equal(
         rootPackage.scripts['build:cloudflare'],
-        'npm run build:client:discover-derivative'
+        'npm run build:client'
     );
     assert.equal(
         rootPackage.scripts['deploy:client'],
