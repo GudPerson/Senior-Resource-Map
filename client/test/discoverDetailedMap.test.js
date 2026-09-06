@@ -5,7 +5,7 @@ import test from 'node:test';
 import {
     DISCOVER_DETAILED_MAX_DECODED_BYTES,
     DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES,
-    isDiscoverDetailedDerivativePilotEnabled,
+    isDiscoverDetailedDerivativeEnabled,
     isDiscoverDetailedMapFeatureEnabled,
     resolveDiscoverDetailedContainmentCamera,
     resolveDiscoverDetailedBasemap,
@@ -74,14 +74,14 @@ test('Discover Detailed activation requires its own client flag and the establis
     }), true);
 });
 
-test('Discover derivative assets require their own nested pilot flag', () => {
-    assert.equal(isDiscoverDetailedDerivativePilotEnabled({
-        VITE_DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED: 'true',
+test('Discover derivative assets require their own nested release flag', () => {
+    assert.equal(isDiscoverDetailedDerivativeEnabled({
+        VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED: 'true',
     }), false);
-    assert.equal(isDiscoverDetailedDerivativePilotEnabled({
+    assert.equal(isDiscoverDetailedDerivativeEnabled({
         VITE_DISCOVER_DETAILED_MAP_ENABLED: 'true',
         VITE_TOWN_MAP_PROOF_ENABLED: 'true',
-        VITE_DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED: 'true',
+        VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED: 'true',
     }), true);
 });
 
@@ -103,7 +103,7 @@ test('Discover retains 256 MiB by default and raises only the explicitly feature
         VITE_DISCOVER_DETAILED_MAP_ENABLED: 'true',
         VITE_TOWN_MAP_PROOF_ENABLED: 'true',
         VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED: 'true',
-        VITE_DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED: 'true',
+        VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED: 'true',
     }), 256 * 1024 * 1024);
 });
 
@@ -307,7 +307,7 @@ test('Discover integrates a basemap-only adapter without replacing its map or to
 
     assert.match(detailedBasemapDecisionSource, /VITE_DISCOVER_DETAILED_MAP_ENABLED/);
     assert.match(detailedBasemapDecisionSource, /VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED/);
-    assert.match(detailedBasemapDecisionSource, /VITE_DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED/);
+    assert.match(detailedBasemapDecisionSource, /VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED/);
     assert.match(detailedBasemapSource, /VITE_DISCOVER_DETAILED_DERIVATIVE_NATIVE_ASSET_BASE_URL/);
     assert.match(detailedBasemapSource, /VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_OVERVIEW_ASSET_BASE_URL/);
     assert.match(detailedBasemapSource, /VITE_TOWN_MAP_GRAY_ASSET_BASE_URL/);
@@ -327,6 +327,6 @@ test('Discover integrates a basemap-only adapter without replacing its map or to
     assert.doesNotMatch(embeddedMapSource, /VITE_DISCOVER_DETAILED_MAP_ENABLED/);
     assert.doesNotMatch(ownerMapSource, /VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED/);
     assert.doesNotMatch(embeddedMapSource, /VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED/);
-    assert.doesNotMatch(ownerMapSource, /VITE_DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED/);
-    assert.doesNotMatch(embeddedMapSource, /VITE_DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED/);
+    assert.doesNotMatch(ownerMapSource, /VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED/);
+    assert.doesNotMatch(embeddedMapSource, /VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED/);
 });

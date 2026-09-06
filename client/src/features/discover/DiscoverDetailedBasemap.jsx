@@ -18,7 +18,7 @@ import {
 import {
     DISCOVER_DETAILED_NATIVE_MIN_ZOOM,
     DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM,
-    isDiscoverDetailedDerivativePilotEnabled,
+    isDiscoverDetailedDerivativeEnabled,
     isDiscoverDetailedMapFeatureEnabled,
     resolveDiscoverDetailedContainmentCamera,
     resolveDiscoverDetailedBasemap,
@@ -26,7 +26,7 @@ import {
 } from './discoverDetailedMap.js';
 
 const DISCOVER_DETAILED_MAP_ENABLED = isDiscoverDetailedMapFeatureEnabled(import.meta.env);
-const DISCOVER_DETAILED_DERIVATIVE_PILOT_REQUESTED = isDiscoverDetailedDerivativePilotEnabled(
+const DISCOVER_DETAILED_DERIVATIVE_REQUESTED = isDiscoverDetailedDerivativeEnabled(
     import.meta.env,
 );
 const DISCOVER_DETAILED_ACTIVE_MAX_DECODED_BYTES = resolveDiscoverDetailedMaxDecodedBytes(import.meta.env);
@@ -64,15 +64,15 @@ const DISCOVER_DERIVATIVE_OVERVIEW_ASSET_BASE_URLS = Object.freeze({
         import.meta.env.VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_OVERVIEW_ASSET_BASE_URL || '',
     ),
 });
-const DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED = DISCOVER_DETAILED_DERIVATIVE_PILOT_REQUESTED
+const DISCOVER_DETAILED_DERIVATIVE_ENABLED = DISCOVER_DETAILED_DERIVATIVE_REQUESTED
     && [
         ...Object.values(DISCOVER_DERIVATIVE_NATIVE_ASSET_BASE_URLS),
         ...Object.values(DISCOVER_DERIVATIVE_OVERVIEW_ASSET_BASE_URLS),
     ].every(Boolean);
-const DISCOVER_NATIVE_ASSET_BASE_URLS = DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED
+const DISCOVER_NATIVE_ASSET_BASE_URLS = DISCOVER_DETAILED_DERIVATIVE_ENABLED
     ? DISCOVER_DERIVATIVE_NATIVE_ASSET_BASE_URLS
     : DISCOVER_STABLE_NATIVE_ASSET_BASE_URLS;
-const DISCOVER_OVERVIEW_ASSET_BASE_URLS = DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED
+const DISCOVER_OVERVIEW_ASSET_BASE_URLS = DISCOVER_DETAILED_DERIVATIVE_ENABLED
     ? DISCOVER_DERIVATIVE_OVERVIEW_ASSET_BASE_URLS
     : DISCOVER_STABLE_OVERVIEW_ASSET_BASE_URLS;
 
@@ -437,8 +437,8 @@ export default function DiscoverDetailedBasemap({
         container.dataset.discoverDetailedVisibleChunks = String(metrics?.visibleChunkCount ?? decision.visibleChunkCount);
         container.dataset.discoverDetailedLoadedChunks = String(metrics?.loadedChunkCount ?? 0);
         container.dataset.discoverDetailedDecodedBytes = String(metrics?.visibleDecodedBytes ?? decision.visibleDecodedBytes);
-        container.dataset.discoverDetailedAssetEdition = DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED
-            ? 'derivative-pilot'
+        container.dataset.discoverDetailedAssetEdition = DISCOVER_DETAILED_DERIVATIVE_ENABLED
+            ? 'derivative-v1'
             : 'stable';
         return () => {
             delete container.dataset.discoverBasemapMode;

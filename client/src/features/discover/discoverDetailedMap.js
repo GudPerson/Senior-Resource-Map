@@ -20,13 +20,13 @@ export function isDiscoverDetailedMapFeatureEnabled(environment = {}) {
         && environment.VITE_TOWN_MAP_PROOF_ENABLED === 'true';
 }
 
-export function isDiscoverDetailedDerivativePilotEnabled(environment = {}) {
+export function isDiscoverDetailedDerivativeEnabled(environment = {}) {
     return isDiscoverDetailedMapFeatureEnabled(environment)
-        && environment.VITE_DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED === 'true';
+        && environment.VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED === 'true';
 }
 
 export function resolveDiscoverDetailedMaxDecodedBytes(environment = {}) {
-    if (isDiscoverDetailedDerivativePilotEnabled(environment)) {
+    if (isDiscoverDetailedDerivativeEnabled(environment)) {
         return DISCOVER_DETAILED_MAX_DECODED_BYTES;
     }
     const uatCeilingEnabled = isDiscoverDetailedMapFeatureEnabled(environment)

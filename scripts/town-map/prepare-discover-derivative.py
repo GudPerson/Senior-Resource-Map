@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the bounded Discover-only 80%-linear fixed-surface derivative pilot."""
+"""Build provenance-locked Discover-only 80%-linear fixed-surface derivatives."""
 
 from __future__ import annotations
 
@@ -23,7 +23,10 @@ Image.MAX_IMAGE_PIXELS = None
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT_ROOT = (
-    REPO_ROOT / "output" / "town-map-proof" / "discover-derivative-pilot"
+    REPO_ROOT
+    / "output"
+    / "town-map-proof"
+    / "discover-derivative-v1-80-20260906"
 )
 SOURCE_ROOTS = {
     ("native", "default"): "https://maps.carearound.sg/v2/native-scale-20260722/default",
@@ -31,8 +34,21 @@ SOURCE_ROOTS = {
     ("overview", "default"): "https://maps.carearound.sg/v3/zoom14-atlas-20260730/default",
     ("overview", "gray"): "https://maps.carearound.sg/v3/zoom14-atlas-20260730/gray",
 }
-SURFACE_IDS = {
+FULL_NATIVE_SURFACE_IDS = (
+    "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08",
+    "E01", "E02", "E03", "E04", "E05", "E06",
+    "N01", "N02",
+    "NE01", "NE02", "NE03", "NE04", "NE05",
+    "NW01", "NW02", "NW03",
+    "S01",
+    "W01", "W02", "W03", "W04", "W05", "W06", "W07",
+)
+PILOT_SURFACE_IDS = {
     "native": ("C02", "W04"),
+    "overview": ("SG14",),
+}
+FULL_SURFACE_IDS = {
+    "native": FULL_NATIVE_SURFACE_IDS,
     "overview": ("SG14",),
 }
 LINEAR_SCALE = 0.8
@@ -42,7 +58,7 @@ DERIVATIVE_EDITION = "discover-derivative-v1"
 CHUNK_CANONICALIZATION = (
     'UTF-8 lines "<sha256>  <filename>\\n", sorted by filename'
 )
-USER_AGENT = "CareAroundSG-Discover-Derivative-Pilot/1"
+USER_AGENT = "CareAroundSG-Discover-Derivative/1"
 
 
 def utc_now() -> str:
@@ -140,10 +156,8 @@ def surface_set_sha256(rows: list[dict[str, Any]]) -> str:
 
 def target_profile(source_profile: str, source_scale: float) -> tuple[str, str, float]:
     target_scale = round(source_scale * LINEAR_SCALE, 4)
-    if source_profile == "urban-50" and math.isclose(source_scale, 0.5):
+    if source_profile in {"urban-50", "sparse-40"} and math.isclose(source_scale, 0.5):
         return "discover-native-40", "40% z19 Discover derivative", target_scale
-    if source_profile == "sparse-40" and math.isclose(source_scale, 0.4):
-        return "discover-native-32", "32% z19 Discover derivative", target_scale
     if source_profile == "overview-25" and math.isclose(source_scale, 0.25):
         return (
             "discover-overview-20",
@@ -460,6 +474,7 @@ def prepare_collection(
     style: str,
     output_root: Path,
     workers: int,
+    surface_ids: tuple[str, ...],
 ) -> list[dict[str, Any]]:
     source_base_url = SOURCE_ROOTS[(tier, style)]
     source_index, source_index_bytes = fetch_json(f"{source_base_url}/manifest.json")
@@ -475,14 +490,19 @@ def prepare_collection(
     entries_by_id = {
         entry["id"]: entry for entry in source_index.get("surfaces", [])
     }
-    missing = [surface_id for surface_id in SURFACE_IDS[tier] if surface_id not in entries_by_id]
+    missing = [surface_id for surface_id in surface_ids if surface_id not in entries_by_id]
     require(not missing, f"Missing {tier}/{style} surfaces: {', '.join(missing)}")
+    if len(surface_ids) == len(source_index.get("surfaces", [])):
+        require(
+            set(entries_by_id) == set(surface_ids),
+            f"Unexpected {tier}/{style} source surface set",
+        )
 
     output_collection_root = output_root / tier / style
     manifests = []
     entries = []
     evidence = []
-    for surface_id in SURFACE_IDS[tier]:
+    for surface_id in surface_ids:
         manifest, entry, surface_evidence = prepare_surface(
             source_base_url=source_base_url,
             source_index=source_index,
@@ -530,6 +550,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
     parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--scope", choices=("pilot", "full"), default="full")
     args = parser.parse_args()
 
     output_root = args.output_root.expanduser().resolve()
@@ -543,6 +564,9 @@ def main() -> None:
         )
         output_root.mkdir(parents=True, exist_ok=True)
 
+    surface_ids_by_tier = (
+        PILOT_SURFACE_IDS if args.scope == "pilot" else FULL_SURFACE_IDS
+    )
     evidence = []
     for tier, style in (
         ("native", "default"),
@@ -550,18 +574,27 @@ def main() -> None:
         ("overview", "default"),
         ("overview", "gray"),
     ):
-        evidence.extend(prepare_collection(tier, style, output_root, args.workers))
+        evidence.extend(
+            prepare_collection(
+                tier,
+                style,
+                output_root,
+                args.workers,
+                surface_ids_by_tier[tier],
+            )
+        )
 
     validation = {
-        "schema": "carearound.discover-derivative-pilot-validation",
+        "schema": "carearound.discover-derivative-validation",
         "schemaVersion": 1,
         "generatedAt": utc_now(),
-        "status": "generated-pending-visual-uat",
+        "status": "generated-pending-publication",
+        "mode": args.scope,
         "scope": {
             "tiers": ["native", "overview"],
             "styles": ["default", "gray"],
-            "nativeSurfaceIds": list(SURFACE_IDS["native"]),
-            "overviewSurfaceIds": list(SURFACE_IDS["overview"]),
+            "nativeSurfaceIds": list(surface_ids_by_tier["native"]),
+            "overviewSurfaceIds": list(surface_ids_by_tier["overview"]),
         },
         "linearScale": LINEAR_SCALE,
         "expectedDecodedRatio": LINEAR_SCALE**2,
@@ -569,7 +602,7 @@ def main() -> None:
     }
     write_json(output_root / "validation.json", validation)
     print(
-        f"Discover derivative pilot prepared at {output_root} "
+        f"Discover derivative {args.scope} collection prepared at {output_root} "
         f"({len(evidence)} surface/style records)",
         flush=True,
     )

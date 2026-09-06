@@ -106,14 +106,44 @@ Discover. Add `VITE_DISCOVER_DETAILED_MAP_ENABLED=true` to the same six-root
 client build only after the Discover-specific ledger gate and release approval
 pass; the existing `VITE_TOWN_MAP_PROOF_ENABLED=true` remains required.
 
-The standard Discover Detailed decoded-memory ceiling remains `256 MiB`. For
-the explicitly approved desktop UAT experiment only, add
-`VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED=true` alongside both flags
-above. Omitting that UAT flag retains the `256 MiB` ceiling. The UAT flag is
-Discover-only and reuses the established `384 MiB` extended fixed-surface
-ceiling; it must not change My Map, Shared Map, embed, or the shared
-fixed-surface default, and it must not be included in a production build
-without a separate release approval backed by the Discover ledger gate.
+The production Discover Detailed release uses the standard `256 MiB` decoded
+memory ceiling and the separately published 80%-linear derivative roots. Build
+and validate it with:
+
+```bash
+npm run build:client:discover-derivative
+```
+
+That command keeps all six stable My Map/Print View roots and adds these four
+Discover-only roots:
+
+- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/native/default`
+- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/native/gray`
+- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/overview/default`
+- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906/overview/gray`
+
+All four derivative roots and `VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED=true`
+are required together. The deploy validator rejects an incomplete or different
+root set and rejects the retired
+`VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED=true` experiment when
+derivatives are enabled. My Map, Shared Map, embed, and the shared fixed-surface
+default continue to use the existing assets and memory limits.
+
+Generate and locally verify the derivative collection before publication:
+
+```bash
+npm run town-map:discover-derivative:prepare
+npm run town-map:discover-derivative:verify
+npm run town-map:discover-derivative:r2:plan
+```
+
+Publication uses the immutable `v5/discover-derivative-v1-80-20260906` root,
+requires every planned object to be vacant, verifies one public JPEG canary per
+collection, uploads all remaining chunks and surface manifests, and publishes
+the four collection indexes last. If publication is interrupted, use a new
+approved release-root suffix rather than resuming or overwriting the partial
+root. After upload, run `npm run town-map:discover-derivative:r2:verify` for
+full public byte/hash/CORS/cache verification.
 
 For the Discover Detailed boundary-entry gate, repeat `Locate me`, then zoom
 `13 -> 14 -> 15` and back. A camera whose centre remains inside a native plate
@@ -333,6 +363,10 @@ plus map-frame resize keep Detailed active. A local map that reports Detailed
 as unavailable must also be checked for a successful same-origin
 `/__carearound-town-maps/.../manifest.json` response before product map code is
 changed.
+
+For local Discover UAT against the generated 80%-linear collection, use
+`npm run dev:client:discover-derivative`; it keeps the stable My Map roots and
+uses the generated local derivative roots only for Discover.
 
 For Print annotation changes, first choose the desktop `Full map` layout.
 Confirm the toolbar does not offer new pin creation, then exercise the line,

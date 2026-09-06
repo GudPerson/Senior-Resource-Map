@@ -172,7 +172,11 @@ function applyRetainedScale(manifest, retainedScale) {
     ];
 }
 
-function buildDiscoverDerivativeManifest({ tier = 'native', style = 'default' } = {}) {
+function buildDiscoverDerivativeManifest({
+    tier = 'native',
+    style = 'default',
+    nativeSourceProfile = 'urban-50',
+} = {}) {
     const manifest = tier === 'overview'
         ? buildOverviewAtlasManifest(style)
         : cloneManifest();
@@ -200,7 +204,7 @@ function buildDiscoverDerivativeManifest({ tier = 'native', style = 'default' } 
         scope: 'discover-only',
         linearScale: 0.8,
         resampling: 'LANCZOS',
-        sourceProfile: isOverview ? 'overview-25' : 'urban-50',
+        sourceProfile: isOverview ? 'overview-25' : nativeSourceProfile,
         sourceRetainedScale: isOverview ? 0.25 : 0.5,
         sourceManifestSha256,
         sourceCollectionManifestSha256,
@@ -294,16 +298,21 @@ test('fixed town surface manifest accepts only provenance-locked Discover deriva
     const native = buildDiscoverDerivativeManifest();
     const overview = buildDiscoverDerivativeManifest({ tier: 'overview' });
     const grayNative = buildDiscoverDerivativeManifest({ style: 'gray' });
+    const sparseNative = buildDiscoverDerivativeManifest({ nativeSourceProfile: 'sparse-40' });
     const grayOverview = buildDiscoverDerivativeManifest({ tier: 'overview', style: 'gray' });
 
-    [native, overview, grayNative, grayOverview].forEach((manifest) => {
+    [native, overview, grayNative, sparseNative, grayOverview].forEach((manifest) => {
         assert.equal(validateFixedTownSurfaceManifest(manifest), true, manifest.map.version);
         assert.equal(parseFixedTownSurfaceManifest(manifest), manifest, `${manifest.map.version} parse`);
     });
 
     const wrongSourceProfile = structuredClone(native);
-    wrongSourceProfile.source.derivative.sourceProfile = 'sparse-40';
+    wrongSourceProfile.source.derivative.sourceProfile = 'rural-50';
     assert.equal(validateFixedTownSurfaceManifest(wrongSourceProfile), false);
+
+    const wrongSourceScale = structuredClone(sparseNative);
+    wrongSourceScale.source.derivative.sourceRetainedScale = 0.4;
+    assert.equal(validateFixedTownSurfaceManifest(wrongSourceScale), false);
 
     const missingSourceChunkHash = structuredClone(native);
     delete missingSourceChunkHash.chunks[0].sourceSha256;

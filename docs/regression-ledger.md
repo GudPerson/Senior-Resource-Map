@@ -15,71 +15,68 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-06 Discover 80%-linear derivative asset pilot
+## 2026-09-06 Discover 80%-linear derivative release
 
-- Candidate behavior and blast radius: a second, nested client flag,
-  `VITE_DISCOVER_DETAILED_DERIVATIVE_PILOT_ENABLED=true`, lets Discover use
-  separately rooted 80%-linear JPEG derivatives of the established fixed-map
-  chunks. The bounded pilot contains native `C02` and `W04` plus overview
-  `SG14`, each in Default and Gray. Chunk geography, full-viewport
-  containment, displayed whole-number zoom semantics, ready/in-flight
-  manifest retention, visible-chunk loading, off-screen pruning, and live-tile
-  exclusion remain owned by the existing fixed-surface adapter. The pilot
-  always uses the standard `256 MiB` decoded-memory ceiling, even if the older
-  `384 MiB` UAT flag is also present. Its four Discover-only roots are
-  all-or-nothing; an incomplete pilot configuration uses the established
-  stable roots. My Map, Shared Map, embed, `DirectoryMap`, API, schema,
-  authentication, source map assets, and production data are unchanged.
+- Release behavior and blast radius: a second, nested client flag,
+  `VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED=true`, lets Discover use four
+  separately rooted 80%-linear JPEG derivative collections: all 32 native
+  town surfaces plus the continuous `SG14` overview, each in Default and Gray.
+  The release retains the standard `256 MiB` decoded-memory ceiling and rejects
+  the retired `384 MiB` UAT flag. Chunk geography, full-viewport containment,
+  displayed whole-number zoom semantics, ready/in-flight manifest retention,
+  visible-chunk loading, off-screen pruning, and live-tile exclusion remain
+  owned by the existing fixed-surface adapter. The four Discover-only roots
+  are all-or-nothing; absent or incomplete configuration uses the established
+  stable roots. `DiscoveryMap` remains in place. My Map, Shared Map, embed,
+  `DirectoryMap`, API, schema, authentication, source map collections, and
+  production data are unchanged.
 - Asset and integrity contract: the generator downloads only immutable source
   manifests and their declared chunks from `https://maps.carearound.sg`,
   verifies every source byte size and SHA-256, and creates JPEG quality-95,
   4:4:4 derivatives using Pillow LANCZOS resampling at `0.8` linear scale.
-  Each output manifest records its source collection, source manifest, and
-  per-chunk hashes. The shared parser accepts only the exact derivative
-  edition, Discover-only scope, source profile/scale pair, output
-  profile/scale pair, resampling method, readability provenance, and hashes;
-  provenance drift fails closed. Existing stable manifests do not need the
-  derivative-only integrity fields. The generated pilot is ignored local
-  evidence under `output/town-map-proof/discover-derivative-pilot/`; it is not
-  a replacement for the immutable production roots.
-- Known-good reference and reproduction: the stable Discover behavior is the
-  2026-09-06 candidate and production evidence below. Run
-  `npm run town-map:discover-derivative-pilot:prepare`, verify with
-  `npm run town-map:discover-derivative-pilot:verify`, then run
-  `npm run dev:client:discover-derivative-pilot` alongside the local Worker.
-  Open `/discover?postal=160026`, exercise displayed zoom
-  `13 -> 14 -> 15` and the reverse in Default and Gray, resize the desktop
-  rail, open/close the mobile map and settings at `390x844`, and pan within and
-  beyond `C02`/`W04`. Require live OneMap at `13`, overview `SG14` at `14`,
-  native block-number imagery at `15+`, and zero live tiles beneath every
-  active derivative surface. Abort a derivative chunk request and require the
-  existing `chunk-load-error` live-OneMap fallback.
-- Verification before wider generation (2026-09-06): PASS for the bounded
-  local pilot, with authenticated mobile visual acceptance still a human UAT
-  gate. Independent asset verification passed all six surface/style records:
-  native `C02` and `W04` retain `63.99%` of source decoded pixels, overview
-  `SG14` retains `63.97%`, and derivative transport totals approximately
-  `324.27 MiB`. The map-lockdown suite passed `103/103`, full client coverage
-  passed `745/745`, and static validation passed all three ordered migrations
-  plus `427` source modules and `1,273` relative import edges with no cycles.
-  Both the unchanged stable six-root build and the exact derivative-pilot build
-  passed; script syntax and `git diff --check` passed. Real Chromium at
-  `1440x900` confirmed
-  live/overview/native forward and reverse transitions in Default and Gray,
-  `C02` native zoom-15 at `20/20` visible chunks and `177.5 MiB`, `SG14`
-  overview zoom-14 at `64/64` and `163.76 MiB`, and zero live tiles throughout
-  active Detailed states. Resizing the rail from `450` to `600` pixels retained
-  all six visible native chunks and zero live tiles. Native panning stayed on
-  `W04` while contained and restored live OneMap with zero fixed images after
-  crossing coverage. A forced native chunk failure produced
-  `chunk-load-error`, 25 live tiles, and zero fixed images. Public mobile
-  Chromium at `390x844` loaded native zoom-15 at `8/8` chunks and `72 MiB`,
-  overview zoom-14 at `24/24` and `61.41 MiB`, switched to Gray, and restored
-  body pointer events and overflow after closing settings. The local browser
-  session was signed out, so saved-only/authenticated behavior relies on the
-  unchanged Discover code paths and the prior authenticated evidence below;
-  it must be replayed before expanding or publishing this pilot. No asset was
-  uploaded, and no branch was pushed or deployed.
+  Each output manifest records its source collection, source manifest, exact
+  source profile/scale, and per-chunk hashes. The shared parser accepts only
+  the allowlisted derivative edition, Discover-only scope, source and output
+  profile/scale pairs, resampling method, readability provenance, and hashes;
+  provenance drift fails closed. Existing stable manifests remain unchanged.
+  Publication uses the immutable
+  `v5/discover-derivative-v1-80-20260906` namespace, requires every planned
+  key to be vacant, verifies one public JPEG canary per collection, publishes
+  indexes last, and never overwrites or deletes an object.
+- Known-good reference and reproduction: the stable Discover contract is the
+  2026-09-06 candidate and production evidence below. Generate and verify with
+  `npm run town-map:discover-derivative:prepare`,
+  `npm run town-map:discover-derivative:verify`, and
+  `npm run town-map:discover-derivative:r2:plan`; run local UAT with
+  `npm run dev:client:discover-derivative`. Open
+  `/discover?postal=160026`, exercise displayed zoom `13 -> 14 -> 15` and the
+  reverse in Default and Gray, resize the desktop rail, open/close the mobile
+  map and settings at `390x844`, and pan within and beyond native boundaries.
+  Require live OneMap at `13`, overview `SG14` at `14`, native block-number
+  imagery at `15+`, and zero live tiles beneath every active derivative
+  surface. Abort a derivative chunk request and require the existing
+  `chunk-load-error` live-OneMap fallback; exercise coverage and memory-limit
+  fallbacks without mixed layers.
+- Full-generation evidence (2026-09-06): PASS locally. Independent validation
+  passed 66 surface/style records and all 9,700 JPEG chunks. Every derivative
+  retained `63.97%` to `64.00%` of source decoded pixels. The immutable R2
+  plan contains 9,770 objects: 9,700 chunks, 66 surface manifests, and four
+  collection indexes, totalling 2,234,361,836 bytes. The exact native sets are
+  `C01-C08`, `E01-E06`, `N01-N02`, `NE01-NE05`, `NW01-NW03`, `S01`, and
+  `W01-W07`; each style also contains `SG14`. Source manifests currently use
+  `urban-50` or `sparse-40` at retained scale `0.5`; both are explicitly
+  allowlisted to the `discover-native-40` output at retained scale `0.4`.
+  Focused parser and deploy-validator coverage passed `38/38`, module checking
+  passed 430 source modules and 1,274 relative import edges with no cycles,
+  the full server suite passed `611/611`, the full client suite passed
+  `745/745`, and the map-lockdown gate passed `103/103`. Static validation,
+  the map-asset tooling suite passed `16/16`,
+  the unchanged six-root My Map/embed build, and the exact four-root derivative
+  production build passed. The frozen production artifact contains all four
+  exact `v5` roots, and the publication dry run passed with an
+  abort-on-existing-key policy.
+  Remote publication, full public hash verification, exact release build,
+  production deployment, and post-deploy UAT are recorded below when complete.
 
 ## 2026-09-06 Discover 384 MiB desktop UAT ceiling follow-up
 

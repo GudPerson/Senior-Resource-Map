@@ -15,11 +15,26 @@ const DEFAULT_OUTPUT_ROOT = path.join(
   REPO_ROOT,
   'output',
   'town-map-proof',
-  'discover-derivative-pilot',
+  'discover-derivative-v1-80-20260906',
 );
-const EXPECTED = Object.freeze([
+const FULL_NATIVE_SURFACE_IDS = Object.freeze([
+  'C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07', 'C08',
+  'E01', 'E02', 'E03', 'E04', 'E05', 'E06',
+  'N01', 'N02',
+  'NE01', 'NE02', 'NE03', 'NE04', 'NE05',
+  'NW01', 'NW02', 'NW03',
+  'S01',
+  'W01', 'W02', 'W03', 'W04', 'W05', 'W06', 'W07',
+]);
+const PILOT_EXPECTED = Object.freeze([
   Object.freeze({ tier: 'native', style: 'default', ids: ['C02', 'W04'] }),
   Object.freeze({ tier: 'native', style: 'gray', ids: ['C02', 'W04'] }),
+  Object.freeze({ tier: 'overview', style: 'default', ids: ['SG14'] }),
+  Object.freeze({ tier: 'overview', style: 'gray', ids: ['SG14'] }),
+]);
+const FULL_EXPECTED = Object.freeze([
+  Object.freeze({ tier: 'native', style: 'default', ids: FULL_NATIVE_SURFACE_IDS }),
+  Object.freeze({ tier: 'native', style: 'gray', ids: FULL_NATIVE_SURFACE_IDS }),
   Object.freeze({ tier: 'overview', style: 'default', ids: ['SG14'] }),
   Object.freeze({ tier: 'overview', style: 'gray', ids: ['SG14'] }),
 ]);
@@ -105,7 +120,7 @@ async function validateCollection(outputRoot, expected) {
   invariant(index.collection.style === expected.style, `${expected.tier}/${expected.style} style drifted`);
   invariant(
     JSON.stringify(index.surfaces.map((surface) => surface.id)) === JSON.stringify(expected.ids),
-    `${expected.tier}/${expected.style} pilot surface set drifted`,
+    `${expected.tier}/${expected.style} derivative surface set drifted`,
   );
 
   const rows = [];
@@ -172,18 +187,35 @@ async function validateCollection(outputRoot, expected) {
 async function main() {
   const outputArgument = process.argv.find((argument) => argument.startsWith('--output-root='));
   const outputRoot = path.resolve(outputArgument?.slice('--output-root='.length) || DEFAULT_OUTPUT_ROOT);
-  const validation = await readJsonBuffer(path.join(outputRoot, 'validation.json'), 'pilot validation');
+  const scopeArgument = process.argv.find((argument) => argument.startsWith('--scope='));
+  const scope = scopeArgument?.slice('--scope='.length) || 'full';
+  invariant(['pilot', 'full'].includes(scope), `Unsupported derivative scope: ${scope}`);
+  const expectedCollections = scope === 'pilot' ? PILOT_EXPECTED : FULL_EXPECTED;
+  const expectedRecordCount = expectedCollections.reduce((sum, collection) => sum + collection.ids.length, 0);
+  const validation = await readJsonBuffer(path.join(outputRoot, 'validation.json'), 'derivative validation');
   invariant(
-    validation.value.schema === 'carearound.discover-derivative-pilot-validation',
-    'Pilot validation schema drifted',
+    validation.value.schema === 'carearound.discover-derivative-validation',
+    'Derivative validation schema drifted',
   );
-  invariant(validation.value.linearScale === 0.8, 'Pilot validation scale drifted');
+  invariant(validation.value.mode === scope, `Derivative validation mode is not ${scope}`);
+  invariant(validation.value.linearScale === 0.8, 'Derivative validation scale drifted');
+  invariant(
+    JSON.stringify(validation.value.scope?.nativeSurfaceIds) === JSON.stringify(expectedCollections[0].ids),
+    'Derivative validation native surface set drifted',
+  );
+  invariant(
+    JSON.stringify(validation.value.scope?.overviewSurfaceIds) === JSON.stringify(expectedCollections[2].ids),
+    'Derivative validation overview surface set drifted',
+  );
 
   const records = [];
-  for (const expected of EXPECTED) {
+  for (const expected of expectedCollections) {
     records.push(...await validateCollection(outputRoot, expected));
   }
-  invariant(records.length === 6, `Expected 6 pilot surface/style records, received ${records.length}`);
+  invariant(
+    records.length === expectedRecordCount,
+    `Expected ${expectedRecordCount} derivative surface/style records, received ${records.length}`,
+  );
   for (const record of records) {
     console.log(
       `${record.tier}/${record.style}/${record.id}: ${record.chunks} chunks, `
@@ -191,10 +223,14 @@ async function main() {
       + `${record.transportMiB.toFixed(2)} transport MiB`,
     );
   }
-  console.log(`Discover derivative pilot verification passed: ${outputRoot}`);
+  const transportMiB = records.reduce((sum, record) => sum + record.transportMiB, 0);
+  console.log(
+    `Discover derivative ${scope} verification passed: ${records.length} surface/style records, `
+    + `${transportMiB.toFixed(2)} transport MiB at ${outputRoot}`,
+  );
 }
 
 main().catch((error) => {
-  console.error(`Discover derivative pilot verification failed: ${error.message}`);
+  console.error(`Discover derivative verification failed: ${error.message}`);
   process.exitCode = 1;
 });

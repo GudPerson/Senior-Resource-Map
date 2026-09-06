@@ -23,18 +23,18 @@ const FIXED_TOWN_OVERVIEW_ATLAS_EDITION = 'zoom14-overview-atlas-v1';
 const FIXED_TOWN_DISCOVER_DERIVATIVE_EDITION = 'discover-derivative-v1';
 const FIXED_TOWN_DISCOVER_DERIVATIVE_PROFILES = Object.freeze([
     Object.freeze({
-        profile: 'discover-native-32',
-        profileLabel: '32% z19 Discover derivative',
-        retainedScale: 0.32,
-        sourceProfile: 'sparse-40',
-        sourceRetainedScale: 0.4,
+        profile: 'discover-native-40',
+        profileLabel: '40% z19 Discover derivative',
+        retainedScale: 0.4,
+        sourceProfile: 'urban-50',
+        sourceRetainedScale: 0.5,
         tier: 'native',
     }),
     Object.freeze({
         profile: 'discover-native-40',
         profileLabel: '40% z19 Discover derivative',
         retainedScale: 0.4,
-        sourceProfile: 'urban-50',
+        sourceProfile: 'sparse-40',
         sourceRetainedScale: 0.5,
         tier: 'native',
     }),
@@ -827,9 +827,17 @@ function hasAcceptedGenericOverviewSourceProfile(source) {
 
 function getDiscoverDerivativeProfile(sourceOrEntry) {
     if (!isRecord(sourceOrEntry)) return null;
+    const derivative = sourceOrEntry.derivative;
     return FIXED_TOWN_DISCOVER_DERIVATIVE_PROFILES.find((profile) => (
         sourceOrEntry.profile === profile.profile
         && sourceOrEntry.retainedScale === profile.retainedScale
+        && (
+            !isRecord(derivative)
+            || (
+                derivative.sourceProfile === profile.sourceProfile
+                && derivative.sourceRetainedScale === profile.sourceRetainedScale
+            )
+        )
     )) || null;
 }
 
