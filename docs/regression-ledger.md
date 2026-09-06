@@ -75,8 +75,6 @@ Rules:
   production build passed. The frozen production artifact contains all four
   exact `v5` roots, and the publication dry run passed with an
   abort-on-existing-key policy.
-  Remote publication, full public hash verification, exact release build,
-  production deployment, and post-deploy UAT are recorded below when complete.
   The first immutable publication root without the `-r2` suffix is intentionally
   unreferenced: full public verification found that its collection indexes
   retained source-manifest byte counts while correctly carrying derivative
@@ -84,6 +82,56 @@ Rules:
   and local verifier now write and require each derivative manifest's actual
   byte count; immutability requires the corrected release to use the fresh
   `-r2` namespace rather than overwrite the rejected root.
+- Publication evidence (2026-09-06): PASS. The corrected immutable `-r2`
+  namespace contains all 9,770 planned objects and 2,234,361,836 bytes. Full
+  public verification re-read and matched every manifest/chunk byte count and
+  SHA-256: native Default `32` surfaces and `2,741/2,741` chunks
+  (`1,084,530,925` bytes), native Gray `32` and `2,741/2,741`
+  (`959,676,384` bytes), overview Default `1` and `2,109/2,109`
+  (`110,992,465` bytes), and overview Gray `1` and `2,109/2,109`
+  (`72,452,891` bytes). Public responses carry the production-origin CORS
+  contract; indexes use five-minute revalidation and JPEG chunks use the
+  established one-year immutable cache contract.
+- Production release evidence (2026-09-06): PASS. Implementation commit
+  `3f2051e262eb0065b62c631512a0c75f55c2397d` is pushed on
+  `codex/discover-detailed-basemap-20260906`. The exact derivative-configured
+  client artifact was deployed to the Cloudflare Pages production branch as
+  deployment `527eca93-f3ee-4597-8507-63b6fbd42ab0` at
+  `https://527eca93.senior-resource-map.pages.dev`. All `85` published static
+  files matched the frozen local artifact, immutable deployment, and
+  `https://app.carearound.sg` byte-for-byte; the sorted file-hash manifest has
+  SHA-256 `77da2efb5f1abd61245288a71874834f44418c6f01b2b2f15acbffba6d920635`.
+  `/`, `/discover`, and `/login` returned `200` from both hosts, API health
+  returned `200/ok`, the ordinary app retained frame denial, and an unknown
+  embed token retained its `404`, no-store, embeddable error contract. This
+  was a client/asset-only release; no Worker/API, schema, authentication, or
+  production-data deployment occurred.
+- Post-deploy browser evidence (2026-09-06): PASS. Authenticated production
+  Chrome at a `1020x750` map viewport completed Default and Gray
+  `13 -> 14 -> 15 -> 14 -> 13`: zoom `13` used live OneMap only, zoom `14`
+  used `SG14` overview (`72/72` initial Default chunks, `63/63` after the
+  reverse transition), and zoom `15` used native `N02` (`20/20` chunks), with
+  zero live tiles beneath every Detailed state. Search (`Ma Kuang`), reset,
+  All/Places/Programme-service, saved-only (`215` results), saved/transient
+  pins, Category Pins, and postal context remained functional while Detailed
+  stayed mounted; `21` same-postal parents and `154` category/place markers
+  remained rendered in the tested viewport set. The same-postal chooser and
+  desktop split-pane resize/invalidation remain covered by the earlier
+  authenticated feature UAT and unchanged adapter tests below.
+  Keyboard panning pruned and loaded visible native chunks inside coverage;
+  crossing the surface boundary produced `outside-coverage`, removed all fixed
+  chunks, and restored `24/24` live tiles. A clean production browser at exact
+  `390x844` rendered the visible mobile map at `390x687`, mounted native `C06`
+  with `4/4` chunks and zero live tiles, then returned to Browse with body
+  pointer events and overflow restored; its console had zero warnings/errors.
+  The existing authenticated `390x844` saved-only/transient/mobile contract is
+  unchanged and remains covered by the earlier feature UAT in this ledger.
+  Production My Maps loaded map `343` in its existing `mapBasemapMode=town`
+  path with no Discover adapter present. The map-lockdown suite and unchanged
+  six-root build remain the Shared Map/embed regression proof. Credentialed
+  aggregate smoke was unavailable in this shell; targeted authenticated UAT,
+  public route/API checks, exact artifact parity, and the complete automated
+  gates above form this release's evidence.
 
 ## 2026-09-06 Discover 384 MiB desktop UAT ceiling follow-up
 

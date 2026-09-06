@@ -1,6 +1,6 @@
 # CareAround SG session handoff
 
-Updated: 2026-09-05 (Asia/Singapore)
+Updated: 2026-09-06 (Asia/Singapore)
 
 ## Start here
 
@@ -10,6 +10,50 @@ Updated: 2026-09-05 (Asia/Singapore)
 - Release platform: Cloudflare Pages for the client and Cloudflare Worker for the API.
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
+
+## Current Discover Detailed release
+
+The memory-safe Discover Detailed basemap release is live from the isolated
+worktree `/Users/sweetbuns/CareAroundSG-discover-detailed` on branch
+`codex/discover-detailed-basemap-20260906`. Implementation commit
+`3f2051e262eb0065b62c631512a0c75f55c2397d` is pushed. Production Pages
+deployment `527eca93-f3ee-4597-8507-63b6fbd42ab0` is available at
+`https://527eca93.senior-resource-map.pages.dev` and `https://app.carearound.sg`.
+The deploy was client-only; no Worker/API, schema, authentication, migration,
+or production-data change was required or performed.
+
+Discover keeps `DiscoveryMap` and automatically uses live OneMap through
+displayed zoom `13`, the `SG14` overview at `14`, and native town imagery at
+`15+` in Default and Gray. The standard `256 MiB` decoded-memory ceiling,
+full-viewport containment, fixed-surface retention/pruning, and fail-closed
+coverage/loading/memory fallbacks remain authoritative. The production build
+uses the corrected immutable asset namespace
+`v5/discover-derivative-v1-80-20260906-r2`; all 9,770 public objects and
+2,234,361,836 bytes passed full byte-count and SHA-256 verification. The first
+namespace without `-r2` failed the strengthened index manifest-byte check and
+is intentionally unreferenced; it was never used by a deployed client and was
+not overwritten or deleted.
+
+All `85` served static files matched the exact local artifact, immutable Pages
+deployment, and custom domain. Automated release evidence passed static graph
+validation (430 modules / 1,274 edges), server `611/611`, client `745/745`,
+map-lockdown `103/103`, town-map tooling `16/16`, focused derivative/parser
+coverage `38/38`, the unchanged six-root My Map/embed build, and the exact
+four-root derivative build. Authenticated production Chrome passed the
+Default/Gray zoom round trip, search, reset, filters, saved-only, transient and
+postal context, boundary panning, live/fixed exclusivity, and existing My Map
+rendering. Clean production `390x844` mobile rendering loaded `4/4` native
+chunks with zero live tiles and returned to Browse without a body interaction
+lock. Credentialed aggregate smoke variables were unavailable; the targeted
+authenticated checks, clean responsive check, route/API checks, complete
+automated gates, and exact artifact parity are the recorded release proof.
+
+The previous Pages artifact
+`https://7aa26941.senior-resource-map.pages.dev` at implementation
+`776cdd2e2426b1e6edef49ff102644500ea31c75` is the immediate client rollback
+reference. `origin/main` is still at `fb5ecbdf606fa15fd0af57df1f1e46b990cb5799`;
+the exact next release step is to review and merge the feature branch so source
+history matches the already validated production artifact.
 
 ## Protected workspace state
 
