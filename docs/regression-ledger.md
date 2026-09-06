@@ -55,9 +55,10 @@ Rules:
   local browser rendered the detailed fixed surface at zoom `16`; its map-asset
   CORS messages were expected because the immutable production roots allow the
   production origin rather than `127.0.0.1`.
-- Production release evidence: PASS. Source commit `ff122f45a` is pushed to
-  `main` and the recovery branch; GitHub quality run `34034035843` passed. The
-  exact local artifact was published with the Pages Functions context as
+- Production release evidence: PASS. Core recovery commit `ff122f45a` and the
+  final client-workspace build guard `5bbacc9d1` are pushed to `main` and the
+  recovery branch; GitHub quality runs `34034035843` and `34034656745` passed.
+  The exact local artifact was published with the Pages Functions context as
   production deployment `135da0fc-9ebc-495e-9680-cc90308e265e` at
   `https://135da0fc.senior-resource-map.pages.dev`. All `85` published static
   files matched the frozen local artifact and `https://app.carearound.sg`
@@ -77,6 +78,13 @@ Rules:
   browser recorded zero errors and zero warnings. This was a client-only
   recovery; no Worker, schema, migration, auth, map asset, or production-data
   deployment occurred.
+- Automatic-build proof: PASS. After the client workspace build was locked,
+  Cloudflare's own Git build produced production deployment
+  `0749a6a3-988d-4c01-b7b9-f33751cd3f91` from `5bbacc9d1`. Its bundle contains
+  all four immutable derivative roots, the custom domain moved to that bundle,
+  and a fresh browser loaded `16/16` native Default chunks with zero live tiles
+  at zoom `15` and no console errors or warnings. This proves future Git-based
+  Pages builds no longer depend on a manual exact-artifact republish.
 
 ## 2026-09-06 Discover 80%-linear derivative release
 

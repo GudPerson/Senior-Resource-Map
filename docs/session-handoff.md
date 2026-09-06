@@ -73,15 +73,21 @@ the dashboard-facing client workspace `build` script plus the root
 `build:client`, `build:cloudflare`, and `deploy:client` commands to the exact
 validated derivative build, preventing a future routine Pages release from
 compiling the adapter out.
-The recovery is complete at source commit `ff122f45a`, pushed to `main` and the
-recovery branch. GitHub quality run `34034035843` passed. The exact combined
-artifact is production deployment `135da0fc-9ebc-495e-9680-cc90308e265e` at
+The core recovery is at `ff122f45a` and the final client-workspace build guard
+is `5bbacc9d1`, both pushed to `main` and the recovery branch. GitHub quality
+runs `34034035843` and `34034656745` passed. The exact combined artifact is
+production deployment `135da0fc-9ebc-495e-9680-cc90308e265e` at
 `https://135da0fc.senior-resource-map.pages.dev`; all `85` static files matched
 the local build and custom domain, with sorted local file-hash manifest
 SHA-256 `199aa13552864dc9b7d644e3aeb759a109a120f5140605f2ee9934d6f6d10fe1`.
 Fresh production Chrome passed the `16 -> 15 -> 14 -> 13 -> 14 -> 15` tier
 round trip in Default, native Gray at `15`, and live/fixed exclusivity with zero
 console errors or warnings. The API Worker was not redeployed.
+Cloudflare's subsequent Git build from `5bbacc9d1` produced production
+deployment `0749a6a3-988d-4c01-b7b9-f33751cd3f91`; its bundle contains all
+four derivative roots, and fresh custom-domain Chrome loaded `16/16` native
+Default chunks with zero live tiles at zoom `15` and no console errors. Future
+Git deployments therefore retain Detailed without a manual republish.
 
 ## Protected workspace state
 
