@@ -54,8 +54,29 @@ Rules:
   client diagnostic build, and the exact derivative production build. A clean
   local browser rendered the detailed fixed surface at zoom `16`; its map-asset
   CORS messages were expected because the immutable production roots allow the
-  production origin rather than `127.0.0.1`. Production deployment and
-  production-origin browser verification are recorded here when complete.
+  production origin rather than `127.0.0.1`.
+- Production release evidence: PASS. Source commit `ff122f45a` is pushed to
+  `main` and the recovery branch; GitHub quality run `34034035843` passed. The
+  exact local artifact was published with the Pages Functions context as
+  production deployment `135da0fc-9ebc-495e-9680-cc90308e265e` at
+  `https://135da0fc.senior-resource-map.pages.dev`. All `85` published static
+  files matched the frozen local artifact and `https://app.carearound.sg`
+  byte-for-byte, using the canonical Pages routes for `index.html` and
+  `offline.html`; the sorted local file-hash manifest has SHA-256
+  `199aa13552864dc9b7d644e3aeb759a109a120f5140605f2ee9934d6f6d10fe1`.
+  `/`, `/discover`, and `/login` returned `200`, API health returned `200/ok`,
+  the ordinary app retained frame denial, and an unknown embed token retained
+  its `404`, no-store, embeddable error contract.
+- Production browser evidence: PASS in a fresh Chrome profile on the custom
+  domain. The `16 -> 15 -> 14 -> 13 -> 14 -> 15` round trip used native
+  derivative chunks at `15+`, the `SG14` overview at `14`, and live OneMap at
+  `13`. The sampled states were `4/4` native chunks at `16`, `16/16` native
+  chunks at `15`, `36/36` overview chunks at `14`, and `16` live tiles with
+  zero fixed images at `13`; every Detailed state had zero live tiles. Gray at
+  `15` loaded `16/16` matching native Gray chunks with zero live tiles. The
+  browser recorded zero errors and zero warnings. This was a client-only
+  recovery; no Worker, schema, migration, auth, map asset, or production-data
+  deployment occurred.
 
 ## 2026-09-06 Discover 80%-linear derivative release
 
