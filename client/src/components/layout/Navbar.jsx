@@ -7,6 +7,8 @@ import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import MobileBottomSheet from '../mobile/MobileBottomSheet.jsx';
 import BrandLockup from './BrandLockup.jsx';
+import SupportNavLink from '../../features/support/SupportNavLink.jsx';
+import { SUPPORT_UI_ENABLED } from '../../lib/supportInbox.js';
 
 function joinClasses(...parts) {
     return parts.filter(Boolean).join(' ');
@@ -33,7 +35,7 @@ export default function Navbar() {
     return (
         <>
             <nav
-                className="hc-nav sticky top-0 z-[1200] shadow-sm disable-font-scaling navbar-static-scale"
+                className={`hc-nav sticky top-0 z-[1200] shadow-sm disable-font-scaling navbar-static-scale ${SUPPORT_UI_ENABLED ? 'navbar-support-enabled' : ''}`}
                 style={{
                     backgroundColor: 'var(--color-nav-bg)',
                     borderBottom: '1px solid var(--color-border)',
@@ -43,12 +45,13 @@ export default function Navbar() {
                     <div className="navbar-row flex items-center justify-between h-[56px] sm:h-[64px] gap-2">
 
                         {/* Logo */}
-                        <Link to="/" className="flex items-center gap-2 flex-shrink-0 min-w-0">
-                            <BrandLockup compact className="min-w-0" />
+                        <Link to="/" aria-label="CareAround SG home" className="flex items-center gap-2 flex-shrink-0 min-w-0">
+                            <BrandLockup compact className="min-w-0" textClassName={SUPPORT_UI_ENABLED ? 'hidden sm:block' : ''} />
                         </Link>
 
                         {/* Right controls */}
                         <div className="navbar-controls flex items-center gap-1.5 sm:gap-2">
+                            {SUPPORT_UI_ENABLED && <SupportNavLink />}
 
                             <div className="hidden xl:flex items-center gap-1 text-xs font-semibold text-slate-500">
                                 <Link to="/privacy" className="rounded-lg px-2 py-1 transition hover:bg-slate-100 hover:text-brand-700">

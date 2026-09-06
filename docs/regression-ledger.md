@@ -15,6 +15,229 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-07 Guide/inbox commit approval and read-only preflight
+
+- User approved the scoped local candidate commit and read-only production
+  preflight. Push/merge, database migration and deployment remain unapproved.
+- The reviewed 80-file implementation fingerprint is unchanged:
+  `ed2a8e5146919054fe909d340fc202bb61d132a19918623673489408997ce5cd`.
+  Only checkpoint documentation changed after the last full local verification.
+- Read-only Cloudflare evidence: Pages production is clean main `13f50a6c9`;
+  Worker version `8567e09a-73aa-48d7-8a4d-76540d967525` serves 100 percent;
+  API health is OK. Both support rollout flags are absent; no Cron Triggers
+  are installed. Pages main auto-deployment remains enabled.
+- Neon schema/journal and fresh backup evidence are unverified because no
+  authenticated Neon access was available. No production data, configuration,
+  credentials, migration or runtime was changed. Full details and remaining
+  gates are in [the release candidate](guide-inbox-notifications-release-candidate.md).
+- This checkpoint supersedes older uncommitted/approval-pending notes below;
+  it does not supersede any production baseline or certify release readiness.
+
+## 2026-09-07 Guide/inbox shared-surface checks — local release review
+
+- Reference: isolated `codex/guide-inbox-notifications-20260907`, base
+  `13f50a6c9`; still uncommitted and not released. Source fingerprint and exact
+  migration scope are in [the release review](guide-inbox-notifications-release-candidate.md).
+- Acceptance/evidence: synthetic My Directory All/Used/Not used filters,
+  list-only/mapped usage protection, cancel/no-write and actual unused removal,
+  server recheck (zero removed/two protected), Offering/Care Calendar warning,
+  unchanged existing personal plan and another account's save all passed.
+- Discover with Help/unread enabled passed the 15 -> 14 -> 13 -> 14 -> 15
+  round trip: native 20/20 loaded, overview 64/64 loaded, live 25/25 at 13;
+  Gray native 20/20. Fixed samples had zero live tiles. Guest results excluded
+  hidden/restricted fixtures. Inspected screenshot:
+  `output/playwright/guide-discover-detailed-gray-regression.png`.
+- Shared snapshot preserved mapped/list-only membership after owner changes;
+  private report, private note and personal-place markers were excluded. Actual
+  mobile embed fit 320 px, contained no account/help shell and made only its
+  credential-free embed request. Member/guest embed payloads matched. Inspected
+  screenshot: `output/playwright/support-embed-isolation-mobile.png`.
+- Actual Pages handler plus disposable API config passed approved/denied browser
+  framing and live disablement using a separate labelled static probe document.
+  Unknown tokens returned 404/no-store; ordinary shared map remained readable.
+  This is not a production Pages deployment or a combined deployed-app UAT claim.
+- Known observations: unchanged shared-card code emits nested-anchor diagnostics
+  at desktop width; shared page width is 336 px at a 320 px viewport. Recorded for
+  release review, not fixed here; clean shared UI/live-baseline parity is unproven.
+  The final actual-embed console has zero errors/warnings.
+- Current gates: 702 server / 765 client passed; seven-migration validation,
+  471 modules / 1,393 edges, exact feature-enabled client build, map-lockdown/
+  configured build and diff checks passed. Only test harnesses and evidence docs
+  changed in this checkpoint. No production DB, secrets, auth, map rendering,
+  source commit, push or deployment changed. Credentialed release smoke,
+  production preflight and exact release approval remain separate gates.
+
+## 2026-09-07 Support lifecycle and keyboard navigation — local checkpoint
+
+- Status: all three feature phases now have local implementation/journey proof;
+  the goal remains incomplete for the shared runtime and release-candidate gates
+  in [the implementation plan](guide-inbox-notifications-plan.md). Not released.
+- Reference: `codex/guide-inbox-notifications-20260907`, isolated worktree based
+  on `13f50a6c9`; all current goal changes remain uncommitted.
+- Reproduction/correction: report preview, Guide/search response, staff decisions
+  and guest view changes disabled or unmounted the initiating control and left
+  focus on the body. Focusable headings/error messages and scoped return targets
+  now keep keyboard navigation useful. Ordinary conversation refresh does not
+  steal focus; Guide response focus preserves a user who moved elsewhere. Aborted
+  proposal requests cannot replace a newer review panel.
+- Acceptance: keyboard continuity through Guide/search, report preview/edit/send,
+  conversation/back, resolve/reopen, staff approval/verification and guest recovery;
+  unchanged privacy, revision approval, notification and Calendar contracts.
+  Guest storage is opt-in, manual recovery never attaches an account owner, and
+  mismatch rejection creates no fix event. Shared surfaces remain separate gates.
+- Evidence: actual-controller/synthetic browser journey reverified staff reply,
+  exact-version proposal/approval, failed mismatch, one matching-release notice,
+  return/resolve/reopen with ten history events, guest opt-in and no-storage reload,
+  manual signed-in recovery/reply, other-account and User View isolation. At 320 px,
+  Guide and search focus visible response headings, Tab/Enter opens actual Place
+  detail, and no horizontal overflow appears. Inspected image:
+  `output/playwright/support-lifecycle-reopened-mobile.png`. Final console is clean;
+  intentional mismatch 409s were observed separately.
+- Verification: **702 server / 765 client**, eight focused support client checks,
+  seven-migration/static validation (**471 modules / 1,393 edges**), feature-enabled
+  exact client and map-lockdown/configured builds pass. Wrangler 4.129.0 compile-only
+  dry run passes after the publisher correction: 3311.79 KiB / gzip 665.57 KiB.
+  No production DB, secret, auth setting, commit, push or deployment was changed.
+
+## 2026-09-07 Guide and private support inbox — local candidate checkpoint
+
+- Status: **incomplete and not released**. The full three-phase goal and current
+  evidence are in [the implementation plan](guide-inbox-notifications-plan.md).
+  This entry does not supersede any deployed map or Calendar baseline.
+- Candidate behaviour: versioned Guide answers, public-resource search through
+  existing visibility-aware controllers, a persistent private report inbox,
+  guest recovery, staff replies, and an approval/release-verification gate for
+  fix notifications. An approved source revision alone is insufficient: a human
+  production-test statement and server-observed matching release are required.
+  Local metadata integration now checks client entry bytes and the executing API
+  Worker's compiled revision/platform version. Actual production confirmation is
+  pending; synthetic release fixtures do not prove an actual production fix.
+- Reference: branch `codex/guide-inbox-notifications-20260907`, based on verified
+  main `13f50a6c9`, in an isolated feature worktree. No commit or production
+  mutation has occurred. Additive migrations `0003_support_inbox` and
+  `0004_guide_history` were tested only
+  in a disposable database; both client/server feature flags default off.
+- Acceptance: preserve private report ownership across reload/account changes,
+  deny review through impersonation or ordinary region/organisation roles, never
+  put guest recovery credentials in URLs, preserve message history on reopen,
+  deduplicate retried writes, and never issue a fix update for a mismatched or
+  unapproved revision. Existing Discover Detailed tiers, bulk-unsave map-use
+  protection, Calendar plans/acknowledgements, Shared Maps, and embeds must stay
+  unchanged. User-facing notifications and saved-search alerts remain unfinished.
+- Guide-history boundary: optional explicit review/save of question snapshots,
+  separate from support reports. Account-owner-only reads, revision-checked
+  updates/deletion and bounded storage; Super Admin support review and guest
+  recovery do not grant access. Current help answers are used on reopen; old
+  resource facts/links are not stored. Copying a question into a report is an
+  explicit draft-only handoff and still requires review and Send.
+- Verification: server **669/669**, client **757/757**, release/support/release-line
+  checks **42/42**, actual-controller resource integration **5/5**, migration/module/
+  diff validation, the feature-enabled exact Discover derivative build, map-lockdown
+  with its configured build, Worker dry run and binding-type generation pass.
+  Synthetic browser UAT covered report review/submit/reload, staff reply,
+  approval, rejected mismatch, exactly one matching fixture fix update,
+  reporter return/reopen with history, guest recovery, and account separation.
+  Guide history save/update/reload/delete, account/reviewer isolation, and draft-only
+  report handoff also passed fixture browser checks. Guide resource tests now run
+  the actual controllers, SQL and driver parsers against disposable PostgreSQL;
+  hidden/deleted/restricted/unavailable-host rows are excluded and changed visibility
+  removes stale results. Guest browser search opens actual Place/Offering pages;
+  staff search stays public; Continue in Discover preserves the query and visible
+  results. Fixture cache/location-indicator endpoints return documented 404s and
+  are not claimed as map UAT. At 320 px Help, history and the Offering detail fit
+  without horizontal overflow. No live-data
+  Discover/My Map/Calendar write-path UAT or production release proof is claimed.
+
+## 2026-09-07 Private resource notifications — local candidate checkpoint
+
+- Status: **local and unreleased; full goal still incomplete**. Phase 2 core
+  adds an Updates view to the private inbox, explicit category consent under the
+  existing general in-app switch, grouped read/dismiss/mute controls, and durable
+  server scans. Phase 3 saved-search alerts remain pending. See the full
+  [implementation contract](guide-inbox-notifications-plan.md).
+- Reference: same isolated `codex/guide-inbox-notifications-20260907` candidate;
+  additive migration `0005_notification_updates`, tested only in disposable
+  PostgreSQL. The new Worker minute trigger is not deployed. Feature flags remain
+  off by default; there is no new production notification or external delivery.
+- Locked invariants: no initial subscription flood; per-owner data; no support
+  reviewer/impersonation override; current visibility at source lookup and read;
+  no saved-snapshot fallback or retained resource names/addresses/action URLs;
+  no false removals on lookup failure; atomic cursor/baseline/group writes; lease
+  fencing and retry deduplication; existing consent is authoritative. Unsave removes
+  only the corresponding new watch/group, never a Calendar plan or acknowledgement.
+- Verification: **683 server / 760 client checks pass**. Populated migration
+  upgrade preserves existing rows and enforces all seven new CHECK constraints.
+  Tests cover 62 saved resources across bounded persisted batches, grouped changes,
+  tied pagination, stale reads, permissions, opt-out races, retry, and mute/resume.
+  Six-migration/module/diff checks, feature-enabled exact client build, map-lockdown
+  with configured build, Worker dry run/types, and local disabled scheduled handler
+  plus health checks pass. Desktop/320 px fixture browser proves persistent updates
+  after leaving the app, read state/badge, mute/unmute, privacy redaction, category
+  opt-out, resource navigation and account isolation with no final console errors.
+- Limit: controlled fixture SQL revisions are not the provider schedule editor
+  or full Calendar review journey. Those cross-surface checks and existing Phase 1
+  accessibility/guest release gates still need completion. No production database,
+  map snapshot, secret, authentication configuration, commit, push or deployment
+  was changed by this checkpoint.
+
+## 2026-09-07 Saved-search alerts — local candidate checkpoint
+
+- Status: Phase 3 locally implemented, not released. The full Guide/inbox goal
+  retains the remaining Phase 1/2 and shared cross-surface acceptance gates in
+  [the implementation plan](guide-inbox-notifications-plan.md).
+- Reference: isolated `codex/guide-inbox-notifications-20260907` worktree, additive
+  migration `0006_saved_search_alerts`, synthetic PostgreSQL/browser evidence only.
+  No commit, push, production database mutation or deployment was performed.
+- Acceptance: explicit review and per-search alert choice, ten-search account
+  limit, existing master preferences authoritative, no initial/catch-up flood,
+  public-only current matching through Guide controllers, persisted keyset/lease
+  progress and duplicate prevention. Ordinary directory ordering stays unchanged.
+  Only internal scan context enables keyset traversal; external query/header flags
+  do not grant it or override visibility. Edits/consent changes fence stale workers;
+  distinct digest lifetimes prevent old read/dismiss requests affecting new alerts.
+- Privacy: owner-only criteria, no guest/reviewer/impersonation access; no old
+  resource facts in digests. Current-results links reload visibility-aware matches,
+  including on repeated clicks. Delete removes only a search and its digest/keys,
+  leaving saved resources, My Maps, plans and acknowledgements unchanged.
+- Verification: **695 server / 761 client** pass; **12** focused saved-search and
+  upgrade checks enforce nine SQL constraints, preserve seeded existing state,
+  and exercise moving result pages, retries, consent, stale notices and limits.
+  Seven-migration/static checks, feature-enabled production-configured build,
+  Worker dry run and earlier-in-turn map-lockdown/configured build pass. Synthetic
+  desktop/mobile browser covers save, leave/return/new-match badge, current detail,
+  visibility withdrawal, read, pause/resume, edit/reload, account separation and
+  confirmed deletion. Final notice-identity API change was rerun through browser
+  save/new-match/read. This is not production delivery or full Calendar UAT proof.
+
+## 2026-09-07 Provider publication and notification handoff — local checkpoint
+
+- Status: local, not released. Phase 2's actual provider-to-Calendar journey now
+  passes; Phase 1 and shared cross-surface gates remain in the implementation plan.
+- Reproduced defect: publish revision 1 through the Offering API, then publish a
+  changed revision 2. The manual update tried to insert revision 1 again and hit
+  the unique history constraint. Atomic rollback prevented the second publication
+  and therefore prevented the downstream change notification.
+- Narrow correction: the manual update's history insert ignores only an existing
+  resource/revision key. Existing history is never overwritten. No schedule model,
+  approval, auth, schema, public visibility, map rendering or plan semantics change.
+  The current revision compare-and-swap and atomic batch remain authoritative.
+- Acceptance: old history stays immutable, concurrent edits yield one successful
+  revision and one 409, notifications are grouped/deduplicated and private, inbox
+  read/dismiss does not acknowledge Calendar, and Calendar acknowledgement neither
+  moves an old plan nor stars a replacement. Cancellation prevents new planning;
+  visibility withdrawal strips notification details and navigation; opt-out wins.
+- Evidence: seven actual-controller/PostgreSQL checks; full **702 server / 761
+  client**, static/migration checks, exact feature-enabled client build and
+  map-lockdown/configured build pass. Synthetic browser UAT uses the ordinary
+  Offering wizard for changed timing and cancellation, then inbox and Calendar
+  review at desktop/390 px. Final console has no errors/warnings. Inspected images:
+  `output/playwright/provider-schedule-notification-desktop.png` and
+  `output/playwright/calendar-review-after-inbox-read-mobile.png`.
+- The harness's auth and optional picker data are synthetic. These checks do not
+  establish production fixes, complete resource-management or shared-map UAT.
+  No production database, migration, commit, push or deployment was used. Refresh
+  the Worker dry run for this controller correction before release review.
+
 ## 2026-09-06 Discover Detailed source and deployment regression recovery
 
 - Production regression and cause: the user reported that `/discover` had

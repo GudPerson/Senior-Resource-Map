@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { hardAssets, hardAssetStaffMemberships, hardAssetTags, subCategories, subregionPostalCodes, users } from '../db/schema.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
@@ -1269,6 +1269,7 @@ export const getHardAssets = async (c) => {
         });
         const listScope = normalizeResourceListScope(c.req.query('scope'));
         const regionScoped = isQueryFlagEnabled(c.req.query('regionScoped'));
+        const publicScan = normalizeRole(user?.role) === 'guest' && listScope === 'visible' ? c.get('publicResourceScan') : null;
         const summaryOnly = isQueryFlagEnabled(c.req.query('summary'));
         const query = c.req.query('q');
         const lat = parseFloat(c.req.query('lat'));
@@ -1276,6 +1277,7 @@ export const getHardAssets = async (c) => {
         const radius = parseFloat(c.req.query('radius')); // in km
 
         const whereClauses = [eq(hardAssets.isDeleted, false)];
+        if (publicScan?.beforeId) whereClauses.push(lt(hardAssets.id, publicScan.beforeId));
         const isDirectStaffManagedScope = listScope === 'managed' && isStandardDirectResourceOperator(user);
         const directManagedHardAssetIds = getDirectManagedHardAssetIds(user);
 
@@ -1308,7 +1310,7 @@ export const getHardAssets = async (c) => {
 
         const finalWhere = and(...whereClauses);
 
-        const listOrder = [desc(hardAssets.updatedAt), desc(hardAssets.id)];
+        const listOrder = publicScan ? [desc(hardAssets.id)] : [desc(hardAssets.updatedAt), desc(hardAssets.id)];
         if (
             summaryOnly
             && shouldUseDirectManagedResourcePagination({ scope: listScope, actor: user })

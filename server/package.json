@@ -7,7 +7,7 @@
     "dev:node": "node --env-file=.env --watch src/index.js",
     "dev:worker": "npx wrangler dev --config wrangler.toml --local",
     "dev:worker:local": "npx wrangler dev --config wrangler.toml --local --var NODE_ENV:development",
-    "deploy": "node ../scripts/validate-worker-release-line.mjs && npx wrangler deploy --config wrangler.toml",
+    "deploy": "node ../scripts/deploy-worker-release.mjs",
     "bootstrap:boundary-schema": "node --env-file=.env scripts/bootstrap_boundary_schema.js",
     "bootstrap:map-embed-schema": "node --env-file=.env scripts/bootstrap_map_embed_schema.js",
     "bootstrap:map-studio-schema": "node --env-file=.env scripts/bootstrap_map_studio_schema.js",
@@ -33,6 +33,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "drizzle-kit": "^0.21.4"
   }
 }

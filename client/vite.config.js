@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { clientReleasePlugin } from '../scripts/client-release-plugin.mjs';
 
 export default defineConfig({
-    plugins: [react()],
+    plugins: [react(), clientReleasePlugin()],
     server: {
         host: true,
         port: 5173,

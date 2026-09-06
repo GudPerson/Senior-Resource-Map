@@ -323,6 +323,13 @@
   gap: 8px !important;
 }
 
+@media (max-width: 639px) {
+  .navbar-support-enabled .navbar-controls,
+  .navbar-support-enabled .navbar-auth-controls {
+    gap: 4px !important;
+  }
+}
+
 .navbar-static-scale .brand-lockup {
   gap: 10px !important;
 }

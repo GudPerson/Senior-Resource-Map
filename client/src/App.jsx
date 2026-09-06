@@ -11,6 +11,7 @@ import { LocaleProvider, useLocale } from './contexts/LocaleContext.jsx';
 import { isGudAuthPhoneLoginReturn } from './lib/phoneVerificationState.js';
 import { LoadingState } from './components/LoadingState.jsx';
 import MobileMyMapEntryScrollReset from './components/MobileMyMapEntryScrollReset.jsx';
+import { SUPPORT_UI_ENABLED } from './lib/supportInbox.js';
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage.jsx'));
 const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview.jsx'));
@@ -28,6 +29,7 @@ const MyMapDetailPage = lazy(() => import('./pages/MyMapDetailPage.jsx'));
 const SharedMapPage = lazy(() => import('./pages/SharedMapPage.jsx'));
 const MembershipLinkPage = lazy(() => import('./pages/MembershipLinkPage.jsx'));
 const LegalPage = lazy(() => import('./pages/LegalPage.jsx'));
+const SupportHubPage = lazy(() => import('./pages/SupportHubPage.jsx'));
 const ROUTE_RELOAD_MARKER_KEY = 'carearound:route-recovery-reload';
 
 function isRouteChunkLoadError(error) {
@@ -187,6 +189,8 @@ function AppShell() {
                         <Route path="/" element={<Navigate to="/discover" replace />} />
                         <Route path="/list" element={<Navigate to="/discover" replace />} />
                         <Route path="/discover" element={<DiscoverPage />} />
+                        {SUPPORT_UI_ENABLED && <Route path="/help" element={<SupportHubPage />} />}
+                        {SUPPORT_UI_ENABLED && <Route path="/inbox" element={<Navigate to="/help?tab=inbox" replace />} />}
                         <Route path="/membership/link" element={<MembershipLinkPage />} />
                         <Route path="/privacy" element={<LegalPage type="privacy" />} />
                         <Route path="/terms" element={<LegalPage type="terms" />} />

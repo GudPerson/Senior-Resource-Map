@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "authoritativeSchema": "src/db/schema.js",
-  "currentSchemaSha256": "915981b68ec6361604eb98facf6981d6d8aab549a6b6cc3b899c5dc94f75b33e",
+  "currentSchemaSha256": "1657cd671639b6490298bf73f8460c8adbf31e60bcb567c82df24126b74b95e4",
   "runtimeCompatibilityBootstrap": "src/utils/boundarySchema.js",
   "runtimeCompatibilityBootstrapSha256": "8a9bdb2545fe0ce03c37aaf11ddee97ae5f04834d586c2381c3e04360f60c63f",
   "migrations": [
@@ -49,6 +49,78 @@
       "cautions": [
         "Stores only the GudAuth-issued challenge verifier needed for server-to-provider polling; the value must never be returned to browsers, logs, or public APIs.",
         "Apply this additive migration before deploying the Worker code that writes the new column."
+      ]
+    },
+    {
+      "id": "0003_support_inbox",
+      "file": "drizzle/0003_support_inbox.sql",
+      "sha256": "8f9d98ce7658ea55676c1135d84c8fb9f5ba4861344f7a6a1bb8dab6a26f37e0",
+      "snapshotFile": "drizzle/meta/0003_snapshot.json",
+      "snapshotSha256": "b5f2798ec6120a6f63a4566348be4e2a0c1b58f64cb45f9cf73d986c81253087",
+      "type": "additive-private-support-inbox",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "Disable SUPPORT_INBOX_ENABLED and roll back the application while retaining support records. No existing user, resource, map or calendar data is transformed. Removing support records requires a separately reviewed retention decision.",
+      "environmentStatus": "Local development candidate; production migration is not authorised or applied.",
+      "cautions": [
+        "Contains private user support messages and hashed guest recovery credentials; never expose owner IDs, credential hashes or internal fix evidence to reporting users.",
+        "The installed generator omits check constraints; the SQL restores the eight declared support checks and integration tests verify enforcement.",
+        "Generator repeated the auth columns already owned by migration 0002 because its snapshot was missing; those duplicate ALTER statements were removed from 0003.",
+        "Enable the support API only after this additive migration is applied to the intended environment and its private-access checks pass."
+      ]
+    },
+    {
+      "id": "0004_guide_history",
+      "file": "drizzle/0004_guide_history.sql",
+      "sha256": "4560f722eca19af9190f01399fee7ad321daa0ff439cc9316ebd6d6f143ab75f",
+      "snapshotFile": "drizzle/meta/0004_snapshot.json",
+      "snapshotSha256": "641f24aac773d79646a718052e8bcd719aae38e2a640907a45eafd3fd9e8143e",
+      "type": "additive-private-guide-history",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "Disable the Guide/support rollout flag and retain optional saved questions. Existing resources, maps, calendars and reports are not transformed. Any removal of stored history requires an explicit user deletion or separately reviewed retention decision.",
+      "environmentStatus": "Local development candidate tested on disposable data only; no production migration authorised or applied.",
+      "cautions": [
+        "Guide history is account-owner-only. Support review permissions and guest recovery credentials must never grant history access.",
+        "Stores only explicitly reviewed questions and topic references, not old resource payloads or arbitrary generated answers.",
+        "The installed generator omits CHECK constraints; all three declared checks are restored in SQL and tested in disposable PostgreSQL.",
+        "Apply before enabling private Guide history; no runtime DDL is used."
+      ]
+    },
+    {
+      "id": "0005_notification_updates",
+      "file": "drizzle/0005_notification_updates.sql",
+      "sha256": "1aac87349b0cba62b75522164f2205c3974f1e6fd2c95a47cad05012a0170a51",
+      "snapshotFile": "drizzle/meta/0005_snapshot.json",
+      "snapshotSha256": "993a0b7285bd377fd42f8033984b5e6f53a71c3c32f78eab6d4ed2674447b90e",
+      "type": "additive-private-resource-notifications",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "Disable SUPPORT_INBOX_ENABLED and roll back the application while retaining private notification state. Existing calendar plans and acknowledgements are untouched. Unsave cascades only the corresponding new watch and notification group.",
+      "environmentStatus": "Local development candidate tested on disposable PostgreSQL only; production migration and scheduled deployment are not authorised or applied.",
+      "cautions": [
+        "Apply before enabling the notification API or scheduled processing. No runtime DDL is used.",
+        "Seven declared CHECK constraints are restored in generated SQL. Persist only fingerprints and typed change codes, never historical resource details.",
+        "Category preferences reuse notification_preferences without changing the general Profile switches. New category subscriptions are opt-in.",
+        "The new favorite foreign key cascades watch and notice removal on unsave; it does not modify existing calendar or map tables."
+      ]
+    },
+    {
+      "id": "0006_saved_search_alerts",
+      "file": "drizzle/0006_saved_search_alerts.sql",
+      "sha256": "7a94c7be9da426b29c6dc4e128e96af7dafd247d5a905c431458cc5e36ba6de5",
+      "snapshotFile": "drizzle/meta/0006_snapshot.json",
+      "snapshotSha256": "11a46d102e4baf2f98f4e32766199deddddf75bf15095a3ec2c8a452610c04ac",
+      "type": "additive-private-saved-searches",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "Disable SUPPORT_INBOX_ENABLED and roll back the application while retaining private saved searches. Existing resources, favorites, maps, calendar and support data are unchanged. Removing a search is an explicit owner action, not a release rollback.",
+      "environmentStatus": "Local development candidate tested only in disposable PostgreSQL; no production migration or deployment authorised or applied.",
+      "cautions": [
+        "Stores explicitly reviewed private search keywords, alert consent, epoch-scoped match hashes and grouped read state; never expose another owner's criteria.",
+        "Nine CHECK constraints are restored in SQL because the installed generator omits them. Unique bounded owner slots enforce ten searches per account.",
+        "No runtime DDL. Apply before enabling saved-search routes or scheduled processing; the shared rollout flag remains off by default.",
+        "Background searches use the same public visibility rules as Guide. Existing master notification consent remains authoritative; edits and resume start a new baseline."
       ]
     }
   ]

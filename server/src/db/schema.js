@@ -550,6 +550,8 @@ export const userConsentRecords = pgTable('user_consent_records', {
   statusIdx: index('user_consent_records_status_idx').on(table.status),
 }));
 
+// Preferences remain shared with Profile; category subscriptions never change
+// the existing general channel switch.
 export const notificationPreferences = pgTable('notification_preferences', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
@@ -652,6 +654,111 @@ export const userFavorites = pgTable('user_favorites', {
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({
   userResourceUnique: uniqueIndex('user_favorites_user_resource_unique').on(table.userId, table.resourceType, table.resourceId),
+}));
+
+// Durable, bounded scans resume independently of an open browser. A lease and
+// cursor are advanced in the same statement as each batch's observations.
+export const notificationResourceJobs = pgTable('notification_resource_jobs', {
+  userId: integer('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  favoriteCursor: integer('favorite_cursor').notNull().default(0),
+  nextScanAt: timestamp('next_scan_at', { withTimezone: true }).notNull().defaultNow(),
+  leaseId: varchar('lease_id', { length: 36 }),
+  leaseUntil: timestamp('lease_until', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  dueIndex: index('notification_resource_jobs_due_idx').on(table.nextScanAt),
+  cursorCheck: check('notification_resource_jobs_cursor_check', sql`${table.favoriteCursor} >= 0`),
+  leaseCheck: check('notification_resource_jobs_lease_check', sql`(${table.leaseId} IS NULL) = (${table.leaseUntil} IS NULL)`),
+}));
+
+// Ownership comes from the saved item. Unsave cascades only this new private
+// watch and its notices; re-saving creates a new baseline, not historical alerts.
+export const notificationResourceWatches = pgTable('notification_resource_watches', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  favoriteId: integer('favorite_id').notNull().references(() => userFavorites.id, { onDelete: 'cascade' }),
+  baseline: jsonb('baseline').notNull(),
+  muted: boolean('muted').notNull().default(false),
+  controlRevision: integer('control_revision').notNull().default(1),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  favoriteUnique: uniqueIndex('notification_resource_watches_favorite_unique').on(table.favoriteId),
+  baselineCheck: check('notification_resource_watches_baseline_check', sql`jsonb_typeof(${table.baseline}) = 'object' AND octet_length(${table.baseline}::text) <= 4096`),
+  controlCheck: check('notification_resource_watches_control_check', sql`${table.controlRevision} > 0`),
+}));
+
+// One persistent group per saved resource. Store typed change codes, never old
+// resource names, addresses, schedules, private notes or action URLs.
+export const userNotifications = pgTable('user_notifications', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  watchId: varchar('watch_id', { length: 36 }).notNull().references(() => notificationResourceWatches.id, { onDelete: 'cascade' }),
+  categories: jsonb('categories').notNull(),
+  changedFields: jsonb('changed_fields').notNull(),
+  revision: integer('revision').notNull().default(1),
+  readRevision: integer('read_revision').notNull().default(0),
+  dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  watchUnique: uniqueIndex('user_notifications_watch_unique').on(table.watchId),
+  updatedIndex: index('user_notifications_updated_idx').on(table.updatedAt, table.id),
+  categoryCheck: check('user_notifications_category_check', sql`jsonb_typeof(${table.categories}) = 'array' AND jsonb_array_length(${table.categories}) BETWEEN 1 AND 2 AND ${table.categories} <@ '["calendar","resources"]'::jsonb`),
+  fieldsCheck: check('user_notifications_fields_check', sql`jsonb_typeof(${table.changedFields}) = 'array' AND jsonb_array_length(${table.changedFields}) BETWEEN 1 AND 8 AND ${table.changedFields} <@ '["name","category","address","hours","contact","schedule","availability"]'::jsonb`),
+  readCheck: check('user_notifications_read_check', sql`${table.revision} > 0 AND ${table.readRevision} BETWEEN 0 AND ${table.revision}`),
+}));
+
+// Private subscriptions are distinct from saved resources and calendar state.
+// A unique bounded slot enforces the per-owner limit even during concurrent saves.
+export const savedSearches = pgTable('saved_searches', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  slot: integer('slot').notNull(),
+  query: varchar('query', { length: 120 }).notNull(),
+  resourceType: varchar('resource_type', { length: 4 }).notNull(),
+  enabled: boolean('enabled').notNull().default(false),
+  revision: integer('revision').notNull().default(1),
+  baselineReady: boolean('baseline_ready').notNull().default(false),
+  baselinePreference: jsonb('baseline_preference'),
+  scanPage: integer('scan_page').notNull().default(1),
+  scanCursor: jsonb('scan_cursor').notNull().default({}),
+  nextScanAt: timestamp('next_scan_at', { withTimezone: true }).notNull().defaultNow(),
+  leaseId: varchar('lease_id', { length: 36 }),
+  leaseUntil: timestamp('lease_until', { withTimezone: true }),
+  lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  slotUnique: uniqueIndex('saved_searches_owner_slot_unique').on(table.userId, table.slot),
+  criteriaUnique: uniqueIndex('saved_searches_owner_criteria_unique').on(table.userId, table.query, table.resourceType),
+  dueIndex: index('saved_searches_due_idx').on(table.nextScanAt),
+  slotCheck: check('saved_searches_slot_check', sql`${table.slot} BETWEEN 1 AND 10`),
+  criteriaCheck: check('saved_searches_criteria_check', sql`length(trim(${table.query})) BETWEEN 2 AND 120 AND ${table.resourceType} IN ('all', 'hard', 'soft')`),
+  progressCheck: check('saved_searches_progress_check', sql`${table.scanPage} > 0 AND ${table.revision} > 0`),
+  leaseCheck: check('saved_searches_lease_check', sql`(${table.leaseId} IS NULL) = (${table.leaseUntil} IS NULL)`),
+  preferenceCheck: check('saved_searches_preference_check', sql`${table.baselinePreference} IS NULL OR (jsonb_typeof(${table.baselinePreference}) = 'object' AND octet_length(${table.baselinePreference}::text) <= 512)`),
+  cursorCheck: check('saved_searches_cursor_check', sql`jsonb_typeof(${table.scanCursor}) = 'object' AND octet_length(${table.scanCursor}::text) <= 128`),
+}));
+
+// Only epoch-scoped match identity hashes, never historic resource facts.
+export const savedSearchMatches = pgTable('saved_search_matches', {
+  searchId: varchar('search_id', { length: 36 }).notNull().references(() => savedSearches.id, { onDelete: 'cascade' }),
+  matchKey: varchar('match_key', { length: 64 }).notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.searchId, table.matchKey] }),
+  keyCheck: check('saved_search_matches_key_check', sql`${table.matchKey} ~ '^[0-9a-f]{64}$'`),
+}));
+
+export const savedSearchDigests = pgTable('saved_search_digests', {
+  searchId: varchar('search_id', { length: 36 }).primaryKey().references(() => savedSearches.id, { onDelete: 'cascade' }),
+  noticeId: varchar('notice_id', { length: 36 }).notNull(),
+  searchRevision: integer('search_revision').notNull(),
+  baselinePreference: jsonb('baseline_preference').notNull(),
+  revision: integer('revision').notNull().default(1),
+  readRevision: integer('read_revision').notNull().default(0),
+  dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  readCheck: check('saved_search_digests_read_check', sql`${table.revision} > 0 AND ${table.readRevision} BETWEEN 0 AND ${table.revision}`),
+  epochCheck: check('saved_search_digests_epoch_check', sql`${table.searchRevision} > 0 AND jsonb_typeof(${table.baselinePreference}) = 'object' AND octet_length(${table.baselinePreference}::text) <= 512`),
 }));
 
 export const myMaps = pgTable('my_maps', {
@@ -1621,4 +1728,84 @@ export const userOptOutRecordsRelations = relations(userOptOutRecords, ({ one })
     fields: [userOptOutRecords.userId],
     references: [users.id],
   }),
+}));
+
+// Optional Guide snapshots are private to their owner, not support transcripts.
+// Bounded unique slots enforce the account limit even under concurrent inserts.
+export const guideConversations = pgTable('guide_conversations', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  ownerUserId: integer('owner_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  slot: integer('slot').notNull(),
+  title: varchar('title', { length: 120 }).notNull(),
+  inputs: jsonb('inputs').notNull(),
+  revision: integer('revision').notNull().default(1),
+  lastRequestId: varchar('last_request_id', { length: 36 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  ownerSlot: uniqueIndex('guide_conversations_owner_slot_unique').on(table.ownerUserId, table.slot),
+  slotCheck: check('guide_conversations_slot_check', sql`${table.slot} BETWEEN 0 AND 19`),
+  revisionCheck: check('guide_conversations_revision_check', sql`${table.revision} > 0`),
+  inputsCheck: check('guide_conversations_inputs_check', sql`jsonb_typeof(${table.inputs}) = 'array' AND jsonb_array_length(${table.inputs}) BETWEEN 1 AND 20 AND octet_length(${table.inputs}::text) <= 60000`),
+}));
+
+// Support has its own ownership boundary. Organisation or regional access alone
+// never grants access to private support conversations.
+export const supportConversations = pgTable('support_conversations', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  ownerUserId: integer('owner_user_id').references(() => users.id, { onDelete: 'cascade' }),
+  guestTokenHash: varchar('guest_token_hash', { length: 64 }),
+  guestExpiresAt: timestamp('guest_expires_at', { withTimezone: true }),
+  title: varchar('title', { length: 120 }).notNull(),
+  context: jsonb('context').notNull().default({}),
+  status: varchar('status', { length: 30 }).notNull().default('open'),
+  revision: integer('revision').notNull().default(2),
+  userReadSequence: integer('user_read_sequence').notNull().default(1),
+  staffReadSequence: integer('staff_read_sequence').notNull().default(0),
+  currentProposalId: varchar('current_proposal_id', { length: 36 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  ownerIndex: index('support_conversations_owner_updated_idx').on(table.ownerUserId, table.updatedAt),
+  queueIndex: index('support_conversations_status_updated_idx').on(table.status, table.updatedAt),
+  guestUnique: uniqueIndex('support_conversations_guest_hash_unique').on(table.guestTokenHash),
+  ownership: check('support_conversations_owner_check', sql`(${table.ownerUserId} IS NOT NULL AND ${table.guestTokenHash} IS NULL AND ${table.guestExpiresAt} IS NULL) OR (${table.ownerUserId} IS NULL AND ${table.guestTokenHash} IS NOT NULL AND ${table.guestExpiresAt} IS NOT NULL)`),
+  statusCheck: check('support_conversations_status_check', sql`${table.status} IN ('open', 'in_progress', 'awaiting_user', 'fix_available', 'resolved')`),
+  cursorCheck: check('support_conversations_read_check', sql`${table.revision} >= 2 AND ${table.userReadSequence} BETWEEN 0 AND ${table.revision} AND ${table.staffReadSequence} BETWEEN 0 AND ${table.revision}`),
+}));
+
+export const supportMessages = pgTable('support_messages', {
+  conversationId: varchar('conversation_id', { length: 36 }).notNull().references(() => supportConversations.id, { onDelete: 'cascade' }),
+  sequence: integer('sequence').notNull(),
+  requestKey: varchar('request_key', { length: 100 }).notNull(),
+  authorKind: varchar('author_kind', { length: 20 }).notNull(),
+  authorUserId: integer('author_user_id').references(() => users.id, { onDelete: 'set null' }),
+  body: text('body').notNull(),
+  eventType: varchar('event_type', { length: 40 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.conversationId, table.sequence] }),
+  requestUnique: uniqueIndex('support_messages_request_unique').on(table.conversationId, table.requestKey),
+  authorCheck: check('support_messages_author_check', sql`${table.authorKind} IN ('user', 'staff', 'system')`),
+  sequenceCheck: check('support_messages_sequence_check', sql`${table.sequence} > 0`),
+}));
+
+export const supportFixProposals = pgTable('support_fix_proposals', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  conversationId: varchar('conversation_id', { length: 36 }).notNull().references(() => supportConversations.id, { onDelete: 'cascade' }),
+  sourceRevision: varchar('source_revision', { length: 40 }).notNull(),
+  target: varchar('target', { length: 10 }).notNull(),
+  summary: text('summary').notNull(),
+  testEvidence: text('test_evidence').notNull(),
+  proposedByUserId: integer('proposed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  approvedByUserId: integer('approved_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  releaseEvidence: jsonb('release_evidence'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  conversationIndex: index('support_fix_proposals_conversation_idx').on(table.conversationId),
+  targetCheck: check('support_fix_proposals_target_check', sql`${table.target} IN ('client', 'server', 'both')`),
+  revisionCheck: check('support_fix_proposals_revision_check', sql`${table.sourceRevision} ~ '^[a-f0-9]{40}$'`),
+  verificationCheck: check('support_fix_proposals_verification_check', sql`${table.verifiedAt} IS NULL OR (${table.approvedAt} IS NOT NULL AND ${table.releaseEvidence} IS NOT NULL)`),
 }));

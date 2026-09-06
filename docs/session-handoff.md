@@ -1,6 +1,6 @@
 # CareAround SG session handoff
 
-Updated: 2026-09-06 (Asia/Singapore)
+Updated: 2026-09-07 (Asia/Singapore)
 
 ## Start here
 
@@ -10,6 +10,125 @@ Updated: 2026-09-06 (Asia/Singapore)
 - Release platform: Cloudflare Pages for the client and Cloudflare Worker for the API.
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
+
+## 2026-09-07 Guide, inbox, and notifications — active local goal
+
+- Latest approval: scoped local commit of the reviewed candidate and read-only
+  production preflight only. No push, migration or deployment is authorized.
+  Implementation fingerprint is unchanged. Cloudflare confirms live Pages main
+  `13f50a6c9`, Worker `8567e09a-73aa-48d7-8a4d-76540d967525`, healthy API,
+  absent support rollout flags and no Cron Triggers. Pages main auto-deploy is on.
+  Neon access is unavailable here: schema/journal alignment and current backup
+  evidence remain unverified. Continue with credential-safe database preflight;
+  do not read secrets or treat the older August 29 rehearsal as a fresh backup.
+  See the release candidate for exact evidence. Earlier uncommitted status and
+  approval requests below are historical and superseded by this checkpoint.
+- Continue the complete sequence in [the implementation plan](guide-inbox-notifications-plan.md):
+  Guide/search/private support first, Calendar/saved-resource notifications
+  second, then optional saved-search alerts. Do not mark the goal complete at
+  the support milestone or treat this as a released feature.
+- Feature branch: `codex/guide-inbox-notifications-20260907`, worktree
+  `/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-notifications-20260907`, based
+  on `origin/main` `13f50a6c9`. The primary checkout remains dirty on its separate
+  documentation branch and must not be overwritten or deployed.
+- The support API, additive migration, Guide/search routes, responsive help hub,
+  guest report recovery, private inbox, staff replies, and human approval controls
+  are implemented locally. Tests and fixture browser evidence are recorded in
+  the plan and ledger. Optional owner-only Guide question history and an explicit
+  question-to-report draft handoff are now implemented with additive migration
+  `0004_guide_history`. History is saved only after review/consent, not on every
+  chat turn; old resource result payloads are never stored. Server 669/669,
+  client 757/757, five-migration validation, feature-enabled client build,
+  map-lockdown with configured build, Worker dry run and binding type generation pass.
+  Release evidence now checks client entry-file hashes and the executing Worker's
+  compiled revision/platform version; 42 focused checks prove failure writes no fix
+  event and successful retry creates one. Existing release-line and Detailed-build
+  guards are retained. Dirty builds cannot claim a verified source revision.
+  Actual-controller search/detail tests pass 5/5 using test-only local PostgreSQL
+  transport, without changing application database wiring. Browser checks opened
+  both resource detail pages and continued to Discover with the search query intact.
+  Discover fixture cache/location-indicator 404s are documented, not full map UAT.
+  This Phase 1 checkpoint is superseded by the notification checkpoint below for
+  current test counts. No production DB was used for tests.
+- Phase 2 core is now implemented: category consent under the existing Profile
+  master switch, strict batched current-source lookup, durable leased/cursor scans,
+  grouped notifications, read/unread/dismiss/mute/unmute, and the Updates inbox UI.
+  Ordered migration `0005_notification_updates` adds three tables and seven
+  enforced checks; it was applied only to disposable PostgreSQL. The Worker now
+  declares a minute trigger, but no scheduled deployment has occurred and its
+  disabled handler performs no DB work. Calendar plans/acknowledgements and all
+  map rendering remain untouched. Current server **683/683**, client **760/760**,
+  six-migration/static checks, feature-enabled exact client build, map-lockdown,
+  Worker dry run/types and disabled scheduled runtime checks pass. Notification
+  browser flows and 320 px privacy/layout proof are recorded in the plan.
+- Phase 3 saved-search subscriptions now work locally: reviewed opt-in from Guide
+  or inbox, ten-search limit, stable public-search scans, no-flood baselines,
+  grouped digests/current-results links, read/dismiss, edit/pause/resume/delete,
+  Profile consent and private-account isolation. Migration `0006_saved_search_alerts`
+  adds three tables and nine checks; only disposable data was migrated. Epochs and
+  distinct digest identities reject old worker results and stale read actions.
+  Current **695 server / 761 client** tests, seven-migration/static validation,
+  exact feature-enabled client build and Worker dry run pass. Browser flows and
+  320 px screenshots are in the plan. Public controller edits are limited to a
+  server-only stable scan cursor; normal ordering/visibility remain unchanged.
+- Phase 2 provider-to-Calendar end-to-end checks now pass locally. The normal
+  Offering wizard updates and cancels a real canonical schedule in disposable
+  PostgreSQL; one private inbox notice appears, reading it leaves Calendar review
+  pending, acknowledgement leaves the original plan unchanged, and cancellation,
+  visibility withdrawal, category opt-out and account separation are verified.
+  The actual-controller test exposed a second-publication history-key collision;
+  `updateSoftAsset` now preserves existing revision rows with a targeted conflict
+  clause. Concurrent saves retain one winner and reject the stale editor.
+  **702 server / 761 client**, static checks, exact feature-enabled client build,
+  map-lockdown/configured build and seven new journey checks pass. The Worker
+  dry run has now been refreshed after this correction (see the checkpoint below).
+- Phase 1 lifecycle/accessibility now passes locally: exact-version approval,
+  mismatch rejection, one verified fixture release message, reporter resolve/reopen
+  with history, guest opt-in and no-storage recovery, explicit recovery while
+  signed in, other-account and User View separation. Support-only focus repairs
+  preserve keyboard position through preview/edit/submit, conversation/back,
+  staff decisions/errors, guest recovery and Guide/search responses. Late aborted
+  proposal reads are ignored. **702 server / 765 client**, eight focused support
+  client checks, seven-migration/static validation, feature-enabled exact client
+  build and map-lockdown/configured build pass. Wrangler 4.129.0 dry run passes
+  at 3311.79 KiB (gzip 665.57 KiB). Current browser proof uses desktop/320 px,
+  actual resource detail navigation and synthetic support reports. Final browser
+  console has no errors/warnings; deliberate release-mismatch 409s were verified.
+- Shared cross-surface behavior/privacy checks now pass on disposable data:
+  owner map-use filters and bulk protection (including list-only Offering),
+  cancelled/confirmed removal, Calendar warning and personal-plan retention,
+  Discover 13/14/15+ and Gray tier round trips, frozen shared membership, and
+  exclusion of private support/map/personal-place content. Actual mobile embed
+  made only its credential-free API request and fit 320 px. Actual Pages framing
+  headers accepted the approved probe parent, blocked the unapproved one and
+  failed closed after disablement. The probe uses a labelled static document;
+  actual app rendering was verified separately.
+- **Next: complete the Neon preflight in the [local release candidate](guide-inbox-notifications-release-candidate.md).**
+  It records the 80-file implementation fingerprint, exact four migration hashes,
+  complete local evidence and separate commit/preflight/release approvals.
+  The goal remains active; no production-ready or deployed claim is made.
+  Shared Map emitted nested-anchor diagnostics and measured 336 px at a 320 px
+  viewport in unchanged source. These are explicit review observations, not a
+  clean UI pass or a mandate to rewrite stable map code. Authenticated release
+  smoke and production migration alignment remain pending.
+- The browser fixture is synthetic and was deliberately restarted to add real
+  map/cache/sharing/personal-place read handlers. An invalid null-coordinate Place
+  seed was corrected to a list-only Offering without altering schema rules.
+  Last observed services: fixture 8791 and feature-enabled Vite 5179 with all ten
+  map roots through the local proxy. The separate framing probe on 5180–5182 was
+  stopped after its completed checks; launch it explicitly if needed.
+  Confirm actual process liveness before reuse; do not infer it from this note.
+  A closed browser session was confirmed terminal and reopened; current actual
+  embed console is clean. No production database was used.
+- `SUPPORT_INBOX_ENABLED` and `VITE_SUPPORT_INBOX_ENABLED` are explicit rollout
+  flags and remain off by default. No production migration, commit, push, Pages
+  deploy, or Worker deploy occurred. Do not reuse the earlier map-fix release
+  approval for this new schema-bearing feature.
+- Dependency restoration changed already-tracked `node_modules` files. Exclude
+  those generated changes from reviews/staging; do not stage the entire tree.
+  The intentional dependency change is only dev-time PGlite plus its lock entry
+  for disposable PostgreSQL integration tests. Existing production dependencies
+  and authentication configuration were not changed.
 
 ## 2026-09-06 My Directory map-safe bulk unsave
 

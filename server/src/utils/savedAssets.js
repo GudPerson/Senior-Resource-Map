@@ -280,6 +280,47 @@ export async function createSavedAssetResolutionContext(db, user) {
     };
 }
 
+// Unlike display hydration, change detection must propagate lookup failures.
+// Otherwise a transient database error would become a false removal notice.
+// This reuses the same visibility resolvers but never returns unavailable data
+// or a saved snapshot. The bounded caller supplies only its own saved items.
+export async function loadSavedAssetChangeSources(db, user, favorites = []) {
+    if (favorites.length > 30) throw new Error('Saved change batch is too large.');
+    if (!favorites.length) return [];
+    if (favorites.some((favorite) => Number(favorite.userId) !== Number(user?.id))) {
+        throw new Error('Saved change sources require the saved item owner.');
+    }
+    const context = await createSavedAssetResolutionContext(db, user);
+    const sources = new Map();
+    for (const resourceType of ['hard', 'soft']) {
+        const ids = favorites.filter((favorite) => favorite.resourceType === resourceType).map((favorite) => favorite.resourceId);
+        if (!ids.length) continue;
+        const config = resourceType === 'hard' ? hardAssetSummaryQuery : softAssetSummaryQuery;
+        const columns = resourceType === 'hard' ? { hours: true, phone: true, website: true }
+            : { contactPhone: true, website: true, calendarEnabled: true, calendarRevision: true, calendarStatus: true };
+        const rows = await db.query[resourceType === 'hard' ? 'hardAssets' : 'softAssets'].findMany({
+            ...config, columns: { ...config.columns, ...columns },
+            where: inArray(resourceType === 'hard' ? hardAssets.id : softAssets.id, ids),
+        });
+        for (const asset of rows) {
+            const resolved = resourceType === 'hard' ? resolveHardAssetSummaryFromAsset(asset, user, context)
+                : resolveSoftAssetSummaryFromAsset(asset, user, context);
+            if (resolved?.status !== 'available') continue;
+            sources.set(`${resourceType}:${asset.id}`, {
+                available: true,
+                summary: { name: resolved.summary.name, detailPath: resolved.summary.detailPath },
+                fields: { name: asset.name, category: asset.subCategory, address: resolved.summary.address || '',
+                    hours: resourceType === 'hard' ? asset.hours || '' : '',
+                    contact: [asset.phone || asset.contactPhone || '', asset.website || ''] },
+                schedule: resourceType === 'soft' ? { revision: asset.calendarRevision,
+                    enabled: asset.calendarEnabled, status: asset.calendarStatus } : null,
+            });
+        }
+    }
+    return favorites.map((favorite) => ({ favoriteId: favorite.id,
+        ...(sources.get(`${favorite.resourceType}:${favorite.resourceId}`) || { available: false }) }));
+}
+
 export async function resolveSavedAssetSummary(db, user, resourceType, resourceId, resolutionContext = null) {
     const context = resolutionContext || await createSavedAssetResolutionContext(db, user);
 

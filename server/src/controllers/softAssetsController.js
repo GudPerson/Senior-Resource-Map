@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, ne, or, sql } from 'drizzle-orm';
 
 import { getDb } from '../db/index.js';
 import { hardAssets, offeringScheduleVersions, softAssetAudienceZones, softAssetGroupMembers, softAssetRegionCoverages, softAssets, softAssetLocations, softAssetStaffMemberships, subregionPostalCodes, users } from '../db/schema.js';
@@ -1522,8 +1522,10 @@ export const getSoftAssets = async (c) => {
         const assetModeFilter = String(c.req.query('assetMode') || '').trim().toLowerCase();
         const summaryOnly = isQueryFlagEnabled(c.req.query('summary'));
         const useManagedSummary = summaryOnly && listScope === 'managed';
+        const publicScan = normalizeRole(user?.role) === 'guest' && listScope === 'visible' ? c.get('publicResourceScan') : null;
 
         const whereClauses = [eq(softAssets.isDeleted, false)];
+        if (publicScan?.beforeId) whereClauses.push(lt(softAssets.id, publicScan.beforeId));
         if (assetModeFilter === SOFT_ASSET_MODES.GROUP) {
             whereClauses.push(eq(softAssets.assetMode, SOFT_ASSET_MODES.GROUP));
         } else if (assetModeFilter === 'offering' || assetModeFilter === 'offerings') {
@@ -1571,7 +1573,7 @@ export const getSoftAssets = async (c) => {
         const options = {
             where: finalWhere,
             with: useManagedSummary ? softAssetListSummaryRelations : softAssetWithRelations,
-            orderBy: [desc(softAssets.updatedAt), desc(softAssets.id)],
+            orderBy: publicScan ? [desc(softAssets.id)] : [desc(softAssets.updatedAt), desc(softAssets.id)],
         };
 
         const canUseDirectPagination = shouldUseDirectManagedResourcePagination({
@@ -2223,7 +2225,9 @@ export const updateSoftAsset = async (c) => {
             buildResourceWriteLockQuery(db, 'softAsset', id),
             updateQuery,
             ...(versionRows.length
-                ? [db.insert(offeringScheduleVersions).values(versionRows)]
+                ? [db.insert(offeringScheduleVersions).values(versionRows).onConflictDoNothing({
+                    target: [offeringScheduleVersions.softAssetId, offeringScheduleVersions.revision],
+                })]
                 : []),
             ...(locationPatchRequested
                 ? buildReplacementQueries(

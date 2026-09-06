@@ -26,6 +26,11 @@ import phoneIdentitiesRoutes from './routes/phoneIdentities.js';
 import governanceRoutes from './routes/governance.js';
 import discoveryRoutes from './routes/discovery.js';
 import calendarRoutes from './routes/calendar.js';
+import supportRoutes from './routes/support.js';
+import guideRoutes from './routes/guide.js';
+import releaseRoutes from './routes/release.js';
+import { createNotificationRoutes } from './routes/notifications.js';
+import { createSavedSearchRoutes } from './routes/savedSearches.js';
 import {
     aiRateLimit,
     authPollingRateLimit,
@@ -52,7 +57,7 @@ app.use('*', securityHeaders);
 app.use('*', cors({
     origin: resolveCorsOrigin,
     credentials: true,
-    allowHeaders: ['Content-Type', 'X-Session-Token', 'X-Phone-Login-Token'],
+    allowHeaders: ['Content-Type', 'X-Session-Token', 'X-Phone-Login-Token', 'X-CareAround-Support-Key'],
     exposeHeaders: ['X-Request-ID', 'Server-Timing', 'X-CareAround-Cache', 'X-CareAround-Cache-Age', 'X-CareAround-Cache-Stale'],
 }));
 app.use('*', cookieSessionCsrfGuard);
@@ -100,6 +105,11 @@ app.route('/api/phone-identities', phoneIdentitiesRoutes);
 app.route('/api/governance', governanceRoutes);
 app.route('/api/discovery', discoveryRoutes);
 app.route('/api/calendar', calendarRoutes);
+app.route('/api/support', supportRoutes);
+app.route('/api/guide', guideRoutes);
+app.route('/api/release', releaseRoutes);
+app.route('/api/notifications', createNotificationRoutes());
+app.route('/api/saved-searches', createSavedSearchRoutes());
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
