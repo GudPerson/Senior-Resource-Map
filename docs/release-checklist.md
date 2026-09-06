@@ -67,13 +67,17 @@ Expected result:
 
 Do not rely on an old hard-coded test count. The suite has grown over time, so use pass/fail status from the current run.
 
-For client deploys, the Pages build must have the same-site Worker API configured:
+For production client builds and deploys, use the repository-locked Discover
+derivative command:
 
 ```bash
-VITE_API_URL=https://api.carearound.sg/api npm run build:client
+npm run build:client:discover-derivative
 ```
 
-The deploy script validates this before publishing.
+It supplies the same-site Worker API and every approved versioned map root,
+runs the production environment validator, and then builds the client.
+`build:cloudflare` and `deploy:client` both delegate to this command so an
+ordinary Pages release cannot silently compile Discover Detailed out.
 
 While the owner Detailed fixed-surface map is active in production, every
 client build must also keep its build-time activation and all versioned asset
@@ -100,11 +104,11 @@ stable UX does not expose a Print Master button. Omitting any of the six map
 roots is a rollback or dormant-contract change, not the normal production
 build, and `npm run deploy:client` rejects omission.
 
-Discover Detailed has an additional, independent release flag. Keep
-`VITE_DISCOVER_DETAILED_MAP_ENABLED` omitted to preserve live OneMap on
-Discover. Add `VITE_DISCOVER_DETAILED_MAP_ENABLED=true` to the same six-root
-client build only after the Discover-specific ledger gate and release approval
-pass; the existing `VITE_TOWN_MAP_PROOF_ENABLED=true` remains required.
+Discover Detailed has an additional, independent release flag. It is part of
+the current production contract, so `VITE_DISCOVER_DETAILED_MAP_ENABLED=true`
+and the nested derivative flag must accompany the same six-root client build.
+The bare `npm run build:client` command remains useful for diagnostics, but its
+output is not a deployable production artifact while Discover Detailed is live.
 
 The production Discover Detailed release uses the standard `256 MiB` decoded
 memory ceiling and the separately published 80%-linear derivative roots. Build
@@ -476,7 +480,7 @@ Do not deploy the production Worker from a feature branch. Merge and push the va
 Deploy the Cloudflare Pages client only after the client build and relevant smoke/behavior checks pass:
 
 ```bash
-VITE_API_URL=https://api.carearound.sg/api npm run deploy:client
+npm run deploy:client
 ```
 
 Keep Worker and Pages deploy evidence separate in the release note. Record Worker versions, Pages preview URLs, custom-domain bundle names, and any smoke constraints.

@@ -46,6 +46,15 @@ const requiredProductionZoom14OverviewEnvironment = [
     'VITE_TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL=https://maps.carearound.sg/v3/zoom14-atlas-20260730/gray',
 ];
 
+const requiredProductionDiscoverDerivativeEnvironment = [
+    'VITE_DISCOVER_DETAILED_MAP_ENABLED=true',
+    'VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED=true',
+    'VITE_DISCOVER_DETAILED_DERIVATIVE_NATIVE_ASSET_BASE_URL=https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/default',
+    'VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_NATIVE_ASSET_BASE_URL=https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/gray',
+    'VITE_DISCOVER_DETAILED_DERIVATIVE_OVERVIEW_ASSET_BASE_URL=https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/default',
+    'VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_OVERVIEW_ASSET_BASE_URL=https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/gray',
+];
+
 test('default local client UAT keeps the complete Detailed map contract', () => {
     const command = rootPackage.scripts['dev:client'];
 
@@ -99,6 +108,34 @@ test('map lockdown verification keeps focused tests and the exact production bui
     requiredProductionZoom14OverviewEnvironment.forEach((entry) => {
         assert.match(buildCommand, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     });
+});
+
+test('Cloudflare production commands cannot compile Discover Detailed out', () => {
+    const derivativeBuild = rootPackage.scripts['build:client:discover-derivative'];
+
+    requiredProductionMapEnvironment.forEach((entry) => {
+        assert.match(derivativeBuild, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    });
+    requiredProductionZoom14OverviewEnvironment.forEach((entry) => {
+        assert.match(derivativeBuild, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    });
+    requiredProductionDiscoverDerivativeEnvironment.forEach((entry) => {
+        assert.match(derivativeBuild, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    });
+
+    assert.match(derivativeBuild, /npm run build:client:validated$/);
+    assert.equal(
+        rootPackage.scripts['build:client:validated'],
+        'node scripts/validate-cloudflare-client-env.mjs && npm run build:client'
+    );
+    assert.equal(
+        rootPackage.scripts['build:cloudflare'],
+        'npm run build:client:discover-derivative'
+    );
+    assert.equal(
+        rootPackage.scripts['deploy:client'],
+        'npm run build:client:discover-derivative && cd client && npx wrangler pages deploy dist --project-name senior-resource-map'
+    );
 });
 
 test('zoom-14 atlas upload commands keep Default and Gray in separate immutable roots', () => {

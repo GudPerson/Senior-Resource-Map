@@ -15,6 +15,44 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-06 Discover Detailed source and deployment regression recovery
+
+- Production regression and cause: the user reported that `/discover` had
+  returned to the broad live OneMap surface after the My Directory bulk-unsave
+  release. The validated Detailed implementation and derivative production
+  artifact existed on `codex/discover-detailed-basemap-20260906`, but that
+  branch had not been merged into `main`. Rebuilding the later release from
+  `main` therefore compiled the Discover adapter out even though the map assets
+  and prior deployment remained healthy.
+- Recovery and blast radius: merge the complete validated Discover Detailed
+  branch forward onto the current bulk-unsave `main` history. The two changes
+  do not overlap in application code; the merge adds the Discover-only adapter,
+  fixed-surface derivative validation, asset tooling, and their tests while
+  retaining the bulk-unsave client/API implementation. No schema, migration,
+  authentication, production-data, Shared Map, embed, or My Map behavior is
+  changed by this recovery.
+- Release-process lock: `build:cloudflare` and `deploy:client` now delegate to
+  `build:client:discover-derivative`. That exact command supplies and validates
+  the same-site API, six stable My Map/Print View roots, four immutable
+  Discover derivative roots, and both Discover feature flags before building.
+  The bare client build remains a diagnostic command and is no longer accepted
+  as a production Pages artifact while Discover Detailed is live. A regression
+  test locks these aliases and every required root.
+- Acceptance: at displayed zoom `13`, Discover uses live OneMap; at `14`, it
+  uses the `SG14` derivative overview; and at `15+`, it uses native derivative
+  imagery, with no live tiles under an active fixed surface. Bulk-unsave must
+  retain all map-use filters, used-resource protection, and Care Calendar
+  warnings. Future `main`/Pages builds must retain the exact Detailed flags and
+  roots without a manual build step.
+- Verification before deploy: PASS. The combined source passed static graph
+  validation (432 modules / 1,278 edges), server `613/613`, client `753/753`,
+  map-lockdown `103/103`, map tooling `16/16`, deploy-validator `3/3`, the bare
+  client diagnostic build, and the exact derivative production build. A clean
+  local browser rendered the detailed fixed surface at zoom `16`; its map-asset
+  CORS messages were expected because the immutable production roots allow the
+  production origin rather than `127.0.0.1`. Production deployment and
+  production-origin browser verification are recorded here when complete.
+
 ## 2026-09-06 Discover 80%-linear derivative release
 
 - Release behavior and blast radius: a second, nested client flag,
