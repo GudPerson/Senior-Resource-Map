@@ -25,6 +25,7 @@ server/*.db-wal
 dist/
 client/dist/
 output/town-map-downloads/
+output/town-map-proof/discover-derivative-*/
 
 # OS/editor
 .DS_Store

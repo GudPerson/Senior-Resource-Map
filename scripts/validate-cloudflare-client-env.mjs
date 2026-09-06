@@ -6,6 +6,10 @@ const preferredTownMapPrintMasterUrl = 'https://maps.carearound.sg/v2/print-mast
 const preferredTownMapGrayPrintMasterUrl = 'https://maps.carearound.sg/v2/print-master-100-20260723/gray';
 const preferredTownMapOverviewUrl = 'https://maps.carearound.sg/v3/zoom14-atlas-20260730/default';
 const preferredTownMapGrayOverviewUrl = 'https://maps.carearound.sg/v3/zoom14-atlas-20260730/gray';
+const preferredDiscoverDerivativeNativeUrl = 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/default';
+const preferredDiscoverDerivativeGrayNativeUrl = 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/gray';
+const preferredDiscoverDerivativeOverviewUrl = 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/default';
+const preferredDiscoverDerivativeGrayOverviewUrl = 'https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/gray';
 const rollbackTownMapUrls = Object.freeze([
     'https://maps.carearound.sg/v1/islandwide',
     'https://maps.carearound.sg/v1/w01',
@@ -17,6 +21,9 @@ const rollbackTownMapGrayUrls = Object.freeze([
 const allowTownMapRollback = String(process.env.VITE_ALLOW_TOWN_MAP_ROLLBACK || '').trim() === 'true';
 const townMapOverviewEnabled = String(
     process.env.VITE_TOWN_MAP_ZOOM14_OVERVIEW_ENABLED || '',
+).trim() === 'true';
+const discoverDerivativeEnabled = String(
+    process.env.VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED || '',
 ).trim() === 'true';
 
 function fail(message) {
@@ -131,5 +138,42 @@ if (townMapOverviewEnabled) {
         fail(
             `Zoom-14 Detailed deploys must use the versioned overview atlas assets (${preferredTownMapOverviewUrl} and ${preferredTownMapGrayOverviewUrl}).`
         );
+    }
+}
+
+if (discoverDerivativeEnabled) {
+    if (String(process.env.VITE_DISCOVER_DETAILED_MAP_ENABLED || '').trim() !== 'true') {
+        fail('Discover derivative assets require VITE_DISCOVER_DETAILED_MAP_ENABLED=true.');
+    }
+    if (String(process.env.VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED || '').trim() === 'true') {
+        fail('The 384 MiB Discover UAT ceiling must not be included with production derivative assets.');
+    }
+
+    const derivativeRoots = [
+        normalizeUrl(
+            process.env.VITE_DISCOVER_DETAILED_DERIVATIVE_NATIVE_ASSET_BASE_URL,
+            'VITE_DISCOVER_DETAILED_DERIVATIVE_NATIVE_ASSET_BASE_URL',
+        ),
+        normalizeUrl(
+            process.env.VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_NATIVE_ASSET_BASE_URL,
+            'VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_NATIVE_ASSET_BASE_URL',
+        ),
+        normalizeUrl(
+            process.env.VITE_DISCOVER_DETAILED_DERIVATIVE_OVERVIEW_ASSET_BASE_URL,
+            'VITE_DISCOVER_DETAILED_DERIVATIVE_OVERVIEW_ASSET_BASE_URL',
+        ),
+        normalizeUrl(
+            process.env.VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_OVERVIEW_ASSET_BASE_URL,
+            'VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_OVERVIEW_ASSET_BASE_URL',
+        ),
+    ];
+    const expectedDerivativeRoots = [
+        preferredDiscoverDerivativeNativeUrl,
+        preferredDiscoverDerivativeGrayNativeUrl,
+        preferredDiscoverDerivativeOverviewUrl,
+        preferredDiscoverDerivativeGrayOverviewUrl,
+    ];
+    if (derivativeRoots.some((root, index) => root !== expectedDerivativeRoots[index])) {
+        fail(`Discover derivative deploys must use the immutable v5 roots (${expectedDerivativeRoots.join(', ')}).`);
     }
 }

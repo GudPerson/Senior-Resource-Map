@@ -20,6 +20,33 @@ const FIXED_TOWN_OVERVIEW_PROFILE = 'overview-25';
 const FIXED_TOWN_OVERVIEW_RETAINED_SCALE = 0.25;
 const FIXED_TOWN_OVERVIEW_EDITION = 'zoom14-overview-v1';
 const FIXED_TOWN_OVERVIEW_ATLAS_EDITION = 'zoom14-overview-atlas-v1';
+const FIXED_TOWN_DISCOVER_DERIVATIVE_EDITION = 'discover-derivative-v1';
+const FIXED_TOWN_DISCOVER_DERIVATIVE_PROFILES = Object.freeze([
+    Object.freeze({
+        profile: 'discover-native-40',
+        profileLabel: '40% z19 Discover derivative',
+        retainedScale: 0.4,
+        sourceProfile: 'urban-50',
+        sourceRetainedScale: 0.5,
+        tier: 'native',
+    }),
+    Object.freeze({
+        profile: 'discover-native-40',
+        profileLabel: '40% z19 Discover derivative',
+        retainedScale: 0.4,
+        sourceProfile: 'sparse-40',
+        sourceRetainedScale: 0.5,
+        tier: 'native',
+    }),
+    Object.freeze({
+        profile: 'discover-overview-20',
+        profileLabel: '20% z19 zoom-14 Discover derivative',
+        retainedScale: 0.2,
+        sourceProfile: FIXED_TOWN_OVERVIEW_PROFILE,
+        sourceRetainedScale: FIXED_TOWN_OVERVIEW_RETAINED_SCALE,
+        tier: 'overview',
+    }),
+]);
 export const FIXED_TOWN_OVERVIEW_MIN_ZOOM = 14;
 export const FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES = 256 * 1024 * 1024;
 export const FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES = 384 * 1024 * 1024;
@@ -798,9 +825,79 @@ function hasAcceptedGenericOverviewSourceProfile(source) {
     return hasLegacyPlateProfile || hasAtlasProfile;
 }
 
+function getDiscoverDerivativeProfile(sourceOrEntry) {
+    if (!isRecord(sourceOrEntry)) return null;
+    const derivative = sourceOrEntry.derivative;
+    return FIXED_TOWN_DISCOVER_DERIVATIVE_PROFILES.find((profile) => (
+        sourceOrEntry.profile === profile.profile
+        && sourceOrEntry.retainedScale === profile.retainedScale
+        && (
+            !isRecord(derivative)
+            || (
+                derivative.sourceProfile === profile.sourceProfile
+                && derivative.sourceRetainedScale === profile.sourceRetainedScale
+            )
+        )
+    )) || null;
+}
+
+function hasAcceptedDiscoverDerivativeSourceProfile(source) {
+    const accepted = getDiscoverDerivativeProfile(source);
+    if (!accepted) return false;
+    const derivative = source.derivative;
+    const readability = source.readability;
+    const hasCommonProfile = source.provider === 'OneMap'
+        && source.crs === 'EPSG:3857'
+        && source.zoom === WEB_MERCATOR_ZOOM
+        && source.tileSize === WEB_MERCATOR_TILE_SIZE
+        && source.jpegQuality === 95
+        && source.jpegChromaSubsampling === '4:4:4'
+        && Number.isSafeInteger(source.generatorVersion)
+        && source.generatorVersion > 0
+        && source.profileLabel === accepted.profileLabel
+        && source.onemapNativeLabels === true
+        && source.hdbOverlay === false
+        && source.readabilityPercent === 175
+        && isRecord(readability)
+        && readability.rasterResampled === true
+        && readability.embeddedImageStreamsPreserved === false
+        && readability.textPreserved === true
+        && readability.contentPreserved === true
+        && isRecord(derivative)
+        && derivative.edition === FIXED_TOWN_DISCOVER_DERIVATIVE_EDITION
+        && derivative.scope === 'discover-only'
+        && derivative.linearScale === 0.8
+        && derivative.resampling === 'LANCZOS'
+        && derivative.sourceProfile === accepted.sourceProfile
+        && derivative.sourceRetainedScale === accepted.sourceRetainedScale
+        && SHA256_PATTERN.test(String(derivative.sourceManifestSha256 || ''))
+        && SHA256_PATTERN.test(String(derivative.sourceCollectionManifestSha256 || ''));
+    if (!hasCommonProfile) return false;
+
+    if (accepted.tier === 'native') {
+        return readability.edition === 'readability-175'
+            && readability.scaleFactor === 1.75;
+    }
+
+    const overview = source.overview;
+    return source.cartographicRenderZoom === 17
+        && source.labelTarget === 'native OneMap zoom-17 proportions'
+        && readability.edition === FIXED_TOWN_OVERVIEW_ATLAS_EDITION
+        && readability.scaleFactor === 1
+        && isRecord(overview)
+        && overview.edition === FIXED_TOWN_OVERVIEW_ATLAS_EDITION
+        && overview.targetDisplayZoom === FIXED_TOWN_OVERVIEW_MIN_ZOOM
+        && overview.sourceCartographicRenderZoom === 17
+        && overview.sourceRetainedScale === 1
+        && overview.resampling === 'NONE'
+        && SHA256_PATTERN.test(String(overview.sourceManifestSha256 || ''))
+        && SHA256_PATTERN.test(String(overview.sourceCollectionManifestSha256 || ''));
+}
+
 function hasAcceptedGenericSourceProfile(source) {
     return hasAcceptedGenericNativeSourceProfile(source)
-        || hasAcceptedGenericOverviewSourceProfile(source);
+        || hasAcceptedGenericOverviewSourceProfile(source)
+        || hasAcceptedDiscoverDerivativeSourceProfile(source);
 }
 
 function isValidIntegrityHash(value) {
@@ -877,6 +974,18 @@ function validateFixedTownSurfaceManifestGeneric(manifest) {
     }
 
     const source = manifest.source;
+    const derivativeProfile = getDiscoverDerivativeProfile(source);
+    if (
+        derivativeProfile
+        && (
+            manifest.integrity.derivativeSourceManifestSha256
+                !== source.derivative.sourceManifestSha256
+            || manifest.integrity.derivativeSourceCollectionManifestSha256
+                !== source.derivative.sourceCollectionManifestSha256
+        )
+    ) {
+        return false;
+    }
     if (
         !isRecord(source.worldPixelBounds)
         || !isNumericBounds(source.worldPixelBounds.nominal)
@@ -999,6 +1108,10 @@ function validateFixedTownSurfaceManifestGeneric(manifest) {
             || chunk.byteSize <= 0
             || typeof chunk.sha256 !== 'string'
             || !SHA256_PATTERN.test(chunk.sha256)
+            || (
+                derivativeProfile
+                && !SHA256_PATTERN.test(String(chunk.sourceSha256 || ''))
+            )
         ) {
             return false;
         }
@@ -1118,7 +1231,10 @@ function validateFixedTownSurfaceManifestGeneric(manifest) {
 export function validateFixedTownSurfaceManifest(manifest) {
     if (!isRecord(manifest)) return false;
     if (manifest?.map?.id === ACCEPTED_W01_DEFAULT.id) {
-        if (manifest?.source?.profile === FIXED_TOWN_OVERVIEW_PROFILE) {
+        if (
+            manifest?.source?.profile === FIXED_TOWN_OVERVIEW_PROFILE
+            || getDiscoverDerivativeProfile(manifest?.source)
+        ) {
             return validateFixedTownSurfaceManifestGeneric(manifest);
         }
         const acceptedManifests = manifest?.map?.style === 'gray'
@@ -1185,7 +1301,12 @@ function validateFixedTownSurfaceIndexEntry(surface, collectionStyle, collection
             && ACCEPTED_NATIVE_RETAINED_SCALES.includes(surface.retainedScale);
         const isAcceptedOverviewProfile = surface.profile === FIXED_TOWN_OVERVIEW_PROFILE
             && surface.retainedScale === FIXED_TOWN_OVERVIEW_RETAINED_SCALE;
-        if (!isAcceptedNativeProfile && !isAcceptedOverviewProfile) {
+        const isAcceptedDiscoverDerivativeProfile = Boolean(getDiscoverDerivativeProfile(surface));
+        if (
+            !isAcceptedNativeProfile
+            && !isAcceptedOverviewProfile
+            && !isAcceptedDiscoverDerivativeProfile
+        ) {
             return false;
         }
     }

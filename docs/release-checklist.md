@@ -100,6 +100,59 @@ stable UX does not expose a Print Master button. Omitting any of the six map
 roots is a rollback or dormant-contract change, not the normal production
 build, and `npm run deploy:client` rejects omission.
 
+Discover Detailed has an additional, independent release flag. Keep
+`VITE_DISCOVER_DETAILED_MAP_ENABLED` omitted to preserve live OneMap on
+Discover. Add `VITE_DISCOVER_DETAILED_MAP_ENABLED=true` to the same six-root
+client build only after the Discover-specific ledger gate and release approval
+pass; the existing `VITE_TOWN_MAP_PROOF_ENABLED=true` remains required.
+
+The production Discover Detailed release uses the standard `256 MiB` decoded
+memory ceiling and the separately published 80%-linear derivative roots. Build
+and validate it with:
+
+```bash
+npm run build:client:discover-derivative
+```
+
+That command keeps all six stable My Map/Print View roots and adds these four
+Discover-only roots:
+
+- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/default`
+- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/gray`
+- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/default`
+- `https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/gray`
+
+All four derivative roots and `VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED=true`
+are required together. The deploy validator rejects an incomplete or different
+root set and rejects the retired
+`VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED=true` experiment when
+derivatives are enabled. My Map, Shared Map, embed, and the shared fixed-surface
+default continue to use the existing assets and memory limits.
+
+Generate and locally verify the derivative collection before publication:
+
+```bash
+npm run town-map:discover-derivative:prepare
+npm run town-map:discover-derivative:verify
+npm run town-map:discover-derivative:r2:plan
+```
+
+Publication uses the immutable `v5/discover-derivative-v1-80-20260906-r2` root,
+requires every planned object to be vacant, verifies one public JPEG canary per
+collection, uploads all remaining chunks and surface manifests, and publishes
+the four collection indexes last. If publication is interrupted, use a new
+approved release-root suffix rather than resuming or overwriting the partial
+root. After upload, run `npm run town-map:discover-derivative:r2:verify` for
+full public byte/hash/CORS/cache verification.
+
+For the Discover Detailed boundary-entry gate, repeat `Locate me`, then zoom
+`13 -> 14 -> 15` and back. A camera whose centre remains inside a native plate
+may be clamped only on the zoom-15 entry or a genuine map resize, only within
+the same displayed whole-number zoom step, and only while the visible chunks
+fit the active memory ceiling. Ordinary panning must not be auto-contained:
+crossing a native surface boundary must still remove all fixed images and
+restore live OneMap. At every Detailed sample, require zero live tiles.
+
 CareAround Pages also contains the file-routed embed Function under
 `client/functions`. The standard `npm run deploy:client` is safe because it
 changes into `client` before running Wrangler. For a manual exact-artifact
@@ -310,6 +363,10 @@ plus map-frame resize keep Detailed active. A local map that reports Detailed
 as unavailable must also be checked for a successful same-origin
 `/__carearound-town-maps/.../manifest.json` response before product map code is
 changed.
+
+For local Discover UAT against the generated 80%-linear collection, use
+`npm run dev:client:discover-derivative`; it keeps the stable My Map roots and
+uses the generated local derivative roots only for Discover.
 
 For Print annotation changes, first choose the desktop `Full map` layout.
 Confirm the toolbar does not offer new pin creation, then exercise the line,

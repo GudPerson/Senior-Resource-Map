@@ -15,6 +15,322 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-06 Discover 80%-linear derivative release
+
+- Release behavior and blast radius: a second, nested client flag,
+  `VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED=true`, lets Discover use four
+  separately rooted 80%-linear JPEG derivative collections: all 32 native
+  town surfaces plus the continuous `SG14` overview, each in Default and Gray.
+  The release retains the standard `256 MiB` decoded-memory ceiling and rejects
+  the retired `384 MiB` UAT flag. Chunk geography, full-viewport containment,
+  displayed whole-number zoom semantics, ready/in-flight manifest retention,
+  visible-chunk loading, off-screen pruning, and live-tile exclusion remain
+  owned by the existing fixed-surface adapter. The four Discover-only roots
+  are all-or-nothing; absent or incomplete configuration uses the established
+  stable roots. `DiscoveryMap` remains in place. My Map, Shared Map, embed,
+  `DirectoryMap`, API, schema, authentication, source map collections, and
+  production data are unchanged.
+- Asset and integrity contract: the generator downloads only immutable source
+  manifests and their declared chunks from `https://maps.carearound.sg`,
+  verifies every source byte size and SHA-256, and creates JPEG quality-95,
+  4:4:4 derivatives using Pillow LANCZOS resampling at `0.8` linear scale.
+  Each output manifest records its source collection, source manifest, exact
+  source profile/scale, and per-chunk hashes. The shared parser accepts only
+  the allowlisted derivative edition, Discover-only scope, source and output
+  profile/scale pairs, resampling method, readability provenance, and hashes;
+  provenance drift fails closed. Existing stable manifests remain unchanged.
+  Publication uses the immutable
+  `v5/discover-derivative-v1-80-20260906-r2` namespace, requires every planned
+  key to be vacant, verifies one public JPEG canary per collection, publishes
+  indexes last, and never overwrites or deletes an object.
+- Known-good reference and reproduction: the stable Discover contract is the
+  2026-09-06 candidate and production evidence below. Generate and verify with
+  `npm run town-map:discover-derivative:prepare`,
+  `npm run town-map:discover-derivative:verify`, and
+  `npm run town-map:discover-derivative:r2:plan`; run local UAT with
+  `npm run dev:client:discover-derivative`. Open
+  `/discover?postal=160026`, exercise displayed zoom `13 -> 14 -> 15` and the
+  reverse in Default and Gray, resize the desktop rail, open/close the mobile
+  map and settings at `390x844`, and pan within and beyond native boundaries.
+  Require live OneMap at `13`, overview `SG14` at `14`, native block-number
+  imagery at `15+`, and zero live tiles beneath every active derivative
+  surface. Abort a derivative chunk request and require the existing
+  `chunk-load-error` live-OneMap fallback; exercise coverage and memory-limit
+  fallbacks without mixed layers.
+- Full-generation evidence (2026-09-06): PASS locally. Independent validation
+  passed 66 surface/style records and all 9,700 JPEG chunks. Every derivative
+  retained `63.97%` to `64.00%` of source decoded pixels. The immutable R2
+  plan contains 9,770 objects: 9,700 chunks, 66 surface manifests, and four
+  collection indexes, totalling 2,234,361,836 bytes. The exact native sets are
+  `C01-C08`, `E01-E06`, `N01-N02`, `NE01-NE05`, `NW01-NW03`, `S01`, and
+  `W01-W07`; each style also contains `SG14`. Source manifests currently use
+  `urban-50` or `sparse-40` at retained scale `0.5`; both are explicitly
+  allowlisted to the `discover-native-40` output at retained scale `0.4`.
+  Focused parser and deploy-validator coverage passed `38/38`, module checking
+  passed 430 source modules and 1,274 relative import edges with no cycles,
+  the full server suite passed `611/611`, the full client suite passed
+  `745/745`, and the map-lockdown gate passed `103/103`. Static validation,
+  the map-asset tooling suite passed `16/16`,
+  the unchanged six-root My Map/embed build, and the exact four-root derivative
+  production build passed. The frozen production artifact contains all four
+  exact `v5` roots, and the publication dry run passed with an
+  abort-on-existing-key policy.
+  The first immutable publication root without the `-r2` suffix is intentionally
+  unreferenced: full public verification found that its collection indexes
+  retained source-manifest byte counts while correctly carrying derivative
+  manifest hashes. No client was deployed against it. The corrected generator
+  and local verifier now write and require each derivative manifest's actual
+  byte count; immutability requires the corrected release to use the fresh
+  `-r2` namespace rather than overwrite the rejected root.
+- Publication evidence (2026-09-06): PASS. The corrected immutable `-r2`
+  namespace contains all 9,770 planned objects and 2,234,361,836 bytes. Full
+  public verification re-read and matched every manifest/chunk byte count and
+  SHA-256: native Default `32` surfaces and `2,741/2,741` chunks
+  (`1,084,530,925` bytes), native Gray `32` and `2,741/2,741`
+  (`959,676,384` bytes), overview Default `1` and `2,109/2,109`
+  (`110,992,465` bytes), and overview Gray `1` and `2,109/2,109`
+  (`72,452,891` bytes). Public responses carry the production-origin CORS
+  contract; indexes use five-minute revalidation and JPEG chunks use the
+  established one-year immutable cache contract.
+- Production release evidence (2026-09-06): PASS. Implementation commit
+  `3f2051e262eb0065b62c631512a0c75f55c2397d` is pushed on
+  `codex/discover-detailed-basemap-20260906`. The exact derivative-configured
+  client artifact was deployed to the Cloudflare Pages production branch as
+  deployment `527eca93-f3ee-4597-8507-63b6fbd42ab0` at
+  `https://527eca93.senior-resource-map.pages.dev`. All `85` published static
+  files matched the frozen local artifact, immutable deployment, and
+  `https://app.carearound.sg` byte-for-byte; the sorted file-hash manifest has
+  SHA-256 `77da2efb5f1abd61245288a71874834f44418c6f01b2b2f15acbffba6d920635`.
+  `/`, `/discover`, and `/login` returned `200` from both hosts, API health
+  returned `200/ok`, the ordinary app retained frame denial, and an unknown
+  embed token retained its `404`, no-store, embeddable error contract. This
+  was a client/asset-only release; no Worker/API, schema, authentication, or
+  production-data deployment occurred.
+- Post-deploy browser evidence (2026-09-06): PASS. Authenticated production
+  Chrome at a `1020x750` map viewport completed Default and Gray
+  `13 -> 14 -> 15 -> 14 -> 13`: zoom `13` used live OneMap only, zoom `14`
+  used `SG14` overview (`72/72` initial Default chunks, `63/63` after the
+  reverse transition), and zoom `15` used native `N02` (`20/20` chunks), with
+  zero live tiles beneath every Detailed state. Search (`Ma Kuang`), reset,
+  All/Places/Programme-service, saved-only (`215` results), saved/transient
+  pins, Category Pins, and postal context remained functional while Detailed
+  stayed mounted; `21` same-postal parents and `154` category/place markers
+  remained rendered in the tested viewport set. The same-postal chooser and
+  desktop split-pane resize/invalidation remain covered by the earlier
+  authenticated feature UAT and unchanged adapter tests below.
+  Keyboard panning pruned and loaded visible native chunks inside coverage;
+  crossing the surface boundary produced `outside-coverage`, removed all fixed
+  chunks, and restored `24/24` live tiles. A clean production browser at exact
+  `390x844` rendered the visible mobile map at `390x687`, mounted native `C06`
+  with `4/4` chunks and zero live tiles, then returned to Browse with body
+  pointer events and overflow restored; its console had zero warnings/errors.
+  The existing authenticated `390x844` saved-only/transient/mobile contract is
+  unchanged and remains covered by the earlier feature UAT in this ledger.
+  Production My Maps loaded map `343` in its existing `mapBasemapMode=town`
+  path with no Discover adapter present. The map-lockdown suite and unchanged
+  six-root build remain the Shared Map/embed regression proof. Credentialed
+  aggregate smoke was unavailable in this shell; targeted authenticated UAT,
+  public route/API checks, exact artifact parity, and the complete automated
+  gates above form this release's evidence.
+
+## 2026-09-06 Discover 384 MiB desktop UAT ceiling follow-up
+
+- Production diagnosis: authenticated Chrome reproduction at `1470x923`
+  matched the reported `/discover?postal=160026` layout with a `1020x859` map
+  viewport and the current production bundle. At displayed zoom `14`, the
+  fully contained `SG14` overview required `72` visible `1024x1024` chunks, or
+  exactly `288 MiB` decoded, so the established `256 MiB` guard returned live
+  OneMap with reason `viewport-memory-limit`. At displayed zoom `15`, native
+  `C02` required about `276.34 MiB` and used the same fallback. Coverage,
+  manifests, asset responses, and client loading were healthy; the browser
+  recorded zero console errors and warnings. This exposed a large-desktop
+  viewport gap not covered by the earlier `750 -> 644` pixel split-pane UAT.
+- Follow-up diagnosis: the first `300 MiB` experiment fixed those initial
+  Central and overview cases but remained fail-closed in the user's panned
+  Jurong viewport at displayed zoom `15`. Reproduction at
+  `/discover?postal=600123` showed native `W04` needed `25` visible chunks, or
+  `363,878,400` decoded bytes (`347.02 MiB`); zoom `14` remained Detailed and
+  zoom `16` needed fewer native chunks. The map reported
+  `viewport-memory-limit`, confirming a decoded-memory boundary rather than a
+  coverage, source, or loading failure.
+- Boundary-entry diagnosis: authenticated Chrome reproduced the reported
+  Detailed flash from the current-location camera. The settled `1020x681`
+  viewport was healthy at native `C02` (`24/24` chunks, `333.57 MiB`), but the
+  existing Locate action reset the map to displayed zoom `13`. The subsequent
+  `13 -> 14 -> 15` path loaded overview `SG14` at `14`, then the slightly
+  shifted location-centred viewport straddled a native plate edge at `15` and
+  correctly returned `outside-coverage`. There were no client load errors;
+  browser-console errors came from a Chrome extension. This was a camera and
+  full-viewport-containment edge case, not a memory, asset, or source failure.
+- Candidate behavior and blast radius: the default Discover ceiling remains
+  `256 MiB`. A second compile-time flag,
+  `VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED=true`, raises it to `384 MiB`
+  only when both the Discover Detailed and established fixed-map proof flags
+  are also enabled. The UAT path reuses the existing shared extended ceiling;
+  the same resolved limit is passed to the pure eligibility decision and
+  `FixedTownSurfaceLayer`. No shared fixed-surface default,
+  My Map, Shared Map, embed, search, filtering, saved/transient/category pins,
+  postal grouping, cards, camera, mobile layout, API, auth, schema, or map
+  asset behavior changes. Above `384 MiB`, the existing fail-closed live
+  OneMap fallback remains authoritative.
+- Boundary-entry correction and blast radius: a Discover-only containment
+  synchronizer now runs only when the camera crosses into displayed zoom `15`
+  and when the map genuinely resizes. It clamps the camera within the selected
+  native surface, trying only fractional Leaflet positions that remain in the
+  same displayed whole-number zoom step and within the active decoded-memory
+  ceiling. It does not subscribe to ordinary `moveend`, so user panning across
+  a surface boundary still falls back to live OneMap. If no fully contained,
+  in-budget camera exists in that displayed step, the existing safe fallback
+  remains unchanged. The implementation stays inside the Discover adapter and
+  adds a pure Discover helper; `DiscoveryMap`, `DirectoryMap`,
+  `FixedTownSurfaceLayer`, My Map, Shared Map, embed, assets, API, schema, and
+  authentication remain untouched.
+- Acceptance and UAT gate: without the new flag, deterministic tests and the
+  compiled client must retain `256 MiB`. With it, the reported `288 MiB`
+  zoom-14 viewport, the approximately `276.34 MiB` Central zoom-15 viewport,
+  and the `347.02 MiB` Jurong zoom-15 viewport must mount Detailed with zero
+  live tiles underneath in Default and Gray. Repeat
+  `13 -> 14 -> 15` and reverse transitions, boundary pans, desktop sidebar
+  resize/invalidation, and `390x844` mobile checks. A synthetic viewport above
+  `384 MiB` must still return `viewport-memory-limit`. Treat any Detailed/live
+  oscillation during ordinary pan or resize as a failed experiment, not as
+  production-ready evidence.
+- Verification before release (2026-09-06): PASS for the bounded local UAT
+  candidate, not a production recommendation. The focused Discover contract
+  passed `8/8`, the shared map-lockdown gate passed `99/99`, full client tests
+  passed `741/741`, and both the ordinary client build and exact opt-in
+  six-root `384 MiB` feature build completed successfully. Clean local Chrome
+  reproduced the reported `1020x859` Jurong map: Default and Gray zoom `15`
+  each loaded all `25` native `W04` chunks (`347.02 MiB`) with zero live tiles.
+  The `15 -> 14 -> 13 -> 14 -> 15` round trip preserved native, overview, and
+  live tiers without mixed layers. Public mobile Chrome at `390x844` rendered
+  the `390x687` Full map and passed the same forward/reverse contract in Gray;
+  body pointer events and overflow returned to normal and the browser recorded
+  zero errors or warnings. Desktop resizing also preserved the memory guard:
+  a `1040x859` map crossed the `384 MiB` boundary and returned live OneMap with
+  zero fixed images, while restoring `1020x859` restored all `25` Detailed
+  chunks with zero live tiles. The authenticated local replay remains the
+  user's UAT step at the supplied localhost URL. No source above the Discover
+  adapter, API, auth, schema, asset, My Map, Shared Map, or embed path changed.
+  This follow-up has not been pushed or deployed.
+- Boundary-entry verification (2026-09-06): PASS locally. Before the patch,
+  the user's authenticated Chrome path reproduced `SG14` Detailed at displayed
+  zoom `14` followed by native `outside-coverage` and `24` live tiles at `15`.
+  After the patch, the same current-location transition reached native `N02`
+  at displayed `15`, loaded all `28` visible chunks (`356.63 MiB`), and kept
+  live tiles at zero throughout the sampled zoom-15 load. The complete
+  `15 -> 14 -> 13 -> 14 -> 15` round trip passed in Default; switching to Gray
+  loaded `28/28` chunks with zero live tiles. Ordinary keyboard panning stayed
+  Detailed inside `N02`, then crossing its boundary returned
+  `outside-coverage`, removed every fixed image, and restored live OneMap,
+  proving that pan fallback was not converted into forced containment. The
+  tab was restored to Default, current location, displayed zoom `15`, native
+  `N02`, `28/28` chunks, and zero live tiles for UAT. Focused Discover tests
+  passed `10/10`, the map-lockdown gate passed `101/101`, full client tests
+  passed `743/743`, the ordinary build passed, the exact six-root feature build
+  with the opt-in `384 MiB` flag passed, and `git diff --check` passed. No push
+  or deployment was performed.
+
+## 2026-09-06 feature-gated Discover Detailed basemap candidate
+
+- Candidate behavior: Discover retains its existing `DiscoveryMap` camera,
+  search, filter, saved-only, saved and transient pins, Category Pin,
+  same-postal chooser, cards, desktop split pane, and mobile Browse/Map flows.
+  When the new `VITE_DISCOVER_DETAILED_MAP_ENABLED=true` flag and the existing
+  fixed-map proof flag are both present, the basemap changes automatically by
+  displayed Leaflet zoom step: live OneMap through `13`, the established
+  overview surface at `14`, and the native block-number surface from `15`
+  upward. Default and Gray use their existing immutable asset roots. Without
+  the new flag, ordinary builds retain the current live-OneMap behavior.
+- Architecture and blast radius: `DiscoveryMap` is not replaced by
+  `DirectoryMap`. A Discover-only basemap child owns viewport observation,
+  retained ready/in-flight manifest requests, and the pure live-versus-fixed
+  decision, then delegates rendering, visible-chunk selection, off-screen
+  pruning, full-viewport containment, retry/fallback, and decoded-memory
+  accounting to the existing `FixedTownSurfaceLayer` and fixed-surface
+  helpers. Live tiles and a fixed surface are mutually exclusive; manifest
+  loading keeps the fixed-surface backdrop rather than flashing live tiles.
+  The standard `256 MiB` decoded-memory ceiling is unchanged. My Map, Shared
+  Map, embed, APIs, persistence, schema, authentication, map assets, and
+  production data are outside this patch and unchanged.
+- Known-good reference and reproduction: baseline is clean `origin/main` at
+  `fb5ecbdf606fa15fd0af57df1f1e46b990cb5799`; the active production Pages
+  deployment also reports that source revision. Run the feature-configured
+  local client and Worker, open `/discover`, search postal code `680123`, and
+  exercise zoom `13 -> 14 -> 15 -> 14 -> 13` in both Default and Gray. Repeat
+  with keyword/category filtering, Places and Programme/service tabs,
+  saved-only, address focus, reset, a same-postal saved-place group, desktop
+  split-pane resizing, and authenticated `390x844` Browse/Map transitions.
+  Pan across adjacent native plates and outside the fixed-map index. At every
+  step, require the whole viewport to be covered before mounting Detailed,
+  zero live-tile images while Detailed is active, and live OneMap after a
+  coverage, source, chunk, or memory failure.
+- Verification before release (2026-09-06): PASS for the local automated and
+  browser scope. `npm run verify:map-lockdown` passed `97/97` and the exact
+  feature-enabled six-root production build; the ordinary flag-disabled
+  `npm run build:client` also passed. Full client coverage passed `739/739`,
+  the unchanged server baseline passed `611/611`, and static validation passed
+  all three ordered migrations plus `426` source modules and `1,272` relative
+  import edges with no cycles; `git diff --check` passed. Deterministic tests
+  cover displayed fractional-step rounding, forward and reverse tier changes,
+  source/chunk/coverage fallback, live/fixed exclusivity, and the `256 MiB`
+  fail-closed path.
+- Real-browser evidence (2026-09-06): PASS against the feature-configured local
+  build at desktop and authenticated `390x844`. Default and Gray both reached
+  overview `SG14` at displayed `14` and native `W01`/`W02` at `15+`; sampled
+  transition states never contained live tiles and fixed image layers at the
+  same time. The desktop pane changed the visible map width from `750` to
+  `644` pixels, emitted the resize event, and retained all `16` active native
+  chunks with zero live tiles. Mobile rendered a `390x687` map, completed the
+  live/overview/native round trip, changed saved-only results from `4,090` to
+  `17`, and created one transient preview pin from address focus. Closing the
+  mobile filter restored body `pointer-events: auto` and visible overflow. A
+  non-persisted response fixture produced one count-`2` same-postal parent at
+  `680234`; selecting it opened both saved-place cards while the native fixed
+  surface remained exclusive. Native panning moved through `W01`, `W04`, and
+  `W05`, then outside coverage restored `12` live tiles and removed all fixed
+  image layers. The same-origin proxy returned `200` for the fixed-surface
+  index, selected `W01` manifest, and a manifest-listed JPEG chunk. The only
+  browser-console error was the expected local
+  discovery-cache `404`; the established fallback endpoints loaded the result
+  set, and there were no Detailed-map runtime errors. No favorite, map,
+  snapshot, production-data, or other persistent state was changed.
+- Release proof (2026-09-06): implementation commit
+  `776cdd2e2426b1e6edef49ff102644500ea31c75` was pushed on
+  `codex/discover-detailed-basemap-20260906`. The exact feature-enabled
+  six-root client artifact was published explicitly to the Cloudflare Pages
+  production branch at
+  `https://7aa26941.senior-resource-map.pages.dev`; Wrangler compiled the Pages
+  Worker/Functions bundle and uploaded all `85` public files plus `_headers`
+  and `_routes.json`. All `85` served static files matched the local artifact,
+  the immutable deployment, and `https://app.carearound.sg` byte-for-byte by
+  SHA-256, with aggregate digest
+  `8672d4bd0fc8362b106a0a74101925e81b2652ac3f0379f746ef705b1653d539`.
+  The app, `/discover`, and `/login` returned `200` from both hosts; JavaScript
+  and CSS MIME types were correct; production API health returned `200`/OK;
+  ordinary routes retained `X-Frame-Options: DENY` and CSP
+  `frame-ancestors 'none'`; and an unknown embed token returned `404` with
+  `no-store`. Both native and overview Default/Gray source indexes returned
+  valid JSON, and both established print-master manifests returned `200`.
+- Production browser verification (2026-09-06): PASS in authenticated Chrome
+  at `390x844`. The visible map measured `390x687`; Default and Gray both
+  loaded native and overview chunks. The
+  `16 -> 15 -> 14 -> 13 -> 14 -> 15` round trip selected native `W02`/`W01`,
+  overview `SG14`, and live OneMap at the expected displayed steps. Every
+  sampled Detailed state had zero live tiles and all visible chunks loaded;
+  displayed zoom `13` had six loaded live tiles and zero fixed images. Panning
+  crossed retained native surfaces `W01`, `N02`, `NE03`, `E03`, and `E05`
+  without live/fixed overlap, then outside coverage restored `12` loaded live
+  tiles and removed all fixed images. Saved-only changed the result count from
+  `3,480` to `17`, reversing it restored the full result set, both filter and
+  map-settings close restored body `pointer-events: auto` and visible overflow,
+  reset restored the postal-focused native surface, and the browser recorded
+  zero errors or warnings. Existing My Map and embed source paths remain
+  untouched and their regression tests passed; no live embed token was
+  available for an interactive production replay. No Worker API, database,
+  schema, migration, authentication, permission, map asset, favorite, My Map,
+  share snapshot, or other production-data change was performed.
+
 ## 2026-09-05 embedded Category Pin shared-location chooser
 
 - Candidate behavior: `Category pins` is the user-facing name for the former

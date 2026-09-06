@@ -25,6 +25,53 @@ Updated: 2026-09-06 (Asia/Singapore)
 - Non-mutating Chrome UAT passed at desktop and 390x844: all three map-use filters, usage counts/badges, used-resource bulk protection, unused select-all, and both individual/bulk Care Calendar warnings were verified. Both confirmations were cancelled, so no saved resource was removed.
 - The primary checkout `/Users/sweetbuns/CareAroundSG` was returned to its original branch and its unrelated dirty/untracked work was not staged or altered.
 
+## 2026-09-06 Discover Detailed source recovery
+
+The memory-safe Discover Detailed basemap release was validated and deployed from the isolated
+worktree `/Users/sweetbuns/CareAroundSG-discover-detailed` on branch
+`codex/discover-detailed-basemap-20260906`. Implementation commit
+`3f2051e262eb0065b62c631512a0c75f55c2397d` is pushed. Its Pages
+deployment `527eca93-f3ee-4597-8507-63b6fbd42ab0` remains available at
+`https://527eca93.senior-resource-map.pages.dev`.
+The deploy was client-only; no Worker/API, schema, authentication, migration,
+or production-data change was required or performed.
+
+Discover keeps `DiscoveryMap` and automatically uses live OneMap through
+displayed zoom `13`, the `SG14` overview at `14`, and native town imagery at
+`15+` in Default and Gray. The standard `256 MiB` decoded-memory ceiling,
+full-viewport containment, fixed-surface retention/pruning, and fail-closed
+coverage/loading/memory fallbacks remain authoritative. The production build
+uses the corrected immutable asset namespace
+`v5/discover-derivative-v1-80-20260906-r2`; all 9,770 public objects and
+2,234,361,836 bytes passed full byte-count and SHA-256 verification. The first
+namespace without `-r2` failed the strengthened index manifest-byte check and
+is intentionally unreferenced; it was never used by a deployed client and was
+not overwritten or deleted.
+
+All `85` served static files matched the exact local artifact, immutable Pages
+deployment, and custom domain. Automated release evidence passed static graph
+validation (430 modules / 1,274 edges), server `611/611`, client `745/745`,
+map-lockdown `103/103`, town-map tooling `16/16`, focused derivative/parser
+coverage `38/38`, the unchanged six-root My Map/embed build, and the exact
+four-root derivative build. Authenticated production Chrome passed the
+Default/Gray zoom round trip, search, reset, filters, saved-only, transient and
+postal context, boundary panning, live/fixed exclusivity, and existing My Map
+rendering. Clean production `390x844` mobile rendering loaded `4/4` native
+chunks with zero live tiles and returned to Browse without a body interaction
+lock. Credentialed aggregate smoke variables were unavailable; the targeted
+authenticated checks, clean responsive check, route/API checks, complete
+automated gates, and exact artifact parity are the recorded release proof.
+
+The earlier Pages artifact
+`https://7aa26941.senior-resource-map.pages.dev` at implementation
+`776cdd2e2426b1e6edef49ff102644500ea31c75` is the immediate client rollback
+reference. The later bulk-unsave Pages release was built from `main`, which did
+not yet contain this branch, and therefore replaced the detailed Discovery
+client. The recovery branch merges the validated detailed-map history forward
+onto the bulk-unsave release so both behaviors remain present. Record the new
+combined Pages deployment and post-deploy verification below before calling
+the recovery complete.
+
 ## Protected workspace state
 
 The primary checkout is intentionally dirty on `codex/offering-filtered-export-parity`. It contains unrelated user/agent work, including the filtered-export feature and local guardrail/tooling files. Do not stage, reset, merge, clean, or release from that checkout.
