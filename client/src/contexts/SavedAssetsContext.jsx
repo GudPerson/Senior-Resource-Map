@@ -210,6 +210,50 @@ export function SavedAssetsProvider({ children }) {
         [runBulkSavedAssetAction],
     );
 
+    const bulkRemoveUnusedSavedAssets = useCallback(async (items) => {
+        if (!user || savedAssetsLoading || savedAssetsLoadError || bulkPendingRef.current) {
+            return null;
+        }
+
+        const targets = selectBulkSavedAssetTargets(items, savedAssetKeys, false);
+        if (targets.length === 0) {
+            return {
+                success: true,
+                requestedCount: 0,
+                removedCount: 0,
+                protectedCount: 0,
+                notSavedCount: 0,
+                removed: [],
+                notSaved: [],
+                protected: [],
+            };
+        }
+
+        const targetKeys = targets.map((target) => buildSavedAssetKey(target.resourceType, target.resourceId));
+        bulkPendingRef.current = true;
+        setBulkPending(true);
+        targetKeys.forEach((assetKey) => pendingKeysRef.current.add(assetKey));
+        syncPendingKeys();
+
+        try {
+            const result = await api.bulkRemoveUnusedSavedAssets(targets);
+            const removedKeys = new Set([
+                ...(Array.isArray(result?.removed) ? result.removed : []),
+                ...(Array.isArray(result?.notSaved) ? result.notSaved : []),
+            ].map((item) => buildSavedAssetKey(item.resourceType, item.resourceId)));
+
+            setSavedAssets((currentItems) => currentItems.filter((item) => (
+                !removedKeys.has(buildSavedAssetKey(item.resourceType, item.resourceId))
+            )));
+            return result;
+        } finally {
+            targetKeys.forEach((assetKey) => pendingKeysRef.current.delete(assetKey));
+            syncPendingKeys();
+            bulkPendingRef.current = false;
+            setBulkPending(false);
+        }
+    }, [savedAssetKeys, savedAssetsLoadError, savedAssetsLoading, syncPendingKeys, user]);
+
     return (
         <SavedAssetsContext.Provider
             value={{
@@ -225,6 +269,7 @@ export function SavedAssetsProvider({ children }) {
                 toggleSavedAsset,
                 bulkSaveSavedAssets,
                 bulkRemoveSavedAssets,
+                bulkRemoveUnusedSavedAssets,
             }}
         >
             {children}

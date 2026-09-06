@@ -31,3 +31,12 @@ test('SavedAssetsProvider exposes the bulk actions consumed by Discover', () => 
     assert.match(savedAssetsContextSource, /bulkRemoveSavedAssets/);
     assert.match(savedAssetsContextSource, /selectBulkSavedAssetTargets/);
 });
+
+test('My Directory bulk removal uses the server-guarded unused-resource action', () => {
+    assert.match(savedAssetsContextSource, /bulkRemoveUnusedSavedAssets/);
+    assert.match(savedAssetsContextSource, /api\.bulkRemoveUnusedSavedAssets/);
+    assert.match(myDirectoryPageSource, /SAVED_ASSET_MAP_USAGE_FILTERS/);
+    assert.match(myDirectoryPageSource, /bulkRemoveUnusedSavedAssets\(selectedSavedAssets\)/);
+    assert.match(myDirectoryPageSource, /removeSavedOfferingCalendarWarning/);
+    assert.match(myDirectoryPageSource, /bulkRemoveSavedOfferingCalendarWarning/);
+});

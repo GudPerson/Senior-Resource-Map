@@ -4,9 +4,11 @@ import assert from 'node:assert/strict';
 import {
     listSavedAssets,
     listSavedSoftAssets,
+    loadSavedAssetMyMapUsage,
+    removeUnusedSavedAssets,
     toggleSavedAsset,
 } from '../src/controllers/favoritesController.js';
-import { userFavorites } from '../src/db/schema.js';
+import { myMapAssets, userFavorites } from '../src/db/schema.js';
 import { hydrateSavedAssetRecord } from '../src/utils/savedAssets.js';
 
 const DEFAULT_CONTEXT = {
@@ -185,6 +187,46 @@ function createFakeDb({
             return {
                 where: async () => {
                     state.favorites = [];
+                },
+            };
+        },
+    };
+}
+
+function createBulkRemovalFakeDb({ mapUsageRows = [], deleteResponses = [] } = {}) {
+    const state = {
+        deleteCallCount: 0,
+        mapUsageLookupCount: 0,
+    };
+
+    return {
+        state,
+        select() {
+            return {
+                from(table) {
+                    assert.equal(table, myMapAssets);
+                    return {
+                        innerJoin() {
+                            return {
+                                where: async () => {
+                                    state.mapUsageLookupCount += 1;
+                                    return mapUsageRows;
+                                },
+                            };
+                        },
+                    };
+                },
+            };
+        },
+        delete(table) {
+            assert.equal(table, userFavorites);
+            return {
+                where() {
+                    const response = deleteResponses[state.deleteCallCount] || [];
+                    state.deleteCallCount += 1;
+                    return {
+                        returning: async () => response,
+                    };
                 },
             };
         },
@@ -498,4 +540,58 @@ test('toggleSavedAsset stays consistent across rapid sequential save and unsave 
     assert.equal(saveTwo.saved, true);
     assert.equal(saveTwo.item?.assetKey, 'hard-29');
     assert.equal(db.state.favorites.length, 1);
+});
+
+test('loadSavedAssetMyMapUsage counts each owned My Map once per saved resource', async () => {
+    const db = createBulkRemovalFakeDb({
+        mapUsageRows: [
+            { resourceType: 'hard', resourceId: 29, mapId: 3 },
+            { resourceType: 'hard', resourceId: 29, mapId: 3 },
+            { resourceType: 'hard', resourceId: 29, mapId: 4 },
+            { resourceType: 'soft', resourceId: 44, mapId: 4 },
+        ],
+    });
+
+    const usage = await loadSavedAssetMyMapUsage(db, 7);
+
+    assert.equal(usage.get('hard-29')?.myMapCount, 2);
+    assert.equal(usage.get('soft-44')?.myMapCount, 1);
+    assert.equal(db.state.mapUsageLookupCount, 1);
+});
+
+test('bulk removal protects My Map resources and removes only unused saved resources', async () => {
+    const db = createBulkRemovalFakeDb({
+        mapUsageRows: [
+            { resourceType: 'hard', resourceId: 29, mapId: 3 },
+        ],
+        deleteResponses: [[
+            { resourceType: 'soft', resourceId: 44 },
+        ]],
+    });
+    const user = { id: 7, role: 'standard' };
+
+    const result = await removeUnusedSavedAssets(db, user, [
+        { resourceType: 'hard', resourceId: 29 },
+        { resourceType: 'soft', resourceId: 44 },
+        { resourceType: 'soft', resourceId: 55 },
+        { resourceType: 'soft', resourceId: 44 },
+    ]);
+
+    assert.equal(result.requestedCount, 3);
+    assert.equal(result.protectedCount, 1);
+    assert.equal(result.removedCount, 1);
+    assert.equal(result.notSavedCount, 1);
+    assert.deepEqual(result.protected, [{
+        assetKey: 'hard-29',
+        resourceType: 'hard',
+        resourceId: 29,
+        myMapCount: 1,
+    }]);
+    assert.deepEqual(result.removed, [{
+        assetKey: 'soft-44',
+        resourceType: 'soft',
+        resourceId: 44,
+    }]);
+    assert.equal(result.notSaved[0]?.assetKey, 'soft-55');
+    assert.equal(db.state.deleteCallCount, 1);
 });

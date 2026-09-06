@@ -19,7 +19,9 @@ function getStateCopy(mode, t) {
 }
 
 export default function SavedAssetsEmptyState({
+    hasActiveFilters = false,
     mode = 'empty',
+    onClearFilters,
     searchTerm = '',
     onClearSearch,
 }) {
@@ -36,13 +38,13 @@ export default function SavedAssetsEmptyState({
             <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">
                 {copy.description}
             </p>
-            {mode === 'no-results' && searchTerm ? (
+            {mode === 'no-results' && (hasActiveFilters || searchTerm) ? (
                 <button
                     type="button"
-                    onClick={onClearSearch}
+                    onClick={onClearFilters || onClearSearch}
                     className="btn-ghost mt-6 inline-flex justify-center"
                 >
-                    {t('clearSearch')}
+                    {t('clearFilters')}
                 </button>
             ) : (
                 <Link to="/discover" className="btn-primary mt-6 inline-flex justify-center">

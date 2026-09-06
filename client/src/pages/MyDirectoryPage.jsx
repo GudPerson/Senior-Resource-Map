@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bookmark, Map, MapPinned, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Bookmark, ListChecks, Map, MapPinned, RefreshCw, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
@@ -18,6 +18,14 @@ import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
 import { fetchMyMapsWithResilience, getMyMapsListStatus } from '../lib/myMapsLoading.js';
+import {
+    SAVED_ASSET_MAP_USAGE_FILTERS,
+    filterSavedAssetsByMapUsage,
+    getSavedAssetMapUsageCount,
+    selectUnusedSavedAssets,
+    summarizeSavedAssetRemoval,
+} from '../lib/savedAssetBulkManagement.js';
+import { buildSavedAssetKey } from '../lib/savedAssets.js';
 
 const DIRECTORY_SECTIONS = {
     saved: 'saved-assets',
@@ -38,6 +46,14 @@ function getMapSortOptions(t) {
         { value: 'recent', label: t('recentlyUpdated') },
         { value: 'name-asc', label: t('nameAZ') },
         { value: 'name-desc', label: t('nameZA') },
+    ];
+}
+
+function getMapUsageFilterOptions(t) {
+    return [
+        { value: SAVED_ASSET_MAP_USAGE_FILTERS.all, label: t('allSavedResources') },
+        { value: SAVED_ASSET_MAP_USAGE_FILTERS.used, label: t('usedInMyMapsFilter') },
+        { value: SAVED_ASSET_MAP_USAGE_FILTERS.unused, label: t('notUsedInMyMapsFilter') },
     ];
 }
 
@@ -218,6 +234,8 @@ export default function MyDirectoryPage() {
         savedAssets,
         savedAssetsLoading,
         savedAssetsLoadError,
+        bulkPending: savedAssetsBulkPending,
+        bulkRemoveUnusedSavedAssets,
         refreshSavedAssets,
         toggleSavedAsset,
         isSavedAssetPending,
@@ -228,6 +246,14 @@ export default function MyDirectoryPage() {
     const [activeSection, setActiveSection] = useState(initialSection);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortOrder, setSortOrder] = useState('recent');
+    const [mapUsageFilter, setMapUsageFilter] = useState(SAVED_ASSET_MAP_USAGE_FILTERS.all);
+    const [mapUsageByAssetKey, setMapUsageByAssetKey] = useState(new Map());
+    const [mapUsageLoading, setMapUsageLoading] = useState(false);
+    const [mapUsageLoaded, setMapUsageLoaded] = useState(false);
+    const [mapUsageError, setMapUsageError] = useState('');
+    const [savedSelectionMode, setSavedSelectionMode] = useState(false);
+    const [selectedSavedAssetKeys, setSelectedSavedAssetKeys] = useState(new Set());
+    const [bulkRemovalNotice, setBulkRemovalNotice] = useState('');
     const [mapSearchTerm, setMapSearchTerm] = useState('');
     const [mapSortOrder, setMapSortOrder] = useState('recent');
     const [actionError, setActionError] = useState('');
@@ -248,6 +274,7 @@ export default function MyDirectoryPage() {
     const isCompactDirectory = useMediaQuery('(max-width: 1023px)');
     const sortOptions = useMemo(() => getSortOptions(t), [t]);
     const mapSortOptions = useMemo(() => getMapSortOptions(t), [t]);
+    const mapUsageFilterOptions = useMemo(() => getMapUsageFilterOptions(t), [t]);
 
     useEffect(() => {
         const nextSection = parseDirectorySection(searchParams.get('section'));
@@ -256,8 +283,10 @@ export default function MyDirectoryPage() {
 
     const normalizedQuery = normalizeText(searchTerm);
 
+    const mapUsageReady = mapUsageLoaded && !mapUsageError;
+
     const filteredAssets = useMemo(() => {
-        const matches = normalizedQuery
+        const searchMatches = normalizedQuery
             ? savedAssets.filter((asset) => {
                 const haystack = [
                     asset.name,
@@ -271,14 +300,30 @@ export default function MyDirectoryPage() {
                 return haystack.includes(normalizedQuery);
             })
             : savedAssets;
+        const usageMatches = mapUsageReady
+            ? filterSavedAssetsByMapUsage(searchMatches, mapUsageByAssetKey, mapUsageFilter)
+            : mapUsageFilter === SAVED_ASSET_MAP_USAGE_FILTERS.all
+                ? searchMatches
+                : [];
 
-        return sortAssets(matches, sortOrder);
-    }, [normalizedQuery, savedAssets, sortOrder]);
+        return sortAssets(usageMatches, sortOrder);
+    }, [mapUsageByAssetKey, mapUsageFilter, mapUsageReady, normalizedQuery, savedAssets, sortOrder]);
 
     const totalSavedCount = savedAssets.length;
     const hasSavedAssets = totalSavedCount > 0;
     const hasSearch = Boolean(normalizedQuery);
+    const hasMapUsageFilter = mapUsageFilter !== SAVED_ASSET_MAP_USAGE_FILTERS.all;
+    const hasSavedAssetFilters = hasSearch || hasMapUsageFilter;
     const hasResults = filteredAssets.length > 0;
+    const visibleUnusedAssets = useMemo(
+        () => selectUnusedSavedAssets(filteredAssets, mapUsageByAssetKey),
+        [filteredAssets, mapUsageByAssetKey],
+    );
+    const selectedSavedAssets = useMemo(() => (
+        visibleUnusedAssets.filter((asset) => (
+            selectedSavedAssetKeys.has(buildSavedAssetKey(asset.resourceType, asset.resourceId))
+        ))
+    ), [selectedSavedAssetKeys, visibleUnusedAssets]);
     const normalizedMapQuery = normalizeText(mapSearchTerm);
     const filteredMaps = useMemo(() => {
         const matches = normalizedMapQuery
@@ -300,6 +345,46 @@ export default function MyDirectoryPage() {
         mapsError,
         mapCount: maps.length,
     });
+
+    const loadSavedAssetMapUsage = useCallback(async () => {
+        setMapUsageLoading(true);
+        setMapUsageError('');
+        try {
+            const response = await api.getSavedAssetMapUsage();
+            const usageItems = Array.isArray(response?.items) ? response.items : [];
+            setMapUsageByAssetKey(new Map(usageItems.map((item) => [
+                item.assetKey || buildSavedAssetKey(item.resourceType, item.resourceId),
+                item,
+            ])));
+            setMapUsageLoaded(true);
+            return usageItems;
+        } catch (err) {
+            console.error(err);
+            setMapUsageError(err.message || t('myMapUsageLoadFailed'));
+            setMapUsageLoaded(true);
+            return [];
+        } finally {
+            setMapUsageLoading(false);
+        }
+    }, [t]);
+
+    useEffect(() => {
+        if (activeSection !== DIRECTORY_SECTIONS.saved || mapUsageLoaded || mapUsageLoading) return;
+        void loadSavedAssetMapUsage();
+    }, [activeSection, loadSavedAssetMapUsage, mapUsageLoaded, mapUsageLoading]);
+
+    useEffect(() => {
+        if (!mapUsageReady) return;
+        const savedKeys = new Set(savedAssets.map((asset) => buildSavedAssetKey(asset.resourceType, asset.resourceId)));
+        const protectedKeys = new Set(
+            savedAssets
+                .filter((asset) => getSavedAssetMapUsageCount(asset, mapUsageByAssetKey) > 0)
+                .map((asset) => buildSavedAssetKey(asset.resourceType, asset.resourceId)),
+        );
+        setSelectedSavedAssetKeys((current) => new Set(
+            [...current].filter((assetKey) => savedKeys.has(assetKey) && !protectedKeys.has(assetKey)),
+        ));
+    }, [mapUsageByAssetKey, mapUsageReady, savedAssets]);
 
     const loadMaps = useCallback(async () => {
         setMapsLoading(true);
@@ -325,7 +410,37 @@ export default function MyDirectoryPage() {
     }, [activeSection, loadMaps, mapsLoaded]);
 
     async function handleRemove(asset) {
+        if (!mapUsageReady) {
+            setActionError(t('myMapUsageRequiredForRemoval'));
+            return;
+        }
+
+        const mapUsageCount = getSavedAssetMapUsageCount(asset, mapUsageByAssetKey);
+        const details = [];
+        if (mapUsageCount > 0) {
+            details.push(t('removeMappedSavedResourceWarning', {
+                count: mapUsageCount,
+                label: mapUsageCount === 1 ? t('map') : t('maps'),
+            }));
+        }
+        if (asset.resourceType === 'soft') {
+            details.push(t('removeSavedOfferingCalendarWarning'));
+        }
+
+        const confirmed = await requestConfirmation({
+            title: t('removeSavedResourceConfirmTitle'),
+            message: t('removeSavedResourceConfirmMessage', {
+                name: asset.name || t('savedResourceFallbackName'),
+            }),
+            details,
+            confirmLabel: t('removeFromMyDirectory'),
+            loadingLabel: t('removing'),
+            tone: mapUsageCount > 0 ? 'warning' : 'danger',
+        });
+        if (!confirmed) return;
+
         setActionError('');
+        setBulkRemovalNotice('');
 
         try {
             await toggleSavedAsset(asset.resourceType, asset.resourceId, {
@@ -341,7 +456,82 @@ export default function MyDirectoryPage() {
         }
     }
 
+    function cancelSavedSelection() {
+        setSavedSelectionMode(false);
+        setSelectedSavedAssetKeys(new Set());
+    }
+
+    function beginSavedSelection() {
+        if (!mapUsageReady || visibleUnusedAssets.length === 0) return;
+        setMapUsageFilter(SAVED_ASSET_MAP_USAGE_FILTERS.unused);
+        setSelectedSavedAssetKeys(new Set());
+        setBulkRemovalNotice('');
+        setActionError('');
+        setSavedSelectionMode(true);
+    }
+
+    function handleSavedAssetSelection(asset, selected) {
+        if (getSavedAssetMapUsageCount(asset, mapUsageByAssetKey) > 0) return;
+        const assetKey = buildSavedAssetKey(asset.resourceType, asset.resourceId);
+        setSelectedSavedAssetKeys((current) => {
+            const next = new Set(current);
+            if (selected) {
+                next.add(assetKey);
+            } else {
+                next.delete(assetKey);
+            }
+            return next;
+        });
+    }
+
+    function selectAllVisibleUnusedAssets() {
+        setSelectedSavedAssetKeys(new Set(visibleUnusedAssets.map((asset) => (
+            buildSavedAssetKey(asset.resourceType, asset.resourceId)
+        ))));
+    }
+
+    async function handleBulkRemoveSavedAssets() {
+        if (!mapUsageReady || selectedSavedAssets.length === 0 || savedAssetsBulkPending) return;
+        const impact = summarizeSavedAssetRemoval(selectedSavedAssets);
+        const details = [t('bulkRemoveMyMapProtection')];
+        if (impact.offeringCount > 0) {
+            details.push(t('bulkRemoveSavedOfferingCalendarWarning', { count: impact.offeringCount }));
+        }
+
+        const confirmed = await requestConfirmation({
+            title: t('bulkRemoveSavedResourcesTitle'),
+            message: t('bulkRemoveSavedResourcesMessage', { count: impact.resourceCount }),
+            details,
+            confirmLabel: t('bulkRemoveSavedResourcesAction', { count: impact.resourceCount }),
+            loadingLabel: t('removing'),
+            tone: 'danger',
+        });
+        if (!confirmed) return;
+
+        setActionError('');
+        setBulkRemovalNotice('');
+        try {
+            const result = await bulkRemoveUnusedSavedAssets(selectedSavedAssets);
+            if (!result) return;
+
+            if (result.protectedCount > 0) {
+                setBulkRemovalNotice(t('bulkRemoveSavedResourcesProtectedResult', {
+                    removed: result.removedCount,
+                    protected: result.protectedCount,
+                }));
+            } else {
+                setBulkRemovalNotice(t('bulkRemoveSavedResourcesResult', { count: result.removedCount }));
+            }
+            cancelSavedSelection();
+            await loadSavedAssetMapUsage();
+        } catch (err) {
+            console.error(err);
+            setActionError(err.message || t('bulkRemoveSavedResourcesFailed'));
+        }
+    }
+
     function switchSection(section) {
+        cancelSavedSelection();
         const next = new URLSearchParams(searchParams);
         if (section === DIRECTORY_SECTIONS.saved) {
             next.delete('section');
@@ -494,7 +684,7 @@ export default function MyDirectoryPage() {
                                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-600">{t('savedResources')}</p>
                                         <p className="mt-1 text-sm font-semibold text-slate-600">
                                             {t('savedResourcesCount', { count: totalSavedCount, label: totalSavedCount === 1 ? t('resource') : t('resources') })}
-                                            {hasSearch ? ` • ${t('matchingCount', { count: filteredAssets.length })}` : ''}
+                                            {hasSavedAssetFilters ? ` • ${t('matchingCount', { count: filteredAssets.length })}` : ''}
                                         </p>
                                     </div>
                                     <button
@@ -536,6 +726,31 @@ export default function MyDirectoryPage() {
                                     </div>
 
                                     <div className="w-full lg:w-56">
+                                        <label htmlFor="saved-assets-map-usage" className="block text-sm font-semibold text-slate-700">
+                                            {t('myMapUsage')}
+                                        </label>
+                                        <div className="relative mt-2">
+                                            <MapPinned size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                            <select
+                                                id="saved-assets-map-usage"
+                                                value={mapUsageFilter}
+                                                onChange={(event) => {
+                                                    setMapUsageFilter(event.target.value);
+                                                    setSelectedSavedAssetKeys(new Set());
+                                                }}
+                                                disabled={!mapUsageReady}
+                                                className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 disabled:cursor-wait disabled:opacity-60"
+                                            >
+                                                {mapUsageFilterOptions.map((option) => (
+                                                    <option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="w-full lg:w-56">
                                         <label htmlFor="saved-assets-sort" className="block text-sm font-semibold text-slate-700">
                                             {t('sort')}
                                         </label>
@@ -560,12 +775,66 @@ export default function MyDirectoryPage() {
                                 <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
                                     <p className="text-sm font-medium text-slate-600">
                                         {t('savedResourcesCount', { count: totalSavedCount, label: totalSavedCount === 1 ? t('resource') : t('resources') })}
-                                        {hasSearch ? ` • ${t('matchingCount', { count: filteredAssets.length })}` : ''}
+                                        {hasSavedAssetFilters ? ` • ${t('matchingCount', { count: filteredAssets.length })}` : ''}
                                     </p>
-                                    {actionError ? (
-                                        <p className="text-sm font-medium text-red-600">{actionError}</p>
-                                    ) : null}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {bulkRemovalNotice ? (
+                                            <p className="text-sm font-semibold text-teal-700" role="status">{bulkRemovalNotice}</p>
+                                        ) : null}
+                                        {actionError ? (
+                                            <p className="text-sm font-medium text-red-600" role="alert">{actionError}</p>
+                                        ) : null}
+                                        {!savedSelectionMode && hasSavedAssets ? (
+                                            <button
+                                                type="button"
+                                                onClick={beginSavedSelection}
+                                                disabled={!mapUsageReady || visibleUnusedAssets.length === 0 || savedAssetsBulkPending}
+                                                className="btn-ghost min-h-[44px] justify-center border border-slate-200 px-4 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                <ListChecks size={16} />
+                                                {t('selectToRemove')}
+                                            </button>
+                                        ) : null}
+                                    </div>
                                 </div>
+
+                                {mapUsageLoading ? (
+                                    <p className="mb-4 text-sm font-medium text-slate-500" role="status">{t('loadingMyMapUsage')}</p>
+                                ) : mapUsageError ? (
+                                    <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between" role="alert">
+                                        <span>{mapUsageError} {t('bulkRemovalPaused')}</span>
+                                        <button type="button" onClick={loadSavedAssetMapUsage} className="btn-ghost min-h-[40px] justify-center px-3 text-sm">
+                                            <RefreshCw size={15} />
+                                            {t('retry')}
+                                        </button>
+                                    </div>
+                                ) : null}
+
+                                {savedSelectionMode ? (
+                                    <div className="sticky bottom-4 z-30 mb-4 flex flex-col gap-3 rounded-2xl border border-brand-200 bg-white/95 p-3 shadow-xl backdrop-blur sm:flex-row sm:items-center sm:justify-between" role="region" aria-label={t('bulkRemoveSavedResourcesTitle')}>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-900">
+                                                {t('selectedSavedResourcesCount', { count: selectedSavedAssets.length })}
+                                            </p>
+                                            <p className="mt-0.5 text-xs text-slate-500">{t('myMapResourcesProtectedHelp')}</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button type="button" onClick={selectAllVisibleUnusedAssets} disabled={visibleUnusedAssets.length === 0 || savedAssetsBulkPending} className="btn-ghost min-h-[42px] justify-center px-3 text-sm">
+                                                {t('selectAllShown')}
+                                            </button>
+                                            <button type="button" onClick={() => setSelectedSavedAssetKeys(new Set())} disabled={selectedSavedAssets.length === 0 || savedAssetsBulkPending} className="btn-ghost min-h-[42px] justify-center px-3 text-sm">
+                                                {t('clearSelection')}
+                                            </button>
+                                            <button type="button" onClick={cancelSavedSelection} disabled={savedAssetsBulkPending} className="btn-ghost min-h-[42px] justify-center px-3 text-sm">
+                                                {t('cancel')}
+                                            </button>
+                                            <button type="button" onClick={handleBulkRemoveSavedAssets} disabled={selectedSavedAssets.length === 0 || savedAssetsBulkPending} className="btn-danger min-h-[42px] justify-center px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">
+                                                <Trash2 size={15} />
+                                                {savedAssetsBulkPending ? t('removing') : t('bulkRemoveSavedResourcesAction', { count: selectedSavedAssets.length })}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : null}
 
                                 {savedAssetsLoading && !hasSavedAssets ? (
                                     <SavedAssetsLoadingState />
@@ -579,7 +848,13 @@ export default function MyDirectoryPage() {
                                     <SavedAssetsEmptyState mode="empty" />
                                 ) : !hasResults ? (
                                     <SavedAssetsEmptyState
+                                        hasActiveFilters={hasSavedAssetFilters}
                                         mode="no-results"
+                                        onClearFilters={() => {
+                                            setSearchTerm('');
+                                            setMapUsageFilter(SAVED_ASSET_MAP_USAGE_FILTERS.all);
+                                            setSelectedSavedAssetKeys(new Set());
+                                        }}
                                         searchTerm={searchTerm}
                                         onClearSearch={() => setSearchTerm('')}
                                     />
@@ -589,8 +864,14 @@ export default function MyDirectoryPage() {
                                             <SavedAssetCard
                                                 key={asset.assetKey || `${asset.resourceType}-${asset.resourceId}`}
                                                 asset={asset}
-                                                removing={isSavedAssetPending(asset.resourceType, asset.resourceId)}
+                                                mapUsageCount={getSavedAssetMapUsageCount(asset, mapUsageByAssetKey)}
+                                                mapUsageKnown={mapUsageReady}
+                                                removing={isSavedAssetPending(asset.resourceType, asset.resourceId) || savedAssetsBulkPending}
                                                 onRemove={handleRemove}
+                                                onSelectionChange={handleSavedAssetSelection}
+                                                selected={selectedSavedAssetKeys.has(buildSavedAssetKey(asset.resourceType, asset.resourceId))}
+                                                selectionDisabled={getSavedAssetMapUsageCount(asset, mapUsageByAssetKey) > 0}
+                                                selectionMode={savedSelectionMode}
                                             />
                                         ))}
                                     </div>
@@ -799,6 +1080,31 @@ export default function MyDirectoryPage() {
                                     <X size={16} />
                                 </button>
                             ) : null}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="saved-assets-map-usage-mobile" className="block text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--color-text-muted)' }}>
+                            {t('myMapUsage')}
+                        </label>
+                        <div className="relative mt-2">
+                            <MapPinned size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <select
+                                id="saved-assets-map-usage-mobile"
+                                value={mapUsageFilter}
+                                onChange={(event) => {
+                                    setMapUsageFilter(event.target.value);
+                                    setSelectedSavedAssetKeys(new Set());
+                                }}
+                                disabled={!mapUsageReady}
+                                className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 disabled:cursor-wait disabled:opacity-60"
+                            >
+                                {mapUsageFilterOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 

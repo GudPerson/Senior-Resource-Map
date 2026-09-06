@@ -543,6 +543,8 @@ export const api = {
 
     // Saved assets / favorites
     getSavedAssets: (options = {}) => request('GET', '/favorites', undefined, options),
+    getSavedAssetMapUsage: () => request('GET', '/favorites/map-usage'),
+    bulkRemoveUnusedSavedAssets: (resources) => request('POST', '/favorites/bulk-remove-unused', { resources }),
     toggleSavedAsset: (resourceType, resourceId) => request('POST', '/favorites/toggle', { resourceType, resourceId }),
 
     // Favorites (compatibility aliases)
