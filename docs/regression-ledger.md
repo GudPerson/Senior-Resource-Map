@@ -79,10 +79,41 @@ Rules:
   discovery-cache `404`; the established fallback endpoints loaded the result
   set, and there were no Detailed-map runtime errors. No favorite, map,
   snapshot, production-data, or other persistent state was changed.
-- Release state: locally validated and approved for release on 2026-09-06. The
-  implementation commit, pushed branch, exact flagged Pages artifact, and
-  production verification evidence will be recorded here after deployment; the
-  Worker must not be deployed for this client-only change.
+- Release proof (2026-09-06): implementation commit
+  `776cdd2e2426b1e6edef49ff102644500ea31c75` was pushed on
+  `codex/discover-detailed-basemap-20260906`. The exact feature-enabled
+  six-root client artifact was published explicitly to the Cloudflare Pages
+  production branch at
+  `https://7aa26941.senior-resource-map.pages.dev`; Wrangler compiled the Pages
+  Worker/Functions bundle and uploaded all `85` public files plus `_headers`
+  and `_routes.json`. All `85` served static files matched the local artifact,
+  the immutable deployment, and `https://app.carearound.sg` byte-for-byte by
+  SHA-256, with aggregate digest
+  `8672d4bd0fc8362b106a0a74101925e81b2652ac3f0379f746ef705b1653d539`.
+  The app, `/discover`, and `/login` returned `200` from both hosts; JavaScript
+  and CSS MIME types were correct; production API health returned `200`/OK;
+  ordinary routes retained `X-Frame-Options: DENY` and CSP
+  `frame-ancestors 'none'`; and an unknown embed token returned `404` with
+  `no-store`. Both native and overview Default/Gray source indexes returned
+  valid JSON, and both established print-master manifests returned `200`.
+- Production browser verification (2026-09-06): PASS in authenticated Chrome
+  at `390x844`. The visible map measured `390x687`; Default and Gray both
+  loaded native and overview chunks. The
+  `16 -> 15 -> 14 -> 13 -> 14 -> 15` round trip selected native `W02`/`W01`,
+  overview `SG14`, and live OneMap at the expected displayed steps. Every
+  sampled Detailed state had zero live tiles and all visible chunks loaded;
+  displayed zoom `13` had six loaded live tiles and zero fixed images. Panning
+  crossed retained native surfaces `W01`, `N02`, `NE03`, `E03`, and `E05`
+  without live/fixed overlap, then outside coverage restored `12` loaded live
+  tiles and removed all fixed images. Saved-only changed the result count from
+  `3,480` to `17`, reversing it restored the full result set, both filter and
+  map-settings close restored body `pointer-events: auto` and visible overflow,
+  reset restored the postal-focused native surface, and the browser recorded
+  zero errors or warnings. Existing My Map and embed source paths remain
+  untouched and their regression tests passed; no live embed token was
+  available for an interactive production replay. No Worker API, database,
+  schema, migration, authentication, permission, map asset, favorite, My Map,
+  share snapshot, or other production-data change was performed.
 
 ## 2026-09-05 embedded Category Pin shared-location chooser
 
