@@ -69,9 +69,10 @@ reference. The later bulk-unsave Pages release was built from `main`, which did
 not yet contain this branch, and therefore replaced the detailed Discovery
 client. The recovery branch merges the validated detailed-map history forward
 onto the bulk-unsave release so both behaviors remain present. It also locks
-the dashboard-facing `build:client`, `build:cloudflare`, and `deploy:client`
-commands to the exact validated derivative build, preventing a future routine
-Pages release from compiling the adapter out.
+the dashboard-facing client workspace `build` script plus the root
+`build:client`, `build:cloudflare`, and `deploy:client` commands to the exact
+validated derivative build, preventing a future routine Pages release from
+compiling the adapter out.
 The recovery is complete at source commit `ff122f45a`, pushed to `main` and the
 recovery branch. GitHub quality run `34034035843` passed. The exact combined
 artifact is production deployment `135da0fc-9ebc-495e-9680-cc90308e265e` at

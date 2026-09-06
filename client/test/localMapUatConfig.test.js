@@ -5,6 +5,9 @@ import test from 'node:test';
 const rootPackage = JSON.parse(
     fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
 );
+const clientPackage = JSON.parse(
+    fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')
+);
 const viteConfigSource = fs.readFileSync(
     new URL('../vite.config.js', import.meta.url),
     'utf8'
@@ -131,7 +134,7 @@ test('Cloudflare production commands cannot compile Discover Detailed out', () =
     );
     assert.equal(
         rootPackage.scripts['build:client:bare'],
-        'npm run build --workspace=client'
+        'npm run build:bare --workspace=client'
     );
     assert.equal(
         rootPackage.scripts['build:client:validated'],
@@ -145,6 +148,11 @@ test('Cloudflare production commands cannot compile Discover Detailed out', () =
         rootPackage.scripts['deploy:client'],
         'npm run build:client:discover-derivative && cd client && npx wrangler pages deploy dist --project-name senior-resource-map'
     );
+    assert.equal(
+        clientPackage.scripts.build,
+        'npm --prefix .. run build:client:discover-derivative'
+    );
+    assert.equal(clientPackage.scripts['build:bare'], 'tsc && vite build');
 });
 
 test('zoom-14 atlas upload commands keep Default and Gray in separate immutable roots', () => {

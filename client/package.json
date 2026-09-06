@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "test": "node --test test/*.test.js src/lib/*.test.js",
-    "build": "tsc && vite build",
+    "build": "npm --prefix .. run build:client:discover-derivative",
+    "build:bare": "tsc && vite build",
     "preview": "vite preview"
   },
   "devDependencies": {

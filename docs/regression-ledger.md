@@ -32,16 +32,16 @@ Rules:
   authentication, production-data, Shared Map, embed, or My Map behavior is
   changed by this recovery.
 - Release-process lock: the first automatic recovery deployment proved that
-  the Pages dashboard invokes `build:client` directly rather than the
-  repository's `build:cloudflare` alias; that artifact still rendered `25`
-  live tiles and zero fixed images at zoom `16`. `build:client`,
-  `build:cloudflare`, and `deploy:client` now all delegate to
+  the Pages dashboard invokes the client workspace `build` script directly
+  rather than any root alias; that artifact still rendered `25` live tiles and
+  zero fixed images at zoom `16`. The client workspace `build`, root
+  `build:client`, `build:cloudflare`, and `deploy:client` now all delegate to
   `build:client:discover-derivative`. That exact command supplies and validates
   the same-site API, six stable My Map/Print View roots, four immutable
   Discover derivative roots, and both Discover feature flags before building.
-  The renamed `build:client:bare` remains diagnostic only and is not accepted
-  as a production Pages artifact while Discover Detailed is live. A regression
-  test locks these aliases and every required root.
+  The renamed root and workspace `build:bare` commands remain diagnostic only
+  and are not accepted as production Pages artifacts while Discover Detailed
+  is live. A regression test locks these aliases and every required root.
 - Acceptance: at displayed zoom `13`, Discover uses live OneMap; at `14`, it
   uses the `SG14` derivative overview; and at `15+`, it uses native derivative
   imagery, with no live tiles under an active fixed surface. Bulk-unsave must

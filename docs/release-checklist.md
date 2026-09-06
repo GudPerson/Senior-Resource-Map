@@ -76,9 +76,11 @@ npm run build:client:discover-derivative
 
 It supplies the same-site Worker API and every approved versioned map root,
 runs the production environment validator, and then builds the client.
-The dashboard-facing `build:client`, `build:cloudflare`, and `deploy:client`
-commands all delegate to this exact build so an ordinary Pages release cannot
-silently compile Discover Detailed out.
+The dashboard-facing client workspace `build` command, root `build:client`,
+`build:cloudflare`, and `deploy:client` all delegate to this exact build so an
+ordinary Pages release cannot silently compile Discover Detailed out. Only
+`build:client:bare` and the client workspace `build:bare` bypass the release
+environment, and both are diagnostic-only commands.
 
 While the owner Detailed fixed-surface map is active in production, every
 client build must also keep its build-time activation and all versioned asset
