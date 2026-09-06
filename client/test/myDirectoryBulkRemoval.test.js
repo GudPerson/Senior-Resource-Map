@@ -7,6 +7,8 @@ const cardSource = fs.readFileSync(new URL('../src/components/SavedAssetCard.jsx
 const apiSource = fs.readFileSync(new URL('../src/lib/api.js', import.meta.url), 'utf8');
 
 test('My Directory offers map-aware saved-resource filtering on desktop and mobile', () => {
+    assert.match(directorySource, /Map as MapIcon/);
+    assert.match(directorySource, /icon: MapIcon/);
     assert.match(directorySource, /saved-assets-map-usage/);
     assert.match(directorySource, /saved-assets-map-usage-mobile/);
     assert.match(directorySource, /filterSavedAssetsByMapUsage/);

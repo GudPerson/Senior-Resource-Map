@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bookmark, ListChecks, Map, MapPinned, RefreshCw, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { Bookmark, ListChecks, Map as MapIcon, MapPinned, RefreshCw, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
@@ -199,7 +199,7 @@ function DirectoryTabs({ activeSection, onSelect }) {
         <div className="mt-6 inline-flex max-w-full flex-wrap rounded-2xl bg-slate-100 p-1.5 shadow-inner">
             {[
                 { value: DIRECTORY_SECTIONS.saved, label: t('savedResources'), icon: Bookmark },
-                { value: DIRECTORY_SECTIONS.maps, label: t('myMaps'), icon: Map },
+                { value: DIRECTORY_SECTIONS.maps, label: t('myMaps'), icon: MapIcon },
                 { value: DIRECTORY_SECTIONS.places, label: 'My Places', icon: MapPinned },
             ].map((tab) => {
                 const active = activeSection === tab.value;
