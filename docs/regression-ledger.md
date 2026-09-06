@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-06 Discover 300 MiB desktop UAT ceiling follow-up
+## 2026-09-06 Discover 384 MiB desktop UAT ceiling follow-up
 
 - Production diagnosis: authenticated Chrome reproduction at `1470x923`
   matched the reported `/discover?postal=160026` layout with a `1020x859` map
@@ -27,46 +27,91 @@ Rules:
   manifests, asset responses, and client loading were healthy; the browser
   recorded zero console errors and warnings. This exposed a large-desktop
   viewport gap not covered by the earlier `750 -> 644` pixel split-pane UAT.
+- Follow-up diagnosis: the first `300 MiB` experiment fixed those initial
+  Central and overview cases but remained fail-closed in the user's panned
+  Jurong viewport at displayed zoom `15`. Reproduction at
+  `/discover?postal=600123` showed native `W04` needed `25` visible chunks, or
+  `363,878,400` decoded bytes (`347.02 MiB`); zoom `14` remained Detailed and
+  zoom `16` needed fewer native chunks. The map reported
+  `viewport-memory-limit`, confirming a decoded-memory boundary rather than a
+  coverage, source, or loading failure.
+- Boundary-entry diagnosis: authenticated Chrome reproduced the reported
+  Detailed flash from the current-location camera. The settled `1020x681`
+  viewport was healthy at native `C02` (`24/24` chunks, `333.57 MiB`), but the
+  existing Locate action reset the map to displayed zoom `13`. The subsequent
+  `13 -> 14 -> 15` path loaded overview `SG14` at `14`, then the slightly
+  shifted location-centred viewport straddled a native plate edge at `15` and
+  correctly returned `outside-coverage`. There were no client load errors;
+  browser-console errors came from a Chrome extension. This was a camera and
+  full-viewport-containment edge case, not a memory, asset, or source failure.
 - Candidate behavior and blast radius: the default Discover ceiling remains
   `256 MiB`. A second compile-time flag,
-  `VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED=true`, raises it to `300 MiB`
+  `VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED=true`, raises it to `384 MiB`
   only when both the Discover Detailed and established fixed-map proof flags
-  are also enabled. The same resolved limit is passed to the pure eligibility
-  decision and `FixedTownSurfaceLayer`. No shared fixed-surface constant,
+  are also enabled. The UAT path reuses the existing shared extended ceiling;
+  the same resolved limit is passed to the pure eligibility decision and
+  `FixedTownSurfaceLayer`. No shared fixed-surface default,
   My Map, Shared Map, embed, search, filtering, saved/transient/category pins,
   postal grouping, cards, camera, mobile layout, API, auth, schema, or map
-  asset behavior changes. Above `300 MiB`, the existing fail-closed live
+  asset behavior changes. Above `384 MiB`, the existing fail-closed live
   OneMap fallback remains authoritative.
+- Boundary-entry correction and blast radius: a Discover-only containment
+  synchronizer now runs only when the camera crosses into displayed zoom `15`
+  and when the map genuinely resizes. It clamps the camera within the selected
+  native surface, trying only fractional Leaflet positions that remain in the
+  same displayed whole-number zoom step and within the active decoded-memory
+  ceiling. It does not subscribe to ordinary `moveend`, so user panning across
+  a surface boundary still falls back to live OneMap. If no fully contained,
+  in-budget camera exists in that displayed step, the existing safe fallback
+  remains unchanged. The implementation stays inside the Discover adapter and
+  adds a pure Discover helper; `DiscoveryMap`, `DirectoryMap`,
+  `FixedTownSurfaceLayer`, My Map, Shared Map, embed, assets, API, schema, and
+  authentication remain untouched.
 - Acceptance and UAT gate: without the new flag, deterministic tests and the
   compiled client must retain `256 MiB`. With it, the reported `288 MiB`
-  zoom-14 viewport and approximately `276.34 MiB` zoom-15 viewport must mount
-  Detailed with zero live tiles underneath in Default and Gray. Repeat
+  zoom-14 viewport, the approximately `276.34 MiB` Central zoom-15 viewport,
+  and the `347.02 MiB` Jurong zoom-15 viewport must mount Detailed with zero
+  live tiles underneath in Default and Gray. Repeat
   `13 -> 14 -> 15` and reverse transitions, boundary pans, desktop sidebar
   resize/invalidation, and `390x844` mobile checks. A synthetic viewport above
-  `300 MiB` must still return `viewport-memory-limit`. Treat any Detailed/live
+  `384 MiB` must still return `viewport-memory-limit`. Treat any Detailed/live
   oscillation during ordinary pan or resize as a failed experiment, not as
   production-ready evidence.
-- Verification before release (2026-09-06): PASS for the bounded UAT
-  experiment, not a production recommendation. The focused Discover contract
+- Verification before release (2026-09-06): PASS for the bounded local UAT
+  candidate, not a production recommendation. The focused Discover contract
   passed `8/8`, the shared map-lockdown gate passed `99/99`, full client tests
-  passed `741/741`, and both the standard `256 MiB` feature build and the
-  opt-in `300 MiB` feature build completed successfully. Clean local Chrome at
-  `1485x923` reproduced the reported `1020x859` map: Default and Gray zoom `14`
-  each loaded all `72` overview chunks (`288 MiB`) with zero live tiles, and
-  Gray zoom `15` loaded all `20` native chunks (about `277.32 MiB`) with zero
-  live tiles. The Gray `15 -> 14 -> 13 -> 14 -> 15` round trip preserved the
-  tier contract, and horizontal plus vertical 128-pixel pans at zoom `14`
-  stayed Detailed with `72/72` chunks. Sidebar resizing invalidated the map:
-  an `870x859` map retained Detailed at `256 MiB`; widening the map to
-  `1040x859` exceeded `300 MiB` and deterministically restored live OneMap
-  with zero fixed images; restoring `1020x859` restored Detailed `72/72` with
-  zero live tiles. Public mobile Chrome at `390x844` rendered a `390x687` Full
-  map and passed the same forward/reverse zoom contract with zero mixed-layer
-  states, errors, or warnings; body pointer events and overflow remained
-  normal. The authenticated local replay remains the user's UAT step at the
-  supplied localhost URL. No source above the Discover adapter, API, auth,
-  schema, asset, My Map, Shared Map, or embed path changed. This follow-up has
-  not been pushed or deployed.
+  passed `741/741`, and both the ordinary client build and exact opt-in
+  six-root `384 MiB` feature build completed successfully. Clean local Chrome
+  reproduced the reported `1020x859` Jurong map: Default and Gray zoom `15`
+  each loaded all `25` native `W04` chunks (`347.02 MiB`) with zero live tiles.
+  The `15 -> 14 -> 13 -> 14 -> 15` round trip preserved native, overview, and
+  live tiers without mixed layers. Public mobile Chrome at `390x844` rendered
+  the `390x687` Full map and passed the same forward/reverse contract in Gray;
+  body pointer events and overflow returned to normal and the browser recorded
+  zero errors or warnings. Desktop resizing also preserved the memory guard:
+  a `1040x859` map crossed the `384 MiB` boundary and returned live OneMap with
+  zero fixed images, while restoring `1020x859` restored all `25` Detailed
+  chunks with zero live tiles. The authenticated local replay remains the
+  user's UAT step at the supplied localhost URL. No source above the Discover
+  adapter, API, auth, schema, asset, My Map, Shared Map, or embed path changed.
+  This follow-up has not been pushed or deployed.
+- Boundary-entry verification (2026-09-06): PASS locally. Before the patch,
+  the user's authenticated Chrome path reproduced `SG14` Detailed at displayed
+  zoom `14` followed by native `outside-coverage` and `24` live tiles at `15`.
+  After the patch, the same current-location transition reached native `N02`
+  at displayed `15`, loaded all `28` visible chunks (`356.63 MiB`), and kept
+  live tiles at zero throughout the sampled zoom-15 load. The complete
+  `15 -> 14 -> 13 -> 14 -> 15` round trip passed in Default; switching to Gray
+  loaded `28/28` chunks with zero live tiles. Ordinary keyboard panning stayed
+  Detailed inside `N02`, then crossing its boundary returned
+  `outside-coverage`, removed every fixed image, and restored live OneMap,
+  proving that pan fallback was not converted into forced containment. The
+  tab was restored to Default, current location, displayed zoom `15`, native
+  `N02`, `28/28` chunks, and zero live tiles for UAT. Focused Discover tests
+  passed `10/10`, the map-lockdown gate passed `101/101`, full client tests
+  passed `743/743`, the ordinary build passed, the exact six-root feature build
+  with the opt-in `384 MiB` flag passed, and `git diff --check` passed. No push
+  or deployment was performed.
 
 ## 2026-09-06 feature-gated Discover Detailed basemap candidate
 

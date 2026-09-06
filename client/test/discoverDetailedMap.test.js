@@ -6,6 +6,7 @@ import {
     DISCOVER_DETAILED_MAX_DECODED_BYTES,
     DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES,
     isDiscoverDetailedMapFeatureEnabled,
+    resolveDiscoverDetailedContainmentCamera,
     resolveDiscoverDetailedBasemap,
     resolveDiscoverDetailedMaxDecodedBytes,
 } from '../src/features/discover/discoverDetailedMap.js';
@@ -72,10 +73,10 @@ test('Discover Detailed activation requires its own client flag and the establis
     }), true);
 });
 
-test('Discover retains 256 MiB by default and raises only the explicitly feature-gated UAT ceiling to 300 MiB', () => {
+test('Discover retains 256 MiB by default and raises only the explicitly feature-gated UAT ceiling to 384 MiB', () => {
     assert.equal(resolveDiscoverDetailedMaxDecodedBytes({}), 256 * 1024 * 1024);
     assert.equal(resolveDiscoverDetailedMaxDecodedBytes({
-        VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED: 'true',
+        VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED: 'true',
     }), 256 * 1024 * 1024);
     assert.equal(resolveDiscoverDetailedMaxDecodedBytes({
         VITE_DISCOVER_DETAILED_MAP_ENABLED: 'true',
@@ -84,8 +85,8 @@ test('Discover retains 256 MiB by default and raises only the explicitly feature
     assert.equal(resolveDiscoverDetailedMaxDecodedBytes({
         VITE_DISCOVER_DETAILED_MAP_ENABLED: 'true',
         VITE_TOWN_MAP_PROOF_ENABLED: 'true',
-        VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED: 'true',
-    }), 300 * 1024 * 1024);
+        VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED: 'true',
+    }), 384 * 1024 * 1024);
 });
 
 test('Discover uses live at displayed 13, overview at 14, native at 15, and reverses without changing fractional zoom', () => {
@@ -182,38 +183,101 @@ test('Discover enforces the standard 256 MiB decoded-memory ceiling before mount
     assert.equal(decision.renderSurface, false);
 });
 
-test('Discover UAT ceiling admits the observed 288 MiB viewport and still fails closed above 300 MiB', () => {
+test('Discover UAT ceiling admits the observed 347 MiB viewport and still fails closed above 384 MiB', () => {
     const eligible = resolveDiscoverDetailedBasemap({
         enabled: true,
-        zoom: 14,
+        zoom: 15,
         viewportBounds: VIEWPORT,
-        native: readySurface('native'),
-        overview: readySurface('overview', {
-            bytesPerChunk: 4 * 1024 * 1024,
-            chunkCount: 72,
+        native: readySurface('native', {
+            bytesPerChunk: 1 * 1024 * 1024,
+            chunkCount: 347,
         }),
+        overview: readySurface('overview'),
         maxDecodedBytes: DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES,
     });
     const overLimit = resolveDiscoverDetailedBasemap({
         enabled: true,
-        zoom: 14,
+        zoom: 15,
         viewportBounds: VIEWPORT,
-        native: readySurface('native'),
-        overview: readySurface('overview', {
-            bytesPerChunk: 4 * 1024 * 1024,
-            chunkCount: 76,
+        native: readySurface('native', {
+            bytesPerChunk: 1 * 1024 * 1024,
+            chunkCount: 385,
         }),
+        overview: readySurface('overview'),
         maxDecodedBytes: DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES,
     });
 
-    assert.equal(DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES, 300 * 1024 * 1024);
-    assert.equal(eligible.visibleDecodedBytes, 288 * 1024 * 1024);
+    assert.equal(DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES, 384 * 1024 * 1024);
+    assert.equal(eligible.visibleDecodedBytes, 347 * 1024 * 1024);
     assert.equal(eligible.reason, 'surface-ready');
     assert.equal(eligible.renderLiveTiles, false);
     assert.equal(eligible.renderSurface, true);
     assert.equal(overLimit.reason, 'viewport-memory-limit');
     assert.equal(overLimit.renderLiveTiles, true);
     assert.equal(overLimit.renderSurface, false);
+});
+
+test('Discover can contain a zoom-15 entry camera without changing its displayed zoom step', () => {
+    const manifest = {
+        bounds: { surface: [0, 0, 100, 80] },
+        chunks: [{
+            id: 'native-0',
+            bounds: [0, 0, 100, 80],
+            pixelSize: [1024, 1024],
+        }],
+    };
+    const project = ({ lat, lng }, zoom) => {
+        const scale = 2 ** (zoom - 15);
+        return { x: lng * scale, y: (80 - lat) * scale };
+    };
+    const unproject = ({ x, y }, zoom) => {
+        const scale = 2 ** (zoom - 15);
+        return { lat: 80 - (y / scale), lng: x / scale };
+    };
+    const camera = resolveDiscoverDetailedContainmentCamera({
+        center: { lat: 40, lng: 95 },
+        currentZoom: 15,
+        manifest,
+        maximumZoom: 18,
+        project,
+        unproject,
+        viewportSize: { x: 20, y: 20 },
+    });
+
+    assert.ok(camera);
+    assert.equal(camera.zoom, 15);
+    assert.equal(Math.round(camera.zoom), 15);
+    assert.equal(camera.center.lng, 88);
+    assert.deepEqual(camera.viewportBounds, [78, 30, 98, 50]);
+});
+
+test('Discover containment stays fail-closed when no camera fits inside the current displayed zoom step', () => {
+    const manifest = {
+        bounds: { surface: [0, 0, 10, 10] },
+        chunks: [{
+            id: 'native-0',
+            bounds: [0, 0, 10, 10],
+            pixelSize: [1024, 1024],
+        }],
+    };
+    const project = ({ lat, lng }, zoom) => {
+        const scale = 2 ** (zoom - 15);
+        return { x: lng * scale, y: (10 - lat) * scale };
+    };
+    const unproject = ({ x, y }, zoom) => {
+        const scale = 2 ** (zoom - 15);
+        return { lat: 10 - (y / scale), lng: x / scale };
+    };
+
+    assert.equal(resolveDiscoverDetailedContainmentCamera({
+        center: { lat: 5, lng: 5 },
+        currentZoom: 15,
+        manifest,
+        maximumZoom: 18,
+        project,
+        unproject,
+        viewportSize: { x: 30, y: 30 },
+    }), null);
 });
 
 test('Discover integrates a basemap-only adapter without replacing its map or touching My Map and embed loaders', () => {
@@ -224,19 +288,22 @@ test('Discover integrates a basemap-only adapter without replacing its map or to
     assert.doesNotMatch(discoveryMapSource, /<DirectoryMap|from ['"].*DirectoryMap/);
 
     assert.match(detailedBasemapDecisionSource, /VITE_DISCOVER_DETAILED_MAP_ENABLED/);
-    assert.match(detailedBasemapDecisionSource, /VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED/);
+    assert.match(detailedBasemapDecisionSource, /VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED/);
     assert.match(detailedBasemapSource, /VITE_TOWN_MAP_GRAY_ASSET_BASE_URL/);
     assert.match(detailedBasemapSource, /VITE_TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL/);
     assert.match(detailedBasemapSource, /<FixedTownSurfaceLayer/);
     assert.match(detailedBasemapSource, /map\.on\('zoom moveend resize'/);
     assert.match(detailedBasemapSource, /manifestInFlightRef/);
     assert.match(detailedBasemapSource, /manifestCacheRef/);
+    assert.match(detailedBasemapSource, /function DiscoverDetailedZoomContainmentSync/);
+    assert.match(detailedBasemapSource, /map\.on\('zoomend', handleZoomEnd\)/);
+    assert.doesNotMatch(detailedBasemapSource, /map\.on\('moveend', handleZoomEnd\)/);
     assert.match(detailedBasemapSource, /decision\.renderLiveTiles \? liveTiles : null/);
     assert.match(detailedBasemapSource, /lockMinZoom=\{false\}/);
     assert.match(detailedBasemapSource, /fallbackBelowMinZoom=\{false\}/);
 
     assert.doesNotMatch(ownerMapSource, /VITE_DISCOVER_DETAILED_MAP_ENABLED/);
     assert.doesNotMatch(embeddedMapSource, /VITE_DISCOVER_DETAILED_MAP_ENABLED/);
-    assert.doesNotMatch(ownerMapSource, /VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED/);
-    assert.doesNotMatch(embeddedMapSource, /VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED/);
+    assert.doesNotMatch(ownerMapSource, /VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED/);
+    assert.doesNotMatch(embeddedMapSource, /VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED/);
 });

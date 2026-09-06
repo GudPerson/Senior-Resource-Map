@@ -108,11 +108,20 @@ pass; the existing `VITE_TOWN_MAP_PROOF_ENABLED=true` remains required.
 
 The standard Discover Detailed decoded-memory ceiling remains `256 MiB`. For
 the explicitly approved desktop UAT experiment only, add
-`VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED=true` alongside both flags
+`VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED=true` alongside both flags
 above. Omitting that UAT flag retains the `256 MiB` ceiling. The UAT flag is
-Discover-only; it must not change My Map, Shared Map, embed, or the shared
-fixed-surface defaults, and it must not be included in a production build
+Discover-only and reuses the established `384 MiB` extended fixed-surface
+ceiling; it must not change My Map, Shared Map, embed, or the shared
+fixed-surface default, and it must not be included in a production build
 without a separate release approval backed by the Discover ledger gate.
+
+For the Discover Detailed boundary-entry gate, repeat `Locate me`, then zoom
+`13 -> 14 -> 15` and back. A camera whose centre remains inside a native plate
+may be clamped only on the zoom-15 entry or a genuine map resize, only within
+the same displayed whole-number zoom step, and only while the visible chunks
+fit the active memory ceiling. Ordinary panning must not be auto-contained:
+crossing a native surface boundary must still remove all fixed images and
+restore live OneMap. At every Detailed sample, require zero live tiles.
 
 CareAround Pages also contains the file-routed embed Function under
 `client/functions`. The standard `npm run deploy:client` is safe because it

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useMap } from 'react-leaflet';
 
 import FixedTownSurfaceLayer from '../../components/FixedTownSurfaceLayer.jsx';
@@ -19,6 +19,7 @@ import {
     DISCOVER_DETAILED_NATIVE_MIN_ZOOM,
     DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM,
     isDiscoverDetailedMapFeatureEnabled,
+    resolveDiscoverDetailedContainmentCamera,
     resolveDiscoverDetailedBasemap,
     resolveDiscoverDetailedMaxDecodedBytes,
 } from './discoverDetailedMap.js';
@@ -90,6 +91,94 @@ function useDiscoverMapViewport() {
     }, [map]);
 
     return viewport;
+}
+
+function DiscoverDetailedZoomContainmentSync({
+    enabled,
+    manifest,
+    maxDecodedBytes,
+}) {
+    const map = useMap();
+    const manifestRef = useRef(manifest);
+    const pendingContainmentRef = useRef(false);
+    const adjustingRef = useRef(false);
+    const previousDisplayedZoomRef = useRef(Math.round(Number(map.getZoom())));
+
+    useLayoutEffect(() => {
+        manifestRef.current = manifest;
+    }, [manifest]);
+
+    const containCurrentViewport = useCallback(() => {
+        const activeManifest = manifestRef.current;
+        if (!enabled || !activeManifest || adjustingRef.current) return Boolean(activeManifest);
+
+        const currentZoom = Number(map.getZoom());
+        const camera = resolveDiscoverDetailedContainmentCamera({
+            center: map.getCenter(),
+            currentZoom,
+            manifest: activeManifest,
+            maxDecodedBytes,
+            maximumZoom: Number(map.getMaxZoom()),
+            project: (point, zoom) => map.project(point, zoom),
+            unproject: (point, zoom) => map.unproject(point, zoom),
+            viewportSize: map.getSize(),
+        });
+        if (!camera) return true;
+
+        const currentCenter = map.getCenter();
+        const centerChanged = Math.abs(Number(currentCenter.lat) - camera.center.lat) > 1e-9
+            || Math.abs(Number(currentCenter.lng) - camera.center.lng) > 1e-9;
+        const zoomChanged = Math.abs(currentZoom - camera.zoom) > 1e-9;
+        if (!centerChanged && !zoomChanged) return true;
+
+        adjustingRef.current = true;
+        map.setView(camera.center, camera.zoom, { animate: false });
+        window.requestAnimationFrame(() => {
+            adjustingRef.current = false;
+        });
+        return true;
+    }, [enabled, map, maxDecodedBytes]);
+
+    useLayoutEffect(() => {
+        if (!pendingContainmentRef.current || !manifest) return;
+        pendingContainmentRef.current = false;
+        containCurrentViewport();
+    }, [containCurrentViewport, manifest]);
+
+    useEffect(() => {
+        if (!enabled) return undefined;
+
+        let resizeFrame = null;
+        const requestContainment = () => {
+            pendingContainmentRef.current = !containCurrentViewport();
+        };
+        const handleZoomEnd = () => {
+            const displayedZoom = Math.round(Number(map.getZoom()));
+            const crossedIntoNative = previousDisplayedZoomRef.current
+                < DISCOVER_DETAILED_NATIVE_MIN_ZOOM
+                && displayedZoom >= DISCOVER_DETAILED_NATIVE_MIN_ZOOM;
+            previousDisplayedZoomRef.current = displayedZoom;
+            if (crossedIntoNative) requestContainment();
+        };
+        const handleResize = () => {
+            if (Math.round(Number(map.getZoom())) < DISCOVER_DETAILED_NATIVE_MIN_ZOOM) return;
+            if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
+            resizeFrame = window.requestAnimationFrame(() => {
+                resizeFrame = null;
+                requestContainment();
+            });
+        };
+
+        map.on('zoomend', handleZoomEnd);
+        map.on('resize', handleResize);
+        return () => {
+            if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
+            map.off('zoomend', handleZoomEnd);
+            map.off('resize', handleResize);
+        };
+    }, [containCurrentViewport, enabled, map]);
+
+    return null;
 }
 
 function useDiscoverFixedSurface({
@@ -337,6 +426,11 @@ export default function DiscoverDetailedBasemap({
 
     return (
         <>
+            <DiscoverDetailedZoomContainmentSync
+                enabled={DISCOVER_DETAILED_MAP_ENABLED}
+                manifest={native.manifest || null}
+                maxDecodedBytes={DISCOVER_DETAILED_ACTIVE_MAX_DECODED_BYTES}
+            />
             {decision.renderSurface ? (
                 <FixedTownSurfaceLayer
                     key={`discover-detailed:${resolvedMapStyle}:${decision.tier}:${decision.surfaceId}`}

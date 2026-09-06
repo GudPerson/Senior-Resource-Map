@@ -1,6 +1,7 @@
 import {
     FIXED_TOWN_OVERVIEW_MIN_ZOOM,
     FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES,
+    FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES,
     getFixedTownChunksDecodedBytes,
     isFixedTownSurfaceViewportCovered,
     isFixedTownSurfaceZoomEligible,
@@ -12,7 +13,7 @@ import {
 export const DISCOVER_DETAILED_NATIVE_MIN_ZOOM = 15;
 export const DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM = FIXED_TOWN_OVERVIEW_MIN_ZOOM;
 export const DISCOVER_DETAILED_MAX_DECODED_BYTES = FIXED_TOWN_SURFACE_DEFAULT_MAX_DECODED_BYTES;
-export const DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES = 300 * 1024 * 1024;
+export const DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES = FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES;
 
 export function isDiscoverDetailedMapFeatureEnabled(environment = {}) {
     return environment.VITE_DISCOVER_DETAILED_MAP_ENABLED === 'true'
@@ -21,10 +22,148 @@ export function isDiscoverDetailedMapFeatureEnabled(environment = {}) {
 
 export function resolveDiscoverDetailedMaxDecodedBytes(environment = {}) {
     const uatCeilingEnabled = isDiscoverDetailedMapFeatureEnabled(environment)
-        && environment.VITE_DISCOVER_DETAILED_MAP_UAT_300_MIB_ENABLED === 'true';
+        && environment.VITE_DISCOVER_DETAILED_MAP_UAT_384_MIB_ENABLED === 'true';
     return uatCeilingEnabled
         ? DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES
         : DISCOVER_DETAILED_MAX_DECODED_BYTES;
+}
+
+export function resolveDiscoverDetailedContainmentCamera({
+    center,
+    chunks,
+    currentZoom,
+    manifest,
+    maxDecodedBytes = DISCOVER_DETAILED_MAX_DECODED_BYTES,
+    maximumZoom,
+    project,
+    unproject,
+    viewportSize,
+} = {}) {
+    const surfaceBounds = manifest?.bounds?.surface || manifest?.bounds?.nominal;
+    const normalizedCenter = {
+        lat: Number(center?.lat),
+        lng: Number(center?.lng),
+    };
+    const normalizedCurrentZoom = Number(currentZoom);
+    const normalizedMaximumZoom = Number(maximumZoom);
+    const viewportWidth = Number(viewportSize?.x);
+    const viewportHeight = Number(viewportSize?.y);
+    if (
+        !Array.isArray(surfaceBounds)
+        || surfaceBounds.length !== 4
+        || !surfaceBounds.every((value) => Number.isFinite(Number(value)))
+        || !Number.isFinite(normalizedCenter.lat)
+        || !Number.isFinite(normalizedCenter.lng)
+        || !Number.isFinite(normalizedCurrentZoom)
+        || !Number.isFinite(viewportWidth)
+        || viewportWidth <= 0
+        || !Number.isFinite(viewportHeight)
+        || viewportHeight <= 0
+        || typeof project !== 'function'
+        || typeof unproject !== 'function'
+    ) {
+        return null;
+    }
+
+    const [west, south, east, north] = surfaceBounds.map(Number);
+    if (
+        normalizedCenter.lng < west
+        || normalizedCenter.lng > east
+        || normalizedCenter.lat < south
+        || normalizedCenter.lat > north
+    ) {
+        return null;
+    }
+
+    const displayedZoom = resolveFixedTownDisplayZoomStep({ zoom: normalizedCurrentZoom });
+    if (!isFixedTownSurfaceZoomEligible(displayedZoom, DISCOVER_DETAILED_NATIVE_MIN_ZOOM)) {
+        return null;
+    }
+
+    const decodedByteLimit = Number.isFinite(Number(maxDecodedBytes))
+        && Number(maxDecodedBytes) > 0
+        ? Number(maxDecodedBytes)
+        : DISCOVER_DETAILED_MAX_DECODED_BYTES;
+    const resolvedMaximumZoom = Number.isFinite(normalizedMaximumZoom)
+        ? normalizedMaximumZoom
+        : normalizedCurrentZoom;
+    const viewportHalf = {
+        x: viewportWidth / 2,
+        y: viewportHeight / 2,
+    };
+    const zoomStep = 0.1;
+    const inset = 2;
+
+    for (
+        let candidateZoom = normalizedCurrentZoom;
+        candidateZoom <= resolvedMaximumZoom + Number.EPSILON;
+        candidateZoom = Math.round((candidateZoom + zoomStep) * 10) / 10
+    ) {
+        if (resolveFixedTownDisplayZoomStep({ zoom: candidateZoom }) !== displayedZoom) break;
+
+        const surfaceNorthWest = project({ lat: north, lng: west }, candidateZoom);
+        const surfaceSouthEast = project({ lat: south, lng: east }, candidateZoom);
+        const projectedCenter = project(normalizedCenter, candidateZoom);
+        if (
+            ![surfaceNorthWest?.x, surfaceNorthWest?.y, surfaceSouthEast?.x, surfaceSouthEast?.y,
+                projectedCenter?.x, projectedCenter?.y].every((value) => Number.isFinite(Number(value)))
+        ) {
+            continue;
+        }
+
+        const minimumX = Number(surfaceNorthWest.x) + viewportHalf.x + inset;
+        const maximumX = Number(surfaceSouthEast.x) - viewportHalf.x - inset;
+        const minimumY = Number(surfaceNorthWest.y) + viewportHalf.y + inset;
+        const maximumY = Number(surfaceSouthEast.y) - viewportHalf.y - inset;
+        if (minimumX > maximumX || minimumY > maximumY) continue;
+
+        const candidateCenterPoint = {
+            x: Math.min(maximumX, Math.max(minimumX, Number(projectedCenter.x))),
+            y: Math.min(maximumY, Math.max(minimumY, Number(projectedCenter.y))),
+        };
+        const candidateNorthWest = unproject({
+            x: candidateCenterPoint.x - viewportHalf.x,
+            y: candidateCenterPoint.y - viewportHalf.y,
+        }, candidateZoom);
+        const candidateSouthEast = unproject({
+            x: candidateCenterPoint.x + viewportHalf.x,
+            y: candidateCenterPoint.y + viewportHalf.y,
+        }, candidateZoom);
+        const candidateCenter = unproject(candidateCenterPoint, candidateZoom);
+        const candidateBounds = [
+            Number(candidateNorthWest?.lng),
+            Number(candidateSouthEast?.lat),
+            Number(candidateSouthEast?.lng),
+            Number(candidateNorthWest?.lat),
+        ];
+        if (
+            !candidateBounds.every(Number.isFinite)
+            || !Number.isFinite(Number(candidateCenter?.lat))
+            || !Number.isFinite(Number(candidateCenter?.lng))
+            || isFixedTownSurfaceViewportCovered(manifest, candidateBounds) !== true
+        ) {
+            continue;
+        }
+
+        const visibleChunks = selectVisibleFixedTownChunks(chunks || manifest.chunks, candidateBounds);
+        if (
+            visibleChunks.length > 0
+            && getFixedTownChunksDecodedBytes(visibleChunks) <= decodedByteLimit
+        ) {
+            return {
+                center: {
+                    lat: Number(candidateCenter.lat),
+                    lng: Number(candidateCenter.lng),
+                },
+                zoom: candidateZoom,
+                viewportBounds: candidateBounds,
+                visibleChunkCount: visibleChunks.length,
+                visibleDecodedBytes: getFixedTownChunksDecodedBytes(visibleChunks),
+            };
+        }
+    }
+
+    return null;
 }
 
 function liveDecision({ displayedZoom, reason, tier = 'live', pending = false }) {
