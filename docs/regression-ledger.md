@@ -8672,6 +8672,15 @@ Active next recovery family:
 
 ## Recovery workflow
 
+### My Directory map-safe bulk unsave
+
+- **Surface:** authenticated My Directory Saved Resources, My Map membership checks, saved Offering calendar-source behavior, and shared saved-resource state.
+- **Known-good candidate:** `b31615668` on `codex/my-directory-safe-bulk-unsave` (2026-09-06).
+- **Reproduction:** save several Places/Offerings, add at least one saved resource to an owner My Map, then open My Directory > Saved Resources. Switch among `All`, `Used in My Maps`, and `Not used in My Maps`; enter `Select to remove`; select all shown; and review the bulk-removal confirmation without confirming against production data.
+- **Acceptance:** usage badges and filters reflect authoritative owner-map membership; bulk selection cannot include map-used resources; a usage lookup failure disables removal; the API independently skips map-used references immediately before deletion; unused selected resources are unsaved in one operation; Discover and My Directory stay synchronized; individual map-used removal warns that the map entry remains; Offering removal warns that its saved schedule source can be removed from Care Calendar; no resource, map, Offering, or calendar event is deleted.
+- **Automated evidence:** `npm run verify:quality` passed on 2026-09-06, including client `740/740`, server `613/613`, migration validation, a 426-module/1,270-edge no-cycle graph, and the standard production client build. Focused coverage includes bulk-removal selection/filter policy, Saved Assets context reconciliation, My Directory source assertions, and API map-usage/bulk-removal controller behavior. The map-lockdown gate passed `91/91` plus the exact six-root production build, and the Worker dry run passed.
+- **Release gate:** deploy only from clean synchronized `main`, then run non-mutating production checks for the new UI and API authentication before recording a deployed known-good reference.
+
 For each regression family:
 
 1. Reproduce it on the stabilization branch.

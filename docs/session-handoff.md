@@ -11,6 +11,16 @@ Updated: 2026-09-05 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
+## 2026-09-06 My Directory map-safe bulk unsave
+
+- Release candidate: `codex/my-directory-safe-bulk-unsave` at `b31615668` in the isolated worktree `/Users/sweetbuns/CareAroundSG-worktrees/my-directory-safe-bulk-unsave`.
+- Saved Resources now supports `All`, `Used in My Maps`, and `Not used in My Maps` filters plus a dedicated multi-select removal mode.
+- Bulk removal fails closed when map-usage status is unavailable, excludes resources used in any owner My Map in both the client and API, and rechecks usage immediately before deletion. Individual removal remains available after an explicit consequence warning.
+- Removal confirmations now state that an Offering can lose its saved schedule source from Care Calendar. Map-used resources are labelled and protected from bulk removal.
+- New authenticated API routes are `GET /api/favorites/map-usage` and `POST /api/favorites/bulk-remove-unused`; there is no schema or migration change.
+- Automated verification before release: full quality gate passed, including client `740/740`, server `613/613`, static import/cycle checks, migration validation, and the standard client build. The map-lockdown gate passed `91/91` plus the exact six-root production build, and the Worker dry run passed. Production deployment evidence is recorded below when completed.
+- The primary checkout `/Users/sweetbuns/CareAroundSG` was returned to its original branch and its unrelated dirty/untracked work was not staged or altered.
+
 ## Protected workspace state
 
 The primary checkout is intentionally dirty on `codex/offering-filtered-export-parity`. It contains unrelated user/agent work, including the filtered-export feature and local guardrail/tooling files. Do not stage, reset, merge, clean, or release from that checkout.
