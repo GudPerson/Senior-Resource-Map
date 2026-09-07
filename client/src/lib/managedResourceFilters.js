@@ -4,13 +4,27 @@ function toPositiveInteger(value) {
 }
 
 export function normalizeManagedRegionFilter(value, options = []) {
-    if (String(value) === 'all') return 'all';
-    const regionId = toPositiveInteger(value);
-    if (!regionId) return 'all';
-    return options.some((option) => Number(option.value) === regionId) ? String(regionId) : 'all';
+    const normalized = String(value || 'all');
+    return options.some((option) => String(option.value) === normalized) ? normalized : 'all';
 }
 
-export function buildManagedRegionFilterOptions(subregions = []) {
+export function buildManagedRegionFilterOptions(subregions = [], boundaryLayers = null) {
+    const configuredRegions = Array.isArray(boundaryLayers?.regions) ? boundaryLayers.regions : [];
+    if (configuredRegions.length > 0) {
+        const regionOptions = configuredRegions
+            .map((region) => {
+                const id = toPositiveInteger(region?.id);
+                const label = String(region?.name || '').trim();
+                return id && label ? { value: `region:${id}`, label } : null;
+            })
+            .filter(Boolean)
+            .sort((left, right) => left.label.localeCompare(right.label, 'en-SG'));
+        const unmappedOption = boundaryLayers?.unmapped
+            ? [{ value: 'unmapped', label: 'Unmapped postcodes' }]
+            : [];
+        return [{ value: 'all', label: 'All regions' }, ...regionOptions, ...unmappedOption];
+    }
+
     const seen = new Set();
     const options = (Array.isArray(subregions) ? subregions : [])
         .map((subregion) => {
@@ -29,6 +43,39 @@ export function buildManagedRegionFilterOptions(subregions = []) {
         .sort((left, right) => left.label.localeCompare(right.label, 'en-SG'));
 
     return [{ value: 'all', label: 'All regions' }, ...options];
+}
+
+export function buildManagedSubregionFilterOptions(subregions = [], regionFilter = 'all', boundaryLayers = null) {
+    let allowedSubregionIds = null;
+    if (String(regionFilter).startsWith('region:')) {
+        const regionId = toPositiveInteger(String(regionFilter).slice('region:'.length));
+        const region = (Array.isArray(boundaryLayers?.regions) ? boundaryLayers.regions : [])
+            .find((candidate) => Number(candidate?.id) === regionId);
+        allowedSubregionIds = new Set((region?.subregionIds || []).map(toPositiveInteger).filter(Boolean));
+    } else if (String(regionFilter) === 'unmapped') {
+        allowedSubregionIds = new Set();
+    }
+
+    const options = (Array.isArray(subregions) ? subregions : [])
+        .filter((subregion) => !subregion?.systemFallback && !(
+            String(subregion?.subregionCode || '').toUpperCase() === 'SIN'
+            && String(subregion?.name || '').trim().toLowerCase() === 'singapore'
+        ))
+        .filter((subregion) => allowedSubregionIds === null || allowedSubregionIds.has(toPositiveInteger(subregion?.id)))
+        .map((subregion) => {
+            const id = toPositiveInteger(subregion?.id);
+            if (!id) return null;
+            const name = String(subregion?.name || '').trim();
+            const code = String(subregion?.subregionCode || '').trim();
+            const label = name && code && name.toLowerCase() !== code.toLowerCase()
+                ? `${name} (${code})`
+                : (name || code || `Subregion ${id}`);
+            return { value: String(id), label };
+        })
+        .filter(Boolean)
+        .sort((left, right) => left.label.localeCompare(right.label, 'en-SG'));
+
+    return [{ value: 'all', label: 'All subregions' }, ...options];
 }
 
 export function getManagedResourceRegionIds(asset = {}) {
@@ -58,10 +105,43 @@ export function getManagedResourceRegionIds(asset = {}) {
     return [...regionIds];
 }
 
-export function matchesManagedResourceRegion(asset, regionFilter = 'all') {
+export function getManagedResourcePostalCodes(asset = {}) {
+    const postalCodes = new Set();
+    const add = (value) => {
+        const normalized = String(value || '').replace(/\D/g, '');
+        if (/^\d{6}$/.test(normalized)) postalCodes.add(normalized);
+    };
+    const addLocation = (location) => add(location?.postalCode);
+
+    add(asset?.postalCode);
+    addLocation(asset?.location);
+    addLocation(asset?.hostLocation);
+    (Array.isArray(asset?.locations) ? asset.locations : []).forEach(addLocation);
+    (Array.isArray(asset?.groupMemberLocations) ? asset.groupMemberLocations : []).forEach(addLocation);
+    return [...postalCodes];
+}
+
+export function matchesManagedResourceRegion(asset, regionFilter = 'all', boundaryLayers = null) {
     if (String(regionFilter) === 'all') return true;
+    if (String(regionFilter) === 'unmapped') {
+        const unmappedCodes = new Set(boundaryLayers?.unmapped?.postalCodesList || []);
+        return getManagedResourcePostalCodes(asset).some((postalCode) => unmappedCodes.has(postalCode));
+    }
+    if (String(regionFilter).startsWith('region:')) {
+        const regionId = toPositiveInteger(String(regionFilter).slice('region:'.length));
+        const region = (Array.isArray(boundaryLayers?.regions) ? boundaryLayers.regions : [])
+            .find((candidate) => Number(candidate?.id) === regionId);
+        const subregionIds = new Set((region?.subregionIds || []).map(toPositiveInteger).filter(Boolean));
+        return getManagedResourceRegionIds(asset).some((subregionId) => subregionIds.has(subregionId));
+    }
     const regionId = toPositiveInteger(regionFilter);
     return Boolean(regionId) && getManagedResourceRegionIds(asset).includes(regionId);
+}
+
+export function matchesManagedResourceSubregion(asset, subregionFilter = 'all') {
+    if (String(subregionFilter) === 'all') return true;
+    const subregionId = toPositiveInteger(subregionFilter);
+    return Boolean(subregionId) && getManagedResourceRegionIds(asset).includes(subregionId);
 }
 
 export function buildManagedSavedAssetTargets(assets = [], resourceType = '') {

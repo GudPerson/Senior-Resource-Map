@@ -395,6 +395,12 @@ export const api = {
     bulkUploadSubregionBoundaries: (body) => request('POST', '/subregions/boundaries/bulk', body),
     bulkDeleteSubregions: (ids) => request('POST', '/subregions/bulk-delete', { ids }),
     deleteSubregion: (id) => request('DELETE', `/subregions/${id}`),
+    getBoundaryLayers: ({ includeUnmappedPostalCodes = false } = {}) => request(
+        'GET',
+        `/boundary-layers${includeUnmappedPostalCodes ? '?includeUnmappedPostalCodes=true' : ''}`,
+    ),
+    upsertRegionBoundary: (body) => request('POST', '/boundary-layers/regions', body),
+    replaceUnmappedBoundary: (body) => request('POST', '/boundary-layers/unmapped', body),
 
     // Audience zones
     getAudienceZones: () => request('GET', '/audience-zones'),

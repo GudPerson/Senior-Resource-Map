@@ -48,7 +48,9 @@ import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabil
 import {
     buildManagedRegionFilterOptions,
     buildManagedSavedAssetTargets,
+    buildManagedSubregionFilterOptions,
     matchesManagedResourceRegion,
+    matchesManagedResourceSubregion,
     normalizeManagedRegionFilter,
 } from '../../lib/managedResourceFilters.js';
 import { fetchAllPaginatedResults } from '../../lib/paginatedResults.js';
@@ -463,11 +465,20 @@ function getTemplateHostOptions(template, hardAssets, subregions) {
     });
 }
 
-function filterAssetWithQuery(asset, query, boundaryChecksEnabled, boundaryFilter, regionFilter = 'all') {
+function filterAssetWithQuery(
+    asset,
+    query,
+    boundaryChecksEnabled,
+    boundaryFilter,
+    regionFilter = 'all',
+    subregionFilter = 'all',
+    boundaryLayers = null,
+) {
     if (boundaryChecksEnabled && boundaryFilter !== 'all' && getAssetBoundaryStatus(asset) !== boundaryFilter) {
         return false;
     }
-    if (!matchesManagedResourceRegion(asset, regionFilter)) return false;
+    if (!matchesManagedResourceRegion(asset, regionFilter, boundaryLayers)) return false;
+    if (!matchesManagedResourceSubregion(asset, subregionFilter)) return false;
 
     if (!query) return true;
     const groups = parseResourceSearchGroups(query);
@@ -644,6 +655,7 @@ export default function ResourcesPage() {
     const [templateDetails, setTemplateDetails] = useState({});
     const [templateLoadingIds, setTemplateLoadingIds] = useState([]);
     const [subregions, setSubregions] = useState([]);
+    const [boundaryLayers, setBoundaryLayers] = useState({ regions: [], subregions: [], unmapped: null });
     const [subregionPostalLoading, setSubregionPostalLoading] = useState(false);
     const [partnerOptions, setPartnerOptions] = useState([]);
     const [accessUserOptions, setAccessUserOptions] = useState([]);
@@ -671,6 +683,7 @@ export default function ResourcesPage() {
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [boundaryFilter, setBoundaryFilter] = useState('all');
     const [regionFilter, setRegionFilter] = useState('all');
+    const [subregionFilter, setSubregionFilter] = useState('all');
     const [sortOrder, setSortOrder] = useState('default');
     const [expandedTemplateIds, setExpandedTemplateIds] = useState([]);
     const [collapsedHardAssetIds, setCollapsedHardAssetIds] = useState({});
@@ -724,6 +737,7 @@ export default function ResourcesPage() {
         boundaryChecksEnabled,
         boundaryFilter,
         regionFilter,
+        subregionFilter,
     });
     const resourceListParams = buildManagedResourceListParams({
         canManageResourceTools,
@@ -751,7 +765,7 @@ export default function ResourcesPage() {
     const pagedGroupResourceListParams = withResourceListSearchParam(groupResourceListParams, serverResourceSearchQuery);
     const assetLoadKey = useMemo(() => (
         needsFullAssetDataset
-            ? ['full', normalizedQuery, regionFilter, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
+            ? ['full', normalizedQuery, regionFilter, subregionFilter, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
             : ['paged', normalizedQuery, hardAssetsPage, softAssetsPage, groupAssetsPage, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
     ), [
         directAssetAccessKey,
@@ -764,6 +778,7 @@ export default function ResourcesPage() {
         partnerScopedOwnerKey,
         regionFilter,
         softAssetsPage,
+        subregionFilter,
         user?.id,
     ]);
     const inlineActionScrollKey = inlineAction?.id
@@ -978,6 +993,7 @@ export default function ResourcesPage() {
             setSoftAssetParents([]);
             setAudienceZones([]);
             setSubregions([]);
+            setBoundaryLayers({ regions: [], subregions: [], unmapped: null });
             setPartnerOptions([]);
             setAccessUserOptions([]);
             return;
@@ -991,7 +1007,8 @@ export default function ResourcesPage() {
             api.getSubregions({ includePostalCodes: false }).catch(() => []),
             api.getSoftAssetParents().catch(() => []),
             api.getAudienceZones().catch(() => []),
-        ]).then(([fetchedSubregions, fetchedTemplates, fetchedAudienceZones]) => {
+            api.getBoundaryLayers({ includeUnmappedPostalCodes: normalizedRole === 'super_admin' }).catch(() => ({ regions: [], subregions: [], unmapped: null })),
+        ]).then(([fetchedSubregions, fetchedTemplates, fetchedAudienceZones, fetchedBoundaryLayers]) => {
             if (requestId !== metadataRequestIdRef.current) return;
             setSubregions((currentSubregions) => (
                 hasLoadedSubregionPostalCoverage(currentSubregions)
@@ -1000,6 +1017,11 @@ export default function ResourcesPage() {
             ));
             setSoftAssetParents(Array.isArray(fetchedTemplates) ? fetchedTemplates : []);
             setAudienceZones(Array.isArray(fetchedAudienceZones) ? fetchedAudienceZones : []);
+            setBoundaryLayers({
+                regions: Array.isArray(fetchedBoundaryLayers?.regions) ? fetchedBoundaryLayers.regions : [],
+                subregions: Array.isArray(fetchedBoundaryLayers?.subregions) ? fetchedBoundaryLayers.subregions : [],
+                unmapped: fetchedBoundaryLayers?.unmapped || null,
+            });
             setResourceLoadErrors((prev) => ({ ...prev, templates: null }));
         }).catch((err) => {
             if (requestId !== metadataRequestIdRef.current) return;
@@ -1094,7 +1116,7 @@ export default function ResourcesPage() {
         setHardAssetsPage(1);
         setSoftAssetsPage(1);
         setGroupAssetsPage(1);
-    }, [boundaryFilter, normalizedQuery, regionFilter]);
+    }, [boundaryFilter, normalizedQuery, regionFilter, subregionFilter]);
 
     useEffect(() => {
         if (!canManageResourceTools && (activeTab === 'templates' || activeTab === 'groups')) {
@@ -1125,10 +1147,10 @@ export default function ResourcesPage() {
 
     const filteredHardAssets = useMemo(
         () => sortResourceItems(
-            hardAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)),
+            hardAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter, subregionFilter, boundaryLayers)),
             sortOrder
         ),
-        [boundaryChecksEnabled, boundaryFilter, hardAssets, normalizedQuery, regionFilter, sortOrder]
+        [boundaryChecksEnabled, boundaryFilter, boundaryLayers, hardAssets, normalizedQuery, regionFilter, sortOrder, subregionFilter]
     );
 
     const offeringSoftAssets = useMemo(
@@ -1142,23 +1164,28 @@ export default function ResourcesPage() {
 
     const filteredSoftAssets = useMemo(
         () => sortResourceItems(
-            offeringSoftAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)),
+            offeringSoftAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter, subregionFilter, boundaryLayers)),
             sortOrder
         ),
-        [boundaryChecksEnabled, boundaryFilter, normalizedQuery, offeringSoftAssets, regionFilter, sortOrder]
+        [boundaryChecksEnabled, boundaryFilter, boundaryLayers, normalizedQuery, offeringSoftAssets, regionFilter, sortOrder, subregionFilter]
     );
 
     const filteredGroupAssets = useMemo(
         () => sortResourceItems(
-            groupSoftAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)),
+            groupSoftAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter, subregionFilter, boundaryLayers)),
             sortOrder
         ),
-        [boundaryChecksEnabled, boundaryFilter, groupSoftAssets, normalizedQuery, regionFilter, sortOrder]
+        [boundaryChecksEnabled, boundaryFilter, boundaryLayers, groupSoftAssets, normalizedQuery, regionFilter, sortOrder, subregionFilter]
     );
 
     const managedRegionFilterOptions = useMemo(
-        () => buildManagedRegionFilterOptions(subregions),
-        [subregions],
+        () => buildManagedRegionFilterOptions(subregions, boundaryLayers),
+        [boundaryLayers, subregions],
+    );
+
+    const managedSubregionFilterOptions = useMemo(
+        () => buildManagedSubregionFilterOptions(subregions, regionFilter, boundaryLayers),
+        [boundaryLayers, regionFilter, subregions],
     );
 
     useEffect(() => {
@@ -1166,6 +1193,14 @@ export default function ResourcesPage() {
         const nextValue = normalizeManagedRegionFilter(regionFilter, managedRegionFilterOptions);
         if (nextValue !== regionFilter) setRegionFilter(nextValue);
     }, [activeTab, managedRegionFilterOptions, regionFilter]);
+
+    useEffect(() => {
+        if (activeTab === 'templates') return;
+        const nextValue = managedSubregionFilterOptions.some((option) => option.value === subregionFilter)
+            ? subregionFilter
+            : 'all';
+        if (nextValue !== subregionFilter) setSubregionFilter(nextValue);
+    }, [activeTab, managedSubregionFilterOptions, subregionFilter]);
 
     const activeManagedAreaFilterOptions = useMemo(() => {
         if (!boundaryChecksEnabled || activeTab === 'templates') return [];
@@ -1343,7 +1378,7 @@ export default function ResourcesPage() {
         if (hardUsesClientOnlyFilter) return filteredHardAssets;
         const allHardAssets = await fetchAllPaginatedResults(api.getHardAssets, resourceListParams);
         return sortResourceItems(
-            scopeHardAssetsForCurrentUser(allHardAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)),
+            scopeHardAssetsForCurrentUser(allHardAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter, subregionFilter, boundaryLayers)),
             sortOrder,
         );
     }
@@ -1355,7 +1390,7 @@ export default function ResourcesPage() {
             serverResourceSearchQuery,
         ));
         return sortResourceItems(
-            scopeSoftAssetsForCurrentUser(allSoftAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)),
+            scopeSoftAssetsForCurrentUser(allSoftAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter, subregionFilter, boundaryLayers)),
             sortOrder,
         );
     }
@@ -1366,7 +1401,7 @@ export default function ResourcesPage() {
             const allHardAssets = await fetchAllPaginatedResults(api.getHardAssets, fullHardResourceListParams);
             return sortResourceItems(
                 scopeHardAssetsForCurrentUser(allHardAssets).filter((asset) => (
-                    filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)
+                    filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter, subregionFilter, boundaryLayers)
                 )),
                 sortOrder,
             );
@@ -1377,7 +1412,7 @@ export default function ResourcesPage() {
             const allSoftAssets = await fetchAllPaginatedResults(api.getSoftAssets, fullSoftResourceListParams);
             return sortResourceItems(
                 scopeSoftAssetsForCurrentUser(allSoftAssets).filter((asset) => (
-                    filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)
+                    filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter, subregionFilter, boundaryLayers)
                 )),
                 sortOrder,
             );
@@ -1388,7 +1423,7 @@ export default function ResourcesPage() {
             const allGroupAssets = await fetchAllPaginatedResults(api.getSoftAssets, fullGroupResourceListParams);
             return sortResourceItems(
                 scopeGroupAssetsForCurrentUser(allGroupAssets).filter((asset) => (
-                    filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)
+                    filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter, subregionFilter, boundaryLayers)
                 )),
                 sortOrder,
             );
@@ -1920,6 +1955,7 @@ export default function ResourcesPage() {
             }
 
             const selectedRegion = managedRegionFilterOptions.find((option) => option.value === regionFilter);
+            const selectedSubregion = managedSubregionFilterOptions.find((option) => option.value === subregionFilter);
             setBulkActionDialog({
                 action,
                 resourceType,
@@ -1928,6 +1964,7 @@ export default function ResourcesPage() {
                 skippedForPermission,
                 filterDetails: [
                     regionFilter !== 'all' ? `Region: ${selectedRegion?.label || regionFilter}` : null,
+                    subregionFilter !== 'all' ? `Subregion: ${selectedSubregion?.label || subregionFilter}` : null,
                     normalizedQuery ? `Search: ${searchTerm.trim() || normalizedQuery}` : null,
                     boundaryFilter !== 'all' ? `Managed-area status: ${boundaryFilter}` : null,
                 ].filter(Boolean),
@@ -2457,6 +2494,19 @@ export default function ResourcesPage() {
                             aria-label="Filter resources by Region"
                         >
                             {managedRegionFilterOptions.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    ) : null}
+                    {activeTab !== 'templates' && boundaryLayers.regions.length > 0 ? (
+                        <select
+                            value={subregionFilter}
+                            onChange={(e) => setSubregionFilter(e.target.value)}
+                            className="input-field xl:w-60"
+                            aria-label="Filter resources by Subregion"
+                            disabled={regionFilter === 'unmapped'}
+                        >
+                            {managedSubregionFilterOptions.map((option) => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
                             ))}
                         </select>

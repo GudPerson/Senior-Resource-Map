@@ -19,7 +19,7 @@ export async function createNeonPostgresFixture(t) {
     });
     if (rehearsal) {
         await rehearsal.applyFeatureUpgrade();
-        t.diagnostic?.('Actual controller SQL uses the captured Neon schema plus the four exact feature migrations.');
+        t.diagnostic?.('Actual controller SQL uses the captured Neon schema plus the five exact ordered feature migrations.');
     } else {
         const journal = JSON.parse(await readFile(new URL('../../drizzle/meta/_journal.json', import.meta.url), 'utf8'));
         for (const { tag } of journal.entries) await pg.exec(await readFile(new URL(`../../drizzle/${tag}.sql`, import.meta.url), 'utf8'));

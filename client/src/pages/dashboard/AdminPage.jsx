@@ -18,6 +18,11 @@ import GovernanceOrganizationsPanel from '../../components/admin/GovernanceOrgan
 import GovernanceGroupsPanel from '../../components/admin/GovernanceGroupsPanel.jsx';
 import AuditTrailPanel from '../../components/admin/AuditTrailPanel.jsx';
 import { useConfirmDialog } from '../../components/ConfirmDialog.jsx';
+import {
+    buildBoundaryLayerImportPlan,
+    buildSubregionBoundaryRows,
+    serializePostalCodeRanges,
+} from '../../lib/boundaryLayerImport.js';
 
 const ASSET_WORKBOOKS = [
     {
@@ -621,6 +626,9 @@ export default function AdminPage() {
     const [users, setUsers] = useState([]);
     const [subCategories, setSubCategories] = useState([]);
     const [subregions, setSubregions] = useState([]);
+    const [boundaryLayers, setBoundaryLayers] = useState({ regions: [], subregions: [], unmapped: null });
+    const [boundaryLayerImporting, setBoundaryLayerImporting] = useState(false);
+    const [boundaryLayerProgress, setBoundaryLayerProgress] = useState('');
     const [audienceZones, setAudienceZones] = useState([]);
     const [selectedResources, setSelectedResources] = useState([]);
     const [selectedUsers, setSelectedUsers] = useState([]);
@@ -825,6 +833,23 @@ export default function AdminPage() {
         }
     }
 
+    async function loadBoundaryLayers() {
+        try {
+            const layers = await api.getBoundaryLayers();
+            setBoundaryLayers({
+                regions: Array.isArray(layers?.regions) ? layers.regions : [],
+                subregions: Array.isArray(layers?.subregions) ? layers.subregions : [],
+                unmapped: layers?.unmapped || null,
+            });
+        } catch (err) {
+            console.warn('Boundary layers failed to load:', err);
+            setSubregionFeedback({
+                type: 'error',
+                message: err.message || 'Boundary layers failed to load.',
+            });
+        }
+    }
+
     useEffect(() => { loadAll(); }, [currentRole]);
 
     useEffect(() => { loadAdminResources(); }, [currentRole]);
@@ -832,6 +857,7 @@ export default function AdminPage() {
     useEffect(() => {
         if (tab === 'subregions') {
             loadFullSubregions();
+            loadBoundaryLayers();
         }
     }, [tab, subregionDetailsLoaded]);
 
@@ -2098,6 +2124,105 @@ export default function AdminPage() {
             });
     }
 
+    async function handleBoundaryLayerWorkbookUpload(e) {
+        const file = e.target.files[0];
+        if (!file || !canManageSubregionMetadata) return;
+
+        setBoundaryLayerImporting(true);
+        setBoundaryLayerProgress('Checking workbook…');
+        try {
+            const rows = await parseTabularUploadRows(file);
+            const plan = buildBoundaryLayerImportPlan(rows, subregions);
+            if (plan.errorCount > 0) {
+                const hiddenErrorCount = Math.max(0, plan.errorCount - plan.errors.length);
+                showAdminNotice(
+                    'error',
+                    `Nothing was changed. Fix ${plan.errorCount} mapping error${plan.errorCount === 1 ? '' : 's'} and upload the workbook again.`,
+                    [
+                        ...plan.errors,
+                        hiddenErrorCount > 0 ? `…and ${hiddenErrorCount} more error(s).` : null,
+                    ],
+                );
+                return;
+            }
+
+            const { summary } = plan;
+            const confirmed = await requestConfirmation({
+                title: 'Replace all three boundary layers?',
+                message: [
+                    `${summary.regionCount} Regions · ${summary.subregionCount} Subregions · ${summary.unmappedPostalCodes} Unmapped postcodes`,
+                    `${summary.uniquePostalCodes} unique postcodes were validated. Existing boundaries for the listed Regions and Subregions will be replaced.`,
+                    'The Singapore fallback remains separate and account/resource routing will continue to use only the Subregion layer.',
+                ],
+                confirmLabel: 'Replace layers',
+                loadingLabel: 'Preparing…',
+                tone: 'warning',
+            });
+            if (!confirmed) return;
+
+            let completed = 0;
+            const totalSteps = plan.regions.length + plan.subregions.length + (plan.unmapped.postalCodes.length > 0 ? 1 : 0);
+            const updateProgress = (label) => {
+                setBoundaryLayerProgress(`${label} · ${completed}/${totalSteps}`);
+            };
+
+            for (const region of plan.regions) {
+                updateProgress(`Replacing Region: ${region.name}`);
+                await api.upsertRegionBoundary({
+                    name: region.name,
+                    postalCodes: serializePostalCodeRanges(region.postalCodes),
+                    subregionIds: region.subregionIds,
+                    mode: 'replace',
+                });
+                completed += 1;
+            }
+
+            if (plan.unmapped.postalCodes.length > 0) {
+                updateProgress('Replacing Unmapped layer');
+                await api.replaceUnmappedBoundary({
+                    postalCodes: serializePostalCodeRanges(plan.unmapped.postalCodes),
+                    mode: 'replace',
+                });
+                completed += 1;
+            }
+
+            for (const subregion of plan.subregions) {
+                updateProgress(`Replacing Subregion: ${subregion.name}`);
+                const result = await api.bulkUploadSubregionBoundaries({
+                    rows: buildSubregionBoundaryRows(subregion),
+                    mode: 'replace',
+                    finalize: true,
+                });
+                if (result?.failed > 0) {
+                    throw new Error(result.errors?.[0] || `${subregion.name} could not be replaced.`);
+                }
+                completed += 1;
+            }
+
+            setBoundaryLayerProgress('Refreshing boundary layers…');
+            await Promise.all([loadBoundaryLayers(), loadAll()]);
+            setSubregionFeedback({
+                type: 'success',
+                message: `Boundary workbook loaded: ${summary.regionCount} Regions, ${summary.subregionCount} Subregions, and ${summary.unmappedPostalCodes} Unmapped postcodes.`,
+            });
+            showAdminNotice('success', 'All three boundary layers were replaced successfully.', [
+                `${summary.mappedPostalCodes} mapped postcodes`,
+                `${summary.unmappedPostalCodes} unmapped postcodes`,
+                summary.duplicateRows > 0 ? `${summary.duplicateRows} duplicate source row(s) ignored` : null,
+            ]);
+        } catch (err) {
+            setSubregionFeedback({
+                type: 'error',
+                message: `Boundary layer import stopped: ${err.message}. Completed layers are safe to replace again with the same workbook.`,
+            });
+            showAdminError('Boundary layer import stopped', err);
+        } finally {
+            setBoundaryLayerImporting(false);
+            setBoundaryLayerProgress('');
+            e.target.value = null;
+        }
+    }
+
     function promptBulkDeleteSubregions() {
         if (!canManageSubregionMetadata) return;
         if (selectedSubregions.length === 0) return;
@@ -2815,6 +2940,97 @@ export default function AdminPage() {
             ) : tab === 'subregions' ? (
                 /* ======== Regions Table ======== */
                 <div className="space-y-6">
+                    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" data-testid="boundary-layer-manager">
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                            <div>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                                        <Database size={21} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-slate-900">Boundary Layers</h2>
+                                        <p className="text-sm text-slate-500">Regions, Subregions, and Unmapped postcodes are stored separately.</p>
+                                    </div>
+                                </div>
+                                <p className="mt-3 max-w-3xl text-xs leading-5 text-slate-500">
+                                    Region and Subregion postcodes can overlap safely because account and resource routing continues to use only Subregions. The Unmapped layer records postcodes that need review without assigning them to a service area.
+                                </p>
+                            </div>
+                            {canManageSubregionMetadata ? (
+                                <div className="min-w-0 xl:w-80">
+                                    <label className={`btn-primary flex min-h-[44px] items-center justify-center gap-2 ${boundaryLayerImporting ? 'cursor-wait opacity-60' : 'cursor-pointer'}`}>
+                                        <input
+                                            type="file"
+                                            accept={SPREADSHEET_UPLOAD_ACCEPT}
+                                            className="hidden"
+                                            onChange={handleBoundaryLayerWorkbookUpload}
+                                            disabled={boundaryLayerImporting}
+                                        />
+                                        <Upload size={16} />
+                                        {boundaryLayerImporting ? 'Loading boundary layers…' : 'Load mapping workbook'}
+                                    </label>
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        Excel or CSV columns: <code className="rounded bg-slate-100 px-1">POSTAL CODE</code>, <code className="rounded bg-slate-100 px-1">REGION</code>, and <code className="rounded bg-slate-100 px-1">SUBREGION</code>.
+                                    </p>
+                                    {boundaryLayerProgress ? (
+                                        <p className="mt-2 text-xs font-semibold text-brand-700" aria-live="polite">{boundaryLayerProgress}</p>
+                                    ) : null}
+                                </div>
+                            ) : null}
+                        </div>
+
+                        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+                            <div className="rounded-xl border border-sky-200 bg-sky-50 p-4" data-boundary-layer="regions">
+                                <div className="text-xs font-bold uppercase tracking-widest text-sky-700">Regions</div>
+                                <div className="mt-1 text-2xl font-bold text-slate-900">{boundaryLayers.regions.length}</div>
+                                <p className="mt-1 text-xs text-slate-600">
+                                    {boundaryLayers.regions.reduce((sum, region) => sum + Number(region.postalCodeCount || 0), 0).toLocaleString()} mapped postcodes
+                                </p>
+                            </div>
+                            <div className="rounded-xl border border-brand-200 bg-brand-50 p-4" data-boundary-layer="subregions">
+                                <div className="text-xs font-bold uppercase tracking-widest text-brand-700">Subregions</div>
+                                <div className="mt-1 text-2xl font-bold text-slate-900">
+                                    {boundaryLayers.subregions.filter((subregion) => !subregion.systemFallback).length}
+                                </div>
+                                <p className="mt-1 text-xs text-slate-600">Operational routing layer</p>
+                            </div>
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4" data-boundary-layer="unmapped">
+                                <div className="text-xs font-bold uppercase tracking-widest text-amber-700">Unmapped</div>
+                                <div className="mt-1 text-2xl font-bold text-slate-900">
+                                    {Number(boundaryLayers.unmapped?.postalCodeCount || 0).toLocaleString()}
+                                </div>
+                                <p className="mt-1 text-xs text-slate-600">Postcodes awaiting classification</p>
+                            </div>
+                        </div>
+
+                        {boundaryLayers.regions.length > 0 ? (
+                            <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200">
+                                <table className="w-full min-w-[680px] text-left">
+                                    <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+                                        <tr>
+                                            <th className="px-4 py-3">Region</th>
+                                            <th className="px-4 py-3">Subregions</th>
+                                            <th className="px-4 py-3 text-right">Postcodes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {boundaryLayers.regions.map((region) => (
+                                            <tr key={region.id}>
+                                                <td className="px-4 py-3 text-sm font-semibold text-slate-900">{region.name}</td>
+                                                <td className="px-4 py-3 text-sm text-slate-600">
+                                                    {region.subregionIds?.length || 0}
+                                                </td>
+                                                <td className="px-4 py-3 text-right text-sm font-semibold text-slate-700">
+                                                    {Number(region.postalCodeCount || 0).toLocaleString()}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : null}
+                    </section>
+
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4">
                         {canManageSubregionMetadata ? (
                             <form onSubmit={handleAddSubregion} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 min-w-0">
@@ -2823,14 +3039,14 @@ export default function AdminPage() {
                                         <MapPin size={22} />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-bold text-slate-900">Region Management</h2>
-                                        <p className="text-sm text-slate-500">Define boundaries and regional clusters</p>
+                                        <h2 className="text-xl font-bold text-slate-900">Subregion Management</h2>
+                                        <p className="text-sm text-slate-500">Maintain operational routing boundaries</p>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Region Name</label>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Subregion Name</label>
                                         <input
                                             required
                                             placeholder="e.g. Jurong West"
@@ -2840,14 +3056,14 @@ export default function AdminPage() {
                                         />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Region ID</label>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Subregion ID</label>
                                         <input
                                             required
                                             placeholder="e.g. SR-JW"
                                             value={newSubregion.subregionCode}
                                             onChange={e => setNewSubregion({ ...newSubregion, subregionCode: e.target.value })}
                                             className="input-field"
-                                            title="Unique region identifier"
+                                            title="Unique Subregion identifier"
                                         />
                                     </div>
                                     <div className="space-y-1.5">
@@ -2870,7 +3086,7 @@ export default function AdminPage() {
                                         className="input-field w-full min-h-[100px] font-mono text-sm leading-relaxed"
                                     />
                                     <p className="mt-2 text-xs text-slate-500 italic">
-                                        Postal-code-to-region routing will automatically assign users and assets based on these sets.
+                                        Postal-code-to-Subregion routing will automatically assign users and assets based on these sets.
                                     </p>
                                 </div>
 
@@ -2892,12 +3108,12 @@ export default function AdminPage() {
                             </form>
                         ) : (
                             <div className="flex-1 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                                <h2 className="text-lg font-bold text-slate-900">Region Boundaries</h2>
+                                <h2 className="text-lg font-bold text-slate-900">Subregion Boundaries</h2>
                                 <p className="mt-2 text-sm text-slate-600">
-                                    You can upload and export boundary postal codes for regions inside your assigned scope.
+                                    You can upload and export boundary postal codes for Subregions inside your assigned scope.
                                 </p>
                                 <p className="mt-2 text-xs text-slate-500">
-                                    Region names, codes, and deletion remain restricted to Super Admin.
+                                    Subregion names, codes, and deletion remain restricted to Super Admin.
                                 </p>
                             </div>
                         )}
@@ -2909,7 +3125,7 @@ export default function AdminPage() {
                                         <label className="btn-secondary cursor-pointer flex items-center justify-center gap-2 text-sm">
                                             <input type="file" accept={SPREADSHEET_UPLOAD_ACCEPT} className="hidden" onChange={handleBulkSubregionUpload} />
                                             <Upload size={16} />
-                                            Upload Regions
+                                            Upload Subregions
                                         </label>
                                         <button onClick={handleDownloadSubregionTemplate} className="btn-ghost flex items-center justify-center gap-2 text-sm" type="button">
                                             <Download size={16} />
@@ -3001,7 +3217,7 @@ export default function AdminPage() {
                                 <input
                                     value={subregionSearch}
                                     onChange={(e) => setSubregionSearch(e.target.value)}
-                                    placeholder="Search regions by name, ID, description, or postal code"
+                                    placeholder="Search Subregions by name, ID, description, or postal code"
                                     className="input-field w-full pl-10"
                                 />
                             </div>
@@ -3017,7 +3233,7 @@ export default function AdminPage() {
                         </div>
                         <div className="mt-2 flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
                             <p>Assigned Admins are derived from Admin Region Scope and do not grant resource editing.</p>
-                            <p>{filteredSubregions.length} matching region{filteredSubregions.length === 1 ? '' : 's'}</p>
+                            <p>{filteredSubregions.length} matching Subregion{filteredSubregions.length === 1 ? '' : 's'}</p>
                         </div>
                     </div>
 
@@ -3036,7 +3252,7 @@ export default function AdminPage() {
                                     </th>
                                     <th className="px-4 py-3 font-semibold w-16">ID</th>
                                     <th className="px-4 py-3 font-semibold">Name</th>
-                                    <th className="px-4 py-3 font-semibold w-24">Region ID</th>
+                                    <th className="px-4 py-3 font-semibold w-24">Subregion ID</th>
                                     <th className="px-4 py-3 font-semibold">Description</th>
                                     <th className="px-4 py-3 font-semibold">Boundary Postal Codes</th>
                                     <th className="px-4 py-3 font-semibold">Assigned Admins</th>

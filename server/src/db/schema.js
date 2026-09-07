@@ -3,6 +3,27 @@ import { relations, sql } from 'drizzle-orm';
 
 export const roleEnum = pgEnum('role', ['super_admin', 'regional_admin', 'partner', 'standard', 'guest']);
 
+export const regions = pgTable('regions', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 160 }).notNull().unique(),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const regionPostalCodes = pgTable('region_postal_codes', {
+  regionId: integer('region_id').references(() => regions.id, { onDelete: 'cascade' }).notNull(),
+  postalCode: varchar('postal_code', { length: 20 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.regionId, table.postalCode] }),
+  postalCodeUnique: uniqueIndex('region_postal_codes_postal_code_unique').on(table.postalCode),
+}));
+
+export const unmappedPostalCodes = pgTable('unmapped_postal_codes', {
+  postalCode: varchar('postal_code', { length: 20 }).primaryKey(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const subregions = pgTable('subregions', {
   id: serial('id').primaryKey(),
   subregionCode: varchar('subregion_code', { length: 80 }).unique(),
@@ -11,6 +32,15 @@ export const subregions = pgTable('subregions', {
   postalPatterns: text('postal_patterns').notNull().default(''),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+export const regionSubregions = pgTable('region_subregions', {
+  regionId: integer('region_id').references(() => regions.id, { onDelete: 'cascade' }).notNull(),
+  subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.regionId, table.subregionId] }),
+  subregionUnique: uniqueIndex('region_subregions_subregion_unique').on(table.subregionId),
+}));
 
 export const subregionPostalCodes = pgTable('subregion_postal_codes', {
   subregionId: integer('subregion_id').references(() => subregions.id, { onDelete: 'cascade' }).notNull(),
@@ -1125,7 +1155,31 @@ export const userSubregionsRelations = relations(userSubregions, ({ one }) => ({
   }),
 }));
 
+export const regionsRelations = relations(regions, ({ many }) => ({
+  postalCodes: many(regionPostalCodes),
+  subregions: many(regionSubregions),
+}));
+
+export const regionPostalCodesRelations = relations(regionPostalCodes, ({ one }) => ({
+  region: one(regions, {
+    fields: [regionPostalCodes.regionId],
+    references: [regions.id],
+  }),
+}));
+
+export const regionSubregionsRelations = relations(regionSubregions, ({ one }) => ({
+  region: one(regions, {
+    fields: [regionSubregions.regionId],
+    references: [regions.id],
+  }),
+  subregion: one(subregions, {
+    fields: [regionSubregions.subregionId],
+    references: [subregions.id],
+  }),
+}));
+
 export const subregionsRelations = relations(subregions, ({ many }) => ({
+  regions: many(regionSubregions),
   users: many(userSubregions),
   postalCodes: many(subregionPostalCodes),
 }));

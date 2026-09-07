@@ -28,14 +28,19 @@ export async function buildNeonFeatureAdoption({ target, failAfter } = {}) {
     assert.equal(sha256(raw), evidenceHash, 'Captured baseline bytes changed');
     const evidence = JSON.parse(raw);
     const manifest = JSON.parse(await readFile(new URL('../drizzle/migration-manifest.json', import.meta.url), 'utf8'));
-    assert.deepEqual(manifest.migrations.slice(3).map(m => m.id), Object.keys(migrationHashes), 'Migration sequence changed');
+    const approvedMigrationIds = Object.keys(migrationHashes);
+    assert.deepEqual(
+        manifest.migrations.slice(3, 3 + approvedMigrationIds.length).map(m => m.id),
+        approvedMigrationIds,
+        'Approved migration sequence changed',
+    );
     const migrations = await Promise.all(manifest.migrations.map(async m => {
         const sql = await readFile(new URL('../' + m.file, import.meta.url), 'utf8');
         assert.equal(sha256(sql), m.sha256, 'Manifest hash mismatch');
         if (migrationHashes[m.id]) assert.equal(sha256(sql), migrationHashes[m.id], 'Approved migration changed');
         return { ...m, sql };
     }));
-    const features = migrations.slice(3);
+    const features = migrations.filter(migration => approvedMigrationIds.includes(migration.id));
     const featureNames = features.flatMap(m => [...m.sql.matchAll(/CREATE TABLE IF NOT EXISTS "([^"]+)"/g)].map(m => m[1])).sort();
     assert.equal(featureNames.length, 10);
     const query = evidence.normalizedQuery.trim().replace(/;$/, '');

@@ -7,7 +7,9 @@ import { createProductionSchemaRehearsal } from './fixtures/productionSchemaRehe
 
 test('Neon rehearsal SQL retains target guards and atomically validates its exact migration body', async t => {
     const plan = await buildNeonRehearsalSql();
-    const r = await createProductionSchemaRehearsal(t);
+    const r = await createProductionSchemaRehearsal(t, {
+        featureMigrationIds: ['0003_support_inbox', '0004_guide_history', '0005_notification_updates', '0006_saved_search_alerts'],
+    });
     const { pg } = r;
     const before = await r.capture();
     const database = (await pg.query('SELECT current_database() AS name')).rows[0].name;
