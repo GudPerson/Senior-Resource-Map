@@ -1,0 +1,485 @@
+{
+  "status": "production-released",
+  "sourceRevision": "c1f1c15d74d6930a8ec5cb698a7b270a43d73544",
+  "productionSqlSha256": "170627bf4757b9238505e68fc6c0476c4e6d1dd421c478866adc07bb9d528098",
+  "submittedSqlNormalization": "Exact file content with terminal newline trimmed for CodeMirror; generated canonical hash includes newline.",
+  "appliedAt": "2026-09-07T04:06:14.165399+00:00",
+  "database": {
+    "branch": "br-green-union-ailxs0g3",
+    "name": "neondb",
+    "role": "neondb_owner",
+    "publicTables": 70,
+    "existing60TablesUnchanged": true,
+    "enumsUnchanged": true,
+    "history": [
+      {
+        "id": "0003_support_inbox",
+        "kind": "executed_migration",
+        "sha256": "8f9d98ce7658ea55676c1135d84c8fb9f5ba4861344f7a6a1bb8dab6a26f37e0",
+        "details": {
+          "owner": "CareAround Backend Platform Owner",
+          "target": "production",
+          "approval": "User approved tested adoption record and exact 0003-0006 on 2026-09-07",
+          "branchId": "br-green-union-ailxs0g3",
+          "baseline0000": "not executed; captured legacy definitions retained",
+          "migration0001": "not applied; separate review",
+          "migration0002": "columns observed; historical execution unknown"
+        },
+        "recorded_at": "2026-09-07T04:06:14.165399+00:00",
+        "source_revision": "334559209472e8c0676d8ce023f48d9d09779d28"
+      },
+      {
+        "id": "0004_guide_history",
+        "kind": "executed_migration",
+        "sha256": "4560f722eca19af9190f01399fee7ad321daa0ff439cc9316ebd6d6f143ab75f",
+        "details": {
+          "owner": "CareAround Backend Platform Owner",
+          "target": "production",
+          "approval": "User approved tested adoption record and exact 0003-0006 on 2026-09-07",
+          "branchId": "br-green-union-ailxs0g3",
+          "baseline0000": "not executed; captured legacy definitions retained",
+          "migration0001": "not applied; separate review",
+          "migration0002": "columns observed; historical execution unknown"
+        },
+        "recorded_at": "2026-09-07T04:06:14.165399+00:00",
+        "source_revision": "334559209472e8c0676d8ce023f48d9d09779d28"
+      },
+      {
+        "id": "0005_notification_updates",
+        "kind": "executed_migration",
+        "sha256": "1aac87349b0cba62b75522164f2205c3974f1e6fd2c95a47cad05012a0170a51",
+        "details": {
+          "owner": "CareAround Backend Platform Owner",
+          "target": "production",
+          "approval": "User approved tested adoption record and exact 0003-0006 on 2026-09-07",
+          "branchId": "br-green-union-ailxs0g3",
+          "baseline0000": "not executed; captured legacy definitions retained",
+          "migration0001": "not applied; separate review",
+          "migration0002": "columns observed; historical execution unknown"
+        },
+        "recorded_at": "2026-09-07T04:06:14.165399+00:00",
+        "source_revision": "334559209472e8c0676d8ce023f48d9d09779d28"
+      },
+      {
+        "id": "0006_saved_search_alerts",
+        "kind": "executed_migration",
+        "sha256": "7a94c7be9da426b29c6dc4e128e96af7dafd247d5a905c431458cc5e36ba6de5",
+        "details": {
+          "owner": "CareAround Backend Platform Owner",
+          "target": "production",
+          "approval": "User approved tested adoption record and exact 0003-0006 on 2026-09-07",
+          "branchId": "br-green-union-ailxs0g3",
+          "baseline0000": "not executed; captured legacy definitions retained",
+          "migration0001": "not applied; separate review",
+          "migration0002": "columns observed; historical execution unknown"
+        },
+        "recorded_at": "2026-09-07T04:06:14.165399+00:00",
+        "source_revision": "334559209472e8c0676d8ce023f48d9d09779d28"
+      },
+      {
+        "id": "observed-neon-schema-20260907",
+        "kind": "observed_baseline",
+        "sha256": "d2e9b1fda340fec95750406923bb6c6dea56006c0b783050abef690a737044fd",
+        "details": {
+          "owner": "CareAround Backend Platform Owner",
+          "target": "production",
+          "approval": "User approved tested adoption record and exact 0003-0006 on 2026-09-07",
+          "branchId": "br-green-union-ailxs0g3",
+          "baseline0000": "not executed; captured legacy definitions retained",
+          "migration0001": "not applied; separate review",
+          "migration0002": "columns observed; historical execution unknown"
+        },
+        "recorded_at": "2026-09-07T04:06:14.165399+00:00",
+        "source_revision": "334559209472e8c0676d8ce023f48d9d09779d28"
+      }
+    ]
+  },
+  "backup": {
+    "name": "production at 2026-09-07 04:01:44 UTC (manual)",
+    "summary": "production\n2 minutes ago\n72.51 MB\nExpires on: never\nRestore",
+    "time": "2026-09-07T04:01:45.000Z"
+  },
+  "rollback": "Disable support rollout and restore compatible application; retain additive private tables. Do not automatically drop tables or restore over production.",
+  "quality": {
+    "server": 722,
+    "client": 772,
+    "cleanReleaseCheckoutGate": true,
+    "mapLockdown": true,
+    "workerDryRunKiB": 3316.98,
+    "gzipKiB": 665.89,
+    "fullPasswordSmoke": false,
+    "finalBuild": "VITE_SUPPORT_INBOX_ENABLED=true npm run build:client, clean main c1f1c15d",
+    "finalStatic": "7 ordered migrations; 472 modules; 1396 import edges; no cycles; diff check passed"
+  },
+  "releaseCheckout": "/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-release-20260907",
+  "dependencies": "Release checkout has no tracked changes. Ignored workspace dependency links point to the already-installed, lockfile-matching and fully tested feature-worktree dependencies.",
+  "api": {
+    "deploymentId": "adb0a5a9-a293-4a5c-9b8d-c0acbfb81cbb",
+    "sourceRevision": "c1f1c15d74d6930a8ec5cb698a7b270a43d73544",
+    "sourceClean": true,
+    "health": 200,
+    "release": 200,
+    "guideVersion": "2026-09-07.2",
+    "supportInboxEnabled": true
+  },
+  "client": {
+    "deploymentId": "ffe1e5c6-c214-4576-ac83-0df99494f702",
+    "url": "https://ffe1e5c6.senior-resource-map.pages.dev",
+    "customDomain": "https://app.carearound.sg",
+    "functionsUploaded": true,
+    "routesUploaded": true,
+    "featureEnabled": true,
+    "parity": {
+      "checkedAt": "2026-09-07T04:27:31.468Z",
+      "manifest": {
+        "schemaVersion": 1,
+        "application": "carearound-sg",
+        "target": "client",
+        "sourceRevision": "c1f1c15d74d6930a8ec5cb698a7b270a43d73544",
+        "sourceClean": true,
+        "provenance": "git-build",
+        "htmlSha256": "5e5fb5d796227839951784988138ee729ea30971e60bae8e01279375c1efa10e",
+        "entryAssets": [
+          {
+            "path": "/assets/index-BxcURLhv.js",
+            "sha256": "e1122fd08fcff49ca18df7a80f1243a54491212bd798c1d66dea90a3faee45f4",
+            "bytes": 195134
+          },
+          {
+            "path": "/assets/index-BYHoTYjQ.css",
+            "sha256": "39b89714e517745dfbfbf9b203617211dd8b6455d95da6e8385e711d1aa807b8",
+            "bytes": 151019
+          },
+          {
+            "path": "/app-shell-recovery-20260721-1.js",
+            "sha256": "7ea8a4fcf8370dcf9222ef36ae920fd26edec1fdabc7ffd0ac4b5df1194e6871",
+            "bytes": 5417
+          }
+        ]
+      },
+      "mapRoots": [
+        {
+          "root": "https://maps.carearound.sg/v2/native-scale-20260722/default",
+          "paths": [
+            "/assets/EmbeddedMapPage-1dVRDL4N.js",
+            "/assets/MyMapDetailPage-D3UyoeI_.js",
+            "/assets/StandardAppRoot-DxR5xcf-.js",
+            "/assets/TownMapDownloadsPage-CP7d50Pc.js",
+            "/assets/pwaRegistration-C1FKHQWP.js"
+          ]
+        },
+        {
+          "root": "https://maps.carearound.sg/v2/native-scale-20260722/gray",
+          "paths": [
+            "/assets/MyMapDetailPage-D3UyoeI_.js",
+            "/assets/StandardAppRoot-DxR5xcf-.js",
+            "/assets/TownMapDownloadsPage-CP7d50Pc.js",
+            "/assets/pwaRegistration-C1FKHQWP.js"
+          ]
+        },
+        {
+          "root": "https://maps.carearound.sg/v3/zoom14-atlas-20260730/default",
+          "paths": [
+            "/assets/EmbeddedMapPage-1dVRDL4N.js",
+            "/assets/MyMapDetailPage-D3UyoeI_.js",
+            "/assets/StandardAppRoot-DxR5xcf-.js",
+            "/assets/TownMapDownloadsPage-CP7d50Pc.js",
+            "/assets/pwaRegistration-C1FKHQWP.js"
+          ]
+        },
+        {
+          "root": "https://maps.carearound.sg/v3/zoom14-atlas-20260730/gray",
+          "paths": [
+            "/assets/MyMapDetailPage-D3UyoeI_.js",
+            "/assets/StandardAppRoot-DxR5xcf-.js",
+            "/assets/TownMapDownloadsPage-CP7d50Pc.js",
+            "/assets/pwaRegistration-C1FKHQWP.js"
+          ]
+        },
+        {
+          "root": "https://maps.carearound.sg/v2/print-master-100-20260723/default",
+          "paths": [
+            "/assets/TownMapDownloadsPage-CP7d50Pc.js",
+            "/assets/pwaRegistration-C1FKHQWP.js"
+          ]
+        },
+        {
+          "root": "https://maps.carearound.sg/v2/print-master-100-20260723/gray",
+          "paths": [
+            "/assets/TownMapDownloadsPage-CP7d50Pc.js",
+            "/assets/pwaRegistration-C1FKHQWP.js"
+          ]
+        },
+        {
+          "root": "https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/default",
+          "paths": [
+            "/assets/StandardAppRoot-DxR5xcf-.js",
+            "/assets/TownMapDownloadsPage-CP7d50Pc.js",
+            "/assets/pwaRegistration-C1FKHQWP.js"
+          ]
+        },
+        {
+          "root": "https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/native/gray",
+          "paths": [
+            "/assets/StandardAppRoot-DxR5xcf-.js",
+            "/assets/TownMapDownloadsPage-CP7d50Pc.js",
+            "/assets/pwaRegistration-C1FKHQWP.js"
+          ]
+        },
+        {
+          "root": "https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/default",
+          "paths": [
+            "/assets/StandardAppRoot-DxR5xcf-.js",
+            "/assets/TownMapDownloadsPage-CP7d50Pc.js",
+            "/assets/pwaRegistration-C1FKHQWP.js"
+          ]
+        },
+        {
+          "root": "https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/gray",
+          "paths": [
+            "/assets/StandardAppRoot-DxR5xcf-.js",
+            "/assets/TownMapDownloadsPage-CP7d50Pc.js",
+            "/assets/pwaRegistration-C1FKHQWP.js"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "origin": "https://ffe1e5c6.senior-resource-map.pages.dev",
+          "files": [
+            {
+              "path": "/",
+              "status": 200,
+              "mime": "text/html; charset=utf-8",
+              "bytes": 1188,
+              "sha256": "5e5fb5d796227839951784988138ee729ea30971e60bae8e01279375c1efa10e",
+              "matches": true
+            },
+            {
+              "path": "/release.json",
+              "status": 200,
+              "mime": "application/json",
+              "bytes": 659,
+              "sha256": "f2c13fce24cc3c9868154b75e9ade8ede4eb9c927b4857d970e7e974e25be58b",
+              "matches": true
+            },
+            {
+              "path": "/assets/index-BxcURLhv.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 195134,
+              "sha256": "e1122fd08fcff49ca18df7a80f1243a54491212bd798c1d66dea90a3faee45f4",
+              "matches": true
+            },
+            {
+              "path": "/assets/index-BYHoTYjQ.css",
+              "status": 200,
+              "mime": "text/css; charset=utf-8",
+              "bytes": 151019,
+              "sha256": "39b89714e517745dfbfbf9b203617211dd8b6455d95da6e8385e711d1aa807b8",
+              "matches": true
+            },
+            {
+              "path": "/app-shell-recovery-20260721-1.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 5417,
+              "sha256": "7ea8a4fcf8370dcf9222ef36ae920fd26edec1fdabc7ffd0ac4b5df1194e6871",
+              "matches": true
+            },
+            {
+              "path": "/assets/EmbeddedMapPage-1dVRDL4N.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 15621,
+              "sha256": "9fb86347453671a94060d3023ad0c9ef1f1e91a890c00c96af3383002504faa7",
+              "matches": true
+            },
+            {
+              "path": "/assets/MyMapDetailPage-D3UyoeI_.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 176721,
+              "sha256": "a490a9caaa3ca54184417a1d46615469e0960683fe5dce5fbb6b98837d68ec2b",
+              "matches": true
+            },
+            {
+              "path": "/assets/StandardAppRoot-DxR5xcf-.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 276979,
+              "sha256": "db1637c9f945ec8fd9bb04b07f582133a5814286aaac3e3f2a92ad77f4f99d29",
+              "matches": true
+            },
+            {
+              "path": "/assets/TownMapDownloadsPage-CP7d50Pc.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 18850,
+              "sha256": "99aba3d5c2e48949350a458437adaf184c77dbc7bb133c8d5d189f6b38b6cbb4",
+              "matches": true
+            },
+            {
+              "path": "/assets/pwaRegistration-C1FKHQWP.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 3582,
+              "sha256": "117abaf433658d3f09280d7a0be32515f429b69dce46be636fa3259a595a2544",
+              "matches": true
+            }
+          ]
+        },
+        {
+          "origin": "https://app.carearound.sg",
+          "files": [
+            {
+              "path": "/",
+              "status": 200,
+              "mime": "text/html; charset=utf-8",
+              "bytes": 1188,
+              "sha256": "5e5fb5d796227839951784988138ee729ea30971e60bae8e01279375c1efa10e",
+              "matches": true
+            },
+            {
+              "path": "/release.json",
+              "status": 200,
+              "mime": "application/json",
+              "bytes": 659,
+              "sha256": "f2c13fce24cc3c9868154b75e9ade8ede4eb9c927b4857d970e7e974e25be58b",
+              "matches": true
+            },
+            {
+              "path": "/assets/index-BxcURLhv.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 195134,
+              "sha256": "e1122fd08fcff49ca18df7a80f1243a54491212bd798c1d66dea90a3faee45f4",
+              "matches": true
+            },
+            {
+              "path": "/assets/index-BYHoTYjQ.css",
+              "status": 200,
+              "mime": "text/css; charset=utf-8",
+              "bytes": 151019,
+              "sha256": "39b89714e517745dfbfbf9b203617211dd8b6455d95da6e8385e711d1aa807b8",
+              "matches": true
+            },
+            {
+              "path": "/app-shell-recovery-20260721-1.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 5417,
+              "sha256": "7ea8a4fcf8370dcf9222ef36ae920fd26edec1fdabc7ffd0ac4b5df1194e6871",
+              "matches": true
+            },
+            {
+              "path": "/assets/EmbeddedMapPage-1dVRDL4N.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 15621,
+              "sha256": "9fb86347453671a94060d3023ad0c9ef1f1e91a890c00c96af3383002504faa7",
+              "matches": true
+            },
+            {
+              "path": "/assets/MyMapDetailPage-D3UyoeI_.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 176721,
+              "sha256": "a490a9caaa3ca54184417a1d46615469e0960683fe5dce5fbb6b98837d68ec2b",
+              "matches": true
+            },
+            {
+              "path": "/assets/StandardAppRoot-DxR5xcf-.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 276979,
+              "sha256": "db1637c9f945ec8fd9bb04b07f582133a5814286aaac3e3f2a92ad77f4f99d29",
+              "matches": true
+            },
+            {
+              "path": "/assets/TownMapDownloadsPage-CP7d50Pc.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 18850,
+              "sha256": "99aba3d5c2e48949350a458437adaf184c77dbc7bb133c8d5d189f6b38b6cbb4",
+              "matches": true
+            },
+            {
+              "path": "/assets/pwaRegistration-C1FKHQWP.js",
+              "status": 200,
+              "mime": "application/javascript",
+              "bytes": 3582,
+              "sha256": "117abaf433658d3f09280d7a0be32515f429b69dce46be636fa3259a595a2544",
+              "matches": true
+            }
+          ]
+        }
+      ],
+      "success": true
+    }
+  },
+  "scheduler": {
+    "cron": "* * * * *",
+    "outcome": "ok",
+    "eventTimestamp": 1788755150220,
+    "exceptionCount": 0,
+    "logCount": 0,
+    "scriptName": "senior-resource-map-api",
+    "scriptVersion": "adb0a5a9-a293-4a5c-9b8d-c0acbfb81cbb",
+    "limitation": "Idle/opt-out production batch only; synthetic source-change delivery covered by isolated tests."
+  },
+  "liveChecks": {
+    "guideEverydaySaveQuestion": true,
+    "unsaveCalendarWarning": true,
+    "publicHavelockSearch": {
+      "places": 3,
+      "opened": "/resource/hard/15718"
+    },
+    "guestPrivateEndpoints401": [
+      "/support/reports",
+      "/guide/history",
+      "/notifications/preferences",
+      "/notifications",
+      "/saved-searches"
+    ],
+    "authenticatedReadEndpoints200": [
+      "/support/review/reports",
+      "/support/reports",
+      "/guide/history",
+      "/notifications/preferences",
+      "/notifications",
+      "/saved-searches"
+    ],
+    "guestRecoveryUi": true,
+    "guestReportPreview": true,
+    "guestSubmitDisabledUntilRecoveryAcknowledgement": true,
+    "noProductionReportSubmitted": true,
+    "noProductionHistorySaved": true,
+    "notificationCategoriesOff": true,
+    "savedSearchCount": 0,
+    "savedSearchAlertsDefaultOff": true,
+    "savedSearchRequiresConsent": true,
+    "noUserPreferencesChanged": true,
+    "desktopVisual": true,
+    "mobile390Visual": true,
+    "mobileHorizontalOverflow": false,
+    "guideSearchPageErrors": [],
+    "discoverMap": {
+      "guestSignInBoundary": true,
+      "authenticatedLiveBasemap": true,
+      "assetEdition": "derivative-v1",
+      "displayedZoom": 12,
+      "zoomRoundTripVerified": false,
+      "limitation": "Synthetic click and keyboard attempts did not change the dedicated tab's zoom; no map source was changed or diagnosed as a regression. Static map-lockdown and exact ten-root deployed artifact checks passed."
+    }
+  },
+  "limitations": [
+    "No fresh-password authenticated smoke or full partner/import suite; existing authorized browser session used for private read checks.",
+    "Human fix proposal/approval/release-verification lifecycle tested in isolated suites; no fabricated live report, approval, or fix-available message.",
+    "Scheduled live batch confirmed successful without opting real users into notifications; synthetic change delivery proved in isolated tests.",
+    "Guide is bounded reviewed English app guidance and real public search, not an open-ended generative care assistant.",
+    "Device push, email, SMS, WhatsApp and autonomous code repair are not included.",
+    "Authenticated live Detailed-map zoom round-trip not verified in this session; retained map assets and lockdown tests pass."
+  ],
+  "noCareAroundProductionCredentialsReadOrRotated": true
+}

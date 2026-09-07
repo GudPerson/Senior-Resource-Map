@@ -15,6 +15,34 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-07 Guide/inbox/opt-in updates production release
+
+- Known-good source: `c1f1c15d74d6930a8ec5cb698a7b270a43d73544`, pushed `main`.
+  Worker `adb0a5a9-a293-4a5c-9b8d-c0acbfb81cbb`; Pages
+  `ffe1e5c6-c214-4576-ac83-0df99494f702` with Functions/routes uploaded.
+  [Release handoff](guide-inbox-release-20260907.md) and
+  [verification evidence](evidence/guide-inbox-production-release-20260907.json).
+- Reproduce: open `/help`; ask how to save/unsave a resource; search Places for
+  Havelock and open a real result. Open Inbox → Updates, inspect preferences and
+  a new saved-search form without saving. Guests can review a report, but Send
+  remains blocked until private recovery-code acknowledgement.
+- Acceptance verified: public-only search, guest 401 private routes, owner/reviewer
+  read routes 200, no implicit subscription/history/report creation, unchecked
+  notification categories and saved-search consent, desktop/mobile usable Guide.
+  Final live scheduler execution is `ok`, zero exceptions. Actual source-change
+  delivery and human approval lifecycle remain isolated-test evidence.
+- 722 server / 772 client tests, static checks, map-lockdown and clean-source
+  enabled build pass. Custom-domain and preview bytes/MIME/hashes match local
+  release/entry/map chunks; all ten locked map roots are preserved.
+- Production database adoption applied at 04:06:14 UTC. All 60 original table
+  definitions/enums retained; 70 public tables and five exact ledger rows verified.
+  Fresh 72.51 MB manual snapshot retained. No new migration approval is needed
+  and no repeat/reset/baseline migration is authorized by this evidence.
+- Boundaries: no fresh-login/full import smoke or completed authenticated Detailed
+  zoom round-trip is claimed. Guest map sign-in boundary and authenticated live
+  basemap observed. No map source changed. Production test reports or fake
+  fix-available messages were not sent; user preferences remain unchanged.
+
 ## 2026-09-07 Guide everyday wording release check
 
 - Live pre-client-release check at API revision `83a48929a` reproduced a gap:

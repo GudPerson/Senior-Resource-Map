@@ -11,8 +11,46 @@ Updated: 2026-09-07 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
-## 2026-09-07 Guide, inbox, and notifications — active local goal
+## 2026-09-07 Guide, inbox, and notifications — released
 
+- The approved sequence is committed, pushed and deployed. Start with the
+  [final release handoff](guide-inbox-release-20260907.md) and
+  [exact release proof](evidence/guide-inbox-production-release-20260907.json).
+- Production `main`: `c1f1c15d74d6930a8ec5cb698a7b270a43d73544`.
+  Worker: `adb0a5a9-a293-4a5c-9b8d-c0acbfb81cbb`.
+  Pages: `ffe1e5c6-c214-4576-ac83-0df99494f702`; custom-domain artifact parity
+  and all ten map roots pass. App entry: <https://app.carearound.sg/help>.
+- Approved database adoption is complete: exact `0003`–`0006`, 70 public tables,
+  original 60 definitions/enums retained, five records independently verified.
+  The 04:01:44 UTC manual snapshot remains retained. Do not rerun the migration.
+- Quality: 722 server / 772 client tests, static checks, map-lockdown and final
+  clean-source enabled build pass. Live Guide/search/navigation, private route
+  auth boundaries, account/reviewer inbox/settings, guest report review and
+  consent gates pass. No real report, saved search or preference was changed.
+  The final minute scheduler ran successfully with zero exceptions.
+- Limits: no fresh-password/full import smoke, no fabricated live human-approved
+  fix notification, and no verified authenticated Detailed-map zoom round-trip.
+  Static/asset map release guards pass; do not describe that as full live map UAT.
+  Guide is reviewed English guidance, not open-ended generative care advice.
+  Updates are opt-in in-app only, not device push/email/WhatsApp.
+- Clean release checkout: `/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-release-20260907`
+  on `main`. Post-deploy evidence is on `codex/guide-inbox-notifications-20260907`
+  in the feature worktree. Preserve its generated dependency changes and ignored
+  evidence output, and preserve the unrelated dirty primary checkout.
+- Next: one owner-reviewed pilot report through staff reply, actual fix approval,
+  deployment verification and user confirmation; include remaining login/map UAT.
+
+### Historical rollout checkpoints — superseded by released state above
+
+- Production checkpoint: exact approved SQL committed at 04:06:14 UTC on
+  production; all 60 old table/enum fingerprints unchanged, 70 public tables
+  total, five exact operational records verified independently. Fresh manual
+  snapshot at 04:01:44 UTC is 72.51 MB and retained. Source release is
+  `b9ea841b3dd7e488098e0e2825f168d5b6d58760`, with a fully clean `main`
+  release checkout at `/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-release-20260907`.
+  Its quality gate, map-lockdown and Worker dry run pass. API/client rollout
+  is now in progress; do not rerun the migration or claim the feature released.
+  Current [release proof](evidence/guide-inbox-production-release-20260907.json).
 - Latest approval: the user answered "yes you may, approve" to the exact
   adoption-ledger and `0003`–`0006` production request. Continue the complete
   scoped release; do not ask for that approval again. The [approved execution
