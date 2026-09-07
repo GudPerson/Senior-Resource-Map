@@ -178,7 +178,7 @@ test('guarded Worker command preserves release-line gates and rejects revision/c
     deployWorkerRelease(args);
     assert.equal(calls[0], 'validated');
     assert.equal(calls[1][0], 'npx');
-    assert.deepEqual(calls[1][1], ['wrangler', 'deploy', '--config', 'wrangler.toml', '--tag', `git-${releaseRevision}`,
+    assert.deepEqual(calls[1][1], ['wrangler', 'deploy', '--keep-vars', '--config', 'wrangler.toml', '--tag', `git-${releaseRevision}`,
         '--define', `__CAREAROUND_SOURCE_REVISION__:"${releaseRevision}"`]);
     assert.equal(calls[1][2].shell, false);
     assert.ok(calls[1][2].cwd.endsWith('/server'));

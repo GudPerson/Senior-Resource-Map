@@ -15,6 +15,33 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-07 Approved batched adoption and live runtime proof
+
+- The user explicitly approved the tested ledger and exact `0003`–`0006` on
+  production. [Execution decision](guide-inbox-production-adoption-20260907.md)
+  names one accountable owner and one dated execution path; older proposals
+  and approval-pending records below are historical. No instructions or
+  migration bytes changed, and no fictitious Drizzle history is permitted.
+- Guarded one-batch DDL passed on the empty PostgreSQL 17 branch, including
+  failure rollback and retry. The final batch contains two preceding timeout
+  settings and one auto-committed DO; no browser per-DDL transaction round trips.
+  The 47 constraint/relationship checks passed and all public test tables were
+  empty after rollback. Existing definitions remained unchanged.
+- Live target/role: standard authenticated private-map create/delete probes
+  reached production `br-green-union-ailxs0g3` / `neondb`. A lock on only the
+  exact synthetic row correlated its normal API deletion with backend role
+  `neondb_owner`. All three temporary maps were removed and observation locks
+  released. Existing maps were not edited/shared; sequence advances remain.
+  Real user map-link activity continued, so do not claim frozen row-count parity.
+- Current main's Manage Resources change `f95afee68` is preserved through merge
+  `50bad4da8`; both ledger sections were kept. Quality: 721 server / 772 client,
+  static validation and exact feature-enabled client build. Worker release
+  command now preserves live variables; strict clean-main/revision guards and
+  secret handling remain unchanged. Focused release-command tests pass 27/27.
+- Evidence: [production readiness](evidence/guide-inbox-production-readiness-20260907.json).
+  Fresh-login automated smoke is not claimed. Refreshed recovery point,
+  production migration and Worker/Pages/deployed journey gates remain pending.
+
 ## 2026-09-07 Production-version Neon rehearsal
 
 - Follow-up: [two-session lock/retry proof](evidence/guide-inbox-neon-locks-20260907.json)

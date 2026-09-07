@@ -1,0 +1,116 @@
+{
+  "status": "approved-production-adoption-ready-for-final-recovery-point",
+  "checkedAtUtc": "2026-09-07T03:59:00Z",
+  "approval": "yes you may, approve (reply to exact ledger adoption and migrations 0003-0006 request)",
+  "production": {
+    "projectId": "silent-queen-04984362",
+    "branchId": "br-green-union-ailxs0g3",
+    "database": "neondb",
+    "schemaMatchesPinned60TableBaseline": true,
+    "environment": {
+      "role": "neondb_owner",
+      "roles": [
+        {
+          "name": "cloud_admin",
+          "login": true
+        },
+        {
+          "name": "neondb_owner",
+          "login": true
+        },
+        {
+          "name": "neon_service",
+          "login": true
+        },
+        {
+          "name": "neon_superuser",
+          "login": false
+        }
+      ],
+      "branch": "br-green-union-ailxs0g3",
+      "journal": null,
+      "version": "17.11 (32e7196)",
+      "database": "neondb",
+      "triggers": 0,
+      "extensions": [
+        "plpgsql"
+      ],
+      "default_acl": 2
+    }
+  },
+  "batch": {
+    "verifiedAtUtc": "2026-09-07T03:47:26Z",
+    "branchId": "br-autumn-mode-aikak52t",
+    "failure": "EXPECTED_BATCH_REHEARSAL_FAILURE",
+    "failureSqlState": "P0001",
+    "success": "Statement executed successfully",
+    "queryCount": 3,
+    "ddlBatchCount": 1,
+    "consoleDdlDurationMs": 662,
+    "transactionOpenAfter": false,
+    "productionSqlSha256": "7bdb4fd57d28f9c3b8d993c6832f2351c44b08ebea109409291792a18086552c",
+    "rehearsalSqlSha256": "9d7a9a22bb1aa0d407ef6ddc3029a135f1d72329898dfa1818eb060cfe8de546",
+    "failureSqlSha256": "95d8493e5866fd451bfeffe16e4f736f3bda64ac98c9f09c80a72c4db2688ae8",
+    "finalProductionSqlSha256": "170627bf4757b9238505e68fc6c0476c4e6d1dd421c478866adc07bb9d528098",
+    "finalRehearsalSqlSha256": "488d3c318c63717869704238f86c2e332ece7ef41e082238adb214e90f114113",
+    "finalBatchConsole": "\":\"not applied; separate review\",\"migration0002\":\"columns observed; historical execution unknown\"}'::jsonb) THEN RAISE EXCEPTION 'Partial or changed adoption history'; END IF;\n    RAISE NOTICE 'Adoption applied; exact schema and history verified';\nEND $carearound_adoption$;\nConnected (3 queries)\nThis query will still run OK, but the last 29703 characters will be truncated from query history\nRun\nExplain\nAnalyze\n1s\nNo result\n1: SET\n2: SET\n3: DO\nStatement executed successfully\nNeon AI Assistant\n.25",
+    "finalWrapperChange": "Use search_path public with implicit pg_catalog precedence; fresh empty-branch DDL rerun passed."
+  },
+  "constraintProof": {
+    "role": "neondb_owner",
+    "branch": "br-autumn-mode-aikak52t",
+    "status": "synthetic_validation_passed",
+    "foreign_keys": 13,
+    "owner_cleanup": true,
+    "unique_indexes": 7,
+    "constraint_cases": 47,
+    "check_constraints": 27,
+    "staff_set_null_retained": true,
+    "unsave_map_calendar_retained": true,
+    "legacy_partner_cascade_retained": true
+  },
+  "rehearsalCleanup": {
+    "branch": "br-autumn-mode-aikak52t",
+    "status": "all_public_tables_empty_after_rollback",
+    "history_rows": 5,
+    "public_tables": 70
+  },
+  "runtimeBinding": {
+    "method": "Authenticated standard API creates one empty private test map; a lock on ONLY that exact row correlates its standard API deletion with the database backend role. Release the lock then verify cleanup.",
+    "observation": {
+      "branch": "br-green-union-ailxs0g3",
+      "database": "neondb",
+      "observer_pid": 4949,
+      "blocked_runtime": [
+        {
+          "pid": 2508,
+          "role": "neondb_owner",
+          "database": "neondb",
+          "wait_type": "Lock",
+          "wait_event": "transactionid"
+        }
+      ]
+    },
+    "attempts": 3,
+    "earlierAttemptLimits": "First observation expired before capture; second sampled before the multi-query API reached DELETE. Neither yielded role evidence. Both probes were successfully deleted.",
+    "credentialsReadOrCopied": false
+  },
+  "cleanup": {
+    "branch": "br-green-union-ailxs0g3",
+    "maps_count": 17,
+    "public_tables": 60,
+    "observer_locks": 0,
+    "map_links_count": 141,
+    "all_probes_absent": true
+  },
+  "syntheticProductionEffects": "Only private empty probe maps 345,346,347 were created and deleted through normal authenticated APIs. Sequence advances are retained. Existing maps/resources/plans were not edited. Concurrent real map-link count changed from the earlier snapshot; do not claim a frozen production dataset.",
+  "validation": {
+    "server": 721,
+    "client": 772,
+    "qualityGate": true,
+    "releaseCommandTests": 27,
+    "authenticatedSession": "Existing super_admin session returned HTTP 200; standard private-map create/delete round trips passed.",
+    "automatedPasswordLoginSmoke": "Not run: no dedicated smoke credentials configured. Existing-session probes do not prove fresh password login or replace the full suite."
+  },
+  "releaseState": "No migration, push, Worker or Pages deployment yet. Main Manage Resources commit f95afee68 preserved in merge 50bad4da8. Old 'approval pending' notes are superseded."
+}

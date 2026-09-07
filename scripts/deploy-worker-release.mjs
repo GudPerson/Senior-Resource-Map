@@ -7,7 +7,7 @@ import { readGitReleaseSource, releaseRepoRoot } from './release-provenance.mjs'
 export function workerReleaseArgs(source, extraArgs = []) {
     if (extraArgs.length) throw new Error('Worker release overrides are not accepted. Review the release configuration instead.');
     if (!source.sourceClean || !/^[a-f0-9]{40}$/.test(source.sourceRevision || '')) throw new Error('Worker release requires clean, identifiable source, including untracked files.');
-    return ['wrangler', 'deploy', '--config', 'wrangler.toml', '--tag', `git-${source.sourceRevision}`,
+    return ['wrangler', 'deploy', '--keep-vars', '--config', 'wrangler.toml', '--tag', `git-${source.sourceRevision}`,
         '--define', `__CAREAROUND_SOURCE_REVISION__:${JSON.stringify(source.sourceRevision)}`];
 }
 

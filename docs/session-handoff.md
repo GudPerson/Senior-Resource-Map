@@ -13,7 +13,20 @@ Updated: 2026-09-07 (Asia/Singapore)
 
 ## 2026-09-07 Guide, inbox, and notifications — active local goal
 
-- Approval pending: the latest final asked whether to adopt the tested upgrade
+- Latest approval: the user answered "yes you may, approve" to the exact
+  adoption-ledger and `0003`–`0006` production request. Continue the complete
+  scoped release; do not ask for that approval again. The [approved execution
+  record](guide-inbox-production-adoption-20260907.md) and [readiness evidence](evidence/guide-inbox-production-readiness-20260907.json)
+  supersede the older pending-approval notes. A one-statement DDL batch now
+  passes on real PostgreSQL 17. Live branch `br-green-union-ailxs0g3`, database
+  `neondb` and runtime role `neondb_owner` were independently verified through
+  temporary private-map API probes; all probes removed, observation locks gone.
+  Current main `f95afee68` is preserved by local merge `50bad4da8`. Quality:
+  721 server / 772 client, static checks and feature-enabled exact client build.
+  Fresh-login automated smoke remains unavailable; existing-session checks are
+  recorded separately. Next: refreshed recovery point, approved migration,
+  clean-source Worker/Pages release and actual deployed feature verification.
+- Historical approval checkpoint: the latest final then asked whether to adopt the tested upgrade
   record and apply exact `0003`–`0006` to Neon production after the remaining
   release gates. Automatic goal continuation is not that approval. A follow-up
   safe check passed: two independent sessions on the empty rehearsal branch
