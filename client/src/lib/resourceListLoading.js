@@ -25,11 +25,13 @@ export function shouldUseFullResourceDataset({
     query = '',
     boundaryChecksEnabled = false,
     boundaryFilter = 'all',
+    regionFilter = 'all',
 } = {}) {
     const normalizedQuery = String(query || '').trim();
     const hasClientOnlySearchOperators = hasClientOnlyResourceSearchOperators(normalizedQuery);
     const hasClientBoundaryFilter = Boolean(boundaryChecksEnabled) && boundaryFilter !== 'all';
-    return hasClientOnlySearchOperators || hasClientBoundaryFilter;
+    const hasClientRegionFilter = String(regionFilter || 'all') !== 'all';
+    return hasClientOnlySearchOperators || hasClientBoundaryFilter || hasClientRegionFilter;
 }
 
 export function buildManagedResourceListParams({

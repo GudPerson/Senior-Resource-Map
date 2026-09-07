@@ -13,6 +13,7 @@ import {
     Eye,
     EyeOff,
     Files,
+    Heart,
     Info,
     Layers3,
     Lock,
@@ -41,8 +42,15 @@ import SoftAssetChildForm from '../../components/SoftAssetChildForm.jsx';
 import SoftAssetTemplateForm from '../../components/SoftAssetTemplateForm.jsx';
 import { AssetCard } from '../../components/AssetCard.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { useSavedAssets } from '../../hooks/useSavedAssets.js';
 import { api } from '../../lib/api.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../../lib/availability.js';
+import {
+    buildManagedRegionFilterOptions,
+    buildManagedSavedAssetTargets,
+    matchesManagedResourceRegion,
+    normalizeManagedRegionFilter,
+} from '../../lib/managedResourceFilters.js';
 import { fetchAllPaginatedResults } from '../../lib/paginatedResults.js';
 import {
     buildGroupMemberCandidateListParams,
@@ -66,6 +74,7 @@ import {
     matchesResourceSearchGroups,
     parseResourceSearchGroups,
 } from '../../lib/resourceSearch.js';
+import { buildSavedAssetKey } from '../../lib/savedAssets.js';
 import {
     canAccessManagedResources,
     getHardAssetStaffAccessIds,
@@ -454,10 +463,11 @@ function getTemplateHostOptions(template, hardAssets, subregions) {
     });
 }
 
-function filterAssetWithQuery(asset, query, boundaryChecksEnabled, boundaryFilter) {
+function filterAssetWithQuery(asset, query, boundaryChecksEnabled, boundaryFilter, regionFilter = 'all') {
     if (boundaryChecksEnabled && boundaryFilter !== 'all' && getAssetBoundaryStatus(asset) !== boundaryFilter) {
         return false;
     }
+    if (!matchesManagedResourceRegion(asset, regionFilter)) return false;
 
     if (!query) return true;
     const groups = parseResourceSearchGroups(query);
@@ -538,6 +548,7 @@ const RESOURCE_LIST_SORT_OPTIONS = [
     { value: 'name-desc', label: 'Name Z-A' },
 ];
 const LARGE_FILTERED_WORKBOOK_CSV_THRESHOLD = 1000;
+const MANAGED_BULK_VISIBILITY_CONCURRENCY = 2;
 
 function compareResourceListText(left, right) {
     return String(left || '').trim().toLowerCase().localeCompare(String(right || '').trim().toLowerCase());
@@ -617,6 +628,14 @@ function ResourceModal({
 
 export default function ResourcesPage() {
     const { user } = useAuth();
+    const {
+        bulkPending: savedAssetsBulkPending,
+        bulkRemoveSavedAssets,
+        bulkSaveSavedAssets,
+        savedAssetKeys,
+        savedAssetsLoadError,
+        savedAssetsLoading,
+    } = useSavedAssets();
     const [hardAssets, setHardAssets] = useState([]);
     const [softAssets, setSoftAssets] = useState([]);
     const [groupAssets, setGroupAssets] = useState([]);
@@ -651,6 +670,7 @@ export default function ResourcesPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [boundaryFilter, setBoundaryFilter] = useState('all');
+    const [regionFilter, setRegionFilter] = useState('all');
     const [sortOrder, setSortOrder] = useState('default');
     const [expandedTemplateIds, setExpandedTemplateIds] = useState([]);
     const [collapsedHardAssetIds, setCollapsedHardAssetIds] = useState({});
@@ -659,6 +679,10 @@ export default function ResourcesPage() {
     const [actionNotice, setActionNotice] = useState(null);
     const [visibilityActionKey, setVisibilityActionKey] = useState(null);
     const [availabilityActionKey, setAvailabilityActionKey] = useState(null);
+    const [bulkActionDialog, setBulkActionDialog] = useState(null);
+    const [bulkActionPreparing, setBulkActionPreparing] = useState(null);
+    const [bulkActionRunning, setBulkActionRunning] = useState(false);
+    const [bulkActionProgress, setBulkActionProgress] = useState({ completed: 0, total: 0 });
     const [exportingFilteredWorkbook, setExportingFilteredWorkbook] = useState(false);
     const [hardAssetsPage, setHardAssetsPage] = useState(1);
     const [softAssetsPage, setSoftAssetsPage] = useState(1);
@@ -699,6 +723,7 @@ export default function ResourcesPage() {
         query: normalizedQuery,
         boundaryChecksEnabled,
         boundaryFilter,
+        regionFilter,
     });
     const resourceListParams = buildManagedResourceListParams({
         canManageResourceTools,
@@ -726,7 +751,7 @@ export default function ResourcesPage() {
     const pagedGroupResourceListParams = withResourceListSearchParam(groupResourceListParams, serverResourceSearchQuery);
     const assetLoadKey = useMemo(() => (
         needsFullAssetDataset
-            ? ['full', normalizedQuery, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
+            ? ['full', normalizedQuery, regionFilter, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
             : ['paged', normalizedQuery, hardAssetsPage, softAssetsPage, groupAssetsPage, normalizedRole, user?.id || 'anon', partnerScopedOwnerKey, directAssetAccessKey].join(':')
     ), [
         directAssetAccessKey,
@@ -737,6 +762,7 @@ export default function ResourcesPage() {
         normalizedQuery,
         normalizedRole,
         partnerScopedOwnerKey,
+        regionFilter,
         softAssetsPage,
         user?.id,
     ]);
@@ -1068,7 +1094,7 @@ export default function ResourcesPage() {
         setHardAssetsPage(1);
         setSoftAssetsPage(1);
         setGroupAssetsPage(1);
-    }, [boundaryFilter, normalizedQuery]);
+    }, [boundaryFilter, normalizedQuery, regionFilter]);
 
     useEffect(() => {
         if (!canManageResourceTools && (activeTab === 'templates' || activeTab === 'groups')) {
@@ -1099,10 +1125,10 @@ export default function ResourcesPage() {
 
     const filteredHardAssets = useMemo(
         () => sortResourceItems(
-            hardAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            hardAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)),
             sortOrder
         ),
-        [boundaryChecksEnabled, boundaryFilter, hardAssets, normalizedQuery, sortOrder]
+        [boundaryChecksEnabled, boundaryFilter, hardAssets, normalizedQuery, regionFilter, sortOrder]
     );
 
     const offeringSoftAssets = useMemo(
@@ -1116,19 +1142,30 @@ export default function ResourcesPage() {
 
     const filteredSoftAssets = useMemo(
         () => sortResourceItems(
-            offeringSoftAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            offeringSoftAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)),
             sortOrder
         ),
-        [boundaryChecksEnabled, boundaryFilter, normalizedQuery, offeringSoftAssets, sortOrder]
+        [boundaryChecksEnabled, boundaryFilter, normalizedQuery, offeringSoftAssets, regionFilter, sortOrder]
     );
 
     const filteredGroupAssets = useMemo(
         () => sortResourceItems(
-            groupSoftAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            groupSoftAssets.filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)),
             sortOrder
         ),
-        [boundaryChecksEnabled, boundaryFilter, groupSoftAssets, normalizedQuery, sortOrder]
+        [boundaryChecksEnabled, boundaryFilter, groupSoftAssets, normalizedQuery, regionFilter, sortOrder]
     );
+
+    const managedRegionFilterOptions = useMemo(
+        () => buildManagedRegionFilterOptions(subregions),
+        [subregions],
+    );
+
+    useEffect(() => {
+        if (activeTab === 'templates') return;
+        const nextValue = normalizeManagedRegionFilter(regionFilter, managedRegionFilterOptions);
+        if (nextValue !== regionFilter) setRegionFilter(nextValue);
+    }, [activeTab, managedRegionFilterOptions, regionFilter]);
 
     const activeManagedAreaFilterOptions = useMemo(() => {
         if (!boundaryChecksEnabled || activeTab === 'templates') return [];
@@ -1253,6 +1290,25 @@ export default function ResourcesPage() {
             : activeTab === 'groups'
                 ? groupTabCount
                 : filteredTemplates.length;
+    const activeResourceLabel = activeTab === 'hard'
+        ? 'Places'
+        : activeTab === 'soft'
+            ? 'Offerings'
+            : activeTab === 'groups'
+                ? 'Groups'
+                : 'Templates';
+    const canUseManagedBulkActions = activeTab !== 'templates' && activeFilteredExportCount > 0;
+    const activeManagedResourceLoading = activeTab === 'hard'
+        ? resourceLoading.hard
+        : activeTab === 'soft'
+            ? resourceLoading.soft
+            : activeTab === 'groups'
+                ? resourceLoading.groups
+                : false;
+    const managedBulkActionBusy = Boolean(bulkActionPreparing)
+        || bulkActionRunning
+        || savedAssetsBulkPending
+        || activeManagedResourceLoading;
 
     function scopeHardAssetsForCurrentUser(items) {
         if (normalizedRole !== 'partner' && partnerScopedOwnerIds.length === 0 && !hasDirectAssetAccess) return items;
@@ -1274,11 +1330,20 @@ export default function ResourcesPage() {
         });
     }
 
+    function scopeGroupAssetsForCurrentUser(items) {
+        if (normalizedRole !== 'partner' && partnerScopedOwnerIds.length === 0 && !hasDirectAssetAccess) return items;
+        const partnerOwnerIds = new Set(partnerScopedOwnerIds);
+        return items.filter((asset) => (
+            partnerOwnerIds.has(Number(asset.partnerId))
+            || softAssetStaffAccessIdSet.has(Number(asset.id))
+        ));
+    }
+
     async function resolveHardAssetsForFilteredExport() {
         if (hardUsesClientOnlyFilter) return filteredHardAssets;
         const allHardAssets = await fetchAllPaginatedResults(api.getHardAssets, resourceListParams);
         return sortResourceItems(
-            scopeHardAssetsForCurrentUser(allHardAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            scopeHardAssetsForCurrentUser(allHardAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)),
             sortOrder,
         );
     }
@@ -1290,9 +1355,46 @@ export default function ResourcesPage() {
             serverResourceSearchQuery,
         ));
         return sortResourceItems(
-            scopeSoftAssetsForCurrentUser(allSoftAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter)),
+            scopeSoftAssetsForCurrentUser(allSoftAssets).filter((asset) => filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)),
             sortOrder,
         );
+    }
+
+    async function resolveActiveFilteredAssetsForBulkAction() {
+        if (activeTab === 'hard') {
+            if (hardUsesClientOnlyFilter) return filteredHardAssets;
+            const allHardAssets = await fetchAllPaginatedResults(api.getHardAssets, fullHardResourceListParams);
+            return sortResourceItems(
+                scopeHardAssetsForCurrentUser(allHardAssets).filter((asset) => (
+                    filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)
+                )),
+                sortOrder,
+            );
+        }
+
+        if (activeTab === 'soft') {
+            if (softUsesClientOnlyFilter) return filteredSoftAssets;
+            const allSoftAssets = await fetchAllPaginatedResults(api.getSoftAssets, fullSoftResourceListParams);
+            return sortResourceItems(
+                scopeSoftAssetsForCurrentUser(allSoftAssets).filter((asset) => (
+                    filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)
+                )),
+                sortOrder,
+            );
+        }
+
+        if (activeTab === 'groups') {
+            if (groupUsesClientOnlyFilter) return filteredGroupAssets;
+            const allGroupAssets = await fetchAllPaginatedResults(api.getSoftAssets, fullGroupResourceListParams);
+            return sortResourceItems(
+                scopeGroupAssetsForCurrentUser(allGroupAssets).filter((asset) => (
+                    filterAssetWithQuery(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter)
+                )),
+                sortOrder,
+            );
+        }
+
+        return [];
     }
 
     async function loadGroupMemberCandidates() {
@@ -1776,6 +1878,152 @@ export default function ResourcesPage() {
         }
     }
 
+    async function prepareManagedBulkAction(action) {
+        if (!canUseManagedBulkActions || managedBulkActionBusy) return;
+
+        setBulkActionPreparing(action);
+        setActionNotice(null);
+        try {
+            const assets = await resolveActiveFilteredAssetsForBulkAction();
+            const resourceType = activeTab === 'hard' ? 'hard' : 'soft';
+            let targets = assets;
+            let skippedForPermission = 0;
+
+            if (action === 'hide' || action === 'show') {
+                const canHide = resourceType === 'hard' ? canHideHardAsset : canHideSoftAsset;
+                const permittedAssets = assets.filter(canHide);
+                skippedForPermission = assets.length - permittedAssets.length;
+                const nextHidden = action === 'hide';
+                targets = permittedAssets.filter((asset) => getHiddenStatus(asset).hidden !== nextHidden);
+            } else {
+                const shouldSave = action === 'save';
+                targets = buildManagedSavedAssetTargets(assets, resourceType).filter((target) => (
+                    savedAssetKeys.has(buildSavedAssetKey(target.resourceType, target.resourceId)) !== shouldSave
+                ));
+            }
+
+            if (targets.length === 0) {
+                const alreadyLabel = action === 'hide'
+                    ? 'already hidden'
+                    : action === 'show'
+                        ? 'already shown'
+                        : action === 'save'
+                            ? 'already saved'
+                            : 'already unsaved';
+                setActionNotice({
+                    type: 'success',
+                    message: skippedForPermission > 0
+                        ? `No permitted ${activeResourceLabel.toLowerCase()} need changing; ${skippedForPermission} cannot be changed by this account.`
+                        : `All filtered ${activeResourceLabel.toLowerCase()} are ${alreadyLabel}.`,
+                });
+                return;
+            }
+
+            const selectedRegion = managedRegionFilterOptions.find((option) => option.value === regionFilter);
+            setBulkActionDialog({
+                action,
+                resourceType,
+                resourceLabel: activeResourceLabel,
+                targets,
+                skippedForPermission,
+                filterDetails: [
+                    regionFilter !== 'all' ? `Region: ${selectedRegion?.label || regionFilter}` : null,
+                    normalizedQuery ? `Search: ${searchTerm.trim() || normalizedQuery}` : null,
+                    boundaryFilter !== 'all' ? `Managed-area status: ${boundaryFilter}` : null,
+                ].filter(Boolean),
+            });
+        } catch (err) {
+            console.error(err);
+            setActionNotice({
+                type: 'warning',
+                message: err.message || `Could not prepare the ${action} all action.`,
+            });
+        } finally {
+            setBulkActionPreparing(null);
+        }
+    }
+
+    async function runBulkVisibilityAction(dialog) {
+        const nextHidden = dialog.action === 'hide';
+        const targets = dialog.targets;
+        const failures = [];
+        let nextIndex = 0;
+
+        async function runWorker() {
+            while (nextIndex < targets.length) {
+                const currentIndex = nextIndex;
+                nextIndex += 1;
+                const asset = targets[currentIndex];
+                try {
+                    if (dialog.resourceType === 'hard') {
+                        await api.updateHardAsset(asset.id, buildHardVisibilityPayload(asset, nextHidden));
+                    } else {
+                        await api.updateSoftAsset(asset.id, buildSoftVisibilityPayload(asset, nextHidden));
+                    }
+                } catch (err) {
+                    failures.push({ asset, err });
+                } finally {
+                    setBulkActionProgress((current) => ({
+                        ...current,
+                        completed: current.completed + 1,
+                    }));
+                }
+            }
+        }
+
+        const workerCount = Math.min(MANAGED_BULK_VISIBILITY_CONCURRENCY, targets.length);
+        await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
+        return failures;
+    }
+
+    async function confirmManagedBulkAction() {
+        const dialog = bulkActionDialog;
+        if (!dialog || bulkActionRunning) return;
+
+        setBulkActionRunning(true);
+        setBulkActionProgress({ completed: 0, total: dialog.targets.length });
+        let notice = null;
+
+        try {
+            if (dialog.action === 'save') {
+                await bulkSaveSavedAssets(dialog.targets);
+            } else if (dialog.action === 'unsave') {
+                await bulkRemoveSavedAssets(dialog.targets);
+            } else {
+                const failures = await runBulkVisibilityAction(dialog);
+                await load();
+                const updatedCount = dialog.targets.length - failures.length;
+                notice = failures.length > 0
+                    ? {
+                        type: 'warning',
+                        message: `${updatedCount} ${dialog.resourceLabel.toLowerCase()} updated; ${failures.length} could not be changed.`,
+                    }
+                    : {
+                        type: 'success',
+                        message: `${updatedCount} filtered ${dialog.resourceLabel.toLowerCase()} ${dialog.action === 'hide' ? 'hidden from the app' : 'shown in the app'}.`,
+                    };
+            }
+
+            if (!notice) {
+                notice = {
+                    type: 'success',
+                    message: `${dialog.targets.length} filtered ${dialog.resourceLabel.toLowerCase()} ${dialog.action === 'save' ? 'saved' : 'unsaved'}.`,
+                };
+            }
+        } catch (err) {
+            console.error(err);
+            notice = {
+                type: 'warning',
+                message: err.message || `Some filtered ${dialog.resourceLabel.toLowerCase()} could not be updated.`,
+            };
+        } finally {
+            setBulkActionRunning(false);
+            setBulkActionDialog(null);
+            setBulkActionProgress({ completed: 0, total: 0 });
+            if (notice) setActionNotice(notice);
+        }
+    }
+
     async function handleAvailabilityUpdate(asset, patch) {
         const actionKey = getAvailabilityActionKey(asset.id);
         const previousAsset = asset;
@@ -2201,6 +2449,18 @@ export default function ResourcesPage() {
                             className="min-h-[44px] w-full rounded-xl border-2 border-slate-200 bg-white py-2.5 pl-12 pr-3 text-sm font-medium leading-6 text-slate-900 transition-all focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
                         />
                     </div>
+                    {activeTab !== 'templates' ? (
+                        <select
+                            value={regionFilter}
+                            onChange={(e) => setRegionFilter(e.target.value)}
+                            className="input-field xl:w-56"
+                            aria-label="Filter resources by Region"
+                        >
+                            {managedRegionFilterOptions.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                        </select>
+                    ) : null}
                     {showManagedAreaFilter ? (
                         <select
                             value={boundaryFilter}
@@ -2237,6 +2497,54 @@ export default function ResourcesPage() {
                         </button>
                     ) : null}
                 </div>
+                {activeTab !== 'templates' ? (
+                    <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-sm font-bold text-slate-800">Bulk actions for filtered {activeResourceLabel}</p>
+                            <p className="mt-0.5 text-xs text-slate-500">
+                                Applies to all {activeFilteredExportCount.toLocaleString('en-SG')} filtered results across every page. You will confirm before anything changes.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => prepareManagedBulkAction('hide')}
+                                disabled={!canUseManagedBulkActions || managedBulkActionBusy}
+                                className="btn-ghost min-h-[40px] px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {bulkActionPreparing === 'hide' ? <RefreshCw size={15} className="animate-spin" /> : <EyeOff size={15} />}
+                                Hide all
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => prepareManagedBulkAction('show')}
+                                disabled={!canUseManagedBulkActions || managedBulkActionBusy}
+                                className="btn-ghost min-h-[40px] px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {bulkActionPreparing === 'show' ? <RefreshCw size={15} className="animate-spin" /> : <Eye size={15} />}
+                                Unhide all
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => prepareManagedBulkAction('save')}
+                                disabled={!canUseManagedBulkActions || managedBulkActionBusy || savedAssetsLoading || Boolean(savedAssetsLoadError)}
+                                className="btn-ghost min-h-[40px] px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {bulkActionPreparing === 'save' ? <RefreshCw size={15} className="animate-spin" /> : <Heart size={15} />}
+                                Save all
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => prepareManagedBulkAction('unsave')}
+                                disabled={!canUseManagedBulkActions || managedBulkActionBusy || savedAssetsLoading || Boolean(savedAssetsLoadError)}
+                                className="btn-ghost min-h-[40px] px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {bulkActionPreparing === 'unsave' ? <RefreshCw size={15} className="animate-spin" /> : <Heart size={15} className="fill-red-500 text-red-500" />}
+                                Unsave all
+                            </button>
+                        </div>
+                    </div>
+                ) : null}
             </div>
 
             {boundaryChecksEnabled && activeTab !== 'templates' ? (
@@ -2406,7 +2714,7 @@ export default function ResourcesPage() {
                                             {canChangeHardAssetVisibility ? (
                                                 <button
                                                     onClick={() => handleToggleVisibility(asset, 'hard')}
-                                                    disabled={visibilityActionKey === getVisibilityActionKey('hard', asset.id)}
+                                                    disabled={managedBulkActionBusy || visibilityActionKey === getVisibilityActionKey('hard', asset.id)}
                                                     className="btn-ghost px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                                 >
                                                     <span className="flex items-center gap-2">
@@ -2748,7 +3056,7 @@ export default function ResourcesPage() {
                                         {canChangeGroupVisibility ? (
                                             <button
                                                 onClick={() => handleToggleVisibility(asset, 'soft')}
-                                                disabled={visibilityActionKey === getVisibilityActionKey('soft', asset.id)}
+                                                disabled={managedBulkActionBusy || visibilityActionKey === getVisibilityActionKey('soft', asset.id)}
                                                 className="btn-ghost px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                             >
                                                 <span className="flex items-center gap-2">
@@ -2911,7 +3219,7 @@ export default function ResourcesPage() {
                                         {canChangeSoftVisibility ? (
                                             <button
                                                 onClick={() => handleToggleVisibility(asset, 'soft')}
-                                                disabled={isVisibilitySaving}
+                                                disabled={managedBulkActionBusy || isVisibilitySaving}
                                                 className="btn-ghost resource-action-button text-sm disabled:cursor-not-allowed disabled:opacity-60"
                                             >
                                                 {isVisibilitySaving ? (
@@ -3449,6 +3757,84 @@ export default function ResourcesPage() {
                         />
                     )}
                 </ResourceModal>
+            ) : null}
+
+            {bulkActionDialog ? (
+                <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="managed-bulk-action-title"
+                        className="card w-full max-w-md text-center shadow-2xl"
+                    >
+                        {bulkActionDialog.action === 'hide' ? (
+                            <EyeOff size={36} className="mx-auto mb-3 text-red-500" />
+                        ) : bulkActionDialog.action === 'show' ? (
+                            <Eye size={36} className="mx-auto mb-3 text-brand-600" />
+                        ) : (
+                            <Heart
+                                size={36}
+                                className={`mx-auto mb-3 ${bulkActionDialog.action === 'unsave' ? 'fill-red-500 text-red-500' : 'text-brand-600'}`}
+                            />
+                        )}
+                        <h2 id="managed-bulk-action-title" className="mb-2 text-xl font-bold text-slate-900">
+                            {bulkActionDialog.action === 'hide'
+                                ? `Hide ${bulkActionDialog.targets.length.toLocaleString('en-SG')} ${bulkActionDialog.resourceLabel}?`
+                                : bulkActionDialog.action === 'show'
+                                    ? `Unhide ${bulkActionDialog.targets.length.toLocaleString('en-SG')} ${bulkActionDialog.resourceLabel}?`
+                                    : bulkActionDialog.action === 'save'
+                                        ? `Save ${bulkActionDialog.targets.length.toLocaleString('en-SG')} ${bulkActionDialog.resourceLabel}?`
+                                        : `Unsave ${bulkActionDialog.targets.length.toLocaleString('en-SG')} ${bulkActionDialog.resourceLabel}?`}
+                        </h2>
+                        <p className="text-sm leading-6 text-slate-500">
+                            This applies to every matching result across all pages. Existing items already in the requested state will remain unchanged.
+                        </p>
+                        {bulkActionDialog.filterDetails.length > 0 || bulkActionDialog.skippedForPermission > 0 ? (
+                            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-xs leading-5 text-slate-600">
+                                {bulkActionDialog.filterDetails.map((detail) => <p key={detail}>{detail}</p>)}
+                                {bulkActionDialog.skippedForPermission > 0 ? (
+                                    <p>{bulkActionDialog.skippedForPermission.toLocaleString('en-SG')} result(s) will be skipped because this account cannot change their visibility.</p>
+                                ) : null}
+                            </div>
+                        ) : null}
+                        {bulkActionRunning ? (
+                            <div className="mt-4" aria-live="polite">
+                                <div className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-700">
+                                    <RefreshCw size={16} className="animate-spin" />
+                                    {bulkActionDialog.action === 'hide' || bulkActionDialog.action === 'show'
+                                        ? `Updating ${bulkActionProgress.completed.toLocaleString('en-SG')} of ${bulkActionProgress.total.toLocaleString('en-SG')}...`
+                                        : 'Updating saved resources...'}
+                                </div>
+                            </div>
+                        ) : null}
+                        <div className="mt-6 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => !bulkActionRunning && setBulkActionDialog(null)}
+                                disabled={bulkActionRunning}
+                                className="btn-ghost flex-1 justify-center disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmManagedBulkAction}
+                                disabled={bulkActionRunning}
+                                className={`${bulkActionDialog.action === 'hide' ? 'btn-danger' : 'btn-primary'} flex-1 justify-center disabled:opacity-50`}
+                            >
+                                {bulkActionRunning
+                                    ? 'Updating...'
+                                    : bulkActionDialog.action === 'hide'
+                                        ? 'Hide all'
+                                        : bulkActionDialog.action === 'show'
+                                            ? 'Unhide all'
+                                            : bulkActionDialog.action === 'save'
+                                                ? 'Save all'
+                                                : 'Unsave all'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             ) : null}
 
             {deleteTarget ? (
