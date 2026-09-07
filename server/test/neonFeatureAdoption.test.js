@@ -18,7 +18,9 @@ test('approved adoption emits one guarded DDL batch and preserves legacy schema 
     assert.ok(!production.sql.includes('COMMIT;'));
     await assert.rejects(buildNeonFeatureAdoption({ target: 'unknown' }), /exact production or rehearsal/);
     await assert.rejects(buildNeonFeatureAdoption({ target: 'production', failAfter: '0005_notification_updates' }), /rehearsal-only/);
-    const r = await createProductionSchemaRehearsal(t);
+    const r = await createProductionSchemaRehearsal(t, {
+        featureMigrationIds: ['0003_support_inbox', '0004_guide_history', '0005_notification_updates', '0006_saved_search_alerts'],
+    });
     const identity = (await r.pg.query('SELECT current_database() AS db, current_user AS role')).rows[0];
     // Only local tests replace engine/role/database guards; emitted production SQL remains untouched.
     const local = sql => sql.replace("current_database() <> 'neondb'", `current_database() <> '${identity.db}'`)

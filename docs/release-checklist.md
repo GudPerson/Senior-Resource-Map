@@ -459,6 +459,8 @@ For changes that touch `server/src/db/schema.js`, include the next ordered migra
 
 Migration `0000_carearound_current_schema_baseline` is for a fresh database only. Do not execute it against an existing CareAround environment. Existing development, staging or production databases require a separately approved read-only schema comparison and baseline-registration plan. Any schema-changing production release also requires a verified backup/restore point, rehearsed forward-fix or restore decision, and explicit approval for the exact environment and migration IDs.
 
+For boundary-layer migration `0007`, apply and verify the additive schema before deploying the Worker or client that reads `/api/boundary-layers`. Treat the corrected mapping workbook as a separate production-data operation: validate it before writes, confirm the preview reports 24 Regions, 85 Subregions, 1,908 Unmapped postcodes, 122,930 unique postcodes, and zero errors, then explicitly confirm the replacement. After import, verify postcode `545610` is in Region `Hougang` and Subregion `Hougang-3`; confirm the national `Singapore / SIN` fallback remains outside the imported parent mapping; and rerun registration, profile-postcode, Place write/import, Manage Resources Region/Subregion filters, and hard-asset visibility checks. Do not use the legacy one-layer boundary upload for the three-layer workbook.
+
 For an observability-affecting release, verify `X-Request-ID` and `Server-Timing`
 on health and one affected API route. For public cache changes, also verify the
 cache status, age and stale headers and one privacy-safe structured rebuild

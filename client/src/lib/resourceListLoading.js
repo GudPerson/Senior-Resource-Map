@@ -26,12 +26,14 @@ export function shouldUseFullResourceDataset({
     boundaryChecksEnabled = false,
     boundaryFilter = 'all',
     regionFilter = 'all',
+    subregionFilter = 'all',
 } = {}) {
     const normalizedQuery = String(query || '').trim();
     const hasClientOnlySearchOperators = hasClientOnlyResourceSearchOperators(normalizedQuery);
     const hasClientBoundaryFilter = Boolean(boundaryChecksEnabled) && boundaryFilter !== 'all';
     const hasClientRegionFilter = String(regionFilter || 'all') !== 'all';
-    return hasClientOnlySearchOperators || hasClientBoundaryFilter || hasClientRegionFilter;
+    const hasClientSubregionFilter = String(subregionFilter || 'all') !== 'all';
+    return hasClientOnlySearchOperators || hasClientBoundaryFilter || hasClientRegionFilter || hasClientSubregionFilter;
 }
 
 export function buildManagedResourceListParams({

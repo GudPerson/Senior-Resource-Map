@@ -7,11 +7,13 @@ const resourcesPageSource = readFileSync(
     'utf8',
 );
 
-test('Manage Resources exposes a Region filter on resource tabs', () => {
+test('Manage Resources exposes separate Region and Subregion filters on resource tabs', () => {
     assert.match(resourcesPageSource, /aria-label="Filter resources by Region"/);
-    assert.match(resourcesPageSource, /buildManagedRegionFilterOptions\(subregions\)/);
-    assert.match(resourcesPageSource, /filterAssetWithQuery\(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter\)/);
-    assert.match(resourcesPageSource, /shouldUseFullResourceDataset\(\{[\s\S]*regionFilter,/);
+    assert.match(resourcesPageSource, /aria-label="Filter resources by Subregion"/);
+    assert.match(resourcesPageSource, /buildManagedRegionFilterOptions\(subregions, boundaryLayers\)/);
+    assert.match(resourcesPageSource, /buildManagedSubregionFilterOptions\(subregions, regionFilter, boundaryLayers\)/);
+    assert.match(resourcesPageSource, /filterAssetWithQuery\(asset, normalizedQuery, boundaryChecksEnabled, boundaryFilter, regionFilter, subregionFilter, boundaryLayers\)/);
+    assert.match(resourcesPageSource, /shouldUseFullResourceDataset\(\{[\s\S]*regionFilter,[\s\S]*subregionFilter,/);
 });
 
 test('Manage Resources bulk controls target every filtered results page', () => {

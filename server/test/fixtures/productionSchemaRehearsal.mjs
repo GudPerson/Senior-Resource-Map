@@ -12,8 +12,15 @@ const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const qi = (value) => '"' + value.replaceAll('"', '""') + '"';
 const qs = (value) => "'" + value.replaceAll("'", "''") + "'";
 const sort = (items) => [...items].sort((a, b) => a.name.localeCompare(b.name));
+export const currentFeatureMigrationIds = Object.freeze([
+    '0003_support_inbox',
+    '0004_guide_history',
+    '0005_notification_updates',
+    '0006_saved_search_alerts',
+    '0007_boundary_layers',
+]);
 
-export async function createProductionSchemaRehearsal(t) {
+export async function createProductionSchemaRehearsal(t, { featureMigrationIds = currentFeatureMigrationIds } = {}) {
     const raw = await readFile(new URL('../../../docs/evidence/guide-inbox-neon-preflight-20260907.json', import.meta.url), 'utf8');
     assert.equal(sha256(raw), evidenceSha256, 'Catalog evidence changed; review before rehearsal');
     const evidence = JSON.parse(raw);
@@ -23,10 +30,10 @@ export async function createProductionSchemaRehearsal(t) {
         assert.equal(sha256(sql), item.sha256, 'Migration bytes changed: ' + item.id);
         return { ...item, sql };
     }));
-    const features = migrations.slice(3);
-    assert.deepEqual(features.map(m => m.id), ['0003_support_inbox', '0004_guide_history', '0005_notification_updates', '0006_saved_search_alerts']);
+    const features = migrations.filter((migration) => featureMigrationIds.includes(migration.id));
+    assert.deepEqual(features.map(m => m.id), [...featureMigrationIds]);
     const featureNames = features.flatMap(m => [...m.sql.matchAll(/CREATE TABLE IF NOT EXISTS "([^"]+)"/g)].map(match => match[1]));
-    assert.equal(featureNames.length, 10);
+    assert.equal(new Set(featureNames).size, featureNames.length, 'Feature table names must be unique');
     const existingNames = evidence.normalizedProduction.tables.map(table => table.name);
     const pg = new PGlite();
     t.after(() => pg.close());
@@ -130,9 +137,9 @@ export async function createProductionSchemaRehearsal(t) {
             const after = await capture(db);
             assertOld(after);
             assertFeatures(after);
-            assert.equal(after.tables.length, 70);
+            assert.equal(after.tables.length, existingNames.length + featureNames.length);
             assert.deepEqual(await readHistory(db), expectedHistory);
-            return { applied: 4, verifiedAlreadyApplied: false };
+            return { applied: features.length, verifiedAlreadyApplied: false };
         });
     }
     return { pg, evidence, features, featureNames, expectedFeatures, capture, captureRows, applyFeatureUpgrade, readHistory };

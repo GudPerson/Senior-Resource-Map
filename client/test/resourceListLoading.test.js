@@ -83,6 +83,14 @@ test('shouldUseFullResourceDataset uses full data only for client-only filters',
         boundaryFilter: 'all',
         regionFilter: '130',
     }), true);
+
+    assert.equal(shouldUseFullResourceDataset({
+        query: '',
+        boundaryChecksEnabled: false,
+        boundaryFilter: 'all',
+        regionFilter: 'all',
+        subregionFilter: '130',
+    }), true);
 });
 
 test('buildManagedResourceListParams scopes admin management lists to their region', () => {

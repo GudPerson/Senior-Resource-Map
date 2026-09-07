@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "authoritativeSchema": "src/db/schema.js",
-  "currentSchemaSha256": "1657cd671639b6490298bf73f8460c8adbf31e60bcb567c82df24126b74b95e4",
+  "currentSchemaSha256": "7be283bcf69a6f3a5d96d02f9cc77382944999763b1b922237d7fb28389b325a",
   "runtimeCompatibilityBootstrap": "src/utils/boundarySchema.js",
   "runtimeCompatibilityBootstrapSha256": "8a9bdb2545fe0ce03c37aaf11ddee97ae5f04834d586c2381c3e04360f60c63f",
   "migrations": [
@@ -121,6 +121,24 @@
         "Nine CHECK constraints are restored in SQL because the installed generator omits them. Unique bounded owner slots enforce ten searches per account.",
         "No runtime DDL. Apply before enabling saved-search routes or scheduled processing; the shared rollout flag remains off by default.",
         "Background searches use the same public visibility rules as Guide. Existing master notification consent remains authoritative; edits and resume start a new baseline."
+      ]
+    },
+    {
+      "id": "0007_boundary_layers",
+      "file": "drizzle/0007_boundary_layers.sql",
+      "sha256": "f87f4f6d543bf2dd4d19cd2b2a01e38eb0c16f9c49378cf8a70de61cbb9d6a69",
+      "snapshotFile": "drizzle/meta/0007_snapshot.json",
+      "snapshotSha256": "45c4f671fee756603c1fbfc64cbb02ec831469b392ac5ce8bf5c1c9f1f75412e",
+      "type": "additive-geography-boundary-layers",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "Roll back the application while retaining the additive Region, Region postcode, Region-to-Subregion mapping, and Unmapped postcode data. Existing Subregion routing tables are not transformed. Removing the additive objects or imported layer data requires a separately reviewed forward repair after export and reconciliation.",
+      "environmentStatus": "Local development candidate tested on disposable PostgreSQL only; no production migration, data import, push, or deployment authorised or applied.",
+      "cautions": [
+        "Apply this migration before deploying the boundary-layer API or client; the runtime compatibility bootstrap intentionally does not create these governed tables.",
+        "Region and Subregion postcode sets overlap by design but live in separate tables. Existing account and resource routing continues to query only subregion_postal_codes.",
+        "The Unmapped layer is classification data and never grants access or assigns a user or resource.",
+        "Production workbook import is a separate, explicitly confirmed operation and should use the corrected validated source artifact."
       ]
     }
   ]

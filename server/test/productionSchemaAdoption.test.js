@@ -19,7 +19,8 @@ test('captured production-shaped schema: additive adoption, preservation and fai
         "INSERT INTO notification_preferences (user_id,channel,category,enabled,delivery_allowed) VALUES (1,'in_app','general',false,false);" +
         "INSERT INTO user_calendar_items (user_id,item_type,soft_asset_id,title,starts_at,source_revision) " +
         "VALUES (1,'planned_session',1,'Synthetic existing plan','2026-09-10T01:00:00Z',1);" +
-        "INSERT INTO user_calendar_schedule_states (user_id,soft_asset_id,last_seen_revision) VALUES (1,1,1);");
+        "INSERT INTO user_calendar_schedule_states (user_id,soft_asset_id,last_seen_revision) VALUES (1,1,1);" +
+        "INSERT INTO subregions (id,subregion_code,name,postal_patterns) VALUES (10,'SR-SYN','Synthetic Subregion','545610');");
     const before = await r.capture();
     const rowsBefore = await r.captureRows();
     const count = async table => (await pg.query('SELECT count(*)::int AS n FROM ' + table)).rows[0].n;
@@ -68,16 +69,16 @@ test('captured production-shaped schema: additive adoption, preservation and fai
         assert.deepEqual(await r.captureRows(), rowsBefore);
         assert.equal((await pg.query("SELECT to_regnamespace('carearound_release') IS NULL AS absent")).rows[0].absent, true);
     });
-    await t.test('successful retry applies only 0003–0006 and preserves all existing table rows and definitions', async () => {
-        assert.deepEqual(await r.applyFeatureUpgrade(), { applied: 4, verifiedAlreadyApplied: false });
+    await t.test('successful retry applies only 0003–0007 and preserves all existing table rows and definitions', async () => {
+        assert.deepEqual(await r.applyFeatureUpgrade(), { applied: 5, verifiedAlreadyApplied: false });
         const after = await r.capture();
-        assert.equal(after.tables.length, 70);
+        assert.equal(after.tables.length, 74);
         assert.deepEqual(after.tables.filter(table => before.tables.some(old => old.name === table.name)), before.tables);
         assert.deepEqual(after.enums, before.enums);
         assert.deepEqual(await r.captureRows(), rowsBefore);
         const history = await r.readHistory();
-        assert.equal(history.length, 5);
-        assert.equal(history.filter(row => row.kind === 'executed_migration').length, 4);
+        assert.equal(history.length, 6);
+        assert.equal(history.filter(row => row.kind === 'executed_migration').length, 5);
         assert.equal(history.find(row => row.kind === 'observed_baseline').sha256, evidenceSha256);
         assert.ok(history.every(row => !/^000[012]_/.test(row.change_id)));
     });
@@ -111,7 +112,11 @@ test('captured production-shaped schema: additive adoption, preservation and fai
         "INSERT INTO user_notifications (id,watch_id,categories,changed_fields) VALUES ('notice','watch','[\"calendar\"]','[\"schedule\"]');" +
         "INSERT INTO saved_searches (id,user_id,slot,query,resource_type) VALUES ('search',1,1,'synthetic keywords','all');" +
         "INSERT INTO saved_search_matches (search_id,match_key) VALUES ('search',repeat('a',64));" +
-        "INSERT INTO saved_search_digests (search_id,notice_id,search_revision,baseline_preference) VALUES ('search','digest',1,'{}');");
+        "INSERT INTO saved_search_digests (search_id,notice_id,search_revision,baseline_preference) VALUES ('search','digest',1,'{}');" +
+        "INSERT INTO regions (id,name) VALUES (10,'Synthetic Region');" +
+        "INSERT INTO region_postal_codes (region_id,postal_code) VALUES (10,'545610');" +
+        "INSERT INTO region_subregions (region_id,subregion_id) VALUES (10,10);" +
+        "INSERT INTO unmapped_postal_codes (postal_code) VALUES ('000123');");
     await t.test('all 27 feature CHECK constraints reject invalid synthetic state', async () => {
         const violations = [
             ["UPDATE support_conversations SET owner_user_id=NULL", 'support_conversations_owner_check'],
@@ -146,7 +151,7 @@ test('captured production-shaped schema: additive adoption, preservation and fai
         assert.deepEqual(checks, violations.map(v => v[1]).sort());
         for (const [sql, constraint] of violations) await assert.rejects(pg.exec(sql), error => error.code === '23514' && error.message.includes(constraint));
     });
-    await t.test('all 13 feature foreign keys reject orphaned records', async () => {
+    await t.test('all 16 feature foreign keys reject orphaned records', async () => {
         const orphanUpdates = [
             'UPDATE support_conversations SET owner_user_id=999',
             "UPDATE support_fix_proposals SET conversation_id='missing'",
@@ -161,12 +166,15 @@ test('captured production-shaped schema: additive adoption, preservation and fai
             'UPDATE saved_searches SET user_id=999',
             "UPDATE saved_search_matches SET search_id='missing'",
             "UPDATE saved_search_digests SET search_id='missing'",
+            'UPDATE region_postal_codes SET region_id=999',
+            'UPDATE region_subregions SET region_id=999',
+            'UPDATE region_subregions SET subregion_id=999',
         ];
         const actual = (await pg.query("SELECT count(*)::int AS n FROM pg_constraint c JOIN pg_class t ON t.oid=c.conrelid WHERE c.contype='f' AND t.relname=ANY($1)", [r.featureNames])).rows[0].n;
         assert.equal(actual, orphanUpdates.length);
         for (const sql of orphanUpdates) await assert.rejects(pg.exec(sql), { code: '23503' });
     });
-    await t.test('all seven non-primary unique indexes reject duplicate feature identities', async () => {
+    await t.test('all ten non-primary unique indexes reject duplicate feature identities', async () => {
         const duplicates = [
             "INSERT INTO support_messages (conversation_id,sequence,request_key,author_kind,body) VALUES ('conversation',2,'synthetic-request','system','Synthetic duplicate')",
             "INSERT INTO guide_conversations (id,owner_user_id,slot,title,inputs,last_request_id) VALUES ('guide-other',1,0,'Synthetic duplicate','[{}]','other')",
@@ -180,7 +188,13 @@ test('captured production-shaped schema: additive adoption, preservation and fai
         try {
             await assert.rejects(pg.exec("INSERT INTO support_conversations (id,guest_token_hash,guest_expires_at,title) VALUES ('guest-other',repeat('b',64),now()+interval '1 day','Synthetic duplicate')"), { code: '23505' });
         } finally { await pg.exec("DELETE FROM support_conversations WHERE id='guest'"); }
-        assert.equal((await pg.query("SELECT count(*)::int AS n FROM pg_index i JOIN pg_class t ON t.oid=i.indrelid WHERE i.indisunique AND NOT i.indisprimary AND t.relname=ANY($1)", [r.featureNames])).rows[0].n, 7);
+        await assert.rejects(pg.exec("INSERT INTO regions (id,name) VALUES (11,'Synthetic Region')"), { code: '23505' });
+        await pg.exec("INSERT INTO regions (id,name) VALUES (11,'Second Synthetic Region')");
+        try {
+            await assert.rejects(pg.exec("INSERT INTO region_postal_codes (region_id,postal_code) VALUES (11,'545610')"), { code: '23505' });
+            await assert.rejects(pg.exec("INSERT INTO region_subregions (region_id,subregion_id) VALUES (11,10)"), { code: '23505' });
+        } finally { await pg.exec('DELETE FROM regions WHERE id=11'); }
+        assert.equal((await pg.query("SELECT count(*)::int AS n FROM pg_index i JOIN pg_class t ON t.oid=i.indrelid WHERE i.indisunique AND NOT i.indisprimary AND t.relname=ANY($1)", [r.featureNames])).rows[0].n, 10);
     });
     await t.test('unsave removes only its watch/notice, retaining existing map and Calendar plan', async () => {
         await isolated(async () => {
@@ -206,9 +220,14 @@ test('captured production-shaped schema: additive adoption, preservation and fai
     await t.test('owner deletion removes only owned feature state via declared foreign keys', async () => {
         await isolated(async () => {
             await pg.exec('DELETE FROM users WHERE id=1');
-            for (const table of r.featureNames) assert.equal(await count(table), 0, table);
+            for (const table of r.featureNames.filter(table => !['regions', 'region_postal_codes', 'region_subregions', 'unmapped_postal_codes'].includes(table))) {
+                assert.equal(await count(table), 0, table);
+            }
+            for (const table of ['regions', 'region_postal_codes', 'region_subregions', 'unmapped_postal_codes']) {
+                assert.equal(await count(table), 1, table);
+            }
             assert.equal(await count('users'), 2);
-            assert.equal(await count('carearound_release.schema_changes'), 5);
+            assert.equal(await count('carearound_release.schema_changes'), 6);
         });
     });
     await t.test('rollback-by-retention needs no down migration and preserves private state', async () => {
@@ -218,6 +237,6 @@ test('captured production-shaped schema: additive adoption, preservation and fai
         assert.deepEqual(await Promise.all(r.featureNames.map(count)), featureCounts);
         assert.deepEqual(await r.captureRows(), rowsBefore);
         assert.equal((await r.capture()).migration_tables.length, 0, 'No fictitious Drizzle history');
-        t.diagnostic('Local catalog parity: 60 tables, 604 columns, 195 constraints, 207 indexes; 4 migrations, 10 new tables, 27 CHECKs, 13 FKs. No provider or runtime rollout was performed.');
+        t.diagnostic('Local catalog parity: 60 tables, 604 columns, 195 constraints, 207 indexes; 5 migrations, 14 new tables, 27 CHECKs, 16 FKs. No provider or runtime rollout was performed.');
     });
 });

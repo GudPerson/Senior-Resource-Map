@@ -6,12 +6,21 @@ import { createProductionSchemaRehearsal, evidenceSha256, sourceRevision } from 
 // Generates SQL for the single, schema-only Neon rehearsal branch, never production.
 // Does not connect, load environment files, or write files.
 const branchId = 'br-autumn-mode-aikak52t';
+const approvedFeatureMigrationIds = Object.freeze([
+    '0003_support_inbox',
+    '0004_guide_history',
+    '0005_notification_updates',
+    '0006_saved_search_alerts',
+]);
 const literal = text => "'" + text.replaceAll("'", "''") + "'";
 const sha256 = text => createHash('sha256').update(text).digest('hex');
 
 export async function buildNeonRehearsalSql() {
     const cleanup = [];
-    const r = await createProductionSchemaRehearsal({ after: fn => cleanup.push(fn) });
+    const r = await createProductionSchemaRehearsal(
+        { after: fn => cleanup.push(fn) },
+        { featureMigrationIds: approvedFeatureMigrationIds },
+    );
     try {
         const query = r.evidence.normalizedQuery.trim().replace(/;$/, '');
         const expected = JSON.stringify({ tables: r.evidence.normalizedProduction.tables, enums: r.evidence.normalizedProduction.enums });

@@ -15,6 +15,8 @@ This change does not connect to or alter any database. The repository baseline h
 
 The next ordered migration, `0001_normalized_login_indexes.sql`, adds case-insensitive username and email indexes for the bounded password-login query. It first checks for legacy case-only collisions and aborts without printing the affected identifiers. It is additive and has not been applied to any database.
 
+The current boundary-layer candidate, `0007_boundary_layers.sql`, adds four independent tables for broad Regions, Region postcode membership, Region-to-Subregion parent mapping, and Unmapped postcodes. It does not alter `subregions` or `subregion_postal_codes`, so existing account and resource routing remains structurally unchanged. The migration and its workbook data load have only been exercised against disposable local PostgreSQL; neither is authorised or applied in production.
+
 ## Ownership rules
 
 Every schema change must include all of the following in one reviewed change:
