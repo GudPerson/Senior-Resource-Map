@@ -55,6 +55,32 @@ test('buildBoundaryLayerImportPlan rejects conflicting hierarchy and unknown Sub
     assert.match(plan.errors.join('\n'), /conflicting boundary assignments/);
 });
 
+test('buildBoundaryLayerImportPlan accepts the production Subregion label and code convention', () => {
+    const plan = buildBoundaryLayerImportPlan([
+        { POSTCODE: '545610', REGION: 'Hougang', SUBREGION: 'Hougang-3' },
+        { POSTCODE: '545611', REGION: 'Hougang', SUBREGION: 'SR-HOU3' },
+    ], [
+        { id: 137, name: 'SR-HOU3', subregionCode: 'Hougang-3' },
+    ]);
+
+    assert.equal(plan.errorCount, 0);
+    assert.equal(plan.subregions.length, 1);
+    assert.equal(plan.subregions[0].id, 137);
+    assert.deepEqual(plan.subregions[0].postalCodes, ['545610', '545611']);
+});
+
+test('buildBoundaryLayerImportPlan rejects an ambiguous Subregion label or code alias', () => {
+    const plan = buildBoundaryLayerImportPlan([
+        { POSTCODE: '545610', REGION: 'Hougang', SUBREGION: 'Shared alias' },
+    ], [
+        { id: 1, name: 'First', subregionCode: 'Shared alias' },
+        { id: 2, name: 'Second', subregionCode: 'Shared alias' },
+    ]);
+
+    assert.equal(plan.errorCount, 1);
+    assert.match(plan.errors[0], /not configured/);
+});
+
 test('postal serializers preserve exact coverage and stay under the import cell limit', () => {
     assert.equal(serializePostalCodeRanges(['545612', '545610', '545611', '550001']), '545610-545612,550001');
 

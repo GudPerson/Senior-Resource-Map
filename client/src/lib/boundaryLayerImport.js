@@ -90,8 +90,17 @@ export function buildBoundaryLayerImportPlan(rows = [], availableSubregions = []
     const state = { errorCount: 0, errors: [] };
     const subregionsByName = new Map();
     for (const subregion of Array.isArray(availableSubregions) ? availableSubregions : []) {
-        const nameKey = normalizeLabel(subregion?.name).toLowerCase();
-        if (nameKey) subregionsByName.set(nameKey, subregion);
+        const aliases = [subregion?.name, subregion?.subregionCode]
+            .map((value) => normalizeLabel(value).toLowerCase())
+            .filter(Boolean);
+        for (const alias of aliases) {
+            const existing = subregionsByName.get(alias);
+            if (!subregionsByName.has(alias)) {
+                subregionsByName.set(alias, subregion);
+            } else if (!existing || Number(existing.id) !== Number(subregion.id)) {
+                subregionsByName.set(alias, null);
+            }
+        }
     }
 
     const regionGroups = new Map();
