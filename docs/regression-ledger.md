@@ -15,6 +15,24 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-07 Guide everyday wording release check
+
+- Live pre-client-release check at API revision `83a48929a` reproduced a gap:
+  `How do I save a resource?` returned unknown guidance. The new regression
+  test failed first. Guide knowledge `2026-09-07.2` adds explicit article-bearing
+  aliases for find/save/create/share and starts keyword matching at a word
+  boundary, so save cannot match inside unsave. Removal guidance retains the
+  My Maps protection and Care Calendar warning.
+- Scope is reviewed help-topic selection and restored Guide answers only;
+  saving, map, Calendar, search authorization and database logic are untouched.
+- Acceptance: eight everyday question variants resolve to the intended topics;
+  unknown-care/injection questions and guest sign-in routing remain guarded.
+  Focused Guide tests pass 5/5; full server suite passes 722/722. The preceding
+  client suite passes 772/772; the final clean-source build is rerun for release.
+- Known-good source is the commit containing this entry and the matching
+  `guide.test.js` regression. Production confirmation is recorded in the final
+  release evidence, not inferred from the local test.
+
 ## 2026-09-07 Approved batched adoption and live runtime proof
 
 - The user explicitly approved the tested ledger and exact `0003`–`0006` on

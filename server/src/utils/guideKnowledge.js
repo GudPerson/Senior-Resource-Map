@@ -1,30 +1,30 @@
 import { normalizeRole } from './roles.js';
 
-export const GUIDE_KNOWLEDGE_VERSION = '2026-09-07.1';
+export const GUIDE_KNOWLEDGE_VERSION = '2026-09-07.2';
 // Reviewed app guidance, not a model-generated source of permissions or care advice.
 export const GUIDE_TOPICS = [
     {
-        id: 'discover', title: 'Find a resource', keywords: ['discover', 'search', 'find resource', 'nearby'],
+        id: 'discover', title: 'Find a resource', keywords: ['discover', 'search', 'find resource', 'find a resource', 'nearby'],
         message: 'Use resource search for a name, service, tag, or address. Open a result to check its current details. Discover also lets you browse Places and Programmes/services on the map. Search results are information, not a booking or a confirmation of eligibility.',
         route: '/discover', label: 'Open Discover',
     },
     {
-        id: 'save', title: 'Save resources', keywords: ['save resource', 'heart', 'save to', 'saved resources'],
+        id: 'save', title: 'Save resources', keywords: ['save resource', 'save a resource', 'heart', 'save to', 'saved resources'],
         message: 'Use the heart on a resource to save it to My Directory. You must be signed in to save. Saving an Offering is not registration for its programme or service.',
         route: '/my-directory', label: 'Open My Directory', signedIn: true,
     },
     {
-        id: 'unsave', title: 'Remove saved resources safely', keywords: ['unsave', 'bulk remove', 'bulk unsave', 'not used', 'remove saved'],
+        id: 'unsave', title: 'Remove saved resources safely', keywords: ['unsave', 'bulk remove', 'bulk unsave', 'not used', 'remove saved', 'remove saved resources'],
         message: 'In My Directory, filter saved resources by Used in My Maps or Not used in My Maps. Select unused resources and review the removal confirmation. Bulk removal protects resources used in your maps. Unsaving an Offering can remove its saved schedule source from Care Calendar; check that warning before confirming.',
         route: '/my-directory', label: 'Review saved resources', signedIn: true,
     },
     {
-        id: 'maps', title: 'Create and manage My Maps', keywords: ['create map', 'my map', 'personal map', 'manage map', 'map studio'],
+        id: 'maps', title: 'Create and manage My Maps', keywords: ['create map', 'create a map', 'my map', 'personal map', 'manage map', 'map studio'],
         message: 'Open My Directory and choose My Maps to create or open a map. The Create/Manage Resources controls let you search for resources and add them to that map. Use the map menu for Map Studio. Changes to your private map do not silently update an already published Shared Map.',
         route: '/my-directory', label: 'Open My Maps', signedIn: true,
     },
     {
-        id: 'sharing', title: 'Share a map', keywords: ['share map', 'shared map', 'sharing', 'publish', 'embed'],
+        id: 'sharing', title: 'Share a map', keywords: ['share map', 'share a map', 'shared map', 'sharing', 'publish', 'embed'],
         message: 'Open your own map and review its sharing controls. A Shared Map is a view-only snapshot; update the shared version explicitly after changing your private map. Review what will be visible before sharing the link. You can stop sharing from the same controls.',
         route: '/my-directory', label: 'Open My Directory', signedIn: true,
     },
@@ -58,7 +58,8 @@ export const GUIDE_TOPICS = [
 export function answerGuideQuestion({ question = '', topicId = '' } = {}, user = null) {
     const query = question.toLowerCase().replace(/[’']/g, '').trim();
     const scored = GUIDE_TOPICS.map((topic) => ({ topic, score: topic.keywords.reduce((score, keyword) => (
-        query.includes(keyword) ? Math.max(score, keyword.length) : score
+        // Match the beginning of a word so "save resource" cannot match "unsave resources".
+        new RegExp(`\\b${keyword}`).test(query) ? Math.max(score, keyword.length) : score
     ), 0) })).sort((a, b) => b.score - a.score);
     const topic = topicId ? GUIDE_TOPICS.find((item) => item.id === topicId)
         : scored[0]?.score ? scored[0].topic : null;

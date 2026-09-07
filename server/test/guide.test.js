@@ -17,6 +17,21 @@ test('Guide gives versioned verified guidance, not invented facts or guest-only 
     });
 });
 
+test('Guide recognizes everyday app questions without confusing save and unsave', () => {
+    for (const [question, topicId] of [
+        ['How do I save a resource?', 'save'],
+        ['How do I save resources?', 'save'],
+        ['How do I unsave a resource?', 'unsave'],
+        ['How do I unsave resources?', 'unsave'],
+        ['How do I remove saved resources?', 'unsave'],
+        ['How do I find a resource?', 'discover'],
+        ['How do I create a map?', 'maps'],
+        ['How do I share a map?', 'sharing'],
+    ]) {
+        assert.equal(answerGuideQuestion({ question }).topicId, topicId, question);
+    }
+});
+
 test('Guide search delegates to public resource controllers without forwarding user privilege or arbitrary filters', async () => {
     const seen = [];
     const handler = (c) => {
