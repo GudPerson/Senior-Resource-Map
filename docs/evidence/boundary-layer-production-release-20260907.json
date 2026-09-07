@@ -1,0 +1,80 @@
+{
+  "recordedAt": "2026-09-07T08:06:23Z",
+  "scope": "Region, Subregion, and Unmapped boundary layers plus corrected production data load",
+  "source": {
+    "featurePullRequest": 51,
+    "featureMergeCommit": "1e638569e76a665f079e9f4d9fc61bf5321d5490",
+    "productionAliasPullRequest": 52,
+    "productionAliasMergeCommit": "274e4e2579c91949d2a1caf2c78566679b095386",
+    "workbook": "outputs/01a079ca-819a-71d1-9e6e-059bbeef695c/region_boundary_corrected.xlsx",
+    "workbookSha256": "ad3a225df3b60e180c1e5776d4a606c479b920c055c7a970b19d83e5ff843126"
+  },
+  "database": {
+    "provider": "Neon PostgreSQL",
+    "branchId": "br-green-union-ailxs0g3",
+    "database": "neondb",
+    "postgresMajor": 17,
+    "migration": "0007_boundary_layers",
+    "migrationSha256": "f87f4f6d543bf2dd4d19cd2b2a01e38eb0c16f9c49378cf8a70de61cbb9d6a69",
+    "manualSnapshot": {
+      "createdBeforeMigration": true,
+      "retention": "never expires",
+      "displayedSizeMb": 73.04
+    },
+    "preLoadRecovery": {
+      "historicPreviewTimestamp": "2026-09-07T05:35:00.000Z",
+      "historicMetadataRows": 86,
+      "restoredMetadataRows": 85,
+      "compressedBackup": "outputs/01a079ca-819a-71d1-9e6e-059bbeef695c/production_boundary_backup_before_regions_2026-09-07T07-54-07.905Z.json.gz",
+      "compressedBackupSha256": "0a5e0eea5e25a2fad9e468f1555f065e7173a18f703210a7d1656a74bc4d0ba2",
+      "priorSingaporeFallbackPostalCodes": 122936
+    },
+    "appliedCounts": {
+      "sourceRows": 122930,
+      "uniquePostalCodes": 122930,
+      "regions": 24,
+      "mappedPostalCodes": 121022,
+      "regionSubregionLinks": 85,
+      "operationalSubregions": 85,
+      "unmappedPostalCodes": 1908,
+      "metadataRowsIncludingSingaporeFallback": 86,
+      "singaporeFallbackPostalCodes": 0,
+      "validationErrors": 0,
+      "mappedUnmappedOverlap": 0
+    },
+    "correction": {
+      "postalCode": "545610",
+      "region": "Hougang",
+      "subregion": "Hougang-3"
+    }
+  },
+  "cloudflare": {
+    "workerVersion": "12acd892-d0bb-44fe-b08d-817acca94e2b",
+    "workerSourceRevision": "1e638569e76a665f079e9f4d9fc61bf5321d5490",
+    "pagesDeploymentId": "962e0a48-e946-4278-9548-d4502afc2015",
+    "pagesUrl": "https://962e0a48.senior-resource-map.pages.dev",
+    "pagesSourceRevision": "274e4e2579c91949d2a1caf2c78566679b095386",
+    "clientEntry": "assets/index-BpBGuwPO.js",
+    "clientEntryBytes": 195134,
+    "clientEntrySha256": "dc1798ed3a5ea4b8479f657e4e8dfb844e340d8f6745d94693d7d577ab74d820",
+    "servedFiles": 87,
+    "servedFilesAggregateSha256": "87c2dea39e196883f8d7450473f6a83b49f2757acede93ade01fb20abafd26eb",
+    "immutableDeploymentMismatches": 0,
+    "customDomainMismatches": 0,
+    "apiHealthStatus": 200,
+    "unauthenticatedBoundaryLayerStatus": 401
+  },
+  "verification": {
+    "serverTests": "726/726",
+    "clientTests": "779/779",
+    "focusedAliasTests": "5/5",
+    "productionClientBuild": "passed",
+    "migrationRehearsal": "19/19",
+    "productionSmoke": "6/6",
+    "productionBoundaryApi": "passed",
+    "productionAdminUi": "three layer summaries and 86 metadata rows loaded",
+    "requiredGithubQuality": "passed",
+    "cloudflarePreview": "passed",
+    "legacyNetlifyChecks": "failed; not part of the supported Cloudflare release path"
+  }
+}
