@@ -17,7 +17,7 @@ Rules:
 
 ## 2026-09-08 Help, Guide, and notification inbox client release recovery
 
-- Current behavior and reproduction: production Pages deployment
+- Regressed behavior and reproduction: production Pages deployment
   `c53cb48f-042b-438f-abd9-0136eaee560b`, labelled with source
   `d18886d76693d6fd54976d4a8d74ec8c3118bb46`, redirects `/help`, `/inbox`,
   and the Updates inbox route to Discover and omits the Help/inbox navigation
@@ -62,9 +62,24 @@ Rules:
   Help/inbox navbar entry, returned the approved bulk-unsave/My Map/Care
   Calendar guidance, found real Havelock directory resources, and redirected
   `/inbox` to `/help?tab=inbox`. The live feature-branch invocation of the new
-  deploy guard was rejected as designed. Production Pages identity, artifact
-  parity, Functions upload, custom-domain routes, and authenticated read-only
-  inbox/Updates checks remain the post-merge deploy gate.
+  deploy guard was rejected as designed.
+- Production release: PR #54 merged the guarded client recovery to `main` at
+  `9137703f71b28d42f4697ed6403d80f6c5cbb072`. Production Pages deployment
+  `46f5f7a8-ba5c-450c-9c1f-b5f71137d95d` is available at
+  `https://46f5f7a8.senior-resource-map.pages.dev`. All `87/87` assets matched
+  the immutable deployment and `https://app.carearound.sg` by bytes, with
+  aggregate SHA-256
+  `e134002aa8e2377287eec5b274bbe1c5b393a969b10d60ac098a3d8686481ce8`.
+  Production guest verification confirmed that Help and the Guide load, that
+  `/inbox` redirects to `/help?tab=inbox`, that the Updates-style inbox URL
+  remains on Help, that real resource search returns current directory results,
+  and that Discover still loads `3,481` resources with no browser console
+  warnings or errors. Public Guide topics remained available, guest-private
+  inbox/preferences/saved-search endpoints returned `401`, and ordinary app
+  routes retained deny-framing headers. Authenticated
+  inbox, notification-preference, and saved-search flows were not reverified
+  during this recovery and are not claimed as production UAT. No Worker was
+  deployed and no production data was changed.
 
 ## 2026-09-07 Guide everyday wording release check
 

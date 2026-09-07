@@ -1,6 +1,6 @@
 # CareAround SG session handoff
 
-Updated: 2026-09-07 (Asia/Singapore)
+Updated: 2026-09-08 (Asia/Singapore)
 
 ## Start here
 
@@ -11,27 +11,42 @@ Updated: 2026-09-07 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
-## 2026-09-08 Help and notification inbox client recovery — in progress
+## 2026-09-08 Help and notification inbox client recovery — released
 
 - This supersedes the older Guide/inbox section below for current release
-  status. Production Pages `c53cb48f-042b-438f-abd9-0136eaee560b` serves the
-  current adaptive-workspace client source but was built without
+  status. The regressed Pages deployment
+  `c53cb48f-042b-438f-abd9-0136eaee560b` served the adaptive-workspace client
+  source but was built without
   `VITE_SUPPORT_INBOX_ENABLED=true`, so Help, inbox, Updates, notifications,
   and saved-search UI entry points were compiled out. The Worker/API and
   existing data remain intact.
-- The narrow candidate pins the support flag in every production-style client
+- The released correction pins the support flag in every production-style client
   build, makes the environment validator fail on omission, locks the Help and
   inbox route/navbar contract, and replaces the ordinary Pages upload command
   with a clean-`main`/fresh-`origin/main` guarded build and exact-source deploy.
-  It preserves the current adaptive-resource workspace and all map contracts.
-- Pre-deploy verification passes: focused `53/53`, server `729/729`, client
+  PR #54 merged it to `main` at
+  `9137703f71b28d42f4697ed6403d80f6c5cbb072`, preserving the current
+  adaptive-resource workspace and all map contracts.
+- Pre-deploy verification passed: focused `53/53`, server `729/729`, client
   `783/783` plus four environment-validator tests, module graph `477` / `1,407`,
   exact production client build, map lockdown `103/103`, and a local browser
   journey covering Help, `/inbox`, bulk-unsave guidance, and real Havelock
-  search. Next: commit and merge the candidate to `main`, deploy from a new
-  clean main checkout, verify exact artifact/custom-domain parity and Pages
-  Functions, then record production browser evidence. No Worker, migration,
-  schema, database, auth, secret, or external-notification deployment is needed.
+  search.
+- The guarded production release created Pages deployment
+  `46f5f7a8-ba5c-450c-9c1f-b5f71137d95d` at
+  `https://46f5f7a8.senior-resource-map.pages.dev`. All `87/87` assets matched
+  the immutable deployment and `https://app.carearound.sg` by bytes, with
+  aggregate SHA-256
+  `e134002aa8e2377287eec5b274bbe1c5b393a969b10d60ac098a3d8686481ce8`.
+  Production guest checks confirmed the Guide, `/inbox` redirect, Updates-style
+  inbox URL, real resource search, and Discover with `3,481` resources work with
+  no browser console warnings or errors. Public Guide topics returned `200`,
+  guest-private inbox/preferences/saved-search endpoints returned `401`, and
+  ordinary app routes retained deny-framing headers.
+  Authenticated inbox, notification-preference, and saved-search flows were not
+  reverified and are not claimed as production UAT. No Worker was deployed and
+  no production data, migration, schema, auth, secret, or external-notification
+  configuration was changed.
 
 ## 2026-09-07 Region, Subregion, and Unmapped boundary layers — released
 
