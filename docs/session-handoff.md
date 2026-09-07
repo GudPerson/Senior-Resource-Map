@@ -11,6 +11,29 @@ Updated: 2026-09-07 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
+## 2026-09-07 Region, Subregion, and Unmapped boundary layers — released
+
+- PR 51 merged the three-layer feature at `1e638569e`; PR 52 merged the
+  production Subregion label/code compatibility guard at `274e4e257`.
+  Migration `0007_boundary_layers` is recorded on verified Neon production.
+- A fresh never-expiring 73.04 MB Neon snapshot preceded migration. The first
+  workbook dry run made zero writes because live metadata unexpectedly contained
+  only `Singapore / SIN`. Exact rows 101–186 were recovered read-only from the
+  13:35 production history; a compressed copy of the prior 122,936 fallback
+  mappings was captured; one guarded transaction restored rows 101–185 and
+  replaced routing with the approved corrected workbook.
+- Production now has 24 Regions, 121,022 mapped postcodes, 85 Region/Subregion
+  links, 85 operational Subregions, 1,908 Unmapped postcodes, and 86 metadata
+  rows including the empty SIN fallback. There are zero source errors and zero
+  mapped/Unmapped overlaps. Postal code `545610` resolves to Hougang / Hougang-3.
+- Worker `12acd892-d0bb-44fe-b08d-817acca94e2b` serves feature source
+  `1e638569e`. Pages `https://962e0a48.senior-resource-map.pages.dev` serves
+  `274e4e257`; all 87 files match the custom domain, aggregate SHA-256
+  `87c2dea39e196883f8d7450473f6a83b49f2757acede93ade01fb20abafd26eb`.
+  Required quality/Cloudflare checks, 726 server tests, 779 client tests,
+  production API/UI reconciliation, and production smoke 6/6 passed. See
+  [release evidence](evidence/boundary-layer-production-release-20260907.json).
+
 ## 2026-09-07 Guide, inbox, and notifications — active local goal
 
 - Latest approval: the user answered "yes you may, approve" to the exact
