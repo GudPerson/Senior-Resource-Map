@@ -324,6 +324,46 @@ Rules:
   establish production fixes, complete resource-management or shared-map UAT.
   No production database, migration, commit, push or deployment was used. Refresh
   the Worker dry run for this controller correction before release review.
+## 2026-09-07 Manage Resources Region filter and guarded bulk controls release
+
+- Stable behavior: Manage My Resources exposes one Region filter across
+  Places, Offerings, and Groups using the existing lightweight
+  `matchingRegionIds`, coverage Region ids, and primary/linked Region ids.
+  Selecting a Region resolves the complete managed summary set so counts and
+  pagination reflect every matching resource. Templates remain outside the
+  Region and bulk controls because they are reusable definitions rather than
+  live resources.
+- Bulk behavior: `Hide all`, `Unhide all`, `Save all`, and `Unsave all` apply
+  to the complete active filtered result set across every page, not just the
+  visible 50-row page. Every action first resolves the exact targets and opens
+  a count-and-filter confirmation. Already-correct rows are skipped. Visibility
+  changes additionally skip resources the current account cannot hide and
+  report partial failures; they reuse the existing per-resource update,
+  permission, audit, and cache-rebuild path with at most two visibility writes
+  in flight. Saved-resource actions reuse the shared Saved Resources provider
+  and its established four-request queue, optimistic state, and rollback.
+- Reproduction and acceptance: sign in with Manage Resources access, open
+  `/dashboard/resources`, and select a Region on Places, Offerings, and Groups.
+  Confirm every visible result belongs to that Region and the count/pagination
+  cover the complete filtered set. Combine Region, text search, sort, and (when
+  available) managed-area status. Open each bulk action and confirm the dialog
+  states the exact number of rows whose state will change and the active
+  filters. Cancel and verify no change. Confirm controlled save/unsave and
+  hide/unhide round trips, restoring their starting state. Individual card
+  actions, Templates, default lightweight Region metadata, detailed postal
+  hydration, permissions, ownership, Discover ranking/filtering, My Directory
+  hydration, My Maps, auth/session, schema, and unrelated resource fields must
+  remain unchanged.
+- Verification before deploy: focused Region, managed-resource list, saved
+  resource, and bulk-control coverage passes 32/32; the full repository
+  `verify:quality` gate passes with 613/613 server tests, 760/760 client tests,
+  migration ownership, module graph, diff validation, and the configured
+  production client build. The build emits only the pre-existing
+  Browserslist-age advisory. Authenticated smoke credentials are unavailable
+  in the release shell, so authenticated bulk-action round-trip UAT remains an
+  explicit post-deploy follow-up and is not claimed here. No Worker, schema,
+  migration, secret, authentication, database, or production-data change is
+  part of this client-only release.
 
 ## 2026-09-06 Discover Detailed source and deployment regression recovery
 

@@ -35,12 +35,14 @@ test('shouldUseFullResourceDataset keeps default manage-resource loads paginated
         query: '',
         boundaryChecksEnabled: true,
         boundaryFilter: 'all',
+        regionFilter: 'all',
     }), false);
 
     assert.equal(shouldUseFullResourceDataset({
         query: '',
         boundaryChecksEnabled: false,
         boundaryFilter: 'all',
+        regionFilter: 'all',
     }), false);
 });
 
@@ -74,6 +76,13 @@ test('shouldUseFullResourceDataset uses full data only for client-only filters',
         boundaryChecksEnabled: false,
         boundaryFilter: 'inside',
     }), false);
+
+    assert.equal(shouldUseFullResourceDataset({
+        query: '',
+        boundaryChecksEnabled: false,
+        boundaryFilter: 'all',
+        regionFilter: '130',
+    }), true);
 });
 
 test('buildManagedResourceListParams scopes admin management lists to their region', () => {
