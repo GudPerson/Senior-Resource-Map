@@ -1,9 +1,39 @@
 # Guide, inbox and notifications — local release review
 
 Date: 2026-09-07 (Asia/Singapore).
-Status: implemented and locally verified; user approved a scoped local commit
-and read-only production preflight. Push, migrations and deployment are not
-approved. This document is a review candidate, not a release certificate.
+Status: implemented and locally verified; production-version Neon migration
+and synthetic constraint rehearsals now pass. The user's latest instruction,
+"proceed with whatever is required to complete goal", authorizes continued
+scoped rehearsal/release work. Exact-target migration authority, recovery,
+runtime binding identity and release verification gates still apply. No
+production schema/application change, push or deployment has occurred.
+This document is a review candidate, not a release certificate.
+
+## Latest release-continuation evidence
+
+- Temporary schema-only Neon branch `br-autumn-mode-aikak52t` matches the
+  captured production schema on PostgreSQL 17.11. The four exact migrations
+  committed there; all 60 existing table/enum fingerprints remain unchanged
+  and all ten new table fingerprints match. Expected failure after `0005`
+  followed by explicit rollback restored the exact original schema.
+- The actual Neon owner role passed 47 invalid-state checks (27 CHECKs,
+  13 FKs, seven unique indexes), legacy partner/staff deletion behavior, owner
+  cleanup and unsave map/Calendar retention. All synthetic application rows
+  were rolled back; all 70 public tables are empty. No credentials were read.
+- Full server checks pass 720/720. An optional test-only fixture mode also
+  passes 36 actual-controller checks against the captured legacy shape.
+  Application source and the original migration SQL remain unchanged.
+- Evidence and exact submitted SQL hashes are in
+  [the Neon rehearsal record](evidence/guide-inbox-neon-rehearsal-20260907.json).
+  The separate operational ledger remains a rehearsal proposal, not an
+  approved second migration authority. Do not use a generic migration command
+  or register fictitious historical execution to bypass adoption review.
+- The dated approval/access notes below are historical. They do not override
+  the latest user authorization or prove the remaining release gates passed.
+- Fresh recovery evidence now passes: a 72.5 MB manual snapshot from 03:00:42
+  UTC was restored into a separate branch. Its schema and six core counts
+  matched production. The restored copy was deleted; production and the
+  snapshot remain. See [the complete rehearsal report](guide-inbox-neon-rehearsal-20260907.md).
 
 ## Candidate identity
 
@@ -29,6 +59,22 @@ approved. This document is a review candidate, not a release certificate.
 
 ## Approved commit and read-only preflight checkpoint
 
+- Latest: [local adoption plan and rehearsal](guide-inbox-migration-adoption-plan-20260907.md)
+  passed 17 focused / 719 full server tests. All captured existing definitions
+  and synthetic rows are preserved by the four exact feature migrations. Two
+  new test-only files and evidence/docs remain uncommitted; the original 80-file
+  candidate fingerprint identifies commit `33455920`, not these later additions.
+  The proposed separate adoption ledger is not an approved production runner.
+  Production-version, permission, concurrency and recovery gates remain open.
+- Latest: [Neon read-only inspection](neon-read-only-preflight-20260907.md)
+  completed through the user's authorized console. Production has all 60 expected
+  existing tables and none of the ten new feature tables, but no migration journal
+  and substantive baseline drift. Scheduled snapshots are verified current.
+  Migration adoption/rehearsal still needs review; this is not a release pass.
+- Source is committed locally as `334559209472e8c0676d8ce023f48d9d09779d28`.
+  The earlier access-unavailable statements below are historical and superseded
+  by the linked report. No push, migration, baseline registration or deployment
+  followed the successful console access.
 - The user's approval covers the reviewed local candidate and read-only checks
   only. The commit includes the 80 implementation files, four feature/evidence
   documents, two graph-ignore files and 15 synthetic browser screenshots.
@@ -50,14 +96,14 @@ approved. This document is a review candidate, not a release certificate.
 - Public API health returned HTTP 200 with `status: ok`. The existing client's
   `/release.json` returned the HTML app fallback, not release metadata; this is
   expected for the old release and is not proof of the new verifier.
-- Neon preflight is **incomplete**: no Neon connector, authenticated database
+- Historical initial access check (superseded): no Neon connector, authenticated database
   tool or installed Neon CLI was available. No environment file, database
   credential, personal record, schema, journal or backup setting was read.
   The primary checkout's recovery runbook records an August 29 rehearsal;
   that historical evidence does not establish a current backup/restore point.
-- Next database checks require the exact CareAround Neon project/production
-  branch, credential-safe read-only schema/journal inspection and current
-  backup evidence. Do not infer baseline registration or run any migration.
+- Those initial access limitations were resolved through the user's authorized
+  console. See the linked preflight for current schema/journal and backup evidence.
+  Do not infer baseline registration or run any migration.
 - The legacy Worker release-line guard still requires fully clean tracked
   files on `main` matching `origin/main`. Generated tracked `node_modules`
   changes remain in this local worktree; future release preparation needs a
@@ -87,7 +133,7 @@ and clinical recommendations are not included.
 
 | Gate | Result and scope |
 | --- | --- |
-| Full server suite | 702 passed, zero failed/skipped; disposable PostgreSQL integration included |
+| Full server suite | 720 passed, zero failed/skipped; includes captured-shape adoption and emitted Neon SQL validation |
 | Full client suite | 765 passed, zero failed/skipped |
 | Static gate | Seven ordered migrations; 471 source modules / 1,393 edges; no import cycles; diff check passed |
 | Feature-enabled exact client build | Passed with all ten locked map roots and Discover derivative flags |
@@ -95,7 +141,7 @@ and clinical recommendations are not included.
 | Worker compilation | Previous checkpoint after the last application change passed: Wrangler 4.129.0, 3,311.79 KiB / 665.57 KiB gzip; no Worker application source changed in this checkpoint |
 | Shared-surface browser checks | Results below; no production data was used |
 | Credentialed release smoke | Not run against a release target; local fixture journeys do not replace partner-login/import smoke |
-| Production migration/deployment | Not authorized or performed |
+| Production migration/deployment | Not performed; continuation is authorized but exact adoption/runtime/release gates remain open |
 
 ### Shared-surface evidence added at this checkpoint
 
@@ -187,13 +233,15 @@ journal or silently rerun migrations `0001`/`0002`.
 
 ## Remaining release decisions and sequence
 
-1. Scoped local commit is approved. Push/merge remains unapproved. Review the
+1. Scoped local commit is complete at `33455920`. Push/merge remains unapproved. Review the
    known shared-map observations, support operations and retention before rollout.
-2. Read-only production preflight is approved; Cloudflare checks are recorded
-   above, but Neon access and verification remain outstanding. Confirm
-   schema/journal alignment, the migration application method, and a fresh
-   verified backup/restore point. Approval for preflight alone is not approval
-   to apply the four migrations.
+2. Read-only production preflight is complete; Cloudflare checks and Neon catalog/
+   backup observations are recorded. The migration gate failed because production
+   has no journal and differs from the repository baseline. The local adoption
+   plan/rehearsal now passes while preserving captured live behavior. Review the
+   proposed ledger, the single migration authority and production-version target.
+   Release-time recovery evidence and the exact application method still need
+   approval; local rehearsal approval does not authorize production migrations.
 3. Approve the exact commit, environment, migrations `0003`–`0006` and release
    window. Keep API/UI rollout flags off during preparation. A push/merge to
    `main` can trigger Pages, so confirm its feature flag remains off beforehand.
@@ -213,7 +261,7 @@ journal or silently rerun migrations `0001`/`0002`.
    while retaining the additive feature tables and private records. Destructive
    cleanup or a database restore needs separate approval.
 
-Recommended next step: establish credential-safe read-only access to the exact
-CareAround Neon production branch and complete schema/journal and backup checks.
+Recommended next step: review the completed adoption/ledger proposal and approve
+a separate production-version rehearsal target with exact privacy/branch scope.
 Production mutation/deployment remains a separate gate;
 the earlier bulk-unsave/map release approval does not authorize this feature.

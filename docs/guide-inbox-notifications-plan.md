@@ -4,9 +4,18 @@ Status: active implementation goal; not released.
 Current checkpoint: all three feature phases and the shared privacy/map-behavior
 checks have local proof. The [release review candidate](guide-inbox-notifications-release-candidate.md)
 records the source fingerprint, four proposed migrations, shared-map UI observations
-and the approved local-commit/read-only-preflight checkpoint. Cloudflare checks
-are recorded; Neon schema/journal and current backup evidence require access.
-Push, migration and deployment remain unapproved. Dated progress
+and the completed local-commit/read-only-preflight checkpoint. Cloudflare checks
+are recorded. The [Neon preflight](neon-read-only-preflight-20260907.md) resolved
+console access and verified backups, but found baseline drift and no migration
+journal. The [local adoption rehearsal](guide-inbox-migration-adoption-plan-20260907.md)
+now has production-version Neon proof: exact four migrations, unchanged existing
+schema, all 47 invalid-state checks and synthetic map/Calendar retention pass.
+All synthetic records were rolled back. Full server checks pass 720/720;
+36 actual-controller checks also pass against the captured production shape.
+The user authorized continuing the scoped goal through necessary release gates.
+The operational ledger still requires adoption review, and runtime database
+identity and deployed verification are not yet certified. Fresh schema/core-count
+snapshot recovery now passes. No production app/schema change occurred. Dated progress
 entries below are historical; the latest checkpoint supersedes their pending notes.
 Baseline: `13f50a6c9` on `origin/main`, verified 2026-09-07.
 Branch: `codex/guide-inbox-notifications-20260907`.

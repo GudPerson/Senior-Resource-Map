@@ -13,6 +13,65 @@ Updated: 2026-09-07 (Asia/Singapore)
 
 ## 2026-09-07 Guide, inbox, and notifications — active local goal
 
+- Latest verified checkpoint: [real Neon rehearsal and recovery](guide-inbox-neon-rehearsal-20260907.md)
+  passed on PostgreSQL 17.11. Exact `0003`–`0006` committed on the schema-only
+  branch; 60 existing table fingerprints unchanged, ten new tables matched,
+  all 47 invalid-state checks and synthetic relationship checks passed. All
+  synthetic rows rolled back; 70 public tables empty. Full server 720/720 and
+  static checks pass. Runtime source and migrations remain at `33455920`.
+  Created a fresh 72.5 MB manual snapshot at 03:00:42 UTC; multi-step restored
+  it to `br-fragrant-bread-aibgpawc`. Read-only schema and all six core counts
+  matched production. That temporary restored copy was deleted, production and
+  the snapshot remain, and no connection/settings migration occurred. The
+  schema-only test branch retains its one-day expiry. The scoped checkpoint
+  contains evidence/docs/test helpers only; use Git history for its final
+  identity. No push or deployment occurred.
+  Remaining: explicit adoption-ledger governance decision, independent runtime
+  database identity/role, lock/concurrency evidence, authenticated smoke and
+  clean-source Worker/Pages release. Older permission-pending and unverified
+  PostgreSQL/recovery notes below are historical.
+- Release-continuation authorization: user said "proceed with whatever is
+  required to complete goal" after the local rehearsal handoff. Continue the
+  scoped feature through required rehearsal and release gates; do not treat
+  earlier permission-pending notes as current. No destructive production repair,
+  secret replacement, unrelated fixes or connection cutover is implied.
+  Created a schema-only Neon rehearsal branch from production:
+  `carearound-guide-inbox-rehearsal-20260907`, `br-autumn-mode-aikak52t`, project
+  `silent-queen-04984362`; auto-expiry September 8, 2026 10:31 Singapore.
+  Connection-details dialog was closed without reading credentials. Production
+  is still unchanged. Verify branch identity before every SQL action. The
+  branch is temporary; preserve it until evidence is recorded or clean up only
+  this exact branch after the rehearsal. Current local actual-controller checks
+  on the captured schema pass 36/36 for Guide/resource detail, publication to
+  Calendar/inbox, resource notifications and saved searches. Rehearsal in Neon,
+  final release approval gates and deployed verification remain unfinished.
+- Latest checkpoint: user approved and we completed the [local-only adoption
+  plan/rehearsal](guide-inbox-migration-adoption-plan-20260907.md). In-memory
+  production-shaped PostgreSQL matches the captured 60-table/604-column/195-
+  constraint/207-index schema, then applies only `0003`–`0006`, preserving
+  existing definitions and all synthetic row digests. Failure/retry and all
+  27 CHECKs/13 FKs/seven unique-index checks passed; 17 focused / 719 full server
+  tests and static checks pass. Two new test-only files and evidence/docs are
+  uncommitted; app source, migrations, runtime bootstrap, dependencies and
+  instructions are unchanged. The proposed separate ledger records observation
+  versus execution honestly, but is not an approved production executor. Next:
+  review the proposal and separately authorize a PostgreSQL 17 rehearsal target
+  with role/privacy/branch boundaries. No production mutation, push or deployment.
+  The older preflight/approval checkpoints below are historical.
+- Current checkpoint: [Neon preflight](neon-read-only-preflight-20260907.md)
+  completed read-only on project `silent-queen-04984362`, production branch
+  `br-green-union-ailxs0g3`, database `neondb`. The user's Chrome permission
+  resolved access; do not repeat the obsolete request for a console screenshot.
+  All 60 existing tables are present, ten feature tables absent, and no migration
+  journal exists. Substantive drift includes two CASCADE/SET NULL differences,
+  six stricter NOT NULL columns, extra constraints/indexes, legacy enums and
+  missing normalized login indexes. Naming and PG17/PG18 catalog differences
+  were separated from actual enforcement differences. Daily snapshots/14-day
+  retention and the September 7 02:00 Singapore snapshot are verified; point-in-time
+  history is six hours. No restore was performed. Next: reviewed local-only
+  migration-adoption plan/rehearsal preserving production behavior; no live repair.
+  Candidate remains local commit `33455920`; this checkpoint adds uncommitted
+  evidence/docs only. Earlier access/commit-status notes below are historical.
 - Latest approval: scoped local commit of the reviewed candidate and read-only
   production preflight only. No push, migration or deployment is authorized.
   Implementation fingerprint is unchanged. Cloudflare confirms live Pages main
@@ -103,7 +162,7 @@ Updated: 2026-09-07 (Asia/Singapore)
   headers accepted the approved probe parent, blocked the unapproved one and
   failed closed after disablement. The probe uses a labelled static document;
   actual app rendering was verified separately.
-- **Next: complete the Neon preflight in the [local release candidate](guide-inbox-notifications-release-candidate.md).**
+- **Next: review the completed adoption proposal and production-version rehearsal target in the [local release candidate](guide-inbox-notifications-release-candidate.md).**
   It records the 80-file implementation fingerprint, exact four migration hashes,
   complete local evidence and separate commit/preflight/release approvals.
   The goal remains active; no production-ready or deployed claim is made.

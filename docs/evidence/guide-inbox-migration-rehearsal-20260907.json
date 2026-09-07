@@ -1,0 +1,108 @@
+{
+  "formatVersion": 1,
+  "status": "passed-local-only",
+  "recordedAt": "2026-09-07T02:15:20.366Z",
+  "sourceRevision": "334559209472e8c0676d8ce023f48d9d09779d28",
+  "worktree": "/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-notifications-20260907",
+  "engine": "PostgreSQL 18.3 (PGlite 0.5.8), wasm32",
+  "productionEngine": "PostgreSQL 17.11",
+  "input": {
+    "file": "docs/evidence/guide-inbox-neon-preflight-20260907.json",
+    "sha256": "d2e9b1fda340fec95750406923bb6c6dea56006c0b783050abef690a737044fd"
+  },
+  "tests": {
+    "server/test/fixtures/productionSchemaRehearsal.mjs": "e69e2e4dd352c3fbbf79ce922253fe3a119ec36ffd04f76170151efdbcba58f7",
+    "server/test/productionSchemaAdoption.test.js": "59925bde0981e5f3c6c2944b0f58fc4c906037d9106574479e7e9d1b3c984636"
+  },
+  "migrations": [
+    {
+      "id": "0003_support_inbox",
+      "file": "server/drizzle/0003_support_inbox.sql",
+      "sha256": "8f9d98ce7658ea55676c1135d84c8fb9f5ba4861344f7a6a1bb8dab6a26f37e0"
+    },
+    {
+      "id": "0004_guide_history",
+      "file": "server/drizzle/0004_guide_history.sql",
+      "sha256": "4560f722eca19af9190f01399fee7ad321daa0ff439cc9316ebd6d6f143ab75f"
+    },
+    {
+      "id": "0005_notification_updates",
+      "file": "server/drizzle/0005_notification_updates.sql",
+      "sha256": "1aac87349b0cba62b75522164f2205c3974f1e6fd2c95a47cad05012a0170a51"
+    },
+    {
+      "id": "0006_saved_search_alerts",
+      "file": "server/drizzle/0006_saved_search_alerts.sql",
+      "sha256": "7a94c7be9da426b29c6dc4e128e96af7dafd247d5a905c431458cc5e36ba6de5"
+    }
+  ],
+  "legacySchema": {
+    "tables": 60,
+    "columns": 604,
+    "constraintsExcludingPg18NotNullEntries": 195,
+    "indexes": 207,
+    "allCapturedFingerprintsMatch": true,
+    "allSyntheticRowSetDigestsPreserved": true
+  },
+  "newSchema": {
+    "featureTables": 10,
+    "checkConstraintsTested": 27,
+    "foreignKeysTested": 13,
+    "nonPrimaryUniqueIndexesTested": 7
+  },
+  "verification": {
+    "focused": {
+      "command": "node --test server/test/productionSchemaAdoption.test.js",
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0
+    },
+    "fullServer": {
+      "command": "npm run test:server",
+      "passed": 719,
+      "failed": 0,
+      "skipped": 0
+    },
+    "static": {
+      "command": "npm run check:static",
+      "migrations": 7,
+      "sourceModules": 471,
+      "edges": 1393,
+      "cycles": 0
+    }
+  },
+  "recovery": {
+    "injectedFailureAfter": "0005_notification_updates",
+    "ddlAndJournalRolledBack": true,
+    "retryAppliesExactlyFour": true,
+    "completedRetryWritesNothing": true,
+    "unknownHistoryAndSchemaDriftRejected": true
+  },
+  "proposedLedger": {
+    "table": "carearound_release.schema_changes",
+    "observedBaselineRows": 1,
+    "executedMigrationRows": 4,
+    "productionApproved": false,
+    "fictitiousDrizzleEntries": 0
+  },
+  "boundaries": {
+    "inMemoryOnly": true,
+    "productionConnected": false,
+    "productionRecordsCopied": false,
+    "providerBranchesCreated": 0,
+    "runtimeSourceModified": false,
+    "existingSqlModified": false,
+    "graftConfigurationModified": false,
+    "repositoryInstructionsModified": false,
+    "committed": false,
+    "pushed": false,
+    "deployed": false
+  },
+  "limitations": [
+    "Local PostgreSQL 18 is not production PostgreSQL 17",
+    "Catalog capture omits triggers/functions, grants/default privileges, collation and sequence state/ownership",
+    "No real role, concurrency, lock-contention, runtime rollback or provider-restore proof",
+    "Proposed ledger is test-only; no production executor or migration authority adopted",
+    "Full feature controller journeys used their existing local fixtures, not this new production-shaped transport"
+  ]
+}

@@ -15,6 +15,85 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-07 Production-version Neon rehearsal
+
+- Scope: user-authorized continuation of the complete Guide/inbox/notification
+  goal, on temporary schema-only branch `br-autumn-mode-aikak52t` in project
+  `silent-queen-04984362`. Production schema/data and connections are unchanged.
+- Reference: application commit `33455920`; exact four migration hashes and
+  submitted test SQL hashes in the [Neon evidence](evidence/guide-inbox-neon-rehearsal-20260907.json).
+- Acceptance/result: PostgreSQL 17.11 committed `0003`–`0006`; all 60 existing
+  table/enum fingerprints remained identical and ten added tables matched the
+  expected definitions. Intentional failure after `0005` plus explicit console
+  rollback restored the original 60-table fingerprint; the retry succeeded.
+- Actual owner-role synthetic checks: 27 CHECKs, 13 FKs and seven unique indexes
+  rejected invalid state. Unsave retained map/Calendar rows; legacy partner
+  CASCADE, staff SET NULL and owner cleanup behaved as expected. All synthetic
+  rows rolled back; all 70 public tables were verified empty afterward.
+- Reproduce only on the exact disposable branch, with the guarded SQL generated
+  by `server/test/fixtures/neonRehearsalSql.mjs` and the synthetic validation SQL.
+  Never substitute a production branch into these mutation scripts. Verify the
+  full editor text, then Run in a separate UI action; Neon requires explicit
+  rollback after a failed transaction.
+- Local verification: 720/720 server tests and static checks pass. Test-only
+  captured-shape transport checks pass 36/36. No runtime or migration edits.
+- Remaining gates: reviewed production adoption authority, actual runtime DB
+  identity/permissions, authenticated smoke and explicit
+  Worker/Pages rollout verification. The separate operational ledger is still
+  a rehearsal proposal; no fictitious Drizzle history is permitted.
+- Fresh recovery proof: manual snapshot 03:00:42 UTC (72.5 MB), multi-step
+  restored branch `br-fragrant-bread-aibgpawc`; exact schema and six core count
+  parity with current production. Restored copy deleted; production and the
+  snapshot remain. Scheduled backups unchanged, no application cutover.
+  See [recovery evidence](evidence/guide-inbox-neon-recovery-20260907.json).
+
+## 2026-09-07 Local production-shaped adoption rehearsal
+
+- Scope/reference: approved local-only plan and test harness in the existing
+  feature worktree at application commit `33455920`. Input is the SHA-256-pinned
+  read-only Neon catalog evidence; no production records or connection used.
+- Reproduce: `node --test server/test/productionSchemaAdoption.test.js`.
+  See [adoption plan and results](guide-inbox-migration-adoption-plan-20260907.md).
+- Acceptance: match all 60 existing table/604 column fingerprints, 195 catalog
+  constraints, 207 indexes, enums and RLS flags; add ten feature tables using
+  exact `0003`–`0006`; retain all legacy definitions and synthetic table-row
+  digests. Preserve partner delete behavior and missing login indexes.
+- Verification: 17 focused / 719 full server tests pass; all 27 feature CHECKs,
+  13 FKs and seven unique indexes enforce valid state. Mid-upgrade failure rolls
+  back DDL and bookkeeping, retry is safe, drift/partial/unknown state stops.
+  Unsave retains map/Calendar rows and deletes only the related new watch/notice.
+  Static validation: seven migrations, 471 modules / 1,393 edges, no cycles.
+- Limits: PostgreSQL 18 local versus 17 production; captured metadata is not a
+  full dump. No live role/grant, trigger, concurrency, lock, provider recovery or
+  production-version parity claim. Proposed adoption-ledger DDL needs review;
+  do not forge Drizzle entries or run a generic migration command to bypass it.
+- Only two test files and docs/evidence added; no runtime source, existing SQL,
+  dependency, bootstrap, auth, secrets, Graft config or instructions changed.
+  No production mutation, new commit, push or deployment; work is uncommitted.
+
+## 2026-09-07 Neon read-only schema and backup preflight
+
+- Reference: unchanged local source commit `33455920`; user-authorized Neon
+  console project `silent-queen-04984362`, production branch
+  `br-green-union-ailxs0g3`, database `neondb`, PostgreSQL 17.11.
+- Evidence: [preflight report](neon-read-only-preflight-20260907.md) and its
+  catalog-only JSON. Queries ran with read-only transactions and rollback.
+  Existing tables: 60/60; new feature tables: 0/10; migration journal: absent.
+- Baseline is not aligned. Preserve production CASCADE behavior on two resource
+  partner links, six stricter NOT NULL columns, additional checks/indexes and
+  legacy enum definitions until reviewed. Two normalized login indexes are
+  absent. PG18 NOT NULL catalog entries, physical column order, renamed
+  constraints and equivalent unique indexes were accounted for explicitly.
+- Backup schedule remains daily at 18:00 UTC, retention 14 days; ten snapshots,
+  latest `2026-09-06T18:00:05Z`, non-zero displayed size. Continuous history is
+  separately limited to six hours. No snapshot creation or restore rehearsal ran.
+- Acceptance: preflight evidence obtained, but migration adoption/release gate
+  is not passed. Next is a reviewed local-only plan and production-shaped
+  rehearsal, not automatic baseline registration or schema repair.
+- No production schema, data, grants, settings, credentials, push or deployment
+  changed. No source edits or Graft/instruction changes. New local docs/evidence
+  remain uncommitted. Earlier access-unavailable notes are superseded.
+
 ## 2026-09-07 Guide/inbox commit approval and read-only preflight
 
 - User approved the scoped local candidate commit and read-only production

@@ -1,0 +1,56 @@
+{
+  "verifiedAtUtc": "2026-09-07 03:08:05 UTC",
+  "projectId": "silent-queen-04984362",
+  "productionBranchId": "br-green-union-ailxs0g3",
+  "snapshot": {
+    "name": "production at 2026-09-07 03:00:42 UTC (manual)",
+    "createdAtUtc": "2026-09-07T03:00:42.000Z",
+    "expires": "never; manual snapshot retained for release recovery",
+    "displayedSize": "72.5 MB; refreshed console after restored-branch cleanup",
+    "retainedAfterCleanup": true,
+    "scheduledBackupsUnchanged": "daily 18:00 UTC; 14-day auto-delete"
+  },
+  "restore": {
+    "mode": "multi-step",
+    "branchId": "br-fragrant-bread-aibgpawc",
+    "name": "branch_from_snapshot_Sep 7, 2026 11:02 AM GMT+8",
+    "restoredAtSingapore": "2026-09-07 11:02:13 +08:00",
+    "providerReportedSuccess": true,
+    "productionUnchangedConfirmation": true,
+    "connectionsAndSettingsMigrated": false,
+    "readOnlyValidation": true,
+    "deletedAfterValidation": true,
+    "deletionVerifiedByBranchList": true
+  },
+  "restoredCounts": {
+    "users": 18,
+    "branch": "br-fragrant-bread-aibgpawc",
+    "my_maps": 17,
+    "database": "neondb",
+    "read_only": "on",
+    "hard_assets": 4440,
+    "soft_assets": 1318,
+    "my_map_assets": 122,
+    "user_favorites": 164
+  },
+  "productionCounts": {
+    "users": 18,
+    "branch": "br-green-union-ailxs0g3",
+    "my_maps": 17,
+    "database": "neondb",
+    "read_only": "on",
+    "hard_assets": 4440,
+    "soft_assets": 1318,
+    "my_map_assets": 122,
+    "user_favorites": 164
+  },
+  "sixCoreCountsMatch": true,
+  "all60TableFingerprintsAndEnumsMatch": true,
+  "productionStillMatchesOriginalPreflight": true,
+  "query": "-- Read-only snapshot restore check. Only catalog metadata and six aggregate counts.\nBEGIN READ ONLY;\nSET LOCAL statement_timeout = '10s';\nSET LOCAL lock_timeout = '2s';\nDO $guard$ BEGIN\nIF current_setting('neon.branch_id',true) NOT IN ('br-fragrant-bread-aibgpawc','br-green-union-ailxs0g3')\n OR current_database() <> 'neondb' OR current_setting('transaction_read_only') <> 'on'\n THEN RAISE EXCEPTION 'Wrong read-only recovery target'; END IF;\nEND $guard$;\nWITH table_fingerprints AS (\n  SELECT c.relname AS name, c.relkind::text AS kind, c.relrowsecurity AS rls, c.relforcerowsecurity AS force_rls,\n    (SELECT count(*)::int FROM pg_attribute a WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped) AS columns_count,\n    (SELECT md5(coalesce(jsonb_agg(jsonb_build_array(a.attname,format_type(a.atttypid,a.atttypmod),a.attnotnull,coalesce(pg_get_expr(d.adbin,d.adrelid),''),a.attidentity,a.attgenerated) ORDER BY a.attname)::text,'[]'))\n     FROM pg_attribute a LEFT JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum\n     WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped) AS columns_hash,\n    (SELECT count(*)::int FROM pg_constraint k WHERE k.conrelid=c.oid AND k.contype <> 'n') AS constraints_count,\n    (SELECT md5(coalesce(jsonb_agg(jsonb_build_array(k.conname,k.contype,pg_get_constraintdef(k.oid,true),k.convalidated,k.condeferrable,k.condeferred) ORDER BY k.conname)::text,'[]'))\n     FROM pg_constraint k WHERE k.conrelid=c.oid AND k.contype <> 'n') AS constraints_hash,\n    (SELECT count(*)::int FROM pg_indexes i WHERE i.schemaname='public' AND i.tablename=c.relname) AS indexes_count,\n    (SELECT md5(coalesce(jsonb_agg(jsonb_build_array(i.indexname,i.indexdef) ORDER BY i.indexname)::text,'[]'))\n     FROM pg_indexes i WHERE i.schemaname='public' AND i.tablename=c.relname) AS indexes_hash\n  FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace\n  WHERE n.nspname='public' AND c.relkind IN ('r','p')\n), enum_values AS (\n SELECT t.typname AS name, jsonb_agg(e.enumlabel ORDER BY e.enumsortorder) AS labels\n FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace JOIN pg_enum e ON e.enumtypid=t.oid\n WHERE n.nspname='public' GROUP BY t.typname\n)\nSELECT jsonb_build_object(\n 'database',current_database(),\n 'read_only',current_setting('transaction_read_only'),\n 'tables',(SELECT coalesce(jsonb_agg(to_jsonb(f) ORDER BY f.name),'[]'::jsonb) FROM table_fingerprints f),\n 'enums',(SELECT coalesce(jsonb_agg(to_jsonb(e) ORDER BY e.name),'[]'::jsonb) FROM enum_values e),\n 'migration_tables',(SELECT coalesce(jsonb_agg(jsonb_build_object('schema',n.nspname,'table',c.relname) ORDER BY n.nspname,c.relname),'[]'::jsonb)\n  FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind IN ('r','p') AND n.nspname NOT IN ('pg_catalog','information_schema')\n  AND (c.relname ILIKE '%migration%' OR n.nspname='drizzle'))\n) AS carearound_schema_preflight;\nSELECT jsonb_build_object('branch',current_setting('neon.branch_id',true),\n 'database',current_database(),'read_only',current_setting('transaction_read_only'),\n 'users',(SELECT count(*) FROM public.users),\n 'hard_assets',(SELECT count(*) FROM public.hard_assets),\n 'soft_assets',(SELECT count(*) FROM public.soft_assets),\n 'user_favorites',(SELECT count(*) FROM public.user_favorites),\n 'my_maps',(SELECT count(*) FROM public.my_maps),\n 'my_map_assets',(SELECT count(*) FROM public.my_map_assets)\n) AS recovery_counts;\nROLLBACK;",
+  "limitations": [
+    "No row-level personal records or credentials read",
+    "No per-row checksums, active-write recovery or application connection cutover tested",
+    "No production schema/data mutation; manual snapshot creation is provider metadata/storage only"
+  ]
+}

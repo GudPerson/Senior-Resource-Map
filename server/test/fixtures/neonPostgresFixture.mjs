@@ -2,19 +2,28 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { neonConfig } from '@neondatabase/serverless';
+import { createProductionSchemaRehearsal } from './productionSchemaRehearsal.mjs';
 
 // Test-process-only transport: real controllers -> real Drizzle SQL -> local
 // PostgreSQL. No application injection flag, real credentials or network I/O.
 export async function createNeonPostgresFixture(t) {
-    const pg = new PGlite();
+    const shape = process.env.CAREAROUND_TEST_DATABASE_SHAPE || 'fresh';
+    assert.ok(['fresh', 'captured-neon-20260907'].includes(shape), 'Unknown test database shape');
+    const rehearsal = shape === 'captured-neon-20260907' ? await createProductionSchemaRehearsal(t) : null;
+    const pg = rehearsal?.pg || new PGlite();
     const previous = { fetchFunction: neonConfig.fetchFunction, fetchEndpoint: neonConfig.fetchEndpoint };
     t.after(async () => {
         neonConfig.fetchFunction = previous.fetchFunction;
         neonConfig.fetchEndpoint = previous.fetchEndpoint;
-        await pg.close();
+        if (!rehearsal) await pg.close(); // The captured-shape fixture owns its teardown.
     });
-    const journal = JSON.parse(await readFile(new URL('../../drizzle/meta/_journal.json', import.meta.url), 'utf8'));
-    for (const { tag } of journal.entries) await pg.exec(await readFile(new URL(`../../drizzle/${tag}.sql`, import.meta.url), 'utf8'));
+    if (rehearsal) {
+        await rehearsal.applyFeatureUpgrade();
+        t.diagnostic?.('Actual controller SQL uses the captured Neon schema plus the four exact feature migrations.');
+    } else {
+        const journal = JSON.parse(await readFile(new URL('../../drizzle/meta/_journal.json', import.meta.url), 'utf8'));
+        for (const { tag } of journal.entries) await pg.exec(await readFile(new URL(`../../drizzle/${tag}.sql`, import.meta.url), 'utf8'));
+    }
     // Neon HTTP transports PostgreSQL text, then the real driver applies its
     // parsers. Preserve that boundary rather than reserializing parsed dates/JSON.
     const rawParsers = Object.fromEntries((await pg.query('SELECT oid FROM pg_type')).rows.map(({ oid }) => [oid, (value) => value]));
