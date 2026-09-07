@@ -5,6 +5,7 @@ import { Hono } from 'hono';
 import { readGitReleaseSource } from '../../scripts/release-provenance.mjs';
 import { buildClientReleaseManifest, clientReleasePlugin } from '../../scripts/client-release-plugin.mjs';
 import { deployWorkerRelease, workerReleaseArgs } from '../../scripts/deploy-worker-release.mjs';
+import { clientReleaseArgs, deployClientRelease } from '../../scripts/deploy-client-release.mjs';
 import { makeWorkerReleaseManifest, currentWorkerRelease } from '../src/utils/workerRelease.js';
 import { createReleaseRoutes } from '../src/routes/release.js';
 import { readBoundedReleaseBody, verifySupportProductionRelease } from '../src/utils/supportReleaseVerification.js';
@@ -192,4 +193,55 @@ test('guarded Worker command preserves release-line gates and rejects revision/c
     for (const result of [{ status: 1 }, { status: null, error: new Error('could not start') }]) {
         assert.throws(() => deployWorkerRelease({ ...args, run: () => result }), /did not complete/);
     }
+});
+
+test('guarded Pages command builds and deploys one clean main revision without overrides', () => {
+    const calls = [];
+    const run = (...args) => { calls.push(args); return { status: 0 }; };
+    const args = { validate() { calls.push('validated'); return { head: releaseRevision }; }, readSource: () => clean, run, extraArgs: [] };
+    deployClientRelease(args);
+    assert.equal(calls[0], 'validated');
+    assert.equal(calls[1][0], 'npm');
+    assert.deepEqual(calls[1][1], ['run', 'build:client:discover-derivative']);
+    assert.equal(calls[1][2].shell, false);
+    assert.equal(calls[2], 'validated');
+    assert.equal(calls[3][0], 'npx');
+    assert.deepEqual(calls[3][1], [
+        'wrangler', 'pages', 'deploy', 'dist',
+        '--project-name', 'senior-resource-map',
+        '--branch', 'main',
+        '--commit-hash', releaseRevision,
+        '--commit-dirty=false',
+        '--skip-caching',
+    ]);
+    assert.equal(calls[3][2].shell, false);
+    assert.ok(calls[3][2].cwd.endsWith('/client'));
+    assert.equal(calls[4], 'validated');
+
+    const noRun = () => assert.fail('build or deployment must not be attempted');
+    assert.throws(() => deployClientRelease({ ...args, run: noRun, validate() { throw new Error('Release line rejected'); } }), /Release line rejected/);
+    assert.throws(() => deployClientRelease({ ...args, run: noRun, readSource: () => unavailable }), /clean, identifiable/);
+    for (const extraArgs of [['--branch', 'preview'], ['--project-name', 'elsewhere'], ['--commit-hash', 'fake']]) {
+        assert.throws(() => deployClientRelease({ ...args, run: noRun, extraArgs }), /overrides/);
+        assert.throws(() => clientReleaseArgs(clean, extraArgs), /overrides/);
+    }
+    for (const result of [{ status: 1 }, { status: null, error: new Error('could not start') }]) {
+        assert.throws(() => deployClientRelease({ ...args, run: () => result }), /build did not complete/);
+    }
+
+    let reads = 0;
+    assert.throws(() => deployClientRelease({ ...args, run, readSource: () => reads++ ? unavailable : clean }), /Source changed/);
+    let validations = 0;
+    assert.throws(() => deployClientRelease({ ...args, run, validate() {
+        validations++;
+        if (validations === 2) throw new Error('origin/main advanced');
+        return { head: releaseRevision };
+    } }), /origin\/main advanced/);
+    validations = 0;
+    assert.throws(() => deployClientRelease({ ...args, run, validate() {
+        validations++;
+        if (validations === 3) throw new Error('origin/main advanced after upload');
+        return { head: releaseRevision };
+    } }), /origin\/main advanced after upload/);
+    assert.throws(() => deployClientRelease({ ...args, run: (...command) => command[0] === 'npm' ? { status: 0 } : { status: 1 } }), /release command did not complete/);
 });

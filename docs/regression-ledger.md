@@ -15,6 +15,57 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-08 Help, Guide, and notification inbox client release recovery
+
+- Current behavior and reproduction: production Pages deployment
+  `c53cb48f-042b-438f-abd9-0136eaee560b`, labelled with source
+  `d18886d76693d6fd54976d4a8d74ec8c3118bb46`, redirects `/help`, `/inbox`,
+  and the Updates inbox route to Discover and omits the Help/inbox navigation
+  entry. Its compiled `StandardAppRoot` evaluates the build-time support flag
+  as false. The production Worker remains healthy: public Guide topics and
+  real-resource search work, while support, history, notification-preference,
+  notification, and saved-search endpoints retain their private `401` guest
+  boundary.
+- Known-good reference: Pages deployment
+  `ffe1e5c6-c214-4576-ac83-0df99494f702` at source
+  `c1f1c15d74d6930a8ec5cb698a7b270a43d73544` contains the Help and inbox
+  routes. Source comparison from that reference through current `main` and the
+  deployed adaptive-workspace revision shows no removal of the Guide, support,
+  notification, or saved-search implementation.
+- Cause and correction: ad-hoc Pages uploads rebuilt the client without
+  `VITE_SUPPORT_INBOX_ENABLED=true`, compiling the otherwise-intact UI out.
+  Both production-style client builds now pin that flag. The production
+  environment validator rejects it when missing or false, and regression
+  coverage locks the flag to `/help`, `/inbox`, and the navbar entry. The
+  official Pages deploy now builds and publishes only from a clean `main` that
+  matches freshly fetched `origin/main`, checks again after the build and
+  upload, fixes the Pages project/production branch/source revision/clean
+  metadata, rejects overrides, skips cache reuse, and runs from `client/` so
+  Functions and `_routes.json` remain included. The release checklist no
+  longer presents raw production Wrangler upload as an acceptable bypass.
+- Blast radius and acceptance: this is a client build-and-release-contract
+  recovery only. Help must stay on `/help`; `/inbox` must reach
+  `/help?tab=inbox`; Guide guidance must retain the Used/Not used in My Maps
+  protection and Care Calendar schedule-source warning; real public resource
+  search must return current directory records; private inbox, Updates,
+  preferences, saved searches, and report follow-up must keep their existing
+  authentication/recovery boundaries. Current adaptive resource workspaces and
+  the locked Discover Detailed, My Map, Shared Map, embed, and print behaviors
+  must remain unchanged. No Worker, schema, migration, auth, data, secret, or
+  external-delivery change is part of this recovery.
+- Verification before deploy: PASS. Focused release/support tests pass `53/53`;
+  `npm run verify:quality` passes migration ownership, `477` modules / `1,407`
+  relative edges with no cycles, server `729/729`, client `783/783`, four
+  production-environment validator tests, and the exact production-configured
+  build. `npm run verify:map-lockdown` passes `103/103` and its Help-enabled
+  production map build. A separate local browser opened `/help`, showed the
+  Help/inbox navbar entry, returned the approved bulk-unsave/My Map/Care
+  Calendar guidance, found real Havelock directory resources, and redirected
+  `/inbox` to `/help?tab=inbox`. The live feature-branch invocation of the new
+  deploy guard was rejected as designed. Production Pages identity, artifact
+  parity, Functions upload, custom-domain routes, and authenticated read-only
+  inbox/Updates checks remain the post-merge deploy gate.
+
 ## 2026-09-07 Guide everyday wording release check
 
 - Live pre-client-release check at API revision `83a48929a` reproduced a gap:

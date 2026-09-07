@@ -8,6 +8,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const VALIDATOR = path.join(REPO_ROOT, 'scripts', 'validate-cloudflare-client-env.mjs');
 const BASE_ENV = Object.freeze({
   VITE_API_URL: 'https://api.carearound.sg/api',
+  VITE_SUPPORT_INBOX_ENABLED: 'true',
   VITE_TOWN_MAP_PROOF_ENABLED: 'true',
   VITE_TOWN_MAP_ASSET_BASE_URL: 'https://maps.carearound.sg/v2/native-scale-20260722/default',
   VITE_TOWN_MAP_GRAY_ASSET_BASE_URL: 'https://maps.carearound.sg/v2/native-scale-20260722/gray',
@@ -37,6 +38,17 @@ function runValidator(overrides = {}) {
 test('production client validation accepts the exact Discover derivative release roots', () => {
   const result = runValidator(DERIVATIVE_ENV);
   assert.equal(result.status, 0, result.stderr);
+});
+
+test('production client validation requires the exact CareAround Help and inbox value', () => {
+  for (const value of ['', 'false', ' true ']) {
+    const result = runValidator({
+      ...DERIVATIVE_ENV,
+      VITE_SUPPORT_INBOX_ENABLED: value,
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /VITE_SUPPORT_INBOX_ENABLED=true/);
+  }
 });
 
 test('production client validation rejects incomplete derivative roots', () => {

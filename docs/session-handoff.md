@@ -11,6 +11,28 @@ Updated: 2026-09-07 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
+## 2026-09-08 Help and notification inbox client recovery — in progress
+
+- This supersedes the older Guide/inbox section below for current release
+  status. Production Pages `c53cb48f-042b-438f-abd9-0136eaee560b` serves the
+  current adaptive-workspace client source but was built without
+  `VITE_SUPPORT_INBOX_ENABLED=true`, so Help, inbox, Updates, notifications,
+  and saved-search UI entry points were compiled out. The Worker/API and
+  existing data remain intact.
+- The narrow candidate pins the support flag in every production-style client
+  build, makes the environment validator fail on omission, locks the Help and
+  inbox route/navbar contract, and replaces the ordinary Pages upload command
+  with a clean-`main`/fresh-`origin/main` guarded build and exact-source deploy.
+  It preserves the current adaptive-resource workspace and all map contracts.
+- Pre-deploy verification passes: focused `53/53`, server `729/729`, client
+  `783/783` plus four environment-validator tests, module graph `477` / `1,407`,
+  exact production client build, map lockdown `103/103`, and a local browser
+  journey covering Help, `/inbox`, bulk-unsave guidance, and real Havelock
+  search. Next: commit and merge the candidate to `main`, deploy from a new
+  clean main checkout, verify exact artifact/custom-domain parity and Pages
+  Functions, then record production browser evidence. No Worker, migration,
+  schema, database, auth, secret, or external-notification deployment is needed.
+
 ## 2026-09-07 Region, Subregion, and Unmapped boundary layers — released
 
 - PR 51 merged the three-layer feature at `1e638569e`; PR 52 merged the
