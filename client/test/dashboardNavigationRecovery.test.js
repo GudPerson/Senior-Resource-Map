@@ -10,10 +10,14 @@ function readClientSource(relativePath) {
     return readFileSync(resolve(__dirname, '../src', relativePath), 'utf8');
 }
 
-test('dashboard sidebar links use document navigation for deploy-stale recovery', () => {
-    const source = readClientSource('components/dashboard/DashboardNavigation.jsx');
+test('dashboard sidebar links use in-app navigation while route recovery handles stale chunks', () => {
+    const navigationSource = readClientSource('components/dashboard/DashboardNavigation.jsx');
+    const appSource = readClientSource('App.jsx');
 
-    assert.match(source, /<NavLink[\s\S]*?reloadDocument[\s\S]*?>/);
+    assert.match(navigationSource, /<NavLink/);
+    assert.doesNotMatch(navigationSource, /reloadDocument/);
+    assert.match(appSource, /isRouteChunkLoadError/);
+    assert.match(appSource, /window\.location\.reload\(\)/);
 });
 
 test('desktop dashboard side menu stays sticky while list content scrolls', () => {
@@ -30,11 +34,11 @@ test('desktop dashboard side menu stays sticky while list content scrolls', () =
     assert.match(myDirectoryPageSource, /className=\{DASHBOARD_DESKTOP_SIDEBAR_CLASS_NAME\}/);
 });
 
-test('organisation workspace sidebar link uses document navigation and section label', () => {
+test('organisation workspace sidebar link uses in-app navigation and section label', () => {
     const source = readClientSource('components/dashboard/DashboardNavigation.jsx');
 
     assert.match(source, /to="\/dashboard\/organization"/);
-    assert.match(source, /<NavLink[\s\S]*?reloadDocument[\s\S]*?>/);
+    assert.doesNotMatch(source, /reloadDocument/);
     assert.match(source, /pathname\.startsWith\('\/dashboard\/organization'\)/);
     assert.match(source, /organisationWorkspaceTitle/);
 });

@@ -5,6 +5,16 @@ import { canReviewSupportInbox, createSupportApi, isGuestSupportKey, isSupportIm
 import { buildGuideReportDraft, guideHistoryInputs } from '../src/features/support/guideHistoryState.js';
 import { restoreSupportFocus } from '../src/features/support/supportFocus.js';
 
+test('the production support flag controls both Help routes and the navbar entry', () => {
+    const support = readFileSync(new URL('../src/lib/supportInbox.js', import.meta.url), 'utf8');
+    const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+    const navbar = readFileSync(new URL('../src/components/layout/Navbar.jsx', import.meta.url), 'utf8');
+    assert.match(support, /VITE_SUPPORT_INBOX_ENABLED === 'true'/);
+    assert.match(app, /SUPPORT_UI_ENABLED && <Route path="\/help"/);
+    assert.match(app, /SUPPORT_UI_ENABLED && <Route path="\/inbox"/);
+    assert.match(navbar, /SUPPORT_UI_ENABLED && <SupportNavLink \/>/);
+});
+
 test('response focus recovers from a removed control but never steals focus from another task', () => {
     const origin = {};
     const body = {};

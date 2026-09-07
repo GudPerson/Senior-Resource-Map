@@ -111,7 +111,7 @@ function parseDirectorySection(value) {
 
 function SavedAssetsLoadingState() {
     return (
-        <div className="grid gap-4 md:grid-cols-[repeat(auto-fit,minmax(290px,1fr))]">
+        <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {Array.from({ length: 3 }).map((_, index) => (
                 <div
                     key={index}
@@ -663,7 +663,7 @@ export default function MyDirectoryPage() {
                         sectionLabel={sectionLabel}
                         user={user}
                     />
-                    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+                    <div className="mx-auto w-full max-w-[1680px] px-4 py-8 sm:px-6 lg:px-8 2xl:px-10">
                         <header className={`mb-6 border border-slate-200 bg-white shadow-sm ${isCompactDirectory ? 'rounded-[28px] px-4 py-5' : 'rounded-3xl px-5 py-6 sm:px-6'}`}>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{sectionLabel}</p>
                             <h1 className={`mt-2 font-bold tracking-tight text-slate-900 ${isCompactDirectory ? 'text-[1.9rem]' : 'text-3xl'}`}>{t('myDirectory')}</h1>
@@ -859,7 +859,7 @@ export default function MyDirectoryPage() {
                                         onClearSearch={() => setSearchTerm('')}
                                     />
                                 ) : (
-                                    <div className="grid gap-4 md:grid-cols-[repeat(auto-fit,minmax(290px,1fr))]">
+                                    <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
                                         {filteredAssets.map((asset) => (
                                             <SavedAssetCard
                                                 key={asset.assetKey || `${asset.resourceType}-${asset.resourceId}`}

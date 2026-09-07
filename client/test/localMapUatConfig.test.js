@@ -58,6 +58,10 @@ const requiredProductionDiscoverDerivativeEnvironment = [
     'VITE_DISCOVER_DETAILED_DERIVATIVE_GRAY_OVERVIEW_ASSET_BASE_URL=https://maps.carearound.sg/v5/discover-derivative-v1-80-20260906-r2/overview/gray',
 ];
 
+const requiredProductionSupportEnvironment = [
+    'VITE_SUPPORT_INBOX_ENABLED=true',
+];
+
 test('default local client UAT keeps the complete Detailed map contract', () => {
     const command = rootPackage.scripts['dev:client'];
 
@@ -111,6 +115,9 @@ test('map lockdown verification keeps focused tests and the exact production bui
     requiredProductionZoom14OverviewEnvironment.forEach((entry) => {
         assert.match(buildCommand, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     });
+    requiredProductionSupportEnvironment.forEach((entry) => {
+        assert.match(buildCommand, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    });
     assert.match(buildCommand, /npm run build:client:bare$/);
 });
 
@@ -124,6 +131,9 @@ test('Cloudflare production commands cannot compile Discover Detailed out', () =
         assert.match(derivativeBuild, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     });
     requiredProductionDiscoverDerivativeEnvironment.forEach((entry) => {
+        assert.match(derivativeBuild, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    });
+    requiredProductionSupportEnvironment.forEach((entry) => {
         assert.match(derivativeBuild, new RegExp(entry.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     });
 
@@ -146,7 +156,7 @@ test('Cloudflare production commands cannot compile Discover Detailed out', () =
     );
     assert.equal(
         rootPackage.scripts['deploy:client'],
-        'npm run build:client:discover-derivative && cd client && npx wrangler pages deploy dist --project-name senior-resource-map'
+        'node scripts/deploy-client-release.mjs'
     );
     assert.equal(
         clientPackage.scripts.build,

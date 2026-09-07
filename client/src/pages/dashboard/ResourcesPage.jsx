@@ -2371,7 +2371,7 @@ export default function ResourcesPage() {
     }
 
     return (
-        <div className="mx-auto max-w-6xl p-6 lg:p-8">
+        <div className="mx-auto w-full max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8 2xl:px-10">
             <div className="mb-10 flex flex-wrap items-end justify-between gap-6 border-b border-slate-200 pb-8">
                 <div>
                     <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
@@ -2473,8 +2473,8 @@ export default function ResourcesPage() {
             ) : null}
 
             <div className="relative mb-6">
-                <div className="flex flex-col gap-3 xl:flex-row">
-                    <div className="relative max-w-md flex-1">
+                <div className="flex flex-col gap-3 md:flex-row md:flex-wrap">
+                    <div className="relative min-w-0 md:flex-[2_1_360px]">
                         <span className="pointer-events-none absolute inset-y-0 left-0 flex w-12 items-center justify-center text-slate-400">
                             <Search size={19} strokeWidth={2.25} />
                         </span>
@@ -2490,7 +2490,7 @@ export default function ResourcesPage() {
                         <select
                             value={regionFilter}
                             onChange={(e) => setRegionFilter(e.target.value)}
-                            className="input-field xl:w-56"
+                            className="input-field md:min-w-[190px] md:flex-1 xl:max-w-64"
                             aria-label="Filter resources by Region"
                         >
                             {managedRegionFilterOptions.map((option) => (
@@ -2502,7 +2502,7 @@ export default function ResourcesPage() {
                         <select
                             value={subregionFilter}
                             onChange={(e) => setSubregionFilter(e.target.value)}
-                            className="input-field xl:w-60"
+                            className="input-field md:min-w-[200px] md:flex-1 xl:max-w-72"
                             aria-label="Filter resources by Subregion"
                             disabled={regionFilter === 'unmapped'}
                         >
@@ -2515,7 +2515,7 @@ export default function ResourcesPage() {
                         <select
                             value={boundaryFilter}
                             onChange={(e) => setBoundaryFilter(e.target.value)}
-                            className="input-field xl:w-48"
+                            className="input-field md:min-w-[170px] md:flex-1 xl:max-w-56"
                         >
                             {activeManagedAreaFilterOptions.map((option) => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -2525,7 +2525,7 @@ export default function ResourcesPage() {
                     <select
                         value={sortOrder}
                         onChange={(e) => setSortOrder(e.target.value)}
-                        className="input-field xl:w-48"
+                        className="input-field md:min-w-[170px] md:flex-1 xl:max-w-56"
                     >
                         {RESOURCE_LIST_SORT_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>{option.label}</option>
@@ -2536,7 +2536,7 @@ export default function ResourcesPage() {
                             type="button"
                             onClick={handleExportFilteredWorkbook}
                             disabled={exportingFilteredWorkbook || activeFilteredExportCount === 0}
-                            className="btn-ghost min-h-[44px] justify-center px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 xl:w-auto"
+                            className="btn-ghost min-h-[44px] justify-center px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 md:ml-auto md:flex-none"
                         >
                             {exportingFilteredWorkbook ? (
                                 <RefreshCw size={16} className="animate-spin" />
@@ -2548,14 +2548,14 @@ export default function ResourcesPage() {
                     ) : null}
                 </div>
                 {activeTab !== 'templates' ? (
-                    <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 xl:flex-row xl:items-center xl:justify-between">
                         <div>
                             <p className="text-sm font-bold text-slate-800">Bulk actions for filtered {activeResourceLabel}</p>
                             <p className="mt-0.5 text-xs text-slate-500">
                                 Applies to all {activeFilteredExportCount.toLocaleString('en-SG')} filtered results across every page. You will confirm before anything changes.
                             </p>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 xl:justify-end">
                             <button
                                 type="button"
                                 onClick={() => prepareManagedBulkAction('hide')}
@@ -2675,7 +2675,7 @@ export default function ResourcesPage() {
                         ) : null}
                     />
                 ) : !canManageResourceTools ? (
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-3">
                         {visibleHardAssets.map((asset) => (
                             <AssetCard
                                 key={asset.id}
@@ -3158,7 +3158,7 @@ export default function ResourcesPage() {
                         ) : null}
                     />
                 ) : !canManageResourceTools ? (
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-3">
                         {visibleSoftAssets.map((asset) => (
                             <AssetCard
                                 key={asset.id}

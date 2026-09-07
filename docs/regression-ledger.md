@@ -15,6 +15,57 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-08 Help, Guide, and notification inbox client release recovery
+
+- Current behavior and reproduction: production Pages deployment
+  `c53cb48f-042b-438f-abd9-0136eaee560b`, labelled with source
+  `d18886d76693d6fd54976d4a8d74ec8c3118bb46`, redirects `/help`, `/inbox`,
+  and the Updates inbox route to Discover and omits the Help/inbox navigation
+  entry. Its compiled `StandardAppRoot` evaluates the build-time support flag
+  as false. The production Worker remains healthy: public Guide topics and
+  real-resource search work, while support, history, notification-preference,
+  notification, and saved-search endpoints retain their private `401` guest
+  boundary.
+- Known-good reference: Pages deployment
+  `ffe1e5c6-c214-4576-ac83-0df99494f702` at source
+  `c1f1c15d74d6930a8ec5cb698a7b270a43d73544` contains the Help and inbox
+  routes. Source comparison from that reference through current `main` and the
+  deployed adaptive-workspace revision shows no removal of the Guide, support,
+  notification, or saved-search implementation.
+- Cause and correction: ad-hoc Pages uploads rebuilt the client without
+  `VITE_SUPPORT_INBOX_ENABLED=true`, compiling the otherwise-intact UI out.
+  Both production-style client builds now pin that flag. The production
+  environment validator rejects it when missing or false, and regression
+  coverage locks the flag to `/help`, `/inbox`, and the navbar entry. The
+  official Pages deploy now builds and publishes only from a clean `main` that
+  matches freshly fetched `origin/main`, checks again after the build and
+  upload, fixes the Pages project/production branch/source revision/clean
+  metadata, rejects overrides, skips cache reuse, and runs from `client/` so
+  Functions and `_routes.json` remain included. The release checklist no
+  longer presents raw production Wrangler upload as an acceptable bypass.
+- Blast radius and acceptance: this is a client build-and-release-contract
+  recovery only. Help must stay on `/help`; `/inbox` must reach
+  `/help?tab=inbox`; Guide guidance must retain the Used/Not used in My Maps
+  protection and Care Calendar schedule-source warning; real public resource
+  search must return current directory records; private inbox, Updates,
+  preferences, saved searches, and report follow-up must keep their existing
+  authentication/recovery boundaries. Current adaptive resource workspaces and
+  the locked Discover Detailed, My Map, Shared Map, embed, and print behaviors
+  must remain unchanged. No Worker, schema, migration, auth, data, secret, or
+  external-delivery change is part of this recovery.
+- Verification before deploy: PASS. Focused release/support tests pass `53/53`;
+  `npm run verify:quality` passes migration ownership, `477` modules / `1,407`
+  relative edges with no cycles, server `729/729`, client `783/783`, four
+  production-environment validator tests, and the exact production-configured
+  build. `npm run verify:map-lockdown` passes `103/103` and its Help-enabled
+  production map build. A separate local browser opened `/help`, showed the
+  Help/inbox navbar entry, returned the approved bulk-unsave/My Map/Care
+  Calendar guidance, found real Havelock directory resources, and redirected
+  `/inbox` to `/help?tab=inbox`. The live feature-branch invocation of the new
+  deploy guard was rejected as designed. Production Pages identity, artifact
+  parity, Functions upload, custom-domain routes, and authenticated read-only
+  inbox/Updates checks remain the post-merge deploy gate.
+
 ## 2026-09-07 Guide everyday wording release check
 
 - Live pre-client-release check at API revision `83a48929a` reproduced a gap:
@@ -9461,6 +9512,15 @@ Active next recovery family:
 - Release verification: full server coverage passed 726/726; full client coverage passed 779/779 after the compatibility regression; focused alias coverage passed 5/5; the production build, static checks and 19/19 migration rehearsal passed. Worker version `12acd892-d0bb-44fe-b08d-817acca94e2b` serves source `1e638569e`; exact Pages deployment `https://962e0a48.senior-resource-map.pages.dev` serves source `274e4e257`. All 87 client files match the local artifact, immutable URL and custom domain by bytes, aggregate SHA-256 `87c2dea39e196883f8d7450473f6a83b49f2757acede93ade01fb20abafd26eb`. Authenticated production API/UI checks passed the exact counts and correction; aggregate production smoke passed 6/6. Required GitHub quality and Cloudflare preview checks passed; legacy Netlify failures remain outside the supported release path. Full evidence: [boundary-layer production release](evidence/boundary-layer-production-release-20260907.json).
 
 ## Recovery workflow
+
+### Adaptive Manage Resources and My Directory workspaces
+
+- **Surface:** authenticated desktop Manage My Resources, My Directory Saved Resources, and the shared dashboard side navigation.
+- **Known-good candidate:** client-only branch `codex/adaptive-resource-workspaces-20260907` from `main` `e0e8beb3`.
+- **Reproduction:** open `/dashboard/resources` and `/my-directory` at 1440px and 1920px widths, inspect the page header, filters, bulk actions, tabs, and result cards, then navigate between both modules from the desktop side menu and scroll the result page.
+- **Acceptance:** both workspaces use the available desktop canvas up to a readable 1680px cap; Manage Resources filters wrap before labels or controls become cramped; My Directory stays at two card columns on ordinary desktop widths and expands to three on very wide screens; no horizontal page overflow appears; the desktop side menu remains fixed below the 64px global navigation while content scrolls; sidebar clicks use in-app navigation without a document refresh; the existing route error boundary still performs one guarded reload if a deployment leaves a stale lazy-loaded chunk.
+- **Automated evidence:** focused adaptive-layout/navigation/resource-safety coverage passed 19/19; full client source/unit coverage passed 782/782; the production-style client build passed with the existing Browserslist-age notice; and `git diff --check` passed on 2026-09-07.
+- **Browser evidence:** an isolated synthetic Super Admin session at 1440x900 and 1920x1080 showed the wider control and card layouts with no horizontal overflow. A page-memory marker survived Manage Resources → My Directory → Manage Resources navigation, confirming no document reload, and the desktop aside remained at 64px from the top after a 700px page scroll. The authenticated production account and production data were not used or changed.
 
 ### My Directory map-safe bulk unsave
 

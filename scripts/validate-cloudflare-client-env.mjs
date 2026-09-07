@@ -25,6 +25,7 @@ const townMapOverviewEnabled = String(
 const discoverDerivativeEnabled = String(
     process.env.VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED || '',
 ).trim() === 'true';
+const supportInboxEnabled = process.env.VITE_SUPPORT_INBOX_ENABLED === 'true';
 
 function fail(message) {
     console.error(message);
@@ -60,6 +61,12 @@ function normalizeUrl(value, label) {
 if (!rawApiUrl) {
     fail(
         `Missing VITE_API_URL. Cloudflare Pages deploys should point at the same-site Worker API: ${preferredApiUrl}`
+    );
+}
+
+if (!supportInboxEnabled) {
+    fail(
+        'Missing VITE_SUPPORT_INBOX_ENABLED=true. Omitting it compiles CareAround Help and the notification inbox out of the production bundle.'
     );
 }
 

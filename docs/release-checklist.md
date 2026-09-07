@@ -74,8 +74,9 @@ derivative command:
 npm run build:client:discover-derivative
 ```
 
-It supplies the same-site Worker API and every approved versioned map root,
-runs the production environment validator, and then builds the client.
+It supplies the same-site Worker API, the active Help/inbox flag, and every
+approved versioned map root, runs the production environment validator, and
+then builds the client.
 The dashboard-facing client workspace `build` command, root `build:client`,
 `build:cloudflare`, and `deploy:client` all delegate to this exact build so an
 ordinary Pages release cannot silently compile Discover Detailed out. Only
@@ -88,6 +89,7 @@ bases. The islandwide release line should use these exact roots:
 
 ```bash
 VITE_API_URL=https://api.carearound.sg/api \
+VITE_SUPPORT_INBOX_ENABLED=true \
 VITE_TOWN_MAP_PROOF_ENABLED=true \
 VITE_TOWN_MAP_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/default \
 VITE_TOWN_MAP_GRAY_ASSET_BASE_URL=https://maps.carearound.sg/v2/native-scale-20260722/gray \
@@ -106,6 +108,12 @@ The two print-master roots remain retained build-contract roots; the current
 stable UX does not expose a Print Master button. Omitting any of the six map
 roots is a rollback or dormant-contract change, not the normal production
 build, and `npm run deploy:client` rejects omission.
+
+Help, Guide, in-app inbox, product Updates, and saved-search controls share the
+build-time `VITE_SUPPORT_INBOX_ENABLED=true` contract. Omitting or disabling it
+compiles their routes and navbar entry out even when the Worker and records are
+healthy. Both production-style build commands pin it, and the production
+environment validator rejects a missing or false value.
 
 Discover Detailed has an additional, independent release flag. It is part of
 the current production contract, so `VITE_DISCOVER_DETAILED_MAP_ENABLED=true`
@@ -162,21 +170,12 @@ crossing a native surface boundary must still remove all fixed images and
 restore live OneMap. At every Detailed sample, require zero live tiles.
 
 CareAround Pages also contains the file-routed embed Function under
-`client/functions`. The standard `npm run deploy:client` is safe because it
-changes into `client` before running Wrangler. For a manual exact-artifact
-republish, use the same working-directory contract, for example:
-
-```bash
-npx wrangler pages deploy dist --cwd client \
-  --project-name senior-resource-map \
-  --branch=main \
-  --skip-caching
-```
-
-Do not run `wrangler pages deploy client/dist` from the repository root by
-itself. That uploads the static assets but omits `client/functions`. Before
-accepting the deploy, require Wrangler output for `Compiled Worker
-successfully`, `Uploading Functions bundle`, and `Uploading _routes.json`.
+`client/functions`. Use only `npm run deploy:client` for a production Pages
+release. Do not bypass it with a raw `wrangler pages deploy`, including for an
+exact-artifact republish: a raw command can omit the Help-enabled build,
+clean-main/source checks, or `client/functions`. Before accepting the deploy,
+require Wrangler output for `Compiled Worker successfully`, `Uploading
+Functions bundle`, and `Uploading _routes.json`.
 Then verify an enabled `/embed/maps/:token` response has no
 `X-Frame-Options`, uses `no-store`, and has its exact route-specific
 `frame-ancestors` allowlist, while an ordinary app route still sends
@@ -489,6 +488,17 @@ Deploy the Cloudflare Pages client only after the client build and relevant smok
 npm run deploy:client
 ```
 
+The production Pages command fetches `origin/main` and requires a completely
+clean `main` checkout whose `HEAD` matches it. It validates that release line
+again after the production build, rejects command-line project/branch/source
+overrides, attaches the exact clean commit to the deployment, skips reuse of
+cached uploads, and invokes Wrangler from `client/` so Pages Functions and
+`_routes.json` are included. It rechecks `origin/main` once more after upload;
+if that branch advanced during publication, treat the release as incomplete
+and immediately rebuild and publish current `main`. Merge and push a validated
+feature branch first; do not publish a feature branch while labelling it as
+production `main`.
+
 Keep Worker and Pages deploy evidence separate in the release note. Record Worker versions, Pages preview URLs, custom-domain bundle names, and any smoke constraints.
 
 ## 7. Deployed Health Check
@@ -512,6 +522,10 @@ The older Workers.dev API URL may still be useful for fallback investigation, bu
 After a deploy, manually verify the affected flow plus these core routes:
 
 - open the deployed app and confirm `/discover` renders
+- open `/help` and confirm it remains on that route with the Help/inbox navbar entry
+- open `/inbox` and confirm it reaches `/help?tab=inbox`; check the Updates view when authenticated
+- ask one verified Guide question and run one real public-resource search
+- confirm guest access to private inbox, notification preferences, notifications, saved searches, and Guide history remains denied
 - log in with a partner/admin account
 - open `/dashboard/resources`
 - open the postal import wizard and confirm search still returns results
