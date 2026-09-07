@@ -9462,6 +9462,15 @@ Active next recovery family:
 
 ## Recovery workflow
 
+### Adaptive Manage Resources and My Directory workspaces
+
+- **Surface:** authenticated desktop Manage My Resources, My Directory Saved Resources, and the shared dashboard side navigation.
+- **Known-good candidate:** client-only branch `codex/adaptive-resource-workspaces-20260907` from `main` `e0e8beb3`.
+- **Reproduction:** open `/dashboard/resources` and `/my-directory` at 1440px and 1920px widths, inspect the page header, filters, bulk actions, tabs, and result cards, then navigate between both modules from the desktop side menu and scroll the result page.
+- **Acceptance:** both workspaces use the available desktop canvas up to a readable 1680px cap; Manage Resources filters wrap before labels or controls become cramped; My Directory stays at two card columns on ordinary desktop widths and expands to three on very wide screens; no horizontal page overflow appears; the desktop side menu remains fixed below the 64px global navigation while content scrolls; sidebar clicks use in-app navigation without a document refresh; the existing route error boundary still performs one guarded reload if a deployment leaves a stale lazy-loaded chunk.
+- **Automated evidence:** focused adaptive-layout/navigation/resource-safety coverage passed 19/19; full client source/unit coverage passed 782/782; the production-style client build passed with the existing Browserslist-age notice; and `git diff --check` passed on 2026-09-07.
+- **Browser evidence:** an isolated synthetic Super Admin session at 1440x900 and 1920x1080 showed the wider control and card layouts with no horizontal overflow. A page-memory marker survived Manage Resources → My Directory → Manage Resources navigation, confirming no document reload, and the desktop aside remained at 64px from the top after a 700px page scroll. The authenticated production account and production data were not used or changed.
+
 ### My Directory map-safe bulk unsave
 
 - **Surface:** authenticated My Directory Saved Resources, My Map membership checks, saved Offering calendar-source behavior, and shared saved-resource state.
