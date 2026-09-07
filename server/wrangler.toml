@@ -12,11 +12,12 @@ binding = "CF_VERSION_METADATA"
 
 [triggers]
 # The handler does no database work until SUPPORT_INBOX_ENABLED is true.
-# User category preferences remain opt-in. This is a local rollout candidate.
+# User category preferences remain opt-in after the approved production rollout.
 crons = ["* * * * *"]
 
 [vars]
 NODE_ENV = "production"
+SUPPORT_INBOX_ENABLED = "true"
 VITE_GOOGLE_CLIENT_ID = "828767964064-70irissq9d39beh2i7sc3strs1fvjmpk.apps.googleusercontent.com"
 ALLOWED_ORIGINS = "http://localhost:5173,https://senior-resource-map.pages.dev,https://app.carearound.sg"
 AI_IMPORT_PROVIDER = "gemini"
