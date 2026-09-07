@@ -74,6 +74,22 @@ checksums, recovery during active writes, or non-Postgres service recovery.
 
 ## Local regression evidence and remaining release decisions
 
+Follow-up two-session lock evidence is in
+[the lock/retry record](evidence/guide-inbox-neon-locks-20260907.json).
+Separate PostgreSQL backends on the empty rehearsal branch proved the advisory
+migration lock rejects a second runner. A simulated writer held a ROW EXCLUSIVE
+lock on `users`; a foreign-key probe stopped with lock timeout `55P03` under the
+configured two-second limit. Both transactions were explicitly rolled back.
+Retry succeeded after release; the probe table was absent, history remained five
+rows, public table count remained 70, users remained zero, and no test advisory
+locks remained. The additional browser tab was closed.
+
+The successful FK probe held `ShareRowExclusiveLock` on the referenced users
+table. The acquisition timeout does not bound how long an acquired lock is held.
+Any approved production executor must minimize the transaction's hold time,
+including avoiding one browser round trip per DDL statement. This narrow test
+does not certify production traffic performance or runtime binding/role parity.
+
 - Full server: 720 passed, no failed/cancelled/skipped tests.
 - Static checks: seven ordered migrations, 471 modules / 1,393 edges, no cycles.
 - The original SHA-pinned catalog capture retains its terminal blank line.
@@ -93,7 +109,7 @@ second runner to silently bypass `docs/database-migrations.md`.
 
 Still required: that exact adoption decision; independent confirmation of the
 Worker's actual database branch/runtime role without reading credentials;
-appropriate lock/concurrency checks; authenticated release smoke; clean-source
+short-lock-hold execution review; authenticated release smoke; clean-source
 commit/merge and explicit Worker/Pages rollout with feature flags; and deployed
 artifact, privacy, consent and scheduled-processing verification. No feature
 release or fix-available announcement is certified by this rehearsal.

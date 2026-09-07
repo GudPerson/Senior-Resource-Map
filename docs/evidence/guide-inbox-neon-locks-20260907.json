@@ -1,0 +1,61 @@
+{
+  "checkedAtUtc": "2026-09-07 03:22:44 UTC",
+  "projectId": "silent-queen-04984362",
+  "branchId": "br-autumn-mode-aikak52t",
+  "database": "neondb",
+  "sourceCheckpoint": "212f0ea7b",
+  "productionChanged": false,
+  "scope": "Two concurrent authenticated console sessions on the empty schema-only rehearsal branch; no application row writes",
+  "lockHolder": {
+    "pid": 914,
+    "branch": "br-autumn-mode-aikak52t",
+    "advisory_owned": true,
+    "users_row_exclusive_owned": true
+  },
+  "secondSession": {
+    "pid": 981,
+    "branch": "br-autumn-mode-aikak52t",
+    "migration_lock_rejected": true
+  },
+  "failure": {
+    "message": "canceling statement due to lock timeout",
+    "sqlstate": "55P03",
+    "configuredLockTimeout": "2s",
+    "bothTransactionsExplicitlyRolledBack": true
+  },
+  "retry": {
+    "pid": 981,
+    "branch": "br-autumn-mode-aikak52t",
+    "retry_succeeded": true,
+    "users_lock_modes": [
+      "AccessShareLock",
+      "RowShareLock",
+      "ShareRowExclusiveLock"
+    ]
+  },
+  "cleanup": {
+    "users": 0,
+    "branch": "br-autumn-mode-aikak52t",
+    "history_rows": 5,
+    "probe_absent": true,
+    "public_tables": 70,
+    "remaining_test_advisory_locks": 0
+  },
+  "sqlSha256": {
+    "lock-session-a.sql": "fde501567ef9b8e5e3aede3127298165d05f80ae394c8232437482a0e0b89772",
+    "lock-session-b.sql": "151c8358a467bf4470188bbdc2e938d9cb2c24ec4fc388c20596e8e8575c97b6",
+    "lock-retry.sql": "784cf608dd7b865bf7346bf2c4051550f76dfa0d5070f302caf3ae3460a80575"
+  },
+  "sqlNormalization": "trimEnd before full-editor verification and Run",
+  "sql": {
+    "sessionA": "-- Session A: empty rehearsal branch only; temporary locks, no row writes.\nBEGIN;\nSET LOCAL idle_in_transaction_session_timeout = '120s';\nSET LOCAL lock_timeout = '2s';\nDO $guard$ BEGIN\nIF current_setting('neon.branch_id',true) IS DISTINCT FROM 'br-autumn-mode-aikak52t'\n OR current_database() <> 'neondb' OR current_setting('server_version_num')::int / 10000 <> 17\n THEN RAISE EXCEPTION 'Wrong lock rehearsal target'; END IF;\nEND $guard$;\nDO $empty$ BEGIN IF EXISTS (SELECT FROM public.users) THEN RAISE EXCEPTION 'Rehearsal must have no users'; END IF; END $empty$;\nDO $lock$ BEGIN IF NOT pg_try_advisory_xact_lock(20260907,3006) THEN RAISE EXCEPTION 'Lock already held'; END IF; END $lock$;\nLOCK TABLE public.users IN ROW EXCLUSIVE MODE;\nSELECT jsonb_build_object('branch',current_setting('neon.branch_id',true),'pid',pg_backend_pid(),\n 'advisory_owned',true,'users_row_exclusive_owned',\n EXISTS(SELECT FROM pg_locks WHERE pid=pg_backend_pid() AND relation='public.users'::regclass AND mode='RowExclusiveLock' AND granted)\n) AS held_locks;\n-- Leave this transaction open only for Session B; execute ROLLBACK explicitly afterward.",
+    "sessionB": "-- Session B: actual concurrent lock rejection and FK timeout on empty rehearsal branch only.\nBEGIN;\nSET LOCAL statement_timeout = '10s';\nSET LOCAL lock_timeout = '2s';\nSET LOCAL idle_in_transaction_session_timeout = '120s';\nDO $guard$ BEGIN\nIF current_setting('neon.branch_id',true) IS DISTINCT FROM 'br-autumn-mode-aikak52t'\n OR current_database() <> 'neondb' OR current_setting('server_version_num')::int / 10000 <> 17\n THEN RAISE EXCEPTION 'Wrong lock rehearsal target'; END IF;\nEND $guard$;\nSELECT jsonb_build_object('branch',current_setting('neon.branch_id',true),'pid',pg_backend_pid(),\n 'migration_lock_rejected',NOT pg_try_advisory_xact_lock(20260907,3006)) AS concurrent_migration_guard;\nCREATE TABLE carearound_release.rehearsal_lock_probe (owner_user_id integer);\nALTER TABLE carearound_release.rehearsal_lock_probe ADD CONSTRAINT rehearsal_users_fk\n FOREIGN KEY (owner_user_id) REFERENCES public.users(id) ON DELETE CASCADE;\n-- Expected lock_timeout (55P03); the console stops. Explicit ROLLBACK must remove the probe.\nROLLBACK;",
+    "retry": "-- Retry and cleanup proof: empty rehearsal branch only, no committed schema or data changes.\nBEGIN;\nSET LOCAL statement_timeout = '10s';\nSET LOCAL lock_timeout = '2s';\nDO $guard$ BEGIN\nIF current_setting('neon.branch_id',true) IS DISTINCT FROM 'br-autumn-mode-aikak52t'\n OR current_database() <> 'neondb' OR current_setting('server_version_num')::int / 10000 <> 17\n THEN RAISE EXCEPTION 'Wrong lock rehearsal target'; END IF;\nIF to_regclass('carearound_release.rehearsal_lock_probe') IS NOT NULL THEN RAISE EXCEPTION 'Failed DDL was not rolled back'; END IF;\nIF NOT pg_try_advisory_xact_lock(20260907,3006) THEN RAISE EXCEPTION 'Prior advisory lock was not released'; END IF;\nEND $guard$;\nCREATE TABLE carearound_release.rehearsal_lock_probe (owner_user_id integer);\nALTER TABLE carearound_release.rehearsal_lock_probe ADD CONSTRAINT rehearsal_users_fk\n FOREIGN KEY (owner_user_id) REFERENCES public.users(id) ON DELETE CASCADE;\nSELECT jsonb_build_object('branch',current_setting('neon.branch_id',true),'pid',pg_backend_pid(),\n 'retry_succeeded',EXISTS(SELECT FROM pg_constraint WHERE conrelid='carearound_release.rehearsal_lock_probe'::regclass AND contype='f'),\n 'users_lock_modes',(SELECT jsonb_agg(mode ORDER BY mode) FROM pg_locks WHERE pid=pg_backend_pid() AND relation='public.users'::regclass AND granted)\n) AS retry_result;\nROLLBACK;\nSELECT jsonb_build_object('branch',current_setting('neon.branch_id',true),\n 'probe_absent',to_regclass('carearound_release.rehearsal_lock_probe') IS NULL,\n 'public_tables',(SELECT count(*) FROM pg_tables WHERE schemaname='public'),\n 'history_rows',(SELECT count(*) FROM carearound_release.schema_changes),\n 'users',(SELECT count(*) FROM public.users),\n 'remaining_test_advisory_locks',(SELECT count(*) FROM pg_locks WHERE locktype='advisory' AND classid=20260907 AND objid=3006)\n) AS cleanup_result;"
+  },
+  "limitations": [
+    "A ROW EXCLUSIVE lock simulated an active writer; no live app traffic was used",
+    "The foreign-key probe used the same referenced users table and ON DELETE CASCADE shape, not a second execution of all four migrations",
+    "The observed referenced-table ShareRowExclusiveLock can block user writes until commit: production execution must minimize transaction duration, not merely bound acquisition wait",
+    "Console owner-role proof does not establish the Worker's actual database binding or runtime role"
+  ]
+}

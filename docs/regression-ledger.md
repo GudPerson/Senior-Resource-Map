@@ -17,6 +17,14 @@ Rules:
 
 ## 2026-09-07 Production-version Neon rehearsal
 
+- Follow-up: [two-session lock/retry proof](evidence/guide-inbox-neon-locks-20260907.json)
+  on the empty rehearsal branch used independent backends. The advisory lock
+  rejected a second runner; a simulated writer made an FK probe fail with
+  configured two-second lock timeout `55P03`. Explicit rollback released both
+  sessions; retry succeeded and rollback removed the probe. No application
+  rows were written and no test locks remain. Production unchanged.
+  Observed referenced-table `ShareRowExclusiveLock` requires short transaction
+  hold time in the eventual executor; this is not a production-load benchmark.
 - Scope: user-authorized continuation of the complete Guide/inbox/notification
   goal, on temporary schema-only branch `br-autumn-mode-aikak52t` in project
   `silent-queen-04984362`. Production schema/data and connections are unchanged.

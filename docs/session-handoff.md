@@ -13,6 +13,18 @@ Updated: 2026-09-07 (Asia/Singapore)
 
 ## 2026-09-07 Guide, inbox, and notifications — active local goal
 
+- Approval pending: the latest final asked whether to adopt the tested upgrade
+  record and apply exact `0003`–`0006` to Neon production after the remaining
+  release gates. Automatic goal continuation is not that approval. A follow-up
+  safe check passed: two independent sessions on the empty rehearsal branch
+  proved advisory-lock exclusion, FK lock timeout under a simulated writer,
+  explicit rollback, successful retry and zero remaining probe objects/locks.
+  See [the lock evidence](evidence/guide-inbox-neon-locks-20260907.json).
+  FK DDL holds `ShareRowExclusiveLock` on `users`, so an eventual approved
+  executor must minimize lock hold time and avoid per-statement browser
+  round trips. Do not treat the existing console rehearsal as that executor.
+  No runtime/migration source, production data/schema, push or deployment
+  changed. The temporary second browser tab was closed after cleanup.
 - Latest verified checkpoint: [real Neon rehearsal and recovery](guide-inbox-neon-rehearsal-20260907.md)
   passed on PostgreSQL 17.11. Exact `0003`–`0006` committed on the schema-only
   branch; 60 existing table fingerprints unchanged, ten new tables matched,
