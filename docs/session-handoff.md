@@ -11,6 +11,30 @@ Updated: 2026-09-08 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
+## 2026-09-08 Discovery camera, source controls, and half-step zoom — release candidate
+
+- Discovery now stops wide maps at the locked Singapore overview camera at
+  zoom `12`; smaller maps compute a responsive `10-12` minimum from the same
+  bounds. Panning is disabled at the minimum and restored above it.
+- Discovery adds Standard/Detailed beside Default/Gray and shows a non-blocking
+  loading bar while detailed coverage is prepared. Live OneMap stays visible
+  while manifests resolve, and the map remains interactive as chunks complete.
+  Exact tier boundaries remain `<14` live, `14-15.9` overview, and `16+` native.
+- Discovery and owner-interactive My Map opt into `0.5` zoom buttons. Shared
+  Map, embed, owner/shared Print, export capture, and every default
+  `DirectoryMap` caller retain whole-step controls; My Map retains its existing
+  exact `15+` native threshold.
+- Pre-release gates passed server `729/729`, client `788/788` plus four
+  production-environment checks, map lockdown `104/104`, `478` modules / `1,415`
+  edges with no cycles, and the exact configured build. Separate fictional
+  browser UAT passed the centred zoom-`12` stop, disabled zoom-out, Standard
+  fallback, `15.5` overview, `16` native, and live-map continuity while the
+  manifest resolved. Guide knowledge is `2026-09-08.2`. `verify:release` passed
+  its complete quality portion, but its credentialed smoke command could not
+  start because this checkout lacks both the local Playwright package and smoke
+  credentials. Production release evidence is still pending; authenticated
+  owner My Map UAT is not claimed.
+
 ## 2026-09-08 Discover zoom-15 overview stability — released
 
 - PR #56 made displayed zoom `14-15` use the continuous `SG14` overview in

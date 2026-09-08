@@ -220,7 +220,7 @@ test('fixed town surface culls chunks and removes overlays without becoming a ti
     assert.match(fixedTownSurfaceSource, /entry\.overlay\.setUrl\(resolveFixedTownChunkUrl/);
 });
 
-test('town map proof is owner-only, local-flagged, and uses viewport coverage for fallback', () => {
+test('owner town map proof stays owner-scoped while Discover uses its isolated Detailed adapter', () => {
     assert.match(ownerPageSource, /VITE_TOWN_MAP_PROOF_ENABLED/);
     assert.match(ownerPageSource, /VITE_TOWN_MAP_ASSET_BASE_URL/);
     assert.match(ownerPageSource, /VITE_TOWN_MAP_GRAY_ASSET_BASE_URL/);
@@ -239,6 +239,10 @@ test('town map proof is owner-only, local-flagged, and uses viewport coverage fo
     assert.match(ownerPageSource, /printMapState\.mapStyle === CAREAROUND_MAP_STYLE_GRAY/);
     assert.match(ownerPageSource, /mapMinZoom=\{TOWN_MAP_PROOF_ENABLED \? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined\}/);
     assert.match(ownerPageSource, /showZoomLevelCounter=\{TOWN_MAP_PROOF_ENABLED\}/);
+    assert.match(ownerPageSource, /zoomControlStep=\{HALF_STEP_MAP_ZOOM_DELTA\}/);
+    assert.match(ownerScaffoldSource, /zoomControlStep=\{zoomControlStep\}/);
+    assert.match(directoryMapSource, /zoomControlStep = 1/);
+    assert.match(directoryMapSource, /zoomDelta=\{resolvedZoomControlStep\}/);
     assert.match(ownerPageSource, /minimumZoomCenter=\{TOWN_MAP_PROOF_ENABLED \? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null\}/);
     assert.match(ownerPageSource, /TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER = \[1\.3521, 103\.846\]/);
     assert.match(ownerPageSource, /lockMinimumZoomCamera=\{TOWN_MAP_PROOF_ENABLED\}/);
@@ -294,7 +298,9 @@ test('town map proof is owner-only, local-flagged, and uses viewport coverage fo
     assert.match(ownerPageSource, /fixedTownSurfaceFallbackScope="local"/);
     assert.match(ownerPageSource, /onBasemapModeChange=\{handleBasemapModeChange\}/);
     assert.doesNotMatch(sharedMapPageSource, /fixedTownSurface|TownMapModeControl|VITE_TOWN_MAP/);
-    assert.doesNotMatch(discoveryMapSource, /fixedTownSurface|TownMapModeControl|VITE_TOWN_MAP/);
+    assert.match(discoveryMapSource, /<DiscoverDetailedBasemap/);
+    assert.match(discoveryMapSource, /<TownMapModeControl/);
+    assert.doesNotMatch(discoveryMapSource, /fixedTownSurfaceManifest|VITE_TOWN_MAP/);
 });
 
 test('owner mode control keeps layman labels and accessible guidance inside map settings', () => {

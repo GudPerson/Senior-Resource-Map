@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Minus, Plus } from 'lucide-react';
+import { LoaderCircle, Minus, Plus } from 'lucide-react';
 
 import OneMapBadge from '../../components/OneMapBadge.jsx';
 import MapSettingsControl from '../../components/MapSettingsControl.jsx';
+import TownMapModeControl from '../../components/TownMapModeControl.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { useMapStyle } from '../../contexts/MapStyleContext.jsx';
 import homeAnchorImage from '../../assets/home-anchor.png';
-import DiscoverDetailedBasemap from './DiscoverDetailedBasemap.jsx';
+import DiscoverDetailedBasemap, { DISCOVER_DETAILED_MAP_ENABLED } from './DiscoverDetailedBasemap.jsx';
+import { DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM } from './discoverDetailedMap.js';
 import { createPostalGroupParentPinIcon, createSavedPlacePinIcon } from './discoverUtils.js';
 import {
     CAREAROUND_BASEMAP_ATTRIBUTION,
@@ -19,11 +21,26 @@ import {
     CAREAROUND_BASEMAP_NATIVE_ZOOM,
     getCareAroundBasemapUrl,
 } from '../../lib/mapTheme.js';
+import {
+    HALF_STEP_MAP_ZOOM_DELTA,
+    formatMapZoomLevel,
+    resolveResponsiveMapMinimumZoom,
+} from '../../lib/mapZoom.js';
 
 const DEFAULT_MAP_CENTER = [1.3521, 103.8198];
 const DEFAULT_MAP_ZOOM = 12;
 // Keep Discover fitBounds on fractional zoom steps. Whole-step zoom snapping caused UAT-visible jumps.
 const DISCOVER_ZOOM_SNAP = 0.1;
+const DISCOVER_OVERVIEW_MIN_ZOOM = 10;
+const DISCOVER_OVERVIEW_MAX_ZOOM = 12;
+const DISCOVER_OVERVIEW_WIDE_MAP_WIDTH = 900;
+const DISCOVER_OVERVIEW_WIDE_MAP_HEIGHT = 500;
+const DISCOVER_OVERVIEW_PADDING = [16, 16];
+const DISCOVER_SINGAPORE_OVERVIEW_CENTER = [1.3521, 103.846];
+const DISCOVER_SINGAPORE_OVERVIEW_BOUNDS = [
+    [1.1589785722368189, 103.49945068359375],
+    [1.5626114277758696, 104.117431640625],
+];
 const SINGLE_PIN_ZOOM = CAREAROUND_BASEMAP_MAX_ZOOM;
 const ANCHOR_ONLY_ZOOM = 15;
 const DESKTOP_FIT_MAX_ZOOM = CAREAROUND_BASEMAP_MAX_ZOOM;
@@ -512,20 +529,119 @@ function TrackedPinLayoutReporter({ trackedPinKey = null, pins = [], onTrackedPi
     return null;
 }
 
+function DiscoveryMinimumZoomLock() {
+    const map = useMap();
+
+    useLayoutEffect(() => {
+        const bounds = L.latLngBounds(DISCOVER_SINGAPORE_OVERVIEW_BOUNDS);
+        const minimumCenter = L.latLng(DISCOVER_SINGAPORE_OVERVIEW_CENTER);
+        const container = map.getContainer();
+        let minimumZoom = DISCOVER_OVERVIEW_MIN_ZOOM;
+        let draggingDisabledByLock = false;
+        let centering = false;
+        let resizeFrame = null;
+
+        const restoreDragging = () => {
+            if (!draggingDisabledByLock) return;
+            map.dragging?.enable?.();
+            draggingDisabledByLock = false;
+        };
+        const centerMinimumCamera = () => {
+            if (centering) return;
+            const currentCenter = map.getCenter();
+            const zoom = map.getZoom();
+            const currentPoint = map.project(currentCenter, zoom);
+            const minimumPoint = map.project(minimumCenter, zoom);
+            if (currentPoint.distanceTo(minimumPoint) <= 1) return;
+            centering = true;
+            map.panTo(minimumCenter, { animate: false });
+            centering = false;
+        };
+        const syncLock = () => {
+            const atMinimum = Number(map.getZoom()) <= minimumZoom + 0.01;
+            if (!atMinimum) {
+                restoreDragging();
+                return;
+            }
+            if (map.dragging?.enabled?.()) {
+                map.dragging.disable();
+                draggingDisabledByLock = true;
+            }
+            centerMinimumCamera();
+        };
+        const resolveMinimumZoom = () => {
+            const size = map.getSize();
+            if (size.x >= DISCOVER_OVERVIEW_WIDE_MAP_WIDTH && size.y >= DISCOVER_OVERVIEW_WIDE_MAP_HEIGHT) {
+                return DISCOVER_OVERVIEW_MAX_ZOOM;
+            }
+            return resolveResponsiveMapMinimumZoom({
+                fitZoom: map.getBoundsZoom(bounds, false, L.point(DISCOVER_OVERVIEW_PADDING)),
+                minimumZoom: DISCOVER_OVERVIEW_MIN_ZOOM,
+                maximumZoom: DISCOVER_OVERVIEW_MAX_ZOOM,
+            }) ?? DISCOVER_OVERVIEW_MIN_ZOOM;
+        };
+        const applyMinimumZoom = () => {
+            minimumZoom = resolveMinimumZoom();
+            map.setMinZoom(minimumZoom);
+            container.dataset.discoverMinZoom = String(minimumZoom);
+            if (Number(map.getZoom()) < minimumZoom - 0.01) {
+                map.setView(minimumCenter, minimumZoom, { animate: false });
+            }
+            syncLock();
+        };
+        const scheduleMinimumZoom = () => {
+            if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
+            resizeFrame = window.requestAnimationFrame(() => {
+                resizeFrame = null;
+                applyMinimumZoom();
+            });
+        };
+
+        applyMinimumZoom();
+        map.on('zoomend', syncLock);
+        map.on('moveend', syncLock);
+        map.on('resize', scheduleMinimumZoom);
+
+        return () => {
+            if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
+            map.off('zoomend', syncLock);
+            map.off('moveend', syncLock);
+            map.off('resize', scheduleMinimumZoom);
+            map.setMinZoom(CAREAROUND_BASEMAP_MIN_ZOOM);
+            restoreDragging();
+            delete container.dataset.discoverMinZoom;
+        };
+    }, [map]);
+
+    return null;
+}
+
+function readDiscoveryZoomState(map) {
+    const zoom = Number(map.getZoom());
+    const minZoom = Number(map.getMinZoom());
+    const maxZoom = Number(map.getMaxZoom());
+    return {
+        label: formatMapZoomLevel(zoom),
+        canZoomOut: Number.isFinite(zoom) && Number.isFinite(minZoom) ? zoom > minZoom + 0.01 : true,
+        canZoomIn: Number.isFinite(zoom) && Number.isFinite(maxZoom) ? zoom < maxZoom - 0.01 : true,
+    };
+}
+
 function DiscoveryMapControlStack({ canReset = false, onResetView }) {
     const map = useMap();
     const { t } = useLocale();
-    const [zoomLevel, setZoomLevel] = useState(() => Math.round(Number(map.getZoom())));
+    const [zoomState, setZoomState] = useState(() => readDiscoveryZoomState(map));
 
     useEffect(() => {
-        const updateZoomLevel = () => {
-            const nextZoomLevel = Math.round(Number(map.getZoom()));
-            setZoomLevel(Number.isFinite(nextZoomLevel) ? nextZoomLevel : null);
-        };
+        const updateZoomLevel = () => setZoomState(readDiscoveryZoomState(map));
 
         updateZoomLevel();
         map.on('zoom', updateZoomLevel);
-        return () => map.off('zoom', updateZoomLevel);
+        map.on('zoomlevelschange', updateZoomLevel);
+        return () => {
+            map.off('zoom', updateZoomLevel);
+            map.off('zoomlevelschange', updateZoomLevel);
+        };
     }, [map]);
 
     const desktopZoomRailDepth = canReset ? 'two' : 'one';
@@ -537,22 +653,23 @@ function DiscoveryMapControlStack({ canReset = false, onResetView }) {
                     <div
                         role="status"
                         aria-live="polite"
-                        aria-label={zoomLevel === null ? 'Zoom level unavailable' : `Zoom level ${zoomLevel}`}
+                        aria-label={zoomState.label === '—' ? 'Zoom level unavailable' : `Zoom level ${zoomState.label}`}
                         data-map-zoom-level="true"
                         className="flex h-[22px] w-[30px] select-none items-center justify-center border-b border-slate-200 bg-white text-[10px] font-extrabold tabular-nums leading-none text-slate-500 lg:h-6 lg:w-8 lg:text-[10px]"
                         title="Current zoom level"
                     >
-                        {zoomLevel ?? '—'}
+                        {zoomState.label}
                     </div>
                     <button
                         type="button"
                         title={t('mapZoomIn')}
                         aria-label={t('mapZoomIn')}
-                        className="flex h-[30px] w-[30px] touch-manipulation items-center justify-center border-b border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 lg:h-8 lg:w-8"
+                        disabled={!zoomState.canZoomIn}
+                        className="flex h-[30px] w-[30px] touch-manipulation items-center justify-center border-b border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300 lg:h-8 lg:w-8"
                         onClick={(event) => {
                             event.stopPropagation();
                             event.preventDefault();
-                            map.zoomIn();
+                            map.zoomIn(HALF_STEP_MAP_ZOOM_DELTA);
                         }}
                     >
                         <Plus size={15} className="lg:h-[18px] lg:w-[18px]" aria-hidden="true" />
@@ -561,11 +678,12 @@ function DiscoveryMapControlStack({ canReset = false, onResetView }) {
                         type="button"
                         title={t('mapZoomOut')}
                         aria-label={t('mapZoomOut')}
-                        className="flex h-[30px] w-[30px] touch-manipulation items-center justify-center bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 lg:h-8 lg:w-8"
+                        disabled={!zoomState.canZoomOut}
+                        className="flex h-[30px] w-[30px] touch-manipulation items-center justify-center bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300 lg:h-8 lg:w-8"
                         onClick={(event) => {
                             event.stopPropagation();
                             event.preventDefault();
-                            map.zoomOut();
+                            map.zoomOut(HALF_STEP_MAP_ZOOM_DELTA);
                         }}
                     >
                         <Minus size={15} className="lg:h-[18px] lg:w-[18px]" aria-hidden="true" />
@@ -597,6 +715,60 @@ function DiscoveryMapControlStack({ canReset = false, onResetView }) {
     );
 }
 
+function getDiscoverDetailedStatusMessage(status) {
+    if (!status?.requested) return '';
+    if (status.loading) return 'Loading the Detailed map. You can keep using the regular map.';
+    if (status.reason === 'zoom-below-detailed') {
+        return `Zoom in to level ${DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM}. Detailed will turn on automatically.`;
+    }
+    if (status.reason === 'outside-coverage') {
+        return 'Detailed is not ready for this area. The regular map is still shown here.';
+    }
+    if (['surface-load-error', 'surface-unavailable', 'viewport-memory-limit', 'manifest-unavailable'].includes(status.reason)) {
+        return 'Detailed could not load. The regular map is still shown.';
+    }
+    return '';
+}
+
+function DiscoverDetailedLoadingIndicator({ status }) {
+    if (!status?.requested || !status.loading) return null;
+    const visibleCount = Number(status.visibleChunkCount || 0);
+    const loadedCount = Number(status.loadedChunkCount || 0);
+    const progress = visibleCount > 0
+        ? Math.min(100, Math.max(0, Math.round((loadedCount / visibleCount) * 100)))
+        : null;
+
+    return (
+        <div className="pointer-events-none absolute left-16 right-16 top-3 z-[1001] flex justify-center">
+            <div
+                role="status"
+                aria-live="polite"
+                data-discover-detailed-loading="true"
+                className="w-full max-w-xs rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-md backdrop-blur"
+            >
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                    <LoaderCircle size={15} className="shrink-0 animate-spin text-brand-600" aria-hidden="true" />
+                    <span>Loading detailed map…</span>
+                    {progress !== null ? <span className="ml-auto tabular-nums text-slate-500">{progress}%</span> : null}
+                </div>
+                <div
+                    role={progress === null ? undefined : 'progressbar'}
+                    aria-label={progress === null ? undefined : 'Detailed map loading progress'}
+                    aria-valuemin={progress === null ? undefined : 0}
+                    aria-valuemax={progress === null ? undefined : 100}
+                    aria-valuenow={progress === null ? undefined : progress}
+                    className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"
+                >
+                    <div
+                        className={`h-full rounded-full bg-brand-500 ${progress === null ? 'w-1/3 animate-pulse' : ''}`}
+                        style={progress === null ? undefined : { width: `${progress}%` }}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export function DiscoveryMap({
     cameraAnchor = null,
     focusRequest = null,
@@ -618,6 +790,17 @@ export function DiscoveryMap({
     userLocation,
 }) {
     const { mapStyle } = useMapStyle();
+    const [detailedRequested, setDetailedRequested] = useState(true);
+    const [detailedStatus, setDetailedStatus] = useState(() => ({
+        requested: true,
+        enabled: DISCOVER_DETAILED_MAP_ENABLED,
+        loading: false,
+        mode: 'live',
+        tier: 'live',
+        reason: 'zoom-below-detailed',
+        visibleChunkCount: 0,
+        loadedChunkCount: 0,
+    }));
     const emphasisLookup = useMemo(() => pinEmphasisByKey, [pinEmphasisByKey]);
     const renderedPins = useMemo(
         () => [...(renderedSavedPlacePins || savedPlacePins), ...transientPlacePins],
@@ -635,10 +818,14 @@ export function DiscoveryMap({
                 zoomControl={false}
                 minZoom={CAREAROUND_BASEMAP_MIN_ZOOM}
                 maxZoom={CAREAROUND_BASEMAP_MAX_ZOOM}
+                zoomDelta={HALF_STEP_MAP_ZOOM_DELTA}
                 zoomSnap={DISCOVER_ZOOM_SNAP}
             >
+                <DiscoveryMinimumZoomLock />
                 <DiscoverDetailedBasemap
+                    detailedRequested={detailedRequested}
                     mapStyle={mapStyle}
+                    onStatusChange={setDetailedStatus}
                     liveTiles={(
                         <TileLayer
                             key={`carearound-discover:${mapStyle}`}
@@ -738,8 +925,22 @@ export function DiscoveryMap({
                     </Marker>
                 ) : null}
             </MapContainer>
+            <DiscoverDetailedLoadingIndicator status={detailedStatus} />
             <div className="absolute right-3 top-3 z-[1002]">
-                <MapSettingsControl showMapStyleControl />
+                <MapSettingsControl
+                    detailedMinZoom={DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM}
+                    mapDetailDescription="Choose Standard at any zoom, or Detailed from level 14."
+                    mapModeControl={DISCOVER_DETAILED_MAP_ENABLED ? (
+                        <TownMapModeControl
+                            mode={detailedRequested ? 'town' : 'live'}
+                            townAvailable
+                            statusMessage={getDiscoverDetailedStatusMessage(detailedStatus)}
+                            onModeChange={(mode) => setDetailedRequested(mode === 'town')}
+                            variant="panel"
+                        />
+                    ) : null}
+                    showMapStyleControl
+                />
             </div>
             <div className="hidden lg:block">
                 <OneMapBadge />

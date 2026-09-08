@@ -49,6 +49,7 @@ export default function MyMapV2PreviewScaffold({
     basemapUrl,
     mapMinZoom,
     showZoomLevelCounter = false,
+    zoomControlStep = 1,
     minimumZoomCenter = null,
     lockMinimumZoomCamera = false,
     basemapMode = 'live',
@@ -131,6 +132,7 @@ export default function MyMapV2PreviewScaffold({
             basemapUrl={basemapUrl}
             mapMinZoom={mapMinZoom}
             showZoomLevelCounter={showZoomLevelCounter}
+            zoomControlStep={zoomControlStep}
             minimumZoomCenter={minimumZoomCenter}
             lockMinimumZoomCamera={lockMinimumZoomCamera}
             basemapMode={basemapMode}

@@ -4,6 +4,7 @@ import L from 'leaflet';
 
 import { shouldCenterDirectoryMapAtMinimumZoom } from '../lib/directoryMapCamera.js';
 import { resolveFixedTownDisplayZoomStep } from '../lib/fixedTownSurface.js';
+import { formatMapZoomLevel, normalizeMapZoomControlStep } from '../lib/mapZoom.js';
 
 export default function DirectoryMapZoomLevelControl({
     enabled = false,
@@ -11,6 +12,7 @@ export default function DirectoryMapZoomLevelControl({
     minimumZoomCenter = null,
     lockAtMinimumZoom = false,
     preserveContainmentStep = false,
+    zoomControlStep = 1,
 }) {
     const map = useMap();
 
@@ -57,14 +59,20 @@ export default function DirectoryMapZoomLevelControl({
 
         const updateCounter = () => {
             if (!counter) return;
-            const zoomLevel = resolveFixedTownDisplayZoomStep({
-                zoom: map.getZoom(),
-                preserveContainmentStep,
-            });
-            counter.textContent = Number.isFinite(zoomLevel) ? String(zoomLevel) : '—';
+            const controlStep = normalizeMapZoomControlStep(zoomControlStep);
+            const zoomLevel = controlStep < 1
+                ? Number(map.getZoom())
+                : resolveFixedTownDisplayZoomStep({
+                    zoom: map.getZoom(),
+                    preserveContainmentStep,
+                });
+            const zoomLabel = controlStep < 1
+                ? formatMapZoomLevel(zoomLevel)
+                : Number.isFinite(zoomLevel) ? String(zoomLevel) : '—';
+            counter.textContent = zoomLabel;
             counter.setAttribute(
                 'aria-label',
-                Number.isFinite(zoomLevel) ? `Zoom level ${zoomLevel}` : 'Zoom level unavailable',
+                zoomLabel === '—' ? 'Zoom level unavailable' : `Zoom level ${zoomLabel}`,
             );
         };
         const isAtMinimumZoom = () => {
@@ -142,7 +150,7 @@ export default function DirectoryMapZoomLevelControl({
                 zoomInButton.style.borderTopRightRadius = previousZoomInRadii.topRight;
             }
         };
-    }, [enabled, lockAtMinimumZoom, map, minZoom, minimumZoomCenter, preserveContainmentStep]);
+    }, [enabled, lockAtMinimumZoom, map, minZoom, minimumZoomCenter, preserveContainmentStep, zoomControlStep]);
 
     return null;
 }

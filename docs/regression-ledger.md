@@ -15,6 +15,56 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-08 Discovery camera, map-source controls, and half-step zoom — release candidate
+
+- Current behavior: wide Discovery maps stop at zoom `12`, recenter on the
+  established Singapore overview centre (`1.3521, 103.846`), and cannot be
+  dragged away at that minimum. Smaller map viewports derive a safe minimum
+  between `10` and `12` from the same Singapore bounds. Discovery map settings
+  now expose `Standard | Detailed` and `Default | Gray`. Detailed remains the
+  default; a non-blocking loading bar is visible while detailed chunks resolve.
+  Live OneMap remains visible while the detailed manifest is prepared, and the
+  map stays interactive while fixed chunks complete.
+  Explicit zoom buttons move by `0.5` in Discovery and owner My Map, while
+  trackpad/pinch input remains smooth at `0.1` in Discovery.
+- Known-good and threshold reference: the minimum camera matches the locked
+  owner My Map Singapore overview centre. The released 2026-09-08 Discover
+  threshold remains exact rather than display-rounded: below `14` is live
+  OneMap; `14` through `15.9` uses the overview; exact `16+` uses native detail
+  with block numbers. My Map keeps its existing exact `15+` native threshold.
+- Blast radius: only Discovery and owner-interactive My Map opt in to the
+  half-step control prop. `DirectoryMap`, its desktop/mobile controls, and the
+  V2 preview retain a default step of `1`, so Shared Map, embed, Shared Print,
+  owner Print/export capture, and other callers are unchanged. Map assets,
+  resource data/results, pins, ranking, saved state, APIs, authentication,
+  schema, migrations, privacy, and production data are unchanged. Guide
+  knowledge version `2026-09-08.2` explains these controls and scope.
+- Reproduction and acceptance: on a wide Discovery map, zoom out until the
+  control disables at `12`; the complete Singapore overview must be centred and
+  panning must remain locked. On a smaller map, the responsive minimum must fit
+  the same overview without exceeding `12`. Toggle Standard at any zoom and
+  require live OneMap. Toggle Detailed, then move through `13.5 -> 14 -> 15 ->
+  15.5 -> 16`: overview must cover `14-15.5`, native must start only at `16`,
+  and the loading indicator must not block map interaction. Repeat in Gray.
+  Owner My Map buttons must advance in `0.5` steps while retaining its existing
+  detail threshold. Shared/embed/print buttons must remain whole-step.
+- Verification before deploy: PASS. `npm run verify:quality` passed migration
+  ownership, `478` modules / `1,415` relative edges with no cycles, server
+  `729/729`, client `788/788`, four production-environment checks, and the exact
+  production build. `npm run verify:map-lockdown` passed `104/104` plus its
+  configured map build. A separate fictional local browser confirmed the wide
+  zoom-`12` stop and centred Singapore circumference, disabled zoom-out control,
+  Standard/live switch, `0.5` controls, settled overview at `15.5` (`20/20`
+  fixed chunks, zero live tiles), and native at `16` (`12/12` fixed chunks,
+  zero live tiles). During the native transition, `35` live tiles remained
+  visible while the detailed manifest resolved before the fixed layer mounted.
+  `npm run verify:release` reran and passed the full quality portion, then its
+  credentialed smoke command could not start because this checkout has neither
+  the local Playwright package nor configured smoke credentials. The approved
+  standalone browser runner supplied the scoped visual evidence above.
+  Authenticated owner My Map UAT is not claimed; its scoped wiring is covered
+  by client and lockdown tests.
+
 ## 2026-09-08 Discover zoom-15 overview stability — released
 
 - Regression reference: Pages deployment

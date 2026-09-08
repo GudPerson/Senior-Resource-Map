@@ -4,6 +4,7 @@ import { Minus, Plus } from 'lucide-react';
 import { useMap } from 'react-leaflet';
 
 import { resolveFixedTownDisplayZoomStep } from '../lib/fixedTownSurface.js';
+import { formatMapZoomLevel, normalizeMapZoomControlStep } from '../lib/mapZoom.js';
 
 function readZoomState(map) {
     const zoom = Number(map?.getZoom?.());
@@ -28,6 +29,7 @@ export default function DirectoryMapMobileControlDock({
     settingsControl = null,
     showZoomControls = true,
     preserveContainmentStep = false,
+    zoomControlStep = 1,
 }) {
     const map = useMap();
     const [zoomState, setZoomState] = useState(() => readZoomState(map));
@@ -51,11 +53,16 @@ export default function DirectoryMapMobileControlDock({
 
     if (!target || (!settingsControl && !showZoomControls)) return null;
 
-    const displayedZoom = resolveFixedTownDisplayZoomStep({
-        zoom: zoomState.zoom,
-        preserveContainmentStep,
-    });
-    const zoomLabel = Number.isFinite(displayedZoom) ? String(displayedZoom) : '—';
+    const controlStep = normalizeMapZoomControlStep(zoomControlStep);
+    const displayedZoom = controlStep < 1
+        ? zoomState.zoom
+        : resolveFixedTownDisplayZoomStep({
+            zoom: zoomState.zoom,
+            preserveContainmentStep,
+        });
+    const zoomLabel = controlStep < 1
+        ? formatMapZoomLevel(displayedZoom)
+        : Number.isFinite(displayedZoom) ? String(displayedZoom) : '—';
     const controlButtonClassName = 'inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-slate-200 bg-white p-0 text-slate-700 shadow-sm transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300';
 
     return createPortal(
@@ -76,7 +83,7 @@ export default function DirectoryMapMobileControlDock({
                         aria-label="Zoom out"
                         className={controlButtonClassName}
                         disabled={!zoomState.canZoomOut}
-                        onClick={() => map.zoomOut()}
+                        onClick={() => map.zoomOut(controlStep)}
                     >
                         <Minus size={20} strokeWidth={2.5} aria-hidden="true" />
                     </button>
@@ -92,7 +99,7 @@ export default function DirectoryMapMobileControlDock({
                         aria-label="Zoom in"
                         className={controlButtonClassName}
                         disabled={!zoomState.canZoomIn}
-                        onClick={() => map.zoomIn()}
+                        onClick={() => map.zoomIn(controlStep)}
                     >
                         <Plus size={20} strokeWidth={2.5} aria-hidden="true" />
                     </button>
