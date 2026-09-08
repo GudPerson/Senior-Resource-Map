@@ -6,6 +6,11 @@ import { Drawer } from 'vaul';
 import { api } from '../lib/api.js';
 import { getDistance } from '../lib/geo.js';
 import { applyDiscoveryTabParam, normalizeDiscoveryTabParam } from '../lib/discoveryUrlState.js';
+import {
+    buildDiscoveryCategoryOptions,
+    filterDiscoveryResourcesByCategoryKeys,
+    matchesDiscoveryCategorySelection,
+} from '../lib/discoveryCategoryFilter.js';
 import { stripMarkdownLite } from '../lib/markdownLite.js';
 import { fetchAllPaginatedResults } from '../lib/paginatedResults.js';
 import { normalizeDiscoveryCacheRows } from '../lib/discoveryCache.js';
@@ -276,6 +281,7 @@ export default function DiscoverPage() {
     const [favoritesActionNotice, setFavoritesActionNotice] = useState('');
     const [saveAllPendingAction, setSaveAllPendingAction] = useState(null);
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+    const [selectedCategoryKeys, setSelectedCategoryKeys] = useState([]);
     const [desktopPaneMode, setDesktopPaneMode] = useState('browse');
     const [selectedPlacePinKey, setSelectedPlacePinKey] = useState(null);
     const [expandedPostalGroupKey, setExpandedPostalGroupKey] = useState(null);
@@ -555,7 +561,7 @@ export default function DiscoverPage() {
     // Reset visible batch when filters change
     useEffect(() => {
         setVisibleCount(listPageSize);
-    }, [activeDiscoverySubregion, activeTab, listPageSize, search, searchOrigin, showFavoritesOnly]);
+    }, [activeDiscoverySubregion, activeTab, listPageSize, search, searchOrigin, selectedCategoryKeys, showFavoritesOnly]);
 
     const clearHoveredCardState = useCallback(() => {
         setHoveredPinKeys([]);
@@ -602,7 +608,7 @@ export default function DiscoverPage() {
         clearHoveredCardState();
         clearLockedCardState();
         clearTransientFocusState();
-    }, [clearHoveredCardState, clearLockedCardState, clearTransientFocusState, isDesktop, searchOrigin]);
+    }, [clearHoveredCardState, clearLockedCardState, clearTransientFocusState, isDesktop, searchOrigin, selectedCategoryKeys]);
 
     const isPubliclyVisible = useCallback((asset) => {
         if (asset.isHidden) return false;
@@ -632,7 +638,7 @@ export default function DiscoverPage() {
         return items.sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
     }, [visibleHardAssets, visibleSoftAssets]);
 
-    const filteredUniverse = useMemo(() => {
+    const filteredUniverseBeforeCategories = useMemo(() => {
         let items = allDiscoveryItems.map((resource, index) => {
             const displayLocation = resource._type === 'hard' ? resource : getBestLocation(resource, effectiveUserLocation);
             const lat = hasValidCoordinates(displayLocation) ? Number.parseFloat(displayLocation.lat) : null;
@@ -735,6 +741,16 @@ export default function DiscoverPage() {
         showFavoritesOnly,
         user,
     ]);
+
+    const categoryOptions = useMemo(() => buildDiscoveryCategoryOptions(
+        allDiscoveryItems,
+        filteredUniverseBeforeCategories,
+        { otherLabel: t('discoveryOtherCategory') },
+    ), [allDiscoveryItems, filteredUniverseBeforeCategories, t]);
+
+    const filteredUniverse = useMemo(() => (
+        filterDiscoveryResourcesByCategoryKeys(filteredUniverseBeforeCategories, selectedCategoryKeys)
+    ), [filteredUniverseBeforeCategories, selectedCategoryKeys]);
 
     const tabCounts = useMemo(() => ({
         all: filteredUniverse.length,
@@ -951,12 +967,29 @@ export default function DiscoverPage() {
         user,
     ]);
 
+    const discoveryAssetLookup = useMemo(() => new Map(
+        allDiscoveryItems.map((resource) => [buildSavedAssetKey(resource._type, resource.id), resource]),
+    ), [allDiscoveryItems]);
+
+    const categoryFilteredSavedAssets = useMemo(() => {
+        if (selectedCategoryKeys.length === 0) return savedAssets;
+
+        return savedAssets.filter((savedAsset) => {
+            const assetKey = buildSavedAssetKey(savedAsset.resourceType, savedAsset.resourceId);
+            const liveAsset = discoveryAssetLookup.get(assetKey);
+            return matchesDiscoveryCategorySelection(
+                liveAsset?.subCategory ?? savedAsset.subCategory,
+                selectedCategoryKeys,
+            );
+        });
+    }, [discoveryAssetLookup, savedAssets, selectedCategoryKeys]);
+
     const savedPlacePinData = useMemo(() => (
-        buildSavedPlacePins(savedAssets, visibleHardAssets, visibleSoftAssets, {
+        buildSavedPlacePins(categoryFilteredSavedAssets, visibleHardAssets, visibleSoftAssets, {
             userLocation: effectiveUserLocation,
             categoryMetaByKey: subCategoryMetaByKey,
         })
-    ), [effectiveUserLocation, savedAssets, subCategoryMetaByKey, visibleHardAssets, visibleSoftAssets]);
+    ), [categoryFilteredSavedAssets, effectiveUserLocation, subCategoryMetaByKey, visibleHardAssets, visibleSoftAssets]);
 
     const savedPlacePins = savedPlacePinData.pins;
     const savedPlacePinLookup = useMemo(
@@ -2123,6 +2156,7 @@ export default function DiscoverPage() {
     const filterPanel = (
         <DiscoveryFilterPanel
             activeTab={activeTab}
+            categoryOptions={categoryOptions}
             canShowSaveAll={canShowSaveAllControl}
             canClearLocationSearch={hasUserSelectedLocationFilter}
             clearLocationSearch={handleClearLocationSearch}
@@ -2138,6 +2172,7 @@ export default function DiscoverPage() {
             locationNotice={locationNotice}
             mobileMode={mobileMode}
             mobileCardDensity={mobileCardDensity}
+            onChangeCategorySelection={setSelectedCategoryKeys}
             onChangeMobileCardDensity={setMobileCardDensity}
             onCollapsedPullExpand={handleCollapsedSearchPanelPull}
             onCollapse={handleCollapseSearchPanel}
@@ -2154,6 +2189,7 @@ export default function DiscoverPage() {
             saveAllPendingLabel={saveAllPendingAction === 'remove' ? t('discoverySaveAllClearing') : t('discoverySaveAllSaving')}
             search={search}
             searchOrigin={searchOrigin}
+            selectedCategoryKeys={selectedCategoryKeys}
             setActiveTab={setActiveTab}
             setPostalInput={setPostalInput}
             setShowFavoritesOnly={setShowFavoritesOnly}

@@ -37,6 +37,17 @@ test('Discover postal search applies automatically and no longer exposes radius 
     assert.doesNotMatch(filterPanelSource, /type="submit"/);
 });
 
+test('Discover exposes the same category checkbox selection to desktop, mobile, results, and map pins', () => {
+    assert.match(filterPanelSource, /function CategoryCheckboxFilter/);
+    assert.match(filterPanelSource, /type="checkbox"/);
+    assert.match(filterPanelSource, /selectedCategoryKeys/);
+    assert.match(filterPanelSource, /onChangeCategorySelection/);
+    assert.match(discoverPageSource, /filterDiscoveryResourcesByCategoryKeys/);
+    assert.match(discoverPageSource, /categoryFilteredSavedAssets/);
+    assert.match(discoverPageSource, /selectedCategoryKeys=\{selectedCategoryKeys\}/);
+    assert.match(discoverPageSource, /categoryOptions=\{categoryOptions\}/);
+});
+
 test('Discover mobile map mode uses Browse as the only header action', () => {
     const mapHeaderStart = filterPanelSource.indexOf("t('discoveryMapView')");
     const mapHeaderEnd = filterPanelSource.indexOf('<MobileFilterSheet', mapHeaderStart);

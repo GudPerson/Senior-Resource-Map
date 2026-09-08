@@ -15,6 +15,50 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-09 Discovery category visibility and minimum-overview alignment — validated locally
+
+- Current behavior: Discovery has one shared `Categories` checkbox filter on
+  desktop and in the mobile filter sheet. No selection means all categories;
+  users may select one or more categories, and the same selection narrows the
+  result cards, type counts, result count, search-scoped bulk-save candidates,
+  and saved-resource map pins without changing their existing order. Category
+  selection alone does not expose the bulk-save action. At the wide-map
+  `11.5` minimum, the first visible OneMap overview row is aligned to the top
+  of the map viewport so the prior gray band no longer appears above the map.
+- Known-good reference: the user supplied the 2026-09-08 `1920x1080`
+  Discovery screenshot showing the unwanted gray band above the map and asked
+  to move the map up while retaining the approved `11.5` overview spacing.
+  The existing Discovery filters and the category styling already carried by
+  each resource remain the source of truth for labels and membership.
+- Blast radius: client-only Discovery state, filter controls, saved map-pin
+  projection, and the minimum-camera centre are changed. Public resource data,
+  ranking within the selected set, text/location/saved-only semantics,
+  Detailed/Standard and Default/Gray choices, Detailed thresholds, `0.5`
+  buttons, smooth trackpad zoom, My Map, Shared/embed/print views, APIs,
+  authentication, schema, privacy, and production data are unchanged.
+- Reproduction and acceptance: at `1920x1080` with the `1470x1016` map, zoom
+  out to `11.5`; zoom-out must disable and the first visible overview tile row
+  must meet the map top within one rendered pixel. Open Categories, select
+  `TCM`, and require `68` results with every visible card in that category;
+  select a second category and require union semantics, then choose All
+  categories and restore `3481` results. Repeat the single-category flow in a
+  `390x844` mobile filter sheet. Neither viewport may gain horizontal overflow.
+- Verification before deploy: PASS locally. Focused Discovery/map/i18n coverage
+  passed `19/19`; full client coverage passed `793/793` plus all four
+  production-environment checks; `npm run verify:map-lockdown` passed `104/104`
+  plus its configured map build; and `npm run build:client` passed with `2485`
+  modules. Separate-browser UAT using public directory data confirmed `TCM`
+  narrowed the list to `68` results on desktop and mobile, singular/plural
+  labels were correct, two categories produced their union, All categories
+  restored `3481`, and `390`, `1440`, and `1920` widths had no horizontal
+  overflow. At `1920x1080`, zoom-out disabled at `11.5` and the first visible
+  overview tile began `0.45px` below the map top. Localhost could not load the
+  production Detailed manifests because their host rejects the localhost CORS
+  origin, so the minimum-camera visual check used the intended live OneMap
+  fallback; the production-style Detailed build and source-lock regression
+  checks passed. No authenticated or mutating behavior is claimed. Release
+  evidence is pending.
+
 ## 2026-09-08 Discovery overview spacing adjustment — released
 
 - Current behavior: wide Discovery maps may zoom out one additional half-step
