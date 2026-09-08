@@ -15,58 +15,70 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-08 Discover zoom-15 overview stability candidate
+## 2026-09-08 Discover zoom-15 overview stability — released
 
-- Current behavior and reproduction: production Pages deployment
-  `face2067-71f6-4e1a-b14a-81f6bd890c50` at client source `b00022f` observes
-  every fractional Leaflet zoom frame and changes from the continuous `SG14`
-  overview to a native town surface when the rounded displayed zoom reaches
-  `15`. A separate guest browser reproduced the two-finger-style transition:
-  raw zoom `14.5-14.6` displayed `15` but failed closed to live OneMap with
-  `viewport-memory-limit`; raw zoom `14.7-15.4` displayed the native fixed
-  surface; and raw zoom `15.5+` displayed `16` with native detail. The same
-  displayed zoom could therefore alternate map types without a source-loading
-  or coverage failure.
-- Known-good and candidate references: the released baseline remains clean
-  source `b00022f` / Pages deployment
-  `face2067-71f6-4e1a-b14a-81f6bd890c50`; it is the reproduction reference,
-  not the fix. The narrow fix is local and unreleased on
-  `codex/discover-zoom15-overview-stability-20260908` until an approved merge
-  and coordinated Pages plus Guide Worker release.
-- Candidate behavior and blast radius: change only the Discover-specific native
-  threshold. Displayed `13` remains live OneMap, `14` and `15` use the
-  islandwide overview, and `16+` uses native block-number detail. The same
-  Discover constant moves native containment to `16`; no renderer rewrite or
-  map-asset change is needed. My Map, its owner Print View, Detailed embeds,
-  public Shared Map and Shared Print, Default and Gray assets, search,
-  filtering, ranking, cards, pins, saved data, API routes, auth, schema,
-  migrations, and production data remain unchanged. My Map, owner Print, and
-  Detailed embeds retain their shared zoom-15 native threshold; public Shared
-  Map and Shared Print retain their live-map behavior. The Worker-owned Guide knowledge
-  version and detailed-map wording are updated, while its response shape,
-  access policy, and routes remain unchanged; release the Worker with the
-  client so the in-app explanation cannot lag the map behavior.
+- Regression reference: Pages deployment
+  `face2067-71f6-4e1a-b14a-81f6bd890c50` at client source `b00022f` could show
+  three map types at displayed zoom `15` during a two-finger-style transition:
+  live OneMap at raw `14.5-14.6`, native town detail at raw `14.7-15.4`, then
+  native detail at displayed `16`. The displayed zoom therefore did not define
+  one deterministic map type.
+- Released behavior and blast radius: PR #56 changed only Discover so displayed
+  `13` remains live OneMap, `14` and `15` use the continuous `SG14` overview,
+  and `16+` uses native detail with block numbers. It also updated the
+  Worker-owned Guide to knowledge version `2026-09-08.1`. PR #57 then made the
+  Discover viewport react to Leaflet's `zoom` event immediately, closing the
+  first-paint interval in which the counter could show `15` while native detail
+  remained visible. The two PRs merged through `8c512ebf` and final functional
+  source `65fb6a477e8b9005eae1fe920fbb7a94ecb5457b`. My Map, owner Print,
+  Detailed embeds, public Shared Map and Shared Print, map assets and styles,
+  resource results, pins, ranking, saved data, API shape and access, auth,
+  schema, migrations, and production data were unchanged. My Map, owner Print,
+  and Detailed embeds retain their shared zoom-15 native threshold.
 - Acceptance: exercise `13 -> 14 -> 15 -> 16 -> 15 -> 14 -> 13` and slow
   fractional wheel transitions in Default and Gray. Displayed `14` and `15`
   must remain overview; `16+` must use native detail; every fixed state must
-  have zero live tiles. Reset, desktop resizing, mobile layout, inside-native
-  panning, outside-coverage fallback, source/chunk/memory failures, and the
-  `256 MiB` ceiling must remain deterministic. The in-app Guide must distinguish
-  the Discover threshold without overstating unchanged behavior on other map
-  views.
-- Verification before deploy: local candidate passed `729/729` server tests,
-  `784/784` client tests plus `4/4` production-environment checks, `104/104`
-  map-lockdown tests, the production-config client build, the map-lockdown
-  build, and `git diff --check`. A separate Playwright session using fictional
-  postal `680123` passed exact raw zoom samples `14.4-15.6` in both directions
-  and `192` trackpad-style timing samples across Default and Gray. Every
-  displayed-15 sample was `SG14` overview with fixed images and zero live tiles;
-  displayed `16` settled on native detail. Desktop reset and resize plus the
-  visible mobile map at `390x844` preserved the expected tier, exclusivity, and
-  no horizontal overflow. At displayed `16`, ordinary panning stayed on native
-  W01 inside coverage, moved to live OneMap with zero fixed images outside
-  coverage, and recovered to SG14 overview at displayed `15`. Production
-  deployment and authenticated smoke remain unperformed.
+  have zero live tiles. At the first painted frame after the counter changes to
+  `15`, no native image may remain. Reset, desktop resizing, mobile layout,
+  inside-native panning, outside-coverage fallback, recovery, and the `256 MiB`
+  ceiling must remain deterministic. The Guide must distinguish Discover from
+  the unchanged zoom threshold on My Map and owner Print.
+- Verification before deploy: the exact final merge SHA passed `729/729` server
+  tests, `784/784` client tests plus `4/4` production-environment checks,
+  `104/104` map-lockdown tests, both production-config builds, and
+  `git diff --check`. Separate-browser pre-release UAT passed `192/192`
+  trackpad-style samples and `52/52` bidirectional raw zoom states from
+  `14.4-15.6` across Default and Gray, plus desktop reset/resize, a visible
+  `390x844` mobile map without horizontal overflow, inside/outside coverage,
+  and fixed-surface recovery.
+- Production release evidence: guarded Pages deployment
+  `32bf4615-3778-4f19-bd04-0245f59b38ce` serves immutable URL
+  `https://32bf4615.senior-resource-map.pages.dev` and the custom domain at
+  clean source `65fb6a477e8b9005eae1fe920fbb7a94ecb5457b`. The coordinated API
+  release is Worker version `ac44270b-b75d-40fd-95e2-86dd0b6f4ae4` at the same
+  source. All `87/87` client files matched the local build, immutable URL, and
+  custom domain byte-for-byte; the immutable and custom-domain MIME manifests
+  also matched. The remote manifest aggregate SHA-256 is
+  `028d56e86a4d89544f2b5a8dd667968baeed4100a3c0bcad7fc1f66c1e76cb0d`.
+  Release manifests report clean `git-build` provenance; entry JavaScript
+  `/assets/index-BGEXGLpV.js` is `195134` bytes with SHA-256
+  `fb2c1408f772c3f453e695a5192a8b237224c1e43ab0c6f48dd49f5f1550b7d5`.
+- Unshimmed production UAT passed exact `15.5 -> 15.4` wheel crossings in
+  Default `10/10` and Gray `10/10`. Native removal followed the displayed
+  counter by `0.5-1.6 ms` and was gone before the first paint in every run;
+  there were zero fixed/live overlaps, blank painted frames, or repeated
+  manifest requests. The settled matrix passed Default `26/26` and Gray
+  `26/26` from raw zoom `14.4-15.6` in both directions: every displayed `15`
+  state was overview `SG14`, and every displayed `16` state was native `C03`.
+  Nearby panning remained native; fictional outside point `1.17, 103.62`
+  failed closed to live OneMap and returned through overview to native without
+  overlap. Reset, `1440x900` resize, and the unobscured `390x844` mobile map
+  passed without horizontal overflow. Public health and security probes passed,
+  Guide version `2026-09-08.1` explains the thresholds, real `Havelock` Guide
+  search returned three public results, and guest Help/Inbox completed with
+  zero console errors or warnings. Authenticated smoke was not run because the
+  approved smoke credentials are not configured in this checkout; no
+  authenticated behavior is claimed as reverified by this release.
 
 ## 2026-09-08 Help, Guide, and notification inbox client release recovery
 
