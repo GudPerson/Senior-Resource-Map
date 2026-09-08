@@ -11,7 +11,7 @@ Updated: 2026-09-08 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
-## 2026-09-08 Discovery overview spacing adjustment — local candidate
+## 2026-09-08 Discovery overview spacing adjustment — released
 
 - Wide Discovery maps now stop at `11.5` instead of `12`, giving the Singapore
   overview one additional half-step of margin while retaining the same centred,
@@ -25,9 +25,12 @@ Updated: 2026-09-08 (Asia/Singapore)
   build. Isolated fictional browser UAT passed wide `11.5` with disabled
   zoom-out and fresh responsive `10.5`; expected private favourites calls were
   `401` because no production cookie was used.
-- Branch: `codex/discover-overview-spacing-20260908`. Commit, push, and the
-  production Pages release were approved after local validation; final release
-  evidence must replace this candidate status after deployment verification.
+- Release: implementation commit `27bc38fe` merged through PR #61 as
+  `67531936`. The guarded Pages release uploaded 87 files, the Functions bundle,
+  and `_routes.json` to `https://e41af953.senior-resource-map.pages.dev`.
+  Immutable/custom-domain manifest, shell, entry-asset byte/MIME/hash parity,
+  production wide `11.5` and responsive `10.5` browser checks, security headers,
+  and API health all passed. No Worker release was required.
 
 ## 2026-09-08 Discovery camera, source controls, and half-step zoom — released
 
