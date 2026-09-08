@@ -1,6 +1,6 @@
 # CareAround SG session handoff
 
-Updated: 2026-09-08 (Asia/Singapore)
+Updated: 2026-09-09 (Asia/Singapore)
 
 ## Start here
 
@@ -10,6 +10,34 @@ Updated: 2026-09-08 (Asia/Singapore)
 - Release platform: Cloudflare Pages for the client and Cloudflare Worker for the API.
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
+
+## 2026-09-09 Discovery category visibility and minimum-overview alignment — released
+
+- Discovery now has a shared desktop/mobile multi-category checkbox filter.
+  No selection means all categories; one or more selections narrow result
+  cards, counts, search-scoped bulk-save candidates, and saved-resource map
+  pins while preserving existing order. Category selection alone does not
+  expose the bulk-save action.
+- At the wide `11.5` minimum, the first visible OneMap overview row is aligned
+  to the top of the map viewport, removing the prior gray band above the map
+  without changing the approved zoom floor, responsive fit, or map tiers.
+- Validation passed focused `19/19`, server `729/729`, client `793/793` plus
+  four production checks, map lockdown `104/104`, migration ownership, module
+  graph `479` / `1,416`, the exact production build, and separate-browser UAT
+  at `390`, `1440`, and `1920` widths. TCM narrowed to `68`, a second category
+  used union semantics, All categories restored `3,481`, and the `11.5` map
+  top gap was within one rendered pixel locally.
+- Implementation `fdc57b1c` merged through PR #63 as `2ca20e20`. Guarded Pages
+  deployment `30390f33-125e-4a95-93aa-e404091be8f9` serves
+  `https://30390f33.senior-resource-map.pages.dev`; all `87` served files match
+  the exact local build and `https://app.carearound.sg` by bytes and SHA-256,
+  with aggregate
+  `50cdf45d934bffbc7c2b31d48855f2dc724fbb301c7e17b3f1ac6f8be93493ec`.
+  Production UAT passed category filtering and reset on desktop/mobile, native
+  Detailed at zoom `16`, zero-gap top alignment at the wide `11.5` stop, Help,
+  `/inbox`, Guide, Havelock search, API health, framing headers, and guest
+  private-route denial. Authenticated saved-pin UAT is not claimed. No Worker,
+  Neon, schema, migration, auth, secret, or production-data change occurred.
 
 ## 2026-09-08 Discovery overview spacing adjustment — released
 

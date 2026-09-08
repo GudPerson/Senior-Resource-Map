@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-09 Discovery category visibility and minimum-overview alignment — validated locally
+## 2026-09-09 Discovery category visibility and minimum-overview alignment — released
 
 - Current behavior: Discovery has one shared `Categories` checkbox filter on
   desktop and in the mobile filter sheet. No selection means all categories;
@@ -56,8 +56,30 @@ Rules:
   production Detailed manifests because their host rejects the localhost CORS
   origin, so the minimum-camera visual check used the intended live OneMap
   fallback; the production-style Detailed build and source-lock regression
-  checks passed. No authenticated or mutating behavior is claimed. Release
-  evidence is pending.
+  checks passed. No authenticated or mutating behavior is claimed.
+- Production release evidence: implementation commit `fdc57b1c` merged through
+  PR #63 as `2ca20e20b5e8e1bfe292b65e007c14078a285927`; its required GitHub
+  quality workflow and Cloudflare preview passed. Legacy Netlify preview checks
+  failed and were not used because Netlify is not an active CareAround release
+  target. The guarded client command rebuilt clean `main`, uploaded all `87`
+  served files plus the Functions bundle and `_routes.json`, and created Pages
+  deployment `30390f33-125e-4a95-93aa-e404091be8f9` at
+  `https://30390f33.senior-resource-map.pages.dev`. Every served local file,
+  immutable-deployment file, and `https://app.carearound.sg` file matched by
+  bytes and SHA-256; immutable/custom MIME types also matched. The sorted local
+  aggregate SHA-256 is
+  `50cdf45d934bffbc7c2b31d48855f2dc724fbb301c7e17b3f1ac6f8be93493ec`.
+  Both release manifests report clean `git-build` provenance at `2ca20e20`.
+  Production browser verification confirmed `3,481` resources, `68` TCM
+  results, the shared desktop/mobile category state and reset, no horizontal
+  overflow, native Detailed at zoom `16` with `12` fixed images and zero live
+  tiles, and the wide `11.5` stop with zoom-out disabled and a zero-pixel top
+  gap. Help, `/inbox` redirect, a verified Guide answer, and real Havelock
+  resource search passed. Ordinary app framing remained denied, API health was
+  `200`/`ok`, and guest notifications, preferences, saved searches, and Guide
+  history remained `401`. No Worker, Neon, schema, migration, auth, secret, or
+  production-data change was required. Authenticated saved-pin UAT remains
+  unclaimed; its category wiring is covered by the client regression suite.
 
 ## 2026-09-08 Discovery overview spacing adjustment — released
 
