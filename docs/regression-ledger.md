@@ -15,6 +15,59 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-08 Discover zoom-15 overview stability candidate
+
+- Current behavior and reproduction: production Pages deployment
+  `face2067-71f6-4e1a-b14a-81f6bd890c50` at client source `b00022f` observes
+  every fractional Leaflet zoom frame and changes from the continuous `SG14`
+  overview to a native town surface when the rounded displayed zoom reaches
+  `15`. A separate guest browser reproduced the two-finger-style transition:
+  raw zoom `14.5-14.6` displayed `15` but failed closed to live OneMap with
+  `viewport-memory-limit`; raw zoom `14.7-15.4` displayed the native fixed
+  surface; and raw zoom `15.5+` displayed `16` with native detail. The same
+  displayed zoom could therefore alternate map types without a source-loading
+  or coverage failure.
+- Known-good and candidate references: the released baseline remains clean
+  source `b00022f` / Pages deployment
+  `face2067-71f6-4e1a-b14a-81f6bd890c50`; it is the reproduction reference,
+  not the fix. The narrow fix is local and unreleased on
+  `codex/discover-zoom15-overview-stability-20260908` until an approved merge
+  and coordinated Pages plus Guide Worker release.
+- Candidate behavior and blast radius: change only the Discover-specific native
+  threshold. Displayed `13` remains live OneMap, `14` and `15` use the
+  islandwide overview, and `16+` uses native block-number detail. The same
+  Discover constant moves native containment to `16`; no renderer rewrite or
+  map-asset change is needed. My Map, its owner Print View, Detailed embeds,
+  public Shared Map and Shared Print, Default and Gray assets, search,
+  filtering, ranking, cards, pins, saved data, API routes, auth, schema,
+  migrations, and production data remain unchanged. My Map, owner Print, and
+  Detailed embeds retain their shared zoom-15 native threshold; public Shared
+  Map and Shared Print retain their live-map behavior. The Worker-owned Guide knowledge
+  version and detailed-map wording are updated, while its response shape,
+  access policy, and routes remain unchanged; release the Worker with the
+  client so the in-app explanation cannot lag the map behavior.
+- Acceptance: exercise `13 -> 14 -> 15 -> 16 -> 15 -> 14 -> 13` and slow
+  fractional wheel transitions in Default and Gray. Displayed `14` and `15`
+  must remain overview; `16+` must use native detail; every fixed state must
+  have zero live tiles. Reset, desktop resizing, mobile layout, inside-native
+  panning, outside-coverage fallback, source/chunk/memory failures, and the
+  `256 MiB` ceiling must remain deterministic. The in-app Guide must distinguish
+  the Discover threshold without overstating unchanged behavior on other map
+  views.
+- Verification before deploy: local candidate passed `729/729` server tests,
+  `784/784` client tests plus `4/4` production-environment checks, `104/104`
+  map-lockdown tests, the production-config client build, the map-lockdown
+  build, and `git diff --check`. A separate Playwright session using fictional
+  postal `680123` passed exact raw zoom samples `14.4-15.6` in both directions
+  and `192` trackpad-style timing samples across Default and Gray. Every
+  displayed-15 sample was `SG14` overview with fixed images and zero live tiles;
+  displayed `16` settled on native detail. Desktop reset and resize plus the
+  visible mobile map at `390x844` preserved the expected tier, exclusivity, and
+  no horizontal overflow. At displayed `16`, ordinary panning stayed on native
+  W01 inside coverage, moved to live OneMap with zero fixed images outside
+  coverage, and recovered to SG14 overview at displayed `15`. Production
+  deployment and authenticated smoke remain unperformed.
+
 ## 2026-09-08 Help, Guide, and notification inbox client release recovery
 
 - Regressed behavior and reproduction: production Pages deployment

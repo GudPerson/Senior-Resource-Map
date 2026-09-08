@@ -162,8 +162,14 @@ root. After upload, run `npm run town-map:discover-derivative:r2:verify` for
 full public byte/hash/CORS/cache verification.
 
 For the Discover Detailed boundary-entry gate, repeat `Locate me`, then zoom
-`13 -> 14 -> 15` and back. A camera whose centre remains inside a native plate
-may be clamped only on the zoom-15 entry or a genuine map resize, only within
+`13 -> 14 -> 15 -> 16` and back. Displayed zooms 14 and 15 must use the
+overview tier; displayed zoom 16 and above must use native block-number detail.
+A second pass must use slow fractional or trackpad-style input across raw zooms
+`14.4-15.6`, in both directions and in Default and Gray. Repeat after Reset and
+a real desktop resize, then open the mobile map and confirm the visible map at
+displayed zoom 15 is still the overview with no horizontal page overflow.
+A camera whose centre remains inside a native plate
+may be clamped only on the zoom-16 entry or a genuine map resize, only within
 the same displayed whole-number zoom step, and only while the visible chunks
 fit the active memory ceiling. Ordinary panning must not be auto-contained:
 crossing a native surface boundary must still remove all fixed images and

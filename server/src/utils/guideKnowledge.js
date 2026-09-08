@@ -1,6 +1,6 @@
 import { normalizeRole } from './roles.js';
 
-export const GUIDE_KNOWLEDGE_VERSION = '2026-09-07.2';
+export const GUIDE_KNOWLEDGE_VERSION = '2026-09-08.1';
 // Reviewed app guidance, not a model-generated source of permissions or care advice.
 export const GUIDE_TOPICS = [
     {
@@ -35,7 +35,7 @@ export const GUIDE_TOPICS = [
     },
     {
         id: 'detailed-map', title: 'Check Detailed map display', keywords: ['detailed map', 'block number', 'zoom', 'map background', 'wrong map'],
-        message: 'With Detailed map selected, displayed zoom 14 is the overview and zoom 15 or above shows native detail with block numbers where the Detailed surface is available. If the view looks wrong, report the page and zoom level. Do not repeatedly save the map to try to repair a display problem.',
+        message: 'In Discover, displayed zoom 14 and 15 use the overview map; zoom 16 or above shows native detail with block numbers where the Detailed surface is available. My Map and its owner Print View keep native detail from zoom 15. Other map views keep their existing behavior. If the view looks wrong, report the page and zoom level. Do not repeatedly save a map to try to repair a display problem.',
         route: '/help?tab=report', label: 'Report a map problem',
     },
     {
