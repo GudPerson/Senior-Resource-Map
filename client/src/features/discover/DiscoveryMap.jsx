@@ -32,7 +32,7 @@ const DEFAULT_MAP_ZOOM = 12;
 // Keep Discover fitBounds on fractional zoom steps. Whole-step zoom snapping caused UAT-visible jumps.
 const DISCOVER_ZOOM_SNAP = 0.1;
 const DISCOVER_OVERVIEW_MIN_ZOOM = 10;
-const DISCOVER_OVERVIEW_MAX_ZOOM = 12;
+const DISCOVER_OVERVIEW_MAX_ZOOM = 11.5;
 const DISCOVER_OVERVIEW_WIDE_MAP_WIDTH = 900;
 const DISCOVER_OVERVIEW_WIDE_MAP_HEIGHT = 500;
 const DISCOVER_OVERVIEW_PADDING = [16, 16];

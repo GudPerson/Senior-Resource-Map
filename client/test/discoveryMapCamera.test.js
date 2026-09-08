@@ -34,10 +34,10 @@ test('Discover saved-place fit uses fractional zoom steps to avoid padding thres
     assert.doesNotMatch(discoveryMapSource, /zoomSnap=\{?1\}?/);
 });
 
-test('Discover locks wide maps to the Singapore overview and uses half-step explicit controls', () => {
+test('Discover locks wide maps at 11.5 to give the Singapore overview breathing room', () => {
     assert.match(discoveryMapSource, /function DiscoveryMinimumZoomLock/);
     assert.match(discoveryMapSource, /DISCOVER_OVERVIEW_WIDE_MAP_WIDTH = 900/);
-    assert.match(discoveryMapSource, /DISCOVER_OVERVIEW_MAX_ZOOM = 12/);
+    assert.match(discoveryMapSource, /DISCOVER_OVERVIEW_MAX_ZOOM = 11\.5/);
     assert.match(discoveryMapSource, /DISCOVER_SINGAPORE_OVERVIEW_CENTER = \[1\.3521, 103\.846\]/);
     assert.match(discoveryMapSource, /L\.latLng\(DISCOVER_SINGAPORE_OVERVIEW_CENTER\)/);
     assert.match(discoveryMapSource, /resolveResponsiveMapMinimumZoom/);

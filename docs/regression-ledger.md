@@ -15,6 +15,42 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-08 Discovery overview spacing adjustment — local candidate
+
+- Candidate behavior: wide Discovery maps may zoom out one additional half-step
+  and now stop at `11.5` instead of `12`. The established Singapore overview
+  centre (`1.3521, 103.846`), minimum-camera pan lock, `0.5` explicit controls,
+  and responsive fit calculation remain unchanged. Fresh smaller map viewports
+  still derive their minimum between `10` and `11.5` from the same Singapore
+  bounds; the `830x656` map remains at `10.5`.
+- Known-good reference: after UAT of the released zoom-`12` stop, the user found
+  the overview slightly too tight and approved trying `11` or `11.5`. `11.5`
+  is the safer first adjustment because it adds visible margin without the full
+  extra zoom level and reuses the released half-step control contract.
+- Blast radius: one Discovery-only overview cap and its regression assertions
+  change. Initial zoom `12`, Detailed/Standard selection, the loading indicator,
+  exact Detailed tiers (`<14` live, `14-15.9` overview, `16+` native), markers,
+  results, ranking, saved state, My Map, Shared/embed/print views, map assets,
+  APIs, authentication, schema, privacy, and production data are unchanged.
+- Reproduction and acceptance: on a fresh `1920x1080` viewport with a
+  `1470x1016` Discovery map, zoom out until the counter reaches `11.5`; zoom-out
+  must disable, the Singapore overview must remain centred, and panning must
+  remain locked. On a fresh `1280x720` viewport with an `830x656` map, the
+  responsive minimum must remain `10.5`. Zoom back through `14`, `15.5`, and
+  `16` and retain the released Detailed tier behavior.
+- Verification before deploy: PASS for the local candidate. Red-first focused
+  camera/zoom coverage failed at the old `12` constant, then passed `6/6` after
+  the narrow change. Full client coverage passed `788/788` plus all four
+  production-environment checks; `npm run build:client` passed; and
+  `npm run verify:map-lockdown` passed `104/104` plus its configured map build.
+  Isolated fictional browser UAT using public directory data confirmed a fresh
+  wide `1470x1016` map stopped at `11.5` with zoom-out disabled and a centred
+  Singapore overview, while a fresh `830x656` map retained minimum `10.5`.
+  Expected private favourites requests returned `401` because the fixture had
+  no production cookie; no authenticated, mutating, or production behavior is
+  claimed. Release evidence remains pending until the approved commit, push,
+  and production Pages verification complete.
+
 ## 2026-09-08 Discovery camera, map-source controls, and half-step zoom — released
 
 - Current behavior: wide Discovery maps stop at zoom `12`, recenter on the
