@@ -15,9 +15,9 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-08 Discovery overview spacing adjustment — local candidate
+## 2026-09-08 Discovery overview spacing adjustment — released
 
-- Candidate behavior: wide Discovery maps may zoom out one additional half-step
+- Current behavior: wide Discovery maps may zoom out one additional half-step
   and now stop at `11.5` instead of `12`. The established Singapore overview
   centre (`1.3521, 103.846`), minimum-camera pan lock, `0.5` explicit controls,
   and responsive fit calculation remain unchanged. Fresh smaller map viewports
@@ -38,7 +38,7 @@ Rules:
   remain locked. On a fresh `1280x720` viewport with an `830x656` map, the
   responsive minimum must remain `10.5`. Zoom back through `14`, `15.5`, and
   `16` and retain the released Detailed tier behavior.
-- Verification before deploy: PASS for the local candidate. Red-first focused
+- Verification and release: PASS. Red-first focused
   camera/zoom coverage failed at the old `12` constant, then passed `6/6` after
   the narrow change. Full client coverage passed `788/788` plus all four
   production-environment checks; `npm run build:client` passed; and
@@ -47,9 +47,19 @@ Rules:
   wide `1470x1016` map stopped at `11.5` with zoom-out disabled and a centred
   Singapore overview, while a fresh `830x656` map retained minimum `10.5`.
   Expected private favourites requests returned `401` because the fixture had
-  no production cookie; no authenticated, mutating, or production behavior is
-  claimed. Release evidence remains pending until the approved commit, push,
-  and production Pages verification complete.
+  no production cookie; no authenticated or mutating behavior is claimed.
+  `npm run verify:quality` also passed before release. Implementation commit
+  `27bc38fe` was merged through PR #61 as `67531936`, then the guarded client
+  release uploaded all 87 files, the Functions bundle, and `_routes.json` to
+  `https://e41af953.senior-resource-map.pages.dev`. Its `release.json` reports
+  clean git-build provenance at `675319360c5f26a9ab61e8da47c41b49449a077f`.
+  The immutable deployment and `https://app.carearound.sg` served identical
+  release manifests, HTML, JavaScript, CSS, and recovery-script byte counts,
+  MIME types, and SHA-256 hashes. Production browser verification confirmed the
+  wide `1470x1016` map at `11.5` with zoom-out disabled and a fresh `830x656`
+  map at its responsive `10.5` floor. `/discover` retained `DENY` and
+  `frame-ancestors 'none'`; production API health returned `200`/`ok`. No Worker
+  deployment was required because this release changes no API behavior.
 
 ## 2026-09-08 Discovery camera, map-source controls, and half-step zoom — released
 
