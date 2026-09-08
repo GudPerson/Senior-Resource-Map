@@ -70,6 +70,7 @@ import {
     CAREAROUND_MAP_STYLE_DEFAULT,
     CAREAROUND_MAP_STYLE_GRAY,
 } from '../lib/mapTheme.js';
+import { HALF_STEP_MAP_ZOOM_DELTA } from '../lib/mapZoom.js';
 import { buildMapStudioInteractiveModel } from '../lib/mapStudioInteractiveAdapter.js';
 import {
     patchMapStudioRouteViewport,
@@ -3984,6 +3985,7 @@ export default function MyMapDetailPage() {
                     )}
                     mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
                     showZoomLevelCounter={TOWN_MAP_PROOF_ENABLED}
+                    zoomControlStep={HALF_STEP_MAP_ZOOM_DELTA}
                     minimumZoomCenter={TOWN_MAP_PROOF_ENABLED ? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null}
                     lockMinimumZoomCamera={TOWN_MAP_PROOF_ENABLED}
                     basemapMode={interactiveBasemapMode}
@@ -4199,6 +4201,7 @@ export default function MyMapDetailPage() {
                                     mapHeightClassName={resolveClassicMapHeightClass(studioMapHeight, 'desktop', true)}
                                     mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
                                     showZoomLevelCounter={TOWN_MAP_PROOF_ENABLED}
+                                    zoomControlStep={HALF_STEP_MAP_ZOOM_DELTA}
                                     minimumZoomCenter={TOWN_MAP_PROOF_ENABLED ? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null}
                                     lockMinimumZoomCamera={TOWN_MAP_PROOF_ENABLED}
                                     basemapMode={interactiveBasemapMode}
@@ -4292,6 +4295,7 @@ export default function MyMapDetailPage() {
                                         mapHeightClassName={resolveClassicMapHeightClass(studioMapHeight, 'desktop')}
                                         mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
                                         showZoomLevelCounter={TOWN_MAP_PROOF_ENABLED}
+                                        zoomControlStep={HALF_STEP_MAP_ZOOM_DELTA}
                                         minimumZoomCenter={TOWN_MAP_PROOF_ENABLED ? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null}
                                         lockMinimumZoomCamera={TOWN_MAP_PROOF_ENABLED}
                                         basemapMode={interactiveBasemapMode}
@@ -4344,6 +4348,7 @@ export default function MyMapDetailPage() {
                                         mapHeightClassName={resolveClassicMapHeightClass(studioMapHeight, 'mobile')}
                                         mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
                                         showZoomLevelCounter={TOWN_MAP_PROOF_ENABLED}
+                                        zoomControlStep={HALF_STEP_MAP_ZOOM_DELTA}
                                         minimumZoomCenter={TOWN_MAP_PROOF_ENABLED ? TOWN_MAP_PROOF_MINIMUM_ZOOM_CENTER : null}
                                         lockMinimumZoomCamera={TOWN_MAP_PROOF_ENABLED}
                                         basemapMode={interactiveBasemapMode}

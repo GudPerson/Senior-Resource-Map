@@ -108,10 +108,10 @@ test('Discover retains 256 MiB by default and raises only the explicitly feature
     }), 256 * 1024 * 1024);
 });
 
-test('Discover uses live at displayed 13, overview at 14 and 15, native at 16, and reverses without changing fractional zoom', () => {
+test('Discover uses exact fractional thresholds: live below 14, overview below 16, and native from exact 16', () => {
     const native = readySurface('native');
     const overview = readySurface('overview');
-    const samples = [13.49, 13.5, 14.5, 15.5, 15.49, 14.49, 13.49].map((zoom) => (
+    const samples = [13.9, 14, 14.5, 15, 15.5, 15.9, 15.99, 16, 15.5, 14, 13.9].map((zoom) => (
         resolveDiscoverDetailedBasemap({
             enabled: true,
             zoom,
@@ -123,17 +123,21 @@ test('Discover uses live at displayed 13, overview at 14 and 15, native at 16, a
 
     assert.equal(DISCOVER_DETAILED_NATIVE_MIN_ZOOM, 16);
     assert.deepEqual(samples.map((sample) => [sample.displayedZoom, sample.mode, sample.tier]), [
-        [13, 'live', 'live'],
+        [13.9, 'live', 'live'],
         [14, 'detailed', 'overview'],
+        [14.5, 'detailed', 'overview'],
         [15, 'detailed', 'overview'],
+        [15.5, 'detailed', 'overview'],
+        [15.9, 'detailed', 'overview'],
+        [16, 'detailed', 'overview'],
         [16, 'detailed', 'native'],
-        [15, 'detailed', 'overview'],
+        [15.5, 'detailed', 'overview'],
         [14, 'detailed', 'overview'],
-        [13, 'live', 'live'],
+        [13.9, 'live', 'live'],
     ]);
 });
 
-test('Discover keeps a memory-heavy native surface out of the fractional displayed-15 transition', () => {
+test('Discover keeps a memory-heavy native surface out through exact zoom 15.5', () => {
     const native = readySurface('native', {
         bytesPerChunk: 128 * 1024 * 1024,
         chunkCount: 3,
@@ -141,20 +145,20 @@ test('Discover keeps a memory-heavy native surface out of the fractional display
     const overview = readySurface('overview');
     const displayed15 = resolveDiscoverDetailedBasemap({
         enabled: true,
-        zoom: 14.6,
+        zoom: 15.5,
         viewportBounds: VIEWPORT,
         native,
         overview,
     });
     const displayed16 = resolveDiscoverDetailedBasemap({
         enabled: true,
-        zoom: 15.6,
+        zoom: 16,
         viewportBounds: VIEWPORT,
         native,
         overview,
     });
 
-    assert.equal(displayed15.displayedZoom, 15);
+    assert.equal(displayed15.displayedZoom, 15.5);
     assert.equal(displayed15.tier, 'overview');
     assert.equal(displayed15.reason, 'surface-ready');
     assert.equal(displayed15.renderSurface, true);
@@ -166,7 +170,7 @@ test('Discover keeps a memory-heavy native surface out of the fractional display
     assert.equal(displayed16.renderLiveTiles, true);
 });
 
-test('Discover keeps live tiles and Detailed imagery mutually exclusive while manifests resolve', () => {
+test('Discover keeps the regular map usable while Detailed resolves, then switches exclusively', () => {
     const loading = resolveDiscoverDetailedBasemap({
         enabled: true,
         zoom: 15,
@@ -183,7 +187,7 @@ test('Discover keeps live tiles and Detailed imagery mutually exclusive while ma
     });
 
     assert.equal(loading.pending, true);
-    assert.equal(loading.renderLiveTiles, false);
+    assert.equal(loading.renderLiveTiles, true);
     assert.equal(loading.renderSurface, false);
     assert.equal(ready.renderLiveTiles, false);
     assert.equal(ready.renderSurface, true);
@@ -377,6 +381,8 @@ test('Discover integrates a basemap-only adapter without replacing its map or to
     assert.match(detailedBasemapSource, /map\.on\('zoomend', handleZoomEnd\)/);
     assert.doesNotMatch(detailedBasemapSource, /map\.on\('moveend', handleZoomEnd\)/);
     assert.match(detailedBasemapSource, /decision\.renderLiveTiles \? liveTiles : null/);
+    assert.match(detailedBasemapSource, /onStatusChange/);
+    assert.match(detailedBasemapSource, /discoverDetailedLoading/);
     assert.match(detailedBasemapSource, /lockMinZoom=\{false\}/);
     assert.match(detailedBasemapSource, /fallbackBelowMinZoom=\{false\}/);
 

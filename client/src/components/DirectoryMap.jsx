@@ -27,6 +27,7 @@ import {
     getCareAroundBasemapUrl,
     normalizeCareAroundMapStyle,
 } from '../lib/mapTheme.js';
+import { normalizeMapZoomControlStep } from '../lib/mapZoom.js';
 import {
     buildClusterToken,
     getClusterActivationAction,
@@ -2721,6 +2722,7 @@ export default function DirectoryMap({
     basemapUrl = '',
     mapMinZoom = CAREAROUND_BASEMAP_MIN_ZOOM,
     showZoomLevelCounter = false,
+    zoomControlStep = 1,
     minimumZoomCenter = null,
     lockMinimumZoomCamera = false,
     basemapMode = 'live',
@@ -2817,6 +2819,7 @@ export default function DirectoryMap({
     const resolvedMapMinZoom = Number.isFinite(Number(mapMinZoom))
         ? Number(mapMinZoom)
         : CAREAROUND_BASEMAP_MIN_ZOOM;
+    const resolvedZoomControlStep = normalizeMapZoomControlStep(zoomControlStep);
     const resolvedNativeFixedTownSurfaceMinZoom = Number.isFinite(Number(fixedTownSurfaceMinZoom))
         ? Number(fixedTownSurfaceMinZoom)
         : FIXED_TOWN_SURFACE_MIN_ZOOM;
@@ -3661,6 +3664,7 @@ export default function DirectoryMap({
                 center={DEFAULT_CENTER}
                 zoom={DEFAULT_ZOOM}
                 minZoom={resolvedMapMinZoom}
+                zoomDelta={resolvedZoomControlStep}
                 zoomSnap={0.1}
                 scrollWheelZoom={false}
                 dragging={interactive}
@@ -3718,11 +3722,13 @@ export default function DirectoryMap({
                     minimumZoomCenter={minimumZoomCenter}
                     lockAtMinimumZoom={lockMinimumZoomCamera}
                     preserveContainmentStep={fixedTownSurfaceContainOnResize}
+                    zoomControlStep={resolvedZoomControlStep}
                 />
                 <DirectoryMapMobileControlDock
                     target={mobileControlPortalTarget}
                     showZoomControls={showZoomControl}
                     preserveContainmentStep={fixedTownSurfaceContainOnResize}
+                    zoomControlStep={resolvedZoomControlStep}
                     settingsControl={hasMapSettingsControl ? (
                         <MapSettingsControl
                             detailedMinZoom={resolvedFixedTownTransitionMinZoom}

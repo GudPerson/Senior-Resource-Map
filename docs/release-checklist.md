@@ -164,6 +164,14 @@ full public byte/hash/CORS/cache verification.
 For the Discover Detailed boundary-entry gate, repeat `Locate me`, then zoom
 `13 -> 14 -> 15 -> 16` and back. Displayed zooms 14 and 15 must use the
 overview tier; displayed zoom 16 and above must use native block-number detail.
+A separate explicit-control pass must advance by `0.5`: verify `15.5` stays on
+the overview and exact `16` enters native detail. Open Map settings, choose
+Standard and require live OneMap at every zoom, then choose Detailed and require
+a visible non-blocking loading indicator, live OneMap while the manifest
+resolves, and uninterrupted map interaction while fixed chunks complete. On
+owner My Map, confirm explicit
+controls also move by `0.5` without changing its exact `15+` native threshold;
+Shared Map, embed, and print controls must remain whole-step.
 A second pass must use slow fractional or trackpad-style input across raw zooms
 `14.4-15.6`, in both directions and in Default and Gray. Repeat after Reset and
 a real desktop resize, then open the mobile map and confirm the visible map at

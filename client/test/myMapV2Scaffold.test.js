@@ -84,6 +84,8 @@ test('my map v2 scaffold reuses the existing presentation stack and delegates th
     assert.match(myMapV2ScaffoldSource, /basemapUrl=\{basemapUrl\}/);
     assert.match(myMapV2ScaffoldSource, /mapMinZoom=\{mapMinZoom\}/);
     assert.match(myMapV2ScaffoldSource, /showZoomLevelCounter=\{showZoomLevelCounter\}/);
+    assert.match(myMapV2ScaffoldSource, /zoomControlStep=\{zoomControlStep\}/);
+    assert.match(myMapDetailPageSource, /zoomControlStep=\{HALF_STEP_MAP_ZOOM_DELTA\}/);
     assert.match(myMapV2ScaffoldSource, /minimumZoomCenter=\{minimumZoomCenter\}/);
     assert.match(myMapV2ScaffoldSource, /lockMinimumZoomCamera=\{lockMinimumZoomCamera\}/);
     assert.match(myMapDetailPageSource, /toolbar=\{useDesktopOwnerLayout \? \(/);

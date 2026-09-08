@@ -4,11 +4,10 @@ import {
     FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES,
     getFixedTownChunksDecodedBytes,
     isFixedTownSurfaceViewportCovered,
-    isFixedTownSurfaceZoomEligible,
     resolveFixedTownDisplayZoomStep,
-    resolveFixedTownSurfaceTier,
     selectVisibleFixedTownChunks,
 } from '../../lib/fixedTownSurface.js';
+import { resolveFractionalMapZoomLevel } from '../../lib/mapZoom.js';
 
 export const DISCOVER_DETAILED_NATIVE_MIN_ZOOM = 16;
 export const DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM = FIXED_TOWN_OVERVIEW_MIN_ZOOM;
@@ -34,6 +33,10 @@ export function resolveDiscoverDetailedMaxDecodedBytes(environment = {}) {
     return uatCeilingEnabled
         ? DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES
         : DISCOVER_DETAILED_MAX_DECODED_BYTES;
+}
+
+function isDiscoverZoomAtOrAbove(zoom, minimumZoom) {
+    return Number.isFinite(zoom) && zoom + Number.EPSILON >= minimumZoom;
 }
 
 export function resolveDiscoverDetailedContainmentCamera({
@@ -84,7 +87,7 @@ export function resolveDiscoverDetailedContainmentCamera({
     }
 
     const displayedZoom = resolveFixedTownDisplayZoomStep({ zoom: normalizedCurrentZoom });
-    if (!isFixedTownSurfaceZoomEligible(displayedZoom, DISCOVER_DETAILED_NATIVE_MIN_ZOOM)) {
+    if (!isDiscoverZoomAtOrAbove(normalizedCurrentZoom, DISCOVER_DETAILED_NATIVE_MIN_ZOOM)) {
         return null;
     }
 
@@ -181,7 +184,7 @@ function liveDecision({ displayedZoom, reason, tier = 'live', pending = false })
         mode: 'live',
         pending,
         reason,
-        renderLiveTiles: !pending,
+        renderLiveTiles: true,
         renderSurface: false,
         manifest: null,
         assetBaseUrl: '',
@@ -200,26 +203,25 @@ export function resolveDiscoverDetailedBasemap({
     faultReason = '',
     maxDecodedBytes = DISCOVER_DETAILED_MAX_DECODED_BYTES,
 } = {}) {
-    const displayedZoom = resolveFixedTownDisplayZoomStep({ zoom });
+    const normalizedZoom = Number(zoom);
+    const displayedZoom = resolveFractionalMapZoomLevel(zoom);
     if (!enabled) {
         return liveDecision({ displayedZoom, reason: 'feature-disabled' });
     }
 
-    if (!isFixedTownSurfaceZoomEligible(displayedZoom, DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM)) {
+    if (!isDiscoverZoomAtOrAbove(normalizedZoom, DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM)) {
         return liveDecision({ displayedZoom, reason: 'zoom-below-detailed' });
     }
 
     const overviewConfigured = Boolean(overview?.configured);
-    const tier = resolveFixedTownSurfaceTier({
-        zoom: displayedZoom,
-        nativeMinZoom: DISCOVER_DETAILED_NATIVE_MIN_ZOOM,
-        overviewMinZoom: DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM,
-        overviewConfigured,
-    });
+    const tier = overviewConfigured
+        && !isDiscoverZoomAtOrAbove(normalizedZoom, DISCOVER_DETAILED_NATIVE_MIN_ZOOM)
+        ? 'overview'
+        : 'native';
     const tierMinZoom = tier === 'overview'
         ? DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM
         : DISCOVER_DETAILED_NATIVE_MIN_ZOOM;
-    if (!isFixedTownSurfaceZoomEligible(displayedZoom, tierMinZoom)) {
+    if (!isDiscoverZoomAtOrAbove(normalizedZoom, tierMinZoom)) {
         return liveDecision({
             displayedZoom,
             reason: 'surface-not-configured',

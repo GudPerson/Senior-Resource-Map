@@ -25,7 +25,7 @@ import {
     resolveDiscoverDetailedMaxDecodedBytes,
 } from './discoverDetailedMap.js';
 
-const DISCOVER_DETAILED_MAP_ENABLED = isDiscoverDetailedMapFeatureEnabled(import.meta.env);
+export const DISCOVER_DETAILED_MAP_ENABLED = isDiscoverDetailedMapFeatureEnabled(import.meta.env);
 const DISCOVER_DETAILED_DERIVATIVE_REQUESTED = isDiscoverDetailedDerivativeEnabled(
     import.meta.env,
 );
@@ -141,7 +141,7 @@ function DiscoverDetailedZoomContainmentSync({
     const manifestRef = useRef(manifest);
     const pendingContainmentRef = useRef(false);
     const adjustingRef = useRef(false);
-    const previousDisplayedZoomRef = useRef(Math.round(Number(map.getZoom())));
+    const previousZoomRef = useRef(Number(map.getZoom()));
 
     useLayoutEffect(() => {
         manifestRef.current = manifest;
@@ -192,15 +192,15 @@ function DiscoverDetailedZoomContainmentSync({
             pendingContainmentRef.current = !containCurrentViewport();
         };
         const handleZoomEnd = () => {
-            const displayedZoom = Math.round(Number(map.getZoom()));
-            const crossedIntoNative = previousDisplayedZoomRef.current
+            const zoom = Number(map.getZoom());
+            const crossedIntoNative = previousZoomRef.current
                 < DISCOVER_DETAILED_NATIVE_MIN_ZOOM
-                && displayedZoom >= DISCOVER_DETAILED_NATIVE_MIN_ZOOM;
-            previousDisplayedZoomRef.current = displayedZoom;
+                && zoom >= DISCOVER_DETAILED_NATIVE_MIN_ZOOM;
+            previousZoomRef.current = zoom;
             if (crossedIntoNative) requestContainment();
         };
         const handleResize = () => {
-            if (Math.round(Number(map.getZoom())) < DISCOVER_DETAILED_NATIVE_MIN_ZOOM) return;
+            if (Number(map.getZoom()) < DISCOVER_DETAILED_NATIVE_MIN_ZOOM) return;
             if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
             resizeFrame = window.requestAnimationFrame(() => {
                 resizeFrame = null;
@@ -384,29 +384,32 @@ function useDiscoverFixedSurface({
 }
 
 export default function DiscoverDetailedBasemap({
+    detailedRequested = true,
     liveTiles,
     mapStyle,
+    onStatusChange = null,
 }) {
     const map = useMap();
     const viewport = useDiscoverMapViewport();
     const resolvedMapStyle = normalizeCareAroundMapStyle(mapStyle);
+    const detailedEnabled = DISCOVER_DETAILED_MAP_ENABLED && detailedRequested;
     const defaultNative = useDiscoverFixedSurface({
-        enabled: DISCOVER_DETAILED_MAP_ENABLED,
+        enabled: detailedEnabled,
         assetBaseUrl: DISCOVER_NATIVE_ASSET_BASE_URLS[CAREAROUND_MAP_STYLE_DEFAULT],
         viewportBounds: viewport.bounds,
     });
     const grayNative = useDiscoverFixedSurface({
-        enabled: DISCOVER_DETAILED_MAP_ENABLED,
+        enabled: detailedEnabled,
         assetBaseUrl: DISCOVER_NATIVE_ASSET_BASE_URLS[CAREAROUND_MAP_STYLE_GRAY],
         viewportBounds: viewport.bounds,
     });
     const defaultOverview = useDiscoverFixedSurface({
-        enabled: DISCOVER_DETAILED_OVERVIEW_ENABLED,
+        enabled: DISCOVER_DETAILED_OVERVIEW_ENABLED && detailedRequested,
         assetBaseUrl: DISCOVER_OVERVIEW_ASSET_BASE_URLS[CAREAROUND_MAP_STYLE_DEFAULT],
         viewportBounds: viewport.bounds,
     });
     const grayOverview = useDiscoverFixedSurface({
-        enabled: DISCOVER_DETAILED_OVERVIEW_ENABLED,
+        enabled: DISCOVER_DETAILED_OVERVIEW_ENABLED && detailedRequested,
         assetBaseUrl: DISCOVER_OVERVIEW_ASSET_BASE_URLS[CAREAROUND_MAP_STYLE_GRAY],
         viewportBounds: viewport.bounds,
     });
@@ -421,7 +424,7 @@ export default function DiscoverDetailedBasemap({
     const [fault, setFault] = useState(null);
     const activeFaultReason = fault?.key === surfaceKey ? fault.reason : '';
     const decision = resolveDiscoverDetailedBasemap({
-        enabled: DISCOVER_DETAILED_MAP_ENABLED,
+        enabled: detailedEnabled,
         zoom: viewport.zoom,
         viewportBounds: viewport.bounds,
         native,
@@ -430,6 +433,12 @@ export default function DiscoverDetailedBasemap({
         maxDecodedBytes: DISCOVER_DETAILED_ACTIVE_MAX_DECODED_BYTES,
     });
     const [metrics, setMetrics] = useState(null);
+    const visibleChunkCount = metrics?.visibleChunkCount ?? decision.visibleChunkCount;
+    const loadedChunkCount = metrics?.loadedChunkCount ?? 0;
+    const loading = detailedEnabled && (
+        decision.pending
+        || (decision.renderSurface && visibleChunkCount > 0 && loadedChunkCount < visibleChunkCount)
+    );
 
     useEffect(() => {
         if (decision.renderSurface) return;
@@ -437,14 +446,39 @@ export default function DiscoverDetailedBasemap({
     }, [decision.renderSurface, decision.surfaceId, decision.tier]);
 
     useEffect(() => {
+        onStatusChange?.({
+            requested: detailedRequested,
+            enabled: detailedEnabled,
+            loading,
+            mode: decision.mode,
+            tier: decision.tier,
+            reason: decision.reason,
+            visibleChunkCount,
+            loadedChunkCount,
+        });
+    }, [
+        decision.mode,
+        decision.reason,
+        decision.tier,
+        detailedEnabled,
+        detailedRequested,
+        loadedChunkCount,
+        loading,
+        onStatusChange,
+        visibleChunkCount,
+    ]);
+
+    useEffect(() => {
         const container = map.getContainer();
         container.dataset.discoverBasemapMode = decision.mode;
         container.dataset.discoverDetailedTier = decision.tier;
         container.dataset.discoverDetailedStatus = decision.reason;
         container.dataset.discoverDetailedSurfaceId = decision.surfaceId;
-        container.dataset.discoverDetailedVisibleChunks = String(metrics?.visibleChunkCount ?? decision.visibleChunkCount);
-        container.dataset.discoverDetailedLoadedChunks = String(metrics?.loadedChunkCount ?? 0);
+        container.dataset.discoverDetailedVisibleChunks = String(visibleChunkCount);
+        container.dataset.discoverDetailedLoadedChunks = String(loadedChunkCount);
         container.dataset.discoverDetailedDecodedBytes = String(metrics?.visibleDecodedBytes ?? decision.visibleDecodedBytes);
+        container.dataset.discoverDetailedPreference = detailedRequested ? 'detailed' : 'standard';
+        container.dataset.discoverDetailedLoading = String(loading);
         container.dataset.discoverDetailedAssetEdition = DISCOVER_DETAILED_DERIVATIVE_ENABLED
             ? 'derivative-v1'
             : 'stable';
@@ -457,8 +491,10 @@ export default function DiscoverDetailedBasemap({
             delete container.dataset.discoverDetailedLoadedChunks;
             delete container.dataset.discoverDetailedDecodedBytes;
             delete container.dataset.discoverDetailedAssetEdition;
+            delete container.dataset.discoverDetailedPreference;
+            delete container.dataset.discoverDetailedLoading;
         };
-    }, [decision, map, metrics]);
+    }, [decision, detailedRequested, loadedChunkCount, loading, map, metrics, visibleChunkCount]);
 
     const handleFallback = useCallback((details = {}) => {
         setFault({
@@ -470,7 +506,7 @@ export default function DiscoverDetailedBasemap({
     return (
         <>
             <DiscoverDetailedZoomContainmentSync
-                enabled={DISCOVER_DETAILED_MAP_ENABLED}
+                enabled={detailedEnabled}
                 manifest={native.manifest || null}
                 maxDecodedBytes={DISCOVER_DETAILED_ACTIVE_MAX_DECODED_BYTES}
             />

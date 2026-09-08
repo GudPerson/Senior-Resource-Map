@@ -47,7 +47,8 @@ test('one shared Map settings trigger opens responsive map appearance controls',
     assert.match(mapSettingsSource, />Map appearance</);
     assert.match(mapSettingsSource, />\s*Map detail\s*</);
     assert.match(mapSettingsSource, /detailedMinZoom = 15/);
-    assert.match(mapSettingsSource, /level \{detailedMinZoom\}/);
+    assert.match(mapSettingsSource, /mapDetailDescription = ''/);
+    assert.match(mapSettingsSource, /Detailed turns on automatically when you zoom in to level \$\{detailedMinZoom\}/);
     assert.match(directoryMapSource, /detailedMinZoom=\{resolvedFixedTownTransitionMinZoom\}/);
     assert.match(mapSettingsSource, />\s*Map colour\s*</);
     assert.match(mapSettingsSource, /Your colour choice is used on every map/);
@@ -81,11 +82,15 @@ test('Directory Map and Discover share settings placement while preserving map i
     assert.match(directoryMapSource, /displayPins\.length \+ \(anchorPoint \? 1 : 0\)\) > 1/);
     assert.doesNotMatch(directoryMapSource, /left-\[52px\] right-2 top-14/);
 
-    assert.match(discoveryMapSource, /<MapSettingsControl showMapStyleControl \/>/);
+    assert.match(discoveryMapSource, /<MapSettingsControl/);
+    assert.match(discoveryMapSource, /<TownMapModeControl/);
+    assert.match(discoveryMapSource, /mapDetailDescription="Choose Standard at any zoom, or Detailed from level 14\."/);
+    assert.match(discoveryMapSource, /data-discover-detailed-loading="true"/);
+    assert.match(discoveryMapSource, /role=\{progress === null \? undefined : 'progressbar'\}/);
     assert.match(discoveryMapSource, /data-map-zoom-level="true"/);
     assert.match(discoveryMapSource, /carearound-discovery-zoom-control--\$\{desktopZoomRailDepth\}/);
     assert.match(discoveryMapSource, /carearound-discovery-recenter-control/);
-    assert.doesNotMatch(discoveryMapSource, /left-12 right-12 top-2\.5/);
+    assert.match(discoveryMapSource, /left-16 right-16 top-3/);
 
     assert.match(globalStylesSource, /\.carearound-map-recenter-control--with-settings/);
     assert.match(globalStylesSource, /\.carearound-discovery-zoom-control--two/);
