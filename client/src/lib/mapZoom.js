@@ -21,6 +21,30 @@ export function formatMapZoomLevel(zoom) {
         : normalizedZoom.toFixed(1);
 }
 
+export function resolveTopAlignedMapCenterPoint({
+    horizontalCenterPoint,
+    coverageNorthPoint,
+    viewportHeight,
+} = {}) {
+    const horizontalCenterX = Number(horizontalCenterPoint?.x);
+    const coverageNorthY = Number(coverageNorthPoint?.y);
+    const normalizedViewportHeight = Number(viewportHeight);
+
+    if (
+        !Number.isFinite(horizontalCenterX)
+        || !Number.isFinite(coverageNorthY)
+        || !Number.isFinite(normalizedViewportHeight)
+        || normalizedViewportHeight <= 0
+    ) {
+        return null;
+    }
+
+    return {
+        x: horizontalCenterX,
+        y: coverageNorthY + (normalizedViewportHeight / 2),
+    };
+}
+
 export function resolveResponsiveMapMinimumZoom({
     fitZoom,
     minimumZoom = 10,

@@ -133,6 +133,7 @@ function HomePostalCodeCta({ compact = false }) {
 function buildSummaryChips({
     activeTab,
     search,
+    selectedCategoryKeys = [],
     showFavoritesOnly,
     t,
     user,
@@ -160,7 +161,116 @@ function buildSummaryChips({
         });
     }
 
+    if (selectedCategoryKeys.length > 0) {
+        summaryChips.push({
+            key: 'categories',
+            label: selectedCategoryKeys.length === 1
+                ? t('discoveryCategorySelected')
+                : t('discoveryCategoriesSelected', { count: selectedCategoryKeys.length }),
+        });
+    }
+
     return summaryChips;
+}
+
+function CategoryCheckboxFilter({
+    categoryOptions = [],
+    mobile = false,
+    onChangeCategorySelection,
+    selectedCategoryKeys = [],
+}) {
+    const { t } = useLocale();
+    const selectedKeys = new Set(selectedCategoryKeys);
+    const allCategoriesSelected = selectedKeys.size === 0;
+    const selectionLabel = allCategoriesSelected
+        ? t('discoveryAllCategories')
+        : selectedKeys.size === 1
+            ? t('discoveryCategorySelected')
+            : t('discoveryCategoriesSelected', { count: selectedKeys.size });
+
+    if (categoryOptions.length === 0) return null;
+
+    const toggleCategory = (categoryKey, checked) => {
+        const nextKeys = new Set(selectedKeys);
+        if (checked) nextKeys.add(categoryKey);
+        else nextKeys.delete(categoryKey);
+        onChangeCategorySelection?.(Array.from(nextKeys).sort());
+    };
+
+    return (
+        <details className="group relative w-full">
+            <summary
+                className={`flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-all hover:bg-white [&::-webkit-details-marker]:hidden ${mobile ? 'min-h-[52px]' : DISCOVERY_SECONDARY_CONTROL_HEIGHT_CLASS}`}
+                style={{
+                    borderColor: selectedKeys.size > 0 ? 'var(--color-brand)' : 'var(--color-border)',
+                    backgroundColor: selectedKeys.size > 0 ? 'var(--color-brand-light)' : 'rgba(255,255,255,0.9)',
+                    color: 'var(--color-text)',
+                }}
+            >
+                <span className="min-w-0">
+                    <span className={`block ${DISCOVERY_LABEL_TEXT_CLASS}`} style={{ color: 'var(--color-text-muted)' }}>
+                        {t('discoveryCategories')}
+                    </span>
+                    <span className="mt-1 block truncate text-[0.82rem] font-bold" style={{ color: 'var(--color-brand-strong)' }}>
+                        {selectionLabel}
+                    </span>
+                </span>
+                <ChevronDown size={17} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden="true" />
+            </summary>
+
+            <div
+                className={mobile
+                    ? 'mt-2 rounded-2xl border bg-white p-3'
+                    : 'absolute left-0 right-0 top-[calc(100%+0.5rem)] z-40 rounded-2xl border bg-white p-3 shadow-xl'}
+                style={{ borderColor: 'var(--color-border)' }}
+            >
+                <p className="px-2 pb-2 text-[0.76rem] leading-5" style={{ color: 'var(--color-text-secondary)' }}>
+                    {t('discoveryCategoryFilterHelp')}
+                </p>
+                <div className="max-h-64 space-y-1 overflow-y-auto pr-1">
+                    <label className="flex min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-xl px-2.5 py-2 hover:bg-slate-50">
+                        <span className="flex min-w-0 items-center gap-3">
+                            <input
+                                type="checkbox"
+                                checked={allCategoriesSelected}
+                                onChange={(event) => {
+                                    if (event.target.checked) onChangeCategorySelection?.([]);
+                                }}
+                                className="h-4 w-4 shrink-0 rounded border-slate-300"
+                                style={{ accentColor: 'var(--color-brand)' }}
+                            />
+                            <span className="truncate text-[0.86rem] font-semibold" style={{ color: 'var(--color-text)' }}>
+                                {t('discoveryAllCategories')}
+                            </span>
+                        </span>
+                    </label>
+
+                    {categoryOptions.map((option) => (
+                        <label key={option.key} className="flex min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-xl px-2.5 py-2 hover:bg-slate-50">
+                            <span className="flex min-w-0 items-center gap-3">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedKeys.has(option.key)}
+                                    onChange={(event) => toggleCategory(option.key, event.target.checked)}
+                                    className="h-4 w-4 shrink-0 rounded border-slate-300"
+                                    style={{ accentColor: 'var(--color-brand)' }}
+                                />
+                                <span className="truncate text-[0.86rem] font-semibold" style={{ color: 'var(--color-text)' }}>
+                                    {option.label}
+                                </span>
+                            </span>
+                            <span
+                                className="inline-flex min-w-7 shrink-0 items-center justify-center rounded-full px-2 py-1 text-[0.68rem] font-bold"
+                                style={{ backgroundColor: 'var(--color-badge-bg)', color: 'var(--color-text-muted)' }}
+                            >
+                                {option.count}
+                            </span>
+                        </label>
+                    ))}
+                </div>
+            </div>
+        </details>
+    );
 }
 
 function SaveAllToggleControl({
@@ -247,6 +357,7 @@ function MobileFilterSheet({
     activeTab,
     canShowSaveAll,
     canClearLocationSearch,
+    categoryOptions,
     clearLocationSearch,
     favoritesActionNotice,
     handleHomeAnchor,
@@ -259,6 +370,7 @@ function MobileFilterSheet({
     isOpen,
     locationNotice,
     mobileCardDensity = 'comfortable',
+    onChangeCategorySelection,
     onChangeMobileCardDensity,
     onOpenChange,
     onToggleSaveAll,
@@ -273,6 +385,7 @@ function MobileFilterSheet({
     user,
     userLocation,
     searchOrigin,
+    selectedCategoryKeys,
 }) {
     const { t } = useLocale();
     const handleMobileSearchSubmit = (event) => {
@@ -369,6 +482,13 @@ function MobileFilterSheet({
                                 </select>
                             </label>
                         </div>
+
+                        <CategoryCheckboxFilter
+                            categoryOptions={categoryOptions}
+                            mobile
+                            onChangeCategorySelection={onChangeCategorySelection}
+                            selectedCategoryKeys={selectedCategoryKeys}
+                        />
 
                         {user ? (
                             <div className="grid gap-3 sm:grid-cols-2">
@@ -481,6 +601,7 @@ function DesktopFilterPanel({
     activeTab,
     canShowSaveAll,
     canClearLocationSearch,
+    categoryOptions,
     clearLocationSearch,
     favoritesActionNotice,
     handleHomeAnchor,
@@ -495,6 +616,7 @@ function DesktopFilterPanel({
     onCollapsedPullExpand,
     onCollapse,
     onExpand,
+    onChangeCategorySelection,
     onSearchChange,
     onToggleSaveAll,
     postalInput,
@@ -503,6 +625,7 @@ function DesktopFilterPanel({
     saveAllPendingLabel,
     search,
     searchOrigin,
+    selectedCategoryKeys,
     setActiveTab,
     setPostalInput,
     setShowFavoritesOnly,
@@ -515,6 +638,7 @@ function DesktopFilterPanel({
     const summaryChips = buildSummaryChips({
         activeTab,
         search,
+        selectedCategoryKeys,
         showFavoritesOnly,
         t,
         user,
@@ -794,6 +918,12 @@ function DesktopFilterPanel({
                     ) : null}
                 </div>
 
+                <CategoryCheckboxFilter
+                    categoryOptions={categoryOptions}
+                    onChangeCategorySelection={onChangeCategorySelection}
+                    selectedCategoryKeys={selectedCategoryKeys}
+                />
+
                 {locationNotice ? (
                     <div
                         className="rounded-xl px-4 py-2.5 text-xs font-bold leading-relaxed border animate-in fade-in slide-in-from-top-1"
@@ -839,6 +969,7 @@ export function DiscoveryFilterPanel(props) {
         activeTab,
         canShowSaveAll = false,
         canClearLocationSearch = true,
+        categoryOptions = [],
         clearLocationSearch,
         favoritesActionNotice = '',
         handleHomeAnchor,
@@ -852,6 +983,7 @@ export function DiscoveryFilterPanel(props) {
         locationNotice,
         mobileMode = 'browse',
         mobileCardDensity = 'comfortable',
+        onChangeCategorySelection,
         onChangeMobileCardDensity,
         onCollapse,
         onExpand,
@@ -867,6 +999,7 @@ export function DiscoveryFilterPanel(props) {
         saveAllPendingLabel,
         search,
         searchOrigin,
+        selectedCategoryKeys = [],
         setActiveTab,
         setPostalInput,
         setShowFavoritesOnly,
@@ -879,6 +1012,7 @@ export function DiscoveryFilterPanel(props) {
     const summaryChips = buildSummaryChips({
         activeTab,
         search,
+        selectedCategoryKeys,
         showFavoritesOnly,
         t,
         user,
@@ -1032,6 +1166,7 @@ export function DiscoveryFilterPanel(props) {
                 activeTab={activeTab}
                 canShowSaveAll={canShowSaveAll}
                 canClearLocationSearch={canClearLocationSearch}
+                categoryOptions={categoryOptions}
                 clearLocationSearch={clearLocationSearch}
                 favoritesActionNotice={favoritesActionNotice}
                 handleHomeAnchor={handleHomeAnchor}
@@ -1044,6 +1179,7 @@ export function DiscoveryFilterPanel(props) {
                 isOpen={mobileFiltersOpen}
                 locationNotice={locationNotice}
                 mobileCardDensity={mobileCardDensity}
+                onChangeCategorySelection={onChangeCategorySelection}
                 onChangeMobileCardDensity={onChangeMobileCardDensity}
                 onOpenChange={setMobileFiltersOpen}
                 onToggleSaveAll={onToggleSaveAll}
@@ -1051,6 +1187,7 @@ export function DiscoveryFilterPanel(props) {
                 saveAllCount={saveAllCount}
                 saveAllPendingLabel={resolvedSaveAllPendingLabel}
                 searchOrigin={searchOrigin}
+                selectedCategoryKeys={selectedCategoryKeys}
                 setActiveTab={setActiveTab}
                 setPostalInput={setPostalInput}
                 setShowFavoritesOnly={setShowFavoritesOnly}

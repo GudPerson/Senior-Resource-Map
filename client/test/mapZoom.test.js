@@ -7,6 +7,7 @@ import {
     normalizeMapZoomControlStep,
     resolveFractionalMapZoomLevel,
     resolveResponsiveMapMinimumZoom,
+    resolveTopAlignedMapCenterPoint,
 } from '../src/lib/mapZoom.js';
 
 test('map zoom labels expose stable tenths without trailing decimal zeroes', () => {
@@ -31,4 +32,24 @@ test('responsive minimum zoom fits the Singapore overview and stops at half step
     assert.equal(resolveResponsiveMapMinimumZoom({ fitZoom: 10.4 }), 10);
     assert.equal(resolveResponsiveMapMinimumZoom({ fitZoom: 9.8 }), 10);
     assert.equal(resolveResponsiveMapMinimumZoom({ fitZoom: null }), null);
+});
+
+test('minimum overview camera aligns the Singapore coverage to the top of the viewport', () => {
+    assert.deepEqual(resolveTopAlignedMapCenterPoint({
+        horizontalCenterPoint: { x: 640, y: 400 },
+        coverageNorthPoint: { x: 500, y: 120 },
+        viewportHeight: 560,
+    }), { x: 640, y: 400 });
+
+    assert.deepEqual(resolveTopAlignedMapCenterPoint({
+        horizontalCenterPoint: { x: 640, y: 400 },
+        coverageNorthPoint: { x: 500, y: 80 },
+        viewportHeight: 560,
+    }), { x: 640, y: 360 });
+
+    assert.equal(resolveTopAlignedMapCenterPoint({
+        horizontalCenterPoint: { x: 640, y: 400 },
+        coverageNorthPoint: { x: 500, y: 80 },
+        viewportHeight: 0,
+    }), null);
 });

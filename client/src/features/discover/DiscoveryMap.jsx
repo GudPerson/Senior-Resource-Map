@@ -25,6 +25,7 @@ import {
     HALF_STEP_MAP_ZOOM_DELTA,
     formatMapZoomLevel,
     resolveResponsiveMapMinimumZoom,
+    resolveTopAlignedMapCenterPoint,
 } from '../../lib/mapZoom.js';
 
 const DEFAULT_MAP_CENTER = [1.3521, 103.8198];
@@ -41,6 +42,8 @@ const DISCOVER_SINGAPORE_OVERVIEW_BOUNDS = [
     [1.1589785722368189, 103.49945068359375],
     [1.5626114277758696, 104.117431640625],
 ];
+// OneMap's first visible overview row begins at the native z12 row-2031 edge.
+const DISCOVER_BASEMAP_VISIBLE_NORTH_EDGE = [1.4939713066293197, 103.846];
 const SINGLE_PIN_ZOOM = CAREAROUND_BASEMAP_MAX_ZOOM;
 const ANCHOR_ONLY_ZOOM = 15;
 const DESKTOP_FIT_MAX_ZOOM = CAREAROUND_BASEMAP_MAX_ZOOM;
@@ -546,15 +549,30 @@ function DiscoveryMinimumZoomLock() {
             map.dragging?.enable?.();
             draggingDisabledByLock = false;
         };
+        const resolveMinimumCenter = (zoom = map.getZoom()) => {
+            const viewportSize = map.getSize();
+            const horizontalCenterPoint = map.project(minimumCenter, zoom);
+            const coverageNorthPoint = map.project(L.latLng(DISCOVER_BASEMAP_VISIBLE_NORTH_EDGE), zoom);
+            const alignedCenterPoint = resolveTopAlignedMapCenterPoint({
+                horizontalCenterPoint,
+                coverageNorthPoint,
+                viewportHeight: viewportSize.y,
+            });
+
+            return alignedCenterPoint
+                ? map.unproject(L.point(alignedCenterPoint.x, alignedCenterPoint.y), zoom)
+                : minimumCenter;
+        };
         const centerMinimumCamera = () => {
             if (centering) return;
             const currentCenter = map.getCenter();
             const zoom = map.getZoom();
             const currentPoint = map.project(currentCenter, zoom);
-            const minimumPoint = map.project(minimumCenter, zoom);
+            const topAlignedMinimumCenter = resolveMinimumCenter(zoom);
+            const minimumPoint = map.project(topAlignedMinimumCenter, zoom);
             if (currentPoint.distanceTo(minimumPoint) <= 1) return;
             centering = true;
-            map.panTo(minimumCenter, { animate: false });
+            map.panTo(topAlignedMinimumCenter, { animate: false });
             centering = false;
         };
         const syncLock = () => {
@@ -585,7 +603,7 @@ function DiscoveryMinimumZoomLock() {
             map.setMinZoom(minimumZoom);
             container.dataset.discoverMinZoom = String(minimumZoom);
             if (Number(map.getZoom()) < minimumZoom - 0.01) {
-                map.setView(minimumCenter, minimumZoom, { animate: false });
+                map.setView(resolveMinimumCenter(minimumZoom), minimumZoom, { animate: false });
             }
             syncLock();
         };

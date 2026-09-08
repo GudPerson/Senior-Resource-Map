@@ -39,7 +39,10 @@ test('Discover locks wide maps at 11.5 to give the Singapore overview breathing 
     assert.match(discoveryMapSource, /DISCOVER_OVERVIEW_WIDE_MAP_WIDTH = 900/);
     assert.match(discoveryMapSource, /DISCOVER_OVERVIEW_MAX_ZOOM = 11\.5/);
     assert.match(discoveryMapSource, /DISCOVER_SINGAPORE_OVERVIEW_CENTER = \[1\.3521, 103\.846\]/);
-    assert.match(discoveryMapSource, /L\.latLng\(DISCOVER_SINGAPORE_OVERVIEW_CENTER\)/);
+    assert.match(discoveryMapSource, /DISCOVER_BASEMAP_VISIBLE_NORTH_EDGE = \[1\.4939713066293197, 103\.846\]/);
+    assert.match(discoveryMapSource, /resolveTopAlignedMapCenterPoint/);
+    assert.match(discoveryMapSource, /L\.latLng\(DISCOVER_BASEMAP_VISIBLE_NORTH_EDGE\)/);
+    assert.match(discoveryMapSource, /map\.unproject/);
     assert.match(discoveryMapSource, /resolveResponsiveMapMinimumZoom/);
     assert.match(discoveryMapSource, /map\.setMinZoom\(minimumZoom\)/);
     assert.match(discoveryMapSource, /map\.dragging\.disable\(\)/);
