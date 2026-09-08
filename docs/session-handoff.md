@@ -11,6 +11,24 @@ Updated: 2026-09-08 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
+## 2026-09-08 Discovery overview spacing adjustment — local candidate
+
+- Wide Discovery maps now stop at `11.5` instead of `12`, giving the Singapore
+  overview one additional half-step of margin while retaining the same centred,
+  pan-locked minimum camera. The initial view remains `12`; fresh responsive
+  `830x656` maps retain their calculated `10.5` minimum.
+- This is a one-constant Discovery-only adjustment. Detailed/Standard behavior,
+  loading feedback, exact Detailed tiers, My Map, Shared/embed/print, results,
+  markers, saved state, API, auth, schema, privacy, and data are unchanged.
+- Validation passed focused `6/6`, full client `788/788` plus four environment
+  checks, the production client build, and map lockdown `104/104` plus its map
+  build. Isolated fictional browser UAT passed wide `11.5` with disabled
+  zoom-out and fresh responsive `10.5`; expected private favourites calls were
+  `401` because no production cookie was used.
+- Branch: `codex/discover-overview-spacing-20260908`. Commit, push, and the
+  production Pages release were approved after local validation; final release
+  evidence must replace this candidate status after deployment verification.
+
 ## 2026-09-08 Discovery camera, source controls, and half-step zoom — released
 
 - Discovery now stops wide maps at the locked Singapore overview camera at

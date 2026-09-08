@@ -26,6 +26,7 @@ test('map zoom control steps preserve valid opt-in values and safe defaults', ()
 
 test('responsive minimum zoom fits the Singapore overview and stops at half steps', () => {
     assert.equal(resolveResponsiveMapMinimumZoom({ fitZoom: 12.8 }), 12);
+    assert.equal(resolveResponsiveMapMinimumZoom({ fitZoom: 12.8, maximumZoom: 11.5 }), 11.5);
     assert.equal(resolveResponsiveMapMinimumZoom({ fitZoom: 11.9 }), 11.5);
     assert.equal(resolveResponsiveMapMinimumZoom({ fitZoom: 10.4 }), 10);
     assert.equal(resolveResponsiveMapMinimumZoom({ fitZoom: 9.8 }), 10);
