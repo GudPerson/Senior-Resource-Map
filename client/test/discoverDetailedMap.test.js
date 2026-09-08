@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import {
     DISCOVER_DETAILED_MAX_DECODED_BYTES,
+    DISCOVER_DETAILED_NATIVE_MIN_ZOOM,
     DISCOVER_DETAILED_UAT_MAX_DECODED_BYTES,
     isDiscoverDetailedDerivativeEnabled,
     isDiscoverDetailedMapFeatureEnabled,
@@ -107,10 +108,10 @@ test('Discover retains 256 MiB by default and raises only the explicitly feature
     }), 256 * 1024 * 1024);
 });
 
-test('Discover uses live at displayed 13, overview at 14, native at 15, and reverses without changing fractional zoom', () => {
+test('Discover uses live at displayed 13, overview at 14 and 15, native at 16, and reverses without changing fractional zoom', () => {
     const native = readySurface('native');
     const overview = readySurface('overview');
-    const samples = [13.49, 13.5, 14.5, 14.49, 13.49].map((zoom) => (
+    const samples = [13.49, 13.5, 14.5, 15.5, 15.49, 14.49, 13.49].map((zoom) => (
         resolveDiscoverDetailedBasemap({
             enabled: true,
             zoom,
@@ -120,26 +121,62 @@ test('Discover uses live at displayed 13, overview at 14, native at 15, and reve
         })
     ));
 
+    assert.equal(DISCOVER_DETAILED_NATIVE_MIN_ZOOM, 16);
     assert.deepEqual(samples.map((sample) => [sample.displayedZoom, sample.mode, sample.tier]), [
         [13, 'live', 'live'],
         [14, 'detailed', 'overview'],
-        [15, 'detailed', 'native'],
+        [15, 'detailed', 'overview'],
+        [16, 'detailed', 'native'],
+        [15, 'detailed', 'overview'],
         [14, 'detailed', 'overview'],
         [13, 'live', 'live'],
     ]);
 });
 
+test('Discover keeps a memory-heavy native surface out of the fractional displayed-15 transition', () => {
+    const native = readySurface('native', {
+        bytesPerChunk: 128 * 1024 * 1024,
+        chunkCount: 3,
+    });
+    const overview = readySurface('overview');
+    const displayed15 = resolveDiscoverDetailedBasemap({
+        enabled: true,
+        zoom: 14.6,
+        viewportBounds: VIEWPORT,
+        native,
+        overview,
+    });
+    const displayed16 = resolveDiscoverDetailedBasemap({
+        enabled: true,
+        zoom: 15.6,
+        viewportBounds: VIEWPORT,
+        native,
+        overview,
+    });
+
+    assert.equal(displayed15.displayedZoom, 15);
+    assert.equal(displayed15.tier, 'overview');
+    assert.equal(displayed15.reason, 'surface-ready');
+    assert.equal(displayed15.renderSurface, true);
+    assert.equal(displayed15.renderLiveTiles, false);
+    assert.equal(displayed16.displayedZoom, 16);
+    assert.equal(displayed16.tier, 'native');
+    assert.equal(displayed16.reason, 'viewport-memory-limit');
+    assert.equal(displayed16.renderSurface, false);
+    assert.equal(displayed16.renderLiveTiles, true);
+});
+
 test('Discover keeps live tiles and Detailed imagery mutually exclusive while manifests resolve', () => {
     const loading = resolveDiscoverDetailedBasemap({
         enabled: true,
-        zoom: 14,
+        zoom: 15,
         viewportBounds: VIEWPORT,
         native: readySurface('native'),
         overview: { configured: true, status: 'loading', candidate: true },
     });
     const ready = resolveDiscoverDetailedBasemap({
         enabled: true,
-        zoom: 14,
+        zoom: 15,
         viewportBounds: VIEWPORT,
         native: readySurface('native'),
         overview: readySurface('overview'),
@@ -155,28 +192,35 @@ test('Discover keeps live tiles and Detailed imagery mutually exclusive while ma
 test('Discover falls back to live OneMap outside coverage and after source or chunk loading failures', () => {
     const outside = resolveDiscoverDetailedBasemap({
         enabled: true,
-        zoom: 15,
+        zoom: 16,
         viewportBounds: [103.90, 1.40, 103.92, 1.42],
         native: readySurface('native'),
         overview: readySurface('overview'),
     });
     const sourceFailure = resolveDiscoverDetailedBasemap({
         enabled: true,
-        zoom: 15,
+        zoom: 16,
         viewportBounds: VIEWPORT,
         native: { configured: true, status: 'error', candidate: true },
         overview: readySurface('overview'),
     });
     const chunkFailure = resolveDiscoverDetailedBasemap({
         enabled: true,
-        zoom: 15,
+        zoom: 16,
         viewportBounds: VIEWPORT,
         native: readySurface('native'),
         overview: readySurface('overview'),
         faultReason: 'chunk-load-error',
     });
+    const overviewFailure = resolveDiscoverDetailedBasemap({
+        enabled: true,
+        zoom: 15,
+        viewportBounds: VIEWPORT,
+        native: readySurface('native'),
+        overview: { configured: true, status: 'error', candidate: true },
+    });
 
-    [outside, sourceFailure, chunkFailure].forEach((decision) => {
+    [outside, sourceFailure, chunkFailure, overviewFailure].forEach((decision) => {
         assert.equal(decision.mode, 'live');
         assert.equal(decision.renderLiveTiles, true);
         assert.equal(decision.renderSurface, false);
@@ -186,7 +230,7 @@ test('Discover falls back to live OneMap outside coverage and after source or ch
 test('Discover enforces the standard 256 MiB decoded-memory ceiling before mounting a surface', () => {
     const decision = resolveDiscoverDetailedBasemap({
         enabled: true,
-        zoom: 15,
+        zoom: 16,
         viewportBounds: VIEWPORT,
         native: readySurface('native', {
             bytesPerChunk: 128 * 1024 * 1024,
@@ -204,7 +248,7 @@ test('Discover enforces the standard 256 MiB decoded-memory ceiling before mount
 test('Discover UAT ceiling admits the observed 347 MiB viewport and still fails closed above 384 MiB', () => {
     const eligible = resolveDiscoverDetailedBasemap({
         enabled: true,
-        zoom: 15,
+        zoom: 16,
         viewportBounds: VIEWPORT,
         native: readySurface('native', {
             bytesPerChunk: 1 * 1024 * 1024,
@@ -215,7 +259,7 @@ test('Discover UAT ceiling admits the observed 347 MiB viewport and still fails 
     });
     const overLimit = resolveDiscoverDetailedBasemap({
         enabled: true,
-        zoom: 15,
+        zoom: 16,
         viewportBounds: VIEWPORT,
         native: readySurface('native', {
             bytesPerChunk: 1 * 1024 * 1024,
@@ -235,7 +279,7 @@ test('Discover UAT ceiling admits the observed 347 MiB viewport and still fails 
     assert.equal(overLimit.renderSurface, false);
 });
 
-test('Discover can contain a zoom-15 entry camera without changing its displayed zoom step', () => {
+test('Discover skips native containment at displayed 15 and contains a zoom-16 entry camera within its displayed step', () => {
     const manifest = {
         bounds: { surface: [0, 0, 100, 80] },
         chunks: [{
@@ -245,16 +289,25 @@ test('Discover can contain a zoom-15 entry camera without changing its displayed
         }],
     };
     const project = ({ lat, lng }, zoom) => {
-        const scale = 2 ** (zoom - 15);
+        const scale = 2 ** (zoom - 16);
         return { x: lng * scale, y: (80 - lat) * scale };
     };
     const unproject = ({ x, y }, zoom) => {
-        const scale = 2 ** (zoom - 15);
+        const scale = 2 ** (zoom - 16);
         return { lat: 80 - (y / scale), lng: x / scale };
     };
-    const camera = resolveDiscoverDetailedContainmentCamera({
+    assert.equal(resolveDiscoverDetailedContainmentCamera({
         center: { lat: 40, lng: 95 },
         currentZoom: 15,
+        manifest,
+        maximumZoom: 18,
+        project,
+        unproject,
+        viewportSize: { x: 20, y: 20 },
+    }), null);
+    const camera = resolveDiscoverDetailedContainmentCamera({
+        center: { lat: 40, lng: 95 },
+        currentZoom: 16,
         manifest,
         maximumZoom: 18,
         project,
@@ -263,8 +316,8 @@ test('Discover can contain a zoom-15 entry camera without changing its displayed
     });
 
     assert.ok(camera);
-    assert.equal(camera.zoom, 15);
-    assert.equal(Math.round(camera.zoom), 15);
+    assert.equal(camera.zoom, 16);
+    assert.equal(Math.round(camera.zoom), 16);
     assert.equal(camera.center.lng, 88);
     assert.deepEqual(camera.viewportBounds, [78, 30, 98, 50]);
 });
@@ -279,17 +332,17 @@ test('Discover containment stays fail-closed when no camera fits inside the curr
         }],
     };
     const project = ({ lat, lng }, zoom) => {
-        const scale = 2 ** (zoom - 15);
+        const scale = 2 ** (zoom - 16);
         return { x: lng * scale, y: (10 - lat) * scale };
     };
     const unproject = ({ x, y }, zoom) => {
-        const scale = 2 ** (zoom - 15);
+        const scale = 2 ** (zoom - 16);
         return { lat: 10 - (y / scale), lng: x / scale };
     };
 
     assert.equal(resolveDiscoverDetailedContainmentCamera({
         center: { lat: 5, lng: 5 },
-        currentZoom: 15,
+        currentZoom: 16,
         manifest,
         maximumZoom: 18,
         project,
