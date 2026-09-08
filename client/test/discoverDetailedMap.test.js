@@ -366,7 +366,11 @@ test('Discover integrates a basemap-only adapter without replacing its map or to
     assert.match(detailedBasemapSource, /VITE_TOWN_MAP_GRAY_ASSET_BASE_URL/);
     assert.match(detailedBasemapSource, /VITE_TOWN_MAP_GRAY_OVERVIEW_ASSET_BASE_URL/);
     assert.match(detailedBasemapSource, /<FixedTownSurfaceLayer/);
-    assert.match(detailedBasemapSource, /map\.on\('zoom moveend resize'/);
+    assert.match(detailedBasemapSource, /map\.on\('zoom', updateViewport\)/);
+    assert.match(detailedBasemapSource, /map\.on\('moveend resize', scheduleViewportUpdate\)/);
+    assert.match(detailedBasemapSource, /map\.off\('zoom', updateViewport\)/);
+    assert.match(detailedBasemapSource, /map\.off\('moveend resize', scheduleViewportUpdate\)/);
+    assert.doesNotMatch(detailedBasemapSource, /map\.on\('zoom moveend resize'/);
     assert.match(detailedBasemapSource, /manifestInFlightRef/);
     assert.match(detailedBasemapSource, /manifestCacheRef/);
     assert.match(detailedBasemapSource, /function DiscoverDetailedZoomContainmentSync/);

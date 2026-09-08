@@ -106,18 +106,26 @@ function useDiscoverMapViewport() {
     useEffect(() => {
         let frame = null;
         const updateViewport = () => {
+            setViewport(readMapViewport(map));
+        };
+        const scheduleViewportUpdate = () => {
             if (frame !== null) return;
             frame = window.requestAnimationFrame(() => {
                 frame = null;
-                setViewport(readMapViewport(map));
+                updateViewport();
             });
         };
 
+        // The visible zoom counter updates directly on Leaflet's zoom event.
+        // Resolve the Discover basemap in that same event turn so displayed
+        // zoom 15 cannot briefly retain the native zoom-16 surface.
         updateViewport();
-        map.on('zoom moveend resize', updateViewport);
+        map.on('zoom', updateViewport);
+        map.on('moveend resize', scheduleViewportUpdate);
         return () => {
             if (frame !== null) window.cancelAnimationFrame(frame);
-            map.off('zoom moveend resize', updateViewport);
+            map.off('zoom', updateViewport);
+            map.off('moveend resize', scheduleViewportUpdate);
         };
     }, [map]);
 
