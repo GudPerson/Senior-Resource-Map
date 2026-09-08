@@ -11,7 +11,7 @@ Updated: 2026-09-08 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
-## 2026-09-08 Discovery camera, source controls, and half-step zoom — release candidate
+## 2026-09-08 Discovery camera, source controls, and half-step zoom — released
 
 - Discovery now stops wide maps at the locked Singapore overview camera at
   zoom `12`; smaller maps compute a responsive `10-12` minimum from the same
@@ -32,8 +32,19 @@ Updated: 2026-09-08 (Asia/Singapore)
   manifest resolved. Guide knowledge is `2026-09-08.2`. `verify:release` passed
   its complete quality portion, but its credentialed smoke command could not
   start because this checkout lacks both the local Playwright package and smoke
-  credentials. Production release evidence is still pending; authenticated
-  owner My Map UAT is not claimed.
+  credentials. Authenticated owner My Map UAT is not claimed.
+- PR #59 merged functional source
+  `c46c53b738de12c00647aaa4b3faa8b0dfa90540`. The coordinated release is Worker
+  version `c8297ac2-a84f-4240-8ebe-ecc4c00e36b8` and Pages deployment
+  `e7a12f86-3a40-4826-9c44-575faa8b8f2f` at
+  `https://e7a12f86.senior-resource-map.pages.dev`. All `87/87` client files
+  and MIME types matched the local build, immutable deployment, and custom
+  domain; aggregate SHA-256 is
+  `8bcabb19aaea96a4744f56c0efd907d7ff991b2facb82e0f77f3a7fb7cebb2fe`.
+  Production checks passed API health, Guide `2026-09-08.2`, Help/Inbox, the
+  responsive `10.5` minimum, wide `12` stop, Standard/live switch, `15.5`
+  overview, and `16` native detail. Fictional-auth private requests correctly
+  returned `401`; no authenticated mutation or owner My Map UAT is claimed.
 
 ## 2026-09-08 Discover zoom-15 overview stability — released
 

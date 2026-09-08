@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-08 Discovery camera, map-source controls, and half-step zoom — release candidate
+## 2026-09-08 Discovery camera, map-source controls, and half-step zoom — released
 
 - Current behavior: wide Discovery maps stop at zoom `12`, recenter on the
   established Singapore overview centre (`1.3521, 103.846`), and cannot be
@@ -64,6 +64,25 @@ Rules:
   standalone browser runner supplied the scoped visual evidence above.
   Authenticated owner My Map UAT is not claimed; its scoped wiring is covered
   by client and lockdown tests.
+- Production release evidence: PR #59 merged the implementation to `main` at
+  functional source `c46c53b738de12c00647aaa4b3faa8b0dfa90540`.
+  Coordinated Cloudflare publication produced Worker version
+  `c8297ac2-a84f-4240-8ebe-ecc4c00e36b8` and Pages deployment
+  `e7a12f86-3a40-4826-9c44-575faa8b8f2f` at
+  `https://e7a12f86.senior-resource-map.pages.dev`. All `87/87` served client
+  files and MIME types matched the exact local artifact, immutable deployment,
+  and `https://app.carearound.sg`; the sorted local aggregate SHA-256 is
+  `8bcabb19aaea96a4744f56c0efd907d7ff991b2facb82e0f77f3a7fb7cebb2fe`.
+  Production API health returned `200`; Guide topics and the Detailed-map
+  answer returned knowledge version `2026-09-08.2` and the released wording.
+  Fresh browser checks proved responsive minimum `10.5` at an `830x656` map,
+  wide minimum `12` at `1470x1016`, disabled zoom-out at the centred Singapore
+  view, Standard with `42` live tiles and zero fixed images, `15.5` overview
+  with `20/20` fixed chunks and zero live tiles, and `16` native with `12/12`
+  fixed chunks and zero live tiles. Guest Help remained at `/help` with the
+  `CareAround Guide & inbox` heading. The fictional auth shim intentionally had
+  no production cookie, so its private API requests returned expected `401`s;
+  no authenticated or mutating production behavior is claimed.
 
 ## 2026-09-08 Discover zoom-15 overview stability — released
 
