@@ -11,34 +11,36 @@ Updated: 2026-09-08 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
-## 2026-09-08 Discover zoom-15 overview stability — candidate
+## 2026-09-08 Discover zoom-15 overview stability — released
 
-- Current production remains clean client source `b00022f` / Pages deployment
-  `face2067-71f6-4e1a-b14a-81f6bd890c50`; it is the regression reproduction
-  reference, not the fix. A separate guest browser confirmed that raw zoom
-  `14.5-14.6` can display `15` while failing closed to live OneMap, whereas raw
-  `14.7-15.4` displays the native surface. The fix is local and unreleased on
-  `codex/discover-zoom15-overview-stability-20260908`.
-- The narrow candidate changes only Discover: `13` remains live OneMap, `14`
-  and `15` use the continuous `SG14` overview, and `16+` uses native detail
-  with block numbers. Native containment therefore begins at `16`. My Map,
-  its owner Print View, Detailed embeds, public Shared Map and Shared Print,
-  immutable map assets, map styles, resource results, pins, ranking, saved
-  data, API shape/routes/access, auth, schema, migrations, and production data
-  remain unchanged. My Map, owner Print, and Detailed embeds retain their
-  shared zoom-15 native threshold; public Shared Map and Shared Print remain
-  live. The Worker-owned Guide
-  knowledge version and detailed-map wording do change, so any approved release
-  must deploy the validated client and Guide Worker together.
-- Local verification passed `729/729` server tests, `784/784` client tests plus
-  `4/4` production-environment checks, `104/104` map-lockdown tests, both
-  production-config builds, and `git diff --check`. Separate-browser UAT passed
-  exact raw zoom `14.4-15.6` in both directions and `192` trackpad-style timing
-  samples across Default and Gray with zero displayed-15 live fallbacks. Reset,
-  desktop/mobile resize, the visible `390x844` mobile map, exclusivity, and
-  horizontal overflow checks passed. Native zoom-16 panning stayed fixed inside
-  W01, fell back cleanly to live OneMap outside coverage, and recovered to SG14
-  overview at displayed `15`. Deployment and authenticated smoke have not run.
+- PR #56 made displayed zoom `14-15` use the continuous `SG14` overview in
+  Discover and reserved native block-number detail for `16+`; it also updated
+  the Guide to knowledge version `2026-09-08.1`. PR #57 closed the transition
+  race by updating the Discover viewport immediately on Leaflet's `zoom` event.
+  Final functional source is clean `65fb6a477e8b9005eae1fe920fbb7a94ecb5457b`.
+  My Map, owner Print, Detailed embeds, public shared views, map assets, data,
+  auth, API contracts, schema, and migrations were unchanged.
+- Final gates passed `729/729` server tests, `784/784` client tests, `4/4`
+  production-environment checks, `104/104` map-lockdown tests, both production
+  builds, `192/192` pre-release trackpad samples, and a `52/52` bidirectional
+  raw-zoom matrix. Guarded production release created Pages deployment
+  `32bf4615-3778-4f19-bd04-0245f59b38ce` at
+  `https://32bf4615.senior-resource-map.pages.dev` and Worker version
+  `ac44270b-b75d-40fd-95e2-86dd0b6f4ae4`, both reporting the final source.
+  All `87/87` client files matched the local build, immutable deployment, and
+  custom domain; aggregate SHA-256 is
+  `028d56e86a4d89544f2b5a8dd667968baeed4100a3c0bcad7fc1f66c1e76cb0d`.
+- Unshimmed production UAT passed controlled `15.5 -> 15.4` crossings in
+  Default `10/10` and Gray `10/10`, with native detail removed `0.5-1.6 ms`
+  after the counter and before the first paint every time. It found no
+  fixed/live overlap, blank painted frame, or manifest churn. The settled
+  matrix passed Default `26/26` and Gray `26/26`: displayed `15` was always
+  overview `SG14`, and displayed `16` was always native `C03`. Nearby and
+  outside-coverage panning, recovery, reset, desktop resize, and the unobscured
+  `390x844` mobile map passed. API health, public security probes, Guide
+  wording/version, real `Havelock` search, and guest Help/Inbox passed with zero
+  console errors or warnings. Authenticated smoke remains explicitly unclaimed
+  because its approved credentials are not configured in this checkout.
 
 ## 2026-09-08 Help and notification inbox client recovery — released
 
