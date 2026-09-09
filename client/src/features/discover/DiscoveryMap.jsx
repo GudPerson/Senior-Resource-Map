@@ -949,7 +949,7 @@ export function DiscoveryMap({
             </MapContainer>
             <DiscoverDetailedLoadingIndicator status={detailedStatus} />
             <div
-                className="absolute right-3 top-3 z-[1002] flex items-start gap-2"
+                className="absolute right-3 top-3 z-[1002] flex h-[30px] items-center gap-2 lg:h-[34px]"
                 data-discovery-map-control-dock="true"
             >
                 <MapSettingsControl
