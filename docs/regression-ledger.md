@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-09 Discovery saved-pin layer icon scale and alignment — validated locally
+## 2026-09-09 Discovery saved-pin layer icon scale and alignment — released
 
 - Current behavior: Discovery's saved-pin category layer glyph nearly fills its
   existing map-control button with a two-pixel visual buffer: `30 x 30` inside
@@ -49,7 +49,36 @@ Rules:
   `npm run verify:quality` gate passed eight migration checks, `481` source
   modules / `1,421` relative-import edges, server `729/729`, client `797/797`,
   four production-environment checks, and the exact client build with `2487`
-  modules. Production evidence remains pending.
+  modules.
+- Production release evidence: implementation commit `b31c8f14` merged through
+  PR #67 as `6c72b4b4dbb3b00c4332caeecb6882da2d8f4a68`. The required GitHub
+  `verify-quality` check and Cloudflare Pages preview passed; legacy Netlify
+  preview checks failed and were excluded because Netlify is not an active
+  CareAround release target. The guarded client release rebuilt clean `main`,
+  uploaded all `87` served files plus the Functions bundle and `_routes.json`,
+  and created `https://c79434c0.senior-resource-map.pages.dev`. All `87` files
+  matched the local build, immutable deployment, and `https://app.carearound.sg`
+  by byte length, SHA-256, and MIME type with zero failures; the sorted parity
+  aggregate SHA-256 is
+  `124b533a2b3f84efaf77b7c1fab7d811a81d421266c4c43cb9edab7cbd8ed52b`.
+  Both release manifests report clean `git-build` provenance at `6c72b4b4` and
+  HTML SHA-256
+  `94b77a653007e06586a34246532963a87bbd8036e86a3862e16c1a066324d0e4`;
+  the served entry bundle is `assets/index-57Ylkb3P.js`.
+- Production Chrome QA used fictional authentication and mocked favourites,
+  without mutating real saved data. Desktop and mobile reproduced the approved
+  `34/30`-pixel triggers, `30/26`-pixel glyphs, identical vertical alignment,
+  working popover/bottom sheet, Escape focus return, and zero horizontal
+  overflow. The public result count remained `3,481`; the fictional saved-pin
+  layer exposed exactly AAC, Chinese Temple, and Places. The visual flow had
+  zero console errors or warnings. Discovery, Help, and Inbox shells returned
+  `200`; `/inbox` routed to `/help?tab=inbox`; the Guide returned the verified
+  bulk-unsave/My Map/Care Calendar safeguard answer; real Havelock search
+  returned three resources; API health returned `200`/`ok`; framing remained
+  denied; and guest notifications, preferences, saved searches, and Guide
+  history returned `401`. Credentialed partner smoke remains unclaimed because
+  its username and password are not configured. No Worker, Neon, schema,
+  migration, authentication, secret, or production-data change occurred.
 
 ## 2026-09-09 Discovery saved-pin category layer refinement — released
 
