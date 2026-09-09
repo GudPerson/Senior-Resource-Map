@@ -15,6 +15,60 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-09 Discovery saved-pin category layer refinement — validated locally, not released
+
+- Current behavior: Discovery's category control has moved out of the search
+  panel and into a dedicated pin-layer button beside Map settings. Its choices
+  are derived only from categories represented by the user's saved, mappable
+  pins. No selection shows every saved pin; one or more selections show the
+  union of those saved-pin categories. If there are no saved map pins, opening
+  the control shows a short `No saved pins to filter yet.` message instead of
+  irrelevant category choices.
+- Known-good reference: the user supplied a stacked-layer/map-pin icon and
+  asked for the category filter to live on the map because the search area was
+  already busy. The follow-up narrowed its purpose to saved categories that
+  actually appear as pins. The released Discovery map control spacing,
+  Detailed-map tiers, loading indicator, `11.5` overview floor, and half-step
+  zoom remain the stable baseline.
+- Blast radius: client-only Discovery category state, the map-control dock,
+  and saved-pin projection change. Search results, result and type counts,
+  ordering, text/location/saved-only filters, and bulk-save candidates no
+  longer respond to map category selection. Selecting `View on map` for a
+  saved item hidden by the current layer safely restores all saved pins before
+  focusing it. Detailed/Standard and Default/Gray controls, map loading and
+  camera behavior, transient unsaved focus pins, My Map, Shared/embed/print
+  views, APIs, authentication, schema, privacy, and production data are
+  unchanged.
+- Reproduction and acceptance: with saved resources that produce map pins,
+  open the new top-right pin-layer control and require only represented saved
+  categories, with each pin counted once per category. Select one category,
+  then a second, and require union semantics without changing the Discovery
+  cards or counts; choose `All saved pins` and restore every saved pin. Open
+  the same control with no saved map pins and require the empty message. From
+  a filtered layer, choose `View on map` on a hidden saved resource and require
+  all layers to restore before the target receives focus. Repeat the control
+  at desktop and mobile widths without horizontal overflow or overlap with Map
+  settings.
+- Verification before release: PASS. The saved-pin
+  layer unit coverage passed `4/4`; focused Discovery/map/i18n coverage passed
+  `19/19`; full client coverage passed `797/797` plus all four
+  production-environment checks; `npm run verify:map-lockdown` passed `104/104`
+  plus its configured production map build; and `npm run build:client` passed
+  with `2487` modules. Approved separate-browser QA used fictional authentication
+  and mocked saved-resource responses against the real public Discovery data.
+  It confirmed one- and two-category union behavior while the browse result count
+  remained `3481`, all three saved pins restored, Map settings stayed independent,
+  and the empty state showed `No saved pins to filter yet.` Desktop `1920x1080`
+  and mobile `390x844` layouts had no overlap or horizontal overflow. Escape now
+  closes and restores focus to the trigger in both layouts. The only console
+  errors were the known OneMap localhost CORS rejection in the fictional
+  home-postal empty-state fixture. No real saved resource, authenticated account,
+  API, schema, secret, or production data was mutated. Release evidence follows
+  after the approved commit, push, and client deployment. The complete
+  `npm run verify:quality` gate also passed after the mobile focus refinement,
+  covering migration ownership, the module graph, full server and client tests,
+  production environment checks, and the production-configured client build.
+
 ## 2026-09-09 Discovery category visibility and minimum-overview alignment — released
 
 - Current behavior: Discovery has one shared `Categories` checkbox filter on

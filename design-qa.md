@@ -1,91 +1,63 @@
-# Embedded Resource Preview Design QA
+# Discovery Saved-Pin Layer Design QA
 
-## WWW and label refinement (production release)
-
-- Icon reference: `/var/folders/gc/xhshpq5n5xd9pjtvv1x7bry00000gn/T/codex-clipboard-067c890d-8dc7-4ff9-a0a7-711a82db8342.png`
-- 400x520 implementation: `/Users/sweetbuns/CareAroundSG/output/chrome/embed-preview-www-refinement/embed-preview-www-400x520.png`
-- Combined comparison input: `/Users/sweetbuns/CareAroundSG/output/chrome/embed-preview-www-refinement/reference-comparison.png`
-- Production 400x520 verification: `/Users/sweetbuns/CareAroundSG/output/release-logs/embed-www-production-400x520.png`
-- The Website action follows the supplied globe-plus-WWW concept using the existing Lucide globe icon and a compact `WWW` wordmark. The watermarked stock reference itself is not shipped.
-- The mark stays inside a 52x44-pixel platform-styled action, preserving the 44-pixel touch target, focus treatment, and the existing CareAround palette.
-- The availability pill now reads `4 Programmes / Services`; supported translations use the same slash construction.
-- At the 400x520 minimum, Website, phone, Facebook, Instagram, and `Open resource` remain on one row. The selected-resource preview reports `clientHeight: 204` and `scrollHeight: 204`, so there is no clipping or internal scroll.
-- The supplied source is an icon reference rather than a full-screen layout. The comparison therefore checks the requested globe-plus-WWW visual language inside the existing approved preview state instead of treating the stock image as a screen to clone.
-- Production Chrome verification on `https://app.carearound.sg/embed/maps/LiHr0nVxXnroOQ1oXaD61MqH5mRv9wiV` confirms the requested mark and slash label, a 204-pixel card with equal client and scroll heights, and one aligned action row at 400x520.
-
-## Sources and implementation evidence
-
-- Product reference: `/Users/sweetbuns/Desktop/Screenshot 2026-08-08 at 4.02.09 PM.png`
-- Resource-detail reference: `/Users/sweetbuns/Desktop/Screenshot 2026-08-08 at 4.01.44 PM.png`
-- Compact implementation: `/Users/sweetbuns/CareAroundSG/output/playwright/map-only-embed-v1/embed-resource-complete-preview-400x520.png`
-- Desktop implementation: `/Users/sweetbuns/CareAroundSG/output/playwright/map-only-embed-v1/embed-resource-complete-preview-1280x900.png`
-
-## Viewports and states tested
-
-- 400x520 approved iframe minimum with a selected mapped Place.
-- 1280x900 full-browser embed with a selected mapped Place.
-- Complete optional-data fixture containing operating hours, website, contact number, Facebook, Instagram, and four open-to-all programmes/services.
-- Existing frozen data path without newly added fields remains supported because every enrichment is optional.
-
-## Findings
-
-- The selected Place uses one identity block: logo, name, and address. The former repeated name/category block is absent.
-- Public programme/service availability is a compact count pill and does not compete with the resource identity.
-- Operating hours use a compact single-line treatment at 400 pixels and retain the labelled detail treatment on larger screens.
-- Website and social destinations use recognizable platform icons; the phone number stays visible and tap-to-call; the explicit resource link remains available.
-- Website, phone, social, and resource actions share one wrapping action row. Touch targets remain at least 44 pixels and retain visible focus styling.
-- The popup uses 4/8-pixel spacing increments and reduced small-screen padding. At 400x520 its `clientHeight` and `scrollHeight` are both 204 pixels, so no requested content is clipped or requires internal scrolling.
-- The mobile footer removes its redundant second-line powered-by label when the list-only notice is present; CareAround branding remains in the header and the full label remains at larger widths.
-- Leaflet controls no longer overlap the preview close action because the preview is explicitly above the map control layer.
-- No P0, P1, or P2 visual, accessibility, or content-hierarchy issue remains in the tested states.
-
-final result: passed
-
----
-
-# Design QA: owner mobile focus-card surface refinement
-
-- Source visual truth: `/Users/sweetbuns/Downloads/WhatsApp Image 2026-08-08 at 22.54.06.jpeg`
-- Requested delta: remove the category badge/label above the focused resource and remove the tinted outer tray so the resource preview card becomes the visible surface.
-- Production normal-view evidence: `/Users/sweetbuns/CareAroundSG/output/release-logs/owner-focus-card-surface-production-390x844.png`
-- Production full-map evidence: `/Users/sweetbuns/CareAroundSG/output/release-logs/owner-focus-card-surface-production-full-map-390x844.png`
-- Target viewport: 390 × 844 CSS pixels.
-- Source pixels: 945 × 2048. The source is a higher-density Android capture and was assessed as a mobile reference, not resampled for pixel comparison.
-- Implementation pixels: 390 × 844 at the browser viewport's native capture density.
-- Target state: signed-in owner My Map with one selected mapped resource in the mobile focus tray.
-- Captured implementation states: signed-in production owner My Map 258 in normal and full-map modes with `Loving Heart Active Ageing Centre (229 Jurong East)` selected.
+- Source visual truth: `/var/folders/gc/xhshpq5n5xd9pjtvv1x7bry00000gn/T/codex-clipboard-e6aa63f5-a7db-46a2-9b21-cfb4441bce7b.png`
+- Source pixels: `572 x 572`
+- Desktop implementation: `.playwright-cli/page-2026-09-09T03-15-56-791Z.png` at `1920 x 1080`
+- Mobile populated state: `.playwright-cli/page-2026-09-09T03-12-41-419Z.png` at `390 x 844`
+- Mobile empty state: `.playwright-cli/page-2026-09-09T03-14-54-255Z.png` at `390 x 844`
+- Side-by-side comparison: `.playwright-cli/page-2026-09-09T03-18-01-392Z.png`
+- State: saved map-pin category control, populated and no-saved-pin variants
 
 ## Full-view comparison evidence
 
-The source clearly shows the redundant category header and tinted rounded tray around the complete resource preview. Both production captures show the selected resource card directly against the page background with no intervening category header or coloured outer tray. Normal view keeps Map notes immediately below the card; full-map mode expands the map while preserving the same direct card surface below it.
+PASS. The supplied visual's stacked-layers plus saved-pin meaning is preserved,
+while the artwork is normalized to the existing CareAround map-control system:
+`34 x 34` on desktop, `30 x 30` on compact controls, teal active treatment, and
+the same rounded white surface as Map settings. The full desktop capture confirms
+the control sits in the map dock instead of the already-busy search panel.
 
-## Focused-region comparison evidence
+## Focused region comparison evidence
 
-Production DOM measurement reports a 370.8125-pixel tray and a 370.8125-pixel card at the 390-pixel viewport. The tray reports `clientWidth: 371` and `scrollWidth: 371` in both normal and full-map modes, so the single card uses the available width without horizontal overflow. No category badge or category label element is present. The resource identity, address, hours, note affordance, and `Open resource` action remain visible.
+PASS. At `1920 x 1080`, Map settings occupies `x=1832..1866` and the category
+control occupies `x=1874..1908`, leaving an 8-pixel gap with no overlap. The
+popover is `320 x 354`, right-aligned to the trigger at `x=1588..1908`, and stays
+inside the viewport. At `390 x 844`, the populated bottom sheet is `358 x 240`
+within 16-pixel side margins and has no horizontal overflow. The empty state uses
+the same sheet and the requested `No saved pins to filter yet.` copy.
 
-## Findings
+## Interaction and accessibility evidence
 
-- No P0, P1, or P2 visual, accessibility, spacing, overflow, or content-hierarchy issue remains in the tested owner mobile states.
-
-## Required fidelity surfaces
-
-- Fonts and typography: existing resource-preview hierarchy remains legible at 390 × 844.
-- Spacing and layout rhythm: the preview card is the only focus surface and spans the available content width.
-- Colors and visual tokens: the redundant tinted outer surface is absent; existing card and action tokens are retained.
-- Image quality and asset fidelity: existing resource-logo behavior is unchanged and crisp at the tested viewport.
-- Copy and content: the category label is absent; resource identity, address, hours, notes, and `Open resource` remain available.
+- One category showed one saved place; adding a second showed the two-category
+  union; `All saved pins` restored all three fictional saved pins.
+- The Discovery result list remained `Showing 20 of 3481 results` throughout the
+  desktop layer changes.
+- Escape closes the desktop popover and mobile sheet and returns focus to the
+  category-layer trigger. Map settings remains independently operable.
+- Desktop and mobile document widths matched their viewports; no horizontal
+  overflow was introduced.
+- The browser fixture used a separate Chrome session, fictional authentication,
+  and mocked saved-resource responses. It did not alter a real user's saved data.
+- The only console errors encountered were OneMap's expected localhost CORS
+  rejection while exercising the fictional home-postal empty-state fixture; the
+  populated no-postal fixture had no application errors.
 
 ## Comparison history
 
-- Initial local comparison was blocked because the protected owner route redirected to sign-in.
-- Final production comparison used the existing signed-in owner session and passed in normal and full-map modes.
+- Initial pass: blocked before browser permission was available.
+- Approved pass: captured populated desktop, populated mobile, and empty mobile
+  states in a separate browser session.
+- Post-test refinement: routed mobile sheet dismissal through the same
+  close-and-refocus path as desktop; the repeated Escape check then restored the
+  trigger focus.
 
-## Implementation checklist
+## Automated evidence
 
-- Authenticated owner route tested through the normal production session.
-- Mapped resource selected at 390 × 844.
-- No category badge/label or tinted outer tray observed.
-- Preview card spans the focus area with equal client and scroll widths.
-- Normal and full-map modes retain the resource content and actions.
+- Saved-pin layer and source-contract checks: `8/8` passed after the focus patch.
+- Earlier focused Discovery/map/i18n coverage: `19/19` passed.
+- Earlier full client tests: `797/797` plus `4/4` production-environment checks.
+- Earlier locked-map verification: `104/104` plus its production map build.
+- Earlier production-configured client build: passed with `2487` modules.
 
-final result: passed
+## Final result
+
+final result: pass
