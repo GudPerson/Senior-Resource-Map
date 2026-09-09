@@ -15,51 +15,49 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-09 Discovery Chrome paint corruption after repeated control use — release candidate
+## 2026-09-09 Discovery category map-layer rollback — release candidate
 
-- Current production regression: after several Map settings/category-layer
-  interactions, the user's desktop and Android-tablet Chrome sessions can stop
-  painting the map controls, navbar text, search content, category-panel content,
-  and parts of the Detailed raster. The invisible controls remain clickable and
-  can repaint temporarily. Read-only inspection of the affected desktop tab at
-  release `d73ba444` / entry `assets/index-CL6nXhwv.js` found the missing DOM
-  connected, visible, opaque, correctly positioned, and hit-testable. The active
-  Detailed surface was healthy (`surface-ready`, `4/4` chunks, `36,532,224`
-  decoded bytes), so this is not a React unmount, stacking, tile-loading, or
-  saved-category state failure.
-- Regression reference and cause: commit `5154a0ec` forced the entire stationary
-  control overlay into its own GPU layer with `translateZ(0)` and `isolation`,
-  above four large Leaflet-transformed Detailed images. That mitigation was
-  recorded as unproven and temporally matches the new cross-page paint loss.
-  The narrow correction removes only that forced control-layer promotion while
-  retaining paint containment and isolation on the animated raster canvas.
-- Blast radius: Discovery-only compositing. The settings/category controls stay
-  in their existing stationary sibling overlay above Leaflet, with the same
-  z-index, responsive placement, supplied PNG, panel background, focus behavior,
-  category semantics, camera fits, zoom floors/steps, Detailed tiers/assets, and
-  decoded-memory ceiling. My Map, Shared/embed/Print, API, auth, schema, saved
-  resources, and production data are unchanged.
-- Reproduction and acceptance: with fictional saved AACs plus four Chinese
-  Temple pins, alternate All saved pins / Chinese Temple, open and dismiss both
-  category and settings panels, animate between zoom `15.5` and `17.4`, and pan.
-  Repeat at least 24 cycles on retina desktop `1470x801` and touch landscape
-  `1280x720`. Require settings, category, reset, zoom-in, and zoom-out controls
-  to remain connected, visible, and hit-testable; zero document scroll; a solid
-  white category panel; a healthy Detailed surface; and zero page errors.
-- Verification: focused Discovery search/control tests passed `9/9`; the complete
-  quality gate passed eight migrations, `481` modules / `1,421` import edges,
-  server `729/729`, client `802/802`, four production-environment checks, and the
-  exact `2,488`-module production client build. Map lockdown passed `104/104`
-  plus its configured build. A production-origin candidate test applying the
-  exact CSS correction passed all 24 cycles on both retina desktop and touch
-  landscape; both ended with a solid white category panel, visible hit-testable
-  controls, `surface-ready` Detailed imagery, no scroll, and no page errors.
-- Release boundary: this is strong evidence for a browser compositor regression,
-  but automated visibility checks cannot close the original physical-device
-  report. Publish only through the guarded client release, verify exact artifact
-  parity and an unmodified production-origin interaction replay, then retain
-  desktop/tablet confirmation as user UAT. No Worker, Neon, schema, map-asset,
-  auth, secret, or production-data deployment is required.
+- Production result: the PR #72 correction did not resolve the user's physical
+  desktop/tablet Chrome paint failure. Moving the pointer across the open saved
+  category panel can blank the panel contents and every map control even though
+  read-only inspection finds the dialog and controls connected, opaque,
+  correctly positioned, and hit-testable. The active Detailed W04 surface also
+  remains healthy (`surface-ready`, `4/4` chunks), so this is not missing React
+  state or incomplete Detailed-map loading.
+- Known-good reference: restore the complete client source, client tests, and
+  design QA to `c34a5560`, the main revision immediately before `b310dd5c`
+  moved the saved-category checkboxes from the Discovery search panel onto the
+  map. The map-layer button, supplied icon, stationary overlay, helper, and
+  layer-specific tests are removed; the original search-panel checkbox filter
+  is restored.
+- Blast radius: Discovery UI only. The restored category selection again
+  filters result cards, counts, bulk-save candidates, and map pins through the
+  pre-layer flow. Detailed/Standard selection, half-step zoom, the approved
+  responsive overview floor (`11.5` on wide maps and `10.5` on the tested
+  tablet map), Help/Inbox, My Map, Shared/embed/Print, API, authentication,
+  schema, map assets, saved resources, and production data are unchanged.
+- Reproduction and acceptance: on desktop, tablet, and phone, confirm there is
+  no map category-layer button or overlay; open the category checkboxes from
+  the Discovery search UI; exercise All categories plus individual/multiple
+  categories; require cards, counts, bulk candidates, and map pins to agree.
+  Map settings, reset, zoom, panning, and Detailed imagery must remain visible
+  and usable throughout with no page errors or horizontal document overflow.
+- Verification: PASS before release. The focused category-filter contract
+  passed `7/7`; the complete quality gate passed eight migrations, `479`
+  modules / `1,416` import edges, server `729/729`, client `793/793`, four
+  production-environment checks, and the exact `2,485`-module production
+  client build. Map lockdown passed `104/104` plus its configured build. An
+  isolated production-origin replay using the exact candidate build passed 12
+  category open/select/hover/reset cycles on retina desktop and touch tablet,
+  plus three phone filter-sheet cycles. Every category panel was solid white;
+  the map-layer button was absent; desktop/tablet settings, reset, and zoom
+  controls remained visible; Detailed overview surfaces reached `surface-ready`
+  with all visible chunks loaded; and all three sizes had zero page errors,
+  request failures, or horizontal overflow.
+- Release boundary: publish the client only, verify immutable/custom-domain
+  artifact parity and core routes, and retain physical desktop/tablet
+  confirmation as user UAT. Do not deploy the Worker, Neon, schema, map assets,
+  authentication, secrets, or data.
 
 ## 2026-09-09 Discovery viewport/header and dropdown stacking — release approved, device test pending
 
