@@ -2310,7 +2310,9 @@ export default function DiscoverPage() {
 
     return (
         <div
-            className="relative flex h-[calc(100vh-4rem)] flex-col overflow-hidden"
+            // Navbar uses fixed 56/64px rows plus a 1px border, even at A-/A+ sizes.
+            // A rem-based offset makes the document scroll underneath the sticky header.
+            className="relative flex h-[calc(100dvh-57px)] flex-col overflow-hidden sm:h-[calc(100dvh-65px)]"
             style={{ '--discover-rail-width': `${desktopRailWidth}px`, background: 'var(--page-gradient)' }}
         >
             <div className="hidden lg:flex flex-1 w-full h-full relative">

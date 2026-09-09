@@ -28,6 +28,19 @@ test('Discovery keeps every map control in a stationary sibling overlay on all s
     assert.match(discoveryMapSource, /portalTarget=\{controlPortalTarget\}/);
 });
 
+test('Discovery fits below the fixed navbar independently of accessible text size', () => {
+    assert.match(discoverPageSource, /h-\[calc\(100dvh-57px\)\]/);
+    assert.match(discoverPageSource, /sm:h-\[calc\(100dvh-65px\)\]/);
+    assert.doesNotMatch(discoverPageSource, /100vh-4rem/);
+    assert.match(categoryLayerSource, /focus\(\{ preventScroll: true \}\)/);
+});
+
+test('Discovery settings and category dialogs stay above Leaflet zoom and reset controls', () => {
+    // Leaflet controls create stacking contexts at 800. A child dialog cannot
+    // escape a lower dock, regardless of its own z-index of 1010.
+    assert.match(discoveryMapSource, /className="absolute right-3 top-3 z-\[1000\][^"\n]*"\s+data-discovery-map-control-dock/);
+});
+
 test('Discover tools keep text search above location search without service area filtering', () => {
     const desktopPanelStart = filterPanelSource.indexOf('function DesktopFilterPanel');
     const desktopPanelEnd = filterPanelSource.indexOf('export function DiscoveryFilterPanel');
