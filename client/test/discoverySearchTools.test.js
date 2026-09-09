@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -10,6 +11,22 @@ const categoryLayerSource = readFileSync(resolve(__dirname, '../src/features/dis
 const discoverPageSource = readFileSync(resolve(__dirname, '../src/pages/DiscoverPage.jsx'), 'utf8');
 const discoveryMapSource = readFileSync(resolve(__dirname, '../src/features/discover/DiscoveryMap.jsx'), 'utf8');
 const locationHookSource = readFileSync(resolve(__dirname, '../src/features/discover/useDiscoveryLocation.js'), 'utf8');
+
+test('Discovery uses the supplied layer PNG unchanged with a softer, inset presentation', () => {
+    const icon = readFileSync(resolve(__dirname, '../src/assets/discovery-category-layer.png'));
+    assert.equal(createHash('sha256').update(icon).digest('hex'), 'ee611a27d0de2d2e56b499e8ad0e2b9a39a66d6bd32681e7977149d219c41665');
+    assert.match(categoryLayerSource, /scale-110 object-contain opacity-60/);
+});
+
+test('Discovery keeps every map control in a stationary sibling overlay on all screen sizes', () => {
+    const controlStack = discoveryMapSource.slice(discoveryMapSource.indexOf('function DiscoveryMapControlStack'), discoveryMapSource.indexOf('export function DiscoveryMap'));
+    const overlay = discoveryMapSource.indexOf('className="carearound-discovery-control-overlay');
+    assert.match(controlStack, /return createPortal\(/);
+    assert.match(controlStack, /portalTarget,/);
+    assert.doesNotMatch(controlStack, /leaflet-top/);
+    assert.ok(overlay > discoveryMapSource.indexOf('</MapContainer>'));
+    assert.match(discoveryMapSource, /portalTarget=\{controlPortalTarget\}/);
+});
 
 test('Discover tools keep text search above location search without service area filtering', () => {
     const desktopPanelStart = filterPanelSource.indexOf('function DesktopFilterPanel');
@@ -52,8 +69,8 @@ test('Discover keeps category pin layers on the map and leaves browse results in
     assert.match(categoryLayerSource, /<MobileBottomSheet/);
     assert.match(categoryLayerSource, /onOpenChange=\{handleMobileOpenChange\}/);
     assert.match(categoryLayerSource, /data-discovery-category-layer-glyph="true"/);
-    assert.match(categoryLayerSource, /h-\[26px\] w-\[26px\][^"\n]*lg:h-\[30px\] lg:w-\[30px\]/);
-    assert.match(categoryLayerSource, /<Layers3[^>]*className="h-full w-full"/s);
+    assert.match(categoryLayerSource, /src=\{categoryLayerImage\}/);
+    assert.doesNotMatch(categoryLayerSource.slice(0, categoryLayerSource.indexOf('function CloseButton')), /<(Layers3|MapPin|Heart)\b/);
     assert.match(categoryLayerSource, /className="pointer-events-auto relative flex h-full items-center"/);
 
     assert.match(discoverPageSource, /buildSavedPinCategoryOptions/);

@@ -509,6 +509,18 @@
   right: 12px !important;
 }
 
+/* Keep animated raster layers in their own paint surface. Discovery controls
+   share one stationary sibling layer at every screen size. */
+.carearound-discovery-map-canvas {
+  contain: paint;
+  isolation: isolate;
+}
+
+.carearound-discovery-control-overlay {
+  transform: translateZ(0);
+  isolation: isolate;
+}
+
 .carearound-discovery-recenter-control {
   right: 12px !important;
   top: 50px !important;
