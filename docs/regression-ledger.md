@@ -15,6 +15,58 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-09 Discovery supplied PNG and stationary controls — implementation evidence
+
+- Current behavior: the layer button uses the user's original `572 x 572` PNG,
+  not a reconstructed symbol. CSS preserves its aspect ratio, softens its black
+  artwork to gray at `60%` opacity, and uses `1.1` scale instead of the initially
+  tested `1.25` so there is more breathing room. The source PNG is unchanged;
+  SHA-256 is `ee611a27d0de2d2e56b499e8ad0e2b9a39a66d6bd32681e7977149d219c41665`.
+- Regression reference: after the previous PR #67 release, the user observed
+  disappearing/flickering controls after filtering to a small saved-pin category,
+  and an Android-tablet gray overview band at raw zoom `11.7`. The first desktop
+  replay did not reproduce the flicker; it recorded one settled camera fit.
+  The overview correction did have a confirmed gap: it ran only at the exact
+  minimum zoom, missing fractional fits above the responsive minimum.
+- Blast radius: Discovery-only presentation and overview alignment. Zoom/reset
+  controls retain their Leaflet React context but render beside Map settings and
+  categories in one stationary, paint-isolated overlay outside the animated map
+  canvas. The same component serves desktop, tablet, and phone. Below zoom `12`,
+  exposed northern background is corrected without changing longitude; the
+  existing exact-minimum centering and pan lock remain. No category semantics,
+  camera-fit targets, zoom steps, Detailed tiers/assets, My Map, Shared/embed/
+  Print, API, auth, schema, saved resources, or production data change.
+- Reproduction and acceptance: use fictional saved AAC pins around Singapore
+  plus four nearby Chinese Temple pins; select only Chinese Temple. Require all
+  five controls to remain connected, stationary, and hit-testable while zooming
+  bidirectionally through `14`, `14.5`, `15`, `15.5`, `16`, and `17.2` and panning.
+  Test `1440x900`, `1280x800` touch landscape, `800x1280` touch portrait, and
+  `390x844` phone. In mobile Map view, measure only the visible map controls,
+  not the intentionally hidden inline map. At `11.7` require no northern gray
+  band and no page overflow. Check Standard, Default/Gray Detailed, half-step
+  buttons, category popover/sheet dismissal, and the no-saved-pins message.
+- Automated verification: focused `14/14`, server `729/729`, client `799/799`,
+  four production-environment checks, eight migration checks, module graph
+  `481` modules / `1,421` edges, map lockdown `104/104`, and both configured
+  client builds passed (`2488` bundled modules). No graph configuration or
+  repository instructions changed.
+- Exact production-build browser verification: all `1,596` frame samples across
+  the four layouts kept the five visible controls connected, stationary, and
+  hit-testable (`401 / 398 / 400 / 397` samples respectively). Every layout had
+  zero top gap at raw `11.7`, zero horizontal overflow, working `17.2 -> 17.7
+  -> 17.2` buttons, and category Escape focus restoration. Gray native Detailed
+  completed all visible chunks with zero live tiles. Page errors were zero;
+  the no-saved-pins message also passed. Fixtures mocked authentication and
+  favorites only; local map asset requests forwarded the unmodified production
+  bytes to avoid localhost CORS. No real saved data was mutated.
+- This entry records pre-publication evidence. Verify the production source via
+  `/release.json` and require the guarded clean-main Pages publication plus
+  immutable/custom-domain byte, MIME, and SHA-256 parity before claiming live.
+- Remaining boundary: control paint isolation is a targeted mitigation, not a
+  proven diagnosis of the device-specific flicker. A fresh affected-device
+  replay is still required to close that report. Credentialed partner smoke is
+  not claimed; browser fixtures do not create a real authenticated session.
+
 ## 2026-09-09 Discovery saved-pin layer icon scale and alignment — released
 
 - Current behavior: Discovery's saved-pin category layer glyph nearly fills its

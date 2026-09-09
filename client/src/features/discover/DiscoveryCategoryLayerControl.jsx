@@ -1,27 +1,26 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Heart, Layers3, MapPin, X } from 'lucide-react';
+import { Layers3, X } from 'lucide-react';
 
 import MobileBottomSheet from '../../components/mobile/MobileBottomSheet.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
+import categoryLayerImage from '../../assets/discovery-category-layer.png';
 
 function CategoryLayerGlyph() {
     return (
         <span
-            className="relative inline-flex h-[26px] w-[26px] items-center justify-center lg:h-[30px] lg:w-[30px]"
+            className="inline-flex h-full w-full items-center justify-center overflow-hidden rounded-[inherit]"
             data-discovery-category-layer-glyph="true"
             aria-hidden="true"
         >
-            <Layers3 className="h-full w-full" strokeWidth={2.4} />
-            <span className="absolute left-1/2 top-[1px] inline-flex h-[14px] w-[14px] -translate-x-1/2 items-center justify-center text-brand-700 lg:h-4 lg:w-4">
-                <MapPin className="h-full w-full" fill="currentColor" strokeWidth={2.35} />
-                <Heart
-                    fill="white"
-                    stroke="white"
-                    strokeWidth={2.5}
-                    className="absolute left-1/2 top-[3px] h-[5px] w-[5px] -translate-x-1/2 lg:h-1.5 lg:w-1.5"
-                />
-            </span>
+            <img
+                src={categoryLayerImage}
+                alt=""
+                width={572}
+                height={572}
+                draggable={false}
+                className="h-full w-full max-w-none scale-110 object-contain opacity-60"
+            />
         </span>
     );
 }

@@ -11,6 +11,35 @@ Updated: 2026-09-09 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
+## 2026-09-09 Discovery supplied PNG and stationary controls — implementation evidence
+
+- Continue from the clean release checkout
+  `/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-release-20260907`, branch
+  `codex/discovery-control-stability-png-20260909`, based on `9083e7e2`.
+  The primary checkout has unrelated work and must remain untouched.
+- The original layer PNG is now used directly, softened to gray and slightly
+  inset per the user's follow-up. All Discovery map controls share a stationary
+  overlay above the animated raster canvas at every breakpoint. The overview
+  top alignment also handles fractional tablet fits below `12`, including the
+  reported `11.7`; approved minimum zooms and detailed-map tiers are unchanged.
+- Focused `14/14`, server `729/729`, final client `799/799` plus four environment
+  checks, map lockdown `104/104`, migration/module checks, and both configured
+  builds passed. The exact production-build browser replay passed `1,596` frame
+  samples across desktop, touch landscape/portrait tablet, and phone. Controls
+  remained stationary/hit-testable; raw `11.7` had no top gap or overflow;
+  half-step buttons, category focus return, the empty state, and fully loaded
+  Gray Detailed with zero live tiles passed. See the ledger for blast radius.
+- User approval includes commit, push, and deploy after verification. Release
+  only through `npm run deploy:client` from clean, current `main`, then verify
+  immutable/custom-domain bytes and MIME types, the PNG, map roots, and core
+  Help/Inbox routes. This entry records pre-publication evidence: read the live
+  `/release.json` for current deployment provenance rather than assuming that
+  this source note alone proves publication. No Worker/Neon/data release is needed.
+- The original flicker has not reproduced in the initial desktop replay;
+  physical Android-tablet confirmation remains required even after automated
+  cross-layout checks. Credentialed partner smoke remains unclaimed. The next
+  step after publication is to replay the small-category case on that tablet.
+
 ## 2026-09-09 Discovery saved-pin layer icon alignment — released
 
 - Discovery's saved-pin layer glyph now nearly fills its existing map-control
