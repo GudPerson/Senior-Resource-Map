@@ -10,6 +10,7 @@ import TownMapModeControl from '../../components/TownMapModeControl.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { useMapStyle } from '../../contexts/MapStyleContext.jsx';
 import homeAnchorImage from '../../assets/home-anchor.png';
+import DiscoveryCategoryLayerControl from './DiscoveryCategoryLayerControl.jsx';
 import DiscoverDetailedBasemap, { DISCOVER_DETAILED_MAP_ENABLED } from './DiscoverDetailedBasemap.jsx';
 import { DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM } from './discoverDetailedMap.js';
 import { createPostalGroupParentPinIcon, createSavedPlacePinIcon } from './discoverUtils.js';
@@ -789,10 +790,12 @@ function DiscoverDetailedLoadingIndicator({ status }) {
 
 export function DiscoveryMap({
     cameraAnchor = null,
+    categoryOptions = [],
     focusRequest = null,
     interactionMode = 'desktop',
     layoutSignature = 'default',
     onBackgroundClick,
+    onChangeCategorySelection,
     onMapHoverEnd,
     onMapHoverStart,
     onMapMoveEnd,
@@ -803,6 +806,7 @@ export function DiscoveryMap({
     pinEmphasisByKey = new Map(),
     renderedSavedPlacePins = null,
     savedPlacePins,
+    selectedMapCategoryKeys = [],
     trackedPinKey = null,
     transientPlacePins = [],
     userLocation,
@@ -944,7 +948,10 @@ export function DiscoveryMap({
                 ) : null}
             </MapContainer>
             <DiscoverDetailedLoadingIndicator status={detailedStatus} />
-            <div className="absolute right-3 top-3 z-[1002]">
+            <div
+                className="absolute right-3 top-3 z-[1002] flex items-start gap-2"
+                data-discovery-map-control-dock="true"
+            >
                 <MapSettingsControl
                     detailedMinZoom={DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM}
                     mapDetailDescription="Choose Standard at any zoom, or Detailed from level 14."
@@ -958,6 +965,11 @@ export function DiscoveryMap({
                         />
                     ) : null}
                     showMapStyleControl
+                />
+                <DiscoveryCategoryLayerControl
+                    categoryOptions={categoryOptions}
+                    onChangeCategorySelection={onChangeCategorySelection}
+                    selectedCategoryKeys={selectedMapCategoryKeys}
                 />
             </div>
             <div className="hidden lg:block">

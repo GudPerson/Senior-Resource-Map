@@ -6,7 +6,9 @@ import { dirname, resolve } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const filterPanelSource = readFileSync(resolve(__dirname, '../src/features/discover/DiscoveryFilterPanel.jsx'), 'utf8');
+const categoryLayerSource = readFileSync(resolve(__dirname, '../src/features/discover/DiscoveryCategoryLayerControl.jsx'), 'utf8');
 const discoverPageSource = readFileSync(resolve(__dirname, '../src/pages/DiscoverPage.jsx'), 'utf8');
+const discoveryMapSource = readFileSync(resolve(__dirname, '../src/features/discover/DiscoveryMap.jsx'), 'utf8');
 const locationHookSource = readFileSync(resolve(__dirname, '../src/features/discover/useDiscoveryLocation.js'), 'utf8');
 
 test('Discover tools keep text search above location search without service area filtering', () => {
@@ -37,15 +39,29 @@ test('Discover postal search applies automatically and no longer exposes radius 
     assert.doesNotMatch(filterPanelSource, /type="submit"/);
 });
 
-test('Discover exposes the same category checkbox selection to desktop, mobile, results, and map pins', () => {
-    assert.match(filterPanelSource, /function CategoryCheckboxFilter/);
-    assert.match(filterPanelSource, /type="checkbox"/);
-    assert.match(filterPanelSource, /selectedCategoryKeys/);
-    assert.match(filterPanelSource, /onChangeCategorySelection/);
-    assert.match(discoverPageSource, /filterDiscoveryResourcesByCategoryKeys/);
-    assert.match(discoverPageSource, /categoryFilteredSavedAssets/);
-    assert.match(discoverPageSource, /selectedCategoryKeys=\{selectedCategoryKeys\}/);
-    assert.match(discoverPageSource, /categoryOptions=\{categoryOptions\}/);
+test('Discover keeps category pin layers on the map and leaves browse results independent', () => {
+    assert.doesNotMatch(filterPanelSource, /CategoryCheckboxFilter/);
+    assert.doesNotMatch(filterPanelSource, /categoryOptions/);
+    assert.doesNotMatch(filterPanelSource, /selectedCategoryKeys/);
+    assert.doesNotMatch(filterPanelSource, /onChangeCategorySelection/);
+
+    assert.match(categoryLayerSource, /data-discovery-category-layer-control="true"/);
+    assert.match(categoryLayerSource, /type="checkbox"/);
+    assert.match(categoryLayerSource, /data-discovery-category-layer-empty="true"/);
+    assert.match(categoryLayerSource, /aria-expanded=\{open\}/);
+    assert.match(categoryLayerSource, /<MobileBottomSheet/);
+    assert.match(categoryLayerSource, /onOpenChange=\{handleMobileOpenChange\}/);
+
+    assert.match(discoverPageSource, /buildSavedPinCategoryOptions/);
+    assert.match(discoverPageSource, /filterSavedPinsByCategoryKeys/);
+    assert.match(discoverPageSource, /const filteredUniverse = filteredUniverseBeforeCategories;/);
+    assert.match(discoverPageSource, /selectedMapCategoryKeys=\{effectiveSelectedMapCategoryKeys\}/);
+    assert.match(discoverPageSource, /categoryOptions=\{savedPinCategoryOptions\}/);
+    assert.match(discoverPageSource, /const revealAllSavedPins = !targetVisible/);
+    assert.match(discoverPageSource, /setSelectedMapCategoryKeys\(\[\]\)/);
+    assert.match(discoveryMapSource, /<DiscoveryCategoryLayerControl/);
+    assert.doesNotMatch(discoverPageSource, /filterDiscoveryResourcesByCategoryKeys/);
+    assert.doesNotMatch(discoverPageSource, /categoryFilteredSavedAssets/);
 });
 
 test('Discover mobile map mode uses Browse as the only header action', () => {
