@@ -11,6 +11,38 @@ Updated: 2026-09-09 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
+## 2026-09-09 Discovery Chrome paint corruption — release candidate
+
+- Continue in the clean release checkout
+  `/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-release-20260907`, branch
+  `codex/discovery-control-paint-corruption-20260909`, based on production main
+  `d73ba444`. Preserve the unrelated dirty primary checkout. Graft was queried
+  against this exact release checkout; no repository instructions or Graft
+  configuration changed.
+- The user's current desktop and Android-tablet evidence shows a paint failure,
+  not missing React controls: controls, navbar/search/category content, and
+  Detailed imagery disappear visually while their hit targets still respond.
+  Read-only inspection of the affected production tab confirmed healthy DOM,
+  layout, opacity, z-index, hit testing, and a fully loaded Detailed surface.
+  Commit `5154a0ec` had forced the entire stationary controls overlay into a GPU
+  layer above four large Leaflet-transformed images. The targeted correction
+  removes only that `translateZ(0)`/overlay isolation and leaves raster-canvas
+  paint containment, all layout/behavior, and all backend/data surfaces intact.
+- Focused tests passed `9/9`; quality passed eight migrations, `481` modules /
+  `1,421` edges, server `729/729`, client `802/802`, four environment checks,
+  and the exact `2,488`-module production build. Map lockdown passed `104/104`
+  plus its configured build. An isolated production-origin replay with fictional
+  favorites passed 24 category/settings/zoom/pan cycles on both retina desktop
+  and touch landscape with all five controls visible and hit-testable, a white
+  category panel, healthy Detailed imagery, zero scroll, and zero page errors.
+- The user authorized production release and will test there. Proceed through PR
+  and the guarded clean-main `npm run deploy:client`; verify immutable and custom
+  domain byte/MIME/hash parity, required map roots, core Help/Inbox routes, and a
+  production-origin replay without the candidate override. Do not deploy the
+  Worker, Neon, schema, map assets, auth changes, secrets, or data. Do not mark
+  the physical desktop/tablet report closed until the user confirms it after a
+  refresh and repeated settings/category interactions.
+
 ## 2026-09-09 Discovery viewport/header and dropdown stacking — production release approved
 
 - Continue in `/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-release-20260907`,

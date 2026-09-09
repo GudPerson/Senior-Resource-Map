@@ -15,6 +15,52 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-09 Discovery Chrome paint corruption after repeated control use — release candidate
+
+- Current production regression: after several Map settings/category-layer
+  interactions, the user's desktop and Android-tablet Chrome sessions can stop
+  painting the map controls, navbar text, search content, category-panel content,
+  and parts of the Detailed raster. The invisible controls remain clickable and
+  can repaint temporarily. Read-only inspection of the affected desktop tab at
+  release `d73ba444` / entry `assets/index-CL6nXhwv.js` found the missing DOM
+  connected, visible, opaque, correctly positioned, and hit-testable. The active
+  Detailed surface was healthy (`surface-ready`, `4/4` chunks, `36,532,224`
+  decoded bytes), so this is not a React unmount, stacking, tile-loading, or
+  saved-category state failure.
+- Regression reference and cause: commit `5154a0ec` forced the entire stationary
+  control overlay into its own GPU layer with `translateZ(0)` and `isolation`,
+  above four large Leaflet-transformed Detailed images. That mitigation was
+  recorded as unproven and temporally matches the new cross-page paint loss.
+  The narrow correction removes only that forced control-layer promotion while
+  retaining paint containment and isolation on the animated raster canvas.
+- Blast radius: Discovery-only compositing. The settings/category controls stay
+  in their existing stationary sibling overlay above Leaflet, with the same
+  z-index, responsive placement, supplied PNG, panel background, focus behavior,
+  category semantics, camera fits, zoom floors/steps, Detailed tiers/assets, and
+  decoded-memory ceiling. My Map, Shared/embed/Print, API, auth, schema, saved
+  resources, and production data are unchanged.
+- Reproduction and acceptance: with fictional saved AACs plus four Chinese
+  Temple pins, alternate All saved pins / Chinese Temple, open and dismiss both
+  category and settings panels, animate between zoom `15.5` and `17.4`, and pan.
+  Repeat at least 24 cycles on retina desktop `1470x801` and touch landscape
+  `1280x720`. Require settings, category, reset, zoom-in, and zoom-out controls
+  to remain connected, visible, and hit-testable; zero document scroll; a solid
+  white category panel; a healthy Detailed surface; and zero page errors.
+- Verification: focused Discovery search/control tests passed `9/9`; the complete
+  quality gate passed eight migrations, `481` modules / `1,421` import edges,
+  server `729/729`, client `802/802`, four production-environment checks, and the
+  exact `2,488`-module production client build. Map lockdown passed `104/104`
+  plus its configured build. A production-origin candidate test applying the
+  exact CSS correction passed all 24 cycles on both retina desktop and touch
+  landscape; both ended with a solid white category panel, visible hit-testable
+  controls, `surface-ready` Detailed imagery, no scroll, and no page errors.
+- Release boundary: this is strong evidence for a browser compositor regression,
+  but automated visibility checks cannot close the original physical-device
+  report. Publish only through the guarded client release, verify exact artifact
+  parity and an unmodified production-origin interaction replay, then retain
+  desktop/tablet confirmation as user UAT. No Worker, Neon, schema, map-asset,
+  auth, secret, or production-data deployment is required.
+
 ## 2026-09-09 Discovery viewport/header and dropdown stacking — release approved, device test pending
 
 - Proven regression: the affected regular Chrome tab was running the PR #70

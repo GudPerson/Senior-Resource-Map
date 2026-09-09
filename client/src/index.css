@@ -510,14 +510,9 @@
 }
 
 /* Keep animated raster layers in their own paint surface. Discovery controls
-   share one stationary sibling layer at every screen size. */
+   stay in the stationary sibling overlay without forced GPU promotion. */
 .carearound-discovery-map-canvas {
   contain: paint;
-  isolation: isolate;
-}
-
-.carearound-discovery-control-overlay {
-  transform: translateZ(0);
   isolation: isolate;
 }
 

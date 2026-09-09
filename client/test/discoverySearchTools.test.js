@@ -10,6 +10,7 @@ const filterPanelSource = readFileSync(resolve(__dirname, '../src/features/disco
 const categoryLayerSource = readFileSync(resolve(__dirname, '../src/features/discover/DiscoveryCategoryLayerControl.jsx'), 'utf8');
 const discoverPageSource = readFileSync(resolve(__dirname, '../src/pages/DiscoverPage.jsx'), 'utf8');
 const discoveryMapSource = readFileSync(resolve(__dirname, '../src/features/discover/DiscoveryMap.jsx'), 'utf8');
+const indexCssSource = readFileSync(resolve(__dirname, '../src/index.css'), 'utf8');
 const locationHookSource = readFileSync(resolve(__dirname, '../src/features/discover/useDiscoveryLocation.js'), 'utf8');
 
 test('Discovery uses the supplied layer PNG unchanged with a softer, inset presentation', () => {
@@ -26,6 +27,11 @@ test('Discovery keeps every map control in a stationary sibling overlay on all s
     assert.doesNotMatch(controlStack, /leaflet-top/);
     assert.ok(overlay > discoveryMapSource.indexOf('</MapContainer>'));
     assert.match(discoveryMapSource, /portalTarget=\{controlPortalTarget\}/);
+});
+
+test('Discovery isolates detailed imagery without forcing the controls into a GPU layer', () => {
+    assert.match(indexCssSource, /\.carearound-discovery-map-canvas\s*\{[^}]*contain:\s*paint;/s);
+    assert.doesNotMatch(indexCssSource, /\.carearound-discovery-control-overlay\s*\{[^}]*(?:translateZ|translate3d|will-change|isolation)/s);
 });
 
 test('Discovery fits below the fixed navbar independently of accessible text size', () => {
