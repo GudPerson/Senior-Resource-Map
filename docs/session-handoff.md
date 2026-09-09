@@ -11,6 +11,38 @@ Updated: 2026-09-09 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
+## 2026-09-09 Discovery saved-pin category map layer — released
+
+- Discovery's category filter now lives in a dedicated pin-layer control beside
+  Map settings. It filters only the user's saved, mappable pins and leaves the
+  public result cards, counts, order, and bulk-save candidates unchanged.
+  Available choices come only from categories represented by saved pins on the
+  current map. No selection shows all saved pins; multiple selections use union
+  semantics; and an account with no saved map pins sees
+  `No saved pins to filter yet.`
+- `View on map` safely clears an active category layer before focusing a saved
+  resource that would otherwise be hidden. Desktop uses a popover and mobile a
+  bottom sheet; Escape closes either layout and restores focus to its trigger.
+- Validation passed focused `19/19`, full client `797/797` plus four production
+  checks, map lockdown `104/104`, the production client build, and the complete
+  `npm run verify:quality` gate. Fictional-auth browser QA passed saved-category
+  counts and union/reset behavior at `1920x1080` and `390x844`, kept the public
+  result count at `3,481`, showed the empty state, and found no overlap or
+  horizontal overflow.
+- Implementation `b310dd5c` merged through PR #65 as `722497e2`. Required
+  GitHub quality and Cloudflare preview checks passed; legacy Netlify failures
+  were excluded under the repository's Cloudflare release policy. The guarded
+  client release uploaded `87` served files plus the Functions bundle and
+  `_routes.json` to `https://5b3b6912.senior-resource-map.pages.dev`. All served
+  files matched the exact local build, immutable deployment, and
+  `https://app.carearound.sg` by bytes, MIME type, and SHA-256; aggregate SHA-256
+  is `54c5b24cab48be50b50d24a4bf8b1261b053a8484c1135b55d624c6d630cc2fd`.
+  Production browser verification passed the same desktop/mobile layer behavior,
+  API health, anti-framing headers, and guest private-route denial. Credentialed
+  partner smoke remains unclaimed because this checkout has no configured smoke
+  username or password. No Worker, Neon, schema, migration, auth, secret, or
+  production-data change occurred.
+
 ## 2026-09-09 Discovery category visibility and minimum-overview alignment — released
 
 - Discovery now has a shared desktop/mobile multi-category checkbox filter.

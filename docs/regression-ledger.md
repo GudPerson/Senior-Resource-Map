@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-09 Discovery saved-pin category layer refinement — validated locally, not released
+## 2026-09-09 Discovery saved-pin category layer refinement — released
 
 - Current behavior: Discovery's category control has moved out of the search
   panel and into a dedicated pin-layer button beside Map settings. Its choices
@@ -63,11 +63,37 @@ Rules:
   closes and restores focus to the trigger in both layouts. The only console
   errors were the known OneMap localhost CORS rejection in the fictional
   home-postal empty-state fixture. No real saved resource, authenticated account,
-  API, schema, secret, or production data was mutated. Release evidence follows
-  after the approved commit, push, and client deployment. The complete
+  API, schema, secret, or production data was mutated. The complete
   `npm run verify:quality` gate also passed after the mobile focus refinement,
   covering migration ownership, the module graph, full server and client tests,
   production environment checks, and the production-configured client build.
+- Production release evidence: implementation commit `b310dd5c` merged through
+  PR #65 as `722497e21f69232457cdb3fd1f36766554659ab9`; its required GitHub
+  `verify-quality` workflow and Cloudflare Pages preview passed. Legacy Netlify
+  preview checks failed and were excluded because Netlify is not an active
+  CareAround release target. The guarded client deployment rebuilt clean `main`,
+  uploaded all `87` served files plus the Functions bundle and `_routes.json`,
+  and created `https://5b3b6912.senior-resource-map.pages.dev`. Every local
+  served file matched the immutable deployment and `https://app.carearound.sg`
+  by bytes and SHA-256, with immutable/custom-domain MIME parity. The aggregate
+  SHA-256 is
+  `54c5b24cab48be50b50d24a4bf8b1261b053a8484c1135b55d624c6d630cc2fd`;
+  the release manifest reports clean `git-build` provenance at `722497e2` and
+  HTML SHA-256
+  `f7618f73e38aab564cf6b323f4fb8c2a43ba77981b3056957097676eef42cd54`.
+  Production Chrome QA used fictional authentication and mocked favourites to
+  confirm the control is on the map rather than in the search panel, exposes
+  exactly `All saved pins`, `AAC 1`, `RN 1`, and `TCM 1`, applies one- and
+  two-category union behavior, restores all pins, leaves the public result count
+  at `3481`, and fits desktop and mobile without overflow. The served entry
+  bundle was `assets/index-CEbT6AB-.js`. The app shell, Discovery, Help, and
+  Inbox returned `200` with anti-framing headers; API health returned `200`/`ok`;
+  and guest notifications, saved searches, Guide history, and notification
+  preferences remained `401`. The only browser console errors were expected
+  unread-count `401` responses because fictional auth had no real server session.
+  Credentialed partner smoke remains unclaimed because
+  `SMOKE_PARTNER_USERNAME` and `SMOKE_PARTNER_PASSWORD` are unset. No Worker,
+  Neon, schema, migration, auth, secret, or production-data change occurred.
 
 ## 2026-09-09 Discovery category visibility and minimum-overview alignment — released
 
