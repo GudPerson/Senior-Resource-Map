@@ -1,6 +1,6 @@
 # CareAround SG session handoff
 
-Updated: 2026-09-09 (Asia/Singapore)
+Updated: 2026-09-10 (Asia/Singapore)
 
 ## Start here
 
@@ -10,6 +10,36 @@ Updated: 2026-09-09 (Asia/Singapore)
 - Release platform: Cloudflare Pages for the client and Cloudflare Worker for the API.
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
+
+## 2026-09-10 Discovery saved-pin search-row layer control — release candidate
+
+- Continue in the clean release checkout
+  `/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-release-20260907`, branch
+  `codex/discovery-search-pin-layer-20260910`, based on stable production main
+  `15f2f08e`. Preserve the unrelated dirty primary checkout.
+- Discovery now places the saved-pin category button after the search field on
+  desktop, tablet, and phone, using the user's supplied PNG directly. The menu
+  derives categories only from saved mappable pins and shows
+  `No saved pins to filter yet.` when none exist. Selection filters rendered
+  saved map pins only; results, counts, ordering, pagination, Saved only, and
+  bulk save are unchanged. The full unfiltered pin set still controls map fit,
+  reset, and camera state, so category selection does not recenter the map.
+- Focused coverage passed `11/11`; the full quality gate passed server
+  `729/729`, client `797/797`, the production environment validator `4/4`,
+  eight migration records, and `481` modules / `1,421` relative-import edges
+  with no cycles. The exact production build transformed `2,488` modules.
+  Fictional-data
+  responsive UAT passed desktop `1470 x 900`, tablet `1280 x 800`, and phone
+  `390 x 844`, including supplied-icon fidelity, solid menu backgrounds,
+  saved-mappable-only categories, exact empty state, stable results/counts/
+  ordering, marker-only filtering, and zero overflow. A settled desktop/tablet
+  pass preserved zoom and map transform after selection and passed six repeated
+  open/hover/close cycles per size with no page errors.
+- The release is client-only. Merge and push the validated branch, deploy only
+  through `npm run deploy:client` from a clean `main` matching `origin/main`,
+  then verify the immutable/custom-domain artifact and core public routes.
+  Authenticated production saved-pin interaction remains user UAT; do not touch
+  the Worker, Neon, schema, map assets, authentication, secrets, or data.
 
 ## 2026-09-09 Discovery category map-layer rollback — release candidate
 

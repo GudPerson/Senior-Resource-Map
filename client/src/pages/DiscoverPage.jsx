@@ -6,11 +6,6 @@ import { Drawer } from 'vaul';
 import { api } from '../lib/api.js';
 import { getDistance } from '../lib/geo.js';
 import { applyDiscoveryTabParam, normalizeDiscoveryTabParam } from '../lib/discoveryUrlState.js';
-import {
-    buildDiscoveryCategoryOptions,
-    filterDiscoveryResourcesByCategoryKeys,
-    matchesDiscoveryCategorySelection,
-} from '../lib/discoveryCategoryFilter.js';
 import { stripMarkdownLite } from '../lib/markdownLite.js';
 import { fetchAllPaginatedResults } from '../lib/paginatedResults.js';
 import { normalizeDiscoveryCacheRows } from '../lib/discoveryCache.js';
@@ -25,6 +20,10 @@ import { useSplitPaneResize } from '../hooks/useSplitPaneResize.js';
 import DiscoveryFilterPanel from '../features/discover/DiscoveryFilterPanel.jsx';
 import DesktopSavedPlaceDetailPanel from '../features/discover/DesktopSavedPlaceDetailPanel.jsx';
 import DiscoveryMap from '../features/discover/DiscoveryMap.jsx';
+import {
+    buildSavedPinCategoryOptions,
+    filterSavedPinsByCategoryKeys,
+} from '../features/discover/discoveryPinLayers.js';
 import SharedDiscoverPostalGroupListPanel from '../features/discover/DiscoverPostalGroupListPanel.jsx';
 import { DiscoveryResultsList } from '../features/discover/DiscoveryResultsList.jsx';
 import SavedMapEmptyState from '../features/discover/SavedMapEmptyState.jsx';
@@ -281,7 +280,7 @@ export default function DiscoverPage() {
     const [favoritesActionNotice, setFavoritesActionNotice] = useState('');
     const [saveAllPendingAction, setSaveAllPendingAction] = useState(null);
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-    const [selectedCategoryKeys, setSelectedCategoryKeys] = useState([]);
+    const [selectedMapPinCategoryKeys, setSelectedMapPinCategoryKeys] = useState([]);
     const [desktopPaneMode, setDesktopPaneMode] = useState('browse');
     const [selectedPlacePinKey, setSelectedPlacePinKey] = useState(null);
     const [expandedPostalGroupKey, setExpandedPostalGroupKey] = useState(null);
@@ -561,7 +560,7 @@ export default function DiscoverPage() {
     // Reset visible batch when filters change
     useEffect(() => {
         setVisibleCount(listPageSize);
-    }, [activeDiscoverySubregion, activeTab, listPageSize, search, searchOrigin, selectedCategoryKeys, showFavoritesOnly]);
+    }, [activeDiscoverySubregion, activeTab, listPageSize, search, searchOrigin, showFavoritesOnly]);
 
     const clearHoveredCardState = useCallback(() => {
         setHoveredPinKeys([]);
@@ -608,7 +607,7 @@ export default function DiscoverPage() {
         clearHoveredCardState();
         clearLockedCardState();
         clearTransientFocusState();
-    }, [clearHoveredCardState, clearLockedCardState, clearTransientFocusState, isDesktop, searchOrigin, selectedCategoryKeys]);
+    }, [clearHoveredCardState, clearLockedCardState, clearTransientFocusState, isDesktop, searchOrigin, selectedMapPinCategoryKeys]);
 
     const isPubliclyVisible = useCallback((asset) => {
         if (asset.isHidden) return false;
@@ -742,15 +741,7 @@ export default function DiscoverPage() {
         user,
     ]);
 
-    const categoryOptions = useMemo(() => buildDiscoveryCategoryOptions(
-        allDiscoveryItems,
-        filteredUniverseBeforeCategories,
-        { otherLabel: t('discoveryOtherCategory') },
-    ), [allDiscoveryItems, filteredUniverseBeforeCategories, t]);
-
-    const filteredUniverse = useMemo(() => (
-        filterDiscoveryResourcesByCategoryKeys(filteredUniverseBeforeCategories, selectedCategoryKeys)
-    ), [filteredUniverseBeforeCategories, selectedCategoryKeys]);
+    const filteredUniverse = filteredUniverseBeforeCategories;
 
     const tabCounts = useMemo(() => ({
         all: filteredUniverse.length,
@@ -967,31 +958,33 @@ export default function DiscoverPage() {
         user,
     ]);
 
-    const discoveryAssetLookup = useMemo(() => new Map(
-        allDiscoveryItems.map((resource) => [buildSavedAssetKey(resource._type, resource.id), resource]),
-    ), [allDiscoveryItems]);
-
-    const categoryFilteredSavedAssets = useMemo(() => {
-        if (selectedCategoryKeys.length === 0) return savedAssets;
-
-        return savedAssets.filter((savedAsset) => {
-            const assetKey = buildSavedAssetKey(savedAsset.resourceType, savedAsset.resourceId);
-            const liveAsset = discoveryAssetLookup.get(assetKey);
-            return matchesDiscoveryCategorySelection(
-                liveAsset?.subCategory ?? savedAsset.subCategory,
-                selectedCategoryKeys,
-            );
-        });
-    }, [discoveryAssetLookup, savedAssets, selectedCategoryKeys]);
-
     const savedPlacePinData = useMemo(() => (
-        buildSavedPlacePins(categoryFilteredSavedAssets, visibleHardAssets, visibleSoftAssets, {
+        buildSavedPlacePins(savedAssets, visibleHardAssets, visibleSoftAssets, {
             userLocation: effectiveUserLocation,
             categoryMetaByKey: subCategoryMetaByKey,
         })
-    ), [categoryFilteredSavedAssets, effectiveUserLocation, subCategoryMetaByKey, visibleHardAssets, visibleSoftAssets]);
+    ), [effectiveUserLocation, savedAssets, subCategoryMetaByKey, visibleHardAssets, visibleSoftAssets]);
 
     const savedPlacePins = savedPlacePinData.pins;
+    const mapPinCategoryOptions = useMemo(() => buildSavedPinCategoryOptions(
+        savedPlacePins,
+        { otherLabel: t('discoveryOtherCategory') },
+    ), [savedPlacePins, t]);
+    useEffect(() => {
+        const availableCategoryKeys = new Set(mapPinCategoryOptions.map((option) => option.key));
+        setSelectedMapPinCategoryKeys((currentKeys) => {
+            const nextKeys = currentKeys.filter((key) => availableCategoryKeys.has(key));
+            return nextKeys.length === currentKeys.length ? currentKeys : nextKeys;
+        });
+    }, [mapPinCategoryOptions]);
+    const visibleSavedPlacePins = useMemo(() => filterSavedPinsByCategoryKeys(
+        savedPlacePins,
+        selectedMapPinCategoryKeys,
+    ), [savedPlacePins, selectedMapPinCategoryKeys]);
+    const visibleSavedPinKeySet = useMemo(
+        () => new Set(visibleSavedPlacePins.map((pin) => pin.pinKey)),
+        [visibleSavedPlacePins]
+    );
     const savedPlacePinLookup = useMemo(
         () => new Map(savedPlacePins.map((pin) => [pin.pinKey, pin])),
         [savedPlacePins]
@@ -1001,12 +994,12 @@ export default function DiscoverPage() {
         [transientPlacePins]
     );
     const interactivePinLookup = useMemo(
-        () => new Map([...savedPlacePins, ...transientPlacePins].map((pin) => [pin.pinKey, pin])),
-        [savedPlacePins, transientPlacePins]
+        () => new Map([...visibleSavedPlacePins, ...transientPlacePins].map((pin) => [pin.pinKey, pin])),
+        [transientPlacePins, visibleSavedPlacePins]
     );
     const groupedSavedPlacePinData = useMemo(
-        () => buildPostalGroupedSavedPlacePins(savedPlacePins),
-        [savedPlacePins]
+        () => buildPostalGroupedSavedPlacePins(visibleSavedPlacePins),
+        [visibleSavedPlacePins]
     );
     const postalGroups = groupedSavedPlacePinData.groups;
     const postalGroupLookup = useMemo(
@@ -1081,9 +1074,13 @@ export default function DiscoverPage() {
         setFlyTarget(null);
     }, [flyTarget, savedPlacePins, setFlyTarget]);
 
-    const savedMapAssetKeys = useMemo(
-        () => new Set(savedPlacePinData.contributingAssetKeys),
-        [savedPlacePinData.contributingAssetKeys]
+    const visibleSavedMapAssetKeys = useMemo(
+        () => new Set(visibleSavedPlacePins.flatMap((pin) => (
+            Array.isArray(pin.savedAssets)
+                ? pin.savedAssets.map((savedAsset) => savedAsset.assetKey).filter(Boolean)
+                : []
+        ))),
+        [visibleSavedPlacePins]
     );
     const hasSavedMapPins = savedPlacePins.length > 0;
     const savedAssetCount = savedAssets.length;
@@ -1135,13 +1132,13 @@ export default function DiscoverPage() {
 
     useEffect(() => {
         if (!lockedAssetKey) return;
-        const stillExists = savedMapAssetKeys.has(lockedAssetKey);
+        const stillExists = visibleSavedMapAssetKeys.has(lockedAssetKey);
         if (!stillExists) {
             setLockedAssetKey(null);
             setLockedPinKeys([]);
             setLockedPrimaryPinKey(null);
         }
-    }, [lockedAssetKey, savedMapAssetKeys]);
+    }, [lockedAssetKey, visibleSavedMapAssetKeys]);
 
     useEffect(() => {
         if (!isDesktop || desktopPaneMode !== 'browse') return;
@@ -1175,8 +1172,9 @@ export default function DiscoverPage() {
         if (!asset) return [];
         const normalizedAsset = asset._type ? asset : { ...asset, _type: asset.asset_type };
         const assetKey = buildSavedAssetKey(normalizedAsset._type, normalizedAsset.id);
-        return savedPlacePinData.assetToPinKeys.get(assetKey) || [];
-    }, [savedPlacePinData.assetToPinKeys]);
+        return (savedPlacePinData.assetToPinKeys.get(assetKey) || [])
+            .filter((pinKey) => visibleSavedPinKeySet.has(pinKey));
+    }, [savedPlacePinData.assetToPinKeys, visibleSavedPinKeySet]);
 
     const resolvePostalGroupForPinKeys = useCallback((pinKeys = []) => {
         if (!pinKeys.length) return null;
@@ -1287,10 +1285,10 @@ export default function DiscoverPage() {
 
     useEffect(() => {
         if (!transientFocusAssetKey) return;
-        if (savedMapAssetKeys.has(transientFocusAssetKey)) {
+        if (visibleSavedMapAssetKeys.has(transientFocusAssetKey)) {
             clearTransientFocusState();
         }
-    }, [clearTransientFocusState, savedMapAssetKeys, transientFocusAssetKey]);
+    }, [clearTransientFocusState, transientFocusAssetKey, visibleSavedMapAssetKeys]);
 
     const buildTransientPlacePinsForAsset = useCallback((asset) => {
         if (!asset) {
@@ -1824,7 +1822,7 @@ export default function DiscoverPage() {
         const relatedPinKeySet = new Set(activeRelatedPinKeys);
         const useUniformGroupEmphasis = relatedPinKeySet.size > 1 && !selectedPlacePinKey && !hoveredMapPinKey;
 
-        savedPlacePins.forEach((pin) => {
+        visibleSavedPlacePins.forEach((pin) => {
             let emphasis = 'default';
 
             if (useUniformGroupEmphasis && relatedPinKeySet.has(pin.pinKey)) {
@@ -1857,7 +1855,7 @@ export default function DiscoverPage() {
         activePrimaryPinKey,
         activeRelatedPinKeys,
         hoveredMapPinKey,
-        savedPlacePins,
+        visibleSavedPlacePins,
         selectedPlacePinKey,
         transientPlacePins,
         transientPrimaryPinKey,
@@ -2156,7 +2154,6 @@ export default function DiscoverPage() {
     const filterPanel = (
         <DiscoveryFilterPanel
             activeTab={activeTab}
-            categoryOptions={categoryOptions}
             canShowSaveAll={canShowSaveAllControl}
             canClearLocationSearch={hasUserSelectedLocationFilter}
             clearLocationSearch={handleClearLocationSearch}
@@ -2170,9 +2167,10 @@ export default function DiscoverPage() {
             isSaveAllIndeterminate={isSaveAllIndeterminate}
             isSaveAllPending={Boolean(saveAllPendingAction) || isBulkFavoritesPending}
             locationNotice={locationNotice}
+            mapPinCategoryOptions={mapPinCategoryOptions}
             mobileMode={mobileMode}
             mobileCardDensity={mobileCardDensity}
-            onChangeCategorySelection={setSelectedCategoryKeys}
+            onChangeMapPinCategorySelection={setSelectedMapPinCategoryKeys}
             onChangeMobileCardDensity={setMobileCardDensity}
             onCollapsedPullExpand={handleCollapsedSearchPanelPull}
             onCollapse={handleCollapseSearchPanel}
@@ -2181,7 +2179,7 @@ export default function DiscoverPage() {
             onOpenMap={() => setMobileMode('map')}
             onSearchChange={handleSearchChange}
             onToggleSaveAll={handleToggleSaveAll}
-            pinCount={savedPlacePins.length}
+            pinCount={visibleSavedPlacePins.length}
             postalInput={postalInput}
             resultCount={filtered.length}
             savedAssetCount={savedAssetCount}
@@ -2189,7 +2187,7 @@ export default function DiscoverPage() {
             saveAllPendingLabel={saveAllPendingAction === 'remove' ? t('discoverySaveAllClearing') : t('discoverySaveAllSaving')}
             search={search}
             searchOrigin={searchOrigin}
-            selectedCategoryKeys={selectedCategoryKeys}
+            selectedMapPinCategoryKeys={selectedMapPinCategoryKeys}
             setActiveTab={setActiveTab}
             setPostalInput={setPostalInput}
             setShowFavoritesOnly={setShowFavoritesOnly}
@@ -2220,7 +2218,7 @@ export default function DiscoverPage() {
             onResultsTouchStart={handleResultsListTouchStart}
             onResultsWheel={handleResultsListWheel}
             onTagClick={handleSearchChange}
-            savedMapAssetKeys={savedMapAssetKeys}
+            savedMapAssetKeys={visibleSavedMapAssetKeys}
             scrollContainerRef={resultsListRef}
             selectedAssetKey={selectedBrowseAssetKey}
             subCatColors={subCatColors}

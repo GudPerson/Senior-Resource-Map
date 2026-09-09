@@ -15,6 +15,61 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-10 Discovery saved-pin search-row layer control — release candidate
+
+- Current behavior: Discovery places a compact saved-pin layer button directly
+  after the search field on desktop, tablet, and phone. The button uses the
+  user's supplied PNG without redrawing or changing its aspect ratio. Its menu
+  lists only categories represented by saved resources that can currently be
+  plotted on the map, including the number of plotted locations in each
+  category. With no saved mappable pins, it displays exactly `No saved pins to
+  filter yet.` Selecting one or more categories changes saved map pins only;
+  Discovery results, tab and result counts, ordering, pagination, Saved only,
+  and bulk save remain unchanged.
+- Known-good reference: branch
+  `codex/discovery-search-pin-layer-20260910`, based on the stable map-layer
+  rollback at `15f2f08e`. The new control remains in the search UI rather than
+  the Leaflet map overlay. The unfiltered saved-pin set continues to drive the
+  camera, fit, reset, and map-empty decisions, while a separate filtered set is
+  used only for rendered saved pins and their interactions.
+- Blast radius: client-only Discovery presentation and saved-pin rendering.
+  No Worker, API, authentication, database, production data, Detailed-map
+  source, zoom floor/step, My Map, Shared/embed/Print, Help, or Inbox behavior
+  changes. Keeping the menu outside the map control stack avoids the physical
+  Chrome paint failure that caused the previous map-layer rollback.
+- Reproduction and acceptance: sign in with saved resources that include both
+  mappable and unmappable items. At desktop/tablet widths require the layer
+  button to follow and align with the search field; on phone require the order
+  Search, layer button, Filter. Open the menu and require a solid white panel
+  containing only saved mappable categories. Select one and then multiple
+  categories and require union semantics for map pins only. Result count, tab
+  count, first result, ordering, and bulk-save scope must not change. The map
+  camera and settled zoom must not move, and settings, zoom, and reset must
+  remain visible and usable through repeated open, hover, select, close, pan,
+  and zoom interactions. With no saved mappable pins, require the exact empty
+  message and no category checkboxes. Require zero horizontal page overflow.
+- Verification before release: PASS locally. Saved-pin layer unit coverage
+  passed `4/4`; focused Discovery search-tool coverage passed `7/7`; the full
+  quality gate passed server `729/729`, client `797/797`, the production
+  environment validator `4/4`, eight migration records, and `481` source
+  modules / `1,421` relative-import edges with no cycles. The exact production
+  client build completed with `2,488` transformed modules. Fictional-data
+  browser UAT at
+  `1470 x 900`, `1280 x 800`, and `390 x 844` confirmed the exact supplied PNG
+  (`227 x 255`, rendered at `27 x 30`), the required search-row order, a solid
+  white desktop/tablet menu and mobile sheet, only three represented saved
+  categories, the exact empty state, map-marker filtering with unchanged
+  result/tab counts and first result, and zero overflow. A settled-map pass
+  kept desktop zoom `12.8` and tablet zoom `12.5` plus the Leaflet map transform
+  unchanged after selecting Chinese Temple; both sizes passed six repeated
+  open/hover/close cycles with visible settings/reset controls and zero page
+  errors.
+- Release boundary: publish the client only through the guarded Pages path,
+  verify the immutable deployment and custom-domain artifact parity plus core
+  public routes, and leave authenticated production saved-pin confirmation as
+  user UAT. Do not deploy the Worker, Neon, schema, map assets, authentication,
+  secrets, or data.
+
 ## 2026-09-09 Discovery category map-layer rollback — release candidate
 
 - Production result: the PR #72 correction did not resolve the user's physical

@@ -6,6 +6,7 @@ import { dirname, resolve } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const filterPanelSource = readFileSync(resolve(__dirname, '../src/features/discover/DiscoveryFilterPanel.jsx'), 'utf8');
+const pinLayerControlSource = readFileSync(resolve(__dirname, '../src/features/discover/DiscoveryPinLayerControl.jsx'), 'utf8');
 const discoverPageSource = readFileSync(resolve(__dirname, '../src/pages/DiscoverPage.jsx'), 'utf8');
 const locationHookSource = readFileSync(resolve(__dirname, '../src/features/discover/useDiscoveryLocation.js'), 'utf8');
 
@@ -37,15 +38,31 @@ test('Discover postal search applies automatically and no longer exposes radius 
     assert.doesNotMatch(filterPanelSource, /type="submit"/);
 });
 
-test('Discover exposes the same category checkbox selection to desktop, mobile, results, and map pins', () => {
-    assert.match(filterPanelSource, /function CategoryCheckboxFilter/);
-    assert.match(filterPanelSource, /type="checkbox"/);
-    assert.match(filterPanelSource, /selectedCategoryKeys/);
-    assert.match(filterPanelSource, /onChangeCategorySelection/);
-    assert.match(discoverPageSource, /filterDiscoveryResourcesByCategoryKeys/);
-    assert.match(discoverPageSource, /categoryFilteredSavedAssets/);
-    assert.match(discoverPageSource, /selectedCategoryKeys=\{selectedCategoryKeys\}/);
-    assert.match(discoverPageSource, /categoryOptions=\{categoryOptions\}/);
+test('Discover keeps saved-pin category layers beside search and out of the results pipeline', () => {
+    const desktopPanelStart = filterPanelSource.indexOf('function DesktopFilterPanel');
+    const desktopPanelEnd = filterPanelSource.indexOf('export function DiscoveryFilterPanel');
+    const desktopPanelSource = filterPanelSource.slice(desktopPanelStart, desktopPanelEnd);
+    const desktopSearchIndex = desktopPanelSource.indexOf("placeholder={t('discoverySearchPlaceholder')}");
+    const desktopLayerIndex = desktopPanelSource.indexOf('<DiscoveryPinLayerControl', desktopSearchIndex);
+
+    assert.ok(desktopSearchIndex > -1, 'desktop search should render');
+    assert.ok(desktopLayerIndex > desktopSearchIndex, 'desktop pin-layer control should follow search');
+    assert.match(filterPanelSource, /placeholder=\{t\('discoverySearchMobilePlaceholder'\)\}[\s\S]*?<DiscoveryPinLayerControl/);
+    assert.doesNotMatch(filterPanelSource, /function CategoryCheckboxFilter/);
+    assert.doesNotMatch(filterPanelSource, /<CategoryCheckboxFilter/);
+    assert.match(pinLayerControlSource, /discovery-pin-layer\.png/);
+    assert.match(pinLayerControlSource, /discoveryNoSavedPinsToFilter/);
+    assert.match(pinLayerControlSource, /data-discovery-pin-layer-panel/);
+
+    assert.match(discoverPageSource, /const filteredUniverse = filteredUniverseBeforeCategories;/);
+    assert.doesNotMatch(discoverPageSource, /filterDiscoveryResourcesByCategoryKeys/);
+    assert.doesNotMatch(discoverPageSource, /categoryFilteredSavedAssets/);
+    assert.match(discoverPageSource, /buildSavedPlacePins\(savedAssets,/);
+    assert.match(discoverPageSource, /buildSavedPinCategoryOptions\(/);
+    assert.match(discoverPageSource, /filterSavedPinsByCategoryKeys\(/);
+    assert.match(discoverPageSource, /buildPostalGroupedSavedPlacePins\(visibleSavedPlacePins\)/);
+    assert.match(discoverPageSource, /renderedSavedPlacePins=\{renderedSavedPlacePins\}/);
+    assert.match(discoverPageSource, /savedPlacePins=\{savedPlacePins\}/);
 });
 
 test('Discover mobile map mode uses Browse as the only header action', () => {
