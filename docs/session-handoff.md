@@ -11,6 +11,38 @@ Updated: 2026-09-09 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
+## 2026-09-09 Discovery saved-pin layer icon alignment — released
+
+- Discovery's saved-pin layer glyph now nearly fills its existing map-control
+  button with a two-pixel buffer: `30 x 30` inside the `34 x 34` desktop
+  control and `26 x 26` inside the `30 x 30` compact control. Its wrapper is
+  vertically centred so the category and Map settings buttons share the same
+  top, height, centre, and eight-pixel gap. Saved-category behavior and every
+  other map control remain unchanged.
+- Validation passed focused `12/12`, locked-map `104/104` plus its map build,
+  and the complete quality gate: eight migrations, `481` modules / `1,421`
+  relative-import edges, server `729/729`, client `797/797`, four production
+  environment checks, and the exact `2487`-module client build. Separate-browser
+  visual QA passed desktop/mobile placement, popover/sheet interaction, Escape
+  focus return, zero mobile overflow, and zero visual-flow console errors.
+- Implementation `b31c8f14` merged through PR #67 as `6c72b4b4`. Required
+  GitHub quality and Cloudflare preview checks passed; legacy Netlify failures
+  were excluded under the Cloudflare-only release policy. The guarded Pages
+  release uploaded `87` served files plus Functions and `_routes.json` to
+  `https://c79434c0.senior-resource-map.pages.dev`. All local, immutable, and
+  custom-domain files match by bytes, MIME type, and SHA-256 with aggregate
+  `124b533a2b3f84efaf77b7c1fab7d811a81d421266c4c43cb9edab7cbd8ed52b`.
+  The manifest reports clean `git-build` provenance at `6c72b4b4`, HTML hash
+  `94b77a653007e06586a34246532963a87bbd8036e86a3862e16c1a066324d0e4`,
+  and entry bundle `assets/index-57Ylkb3P.js`.
+- Production QA reproduced the approved desktop/mobile measurements with
+  fictional saved pins, kept `3,481` public results, and passed the category
+  panel, Help/Inbox routing, verified safe-unsave Guide answer, real Havelock
+  search, API health, framing headers, and guest private-route denial.
+  Credentialed partner smoke remains unclaimed because its credentials are not
+  configured. No Worker, Neon, schema, migration, authentication, secret, or
+  production-data change occurred.
+
 ## 2026-09-09 Discovery saved-pin category map layer — released
 
 - Discovery's category filter now lives in a dedicated pin-layer control beside
