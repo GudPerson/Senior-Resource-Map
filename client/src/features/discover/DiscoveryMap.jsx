@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -11,7 +10,6 @@ import TownMapModeControl from '../../components/TownMapModeControl.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { useMapStyle } from '../../contexts/MapStyleContext.jsx';
 import homeAnchorImage from '../../assets/home-anchor.png';
-import DiscoveryCategoryLayerControl from './DiscoveryCategoryLayerControl.jsx';
 import DiscoverDetailedBasemap, { DISCOVER_DETAILED_MAP_ENABLED } from './DiscoverDetailedBasemap.jsx';
 import { DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM } from './discoverDetailedMap.js';
 import { createPostalGroupParentPinIcon, createSavedPlacePinIcon } from './discoverUtils.js';
@@ -565,31 +563,22 @@ function DiscoveryMinimumZoomLock() {
                 ? map.unproject(L.point(alignedCenterPoint.x, alignedCenterPoint.y), zoom)
                 : minimumCenter;
         };
-        const centerMinimumCamera = ({ onlyRemoveTopGap = false } = {}) => {
+        const centerMinimumCamera = () => {
             if (centering) return;
             const currentCenter = map.getCenter();
             const zoom = map.getZoom();
             const currentPoint = map.project(currentCenter, zoom);
             const topAlignedMinimumCenter = resolveMinimumCenter(zoom);
             const minimumPoint = map.project(topAlignedMinimumCenter, zoom);
-            if (onlyRemoveTopGap) {
-                // Fractional fits on tablets can settle just above the floor.
-                // Correct only exposed background, retaining the user's longitude.
-                if (currentPoint.y >= minimumPoint.y - 1) return;
-                minimumPoint.x = currentPoint.x;
-            }
             if (currentPoint.distanceTo(minimumPoint) <= 1) return;
             centering = true;
-            map.panTo(map.unproject(minimumPoint, zoom), { animate: false });
+            map.panTo(topAlignedMinimumCenter, { animate: false });
             centering = false;
         };
         const syncLock = () => {
             const atMinimum = Number(map.getZoom()) <= minimumZoom + 0.01;
             if (!atMinimum) {
                 restoreDragging();
-                if (Number(map.getZoom()) < DEFAULT_MAP_ZOOM) {
-                    centerMinimumCamera({ onlyRemoveTopGap: true });
-                }
                 return;
             }
             if (map.dragging?.enabled?.()) {
@@ -656,7 +645,7 @@ function readDiscoveryZoomState(map) {
     };
 }
 
-function DiscoveryMapControlStack({ canReset = false, onResetView, portalTarget }) {
+function DiscoveryMapControlStack({ canReset = false, onResetView }) {
     const map = useMap();
     const { t } = useLocale();
     const [zoomState, setZoomState] = useState(() => readDiscoveryZoomState(map));
@@ -675,11 +664,9 @@ function DiscoveryMapControlStack({ canReset = false, onResetView, portalTarget 
 
     const desktopZoomRailDepth = canReset ? 'two' : 'one';
 
-    if (!portalTarget) return null;
-
-    return createPortal(
+    return (
         <>
-            <div className={`carearound-discovery-zoom-control carearound-discovery-zoom-control--${desktopZoomRailDepth} pointer-events-auto absolute`}>
+            <div className={`carearound-discovery-zoom-control carearound-discovery-zoom-control--${desktopZoomRailDepth} leaflet-top leaflet-left z-[1000] pointer-events-auto absolute`}>
                 <div className="leaflet-control leaflet-bar m-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:rounded-[10px]">
                     <div
                         role="status"
@@ -722,7 +709,7 @@ function DiscoveryMapControlStack({ canReset = false, onResetView, portalTarget 
                 </div>
             </div>
             {canReset ? (
-                <div className="carearound-discovery-recenter-control pointer-events-auto absolute">
+                <div className="carearound-discovery-recenter-control leaflet-top leaflet-right z-[1000] pointer-events-auto absolute">
                     <div className="leaflet-control leaflet-bar border-none shadow-none mt-0 mr-0">
                         <button
                             type="button"
@@ -742,8 +729,7 @@ function DiscoveryMapControlStack({ canReset = false, onResetView, portalTarget 
                     </div>
                 </div>
             ) : null}
-        </>,
-        portalTarget,
+        </>
     );
 }
 
@@ -803,12 +789,10 @@ function DiscoverDetailedLoadingIndicator({ status }) {
 
 export function DiscoveryMap({
     cameraAnchor = null,
-    categoryOptions = [],
     focusRequest = null,
     interactionMode = 'desktop',
     layoutSignature = 'default',
     onBackgroundClick,
-    onChangeCategorySelection,
     onMapHoverEnd,
     onMapHoverStart,
     onMapMoveEnd,
@@ -819,13 +803,11 @@ export function DiscoveryMap({
     pinEmphasisByKey = new Map(),
     renderedSavedPlacePins = null,
     savedPlacePins,
-    selectedMapCategoryKeys = [],
     trackedPinKey = null,
     transientPlacePins = [],
     userLocation,
 }) {
     const { mapStyle } = useMapStyle();
-    const [controlPortalTarget, setControlPortalTarget] = useState(null);
     const [detailedRequested, setDetailedRequested] = useState(true);
     const [detailedStatus, setDetailedStatus] = useState(() => ({
         requested: true,
@@ -845,11 +827,11 @@ export function DiscoveryMap({
     const canResetMap = Boolean(onResetView && (savedPlacePins.length > 0 || cameraAnchor));
 
     return (
-        <div className="carearound-discovery-map relative isolate h-full w-full">
+        <div className="relative h-full w-full">
             <MapContainer
                 center={DEFAULT_MAP_CENTER}
                 zoom={DEFAULT_MAP_ZOOM}
-                className="carearound-map carearound-discovery-map-canvas"
+                className="carearound-map"
                 style={{ width: '100%', height: '100%', zIndex: 0 }}
                 zoomControl={false}
                 minZoom={CAREAROUND_BASEMAP_MIN_ZOOM}
@@ -892,7 +874,6 @@ export function DiscoveryMap({
                 <DiscoveryMapControlStack
                     canReset={canResetMap}
                     onResetView={onResetView}
-                    portalTarget={controlPortalTarget}
                 />
                 {renderedPins.map((pin) => {
                     const markerKey = pin.pinKey;
@@ -963,34 +944,21 @@ export function DiscoveryMap({
                 ) : null}
             </MapContainer>
             <DiscoverDetailedLoadingIndicator status={detailedStatus} />
-            <div
-                ref={setControlPortalTarget}
-                className="carearound-discovery-control-overlay pointer-events-none absolute inset-0 z-[1002]"
-            >
-                <div
-                    className="absolute right-3 top-3 z-[1000] flex h-[30px] items-center gap-2 lg:h-[34px]"
-                    data-discovery-map-control-dock="true"
-                >
-                    <MapSettingsControl
-                        detailedMinZoom={DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM}
-                        mapDetailDescription="Choose Standard at any zoom, or Detailed from level 14."
-                        mapModeControl={DISCOVER_DETAILED_MAP_ENABLED ? (
-                            <TownMapModeControl
-                                mode={detailedRequested ? 'town' : 'live'}
-                                townAvailable
-                                statusMessage={getDiscoverDetailedStatusMessage(detailedStatus)}
-                                onModeChange={(mode) => setDetailedRequested(mode === 'town')}
-                                variant="panel"
-                            />
-                        ) : null}
-                        showMapStyleControl
-                    />
-                    <DiscoveryCategoryLayerControl
-                        categoryOptions={categoryOptions}
-                        onChangeCategorySelection={onChangeCategorySelection}
-                        selectedCategoryKeys={selectedMapCategoryKeys}
-                    />
-                </div>
+            <div className="absolute right-3 top-3 z-[1002]">
+                <MapSettingsControl
+                    detailedMinZoom={DISCOVER_DETAILED_OVERVIEW_MIN_ZOOM}
+                    mapDetailDescription="Choose Standard at any zoom, or Detailed from level 14."
+                    mapModeControl={DISCOVER_DETAILED_MAP_ENABLED ? (
+                        <TownMapModeControl
+                            mode={detailedRequested ? 'town' : 'live'}
+                            townAvailable
+                            statusMessage={getDiscoverDetailedStatusMessage(detailedStatus)}
+                            onModeChange={(mode) => setDetailedRequested(mode === 'town')}
+                            variant="panel"
+                        />
+                    ) : null}
+                    showMapStyleControl
+                />
             </div>
             <div className="hidden lg:block">
                 <OneMapBadge />

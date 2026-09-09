@@ -509,13 +509,6 @@
   right: 12px !important;
 }
 
-/* Keep animated raster layers in their own paint surface. Discovery controls
-   stay in the stationary sibling overlay without forced GPU promotion. */
-.carearound-discovery-map-canvas {
-  contain: paint;
-  isolation: isolate;
-}
-
 .carearound-discovery-recenter-control {
   right: 12px !important;
   top: 50px !important;
