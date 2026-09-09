@@ -32,9 +32,16 @@ Updated: 2026-09-09 (Asia/Singapore)
   `https://c79434c0.senior-resource-map.pages.dev`. All local, immutable, and
   custom-domain files match by bytes, MIME type, and SHA-256 with aggregate
   `124b533a2b3f84efaf77b7c1fab7d811a81d421266c4c43cb9edab7cbd8ed52b`.
-  The manifest reports clean `git-build` provenance at `6c72b4b4`, HTML hash
+  The initial controlled manifest reports clean `git-build` provenance at
+  `6c72b4b4`, HTML hash
   `94b77a653007e06586a34246532963a87bbd8036e86a3862e16c1a066324d0e4`,
-  and entry bundle `assets/index-57Ylkb3P.js`.
+  and entry bundle `assets/index-57Ylkb3P.js`. A subsequent documentation-only
+  `main` merge triggered Cloudflare's automatic Pages publication at
+  `https://75b98ca3.senior-resource-map.pages.dev`; its immutable URL and the
+  custom domain still serve that same HTML and entry-asset hashes. Later
+  documentation-only publications can advance the manifest's source revision
+  without changing the functional artifact, which remains identified by PR
+  #67, merge `6c72b4b4`, and these hashes.
 - Production QA reproduced the approved desktop/mobile measurements with
   fictional saved pins, kept `3,481` public results, and passed the category
   panel, Help/Inbox routing, verified safe-unsave Guide answer, real Havelock

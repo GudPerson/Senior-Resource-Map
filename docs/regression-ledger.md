@@ -61,10 +61,22 @@ Rules:
   by byte length, SHA-256, and MIME type with zero failures; the sorted parity
   aggregate SHA-256 is
   `124b533a2b3f84efaf77b7c1fab7d811a81d421266c4c43cb9edab7cbd8ed52b`.
-  Both release manifests report clean `git-build` provenance at `6c72b4b4` and
-  HTML SHA-256
+  The initial controlled release manifest reports clean `git-build` provenance
+  at `6c72b4b4` and HTML SHA-256
   `94b77a653007e06586a34246532963a87bbd8036e86a3862e16c1a066324d0e4`;
-  the served entry bundle is `assets/index-57Ylkb3P.js`.
+  the served entry bundle is `assets/index-57Ylkb3P.js`. A later
+  documentation-only `main` merge triggered Cloudflare's automatic Pages
+  publication at `https://75b98ca3.senior-resource-map.pages.dev`. Its
+  immutable URL and the custom domain still served the same HTML hash, entry
+  path, entry SHA-256
+  `5763a1295325613e2b956140386ea791f98e4f969a1e36d6aa407bfa26ee7f21`,
+  CSS SHA-256
+  `ca2d8f2e4e8fb09d043650856a391a5d2900f69d56c4d3d7d442145070d03c17`,
+  and recovery-script SHA-256
+  `7ea8a4fcf8370dcf9222ef36ae920fd26edec1fdabc7ffd0ac4b5df1194e6871`.
+  Later documentation-only publications can advance the manifest's source
+  revision without changing the functional artifact, which remains identified
+  by PR #67, merge `6c72b4b4`, and these hashes.
 - Production Chrome QA used fictional authentication and mocked favourites,
   without mutating real saved data. Desktop and mobile reproduced the approved
   `34/30`-pixel triggers, `30/26`-pixel glyphs, identical vertical alignment,
