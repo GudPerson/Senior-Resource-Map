@@ -15,7 +15,7 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-09 Discovery viewport/header and dropdown stacking — pending device confirmation
+## 2026-09-09 Discovery viewport/header and dropdown stacking — release approved, device test pending
 
 - Proven regression: the affected regular Chrome tab was running the PR #70
   release (`31f614dd`, `index-BQakNy0K.js`), not an older cached client. At its
@@ -60,10 +60,15 @@ Rules:
 - Release boundary: the real Mac clipping and stacking defects are confirmed;
   the tablet screenshot's entirely transparent panel has not been reproduced
   in the isolated browser. Do not describe the device-specific paint report as
-  closed based on computed styles or automated screenshots alone. Keep this
-  correction in preview until affected-device confirmation; credentialed
-  partner smoke remains unclaimed. Production publication still requires the
-  guarded clean-main release and exact artifact parity checks.
+  closed based on computed styles or automated screenshots alone. After the
+  preview limitation was explained, the user explicitly instructed release
+  and chose to test the affected tablet in production. That approval removes
+  the pre-release device hold, not the remaining verification boundary.
+  Preview map-image CORS permissions remain unchanged. Credentialed partner
+  smoke remains unclaimed. Publish through the guarded clean-main release,
+  verify exact artifact parity, and retain the tablet paint report as open
+  until the user's production confirmation. Implementation reference:
+  `f8dc95bd`, PR #71; record final publication evidence on that PR.
 
 ## 2026-09-09 Discovery supplied PNG and stationary controls — implementation evidence
 
