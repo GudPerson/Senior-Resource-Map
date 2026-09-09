@@ -146,7 +146,7 @@ export default function DiscoveryCategoryLayerControl({
 
     const closeAndFocusTrigger = useCallback(() => {
         setOpen(false);
-        window.requestAnimationFrame(() => triggerRef.current?.focus());
+        window.requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }));
     }, []);
 
     const handleMobileOpenChange = useCallback((nextOpen) => {

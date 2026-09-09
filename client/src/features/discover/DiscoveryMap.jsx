@@ -968,7 +968,7 @@ export function DiscoveryMap({
                 className="carearound-discovery-control-overlay pointer-events-none absolute inset-0 z-[1002]"
             >
                 <div
-                    className="absolute right-3 top-3 z-10 flex h-[30px] items-center gap-2 lg:h-[34px]"
+                    className="absolute right-3 top-3 z-[1000] flex h-[30px] items-center gap-2 lg:h-[34px]"
                     data-discovery-map-control-dock="true"
                 >
                     <MapSettingsControl

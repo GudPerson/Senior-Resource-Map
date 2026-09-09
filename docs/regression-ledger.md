@@ -15,6 +15,61 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-09 Discovery viewport/header and dropdown stacking — release approved, device test pending
+
+- Proven regression: the affected regular Chrome tab was running the PR #70
+  release (`31f614dd`, `index-BQakNy0K.js`), not an older cached client. At its
+  `0.6` accessible text scale, the fixed navbar remained `65px` high while
+  Discovery subtracted only `4rem` (`38.4px`) from the viewport. This allowed
+  `26.5px` document scrolling, putting the top controls beneath the sticky
+  navbar after focus/scroll interactions. Independently, the settings/category
+  dock's stacking level `10` was below Leaflet controls at `800`, so zoom/reset
+  obscured parts of an open dropdown even though its child used `1010`.
+- Observed reference: real affected Chrome at `1470x801`, DPR `2`, zoom `17.4`,
+  native W04 `surface-ready`, `4/4` loaded chunks. The before screenshot showed
+  the dock at `y=45.695` behind a navbar ending at `y=65`. A disclosed,
+  reversible in-tab height/stacking trial removed the `26.5px` scroll, put the
+  dock at `y=72.195`, and visibly restored the buttons and unobscured white
+  dropdown. No reload, saved-data write, or account change was made.
+- Narrow correction: Discovery uses dynamic viewport height minus the actual
+  fixed navbar rows (`57px` below `640px`; `65px` above). Category dismissal
+  restores focus with `preventScroll`; the settings/category dock now stacks
+  above the Leaflet controls. The original gray/inset PNG, camera targets,
+  category semantics, zoom floors/steps, Detailed tiers/assets, My Map,
+  Shared/embed/Print, API, auth, schema, and production data are unchanged.
+- Reproduction/acceptance: select All saved pins then Chinese Temple using
+  four nearby temple pins plus saved AAC pins. At root text scales `0.6`, `1`,
+  and `1.6`, test desktop `1470x801`, touch landscape `1280x720`, portrait
+  `800x1100`, and phone `390x844`. Require zero document/horizontal overflow,
+  visible hit-testable controls after dismissal, trigger focus restoration,
+  a white panel above native controls, and unchanged half-step zoom. Mobile
+  sheets retain their existing near-opaque (`0.98`) white background.
+- Verification: focused search/control tests `8/8`, quality gate server
+  `729/729`, client `801/801`, four environment checks, eight migrations,
+  `481` modules / `1,421` import edges, map lockdown `104/104`, and the final
+  exact production-configured client build passed. All twelve cross-layout/
+  text-scale browser combinations passed with zero page errors. A separate
+  production-origin browser fixture serves the unmodified candidate build
+  locally and loads real CDN map bytes, to avoid local-origin proxy transport
+  timeouts; no real login or saved-resource write is used. Three completed
+  small-category fits on each of retina desktop and touch landscape reached
+  native W04 with `4/4` loaded chunks, zero live tiles, and an unobscured white
+  dropdown. Subsequent animated zoom/pan checks recorded `525` frames with no
+  missing, unclickable, or shifting controls. These are isolated-browser
+  results, not physical-tablet acceptance.
+- Release boundary: the real Mac clipping and stacking defects are confirmed;
+  the tablet screenshot's entirely transparent panel has not been reproduced
+  in the isolated browser. Do not describe the device-specific paint report as
+  closed based on computed styles or automated screenshots alone. After the
+  preview limitation was explained, the user explicitly instructed release
+  and chose to test the affected tablet in production. That approval removes
+  the pre-release device hold, not the remaining verification boundary.
+  Preview map-image CORS permissions remain unchanged. Credentialed partner
+  smoke remains unclaimed. Publish through the guarded clean-main release,
+  verify exact artifact parity, and retain the tablet paint report as open
+  until the user's production confirmation. Implementation reference:
+  `f8dc95bd`, PR #71; record final publication evidence on that PR.
+
 ## 2026-09-09 Discovery supplied PNG and stationary controls — implementation evidence
 
 - Current behavior: the layer button uses the user's original `572 x 572` PNG,

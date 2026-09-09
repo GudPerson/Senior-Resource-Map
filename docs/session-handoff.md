@@ -11,6 +11,40 @@ Updated: 2026-09-09 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
+## 2026-09-09 Discovery viewport/header and dropdown stacking — production release approved
+
+- Continue in `/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-release-20260907`,
+  branch `codex/discovery-controls-viewport-20260909`, based on `31f614dd`.
+  The primary checkout remains unrelated dirty work; preserve it. Graft was
+  queried against this release checkout. No repository instructions or Graft
+  configuration changed.
+- Real Chrome inspection confirmed that the `4rem` height offset becomes
+  `38.4px` at reduced text scale while the navbar stays `65px`, allowing
+  `26.5px` scrolling that hides top controls beneath the header. A temporary
+  page-only correction visibly restored them. A separate stacking mismatch
+  let zoom/reset overlap the category/settings dropdown. The permanent patch
+  uses `100dvh` minus the fixed `57/65px` navbar height, scroll-preserving focus,
+  and a dock above Leaflet controls. No map/data/backend behavior changed.
+- Quality passed server `729/729`, client `801/801`, four environment checks,
+  eight migration checks, `481` modules / `1,421` edges, map lockdown `104/104`,
+  and the exact production client build. Twelve combinations of four layouts
+  and three accessible text scales passed overflow, control hit-testing,
+  white panel, focus restoration, and half-step zoom checks with zero page
+  errors. These browser checks use fictional authentication/favorites only.
+- The user explicitly chose production release followed by their own tablet
+  test after being told that the preview cannot access Detailed map images.
+  Proceed with PR #71 (`f8dc95bd` implementation) through the guarded clean-main
+  client release and artifact verification; do not change preview CORS, map
+  assets, Worker, or database configuration. Record the immutable publication
+  and custom-domain verification in the PR's release evidence. The tablet
+  transparent panel has not reproduced in isolated browsers; the proven Mac
+  clipping/stacking correction does not alone close that report. Ask the user
+  to refresh the live app and alternate All saved pins / Chinese Temple after
+  publication. Do not repeat the Chrome permission setup:
+  it is enabled; target the regular Chrome process rather than Playwright's
+  same-named Chrome instances. Do not refresh the user's diagnostic tab while
+  their temporary trial is in progress.
+
 ## 2026-09-09 Discovery supplied PNG and stationary controls — implementation evidence
 
 - Continue from the clean release checkout
