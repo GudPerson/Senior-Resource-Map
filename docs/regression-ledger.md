@@ -15,6 +15,42 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-09 Discovery saved-pin layer icon scale and alignment — validated locally
+
+- Current behavior: Discovery's saved-pin category layer glyph nearly fills its
+  existing map-control button with a two-pixel visual buffer: `30 x 30` inside
+  the `34 x 34` desktop control and `26 x 26` inside the `30 x 30` compact
+  control. The category and Map settings buttons share the same top, height,
+  vertical centre, and eight-pixel gap at desktop and mobile widths.
+- Known-good reference: the user supplied a close-up of the misaligned,
+  undersized deployed control and a `572 x 572` stacked-layers/saved-pin icon.
+  The already-released saved-category semantics, popover/bottom-sheet behavior,
+  map-control sizing, Detailed-map tiers, loading feedback, overview camera,
+  and half-step zoom remain the stable baseline.
+- Blast radius: client-only presentation within the existing Discovery map
+  control dock. The patch changes the category glyph's responsive dimensions
+  and vertically centres its wrapper. Saved-pin category derivation, selection,
+  filtering, union/reset behavior, empty state, results, map data, Map settings,
+  zoom/fullscreen/recenter controls, My Map, APIs, authentication, schema,
+  privacy, and production data are unchanged.
+- Reproduction and acceptance: open Discovery with saved mappable resources at
+  `1440 x 900` and `390 x 844`. Require the layer symbol to preserve its aspect
+  ratio, leave only a small even buffer, and align exactly with Map settings.
+  Open and dismiss the desktop popover and mobile sheet; Escape must restore
+  trigger focus, and mobile must have no horizontal overflow.
+- Verification before release: PASS locally. Focused map-control coverage passed
+  `12/12`. Separate-browser QA with fictional authentication and mocked
+  favourites measured both desktop buttons at identical `y=77`, `34 x 34`, and
+  both mobile buttons at identical `y=161.59375`, `30 x 30`. The glyph measured
+  `30 x 30` desktop and `26 x 26` mobile, the panel opened and dismissed in both
+  layouts, Escape restored trigger focus, mobile overflow was zero, and the
+  console contained zero errors or warnings. `npm run verify:map-lockdown`
+  passed `104/104` plus its production-configured map build, and the complete
+  `npm run verify:quality` gate passed eight migration checks, `481` source
+  modules / `1,421` relative-import edges, server `729/729`, client `797/797`,
+  four production-environment checks, and the exact client build with `2487`
+  modules. Production evidence remains pending.
+
 ## 2026-09-09 Discovery saved-pin category layer refinement — released
 
 - Current behavior: Discovery's category control has moved out of the search

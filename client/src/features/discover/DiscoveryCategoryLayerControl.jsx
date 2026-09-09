@@ -7,16 +7,19 @@ import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 
 function CategoryLayerGlyph() {
     return (
-        <span className="relative inline-flex h-5 w-5 items-center justify-center" aria-hidden="true">
-            <Layers3 size={20} strokeWidth={2.25} />
-            <span className="absolute left-1/2 top-[1px] -translate-x-1/2 text-brand-700">
-                <MapPin size={10} fill="currentColor" strokeWidth={2.5} />
+        <span
+            className="relative inline-flex h-[26px] w-[26px] items-center justify-center lg:h-[30px] lg:w-[30px]"
+            data-discovery-category-layer-glyph="true"
+            aria-hidden="true"
+        >
+            <Layers3 className="h-full w-full" strokeWidth={2.4} />
+            <span className="absolute left-1/2 top-[1px] inline-flex h-[14px] w-[14px] -translate-x-1/2 items-center justify-center text-brand-700 lg:h-4 lg:w-4">
+                <MapPin className="h-full w-full" fill="currentColor" strokeWidth={2.35} />
                 <Heart
-                    size={4}
                     fill="white"
                     stroke="white"
-                    strokeWidth={3}
-                    className="absolute left-1/2 top-[2px] -translate-x-1/2"
+                    strokeWidth={2.5}
+                    className="absolute left-1/2 top-[3px] h-[5px] w-[5px] -translate-x-1/2 lg:h-1.5 lg:w-1.5"
                 />
             </span>
         </span>
@@ -187,7 +190,7 @@ export default function DiscoveryCategoryLayerControl({
     return (
         <div
             ref={wrapperRef}
-            className="pointer-events-auto relative"
+            className="pointer-events-auto relative flex h-full items-center"
             data-discovery-category-layer-control="true"
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
@@ -200,7 +203,7 @@ export default function DiscoveryCategoryLayerControl({
                 aria-haspopup="dialog"
                 aria-label={controlLabel}
                 title={controlLabel}
-                className={`relative inline-flex h-[30px] w-[30px] min-w-[30px] touch-manipulation items-center justify-center rounded-lg border p-0 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:w-[34px] lg:min-w-[34px] lg:rounded-[10px] ${selectedCount > 0
+                className={`relative inline-flex h-[30px] w-[30px] min-w-[30px] touch-manipulation items-center justify-center overflow-visible rounded-lg border p-0 leading-none shadow-sm transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 lg:h-[34px] lg:w-[34px] lg:min-w-[34px] lg:rounded-[10px] ${selectedCount > 0
                     ? 'border-brand-500 bg-brand-50 text-brand-700 hover:bg-brand-100'
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-brand-700'}`}
                 onClick={() => setOpen((current) => !current)}

@@ -51,6 +51,10 @@ test('Discover keeps category pin layers on the map and leaves browse results in
     assert.match(categoryLayerSource, /aria-expanded=\{open\}/);
     assert.match(categoryLayerSource, /<MobileBottomSheet/);
     assert.match(categoryLayerSource, /onOpenChange=\{handleMobileOpenChange\}/);
+    assert.match(categoryLayerSource, /data-discovery-category-layer-glyph="true"/);
+    assert.match(categoryLayerSource, /h-\[26px\] w-\[26px\][^"\n]*lg:h-\[30px\] lg:w-\[30px\]/);
+    assert.match(categoryLayerSource, /<Layers3[^>]*className="h-full w-full"/s);
+    assert.match(categoryLayerSource, /className="pointer-events-auto relative flex h-full items-center"/);
 
     assert.match(discoverPageSource, /buildSavedPinCategoryOptions/);
     assert.match(discoverPageSource, /filterSavedPinsByCategoryKeys/);
@@ -60,6 +64,7 @@ test('Discover keeps category pin layers on the map and leaves browse results in
     assert.match(discoverPageSource, /const revealAllSavedPins = !targetVisible/);
     assert.match(discoverPageSource, /setSelectedMapCategoryKeys\(\[\]\)/);
     assert.match(discoveryMapSource, /<DiscoveryCategoryLayerControl/);
+    assert.match(discoveryMapSource, /className="absolute right-3 top-3[^"\n]*items-center[^"\n]*"\s+data-discovery-map-control-dock="true"/);
     assert.doesNotMatch(discoverPageSource, /filterDiscoveryResourcesByCategoryKeys/);
     assert.doesNotMatch(discoverPageSource, /categoryFilteredSavedAssets/);
 });
