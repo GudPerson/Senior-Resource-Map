@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 
 import pinLayerIcon from '../../assets/discovery-pin-layer.png';
 import MobileBottomSheet from '../../components/mobile/MobileBottomSheet.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
-import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 
 function CloseButton({ onClick }) {
     const { t } = useLocale();
@@ -106,12 +105,12 @@ function PinLayerPanel({
 export default function DiscoveryPinLayerControl({
     categoryOptions = [],
     onChangeCategorySelection,
+    presentation = 'popover',
     selectedCategoryKeys = [],
 }) {
     const { t } = useLocale();
     const [open, setOpen] = useState(false);
-    const isDesktop = useMediaQuery('(min-width: 1024px)');
-    const wrapperRef = useRef(null);
+    const detailsRef = useRef(null);
     const triggerRef = useRef(null);
     const reactId = useId();
     const panelId = `discovery-pin-layers-${reactId.replace(/:/g, '')}`;
@@ -127,6 +126,7 @@ export default function DiscoveryPinLayerControl({
 
     const closeAndFocusTrigger = useCallback(() => {
         setOpen(false);
+        if (detailsRef.current) detailsRef.current.open = false;
         window.requestAnimationFrame(() => triggerRef.current?.focus());
     }, []);
 
@@ -138,26 +138,6 @@ export default function DiscoveryPinLayerControl({
         closeAndFocusTrigger();
     }, [closeAndFocusTrigger]);
 
-    useEffect(() => {
-        if (!open || !isDesktop) return undefined;
-
-        const handlePointerDown = (event) => {
-            if (!wrapperRef.current?.contains(event.target)) setOpen(false);
-        };
-        const handleKeyDown = (event) => {
-            if (event.key !== 'Escape') return;
-            event.preventDefault();
-            closeAndFocusTrigger();
-        };
-
-        document.addEventListener('pointerdown', handlePointerDown);
-        document.addEventListener('keydown', handleKeyDown);
-        return () => {
-            document.removeEventListener('pointerdown', handlePointerDown);
-            document.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [closeAndFocusTrigger, isDesktop, open]);
-
     const panelContent = (
         <PinLayerPanel
             categoryOptions={categoryOptions}
@@ -167,33 +147,39 @@ export default function DiscoveryPinLayerControl({
         />
     );
 
-    return (
-        <div ref={wrapperRef} className="relative shrink-0" data-discovery-pin-layer-control="true">
-            <button
-                ref={triggerRef}
-                type="button"
-                aria-controls={open ? panelId : undefined}
-                aria-expanded={open}
-                aria-haspopup="dialog"
-                aria-label={controlLabel}
-                title={controlLabel}
-                className={`relative inline-flex h-[46px] w-[46px] touch-manipulation items-center justify-center rounded-2xl border p-0 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${selectedCount > 0
-                    ? 'border-brand-500 bg-brand-50 hover:bg-brand-100'
-                    : 'border-slate-200 bg-white hover:bg-slate-50'}`}
-                onClick={() => setOpen((current) => !current)}
+    if (presentation === 'popover') {
+        return (
+            <details
+                ref={detailsRef}
+                className="group relative shrink-0"
+                data-discovery-pin-layer-control="true"
+                onKeyDown={(event) => {
+                    if (event.key !== 'Escape') return;
+                    event.preventDefault();
+                    closeAndFocusTrigger();
+                }}
             >
-                <img src={pinLayerIcon} alt="" className="h-[30px] w-[27px] object-contain" />
-                {selectedCount > 0 ? (
-                    <span
-                        aria-hidden="true"
-                        className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-700 px-1 text-[9px] font-black leading-none text-white shadow-sm"
-                    >
-                        {selectedCount > 9 ? '9+' : selectedCount}
-                    </span>
-                ) : null}
-            </button>
+                <summary
+                    ref={triggerRef}
+                    aria-controls={panelId}
+                    aria-haspopup="dialog"
+                    aria-label={controlLabel}
+                    title={controlLabel}
+                    className={`relative inline-flex h-[46px] w-[46px] cursor-pointer list-none touch-manipulation items-center justify-center rounded-2xl border p-0 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 [&::-webkit-details-marker]:hidden ${selectedCount > 0
+                        ? 'border-brand-500 bg-brand-50 hover:bg-brand-100'
+                        : 'border-slate-200 bg-white hover:bg-slate-50'}`}
+                >
+                    <img src={pinLayerIcon} alt="" className="h-[30px] w-[27px] object-contain" />
+                    {selectedCount > 0 ? (
+                        <span
+                            aria-hidden="true"
+                            className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-700 px-1 text-[9px] font-black leading-none text-white shadow-sm"
+                        >
+                            {selectedCount > 9 ? '9+' : selectedCount}
+                        </span>
+                    ) : null}
+                </summary>
 
-            {isDesktop && open ? (
                 <div
                     role="dialog"
                     aria-label={t('discoveryMapPinCategories')}
@@ -213,21 +199,47 @@ export default function DiscoveryPinLayerControl({
                     </div>
                     {panelContent}
                 </div>
-            ) : null}
+            </details>
+        );
+    }
 
-            {!isDesktop ? (
-                <MobileBottomSheet
-                    open={open}
-                    onOpenChange={handleMobileOpenChange}
-                    title={t('discoveryMapPinCategories')}
-                    description={selectionLabel}
-                    headerActions={<CloseButton onClick={closeAndFocusTrigger} />}
-                    contentClassName="border-slate-200 bg-white"
-                    bodyClassName="pb-2"
-                >
-                    {panelContent}
-                </MobileBottomSheet>
-            ) : null}
+    return (
+        <div className="relative shrink-0" data-discovery-pin-layer-control="true">
+            <button
+                ref={triggerRef}
+                type="button"
+                aria-controls={open ? panelId : undefined}
+                aria-expanded={open}
+                aria-haspopup="dialog"
+                aria-label={controlLabel}
+                title={controlLabel}
+                className={`relative inline-flex h-10 w-10 touch-manipulation items-center justify-center rounded-2xl border p-0 transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${selectedCount > 0
+                    ? 'border-brand-500 bg-brand-50 hover:bg-brand-100'
+                    : 'border-slate-200 bg-white hover:bg-slate-50'}`}
+                onClick={() => setOpen((current) => !current)}
+            >
+                <img src={pinLayerIcon} alt="" className="h-[26px] w-[24px] object-contain" />
+                {selectedCount > 0 ? (
+                    <span
+                        aria-hidden="true"
+                        className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-700 px-1 text-[9px] font-black leading-none text-white shadow-sm"
+                    >
+                        {selectedCount > 9 ? '9+' : selectedCount}
+                    </span>
+                ) : null}
+            </button>
+
+            <MobileBottomSheet
+                open={open}
+                onOpenChange={handleMobileOpenChange}
+                title={t('discoveryMapPinCategories')}
+                description={selectionLabel}
+                headerActions={<CloseButton onClick={closeAndFocusTrigger} />}
+                contentClassName="border-slate-200 bg-white"
+                bodyClassName="pb-2"
+            >
+                {panelContent}
+            </MobileBottomSheet>
         </div>
     );
 }
