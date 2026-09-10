@@ -11,6 +11,29 @@ Updated: 2026-09-10 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
+## 2026-09-10 Discovery phone overview vertical recenter — verified locally
+
+- Continue in the clean release checkout
+  `/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-release-20260907`, branch
+  `codex/discovery-mobile-recentre-20260910`, based on released production main
+  `0646e03f` / PR #75. Preserve the unrelated dirty primary checkout.
+- Phone Map View now centres the minimum-zoom Singapore overview vertically on
+  first open and Reset. Tablet/desktop keep their existing northern-edge
+  alignment. Zoom floors, half-step controls, fit inputs, longitude, pin-layer
+  filtering, results, data, and every non-Discovery map remain unchanged.
+- Focused checks passed `9/9`; quality passed server `729/729`, client
+  `799/799`, four production environment checks, eight migrations, `481`
+  modules / `1,420` import edges, and the exact `2,488`-module production
+  build. Map lockdown passed `104/104` plus its build. Isolated read-only
+  fictional-data UAT passed initial/Reset parity at `320 x 740` and
+  `390 x 844`, tablet `1280 x 800`, desktop `1470 x 900`, zero overflow, and
+  zero browser errors or warnings.
+- The user explicitly approved commit, push, and deployment. Merge the
+  validated branch, release only the client through the guarded Pages path,
+  and verify immutable/custom-domain artifact parity. Physical-device
+  confirmation remains user UAT. Do not touch the Worker, Neon, schema,
+  assets, authentication, secrets, or data.
+
 ## 2026-09-10 Discovery responsive pin-layer and map-canvas refinement — release candidate
 
 - Continue in the clean release checkout

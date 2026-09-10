@@ -15,6 +15,45 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-10 Discovery phone overview vertical recenter — verified locally
+
+- Current behavior: at the responsive minimum zoom, Phone Map View now keeps
+  the Singapore overview vertically centred on its tall canvas on both first
+  open and Reset. The sea-coloured canvas continues to fill uncovered space,
+  but the resource-pin area no longer starts against the top edge with most of
+  the viewport left below it. Tablet and desktop retain their existing
+  northern-edge alignment and fractional top-gap correction.
+- Known-good reference and blast radius: branch
+  `codex/discovery-mobile-recentre-20260910`, based on released production main
+  `0646e03f` / PR #75. This is a narrow client-only camera correction inside
+  Discovery's minimum-zoom lock. It does not alter responsive zoom floors,
+  half-step controls, fitted points or padding, longitude, category filtering,
+  results, saved resources, map styles/assets, My Map, Shared/embed/Print, API,
+  authentication, schema, or production data.
+- Reproduction and acceptance: open Phone Map View with islandwide saved pins,
+  note the initial minimum-zoom position, zoom in, then use Reset. Require the
+  pin area to remain near the vertical centre and the initial and Reset camera
+  metrics to match. Resize through phone, tablet, and desktop widths; require
+  no horizontal overflow, no regression to the tablet/desktop top alignment,
+  and no browser errors.
+- Verification: PASS locally. Focused camera/zoom contracts passed `9/9`; the
+  complete quality gate passed eight migrations, `481` modules / `1,420`
+  relative-import edges, server `729/729`, client `799/799`, four production
+  environment checks, and the exact `2,488`-module client build. Map lockdown
+  passed `104/104` plus its configured build. Isolated, read-only fictional
+  saved-pin browser UAT passed fresh Phone Map View and post-Reset parity at
+  `320 x 740` and `390 x 844`, plus responsive checks at tablet `1280 x 800`
+  and desktop `1470 x 900`. At `320 x 740`, initial and Reset both used zoom
+  `10`, with the map centre at `440.55px` and average marker centre at
+  `410.57px`; at `390 x 844`, both used zoom `10.1`, with the map centre at
+  `492.55px` and average marker centre at `465.06px`. Every size had zero
+  horizontal overflow and zero browser errors or warnings.
+- Release boundary: the user explicitly approved commit, push, and deployment
+  after reviewing the local result. Publish the client only through the
+  guarded Pages path and verify immutable/custom-domain artifact parity.
+  Physical-device confirmation remains user UAT. Do not deploy the Worker,
+  Neon, schema, map assets, authentication, secrets, or data.
+
 ## 2026-09-10 Discovery responsive pin-layer and map-canvas refinement — release candidate
 
 - Current behavior: desktop and tablet keep the supplied saved-pin layer icon

@@ -534,7 +534,7 @@ function TrackedPinLayoutReporter({ trackedPinKey = null, pins = [], onTrackedPi
     return null;
 }
 
-function DiscoveryMinimumZoomLock() {
+function DiscoveryMinimumZoomLock({ interactionMode = 'desktop' }) {
     const map = useMap();
 
     useLayoutEffect(() => {
@@ -552,8 +552,16 @@ function DiscoveryMinimumZoomLock() {
             draggingDisabledByLock = false;
         };
         const resolveMinimumCenter = (zoom = map.getZoom()) => {
-            const viewportSize = map.getSize();
             const horizontalCenterPoint = map.project(minimumCenter, zoom);
+            if (interactionMode === 'mobile') {
+                // Phone Map View has a tall canvas, so top-aligning Singapore leaves
+                // most of the usable viewport as sea below the pins. Keep the
+                // overview vertically centred now that uncovered canvas matches
+                // the OneMap sea colour.
+                return minimumCenter;
+            }
+
+            const viewportSize = map.getSize();
             const coverageNorthPoint = map.project(L.latLng(DISCOVER_BASEMAP_VISIBLE_NORTH_EDGE), zoom);
             const alignedCenterPoint = resolveTopAlignedMapCenterPoint({
                 horizontalCenterPoint,
@@ -587,7 +595,7 @@ function DiscoveryMinimumZoomLock() {
             const atMinimum = Number(map.getZoom()) <= minimumZoom + 0.01;
             if (!atMinimum) {
                 restoreDragging();
-                if (Number(map.getZoom()) < DEFAULT_MAP_ZOOM) {
+                if (interactionMode === 'desktop' && Number(map.getZoom()) < DEFAULT_MAP_ZOOM) {
                     centerMinimumCamera({ onlyRemoveTopGap: true });
                 }
                 return;
@@ -640,7 +648,7 @@ function DiscoveryMinimumZoomLock() {
             restoreDragging();
             delete container.dataset.discoverMinZoom;
         };
-    }, [map]);
+    }, [interactionMode, map]);
 
     return null;
 }
@@ -853,7 +861,7 @@ export function DiscoveryMap({
                 zoomDelta={HALF_STEP_MAP_ZOOM_DELTA}
                 zoomSnap={DISCOVER_ZOOM_SNAP}
             >
-                <DiscoveryMinimumZoomLock />
+                <DiscoveryMinimumZoomLock interactionMode={interactionMode} />
                 <DiscoverDetailedBasemap
                     detailedRequested={detailedRequested}
                     mapStyle={mapStyle}
