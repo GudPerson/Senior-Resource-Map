@@ -52,3 +52,12 @@ test('Discover locks wide maps at 11.5 to give the Singapore overview breathing 
     assert.match(discoveryMapSource, /map\.zoomOut\(HALF_STEP_MAP_ZOOM_DELTA\)/);
     assert.match(discoveryMapSource, /formatMapZoomLevel/);
 });
+
+test('Discover removes fractional tablet top gaps and paints uncovered canvas like the sea', () => {
+    assert.match(discoveryMapSource, /centerMinimumCamera\(\{ onlyRemoveTopGap: true \}\)/);
+    assert.match(discoveryMapSource, /Number\(map\.getZoom\(\)\) < DEFAULT_MAP_ZOOM/);
+    assert.match(discoveryMapSource, /minimumPoint\.x = currentPoint\.x/);
+    assert.match(discoveryMapSource, /DISCOVER_DEFAULT_SEA_BACKGROUND = '#6da8e4'/);
+    assert.match(discoveryMapSource, /DISCOVER_GRAY_SEA_BACKGROUND = '#cfd5dc'/);
+    assert.match(discoveryMapSource, /backgroundColor: mapCanvasBackground/);
+});

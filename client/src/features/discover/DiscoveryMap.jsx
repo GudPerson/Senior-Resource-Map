@@ -44,6 +44,8 @@ const DISCOVER_SINGAPORE_OVERVIEW_BOUNDS = [
 ];
 // OneMap's first visible overview row begins at the native z12 row-2031 edge.
 const DISCOVER_BASEMAP_VISIBLE_NORTH_EDGE = [1.4939713066293197, 103.846];
+const DISCOVER_DEFAULT_SEA_BACKGROUND = '#6da8e4';
+const DISCOVER_GRAY_SEA_BACKGROUND = '#cfd5dc';
 const SINGLE_PIN_ZOOM = CAREAROUND_BASEMAP_MAX_ZOOM;
 const ANCHOR_ONLY_ZOOM = 15;
 const DESKTOP_FIT_MAX_ZOOM = CAREAROUND_BASEMAP_MAX_ZOOM;
@@ -563,22 +565,31 @@ function DiscoveryMinimumZoomLock() {
                 ? map.unproject(L.point(alignedCenterPoint.x, alignedCenterPoint.y), zoom)
                 : minimumCenter;
         };
-        const centerMinimumCamera = () => {
+        const centerMinimumCamera = ({ onlyRemoveTopGap = false } = {}) => {
             if (centering) return;
             const currentCenter = map.getCenter();
             const zoom = map.getZoom();
             const currentPoint = map.project(currentCenter, zoom);
             const topAlignedMinimumCenter = resolveMinimumCenter(zoom);
             const minimumPoint = map.project(topAlignedMinimumCenter, zoom);
+            if (onlyRemoveTopGap) {
+                // Fractional tablet fits can settle just above the responsive floor.
+                // Remove only exposed northern canvas and retain the fitted longitude.
+                if (currentPoint.y >= minimumPoint.y - 1) return;
+                minimumPoint.x = currentPoint.x;
+            }
             if (currentPoint.distanceTo(minimumPoint) <= 1) return;
             centering = true;
-            map.panTo(topAlignedMinimumCenter, { animate: false });
+            map.panTo(map.unproject(minimumPoint, zoom), { animate: false });
             centering = false;
         };
         const syncLock = () => {
             const atMinimum = Number(map.getZoom()) <= minimumZoom + 0.01;
             if (!atMinimum) {
                 restoreDragging();
+                if (Number(map.getZoom()) < DEFAULT_MAP_ZOOM) {
+                    centerMinimumCamera({ onlyRemoveTopGap: true });
+                }
                 return;
             }
             if (map.dragging?.enabled?.()) {
@@ -825,14 +836,17 @@ export function DiscoveryMap({
         [renderedSavedPlacePins, savedPlacePins, transientPlacePins]
     );
     const canResetMap = Boolean(onResetView && (savedPlacePins.length > 0 || cameraAnchor));
+    const mapCanvasBackground = mapStyle === 'gray'
+        ? DISCOVER_GRAY_SEA_BACKGROUND
+        : DISCOVER_DEFAULT_SEA_BACKGROUND;
 
     return (
-        <div className="relative h-full w-full">
+        <div className="relative h-full w-full" style={{ backgroundColor: mapCanvasBackground }}>
             <MapContainer
                 center={DEFAULT_MAP_CENTER}
                 zoom={DEFAULT_MAP_ZOOM}
                 className="carearound-map"
-                style={{ width: '100%', height: '100%', zIndex: 0 }}
+                style={{ width: '100%', height: '100%', zIndex: 0, backgroundColor: mapCanvasBackground }}
                 zoomControl={false}
                 minZoom={CAREAROUND_BASEMAP_MIN_ZOOM}
                 maxZoom={CAREAROUND_BASEMAP_MAX_ZOOM}

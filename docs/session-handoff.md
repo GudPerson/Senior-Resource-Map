@@ -11,35 +11,39 @@ Updated: 2026-09-10 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
-## 2026-09-10 Discovery saved-pin search-row layer control — release candidate
+## 2026-09-10 Discovery responsive pin-layer and map-canvas refinement — release candidate
 
 - Continue in the clean release checkout
   `/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-release-20260907`, branch
-  `codex/discovery-search-pin-layer-20260910`, based on stable production main
-  `15f2f08e`. Preserve the unrelated dirty primary checkout.
-- Discovery now places the saved-pin category button after the search field on
-  desktop, tablet, and phone, using the user's supplied PNG directly. The menu
-  derives categories only from saved mappable pins and shows
-  `No saved pins to filter yet.` when none exist. Selection filters rendered
-  saved map pins only; results, counts, ordering, pagination, Saved only, and
-  bulk save are unchanged. The full unfiltered pin set still controls map fit,
-  reset, and camera state, so category selection does not recenter the map.
-- Focused coverage passed `11/11`; the full quality gate passed server
-  `729/729`, client `797/797`, the production environment validator `4/4`,
-  eight migration records, and `481` modules / `1,421` relative-import edges
-  with no cycles. The exact production build transformed `2,488` modules.
-  Fictional-data
-  responsive UAT passed desktop `1470 x 900`, tablet `1280 x 800`, and phone
-  `390 x 844`, including supplied-icon fidelity, solid menu backgrounds,
-  saved-mappable-only categories, exact empty state, stable results/counts/
-  ordering, marker-only filtering, and zero overflow. A settled desktop/tablet
-  pass preserved zoom and map transform after selection and passed six repeated
-  open/hover/close cycles per size with no page errors.
-- The release is client-only. Merge and push the validated branch, deploy only
-  through `npm run deploy:client` from a clean `main` matching `origin/main`,
-  then verify the immutable/custom-domain artifact and core public routes.
-  Authenticated production saved-pin interaction remains user UAT; do not touch
-  the Worker, Neon, schema, map assets, authentication, secrets, or data.
+  `codex/discovery-mobile-tablet-refinement-20260910`, based on production main
+  `6737a730` / PR #74. Preserve the unrelated dirty primary checkout.
+- Desktop/tablet keep the supplied layer icon after Search but use a stable
+  native `details` popover with no global pointer listener. Phone Browse mode
+  omits the layer action; Phone Map View places it after Browse and opens the
+  existing bottom sheet. Both phone actions use the compact `40px` control
+  height, and the saved-place count scales to fit one row at `320px`. Layer
+  categories remain saved-mappable-only and filter map pins only.
+- Uncovered map canvas is now OneMap sea blue in Default mode and a matching
+  neutral sea in Gray mode. The narrow, previously validated fractional
+  overview alignment removes northern canvas below zoom `12` without changing
+  the fitted longitude. Minimum zooms, half-step controls, camera inputs, and
+  Detailed assets/thresholds remain unchanged.
+- Focused checks passed `16/16`; quality passed server `729/729`, client
+  `798/798`, the production environment validator `4/4`, eight migrations,
+  `481` modules / `1,420` relative-import edges, and the exact `2,488`-module
+  production build. Map lockdown passed `104/104` plus its build. Isolated
+  fictional-data UAT passed `320 x 740`, `390 x 844`, `1280 x 800` at maximum
+  text scale, and `1470 x 900`. The three-digit mobile count fit without
+  clipping; tablet and desktop each passed eight popover cycles with a solid
+  white menu, persistent search/results/map controls, no overflow, and no
+  browser errors. Marker filtering left all four results and `4 / 2 / 2` tab
+  counts unchanged.
+- The user approved deployment after the fix. Merge and push the validated
+  branch, deploy only the client through `npm run deploy:client` from a clean
+  `main` matching `origin/main`, and verify immutable/custom-domain artifact
+  parity plus core public routes. Physical-tablet and authenticated saved-pin
+  checks remain user UAT. Do not touch the Worker, Neon, schema, map assets,
+  authentication, secrets, or data.
 
 ## 2026-09-09 Discovery category map-layer rollback — release candidate
 

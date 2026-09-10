@@ -38,21 +38,35 @@ test('Discover postal search applies automatically and no longer exposes radius 
     assert.doesNotMatch(filterPanelSource, /type="submit"/);
 });
 
-test('Discover keeps saved-pin category layers beside search and out of the results pipeline', () => {
+test('Discover keeps desktop saved-pin layers beside search and moves the phone control to Map View', () => {
     const desktopPanelStart = filterPanelSource.indexOf('function DesktopFilterPanel');
     const desktopPanelEnd = filterPanelSource.indexOf('export function DiscoveryFilterPanel');
     const desktopPanelSource = filterPanelSource.slice(desktopPanelStart, desktopPanelEnd);
     const desktopSearchIndex = desktopPanelSource.indexOf("placeholder={t('discoverySearchPlaceholder')}");
     const desktopLayerIndex = desktopPanelSource.indexOf('<DiscoveryPinLayerControl', desktopSearchIndex);
+    const mobileBrowseStart = filterPanelSource.indexOf("mobileMode === 'browse'");
+    const mobileMapStart = filterPanelSource.indexOf("t('discoveryMapView')", mobileBrowseStart);
+    const mobileBrowseSource = filterPanelSource.slice(mobileBrowseStart, mobileMapStart);
+    const mobileMapEnd = filterPanelSource.indexOf('<MobileFilterSheet', mobileMapStart);
+    const mobileMapSource = filterPanelSource.slice(mobileMapStart, mobileMapEnd);
 
     assert.ok(desktopSearchIndex > -1, 'desktop search should render');
     assert.ok(desktopLayerIndex > desktopSearchIndex, 'desktop pin-layer control should follow search');
-    assert.match(filterPanelSource, /placeholder=\{t\('discoverySearchMobilePlaceholder'\)\}[\s\S]*?<DiscoveryPinLayerControl/);
+    assert.match(desktopPanelSource.slice(desktopLayerIndex), /presentation="popover"/);
+    assert.doesNotMatch(mobileBrowseSource, /<DiscoveryPinLayerControl/);
+    assert.match(mobileMapSource, /onClick=\{onOpenBrowse\}[\s\S]*?<DiscoveryPinLayerControl/);
+    assert.match(mobileMapSource, /presentation="sheet"/);
+    assert.match(pinLayerControlSource, /h-10 w-10 touch-manipulation/);
+    assert.match(pinLayerControlSource, /h-\[26px\] w-\[24px\] object-contain/);
     assert.doesNotMatch(filterPanelSource, /function CategoryCheckboxFilter/);
     assert.doesNotMatch(filterPanelSource, /<CategoryCheckboxFilter/);
     assert.match(pinLayerControlSource, /discovery-pin-layer\.png/);
     assert.match(pinLayerControlSource, /discoveryNoSavedPinsToFilter/);
     assert.match(pinLayerControlSource, /data-discovery-pin-layer-panel/);
+    assert.match(pinLayerControlSource, /presentation === 'popover'/);
+    assert.match(pinLayerControlSource, /<details/);
+    assert.match(pinLayerControlSource, /<MobileBottomSheet/);
+    assert.doesNotMatch(pinLayerControlSource, /useMediaQuery/);
 
     assert.match(discoverPageSource, /const filteredUniverse = filteredUniverseBeforeCategories;/);
     assert.doesNotMatch(discoverPageSource, /filterDiscoveryResourcesByCategoryKeys/);
@@ -65,7 +79,7 @@ test('Discover keeps saved-pin category layers beside search and out of the resu
     assert.match(discoverPageSource, /savedPlacePins=\{savedPlacePins\}/);
 });
 
-test('Discover mobile map mode uses Browse as the only header action', () => {
+test('Discover mobile map mode keeps Browse and pin layers on one adaptive header row', () => {
     const mapHeaderStart = filterPanelSource.indexOf("t('discoveryMapView')");
     const mapHeaderEnd = filterPanelSource.indexOf('<MobileFilterSheet', mapHeaderStart);
     const mapHeaderSource = filterPanelSource.slice(mapHeaderStart, mapHeaderEnd);
@@ -75,6 +89,12 @@ test('Discover mobile map mode uses Browse as the only header action', () => {
     assert.match(mapHeaderSource, /onClick=\{onOpenBrowse\}/);
     assert.match(mapHeaderSource, /t\('discoveryBrowse'\)/);
     assert.match(mapHeaderSource, /t\('discoveryMapShowingSavedPlaces'/);
+    assert.match(mapHeaderSource, /text-\[clamp\(0\.64rem,3\.2vw,1rem\)\]/);
+    assert.match(mapHeaderSource, /whitespace-nowrap/);
+    assert.match(mapHeaderSource, /min-h-\[40px\]/);
+    assert.match(filterPanelSource, /px-3 py-3 min-\[360px\]:px-4/);
+    assert.match(mapHeaderSource, /<DiscoveryPinLayerControl/);
+    assert.match(mapHeaderSource, /presentation="sheet"/);
     assert.doesNotMatch(mapHeaderSource, /onOpenMobileBrowseDrawer/);
     assert.doesNotMatch(mapHeaderSource, /setMobileFiltersOpen\(true\)/);
     assert.doesNotMatch(mapHeaderSource, /t\('discoveryList'\)/);

@@ -682,6 +682,7 @@ function DesktopFilterPanel({
                         <DiscoveryPinLayerControl
                             categoryOptions={mapPinCategoryOptions}
                             onChangeCategorySelection={onChangeMapPinCategorySelection}
+                            presentation="popover"
                             selectedCategoryKeys={selectedMapPinCategoryKeys}
                         />
                     </div>
@@ -951,7 +952,7 @@ export function DiscoveryFilterPanel(props) {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5 min-[360px]:gap-2">
                                 <div className="relative min-w-0 flex-1">
                                     <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
                                     <input
@@ -968,11 +969,6 @@ export function DiscoveryFilterPanel(props) {
                                         }}
                                     />
                                 </div>
-                                <DiscoveryPinLayerControl
-                                    categoryOptions={mapPinCategoryOptions}
-                                    onChangeCategorySelection={onChangeMapPinCategorySelection}
-                                    selectedCategoryKeys={selectedMapPinCategoryKeys}
-                                />
                                 <button
                                     type="button"
                                     onClick={() => setMobileFiltersOpen(true)}
@@ -1013,18 +1009,18 @@ export function DiscoveryFilterPanel(props) {
                         </>
                     ) : (
                         <div
-                            className="rounded-[22px] border px-4 py-3"
+                            className="rounded-[22px] border px-3 py-3 min-[360px]:px-4"
                             style={{
                                 borderColor: 'var(--color-border)',
                                 background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(231,248,244,0.94) 100%)',
                             }}
                         >
-                            <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
                                 <div className="min-w-0 flex-1">
                                     <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--color-brand)' }}>
                                         {t('discoveryMapView')}
                                     </p>
-                                    <p className="mt-1 text-[16px] font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
+                                    <p className="mt-1 whitespace-nowrap text-[clamp(0.64rem,3.2vw,1rem)] font-extrabold leading-tight tracking-tight" style={{ color: 'var(--color-text)' }}>
                                         {pinCount > 0
                                             ? t('discoveryMapShowingSavedPlaces', {
                                                 count: pinCount,
@@ -1036,11 +1032,17 @@ export function DiscoveryFilterPanel(props) {
                                 <button
                                     type="button"
                                     onClick={onOpenBrowse}
-                                    className="btn-primary min-h-[40px] shrink-0 justify-center px-3 text-[13px] font-bold leading-none whitespace-nowrap"
+                                    className="btn-primary min-h-[40px] shrink-0 justify-center px-2 text-[12px] font-bold leading-none whitespace-nowrap min-[360px]:px-3 min-[360px]:text-[13px]"
                                 >
                                     <Search size={15} />
                                     {t('discoveryBrowse')}
                                 </button>
+                                <DiscoveryPinLayerControl
+                                    categoryOptions={mapPinCategoryOptions}
+                                    onChangeCategorySelection={onChangeMapPinCategorySelection}
+                                    presentation="sheet"
+                                    selectedCategoryKeys={selectedMapPinCategoryKeys}
+                                />
                             </div>
                         </div>
                     )}

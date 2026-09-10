@@ -15,60 +15,61 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-10 Discovery saved-pin search-row layer control — release candidate
+## 2026-09-10 Discovery responsive pin-layer and map-canvas refinement — release candidate
 
-- Current behavior: Discovery places a compact saved-pin layer button directly
-  after the search field on desktop, tablet, and phone. The button uses the
-  user's supplied PNG without redrawing or changing its aspect ratio. Its menu
-  lists only categories represented by saved resources that can currently be
-  plotted on the map, including the number of plotted locations in each
-  category. With no saved mappable pins, it displays exactly `No saved pins to
-  filter yet.` Selecting one or more categories changes saved map pins only;
-  Discovery results, tab and result counts, ordering, pagination, Saved only,
-  and bulk save remain unchanged.
-- Known-good reference: branch
-  `codex/discovery-search-pin-layer-20260910`, based on the stable map-layer
-  rollback at `15f2f08e`. The new control remains in the search UI rather than
-  the Leaflet map overlay. The unfiltered saved-pin set continues to drive the
-  camera, fit, reset, and map-empty decisions, while a separate filtered set is
-  used only for rendered saved pins and their interactions.
-- Blast radius: client-only Discovery presentation and saved-pin rendering.
-  No Worker, API, authentication, database, production data, Detailed-map
-  source, zoom floor/step, My Map, Shared/embed/Print, Help, or Inbox behavior
-  changes. Keeping the menu outside the map control stack avoids the physical
-  Chrome paint failure that caused the previous map-layer rollback.
-- Reproduction and acceptance: sign in with saved resources that include both
-  mappable and unmappable items. At desktop/tablet widths require the layer
-  button to follow and align with the search field; on phone require the order
-  Search, layer button, Filter. Open the menu and require a solid white panel
-  containing only saved mappable categories. Select one and then multiple
-  categories and require union semantics for map pins only. Result count, tab
-  count, first result, ordering, and bulk-save scope must not change. The map
-  camera and settled zoom must not move, and settings, zoom, and reset must
-  remain visible and usable through repeated open, hover, select, close, pan,
-  and zoom interactions. With no saved mappable pins, require the exact empty
-  message and no category checkboxes. Require zero horizontal page overflow.
-- Verification before release: PASS locally. Saved-pin layer unit coverage
-  passed `4/4`; focused Discovery search-tool coverage passed `7/7`; the full
-  quality gate passed server `729/729`, client `797/797`, the production
-  environment validator `4/4`, eight migration records, and `481` source
-  modules / `1,421` relative-import edges with no cycles. The exact production
-  client build completed with `2,488` transformed modules. Fictional-data
-  browser UAT at
-  `1470 x 900`, `1280 x 800`, and `390 x 844` confirmed the exact supplied PNG
-  (`227 x 255`, rendered at `27 x 30`), the required search-row order, a solid
-  white desktop/tablet menu and mobile sheet, only three represented saved
-  categories, the exact empty state, map-marker filtering with unchanged
-  result/tab counts and first result, and zero overflow. A settled-map pass
-  kept desktop zoom `12.8` and tablet zoom `12.5` plus the Leaflet map transform
-  unchanged after selecting Chinese Temple; both sizes passed six repeated
-  open/hover/close cycles with visible settings/reset controls and zero page
-  errors.
+- Current behavior: desktop and tablet keep the supplied saved-pin layer icon
+  directly after the Discovery search field. The menu now uses the same stable
+  native `details` interaction pattern as the pre-overlay filter instead of
+  document-level pointer listeners. Phone Browse mode has no layer button;
+  Phone Map View places it directly after Browse, where it opens the existing
+  bottom sheet. Browse and the square layer action share the compact `40px`
+  control height, while desktop/tablet retain the form-row `46px` scale. The
+  Map View count stays on one adaptive row, including `Showing 358 saved
+  places` at a `320px` viewport.
+- Layer contract: the menu still lists only categories represented by saved,
+  mappable pins and displays exactly `No saved pins to filter yet.` when none
+  exist. Selection changes rendered saved pins only. Discovery results, tab
+  and result counts, ordering, pagination, Saved only, bulk save, map fit,
+  reset, and camera decisions continue to use their unfiltered inputs.
+- Map-canvas correction: uncovered Default-map canvas now uses the sampled
+  OneMap sea colour `#6da8e4` instead of gray; Gray mode uses its matching
+  neutral canvas. The previously validated fractional overview correction is
+  restored only below zoom `12`: it removes exposed northern canvas while
+  retaining the fitted longitude. Approved minimum zooms, half-step controls,
+  Detailed thresholds/assets, and user camera interaction are unchanged.
+- Known-good reference and blast radius: branch
+  `codex/discovery-mobile-tablet-refinement-20260910`, based on production main
+  `6737a730` / PR #74. This is a targeted client-only Discovery presentation,
+  popover, and canvas patch. It does not alter the Worker, API,
+  authentication, database, production data, saved-resource membership,
+  Detailed source selection, My Map, Shared/embed/Print, Help, or Inbox.
+- Reproduction and acceptance: at desktop/tablet widths repeatedly open,
+  hover, and close the layer menu. Require an opaque white panel and persistent
+  search, results, map settings, zoom, and reset controls with no blanking or
+  flicker. At phone widths require Browse and layer to remain one row and equal
+  height, with the full saved-place count untruncated. Zoom the overview to its
+  responsive floor and require every uncovered region to match the map sea,
+  not gray. Select a represented category and require marker-only filtering,
+  unchanged results/counts, and zero page overflow.
+- Verification before release: PASS locally. Focused Discovery and map
+  coverage passed `16/16`; the full quality gate passed server `729/729`,
+  client `798/798`, the production environment validator `4/4`, eight
+  migrations, and `481` source modules / `1,420` relative-import edges with no
+  cycles. The exact production client build transformed `2,488` modules. The
+  locked-map gate passed `104/104` plus its configured build. Isolated,
+  fictional-data browser UAT passed phone `320 x 740` and `390 x 844`, tablet
+  `1280 x 800` at the maximum `1.1` text scale, and desktop `1470 x 900`.
+  Phone controls measured `40px` high, the three-digit saved-place count fit
+  without clipping or wrapping, and the visible canvas was `rgb(109, 168,
+  228)`. Tablet and desktop each passed eight open/hover/close cycles with a
+  white menu, visible search/results/map controls, zero overflow, and zero
+  browser errors. Selecting Programmes reduced visible map markers while all
+  four result cards and the `4 / 2 / 2` tab counts remained unchanged.
 - Release boundary: publish the client only through the guarded Pages path,
-  verify the immutable deployment and custom-domain artifact parity plus core
-  public routes, and leave authenticated production saved-pin confirmation as
-  user UAT. Do not deploy the Worker, Neon, schema, map assets, authentication,
-  secrets, or data.
+  verify immutable/custom-domain artifact parity and core public routes, and
+  leave physical-tablet and authenticated saved-pin confirmation as user UAT.
+  Do not deploy the Worker, Neon, schema, map assets, authentication, secrets,
+  or data.
 
 ## 2026-09-09 Discovery category map-layer rollback — release candidate
 
