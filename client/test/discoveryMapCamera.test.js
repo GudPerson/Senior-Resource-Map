@@ -61,3 +61,10 @@ test('Discover removes fractional tablet top gaps and paints uncovered canvas li
     assert.match(discoveryMapSource, /DISCOVER_GRAY_SEA_BACKGROUND = '#cfd5dc'/);
     assert.match(discoveryMapSource, /backgroundColor: mapCanvasBackground/);
 });
+
+test('Discover centres the tall phone overview without changing tablet top alignment', () => {
+    assert.match(discoveryMapSource, /function DiscoveryMinimumZoomLock\(\{ interactionMode = 'desktop' \}\)/);
+    assert.match(discoveryMapSource, /if \(interactionMode === 'mobile'\) \{[\s\S]*?return minimumCenter;/);
+    assert.match(discoveryMapSource, /interactionMode === 'desktop' && Number\(map\.getZoom\(\)\) < DEFAULT_MAP_ZOOM/);
+    assert.match(discoveryMapSource, /<DiscoveryMinimumZoomLock interactionMode=\{interactionMode\} \/>/);
+});
