@@ -11,6 +11,30 @@ Updated: 2026-09-11 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
+## 2026-09-11 Map Studio individual pin visibility — release candidate
+
+- Continue in the clean release checkout
+  `/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-release-20260907`, branch
+  `codex/map-studio-individual-pin-visibility-20260911`, based on released
+  production main `1b2f6f0c`. Preserve the unrelated dirty primary checkout.
+- Owners can use `Edit content` → `Hide map pins` to hide or show individual
+  mappable pins within a named Map Studio view. Cards, stable map numbers,
+  order, categories, and membership remain unchanged; shared-coordinate
+  members are independent and unmappable cards have no action. The saved view
+  controls owner preview, PNG/PDF export, and its published embed. Ordinary
+  Shared Map remains full and embed guests receive only public boolean flags.
+- Focused checks passed `141/141`; quality passed server `731/731`, client
+  `801/801`, four environment checks, eight migrations, `481` modules /
+  `1,421` import edges, and the exact `2,488`-module production build. Map
+  lockdown passed `104/104` plus its configured build. Fictional-data browser
+  UAT passed hide/show `3 → 2 → 3`, retained cards, independent co-located
+  members, no unmappable action, no overflow, and no console issues at
+  `390 x 844` and `1470 x 900`. Authenticated smoke is unavailable because the
+  protected `SMOKE_*` values are not configured in this checkout.
+- The user explicitly approved commit, push, merge, Worker deploy, and Pages
+  deploy. No database migration, schema version, map asset, authentication,
+  secret, or production data change is authorized or required.
+
 ## 2026-09-11 Map Studio category-bubble icon scaling — release candidate
 
 - Continue in the clean release checkout

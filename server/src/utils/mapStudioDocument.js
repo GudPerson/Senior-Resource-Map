@@ -117,6 +117,7 @@ const designSchema = z.object({
         size: z.enum(['standard', 'large', 'extra-large']),
         categoryShapes: categoryPinShapesSchema,
         categoryStyles: categoryPinStylesSchema.default({}),
+        hiddenPlaceKeys: uniqueLayerReferencesSchema.default([]),
     }).strict(),
     labels: z.object({
         detail: z.enum([
@@ -212,6 +213,7 @@ function refineMapStudioDocument(document, context) {
         seenViewIds.add(view.id);
         totalLayerReferences += view.design.layers.hiddenResourceLayerKeys.length;
         totalLayerReferences += view.design.layers.hiddenAnnotationIds.length;
+        totalLayerReferences += view.design.pins.hiddenPlaceKeys?.length || 0;
     });
 
     if (!seenViewIds.has(document.defaultViewId)) {
@@ -291,6 +293,7 @@ function migrateStoredMapStudioDocument(document) {
                         ...view.design.pins,
                         categoryShapes: {},
                         categoryStyles: {},
+                        hiddenPlaceKeys: [],
                     },
                     layout: {
                         mapHeight: view.design.layout.mapHeight,

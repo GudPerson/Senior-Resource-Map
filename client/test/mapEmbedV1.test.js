@@ -74,7 +74,8 @@ test('map-only page uses the guest endpoint and omits private-map tool surfaces'
     assert.match(compactResourcePreviewCardSource, /t\('website'\)/);
     assert.match(compactResourcePreviewCardSource, /t\('contact'\)/);
     assert.doesNotMatch(embeddedPageSource, /selectedGroup \? selectedGroup\.name/);
-    assert.match(embeddedPageSource, /useEmbeddedDetailedMap\(presentation\.pins\)/);
+    assert.match(embeddedPageSource, /useEmbeddedDetailedMap\(mapPresentation\.pins\)/);
+    assert.match(embeddedPageSource, /buildPinVisibilityPresentation\(presentation, hiddenPinPlaceKeys\)/);
     assert.match(embeddedPageSource, /mapStyleOverride=\{embeddedMapRuntime\.mapStyle\}/);
     assert.match(embeddedPageSource, /embeddedMapRuntime\.detailMode === 'live'/);
     assert.match(embeddedPageSource, /fixedTownSurfaceManifest=\{detailedMap\.native\.manifest\}/);

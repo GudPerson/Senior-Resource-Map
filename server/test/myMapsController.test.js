@@ -1601,6 +1601,8 @@ test('publishMyMap freezes only the selected saved view public presentation', as
         style: 'numbered',
         size: 'extra-large',
         categoryShapes: { 'active ageing centre': 'star' },
+        categoryStyles: {},
+        hiddenPlaceKeys: ['hard-29', 'owner-only-place'],
     };
     studioDocument.views[0].design.layers.resources = 'hide';
     studioDocument.views[0].design.layers.annotations = 'hide';
@@ -1641,6 +1643,7 @@ test('publishMyMap freezes only the selected saved view public presentation', as
         annotationsVisible: false,
     });
     assert.deepEqual(snapshot.embeddedResourceKeys, []);
+    assert.deepEqual(snapshot.embeddedHiddenPinPlaceKeys, ['hard-29']);
     assert.deepEqual(snapshot.embeddedAnnotations, []);
     assert.equal(snapshot.studioViewId, undefined);
     assert.equal(snapshot.studioDocument, undefined);
@@ -1649,6 +1652,7 @@ test('publishMyMap freezes only the selected saved view public presentation', as
     assert.equal(snapshot.design, undefined);
     assert.equal(JSON.stringify(snapshot).includes('private-annotation'), false);
     assert.equal(JSON.stringify(snapshot).includes('hiddenResourceLayerKeys'), false);
+    assert.equal(JSON.stringify(snapshot).includes('owner-only-place'), false);
     assert.equal(JSON.stringify(snapshot).includes('mapSide'), false);
     assert.equal(JSON.stringify(snapshot).includes('ownerOnlyInjection'), false);
 

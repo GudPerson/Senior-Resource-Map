@@ -1,3 +1,5 @@
+import { Eye, EyeOff } from 'lucide-react';
+
 import CategoryPinShapeBadge from './CategoryPinShapeBadge.jsx';
 import ResourceRowIcon from './ResourceRowIcon.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
@@ -18,6 +20,8 @@ export default function MyMapResourceTable({
     onViewOnMap,
     onHoverPlaceStart,
     onHoverPlaceEnd,
+    onTogglePinVisibility,
+    hiddenPinPlaceKeys = [],
     numberedPinShapesByCategory = {},
     numberedPinStylesByCategory = {},
     labelDetail = 'full',
@@ -38,6 +42,11 @@ export default function MyMapResourceTable({
             ? 'sm:grid-cols-[3.25rem_minmax(0,0.95fr)_minmax(0,1.05fr)]'
             : 'sm:grid-cols-[3.25rem_minmax(0,1fr)]');
     const rowPaddingClassName = detail.compact ? 'py-2.5' : 'py-3.5';
+    const hiddenPinPlaceKeySet = new Set(
+        (Array.isArray(hiddenPinPlaceKeys) ? hiddenPinPlaceKeys : [])
+            .map((value) => String(value || '').trim())
+            .filter(Boolean),
+    );
 
     return (
         <div
@@ -148,7 +157,15 @@ export default function MyMapResourceTable({
                                         );
                                         const rowClassName = `grid gap-3 px-4 text-left sm:gap-3 ${rowPaddingClassName} ${rowGridClassName}`;
 
-                                        if (!interactive || !asset.placeKey || !onViewOnMap) {
+                                        const canViewOnMap = Boolean(interactive && asset.placeKey && onViewOnMap);
+                                        const canManagePinVisibility = Boolean(
+                                            interactive
+                                            && asset.placeKey
+                                            && asset.sourceMapNumber !== 'List only'
+                                            && onTogglePinVisibility,
+                                        );
+
+                                        if (!canViewOnMap && !canManagePinVisibility) {
                                             return (
                                                 <div key={asset.assetKey} className={rowClassName}>
                                                     {content}
@@ -156,18 +173,41 @@ export default function MyMapResourceTable({
                                             );
                                         }
 
+                                        const pinHidden = hiddenPinPlaceKeySet.has(String(asset.placeKey));
+                                        const pinActionLabel = t(pinHidden ? 'showPin' : 'hidePin');
                                         return (
-                                            <button
-                                                key={asset.assetKey}
-                                                type="button"
-                                                onClick={() => onViewOnMap(asset.placeKey)}
-                                                onMouseEnter={() => onHoverPlaceStart?.(asset.placeKey)}
-                                                onMouseLeave={() => onHoverPlaceEnd?.(asset.placeKey)}
-                                                className={`w-full transition hover:bg-brand-50/50 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-brand-100 ${rowClassName}`}
-                                                aria-label={`${t('viewOnMap')}: ${asset.name}`}
-                                            >
-                                                {content}
-                                            </button>
+                                            <div key={asset.assetKey} className="relative">
+                                                {canViewOnMap ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onViewOnMap(asset.placeKey)}
+                                                        onMouseEnter={() => onHoverPlaceStart?.(asset.placeKey)}
+                                                        onMouseLeave={() => onHoverPlaceEnd?.(asset.placeKey)}
+                                                        className={`w-full transition hover:bg-brand-50/50 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-brand-100 ${canManagePinVisibility ? 'pr-24' : ''} ${rowClassName}`}
+                                                        aria-label={`${t('viewOnMap')}: ${asset.name}`}
+                                                    >
+                                                        {content}
+                                                    </button>
+                                                ) : (
+                                                    <div className={`${canManagePinVisibility ? 'pr-24' : ''} ${rowClassName}`}>
+                                                        {content}
+                                                    </div>
+                                                )}
+                                                {canManagePinVisibility ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onTogglePinVisibility(asset.placeKey)}
+                                                        className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                                                        aria-label={`${pinActionLabel}: ${asset.name}`}
+                                                        title={pinActionLabel}
+                                                        data-my-map-pin-visibility-action="true"
+                                                        data-pin-hidden={pinHidden ? 'true' : 'false'}
+                                                    >
+                                                        {pinHidden ? <Eye size={13} aria-hidden="true" /> : <EyeOff size={13} aria-hidden="true" />}
+                                                        {pinActionLabel}
+                                                    </button>
+                                                ) : null}
+                                            </div>
                                         );
                                     })}
                                 </div>

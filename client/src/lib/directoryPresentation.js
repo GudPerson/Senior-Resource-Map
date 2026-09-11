@@ -729,6 +729,70 @@ export function buildOwnerNumberedPinPresentation(presentation) {
     };
 }
 
+/**
+ * Build the map-only portion of a Map Studio presentation after applying
+ * per-view pin visibility. Card groups, numbers, ordering, and counts stay in
+ * the caller's original presentation; this returned model is only for the map.
+ */
+export function buildPinVisibilityPresentation(
+    presentation,
+    hiddenPlaceKeys = [],
+) {
+    const hiddenKeys = new Set(
+        (Array.isArray(hiddenPlaceKeys) ? hiddenPlaceKeys : [])
+            .map((value) => String(value || '').trim())
+            .filter(Boolean),
+    );
+    if (!presentation || hiddenKeys.size === 0) return presentation;
+
+    const visibleMappedGroups = (presentation.mappedGroups || []).filter((group) => (
+        group?.placeKey && !hiddenKeys.has(String(group.placeKey))
+    ));
+    const visiblePlaceKeys = new Set(
+        visibleMappedGroups.map((group) => String(group.placeKey)).filter(Boolean),
+    );
+    const visibleDisplayGroups = (presentation.displayGroups || visibleMappedGroups).filter((group) => (
+        group?.hasCoordinates === false
+        || group?.lat === null
+        || group?.lng === null
+        || visiblePlaceKeys.has(String(group?.placeKey || ''))
+    ));
+    const hardCategoryEntriesByPostal = buildHardCategoryEntriesByPostal(visibleMappedGroups);
+    const pinGroups = buildGroupedMappedGroups(visibleMappedGroups);
+    const pins = buildGroupedPins(pinGroups, {
+        hardRowsOnly: true,
+        hardCategoryEntriesByPostal,
+        preferMapCategory: true,
+    }).map((pin) => ({
+        ...pin,
+        number: presentation.placeNumberByKey?.[pin.placeKey]
+            || presentation.placeNumberByKey?.[pin.memberPlaceKeys?.[0]]
+            || null,
+    }));
+    const groupKeyByPlaceKey = {};
+    visibleDisplayGroups.forEach((group) => {
+        if (group?.placeKey) groupKeyByPlaceKey[group.placeKey] = group.placeKey;
+    });
+    pinGroups.forEach((group) => {
+        if (!group?.placeKey) return;
+        groupKeyByPlaceKey[group.placeKey] = group.placeKey;
+        if (group.isPostalGroup) {
+            (group.memberPlaceKeys || []).forEach((memberPlaceKey) => {
+                groupKeyByPlaceKey[memberPlaceKey] = group.placeKey;
+            });
+        }
+    });
+
+    return {
+        ...presentation,
+        pins,
+        mappedGroups: visibleMappedGroups,
+        displayGroups: visibleDisplayGroups,
+        groupKeyByPlaceKey,
+        hoverPlaceKeysByKey: buildHoverPlaceKeysByKey(visibleMappedGroups, pinGroups),
+    };
+}
+
 function buildUnmappedDisplayGroup(row, index, mappedPlaceKeys = new Set()) {
     const placeKey = `unmapped:${row.rowKey || row.assetKey || index}`;
     const categoryLabel = getRowCategoryLabel(row);

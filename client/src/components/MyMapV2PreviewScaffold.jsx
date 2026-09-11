@@ -16,6 +16,7 @@ export default function MyMapV2PreviewScaffold({
     directory,
     activeAnchor,
     presentation,
+    mapPresentation = presentation,
     useDesktopLayout,
     focusedPlaceKey,
     focusedPlaceKeys = [],
@@ -28,6 +29,8 @@ export default function MyMapV2PreviewScaffold({
     onViewOnMap,
     onViewSection,
     onRemoveResource,
+    onTogglePinVisibility,
+    hiddenPinPlaceKeys = [],
     onEditPersonalPlace,
     onEditResourceShortDescription,
     onUpdateResourceNotes,
@@ -98,7 +101,7 @@ export default function MyMapV2PreviewScaffold({
     const renderMap = (mapHeightClassName) => (
         <DirectoryMap
             activeAnchor={activeAnchor}
-            pins={presentation.pins}
+            pins={mapPresentation.pins}
             focusedPlaceKey={focusedPlaceKey}
             focusedPlaceKeys={focusedPlaceKeys}
             activePlaceKey={activePlaceKey}
@@ -120,7 +123,7 @@ export default function MyMapV2PreviewScaffold({
             pinCategoryIconMode={directoryMapRuntime?.pinCategoryIconMode || 'none'}
             clusterMarkerMode={directoryMapRuntime?.clusterMarkerMode || 'none'}
             showPins={mapStudioRuntime?.resourceLayer?.visible ?? true}
-            placeNumberByKey={presentation.placeNumberByKey}
+            placeNumberByKey={mapPresentation.placeNumberByKey}
             numberedPinShapesByCategory={directoryMapRuntime?.numberedPinShapesByCategory}
             numberedPinStylesByCategory={directoryMapRuntime?.numberedPinStylesByCategory}
             emptyLabel={emptyLabel}
@@ -213,6 +216,8 @@ export default function MyMapV2PreviewScaffold({
                         onHoverPlaceStart={onHoverPlaceStart}
                         onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
+                        onTogglePinVisibility={onTogglePinVisibility}
+                        hiddenPinPlaceKeys={hiddenPinPlaceKeys}
                         onEditPersonalPlace={onEditPersonalPlace}
                         onEditResourceShortDescription={onEditResourceShortDescription}
                         onUpdateResourceNotes={onUpdateResourceNotes}
@@ -239,7 +244,7 @@ export default function MyMapV2PreviewScaffold({
                         desktopScrollTargetRef={desktopScrollTargetRef}
                         desktopGridClassName={desktopGridClassName}
                         renderDesktopMap={() => (
-                            presentation.pins.length ? (
+                            mapPresentation.pins.length ? (
                                 <ResizableDesktopMapSurface
                                     mapElement={renderMap(desktopMapHeightClass)}
                                     heightPreset={mapStudioRuntime ? mapHeight : null}

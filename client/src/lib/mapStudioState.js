@@ -197,6 +197,7 @@ export function createMapStudioDesign({
             size: PRINT_MAP_PIN_SIZE_STANDARD,
             categoryShapes: {},
             categoryStyles: {},
+            hiddenPlaceKeys: [],
         },
         labels: {
             detail: PRINT_MAP_LABEL_DETAIL_FULL,
@@ -235,6 +236,7 @@ export function normalizeMapStudioDesign(value, defaults = {}) {
             size: normalizePrintMapPinSize(value?.pins?.size),
             categoryShapes: normalizeCategoryPinShapes(value?.pins?.categoryShapes),
             categoryStyles: normalizeCategoryPinStyles(value?.pins?.categoryStyles),
+            hiddenPlaceKeys: normalizePlaceKeys(value?.pins?.hiddenPlaceKeys),
         },
         labels: {
             detail: normalizePrintMapLabelDetail(value?.labels?.detail),
@@ -648,6 +650,7 @@ export function buildMapStudioPrintState(design, exportSettings = {}, runtime = 
         pinSize: normalizedDesign.pins.size,
         numberedPinShapesByCategory: clone(normalizedDesign.pins.categoryShapes),
         numberedPinStylesByCategory: clone(normalizedDesign.pins.categoryStyles),
+        hiddenPinPlaceKeys: clone(normalizedDesign.pins.hiddenPlaceKeys),
         studioMarkerMode: normalizedDesign.pins.style === MAP_STUDIO_PIN_STYLE_NUMBERED
             ? 'print-badge'
             : normalizedDesign.pins.style === MAP_STUDIO_PIN_STYLE_CATEGORY_ICON

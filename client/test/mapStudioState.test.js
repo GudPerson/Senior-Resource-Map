@@ -87,6 +87,13 @@ test('Map Studio Export inherits a temporary interactive height without persisti
     assert.deepEqual(design, originalDesign);
 });
 
+test('Map Studio Export carries saved per-place pin visibility without changing cards', () => {
+    const design = createMapStudioDesign();
+    design.pins.hiddenPlaceKeys = ['hard-2', 'hard-1'];
+
+    assert.deepEqual(buildMapStudioPrintState(design).hiddenPinPlaceKeys, ['hard-2', 'hard-1']);
+});
+
 test('Map Studio Export keeps runtime height inside the existing layout safety bounds', () => {
     const standardDesign = createMapStudioDesign();
     const fullMapDesign = createMapStudioDesign();
@@ -139,6 +146,7 @@ test('a legacy My Map gets one versioned default view without changing existing 
         size: 'standard',
         categoryShapes: {},
         categoryStyles: {},
+        hiddenPlaceKeys: [],
     });
     assert.equal(document.views[0].design.layout.resourceDisplay, 'cards');
 });
@@ -227,6 +235,7 @@ test('normalization bounds visual state and removes duplicate layer identifiers'
     assert.deepEqual(normalized.views[0].design.pins.categoryStyles, {
         'active ageing centre (aac)': { fillColor: '#123ABC', ringColor: '#FEDCBA', ringWeight: 'thin' },
     });
+    assert.deepEqual(normalized.views[0].design.pins.hiddenPlaceKeys, []);
     assert.equal(normalized.views[0].design.layout.resourceDisplay, 'table');
 });
 
@@ -479,6 +488,7 @@ test('schema v2 views migrate additively with Circle as the numbered-pin shape f
         size: 'large',
         categoryShapes: {},
         categoryStyles: {},
+        hiddenPlaceKeys: [],
     });
 });
 

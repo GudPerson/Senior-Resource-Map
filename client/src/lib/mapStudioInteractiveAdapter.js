@@ -24,6 +24,7 @@ export const MAP_STUDIO_INTERACTIVE_SUPPORTED_PATHS = Object.freeze([
     'pins.size',
     'pins.categoryShapes',
     'pins.categoryStyles',
+    'pins.hiddenPlaceKeys',
     'labels.detail',
     'layers.resources',
     'layers.hiddenResourceLayerKeys',
@@ -71,6 +72,7 @@ export function buildMapStudioInteractiveModel(design, defaults = {}) {
             markerScale: getPrintMapPinScale(normalizedDesign.pins.size),
             numberedPinShapesByCategory: clone(normalizedDesign.pins.categoryShapes),
             numberedPinStylesByCategory: clone(normalizedDesign.pins.categoryStyles),
+            hiddenPlaceKeys: clone(normalizedDesign.pins.hiddenPlaceKeys),
             pinBadgeMode: 'none',
             pinCategoryIconMode: isCategoryIcon ? 'auto' : 'none',
             // Studio pin styles are all individual-marker presentations. The

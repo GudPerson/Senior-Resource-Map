@@ -12,6 +12,7 @@ import BrandLockup from '../components/layout/BrandLockup.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useEmbeddedDetailedMap } from '../hooks/useEmbeddedDetailedMap.js';
 import { fetchEmbeddedMap } from '../lib/embedMapApi.js';
+import { buildPinVisibilityPresentation } from '../lib/directoryPresentation.js';
 import { normalizePrintAnnotations } from '../lib/printAnnotations.js';
 import {
     buildEmbedCategoryOptions,
@@ -239,6 +240,14 @@ export default function EmbeddedMapPage() {
         query,
         selectedCategoryKeys,
     }), [directory, query, selectedCategoryKeys]);
+    const hiddenPinPlaceKeys = useMemo(() => (
+        (directory?.places || [])
+            .filter((place) => place?.mapPinHidden)
+            .map((place) => place.placeKey)
+    ), [directory?.places]);
+    const mapPresentation = useMemo(() => (
+        buildPinVisibilityPresentation(presentation, hiddenPinPlaceKeys)
+    ), [hiddenPinPlaceKeys, presentation]);
     const selectedGroups = useMemo(() => (
         findEmbedPreviewGroups(presentation, selectedPlaceKey)
     ), [presentation, selectedPlaceKey]);
@@ -250,7 +259,7 @@ export default function EmbeddedMapPage() {
     const embeddedMapRuntime = useMemo(() => (
         buildEmbeddedMapRuntime(directory?.embeddedPresentation)
     ), [directory?.embeddedPresentation]);
-    const detailedMap = useEmbeddedDetailedMap(presentation.pins);
+    const detailedMap = useEmbeddedDetailedMap(mapPresentation.pins);
     const sharedAnnotations = useMemo(() => (
         normalizePrintAnnotations(directory?.printAnnotations)
     ), [directory?.printAnnotations]);
@@ -374,7 +383,7 @@ export default function EmbeddedMapPage() {
             <section className="relative min-h-0 flex-1 overflow-hidden bg-white">
                 <DirectoryMap
                     key={`embed-map-${mapResetKey}`}
-                    pins={presentation.pins}
+                    pins={mapPresentation.pins}
                     onViewSection={(placeKey) => {
                         setSelectedPlaceKey(String(placeKey || ''));
                         setSelectedMemberPlaceKey('');
@@ -386,7 +395,7 @@ export default function EmbeddedMapPage() {
                     pinCategoryIconMode={embeddedMapRuntime.pinCategoryIconMode}
                     clusterMarkerMode={embeddedMapRuntime.clusterMarkerMode}
                     showPins={embeddedMapRuntime.pinsVisible}
-                    placeNumberByKey={presentation.placeNumberByKey}
+                    placeNumberByKey={mapPresentation.placeNumberByKey}
                     showPopup={false}
                     showMapStyleControl={false}
                     mapStyleOverride={embeddedMapRuntime.mapStyle}

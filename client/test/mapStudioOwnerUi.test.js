@@ -61,6 +61,9 @@ test('runtime design stays owner-scoped while exploration remains temporary', ()
     assert.match(ownerPageSource, /onMapHeightChange: handleInteractiveMapHeightChange/);
     assert.match(ownerPageSource, /if \(snapshot\) setMapStudioRuntimeSnapshot\(snapshot\)/);
     assert.match(ownerPageSource, /mapStudioLayoutSignature/);
+    assert.match(ownerPageSource, /\{ pins: \{ hiddenPlaceKeys: \[\.\.\.hiddenPlaceKeys\]\.sort\(\) \} \}/);
+    assert.match(ownerPageSource, /onTogglePinVisibility=\{pinVisibilityMode \? handleTogglePinVisibility : null\}/);
+    assert.match(ownerPageSource, /mapPresentation=\{mapOwnerPresentation\}/);
 });
 
 test('sharing publishes only the selected persisted view and blocks unsaved owner state', () => {

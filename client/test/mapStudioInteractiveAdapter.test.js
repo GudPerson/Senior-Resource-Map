@@ -33,6 +33,7 @@ test('interactive model preserves the locked category-bubble defaults', () => {
         markerScale: 1,
         numberedPinShapesByCategory: {},
         numberedPinStylesByCategory: {},
+        hiddenPlaceKeys: [],
         pinBadgeMode: 'none',
         pinCategoryIconMode: 'none',
         clusterMarkerMode: 'none',
@@ -69,6 +70,7 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
             labelColor: '#FEDCBA',
         },
     };
+    design.pins.hiddenPlaceKeys = ['hard-10'];
     design.layers.resources = PRINT_MAP_RESOURCE_LAYER_HIDE;
     design.layers.annotations = PRINT_MAP_ANNOTATION_LAYER_HIDE;
     design.layers.hiddenResourceLayerKeys = ['resource:carearound'];
@@ -98,6 +100,7 @@ test('interactive model maps only proven DirectoryMap design seams', () => {
                 labelColor: '#FEDCBA',
             },
         },
+        hiddenPlaceKeys: ['hard-10'],
         pinBadgeMode: 'none',
         pinCategoryIconMode: 'none',
         clusterMarkerMode: 'none',
@@ -158,11 +161,14 @@ test('interactive model returns cloned camera and layer arrays', () => {
         view: { center: [1.3, 103.8], zoom: 14 },
     };
     design.layers.hiddenAnnotationIds = ['annotation-1'];
+    design.pins.hiddenPlaceKeys = ['hard-10'];
 
     const model = buildMapStudioInteractiveModel(design);
     model.directoryMap.mapViewState.center[0] = 0;
     model.annotationLayer.hiddenAnnotationIds.push('annotation-2');
+    model.directoryMap.hiddenPlaceKeys.push('hard-20');
 
     assert.deepEqual(design.camera.view.center, [1.3, 103.8]);
     assert.deepEqual(design.layers.hiddenAnnotationIds, ['annotation-1']);
+    assert.deepEqual(design.pins.hiddenPlaceKeys, ['hard-10']);
 });

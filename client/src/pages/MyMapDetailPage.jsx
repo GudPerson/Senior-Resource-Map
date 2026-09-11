@@ -7,6 +7,7 @@ import {
     ArrowLeft,
     CheckCircle2,
     ChevronDown,
+    EyeOff,
     Layers3,
     Link2,
     ListOrdered,
@@ -57,6 +58,7 @@ import {
 import {
     buildDirectoryPresentation,
     buildDirectoryShareUrl,
+    buildPinVisibilityPresentation,
     buildOwnerNumberedPinPresentation,
 } from '../lib/directoryPresentation.js';
 import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
@@ -240,6 +242,8 @@ function OwnerEditContentMenu({
     annotationsReady = false,
     onToggleResourceRemoval,
     resourceRemovalMode = false,
+    onTogglePinVisibility,
+    pinVisibilityMode = false,
     inFlow = false,
 }) {
     const { t } = useLocale();
@@ -248,7 +252,10 @@ function OwnerEditContentMenu({
     const menuRef = useRef(null);
     const triggerRef = useRef(null);
     const [open, setOpen] = useState(false);
-    const contentModeActive = shortDescriptionMode || annotationEditing || resourceRemovalMode;
+    const contentModeActive = shortDescriptionMode
+        || annotationEditing
+        || pinVisibilityMode
+        || resourceRemovalMode;
 
     const focusFirstAvailableItem = useCallback(() => {
         window.requestAnimationFrame(() => {
@@ -328,6 +335,19 @@ function OwnerEditContentMenu({
                     <button
                         type="button"
                         role="menuitemcheckbox"
+                        aria-checked={pinVisibilityMode}
+                        onClick={() => runAction(onTogglePinVisibility)}
+                        className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-brand-100 ${
+                            pinVisibilityMode ? 'bg-brand-50 text-brand-800' : 'text-slate-700 hover:bg-brand-50'
+                        }`}
+                        data-owner-pin-visibility-mode="true"
+                    >
+                        <EyeOff size={17} className="text-brand-700" aria-hidden="true" />
+                        {t('hideMapPins')}
+                    </button>
+                    <button
+                        type="button"
+                        role="menuitemcheckbox"
                         aria-checked={shortDescriptionMode}
                         onClick={() => runAction(onToggleShortDescription)}
                         className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition focus:outline-none focus:ring-4 focus:ring-brand-100 ${
@@ -390,6 +410,8 @@ function OwnerHeader({
     annotationsReady = false,
     onToggleResourceRemoval,
     resourceRemovalMode = false,
+    onTogglePinVisibility,
+    pinVisibilityMode = false,
     onEditLayout,
     editLayoutDisabled = false,
     onEditDetails,
@@ -448,6 +470,8 @@ function OwnerHeader({
                             annotationsReady={annotationsReady}
                             onToggleResourceRemoval={onToggleResourceRemoval}
                             resourceRemovalMode={resourceRemovalMode}
+                            onTogglePinVisibility={onTogglePinVisibility}
+                            pinVisibilityMode={pinVisibilityMode}
                         />
                         <button type="button" onClick={onEditLayout} disabled={editLayoutDisabled} className={`btn-ghost ${compactActionClassName} border border-slate-200 text-slate-700 disabled:cursor-wait disabled:opacity-45`} aria-haspopup="dialog" aria-controls={`map-studio-design-settings-${directory.id}`}>
                             <SlidersHorizontal size={16} aria-hidden="true" />
@@ -516,6 +540,8 @@ function MyMapMobileControls({
     annotationsReady = false,
     onToggleResourceRemoval,
     resourceRemovalMode = false,
+    onTogglePinVisibility,
+    pinVisibilityMode = false,
     onEditLayout,
     editLayoutDisabled = false,
     onEditDetails,
@@ -680,6 +706,8 @@ function MyMapMobileControls({
                                     annotationsReady={annotationsReady}
                                     onToggleResourceRemoval={() => runDrawerAction(onToggleResourceRemoval)}
                                     resourceRemovalMode={resourceRemovalMode}
+                                    onTogglePinVisibility={() => runDrawerAction(onTogglePinVisibility)}
+                                    pinVisibilityMode={pinVisibilityMode}
                                     inFlow
                                 />
                                 <button
@@ -1651,6 +1679,7 @@ export default function MyMapDetailPage() {
     const [printShortDescriptionMode, setPrintShortDescriptionMode] = useState(false);
     const [interactiveAnnotationEditorOpen, setInteractiveAnnotationEditorOpen] = useState(false);
     const [interactiveShortDescriptionMode, setInteractiveShortDescriptionMode] = useState(false);
+    const [pinVisibilityMode, setPinVisibilityMode] = useState(false);
     const [resourceRemovalMode, setResourceRemovalMode] = useState(false);
     const [townMapManifestStates, setTownMapManifestStates] = useState({
         [CAREAROUND_MAP_STYLE_DEFAULT]: createTownMapManifestState(),
@@ -2041,11 +2070,22 @@ export default function MyMapDetailPage() {
         collectMyMapCategoryOptions(townMapCoveragePresentation)
     ), [townMapCoveragePresentation]);
     const baseOwnerPresentation = isV2View ? v2Presentation : interactivePresentation;
+    const mapPinBasePresentation = useMemo(() => (
+        buildPinVisibilityPresentation(
+            baseOwnerPresentation,
+            mapStudioInteractiveModel?.directoryMap?.hiddenPlaceKeys,
+        )
+    ), [baseOwnerPresentation, mapStudioInteractiveModel?.directoryMap?.hiddenPlaceKeys]);
     const ownerPresentation = useMemo(() => (
         mapStudioInteractiveModel?.directoryMap?.markerMode === 'print-badge'
             ? buildOwnerNumberedPinPresentation(baseOwnerPresentation)
             : baseOwnerPresentation
     ), [baseOwnerPresentation, mapStudioInteractiveModel?.directoryMap?.markerMode]);
+    const mapOwnerPresentation = useMemo(() => (
+        mapStudioInteractiveModel?.directoryMap?.markerMode === 'print-badge'
+            ? buildOwnerNumberedPinPresentation(mapPinBasePresentation)
+            : mapPinBasePresentation
+    ), [mapPinBasePresentation, mapStudioInteractiveModel?.directoryMap?.markerMode]);
     const pdfPresentation = useMemo(() => (
         buildDirectoryPresentation(directory)
     ), [directory]);
@@ -3464,6 +3504,7 @@ export default function MyMapDetailPage() {
         }
         setPersonalPlacePickerActive(false);
         setInteractiveShortDescriptionMode(false);
+        setPinVisibilityMode(false);
         setResourceRemovalMode(false);
         printAnnotations.reload();
         setInteractiveAnnotationEditorOpen(true);
@@ -3474,8 +3515,21 @@ export default function MyMapDetailPage() {
             printAnnotations.saveNow();
             setInteractiveAnnotationEditorOpen(false);
         }
+        setPinVisibilityMode(false);
         setResourceRemovalMode(false);
         setInteractiveShortDescriptionMode((current) => !current);
+    }
+
+    function togglePinVisibilityMode() {
+        if (!pinVisibilityMode) {
+            if (interactiveAnnotationEditorOpen) {
+                printAnnotations.saveNow();
+                setInteractiveAnnotationEditorOpen(false);
+            }
+            setInteractiveShortDescriptionMode(false);
+            setResourceRemovalMode(false);
+        }
+        setPinVisibilityMode((current) => !current);
     }
 
     function toggleResourceRemovalMode() {
@@ -3485,8 +3539,26 @@ export default function MyMapDetailPage() {
                 setInteractiveAnnotationEditorOpen(false);
             }
             setInteractiveShortDescriptionMode(false);
+            setPinVisibilityMode(false);
         }
         setResourceRemovalMode((current) => !current);
+    }
+
+    function handleTogglePinVisibility(placeKey) {
+        const normalizedPlaceKey = String(placeKey || '').trim();
+        if (!normalizedPlaceKey || !mapStudioRuntimeSnapshot?.design) return;
+
+        const hiddenPlaceKeys = new Set(
+            mapStudioRuntimeSnapshot.design.pins?.hiddenPlaceKeys || [],
+        );
+        if (hiddenPlaceKeys.has(normalizedPlaceKey)) hiddenPlaceKeys.delete(normalizedPlaceKey);
+        else hiddenPlaceKeys.add(normalizedPlaceKey);
+
+        mapStudioControllerRef.current?.patchDesign(
+            { pins: { hiddenPlaceKeys: [...hiddenPlaceKeys].sort() } },
+            { enterDesign: true },
+        );
+        clearMapSelection();
     }
 
     function openMapDetailsEditor() {
@@ -3581,6 +3653,8 @@ export default function MyMapDetailPage() {
         annotationsReady: printAnnotationsReady,
         onToggleResourceRemoval: toggleResourceRemovalMode,
         resourceRemovalMode,
+        onTogglePinVisibility: togglePinVisibilityMode,
+        pinVisibilityMode,
         onEditLayout: openMapStudioLayoutSettings,
         editLayoutDisabled: !mapStudioRuntimeSnapshot,
         onEditDetails: openMapDetailsEditor,
@@ -3925,6 +3999,7 @@ export default function MyMapDetailPage() {
                     onQueryChange={setQuery}
                     activeAnchor={activeAnchor}
                     presentation={ownerPresentation}
+                    mapPresentation={mapOwnerPresentation}
                     useDesktopLayout={useDesktopOwnerLayout}
                     useDesktopBodyLayout={useDesktopDirectoryBodyLayout}
                     focusedPlaceKey={effectiveFocusedPlaceKey}
@@ -3938,6 +4013,8 @@ export default function MyMapDetailPage() {
                     onViewOnMap={handleViewOnMap}
                     onViewSection={handleViewSection}
                     onRemoveResource={resourceRemovalMode ? handleRemoveResource : null}
+                    onTogglePinVisibility={pinVisibilityMode ? handleTogglePinVisibility : null}
+                    hiddenPinPlaceKeys={mapStudioInteractiveModel?.directoryMap?.hiddenPlaceKeys || []}
                     onEditPersonalPlace={handleEditPersonalPlace}
                     onEditResourceShortDescription={interactiveShortDescriptionMode
                         ? handleEditResourceShortDescription
@@ -4181,7 +4258,7 @@ export default function MyMapDetailPage() {
                             {personalPlacePickerActive || interactiveAnnotationEditorOpen ? (
                                 <DirectoryMap
                                     activeAnchor={activeAnchor}
-                                    pins={ownerPresentation.pins}
+                                    pins={mapOwnerPresentation.pins}
                                     focusedPlaceKey={effectiveFocusedPlaceKey}
                                     focusedPlaceKeys={focusedPlaceKeys}
                                     activePlaceKey={activePlaceKey}
@@ -4196,7 +4273,7 @@ export default function MyMapDetailPage() {
                                     interactive
                                     {...classicMapStudioMapProps}
                                     markerMode={classicMarkerMode}
-                                    placeNumberByKey={ownerPresentation.placeNumberByKey}
+                                    placeNumberByKey={mapOwnerPresentation.placeNumberByKey}
                                     emptyLabel={t('personalPlaceMapHint')}
                                     mapHeightClassName={resolveClassicMapHeightClass(studioMapHeight, 'desktop', true)}
                                     mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
@@ -4245,6 +4322,8 @@ export default function MyMapDetailPage() {
                                 onHoverPlaceStart={handleMapHoverStart}
                                 onHoverPlaceEnd={handleMapHoverEnd}
                                 onRemoveResource={resourceRemovalMode ? handleRemoveResource : null}
+                                onTogglePinVisibility={pinVisibilityMode ? handleTogglePinVisibility : null}
+                                hiddenPinPlaceKeys={mapStudioInteractiveModel?.directoryMap?.hiddenPlaceKeys || []}
                                 onEditPersonalPlace={handleEditPersonalPlace}
                                 onEditResourceShortDescription={interactiveShortDescriptionMode
                                     ? handleEditResourceShortDescription
@@ -4273,7 +4352,7 @@ export default function MyMapDetailPage() {
                                 renderDesktopMap={() => (
                                     <DirectoryMap
                                         activeAnchor={activeAnchor}
-                                        pins={ownerPresentation.pins}
+                                        pins={mapOwnerPresentation.pins}
                                         focusedPlaceKey={effectiveFocusedPlaceKey}
                                         focusedPlaceKeys={focusedPlaceKeys}
                                         activePlaceKey={activePlaceKey}
@@ -4290,7 +4369,7 @@ export default function MyMapDetailPage() {
                                         interactive={!directoryMapInteractionSuspended}
                                         {...classicMapStudioMapProps}
                                         markerMode={classicMarkerMode}
-                                        placeNumberByKey={ownerPresentation.placeNumberByKey}
+                                        placeNumberByKey={mapOwnerPresentation.placeNumberByKey}
                                         emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                                         mapHeightClassName={resolveClassicMapHeightClass(studioMapHeight, 'desktop')}
                                         mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}
@@ -4326,7 +4405,7 @@ export default function MyMapDetailPage() {
                                 renderMobileMap={() => (
                                     <DirectoryMap
                                         activeAnchor={activeAnchor}
-                                        pins={ownerPresentation.pins}
+                                        pins={mapOwnerPresentation.pins}
                                         focusedPlaceKey={effectiveFocusedPlaceKey}
                                         focusedPlaceKeys={focusedPlaceKeys}
                                         activePlaceKey={activePlaceKey}
@@ -4343,7 +4422,7 @@ export default function MyMapDetailPage() {
                                         interactive={!directoryMapInteractionSuspended}
                                         {...classicMapStudioMapProps}
                                         markerMode={classicMarkerMode}
-                                        placeNumberByKey={ownerPresentation.placeNumberByKey}
+                                        placeNumberByKey={mapOwnerPresentation.placeNumberByKey}
                                         emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                                         mapHeightClassName={resolveClassicMapHeightClass(studioMapHeight, 'mobile')}
                                         mapMinZoom={TOWN_MAP_PROOF_ENABLED ? CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM : undefined}

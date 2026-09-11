@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     buildDirectoryPresentation,
+    buildPinVisibilityPresentation,
     buildOwnerNumberedPinPresentation,
 } from '../src/lib/directoryPresentation.js';
 
@@ -147,6 +148,24 @@ test('owner numbered pins keep every resource number visible at a shared postal 
         ['hard-10', 'hard-20'],
     );
     assert.equal(basePresentation.pins[0].categoryBubbleItems.length, 2);
+});
+
+test('Map Studio pin visibility removes one shared-postal member without changing cards or numbering', () => {
+    const presentation = buildDirectoryPresentation(directory, { presentationMode: 'v2-cards' });
+    const filtered = buildPinVisibilityPresentation(presentation, ['hard-10']);
+    const numbered = buildOwnerNumberedPinPresentation(filtered);
+
+    assert.deepEqual(presentation.displayGroups.map((group) => group.name), [
+        'Alpha Active Ageing',
+        'Beta Active Ageing',
+        'Zoo Senior Care',
+        'Alpha Meals Support',
+    ]);
+    assert.deepEqual(filtered.mappedGroups.map((group) => group.placeKey), ['hard-20', 'hard-30']);
+    assert.equal(numbered.pins.some((pin) => pin.memberPlaceKeys?.includes('hard-10')), false);
+    assert.equal(numbered.pins.some((pin) => pin.memberPlaceKeys?.includes('hard-20')), true);
+    assert.equal(numbered.placeNumberByKey['hard-20'], 2);
+    assert.equal(numbered.placeNumberByKey['hard-10'], 1);
 });
 
 test('v2 card presentation applies a map category sequence without reordering resources inside a category', () => {

@@ -33,6 +33,7 @@ import {
     CalendarPlus,
     ChevronRight,
     Eye,
+    EyeOff,
     ExternalLink,
     Italic,
     Link2,
@@ -1624,6 +1625,42 @@ function OwnerMapResourceRemoveAction({
     );
 }
 
+function OwnerMapPinVisibilityAction({
+    placeKey,
+    name,
+    hidden = false,
+    onTogglePinVisibility,
+    card = false,
+}) {
+    const { t } = useLocale();
+    if (!placeKey || !onTogglePinVisibility) return null;
+
+    const label = t(hidden ? 'showPin' : 'hidePin');
+    return (
+        <button
+            type="button"
+            onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onTogglePinVisibility(placeKey);
+            }}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 transition hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            aria-label={`${label}: ${name || t('resource')}`}
+            title={label}
+            data-my-map-pin-visibility-action="true"
+            data-my-map-card-pin-visibility={card ? 'true' : undefined}
+            data-pin-hidden={hidden ? 'true' : 'false'}
+        >
+            {hidden ? (
+                <Eye size={13} aria-hidden="true" />
+            ) : (
+                <EyeOff size={13} aria-hidden="true" />
+            )}
+            {label}
+        </button>
+    );
+}
+
 function DirectoryPlaceBadge({
     group,
     clusterColorData,
@@ -1928,6 +1965,8 @@ function DirectoryNestedPlaceSection({
     compactInteractive = false,
     canSaveResources,
     onRemoveResource,
+    onTogglePinVisibility,
+    hiddenPinPlaceKeySet,
     onEditPersonalPlace,
     onEditResourceShortDescription,
     onOpenResourceNotes,
@@ -1942,6 +1981,9 @@ function DirectoryNestedPlaceSection({
     const primaryShortDescriptionRow = getPrimaryShortDescriptionRow(nestedPlace);
     const canRemovePrimaryResource = mode === 'owner'
         && Boolean(primaryRemovableRow && onRemoveResource);
+    const canManagePinVisibility = mode === 'owner'
+        && nestedPlace?.hasCoordinates !== false
+        && Boolean(nestedPlace?.placeKey && onTogglePinVisibility);
     const normalizedLabelDetail = normalizePrintMapLabelDetail(labelDetail);
     const shortDescriptionEditing = mode === 'owner'
         && Boolean(onEditResourceShortDescription);
@@ -1980,13 +2022,24 @@ function DirectoryNestedPlaceSection({
                 />
             ) : null}
 
-            {canRemovePrimaryResource ? (
-                <div className="flex justify-end">
-                    <OwnerMapResourceRemoveAction
-                        row={primaryRemovableRow}
-                        onRemoveResource={onRemoveResource}
-                        card
-                    />
+            {canManagePinVisibility || canRemovePrimaryResource ? (
+                <div className="flex flex-wrap justify-end gap-3">
+                    {canManagePinVisibility ? (
+                        <OwnerMapPinVisibilityAction
+                            placeKey={nestedPlace.placeKey}
+                            name={nestedPlace.name}
+                            hidden={hiddenPinPlaceKeySet?.has(String(nestedPlace.placeKey))}
+                            onTogglePinVisibility={onTogglePinVisibility}
+                            card
+                        />
+                    ) : null}
+                    {canRemovePrimaryResource ? (
+                        <OwnerMapResourceRemoveAction
+                            row={primaryRemovableRow}
+                            onRemoveResource={onRemoveResource}
+                            card
+                        />
+                    ) : null}
                 </div>
             ) : null}
 
@@ -2024,6 +2077,8 @@ function DirectoryPlaceGroupCard({
     onHoverPlaceStart,
     onHoverPlaceEnd,
     onRemoveResource,
+    onTogglePinVisibility,
+    hiddenPinPlaceKeySet,
     onEditPersonalPlace,
     onEditResourceShortDescription,
     onUpdateResourceNotes,
@@ -2099,6 +2154,11 @@ function DirectoryPlaceGroupCard({
     const canRemovePrimaryResource = interactive
         && mode === 'owner'
         && Boolean(primaryRemovableRow && onRemoveResource);
+    const canManagePinVisibility = interactive
+        && mode === 'owner'
+        && !isPostalGroup
+        && group?.hasCoordinates !== false
+        && Boolean(group?.placeKey && onTogglePinVisibility);
     const interactiveShortDescriptionEditing = interactive
         && mode === 'owner'
         && Boolean(onEditResourceShortDescription);
@@ -2371,6 +2431,8 @@ function DirectoryPlaceGroupCard({
                                 compactInteractive={compactInteractive}
                                 canSaveResources={canSaveResources}
                                 onRemoveResource={onRemoveResource}
+                                onTogglePinVisibility={onTogglePinVisibility}
+                                hiddenPinPlaceKeySet={hiddenPinPlaceKeySet}
                                 onEditPersonalPlace={onEditPersonalPlace}
                                 onEditResourceShortDescription={onEditResourceShortDescription}
                                 onOpenResourceNotes={onOpenResourceNotes}
@@ -2405,6 +2467,8 @@ function DirectoryPlaceGroupCard({
                                     compactInteractive={compactInteractive}
                                     canSaveResources={canSaveResources}
                                     onRemoveResource={onRemoveResource}
+                                    onTogglePinVisibility={onTogglePinVisibility}
+                                    hiddenPinPlaceKeySet={hiddenPinPlaceKeySet}
                                     onEditPersonalPlace={onEditPersonalPlace}
                                     onEditResourceShortDescription={onEditResourceShortDescription}
                                     onOpenResourceNotes={onOpenResourceNotes}
@@ -2501,13 +2565,24 @@ function DirectoryPlaceGroupCard({
                         />
                     ) : null}
 
-                    {canRemovePrimaryResource ? (
-                        <div className="flex justify-end">
-                            <OwnerMapResourceRemoveAction
-                                row={primaryRemovableRow}
-                                onRemoveResource={onRemoveResource}
-                                card
-                            />
+                    {canManagePinVisibility || canRemovePrimaryResource ? (
+                        <div className="flex flex-wrap justify-end gap-3">
+                            {canManagePinVisibility ? (
+                                <OwnerMapPinVisibilityAction
+                                    placeKey={group.placeKey}
+                                    name={group.name}
+                                    hidden={hiddenPinPlaceKeySet?.has(String(group.placeKey))}
+                                    onTogglePinVisibility={onTogglePinVisibility}
+                                    card
+                                />
+                            ) : null}
+                            {canRemovePrimaryResource ? (
+                                <OwnerMapResourceRemoveAction
+                                    row={primaryRemovableRow}
+                                    onRemoveResource={onRemoveResource}
+                                    card
+                                />
+                            ) : null}
                         </div>
                     ) : null}
 
@@ -2537,7 +2612,7 @@ function DirectoryPlaceGroupCard({
         </>
     );
 
-    if (placeDetailPath && fullCardLink && !isPostalGroup && !canFocusCardOnMap && !canRemovePrimaryResource) {
+    if (placeDetailPath && fullCardLink && !isPostalGroup && !canFocusCardOnMap && !canRemovePrimaryResource && !canManagePinVisibility) {
         return (
             <Link
                 to={placeDetailPath}
@@ -3143,6 +3218,8 @@ function DirectoryGroupColumn({
     onHoverPlaceStart,
     onHoverPlaceEnd,
     onRemoveResource,
+    onTogglePinVisibility,
+    hiddenPinPlaceKeySet,
     onEditPersonalPlace,
     onEditResourceShortDescription,
     onUpdateResourceNotes,
@@ -3215,6 +3292,8 @@ function DirectoryGroupColumn({
                             onHoverPlaceStart={onHoverPlaceStart}
                             onHoverPlaceEnd={onHoverPlaceEnd}
                             onRemoveResource={onRemoveResource}
+                            onTogglePinVisibility={onTogglePinVisibility}
+                            hiddenPinPlaceKeySet={hiddenPinPlaceKeySet}
                             onEditPersonalPlace={onEditPersonalPlace}
                             onEditResourceShortDescription={onEditResourceShortDescription}
                             onUpdateResourceNotes={onUpdateResourceNotes}
@@ -3356,6 +3435,8 @@ export default function SharedMapDirectoryList({
     onHoverPlaceStart,
     onHoverPlaceEnd,
     onRemoveResource,
+    onTogglePinVisibility,
+    hiddenPinPlaceKeys = [],
     onEditPersonalPlace,
     onEditResourceShortDescription,
     onUpdateResourceNotes,
@@ -3411,6 +3492,11 @@ export default function SharedMapDirectoryList({
     const [mobileMapListFocused, setMobileMapListFocused] = useState(false);
     const [mobileFullMapOpen, setMobileFullMapOpen] = useState(false);
     const [mobileFocusTrayPlaceKey, setMobileFocusTrayPlaceKey] = useState(null);
+    const hiddenPinPlaceKeySet = useMemo(() => new Set(
+        (Array.isArray(hiddenPinPlaceKeys) ? hiddenPinPlaceKeys : [])
+            .map((value) => String(value || '').trim())
+            .filter(Boolean),
+    ), [hiddenPinPlaceKeys]);
     const isDesktop = useResponsiveDirectoryLayout(layout === 'responsive');
     const resolvedLayout = layout === 'responsive'
         ? (isDesktop ? 'desktop' : 'mobile')
@@ -3809,6 +3895,8 @@ export default function SharedMapDirectoryList({
                     onViewOnMap={handleDirectoryViewOnMap}
                     onHoverPlaceStart={onHoverPlaceStart}
                     onHoverPlaceEnd={onHoverPlaceEnd}
+                    onTogglePinVisibility={onTogglePinVisibility}
+                    hiddenPinPlaceKeys={hiddenPinPlaceKeys}
                     numberedPinShapesByCategory={numberedPinShapesByCategory}
                     numberedPinStylesByCategory={numberedPinStylesByCategory}
                     labelDetail={printLabelDetail}
@@ -3937,6 +4025,8 @@ export default function SharedMapDirectoryList({
                             onHoverPlaceStart={onHoverPlaceStart}
                             onHoverPlaceEnd={onHoverPlaceEnd}
                             onRemoveResource={onRemoveResource}
+                            onTogglePinVisibility={onTogglePinVisibility}
+                            hiddenPinPlaceKeySet={hiddenPinPlaceKeySet}
                             onEditPersonalPlace={onEditPersonalPlace}
                             onEditResourceShortDescription={onEditResourceShortDescription}
                             onUpdateResourceNotes={onUpdateResourceNotes}
@@ -4057,6 +4147,8 @@ export default function SharedMapDirectoryList({
                         onHoverPlaceStart={onHoverPlaceStart}
                         onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
+                        onTogglePinVisibility={onTogglePinVisibility}
+                        hiddenPinPlaceKeySet={hiddenPinPlaceKeySet}
                         onEditPersonalPlace={onEditPersonalPlace}
                         onEditResourceShortDescription={onEditResourceShortDescription}
                         onUpdateResourceNotes={onUpdateResourceNotes}
@@ -4163,6 +4255,8 @@ export default function SharedMapDirectoryList({
                                 onHoverPlaceStart={onHoverPlaceStart}
                                 onHoverPlaceEnd={onHoverPlaceEnd}
                                 onRemoveResource={onRemoveResource}
+                                onTogglePinVisibility={onTogglePinVisibility}
+                                hiddenPinPlaceKeySet={hiddenPinPlaceKeySet}
                                 onEditPersonalPlace={onEditPersonalPlace}
                                 onEditResourceShortDescription={onEditResourceShortDescription}
                                 onUpdateResourceNotes={onUpdateResourceNotes}
@@ -4222,6 +4316,8 @@ export default function SharedMapDirectoryList({
                 onHoverPlaceStart={onHoverPlaceStart}
                 onHoverPlaceEnd={onHoverPlaceEnd}
                 onRemoveResource={onRemoveResource}
+                onTogglePinVisibility={onTogglePinVisibility}
+                hiddenPinPlaceKeySet={hiddenPinPlaceKeySet}
                 onEditPersonalPlace={onEditPersonalPlace}
                 onEditResourceShortDescription={onEditResourceShortDescription}
                 onUpdateResourceNotes={onUpdateResourceNotes}
@@ -4315,6 +4411,8 @@ export default function SharedMapDirectoryList({
                         onHoverPlaceStart={onHoverPlaceStart}
                         onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
+                        onTogglePinVisibility={onTogglePinVisibility}
+                        hiddenPinPlaceKeySet={hiddenPinPlaceKeySet}
                         onEditPersonalPlace={onEditPersonalPlace}
                         onEditResourceShortDescription={onEditResourceShortDescription}
                         onUpdateResourceNotes={onUpdateResourceNotes}
@@ -4377,6 +4475,8 @@ export default function SharedMapDirectoryList({
                                     onHoverPlaceStart={onHoverPlaceStart}
                                     onHoverPlaceEnd={onHoverPlaceEnd}
                                     onRemoveResource={onRemoveResource}
+                                    onTogglePinVisibility={onTogglePinVisibility}
+                                    hiddenPinPlaceKeySet={hiddenPinPlaceKeySet}
                                     onEditPersonalPlace={onEditPersonalPlace}
                                     onEditResourceShortDescription={onEditResourceShortDescription}
                                     onUpdateResourceNotes={onUpdateResourceNotes}
@@ -4427,6 +4527,8 @@ export default function SharedMapDirectoryList({
                         onHoverPlaceStart={onHoverPlaceStart}
                         onHoverPlaceEnd={onHoverPlaceEnd}
                         onRemoveResource={onRemoveResource}
+                        onTogglePinVisibility={onTogglePinVisibility}
+                        hiddenPinPlaceKeySet={hiddenPinPlaceKeySet}
                         onEditPersonalPlace={onEditPersonalPlace}
                         onEditResourceShortDescription={onEditResourceShortDescription}
                         onUpdateResourceNotes={onUpdateResourceNotes}
