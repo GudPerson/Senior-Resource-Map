@@ -962,8 +962,8 @@
 }
 
 .directory-category-bubble-marker__icon {
-  width: 16px;
-  height: 16px;
+  width: var(--directory-category-bubble-icon-size, 16px);
+  height: var(--directory-category-bubble-icon-size, 16px);
   object-fit: contain;
   display: block;
   border-radius: 999px;
@@ -973,8 +973,8 @@
 }
 
 .directory-category-bubble-marker__fallback {
-  width: 14px;
-  height: 14px;
+  width: var(--directory-category-bubble-icon-size, 14px);
+  height: var(--directory-category-bubble-icon-size, 14px);
   fill: currentColor;
 }
 
