@@ -10,6 +10,7 @@ import BrandLockup from './layout/BrandLockup.jsx';
 import {
     buildDirectoryPresentation,
     buildDirectoryShareUrl,
+    buildPinVisibilityPresentation,
     buildOwnerNumberedPinPresentation,
 } from '../lib/directoryPresentation.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
@@ -275,6 +276,7 @@ function PrintResourcePageHeader({ directory, generatedAt, resourceCount }) {
 
 function PrintDirectoryMap({
     presentation,
+    mapPresentation = presentation,
     directory,
     generatedAt,
     resourceCount,
@@ -549,7 +551,7 @@ function PrintDirectoryMap({
             <div className={printMapState && interactive ? 'relative mb-4' : ''}>
             <DirectoryMap
                 activeAnchor={presentation.activeAnchor}
-                pins={presentation.pins}
+                pins={mapPresentation.pins}
                 renderPins={visibleResourcePins}
                 showPins={showResourcePins}
                 focusedPlaceKey={showResourcePins ? focusedPlaceKey : null}
@@ -573,7 +575,7 @@ function PrintDirectoryMap({
                     : (useV2Format ? 'none' : 'auto')}
                 clusterMarkerMode={useV2Format ? 'none' : 'bubble'}
                 spreadCoincidentPins={!useV2Format}
-                placeNumberByKey={presentation.placeNumberByKey}
+                placeNumberByKey={mapPresentation.placeNumberByKey}
                 numberedPinShapesByCategory={printMapState?.numberedPinShapesByCategory}
                 numberedPinStylesByCategory={printMapState?.numberedPinStylesByCategory}
                 showPopup={false}
@@ -882,6 +884,13 @@ export default function DirectoryPrintView({
     const ownerPrintPresentation = usesOwnerPrintBadgePins
         ? buildOwnerNumberedPinPresentation(basePresentation)
         : basePresentation;
+    const mapPinBasePresentation = buildPinVisibilityPresentation(
+        basePresentation,
+        printMapState?.hiddenPinPlaceKeys,
+    );
+    const ownerPrintMapPresentation = usesOwnerPrintBadgePins
+        ? buildOwnerNumberedPinPresentation(mapPinBasePresentation)
+        : mapPinBasePresentation;
     const presentation = useV2OwnerPrint
         ? withOwnerPrintLayout(ownerPrintPresentation, printLayoutConfig)
         : ownerPrintPresentation;
@@ -895,8 +904,8 @@ export default function DirectoryPrintView({
         )
         : new Set();
     const visibleResourcePins = usesOwnerPrintBadgePins
-        ? filterPrintMapResourcePins(presentation.pins, visibleResourcePlaceKeys)
-        : (showResourcePins ? presentation.pins : []);
+        ? filterPrintMapResourcePins(ownerPrintMapPresentation.pins, visibleResourcePlaceKeys)
+        : (showResourcePins ? ownerPrintMapPresentation.pins : []);
     const visiblePrintAnnotations = annotationsVisibleForLayout
         ? filterPrintMapAnnotations(printAnnotations, {
             annotationLayer: normalizePrintMapAnnotationLayer(printMapState?.annotationLayer),
@@ -1093,6 +1102,7 @@ export default function DirectoryPrintView({
                 renderDesktopMap={() => (
                     <PrintDirectoryMap
                         presentation={presentation}
+                        mapPresentation={ownerPrintMapPresentation}
                         directory={printDirectory}
                         generatedAt={generatedAt}
                         resourceCount={resourceCount}

@@ -547,7 +547,7 @@ test('v2 logo cards show the resource name before the address metadata', () => {
     const v2CardSource = sourceBetween(
         cardSource,
         "const usesV2CardLanguage = interactiveCardBadgeMode !== 'none';",
-        'if (placeDetailPath && fullCardLink && !isPostalGroup && !canFocusCardOnMap && !canRemovePrimaryResource)',
+        'if (placeDetailPath && fullCardLink',
     );
 
     assert.match(v2CardSource, /!usesV2CardLanguage && showInteractiveAddress \? \(/);

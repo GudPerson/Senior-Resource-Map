@@ -42,6 +42,7 @@ import { createShareToken } from '../utils/shareTokens.js';
 import { MAX_MAP_EMBED_ORIGINS, normalizeMapEmbedOrigins } from '../utils/mapEmbed.js';
 import { buildEmbeddedPrintAnnotationSnapshot } from './printAnnotationsController.js';
 import {
+    buildEmbeddedHiddenPinPlaceKeys,
     buildEmbeddedMapPresentationSnapshot,
     buildEmbeddedMapResourceAllowlist,
     filterEmbeddedMapAnnotationsByDesign,
@@ -819,6 +820,9 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
     const embeddedResourceKeys = selectedStudioView
         ? buildEmbeddedMapResourceAllowlist(publicSharedSnapshot, selectedStudioView.design)
         : null;
+    const embeddedHiddenPinPlaceKeys = selectedStudioView
+        ? buildEmbeddedHiddenPinPlaceKeys(publicSharedSnapshot, selectedStudioView.design)
+        : null;
     const embeddedAnnotations = filterEmbeddedMapAnnotationsByDesign(
         buildEmbeddedPrintAnnotationSnapshot(map.printAnnotationDocument?.annotations),
         selectedStudioView?.design,
@@ -829,6 +833,7 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
         embeddedResourceContacts,
         embeddedPresentation,
         ...(embeddedResourceKeys ? { embeddedResourceKeys } : {}),
+        ...(embeddedHiddenPinPlaceKeys ? { embeddedHiddenPinPlaceKeys } : {}),
     }, sharedAt);
 
     const updated = await requireOwnedMap(db, user.id, mapId, true);

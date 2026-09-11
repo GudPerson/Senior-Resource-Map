@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 
 import {
     DEFAULT_EMBEDDED_MAP_PRESENTATION,
+    applyEmbeddedMapPinVisibility,
+    buildEmbeddedHiddenPinPlaceKeys,
     buildEmbeddedMapPresentationSnapshot,
     buildEmbeddedMapResourceAllowlist,
     filterEmbeddedMapAnnotationsByDesign,
@@ -134,6 +136,22 @@ test('selected Studio resource layers become a public content allowlist', () => 
 test('absent resource allowlist preserves legacy snapshots', () => {
     const directory = createDirectory();
     assert.equal(filterEmbeddedMapDirectoryByResourceAllowlist(directory, undefined), directory);
+});
+
+test('selected Studio hidden pins stay map-only and expose no private key list', () => {
+    const directory = createDirectory();
+    const hiddenKeys = buildEmbeddedHiddenPinPlaceKeys(directory, {
+        pins: { hiddenPlaceKeys: ['hard-2', 'missing', 'hard-2'] },
+    });
+    const marked = applyEmbeddedMapPinVisibility(directory, hiddenKeys);
+
+    assert.deepEqual(hiddenKeys, ['hard-2']);
+    assert.equal(marked.places.length, 2);
+    assert.equal(marked.assets.length, 2);
+    assert.equal(marked.summary.resourceCount, 2);
+    assert.equal(marked.places[0].mapPinHidden, undefined);
+    assert.equal(marked.places[1].mapPinHidden, true);
+    assert.equal(marked.embeddedHiddenPinPlaceKeys, undefined);
 });
 
 test('selected Studio annotation layers only keep visible shared annotations', () => {

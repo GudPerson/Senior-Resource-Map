@@ -28,7 +28,7 @@ test('owner removal actions are progressively disclosed from Edit content', () =
     assert.match(myMapDetailSource, /function toggleResourceRemovalMode\(\)/);
     assert.match(myMapDetailSource, /onRemoveResource=\{resourceRemovalMode \? handleRemoveResource : null\}/);
     assert.doesNotMatch(myMapDetailSource, /onRemoveResource=\{handleRemoveResource\}/);
-    assert.match(myMapDetailSource, /const contentModeActive = shortDescriptionMode \|\| annotationEditing \|\| resourceRemovalMode/);
+    assert.match(myMapDetailSource, /const contentModeActive = shortDescriptionMode\s*\|\| annotationEditing\s*\|\| pinVisibilityMode\s*\|\| resourceRemovalMode/);
     assert.match(
         directoryListSource,
         /\{canManagePersonalPlace \? \([\s\S]*?onClick=\{\(\) => onEditPersonalPlace\?\.\(row\)\}[\s\S]*?t\('edit'\)/,

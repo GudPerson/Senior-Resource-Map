@@ -84,6 +84,7 @@ test('owner Export View starts from a safe high-resolution, wide-margin baseline
         resourceLayer: PRINT_MAP_RESOURCE_LAYER_SHOW,
         pinSize: PRINT_MAP_PIN_SIZE_STANDARD,
         annotationLayer: PRINT_MAP_ANNOTATION_LAYER_SHOW,
+        hiddenPinPlaceKeys: [],
         hiddenResourceLayerKeys: [],
         hiddenAnnotationIds: [],
         layoutPreset: PRINT_MAP_LAYOUT_BALANCED,
@@ -613,7 +614,7 @@ test('owner print preview exposes controlled zoom, detail, colour, camera, and h
     assert.match(printViewSource, /fixedTownSurfaceMaxDecodedBytes=\{printMapState\?\.pageLayout === PRINT_MAP_PAGE_LAYOUT_FULL/);
     assert.match(printViewSource, /onFixedTownSurfaceViewportChange=\{interactive \? onFixedTownSurfaceViewportChange : null\}/);
     assert.match(printViewSource, /mapHeightPx=\{printMapState \? clampPrintMapHeight\(printMapState\.height, printMapState\) : null\}/);
-    assert.match(printViewSource, /pins=\{presentation\.pins\}/);
+    assert.match(printViewSource, /pins=\{mapPresentation\.pins\}/);
     assert.match(printViewSource, /renderPins=\{visibleResourcePins\}/);
     assert.match(printViewSource, /showPins=\{showResourcePins\}/);
     assert.match(printViewSource, /printResourcesBelow=\{printResourcesBelow\}/);

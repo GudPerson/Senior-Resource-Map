@@ -15,6 +15,47 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-11 Map Studio individual pin visibility — release candidate
+
+- Current behavior: a named Map Studio view can hide or show an individual
+  mappable place through `Edit content` → `Hide map pins`. Hiding removes only
+  that place's pin from the map surface; its card, number, ordering, category,
+  and saved membership remain available so the owner can show it again. For
+  places sharing coordinates, only the selected member is hidden. Unmappable
+  cards do not expose this action. The setting follows the owner preview,
+  PNG/PDF export, and the published embed for the selected named view.
+- Known-good reference and blast radius: branch
+  `codex/map-studio-individual-pin-visibility-20260911`, based on released
+  production main `1b2f6f0c`. Persistence is an additive bounded
+  `pins.hiddenPlaceKeys` field in the existing Map Studio v3 document, so no
+  database migration or schema-version change is required. The implementation
+  derives a map-only presentation and keeps the card presentation intact.
+  Ordinary Shared Map remains unchanged. Published embed payloads expose only
+  a per-place `mapPinHidden` boolean, never the private hidden-key list.
+- Reproduction and acceptance: open an owner My Map, enter `Edit content` →
+  `Hide map pins`, hide one mappable card, and require its pin to disappear
+  while the card changes to `Show pin`. Show it again and require the pin to
+  return. Repeat with two places sharing coordinates and require the other
+  member to remain. Confirm unmappable cards have no visibility action, then
+  preview/export/publish the named view and require the same map-only result.
+  Confirm ordinary Shared Map still shows the full saved map.
+- Verification before release: PASS locally. Focused client/server coverage
+  passed `141/141`; the full quality gate passed eight migrations, `481`
+  modules / `1,421` relative-import edges, server `731/731`, client `801/801`,
+  four production-environment checks, and the exact `2,488`-module client
+  build. Map lockdown passed `104/104` plus its configured production build.
+  Isolated fictional-data browser UAT passed at `390 x 844` and `1470 x 900`:
+  visible pins changed `3 → 2 → 3`, the hidden card stayed available, the
+  shared-coordinate sibling remained, the unmappable card had no action, and
+  both sizes had zero horizontal overflow and zero console errors or warnings.
+  The optional authenticated smoke suite could not start because its four
+  protected `SMOKE_*` variables are unset in this checkout; production smoke
+  remains a post-deploy gate when those credentials are available.
+- Release boundary: the user explicitly approved commit, push, Worker deploy,
+  and Pages deploy after validation. No Neon migration, map-asset change,
+  authentication change, secret change, or production-data mutation is in
+  scope.
+
 ## 2026-09-11 Map Studio category-bubble icon scaling — release candidate
 
 - Current behavior: Map Studio's Category bubbles keep the established bubble

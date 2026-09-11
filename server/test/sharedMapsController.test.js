@@ -523,6 +523,7 @@ test('embedded map config and directory require live opt-in settings', async () 
                     annotationsVisible: false,
                 },
                 embeddedResourceKeys: ['hard-29'],
+                embeddedHiddenPinPlaceKeys: ['hard-29'],
                 printAnnotations: [{ id: 'untrusted-alias' }],
             }),
         }],
@@ -554,6 +555,8 @@ test('embedded map config and directory require live opt-in settings', async () 
     });
     assert.equal(directory.assets, undefined);
     assert.equal(directory.embeddedResourceKeys, undefined);
+    assert.equal(directory.embeddedHiddenPinPlaceKeys, undefined);
+    assert.equal(directory.places[0].mapPinHidden, true);
     assert.equal(directory.places[0].rows[0].notes, undefined);
     assert.equal(directory.places[0].rows[0].saveEligible, undefined);
     assert.equal(directory.places[0].rows[0].access, undefined);
@@ -569,6 +572,8 @@ test('embedded map config and directory require live opt-in settings', async () 
     assert.equal(ordinarySharedDirectory.embeddedResourceContacts, undefined);
     assert.equal(ordinarySharedDirectory.embeddedPresentation, undefined);
     assert.equal(ordinarySharedDirectory.embeddedResourceKeys, undefined);
+    assert.equal(ordinarySharedDirectory.embeddedHiddenPinPlaceKeys, undefined);
+    assert.equal(ordinarySharedDirectory.places[0].mapPinHidden, undefined);
     assert.equal(ordinarySharedDirectory.places[0].rows[0].website, undefined);
     assert.equal(ordinarySharedDirectory.places[0].rows[0].contactPhone, undefined);
     assert.equal(ordinarySharedDirectory.places[0].rows[0].socialLinks, undefined);

@@ -10,6 +10,7 @@ import {
 import { normalizeMyMapCategoryOrder } from '../utils/myMapCategoryOrder.js';
 import { normalizeMapEmbedOrigins } from '../utils/mapEmbed.js';
 import {
+    applyEmbeddedMapPinVisibility,
     filterEmbeddedMapDirectoryByResourceAllowlist,
     normalizeEmbeddedMapPresentationSnapshot,
 } from '../utils/embeddedMapPresentation.js';
@@ -150,13 +151,17 @@ function normalizeSnapshotDirectory(map, viewerUser, {
         embeddedResourceContacts,
         embeddedPresentation,
         embeddedResourceKeys,
+        embeddedHiddenPinPlaceKeys,
         printAnnotations,
         ...sharedSnapshot
     } = snapshot;
     void printAnnotations;
-    const publicSnapshot = includeEmbeddedPresentation
+    const resourceFilteredSnapshot = includeEmbeddedPresentation
         ? filterEmbeddedMapDirectoryByResourceAllowlist(sharedSnapshot, embeddedResourceKeys)
         : sharedSnapshot;
+    const publicSnapshot = includeEmbeddedPresentation
+        ? applyEmbeddedMapPinVisibility(resourceFilteredSnapshot, embeddedHiddenPinPlaceKeys)
+        : resourceFilteredSnapshot;
     const directory = {
         ...publicSnapshot,
         ...(includeEmbeddedAnnotations ? {

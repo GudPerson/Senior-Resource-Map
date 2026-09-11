@@ -54,6 +54,16 @@ test('server persistence accepts safe per-category pin colours and table display
     assert.deepEqual(validateMapStudioDocumentInput(document), document);
 });
 
+test('server persistence accepts bounded per-view hidden pin keys', () => {
+    const document = createDocument();
+    document.views[0].design.pins.hiddenPlaceKeys = ['hard-2', 'hard-1'];
+
+    assert.deepEqual(
+        validateMapStudioDocumentInput(document).views[0].design.pins.hiddenPlaceKeys,
+        ['hard-2', 'hard-1'],
+    );
+});
+
 test('server persistence gives older pin styles the compatible thin outline', () => {
     const document = createDocument();
     document.views[0].design.pins.categoryStyles = {

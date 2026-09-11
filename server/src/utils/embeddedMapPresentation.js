@@ -76,6 +76,41 @@ export function buildEmbeddedMapResourceAllowlist(directory, design) {
     return [...new Set(resourceKeys)].sort();
 }
 
+export function buildEmbeddedHiddenPinPlaceKeys(directory, design) {
+    const requestedKeys = new Set(
+        Array.isArray(design?.pins?.hiddenPlaceKeys)
+            ? design.pins.hiddenPlaceKeys.map((key) => String(key || '').trim()).filter(Boolean)
+            : [],
+    );
+    if (requestedKeys.size === 0) return [];
+
+    return (directory?.places || [])
+        .filter((place) => place?.hasCoordinates && requestedKeys.has(String(place.placeKey || '')))
+        .map((place) => String(place.placeKey))
+        .sort();
+}
+
+/**
+ * Apply persisted per-pin visibility without exposing the private key list.
+ * Embed consumers receive only a boolean on an otherwise public place row.
+ */
+export function applyEmbeddedMapPinVisibility(directory, hiddenPlaceKeys) {
+    if (!directory || !Array.isArray(hiddenPlaceKeys) || hiddenPlaceKeys.length === 0) {
+        return directory;
+    }
+    const hiddenKeys = new Set(
+        hiddenPlaceKeys.map((key) => String(key || '').trim()).filter(Boolean),
+    );
+    return {
+        ...directory,
+        places: (directory.places || []).map((place) => (
+            place?.hasCoordinates && hiddenKeys.has(String(place.placeKey || ''))
+                ? { ...place, mapPinHidden: true }
+                : place
+        )),
+    };
+}
+
 export function filterEmbeddedMapDirectoryByResourceAllowlist(directory, resourceKeys) {
     if (!directory || !Array.isArray(resourceKeys)) return directory;
     const allowedKeys = new Set(resourceKeys.map((key) => String(key || '').trim()).filter(Boolean));
