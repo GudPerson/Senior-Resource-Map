@@ -15,6 +15,40 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-11 Map Studio category-bubble icon scaling — release candidate
+
+- Current behavior: Map Studio's Category bubbles keep the established bubble
+  geometry while scaling the artwork inside each bubble with the selected pin
+  size. Standard retains its existing icon dimensions; Large applies the same
+  `1.25x` multiplier to the bubble and icon; Extra large applies `1.5x` to
+  both. Category image artwork, personal-place glyphs, and fallback glyphs all
+  follow the same rule in the interactive preview and saved PNG/PDF renderer.
+- Known-good reference and blast radius: branch
+  `codex/map-studio-category-bubble-icon-scale-20260911`, based on released
+  production main `29f69c68`. This is a narrow client-only presentation fix in
+  the shared category-bubble renderer. It does not change Standard sizing,
+  marker coordinates, lobe spacing, collision handling, numbered pins,
+  category pins, cards, Map Studio settings or persistence, map assets,
+  authentication, API, Worker, schema, or production data.
+- Reproduction and acceptance: open an owner My Map, choose Edit layout,
+  retain Category bubbles, then alternate Standard, Large, and Extra large.
+  Require the inner category artwork to remain proportional to its bubble at
+  every size and require the preview and export path to consume the same
+  marker scale. Do not save the visual test draft.
+- Verification before release: PASS locally. Focused marker/Map Studio/export
+  coverage passed `61/61`; the full quality gate passed eight migrations,
+  `481` modules / `1,420` relative-import edges, server `729/729`, client
+  `799/799`, four production-environment checks, and the exact `2,488`-module
+  client build. The locked-map gate passed `104/104` plus its configured
+  production build. Isolated fictional-data browser UAT measured the fallback
+  category bubble at `28px / 14px` (bubble/icon) for Standard, `35px / 17.5px`
+  for Large, and `42px / 21px` for Extra large, preserving the `0.5` ratio at
+  every size. The visual draft was not saved and no production data was used.
+- Release boundary: the user explicitly approved commit, push, and deployment
+  after the fix. Publish the client only through the guarded Pages path and
+  verify immutable/custom-domain artifact parity. Do not deploy the Worker,
+  Neon, schema, map assets, authentication, secrets, or data.
+
 ## 2026-09-10 Discovery phone overview vertical recenter — verified locally
 
 - Current behavior: at the responsive minimum zoom, Phone Map View now keeps

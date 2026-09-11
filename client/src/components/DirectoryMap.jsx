@@ -98,6 +98,9 @@ const DIRECTORY_PRINT_BADGE_DIAMETER = 25.5;
 const DIRECTORY_PRINT_BADGE_LOBE_SPACING = DIRECTORY_PRINT_BADGE_DIAMETER * 0.9;
 const DIRECTORY_CATEGORY_BUBBLE_DIAMETER = 28;
 const DIRECTORY_CATEGORY_BUBBLE_LOBE_SPACING = DIRECTORY_CATEGORY_BUBBLE_DIAMETER * 0.74;
+const DIRECTORY_CATEGORY_BUBBLE_ICON_SIZE = 16;
+const DIRECTORY_CATEGORY_BUBBLE_PERSONAL_ICON_SIZE = 15;
+const DIRECTORY_CATEGORY_BUBBLE_FALLBACK_ICON_SIZE = 14;
 const DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD = 12.25;
 const DIRECTORY_CATEGORY_BUBBLE_REVEAL_ZOOM = DIRECTORY_CATEGORY_BUBBLE_DOT_ZOOM_THRESHOLD + 0.35;
 const DIRECTORY_CATEGORY_BUBBLE_DOT_DIAMETER = 13;
@@ -747,11 +750,16 @@ function createCategoryBubbleMarker(pin = {}, {
         const shadowColor = isSelected
             ? '0 12px 20px rgba(194,65,12,0.34), 0 0 0 6px rgba(249,115,22,0.24)'
             : '0 8px 16px rgba(15,23,42,0.2)';
+        const contentIconSize = (item.iconUrl
+            ? DIRECTORY_CATEGORY_BUBBLE_ICON_SIZE
+            : item.iconKey
+                ? (compact ? 8 : DIRECTORY_CATEGORY_BUBBLE_PERSONAL_ICON_SIZE)
+                : DIRECTORY_CATEGORY_BUBBLE_FALLBACK_ICON_SIZE) * markerScale;
         const content = item.iconUrl
             ? `<img class="directory-category-bubble-marker__icon" src="${escapeHtml(item.iconUrl)}" alt="" />`
             : item.iconKey
                 ? renderPersonalPlaceIconMarkup(item.iconKey, {
-                    size: (compact ? 8 : 15) * markerScale,
+                    size: contentIconSize,
                     color: item.color || '#0f766e',
                     strokeWidth: 2.5,
                     className: 'directory-category-bubble-marker__icon',
@@ -780,7 +788,10 @@ function createCategoryBubbleMarker(pin = {}, {
                     pointer-events:auto;
                 "
             >
-                <span class="directory-category-bubble-marker__content">
+                <span
+                    class="directory-category-bubble-marker__content"
+                    style="--directory-category-bubble-icon-size:${contentIconSize}px;"
+                >
                     ${content}
                 </span>
                 ${item.isPersonalPlace ? '' : `

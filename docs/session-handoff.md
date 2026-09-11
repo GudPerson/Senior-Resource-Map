@@ -1,6 +1,6 @@
 # CareAround SG session handoff
 
-Updated: 2026-09-10 (Asia/Singapore)
+Updated: 2026-09-11 (Asia/Singapore)
 
 ## Start here
 
@@ -10,6 +10,28 @@ Updated: 2026-09-10 (Asia/Singapore)
 - Release platform: Cloudflare Pages for the client and Cloudflare Worker for the API.
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
+
+## 2026-09-11 Map Studio category-bubble icon scaling — release candidate
+
+- Continue in the clean release checkout
+  `/Users/sweetbuns/CareAroundSG-worktrees/guide-inbox-release-20260907`, branch
+  `codex/map-studio-category-bubble-icon-scale-20260911`, based on released
+  production main `29f69c68`. Preserve the unrelated dirty primary checkout.
+- Category-bubble artwork now receives the same `1x`, `1.25x`, or `1.5x`
+  multiplier as its bubble in both the owner preview and PNG/PDF renderer.
+  Standard dimensions, geometry, collisions, other pin styles, data, and
+  persistence are unchanged.
+- Focused tests passed `61/61`; the quality gate passed server `729/729`, client
+  `799/799`, four environment checks, eight migrations, `481` modules / `1,420`
+  relative-import edges, and the exact `2,488`-module production build. Map
+  lockdown passed `104/104` plus its production build.
+  Isolated fictional-data browser UAT measured a constant icon-to-bubble ratio:
+  `14/28px`, `17.5/35px`, and `21/42px` for Standard, Large, and Extra large.
+  No preview draft was saved.
+- The user explicitly approved commit, push, and deployment. Merge the
+  validated branch, release only the client through the guarded Pages path,
+  and verify immutable/custom-domain artifact parity. Do not touch the Worker,
+  Neon, schema, map assets, authentication, secrets, or data.
 
 ## 2026-09-10 Discovery phone overview vertical recenter — verified locally
 
