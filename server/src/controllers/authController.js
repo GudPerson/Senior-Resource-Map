@@ -20,6 +20,16 @@ import {
     validateRequestBody,
 } from '../utils/inputValidation.js';
 import { loginPasswordSchema, newPasswordSchema } from '../utils/passwordPolicy.js';
+import {
+    buildPlatformAccessError,
+    evaluateExistingUserLogin,
+    evaluateRegistration,
+} from '../utils/platformAccess.js';
+import { loadPlatformAccessSettings } from '../utils/platformAccessStore.js';
+import {
+    findVerifiedOrganizationForEmail,
+    submitOrganizationJoinRequest,
+} from '../utils/organizationOnboarding.js';
 
 const IMPERSONATION_SESSION_TTL_SECONDS = 12 * 60 * 60;
 
@@ -39,6 +49,7 @@ const registerBodySchema = z.object({
     password: newPasswordSchema,
     name: requiredOneLineTextSchema('Name', 160),
     role: optionalOneLineTextSchema(40),
+    termsAccepted: z.boolean().optional(),
     ...profileRegistrationFieldsSchema,
 });
 
@@ -54,8 +65,15 @@ const loginBodySchema = z.object({
 
 const googleAuthBodySchema = z.object({
     credential: requiredOneLineTextSchema('Google credential', 20000),
+    isPartnerLogin: z.boolean().optional(),
     ...profileRegistrationFieldsSchema,
 });
+
+function platformAccessDeniedResponse(c, decision) {
+    const response = buildPlatformAccessError(decision.code);
+    clearAuthCookie(c);
+    return c.json({ error: response.error, code: decision.code }, response.status);
+}
 
 function normalizeText(value) {
     if (value === undefined || value === null) return '';
@@ -249,6 +267,28 @@ export const register = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
         await ensureUserPreferenceColumns(db, c.env);
+        const platformAccess = await loadPlatformAccessSettings(db);
+        const matchedOrganization = await findVerifiedOrganizationForEmail(db, email);
+        const registrationDecision = evaluateRegistration(platformAccess, {
+            matchedOrganizationId: matchedOrganization?.organization?.id || null,
+        });
+        if (!registrationDecision.allowed) {
+            return platformAccessDeniedResponse(c, registrationDecision);
+        }
+        if (registrationDecision.pendingApproval) {
+            const request = await submitOrganizationJoinRequest(db, {
+                email,
+                password,
+                name,
+                termsAccepted: body.termsAccepted,
+            });
+            clearAuthCookie(c);
+            return c.json({
+                pendingApproval: true,
+                code: 'organization_approval_required',
+                request,
+            }, 202);
+        }
         const postalCode = normalizeOptionalPostalCode(body.postalCode);
         const dateOfBirth = normalizeDateOfBirth(body.dateOfBirth);
         const chasCard = normalizeChasCard(body.chasCard);
@@ -326,6 +366,7 @@ export const login = async (c) => {
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
         await ensureUserPreferenceColumns(db, c.env);
+        const platformAccess = await loadPlatformAccessSettings(db);
         const isEmail = loginId.includes('@');
         const normalizedLoginId = loginId.toLowerCase();
 
@@ -363,10 +404,19 @@ export const login = async (c) => {
         user.softAssetStaffAccess = await loadSoftAssetStaffAccessForUser(db, user.id);
         user.organizationAccess = await loadOrganizationAccessForUser(db, user.id);
 
+        const loginDecision = evaluateExistingUserLogin(platformAccess, user, {
+            organizationLogin: isPartnerLogin === true,
+        });
+        if (!loginDecision.allowed) {
+            return platformAccessDeniedResponse(c, loginDecision);
+        }
+
         if (isPartnerLogin === true) {
             const adminRoles = ['super_admin', 'regional_admin', 'partner'];
-            if (!adminRoles.includes(user.role) && !hasAnyPartnerStaffAccess(user)) {
-                return c.json({ error: 'This login page is for Partners and Admins only.' }, 403);
+            const hasOrganizationAccess = Array.isArray(user.organizationAccess)
+                && user.organizationAccess.some((entry) => !entry?.revokedAt);
+            if (!adminRoles.includes(user.role) && !hasAnyPartnerStaffAccess(user) && !hasOrganizationAccess) {
+                return c.json({ error: 'This login page is for approved organisation users, Partners and Admins only.' }, 403);
             }
         }
 
@@ -405,6 +455,15 @@ export const me = async (c) => {
         liveUser.softAssetStaffAccess = await loadSoftAssetStaffAccessForUser(db, liveUser.id);
         liveUser.organizationAccess = await loadOrganizationAccessForUser(db, liveUser.id);
 
+        const platformAccess = await loadPlatformAccessSettings(db);
+        const loginDecision = evaluateExistingUserLogin(platformAccess, liveUser, {
+            organizationLogin: true,
+        });
+        if (!loginDecision.allowed) {
+            clearAuthCookie(c);
+            return c.json({ user: null, code: loginDecision.code });
+        }
+
         const extraClaims = {};
         if (sessionUser?.isImpersonating) {
             extraClaims.isImpersonating = true;
@@ -426,17 +485,22 @@ export const logout = (c) => {
 export const googleAuth = async (c) => {
     try {
         const body = validateRequestBody(await c.req.json(), googleAuthBodySchema, 'Google sign-in details');
-        const { credential } = body;
+        const { credential, isPartnerLogin } = body;
         const { payload, googleSubject, email } = await verifyGoogleCredential(c, credential);
 
         const { name } = payload;
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
         await ensureUserPreferenceColumns(db, c.env);
+        const platformAccess = await loadPlatformAccessSettings(db);
 
         let [user] = await db.select().from(users).where(eq(users.googleSubject, googleSubject));
 
         if (!user) {
+            const registrationDecision = evaluateRegistration(platformAccess);
+            if (!registrationDecision.allowed) {
+                return platformAccessDeniedResponse(c, registrationDecision);
+            }
             const [emailMatchedUser] = await db.select().from(users).where(eq(users.email, email));
             if (shouldRejectGoogleEmailOnlyAccountLink(user, emailMatchedUser)) {
                 return c.json({
@@ -496,6 +560,13 @@ export const googleAuth = async (c) => {
         user.hardAssetStaffAccess = await loadHardAssetStaffAccessForUser(db, user.id);
         user.softAssetStaffAccess = await loadSoftAssetStaffAccessForUser(db, user.id);
         user.organizationAccess = await loadOrganizationAccessForUser(db, user.id);
+
+        const loginDecision = evaluateExistingUserLogin(platformAccess, user, {
+            organizationLogin: isPartnerLogin === true,
+        });
+        if (!loginDecision.allowed) {
+            return platformAccessDeniedResponse(c, loginDecision);
+        }
 
         const token = await createSessionToken(user, c);
         setAuthCookie(c, token);

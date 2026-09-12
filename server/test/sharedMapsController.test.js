@@ -6,6 +6,7 @@ import {
     getEmbeddedMapConfig,
     getEmbeddedMapDirectory,
     getSharedMapDirectory,
+    sanitizeRestrictedPublicDirectory,
 } from '../src/controllers/sharedMapsController.js';
 import { myMapAssetNotes, myMapAssets, myMaps } from '../src/db/schema.js';
 
@@ -340,6 +341,41 @@ test('getSharedMapDirectory returns a public grouped directory payload', async (
     assert.equal(directory.places[0].rows[0].name, 'Fei Yue Active Ageing Centre');
     assert.equal(directory.places[0].rows[0].notes, undefined);
     assert.equal(directory.assets[0].notes, undefined);
+});
+
+test('restricted public sharing removes stored corporate artwork and provider links without changing care details', () => {
+    const directory = createSnapshotDirectory({
+        assets: [{
+            resourceType: 'hard',
+            resourceId: 29,
+            logoUrl: 'https://provider.example/logo.png',
+            website: 'https://provider.example',
+        }],
+        places: [{
+            name: 'Fei Yue Active Ageing Centre',
+            address: '153 Jalan Teck Whye Singapore 680153',
+            rows: [{
+                name: 'Fei Yue Active Ageing Centre',
+                contactPhone: '61234567',
+                logoUrl: 'https://provider.example/logo.png',
+                bannerUrl: 'https://provider.example/banner.png',
+                website: 'https://provider.example',
+                socialLinks: { facebook: 'https://facebook.com/provider' },
+                detailPath: '/resource/hard/29',
+            }],
+        }],
+    });
+
+    const sanitized = sanitizeRestrictedPublicDirectory(directory);
+
+    assert.equal(sanitized.places[0].rows[0].logoUrl, null);
+    assert.equal(sanitized.places[0].rows[0].bannerUrl, null);
+    assert.equal(sanitized.places[0].rows[0].website, null);
+    assert.deepEqual(sanitized.places[0].rows[0].socialLinks, {});
+    assert.equal(sanitized.places[0].rows[0].detailPath, null);
+    assert.equal(sanitized.places[0].rows[0].contactPhone, '61234567');
+    assert.equal(sanitized.places[0].address, '153 Jalan Teck Whye Singapore 680153');
+    assert.equal(directory.places[0].rows[0].logoUrl, 'https://provider.example/logo.png');
 });
 
 test('getSharedMapDirectory includes only handoff notes when sharing opts in', async () => {

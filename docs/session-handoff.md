@@ -1,6 +1,6 @@
 # CareAround SG session handoff
 
-Updated: 2026-09-11 (Asia/Singapore)
+Updated: 2026-09-13 (Asia/Singapore)
 
 ## Start here
 
@@ -10,6 +10,32 @@ Updated: 2026-09-11 (Asia/Singapore)
 - Release platform: Cloudflare Pages for the client and Cloudflare Worker for the API.
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
+
+## 2026-09-13 Governed Care Maps closed pilot — verified locally
+
+- Continue in the isolated checkout
+  `/Users/sweetbuns/CareAroundSG-worktrees/governed-care-maps-pilot`, branch
+  `codex/governed-care-maps-pilot-20260913`, based on `origin/main` at
+  `3c26c8c7`. Preserve the unrelated dirty primary checkout.
+- The additive implementation covers platform access switches, exact-domain
+  organisation applications and approval, staff join approval, owner-supplied
+  asset packs and agreement records, region-scoped Governed Care Maps,
+  resource-derived stewardship, sanitized public share/embed snapshots,
+  resource withdrawal, notifications, retirement/restore, and scheduled
+  30-day archival. Personal My Maps remain on their existing tables and paths.
+- Local validation passes 10 migrations, 499 modules / 1,497 import edges,
+  server `748/748`, client `805/805`, production environment `4/4`, map lockdown
+  `104/104`, clean diff whitespace, and the 2,493-module validated production
+  client build. Real-PostgreSQL integration uses fictional organisations and
+  proves atomic onboarding and the governed-map lifecycle, including former
+  creator removal and preservation of a personal My Map.
+- Read `docs/governed-care-maps-pilot-architecture.md` and
+  `docs/governed-care-maps-pilot-runbook.md` before release work. The remaining
+  release gates are database recovery evidence and migration review,
+  authenticated fictional-data UAT, manual applicant identity/domain checks,
+  and professional review of the Terms/contact details.
+- No commit, push, deploy, production migration, production access-mode change,
+  secret change, or production data mutation has been authorized or performed.
 
 ## 2026-09-11 Map Studio individual pin visibility — release candidate
 

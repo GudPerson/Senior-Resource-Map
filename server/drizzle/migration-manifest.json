@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "authoritativeSchema": "src/db/schema.js",
-  "currentSchemaSha256": "7be283bcf69a6f3a5d96d02f9cc77382944999763b1b922237d7fb28389b325a",
+  "currentSchemaSha256": "dc426a1606b32265b05e1fb6ad2f372544f5613344a46a0334739b1ae44ee3d7",
   "runtimeCompatibilityBootstrap": "src/utils/boundarySchema.js",
   "runtimeCompatibilityBootstrapSha256": "8a9bdb2545fe0ce03c37aaf11ddee97ae5f04834d586c2381c3e04360f60c63f",
   "migrations": [
@@ -139,6 +139,43 @@
         "Region and Subregion postcode sets overlap by design but live in separate tables. Existing account and resource routing continues to query only subregion_postal_codes.",
         "The Unmapped layer is classification data and never grants access or assigns a user or resource.",
         "Production workbook import is a separate, explicitly confirmed operation and should use the corrected validated source artifact."
+      ]
+    },
+    {
+      "id": "0008_platform_access_settings",
+      "file": "drizzle/0008_platform_access_settings.sql",
+      "sha256": "8e7662a0b0791f7d9b8c7eb3acab415eb3924f45f70d434d10ca8992176021b1",
+      "snapshotFile": "drizzle/meta/0008_snapshot.json",
+      "snapshotSha256": "3c7c470d0d1aed39d9ba0b0124d76a735bf63cb2ab86b3becf9cb16ecf280748",
+      "type": "additive-platform-access-controls",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "Roll back the Worker and client while retaining the singleton settings row. The legacy-compatible open defaults remain authoritative when the feature is absent; no existing user, resource, map, calendar, organization, or share data is transformed.",
+      "environmentStatus": "Repository candidate tested locally only; no development, staging, or production database migration, setting change, push, or deployment is authorised or applied.",
+      "cautions": [
+        "Apply this additive migration before enabling the platform-access API or enforcing a non-open mode.",
+        "The table is a singleton with optimistic revision checks; only Super Admin may mutate it and every successful mutation must write a sensitive audit event.",
+        "The generated migration omitted declared CHECK constraints, so the reviewed SQL restores all five constraints and disposable PostgreSQL tests must verify them.",
+        "Open is the compatibility default. Changing production access modes is a separate, explicit operational action after organization onboarding paths and guest share/embed exemptions pass UAT."
+      ]
+    },
+    {
+      "id": "0009_governed_care_maps",
+      "file": "drizzle/0009_governed_care_maps.sql",
+      "sha256": "36742b97b8c40f112067f4b0fd458cd866f6dc23125adc63ccf84d1d5c0c4688",
+      "snapshotFile": "drizzle/meta/0009_snapshot.json",
+      "snapshotSha256": "48b80c496ec185d9723805696616b9d14d5abf7a52554eeff0aa57778a365e02",
+      "type": "additive-organization-onboarding-and-governed-care-maps",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "Roll back the Worker and client while retaining additive organization domains, onboarding requests, asset packs, join requests, governed maps, publications, events and notification records. Existing personal My Maps, favorites, resources, calendars and shares are not transformed or referenced by foreign key.",
+      "environmentStatus": "Repository candidate tested locally only; no development, staging or production migration, access-mode change, push or deployment is authorised or applied.",
+      "cautions": [
+        "Apply after 0008 and before enabling organization-only registration or Governed Care Map routes. No runtime DDL is used.",
+        "Governed Care Maps remain independent from user-owned my_maps; creator ids are audit fields and never provide durable ownership.",
+        "Stewardship must be recomputed from current resource staff and organization access on every mutation. Public responses use publication snapshots and opaque tokens.",
+        "The installed generator omits CHECK constraints and partial-index predicates; the reviewed SQL restores fourteen checks and five partial or expression index definitions, which disposable PostgreSQL tests verify.",
+        "Retirement is reversible for thirty days and archival is a scheduled forward action. It does not delete underlying resources or personal maps."
       ]
     }
   ]

@@ -31,3 +31,20 @@ test('fetchEmbeddedMap reports the public unavailable response without auth hand
         (error) => error.status === 404 && /no longer available/.test(error.message),
     );
 });
+
+test('fetchEmbeddedMap uses the governed publication endpoint for governed embeds', async () => {
+    const calls = [];
+    await fetchEmbeddedMap('governed token', {
+        mapKind: 'governed',
+        baseCandidates: ['https://api.example.test/api'],
+        fetchImpl: async (url) => {
+            calls.push(url);
+            return Response.json({ governedMap: true });
+        },
+    });
+
+    assert.equal(
+        calls[0],
+        'https://api.example.test/api/governed-maps/public/governed%20token/embed',
+    );
+});

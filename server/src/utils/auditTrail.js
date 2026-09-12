@@ -249,7 +249,7 @@ export function buildAuditChangeMetadata(existing = {}, patch = {}, options = {}
     });
 }
 
-export async function recordAuditLog(db, actor, payload = {}) {
+export function buildAuditLogInsert(db, actor, payload = {}) {
     if (!db || !payload?.actionType) return null;
     return db.insert(sensitiveAuditLogs).values({
         actorUserId: actor?.id || null,
@@ -262,6 +262,11 @@ export async function recordAuditLog(db, actor, payload = {}) {
         organizationId: payload.organizationId || null,
         metadata: sanitizeAuditMetadata(payload.metadata || {}),
     });
+}
+
+export async function recordAuditLog(db, actor, payload = {}) {
+    const query = buildAuditLogInsert(db, actor, payload);
+    return query ? query : null;
 }
 
 export async function safelyRecordAuditLog(db, actor, payload = {}) {

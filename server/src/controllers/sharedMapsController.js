@@ -21,6 +21,7 @@ import {
     normalizeMyMapAssetSnapshot,
 } from '../utils/myMapDirectory.js';
 import { normalizeRole } from '../utils/roles.js';
+import { loadPlatformAccessSettings } from '../utils/platformAccessStore.js';
 import { translateSharedMapNotes } from '../utils/sharedNoteTranslations.js';
 import { normalizeEmbeddedPrintAnnotationSnapshot } from './printAnnotationsController.js';
 
@@ -32,6 +33,35 @@ function createHttpError(status, message) {
 
 function normalizeMapName(value) {
     return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+const RESTRICTED_PUBLIC_IMAGE_KEYS = new Set(['logoUrl', 'bannerUrl']);
+const RESTRICTED_PUBLIC_LINK_KEYS = new Set([
+    'detailPath',
+    'externalUrl',
+    'groundingSourceUrl',
+    'sourceUrl',
+    'website',
+    'websiteUrl',
+]);
+
+export function sanitizeRestrictedPublicDirectory(value) {
+    if (Array.isArray(value)) return value.map(sanitizeRestrictedPublicDirectory);
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => {
+        if (RESTRICTED_PUBLIC_IMAGE_KEYS.has(key) || RESTRICTED_PUBLIC_LINK_KEYS.has(key)) {
+            return [key, null];
+        }
+        if (key === 'socialLinks') return [key, {}];
+        return [key, sanitizeRestrictedPublicDirectory(item)];
+    }));
+}
+
+async function applyCurrentPublicContentPolicy(db, directory) {
+    const settings = await loadPlatformAccessSettings(db);
+    return settings.publicDirectoryMode === 'open'
+        ? directory
+        : sanitizeRestrictedPublicDirectory(directory);
 }
 
 function assertCopyViewer(user) {
@@ -467,7 +497,7 @@ export const getSharedMap = async (c) => {
         }
         const viewerUser = c.get('user');
         const directory = await getSharedMapDirectory(db, token, viewerUser);
-        return c.json(directory);
+        return c.json(await applyCurrentPublicContentPolicy(db, directory));
     } catch (err) {
         console.error('getSharedMap Error:', err);
         return c.json({ error: err.message || 'Failed to fetch shared directory' }, err.status || 500);
@@ -495,7 +525,8 @@ export const getEmbeddedMap = async (c) => {
         if (!token) return c.json({ error: 'Share token is required' }, 400);
         const db = getDb(c.env);
         await ensureBoundarySchema(db, c.env);
-        return c.json(await getEmbeddedMapDirectory(db, token));
+        const directory = await getEmbeddedMapDirectory(db, token);
+        return c.json(await applyCurrentPublicContentPolicy(db, directory));
     } catch (err) {
         console.error('getEmbeddedMap Error:', err);
         return c.json({ error: err.message || 'Embedded map is unavailable' }, err.status || 500);

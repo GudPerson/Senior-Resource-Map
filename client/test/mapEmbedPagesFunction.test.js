@@ -125,7 +125,7 @@ test('Pages Functions routing is limited to embedded map documents', () => {
     const routes = JSON.parse(readFileSync(new URL('../public/_routes.json', import.meta.url), 'utf8'));
     assert.deepEqual(routes, {
         version: 1,
-        include: ['/embed/maps/*'],
+        include: ['/embed/maps/*', '/embed/governed-maps/*'],
         exclude: [],
     });
 });

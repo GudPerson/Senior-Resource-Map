@@ -2,8 +2,12 @@ import { Hono } from 'hono';
 import { dataStore } from '../utils/dataStore.js';
 import { MAP_CACHE_SCHEMA_VERSION, rebuildMapCache } from '../utils/cacheBuilder.js';
 import { isAssetScheduledHidden } from '../utils/visibility.js';
+import { optionalAuth } from '../middleware/auth.js';
+import { requirePlatformDirectoryAccess } from '../middleware/platformAccess.js';
 
 const router = new Hono();
+
+router.use('*', optionalAuth, requirePlatformDirectoryAccess());
 
 function isFiniteCoordinate(value) {
     return Number.isFinite(Number.parseFloat(value));

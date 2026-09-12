@@ -197,7 +197,7 @@ function ResourcePreview({ groups, selectedMemberPlaceKey, fullMapUrl, onSelectM
     );
 }
 
-export default function EmbeddedMapPage() {
+export default function EmbeddedMapPage({ mapKind = 'personal' }) {
     const { token } = useParams();
     const { t } = useLocale();
     const coarsePointer = useCoarsePointer();
@@ -213,7 +213,7 @@ export default function EmbeddedMapPage() {
     useEffect(() => {
         let cancelled = false;
         setState({ status: 'loading', directory: null, error: null });
-        fetchEmbeddedMap(token)
+        fetchEmbeddedMap(token, { mapKind })
             .then((directory) => {
                 if (!cancelled) setState({ status: 'ready', directory, error: null });
             })
@@ -223,7 +223,7 @@ export default function EmbeddedMapPage() {
         return () => {
             cancelled = true;
         };
-    }, [loadAttempt, token]);
+    }, [loadAttempt, mapKind, token]);
 
     useEffect(() => {
         if (!touchInteractionEnabled) return undefined;

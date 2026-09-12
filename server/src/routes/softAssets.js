@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { authenticateToken, optionalAuth, authorizeResourceOperator } from '../middleware/auth.js';
 import { requireManagedResourceListAuth } from '../middleware/resourceListAuth.js';
+import { requirePlatformDirectoryAccess } from '../middleware/platformAccess.js';
 import {
     getSoftAssets, getSoftAssetById,
     createSoftAsset, updateSoftAsset, deleteSoftAsset, resetSoftAssetOverrides, patchSoftAssetAvailability,
@@ -19,7 +20,7 @@ import {
 
 const router = new Hono();
 
-router.get('/', optionalAuth, requireManagedResourceListAuth(), getSoftAssets);
+router.get('/', optionalAuth, requirePlatformDirectoryAccess(), requireManagedResourceListAuth(), getSoftAssets);
 
 // Protected routes — resource operators only
 router.post('/import/collateral/preview', authenticateToken, authorizeResourceOperator(), previewSoftAssetCollateralImport);
@@ -31,7 +32,7 @@ router.get('/:id/staff', authenticateToken, authorizeResourceOperator(), getSoft
 router.get('/:id/staff-candidates', authenticateToken, authorizeResourceOperator(), getSoftAssetStaffCandidates);
 router.post('/:id/staff', authenticateToken, authorizeResourceOperator(), addSoftAssetStaff);
 router.delete('/:id/staff/:membershipId', authenticateToken, authorizeResourceOperator(), revokeSoftAssetStaff);
-router.get('/:id', optionalAuth, getSoftAssetById);
+router.get('/:id', optionalAuth, requirePlatformDirectoryAccess(), getSoftAssetById);
 router.put('/:id', authenticateToken, authorizeResourceOperator(), updateSoftAsset);
 router.patch('/:id/availability', authenticateToken, authorizeResourceOperator(), patchSoftAssetAvailability);
 router.post('/:id/reset-overrides', authenticateToken, authorizeResourceOperator(), resetSoftAssetOverrides);

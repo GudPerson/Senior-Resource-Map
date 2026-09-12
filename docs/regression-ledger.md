@@ -15,6 +15,56 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-13 Governed Care Maps closed-pilot boundary — verified locally
+
+- Current behavior: a Super Admin can switch the resource directory to approved
+  organisation access and make registration and login organisation-only.
+  Organisation applications record an exact email domain, applicant, accepted
+  terms version, owner-supplied logo/banner pack, and permission. Approved-domain
+  staff become accounts only after an Organisation Admin decision. Governed Care
+  Maps are separate from personal My Maps, derive current stewardship from their
+  included resources, publish token-bound sanitized snapshots, allow exact-origin
+  embeds, support resource-scoped withdrawal, and use reasoned 30-day reversible
+  retirement followed by scheduled archival.
+- Known-good reference and blast radius: branch
+  `codex/governed-care-maps-pilot-20260913` in
+  `/Users/sweetbuns/CareAroundSG-worktrees/governed-care-maps-pilot`, based on
+  `origin/main` at `3c26c8c7`. The change adds migrations
+  `0008_platform_access_settings` and `0009_governed_care_maps`, server routes,
+  additive client routes, Pages embed handling, and Terms content. Existing
+  `my_maps` rows and their ownership, editing, sharing, embed, personal-place,
+  private-note, Map Studio, and export paths are not migrated or rewritten.
+  Public discovery, authentication, organisation governance, resource listing,
+  Shared Maps, embed, notifications, scheduled Worker work, and legal copy are
+  affected surfaces.
+- Reproduction and acceptance: use fictional or explicitly consenting
+  organisations. Approve an organisation and first Organisation Admin, link two
+  partner resources in one region group, create and publish a governed map, and
+  verify the direct guest share and an allowed-origin embed. Require an
+  unapproved origin to fail, an unrelated partner to be unable to remove another
+  resource, an authorized resource steward to remove their own resource
+  immediately from the public snapshot, and a former creator with no current
+  resource role to lose map access. Retire and restore with reasons, then retire
+  again and run the archival finalizer after 30 days. Confirm the governed map is
+  unavailable publicly while the pre-existing personal My Map still exists.
+- Verification before release: PASS locally. Migration validation passed 10
+  ordered migrations. The module graph passed 499 source modules and 1,497
+  relative-import edges with no cycles. The complete server suite passed
+  `748/748`; the complete client suite passed `805/805` plus `4/4` production
+  environment checks. The locked map suite passed `104/104`. The validated
+  production client build completed across 2,493 transformed modules. Focused
+  real-PostgreSQL tests cover atomic onboarding, first-admin account creation,
+  permission records, cross-organisation stewardship, publication branding and
+  link suppression, creator departure, resource withdrawal, notifications,
+  retirement, restoration, 30-day archival, and personal-map preservation.
+- Release boundary: no commit, push, Cloudflare deployment, production access
+  switch, production migration, secret change, or production data mutation is
+  authorized by this local implementation goal. Before a pilot activation,
+  complete backup/restore evidence, a reviewed database migration plan, an
+  authenticated fictional-data UAT, applicant identity/domain verification, and
+  legal review of the updated Terms and contact details. Follow
+  `docs/governed-care-maps-pilot-runbook.md`.
+
 ## 2026-09-11 Map Studio individual pin visibility — release candidate
 
 - Current behavior: a named Map Studio view can hide or show an individual

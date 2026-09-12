@@ -30,6 +30,9 @@ import calendarRoutes from './routes/calendar.js';
 import supportRoutes from './routes/support.js';
 import guideRoutes from './routes/guide.js';
 import releaseRoutes from './routes/release.js';
+import platformAccessRoutes from './routes/platformAccess.js';
+import governedMapsRoutes from './routes/governedMaps.js';
+import organizationOnboardingRoutes from './routes/organizationOnboarding.js';
 import { createNotificationRoutes } from './routes/notifications.js';
 import { createSavedSearchRoutes } from './routes/savedSearches.js';
 import {
@@ -70,6 +73,8 @@ app.use('/api/auth/google', authRateLimit);
 app.use('/api/auth/google/*', authRateLimit);
 app.use('/api/auth/phone/*', authPollingRateLimit);
 app.use('/api/auth/phone/*', authRateLimit);
+app.use('/api/organization-onboarding/requests', authRateLimit);
+app.use('/api/organization-onboarding/join', authRateLimit);
 app.use('/api/phone-identities/link/start', authRateLimit);
 app.use('/api/upload', uploadRateLimit);
 app.use('/api/upload/*', uploadRateLimit);
@@ -111,6 +116,9 @@ app.route('/api/calendar', calendarRoutes);
 app.route('/api/support', supportRoutes);
 app.route('/api/guide', guideRoutes);
 app.route('/api/release', releaseRoutes);
+app.route('/api/platform-access', platformAccessRoutes);
+app.route('/api/governed-maps', governedMapsRoutes);
+app.route('/api/organization-onboarding', organizationOnboardingRoutes);
 app.route('/api/notifications', createNotificationRoutes());
 app.route('/api/saved-searches', createSavedSearchRoutes());
 

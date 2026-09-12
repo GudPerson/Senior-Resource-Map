@@ -6,7 +6,9 @@ export async function fetchEmbeddedMap(token, options = {}) {
 
     const baseCandidates = options.baseCandidates || getApiBaseCandidates();
     const fetchImpl = options.fetchImpl || globalThis.fetch;
-    const path = `/shared-maps/${encodeURIComponent(normalizedToken)}/embed`;
+    const path = options.mapKind === 'governed'
+        ? `/governed-maps/public/${encodeURIComponent(normalizedToken)}/embed`
+        : `/shared-maps/${encodeURIComponent(normalizedToken)}/embed`;
     let lastNetworkError = null;
 
     for (let index = 0; index < baseCandidates.length; index += 1) {

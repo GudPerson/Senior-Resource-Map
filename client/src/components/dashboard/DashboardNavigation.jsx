@@ -63,6 +63,7 @@ export function DashboardSidebar({
     const canShowAdmin = canAccessAdmin(user?.role);
     const canShowAudit = canAccessAuditTrail(user);
     const canShowOrganizationWorkspace = canAccessOrganizationWorkspace(user);
+    const canShowGovernedMaps = canShowResources || canShowOrganizationWorkspace;
     const isAssetStaff = hasHardAssetStaffAccess(user);
 
     return (
@@ -120,6 +121,15 @@ export function DashboardSidebar({
                     icon={Files}
                     label={t('overviewResourcesTitle')}
                     id="dash-managed-resources"
+                    onNavigate={onNavigate}
+                />
+            ) : null}
+            {canShowGovernedMaps ? (
+                <SidebarLink
+                    to="/dashboard/governed-maps"
+                    icon={MapPinned}
+                    label="Governed Care Maps"
+                    id="dash-governed-maps"
                     onNavigate={onNavigate}
                 />
             ) : null}

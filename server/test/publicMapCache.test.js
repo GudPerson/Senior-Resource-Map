@@ -24,7 +24,7 @@ test('public map cache endpoint filters out rows without valid coordinates', asy
     ]);
 
     try {
-        const response = await app.fetch(new Request('http://localhost/api/public/map-cache/all'));
+        const response = await app.fetch(new Request('http://localhost/api/public/map-cache/all'), { NODE_ENV: 'test' });
         const payload = await response.json();
 
         assert.equal(response.status, 200);
@@ -49,7 +49,7 @@ test('public discovery cache endpoint keeps rows without map coordinates', async
     });
 
     try {
-        const response = await app.fetch(new Request('http://localhost/api/public/discovery-cache/all'));
+        const response = await app.fetch(new Request('http://localhost/api/public/discovery-cache/all'), { NODE_ENV: 'test' });
         const payload = await response.json();
 
         assert.equal(response.status, 200);
@@ -103,7 +103,7 @@ test('public cache endpoints enforce asset and host hide windows at read time', 
 
     try {
         for (const path of ['/api/public/map-cache/all', '/api/public/discovery-cache/all']) {
-            const response = await app.fetch(new Request(`http://localhost${path}`));
+            const response = await app.fetch(new Request(`http://localhost${path}`), { NODE_ENV: 'test' });
             const payload = await response.json();
 
             assert.equal(response.status, 200);

@@ -16,6 +16,7 @@ import {
     isGoogleLinkRequiredError,
 } from '../lib/googleLinking.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { PublicAccessNotice } from '../components/PublicDirectoryGate.jsx';
 
 function normalizeReturnTo(value) {
     const text = String(value || '').trim();
@@ -34,6 +35,8 @@ export default function AuthPage({ isPartner = false }) {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [pendingGoogleCredential, setPendingGoogleCredential] = useState('');
+    const [platformSettings, setPlatformSettings] = useState(null);
+    const [registrationNotice, setRegistrationNotice] = useState('');
     const [handoffVisible, setHandoffVisible] = useState(() => (
         shouldShowPhoneLoginHandoff(location.search, readStoredPhoneLoginAttempt())
     ));
@@ -96,6 +99,14 @@ export default function AuthPage({ isPartner = false }) {
 
     useEffect(() => () => clearGoogleIntentTimer(), [clearGoogleIntentTimer]);
 
+    useEffect(() => {
+        let cancelled = false;
+        api.getPlatformAccessSettings()
+            .then((result) => { if (!cancelled) setPlatformSettings(result.settings); })
+            .catch(() => { if (!cancelled) setPlatformSettings({ publicLoginMode: 'closed', publicRegistrationMode: 'closed' }); });
+        return () => { cancelled = true; };
+    }, []);
+
     function set(key) { return e => setForm(f => ({ ...f, [key]: e.target.value })); }
 
     async function handleSubmit(e) {
@@ -110,7 +121,12 @@ export default function AuthPage({ isPartner = false }) {
 
             const res = tab === 'login'
                 ? await api.login(loginPayload)
-                : await api.register({ email: form.email, password: form.password, name: form.name, postalCode: form.postalCode, role: 'user' });
+                : await api.register({ email: form.email, password: form.password, name: form.name, postalCode: form.postalCode, role: 'user', termsAccepted: true });
+            if (res.pendingApproval) {
+                setHandoffVisible(false);
+                setRegistrationNotice(`${res.request?.organization?.name || 'Your organisation'} must approve your account before you can sign in.`);
+                return;
+            }
             const authResult = tab === 'login' && !isPartner
                 ? await finishEmailLoginWithPendingGoogleLink({
                     apiClient: api,
@@ -134,7 +150,10 @@ export default function AuthPage({ isPartner = false }) {
         setLoading(true);
         setHandoffVisible(true);
         try {
-            const payload = { credential: credentialResponse.credential };
+            const payload = {
+                credential: credentialResponse.credential,
+                isPartnerLogin: isPartner,
+            };
             if (tab === 'register') {
                 payload.postalCode = form.postalCode;
             }
@@ -164,6 +183,10 @@ export default function AuthPage({ isPartner = false }) {
     if (isAuth && !skipPostLoginRedirectRef.current) {
         const destination = resolvePostAuthDestination();
         return <Navigate to={`/auth/transition?returnTo=${encodeURIComponent(destination)}`} replace />;
+    }
+
+    if (!isPartner && platformSettings && platformSettings.publicLoginMode !== 'open') {
+        return <PublicAccessNotice purpose="sign-in" />;
     }
 
     return (
@@ -314,6 +337,11 @@ export default function AuthPage({ isPartner = false }) {
                             {error}
                         </div>
                     )}
+                    {registrationNotice ? (
+                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                            {registrationNotice}
+                        </div>
+                    ) : null}
 
                     <button
                         id="auth-submit"

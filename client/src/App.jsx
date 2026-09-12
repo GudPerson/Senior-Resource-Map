@@ -11,6 +11,7 @@ import { LocaleProvider, useLocale } from './contexts/LocaleContext.jsx';
 import { isGudAuthPhoneLoginReturn } from './lib/phoneVerificationState.js';
 import { LoadingState } from './components/LoadingState.jsx';
 import MobileMyMapEntryScrollReset from './components/MobileMyMapEntryScrollReset.jsx';
+import PublicDirectoryGate from './components/PublicDirectoryGate.jsx';
 import { SUPPORT_UI_ENABLED } from './lib/supportInbox.js';
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage.jsx'));
@@ -21,6 +22,7 @@ const ProfilePage = lazy(() => import('./pages/dashboard/ProfilePage.jsx'));
 const AdminPage = lazy(() => import('./pages/dashboard/AdminPage.jsx'));
 const AuditTrailPage = lazy(() => import('./pages/dashboard/AuditTrailPage.jsx'));
 const OrganizationWorkspacePage = lazy(() => import('./pages/dashboard/OrganizationWorkspacePage.jsx'));
+const GovernedMapsPage = lazy(() => import('./pages/dashboard/GovernedMapsPage.jsx'));
 const ResourcePage = lazy(() => import('./pages/ResourcePage.jsx'));
 const AuthTransitionPage = lazy(() => import('./pages/AuthTransitionPage.jsx'));
 const MyDirectoryPage = lazy(() => import('./pages/MyDirectoryPage.jsx'));
@@ -30,6 +32,7 @@ const SharedMapPage = lazy(() => import('./pages/SharedMapPage.jsx'));
 const MembershipLinkPage = lazy(() => import('./pages/MembershipLinkPage.jsx'));
 const LegalPage = lazy(() => import('./pages/LegalPage.jsx'));
 const SupportHubPage = lazy(() => import('./pages/SupportHubPage.jsx'));
+const OrganizationOnboardingPage = lazy(() => import('./pages/OrganizationOnboardingPage.jsx'));
 const ROUTE_RELOAD_MARKER_KEY = 'carearound:route-recovery-reload';
 
 function isRouteChunkLoadError(error) {
@@ -172,6 +175,7 @@ function AppShell() {
     const location = useLocation();
     const { isLoading } = useAuth();
     const hideNavbar = location.pathname.startsWith('/shared/maps/')
+        || location.pathname.startsWith('/governed/maps/')
         || location.pathname.startsWith('/auth/transition');
     const shouldUseAuthShellLoader = isProtectedShellRoute(location.pathname);
 
@@ -188,7 +192,7 @@ function AppShell() {
                     <Routes>
                         <Route path="/" element={<Navigate to="/discover" replace />} />
                         <Route path="/list" element={<Navigate to="/discover" replace />} />
-                        <Route path="/discover" element={<DiscoverPage />} />
+                        <Route path="/discover" element={<PublicDirectoryGate><DiscoverPage /></PublicDirectoryGate>} />
                         {SUPPORT_UI_ENABLED && <Route path="/help" element={<SupportHubPage />} />}
                         {SUPPORT_UI_ENABLED && <Route path="/inbox" element={<Navigate to="/help?tab=inbox" replace />} />}
                         <Route path="/membership/link" element={<MembershipLinkPage />} />
@@ -196,8 +200,11 @@ function AppShell() {
                         <Route path="/terms" element={<LegalPage type="terms" />} />
                         <Route path="/auth/transition" element={<AuthTransitionPage />} />
 
-                        <Route path="/resource/:type/:id" element={<ResourcePage />} />
+                        <Route path="/resource/:type/:id" element={<PublicDirectoryGate><ResourcePage /></PublicDirectoryGate>} />
                         <Route path="/shared/maps/:token" element={<SharedMapPage />} />
+                        <Route path="/governed/maps/:token" element={<SharedMapPage mapKind="governed" />} />
+                        <Route path="/organization/register" element={<OrganizationOnboardingPage mode="organization" />} />
+                        <Route path="/organization/join" element={<OrganizationOnboardingPage mode="join" />} />
                         <Route path="/my-directory" element={<ProtectedRoute requireDirectoryAccess><MyDirectoryPage /></ProtectedRoute>} />
                         <Route path="/my-directory/town-maps" element={<ProtectedRoute requireDirectoryAccess><TownMapDownloadsPage /></ProtectedRoute>} />
                         <Route path="/my-directory/maps/:mapId" element={<ProtectedRoute requireDirectoryAccess><MyMapDetailPage /></ProtectedRoute>} />
@@ -207,6 +214,7 @@ function AppShell() {
                             <Route index element={<DashboardOverview />} />
                             <Route path="calendar" element={<CareCalendarPage />} />
                             <Route path="resources" element={<ResourcesPage />} />
+                            <Route path="governed-maps" element={<GovernedMapsPage />} />
                             <Route path="profile" element={<ProfilePage />} />
                             <Route path="admin" element={<ProtectedRoute requireAdmin><AdminPage /></ProtectedRoute>} />
                             <Route path="audit" element={<ProtectedRoute requireAuditAccess><AuditTrailPage /></ProtectedRoute>} />

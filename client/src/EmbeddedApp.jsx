@@ -25,6 +25,7 @@ export default function EmbeddedApp() {
                         <Suspense fallback={<EmbeddedMapLoading />}>
                             <Routes>
                                 <Route path="/embed/maps/:token" element={<EmbeddedMapPage />} />
+                                <Route path="/embed/governed-maps/:token" element={<EmbeddedMapPage mapKind="governed" />} />
                                 <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>
                         </Suspense>
