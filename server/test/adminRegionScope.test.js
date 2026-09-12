@@ -5,6 +5,7 @@ import {
     normalizeAdminRegionScopeIds,
     validateAdminRegionScopeUpdate,
 } from '../src/utils/adminRegionScope.js';
+import { replaceUserRegionScope } from '../src/utils/userRegionScopePersistence.js';
 
 function expectScopeError(fn, status, pattern) {
     assert.throws(fn, (err) => {
@@ -76,4 +77,62 @@ test('admin region scope can be empty when no directly managed user would be str
     });
 
     assert.deepEqual(result, { subregionIds: [], strandedManagedUsers: [] });
+});
+
+test('admin region scope replacement uses the Neon HTTP atomic batch path', async () => {
+    const batchCalls = [];
+    const db = {
+        transaction() {
+            throw new Error('No transactions support in neon-http driver');
+        },
+        delete(table) {
+            return {
+                where(whereClause) {
+                    return { kind: 'delete', table, whereClause };
+                },
+            };
+        },
+        insert(table) {
+            return {
+                values(values) {
+                    return { kind: 'insert', table, values };
+                },
+            };
+        },
+        async batch(queries) {
+            batchCalls.push(queries);
+            return queries.map(() => []);
+        },
+    };
+
+    await replaceUserRegionScope(db, 42, [3, 7]);
+
+    assert.equal(batchCalls.length, 1);
+    assert.deepEqual(batchCalls[0].map((query) => query.kind), ['delete', 'insert']);
+    assert.deepEqual(batchCalls[0][1].values, [
+        { userId: 42, subregionId: 3 },
+        { userId: 42, subregionId: 7 },
+    ]);
+});
+
+test('clearing admin region scope remains one atomic batched delete', async () => {
+    const batchCalls = [];
+    const db = {
+        delete(table) {
+            return {
+                where(whereClause) {
+                    return { kind: 'delete', table, whereClause };
+                },
+            };
+        },
+        async batch(queries) {
+            batchCalls.push(queries);
+            return queries.map(() => []);
+        },
+    };
+
+    await replaceUserRegionScope(db, 42, []);
+
+    assert.equal(batchCalls.length, 1);
+    assert.deepEqual(batchCalls[0].map((query) => query.kind), ['delete']);
 });

@@ -22,6 +22,7 @@ import {
     validateRequestBody,
 } from '../utils/inputValidation.js';
 import { newPasswordSchema, validateNewPassword } from '../utils/passwordPolicy.js';
+import { replaceUserRegionScope } from '../utils/userRegionScopePersistence.js';
 
 function accessError(message, status = 403) {
     const error = new Error(message);
@@ -346,24 +347,6 @@ async function ensureRegionScopeIdsExist(db, subregionIds) {
     }
 
     return normalizedIds;
-}
-
-async function replaceUserRegionScope(db, userId, subregionIds) {
-    const writeScope = async (runner) => {
-        await runner.delete(userSubregions).where(eq(userSubregions.userId, userId));
-        if (subregionIds.length > 0) {
-            await runner.insert(userSubregions).values(
-                subregionIds.map((subregionId) => ({ userId, subregionId })),
-            );
-        }
-    };
-
-    if (typeof db.transaction === 'function') {
-        await db.transaction(writeScope);
-        return;
-    }
-
-    await writeScope(db);
 }
 
 function ensureSubregionWithinManagerScope(managerUser, derivedSubregionId) {
