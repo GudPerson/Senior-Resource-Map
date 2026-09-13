@@ -3,6 +3,7 @@ import { ArchiveRestore, ExternalLink, MapPinned, Plus, Send, Share2, Trash2 } f
 
 import { useConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import { api } from '../../lib/api.js';
+import GovernedMapUpdates from '../../components/GovernedMapUpdates.jsx';
 
 function keyOf(resource) {
     return `${resource.resourceType}:${resource.resourceId}`;
@@ -139,6 +140,7 @@ export default function GovernedMapsPage() {
         <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8" data-testid="governed-maps-page">
             <header><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><MapPinned size={22} /></span><div><h1 className="text-3xl font-black text-slate-950">Governed Care Maps</h1><p className="text-sm text-slate-600">Shared stewardship follows the resources on each map. The creator receives no permanent ownership right.</p></div></div></header>
             <Feedback value={feedback} />
+            <GovernedMapUpdates refreshKey={maps} />
 
             <section className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
                 <aside className="space-y-5">

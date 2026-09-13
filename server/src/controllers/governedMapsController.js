@@ -152,7 +152,7 @@ export async function postRestore(c) {
 export async function getPublicMap(c) {
     try {
         const result = await getPublishedGovernedMap(getDb(c.env), c.req.param('token'));
-        c.header('Cache-Control', 'private, max-age=60');
+        c.header('Cache-Control', 'no-store');
         c.header('X-Robots-Tag', 'noindex, nofollow');
         return c.json(result.snapshot);
     } catch (error) {

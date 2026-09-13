@@ -1,7 +1,11 @@
 # Governed Care Maps pilot runbook
 
-Status: local release candidate; no production action authorized  
+Status: deployment authorized after rehearsal and go-live prerequisites; production gates pending
 Last updated: 2026-09-13 (Asia/Singapore)
+
+The [13 September staged rehearsal](governed-care-maps-pilot-rehearsal-20260913.md)
+records the local evidence, corrected defects, migration plan, and outstanding
+production prerequisites. Earlier local-only authorization notes are historical.
 
 ## Purpose
 

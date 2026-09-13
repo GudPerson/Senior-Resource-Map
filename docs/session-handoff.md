@@ -13,6 +13,27 @@ Updated: 2026-09-13 (Asia/Singapore)
 
 ## 2026-09-13 Governed Care Maps closed pilot — verified locally
 
+- Latest steering: the user authorized staged rehearsal and deployment after it
+  passes. The local rehearsal is complete; production prerequisites are pending.
+  Read `docs/governed-care-maps-pilot-rehearsal-20260913.md` first. It supersedes
+  the older authorization/test-count notes below.
+- Three rehearsal gaps were corrected: public share caching, stale/unpermitted
+  restoration, and missing participant-update display. Current proof is server
+  759, client 805 plus 4 environment checks, map lockdown 104, 10 migrations,
+  500 modules/1,499 edges, and a 2,494-module production build. Fictional Chromium
+  and full HTTP rehearsals pass, including actual allowed/denied framing.
+- Deployment has not occurred. Await current Neon target/recovery evidence,
+  qualified Terms/Privacy/entity review, and two actual recovery operators plus
+  authenticated production smoke. A question about the human prerequisites is
+  pending; the existing conditional deployment authorization need not be reasked.
+- A subsequent read-only preflight confirmed the configured production branch,
+  all 74 expected table fingerprints, enums and migration hashes through 0007,
+  and two Super Admin accounts. Provider backup freshness, independent Worker
+  binding confirmation, and actual recovery sign-ins remain separate checks.
+- The optional browser fixture uses port 5183 and a separate local-API build in
+  `output/playwright/governed-pilot-rehearsal/dist`; never deploy that artifact.
+  Original local-testing sessions on 5173/8787 were not restarted or repurposed.
+
 - Continue in the isolated checkout
   `/Users/sweetbuns/CareAroundSG-worktrees/governed-care-maps-pilot`, branch
   `codex/governed-care-maps-pilot-20260913`, based on `origin/main` at

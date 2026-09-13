@@ -24,6 +24,7 @@ import {
     organizationAssetPacks,
     partnerStaffMemberships,
     softAssetStaffMemberships,
+    users,
 } from '../db/schema.js';
 import { buildAuditLogInsert } from './auditTrail.js';
 import { executeAtomicBatch, reserveSerialId } from './atomicWrites.js';
@@ -768,6 +769,13 @@ export async function requestGovernedMapRetirement(db, user, mapId, value) {
 export async function restoreGovernedMap(db, user, mapId, value) {
     const reason = requireReason(value.reason, 'Restore reason');
     const { map } = await requireGovernedMapAccess(db, user, mapId, 'canRestore');
+    if (!map.retirementEligibleAt || new Date(map.retirementEligibleAt).getTime() <= Date.now()) {
+        throw httpError(409, 'The 30-day restoration window has ended.');
+    }
+    if (!map.resources.length || !map.publication) {
+        throw httpError(409, 'A map needs an active resource and an existing publication before restoration.');
+    }
+    const approvedLogos = await assertPublicationCoverage(db, map);
     const mapPatch = {
         lifecycleStatus: 'published',
         retirementRequestedByUserId: null,
@@ -779,9 +787,11 @@ export async function restoreGovernedMap(db, user, mapId, value) {
         updatedAt: new Date(),
     };
     const eventMap = { ...map, ...mapPatch };
+    const publicationRefresh = await buildActivePublicationRefreshQuery(db, eventMap, user, null, approvedLogos);
     const eventQueries = await buildGovernedMapEventQueries(db, user, eventMap, 'restored', { reason });
     await executeAtomicBatch(db, [
         buildMapMutationGuard(db, map),
+        publicationRefresh.query,
         db.update(governedMaps).set(mapPatch)
             .where(and(eq(governedMaps.id, map.id), eq(governedMaps.revision, map.revision))),
         ...eventQueries,
@@ -807,18 +817,20 @@ export async function getPublishedGovernedMap(db, token) {
 }
 
 export async function listGovernedMapNotifications(db, user) {
-    const rows = await db.select({ notification: governedMapNotifications, event: governedMapEvents, map: governedMaps })
+    const rows = await db.select({ notification: governedMapNotifications, event: governedMapEvents, map: governedMaps, actorName: users.name })
         .from(governedMapNotifications)
         .innerJoin(governedMapEvents, eq(governedMapNotifications.eventId, governedMapEvents.id))
         .innerJoin(governedMaps, eq(governedMapNotifications.mapId, governedMaps.id))
+        .leftJoin(users, eq(governedMapEvents.actorUserId, users.id))
         .where(eq(governedMapNotifications.userId, user.id))
         .orderBy(desc(governedMapNotifications.createdAt), desc(governedMapNotifications.id))
         .limit(100);
-    return rows.map(({ notification, event, map }) => ({
+    return rows.map(({ notification, event, map, actorName }) => ({
         id: notification.id,
         mapId: map.id,
         mapName: map.name,
         actionType: event.actionType,
+        actorName: actorName || null,
         reason: event.reason || null,
         resourceType: event.resourceType || null,
         resourceId: event.resourceId || null,

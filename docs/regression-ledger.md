@@ -15,6 +15,35 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-13 Governed Care Maps staged rehearsal — production prerequisites pending
+
+- Current behavior: governed public reads use `no-store`; restoring a map verifies
+  the 30-day deadline and current asset permission, then atomically rebuilds its
+  publication. Resource withdrawal during retirement stays removed after restore.
+  Care Map updates now show each recipient the action, actor name, reason and time,
+  with recipient-scoped read state.
+- Known-good reference: the staged-rehearsal commit on
+  `codex/governed-care-maps-pilot-20260913`, following local candidate `7a03836f`.
+  Corrections are confined to governed publication/restore, notification display
+  and test fixtures. Existing personal map paths and migration SQL are unchanged.
+- Reproduce with `node --test server/test/governedPilotRehearsal.test.js
+  server/test/governedPilotMigrationRehearsal.test.js` and the compiled-client
+  fixture described in the rehearsal report. Require creator departure and ordinary
+  replacement-owner access, cross-partner denial, same-token safe restore,
+  recipient-only notification read, live public withdrawal, actual browser origin
+  denial, idempotent archival and preservation of personal sharing.
+- Validation: server 759/759; client 805/805 plus environment 4/4; map lockdown
+  104/104; 10 migrations; 500 modules/1,499 import edges; production client build
+  2,494 modules. Desktop/mobile browser save, notifications, retirement/restore,
+  organisation application/approval and exact-origin embed checks passed locally.
+- Deployment is authorized after the runbook gates pass. No production change was
+  performed. Current Neon recovery/target evidence, qualified wording review, and
+  two real recovery operators/authenticated production smoke remain unverified.
+  See `docs/governed-care-maps-pilot-rehearsal-20260913.md` for evidence and limits.
+- Subsequent read-only target/schema preflight matched all 74 expected tables,
+  enums and recorded migration hashes through 0007. Two Super Admin accounts
+  exist; their sign-ins and a current provider backup remain unverified.
+
 ## 2026-09-13 Governed Care Maps closed-pilot boundary — verified locally
 
 - Current behavior: a Super Admin can switch the resource directory to approved
