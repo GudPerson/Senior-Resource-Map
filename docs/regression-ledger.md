@@ -15,6 +15,109 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-14 Limited release with organisation onboarding disabled
+
+- Boundary: Worker `GOVERNED_PILOT_ENABLED` and production client
+  `VITE_GOVERNED_PILOT_ENABLED` are off. Direct API calls, alternate organisation
+  signup, governed public snapshots and scheduled archival cannot activate the
+  feature. Existing Terms remain displayed. Public access is controlled
+  independently and installation does not change it.
+- Reference: reviewed limited-release commit following `95e61e31` on
+  `codex/governed-care-maps-pilot-20260913`.
+- Reproduce: `governedPilotRelease.test.js`, `governedPilotReleaseBatch.test.js`,
+  `governedPilotRehearsal.test.js`, `platformAccessBoundary.test.js`, and the
+  5185 compiled fictional fixture. Require no onboarding writes with the flag
+  off, Super Admin recovery after access closure, preserved personal sharing,
+  accurate open/private/custom status, and intact old schema after migration.
+- Validation: server 762/762, client 808/808 plus environment 4/4, map 104/104,
+  10 migrations, 504 modules / 1,513 edges without cycles, production build and
+  desktop/mobile controls passed. Exact migration batch interruption/retry and
+  wrong-target/drift rejection passed locally. Runtime rollout evidence belongs
+  in `docs/governed-care-maps-limited-release-20260914.md`.
+- User evidence: fresh completed production snapshot and one live Super Admin
+  with Admin Tools access. Professional wording review and second-operator
+  readiness are organisation-pilot decisions; they do not activate the release
+  flags or replace technical release checks.
+
+## 2026-09-13 Governed Care Maps staged rehearsal — historical prerequisites
+
+- Current behavior: governed public reads use `no-store`; restoring a map verifies
+  the 30-day deadline and current asset permission, then atomically rebuilds its
+  publication. Resource withdrawal during retirement stays removed after restore.
+  Care Map updates now show each recipient the action, actor name, reason and time,
+  with recipient-scoped read state.
+- Known-good reference: the staged-rehearsal commit on
+  `codex/governed-care-maps-pilot-20260913`, following local candidate `7a03836f`.
+  Corrections are confined to governed publication/restore, notification display
+  and test fixtures. Existing personal map paths and migration SQL are unchanged.
+- Reproduce with `node --test server/test/governedPilotRehearsal.test.js
+  server/test/governedPilotMigrationRehearsal.test.js` and the compiled-client
+  fixture described in the rehearsal report. Require creator departure and ordinary
+  replacement-owner access, cross-partner denial, same-token safe restore,
+  recipient-only notification read, live public withdrawal, actual browser origin
+  denial, idempotent archival and preservation of personal sharing.
+- Validation: server 759/759; client 805/805 plus environment 4/4; map lockdown
+  104/104; 10 migrations; 500 modules/1,499 import edges; production client build
+  2,494 modules. Desktop/mobile browser save, notifications, retirement/restore,
+  organisation application/approval and exact-origin embed checks passed locally.
+- Deployment is authorized after the runbook gates pass. No production change was
+  performed. Current Neon recovery/target evidence, qualified wording review, and
+  two real recovery operators/authenticated production smoke remain unverified.
+  See `docs/governed-care-maps-pilot-rehearsal-20260913.md` for evidence and limits.
+- Subsequent read-only target/schema preflight matched all 74 expected tables,
+  enums and recorded migration hashes through 0007. Two Super Admin accounts
+  exist; their sign-ins and a current provider backup remain unverified.
+
+## 2026-09-13 Governed Care Maps closed-pilot boundary — verified locally
+
+- Current behavior: a Super Admin can switch the resource directory to approved
+  organisation access and make registration and login organisation-only.
+  Organisation applications record an exact email domain, applicant, accepted
+  terms version, owner-supplied logo/banner pack, and permission. Approved-domain
+  staff become accounts only after an Organisation Admin decision. Governed Care
+  Maps are separate from personal My Maps, derive current stewardship from their
+  included resources, publish token-bound sanitized snapshots, allow exact-origin
+  embeds, support resource-scoped withdrawal, and use reasoned 30-day reversible
+  retirement followed by scheduled archival.
+- Known-good reference and blast radius: branch
+  `codex/governed-care-maps-pilot-20260913` in
+  `/Users/sweetbuns/CareAroundSG-worktrees/governed-care-maps-pilot`, based on
+  `origin/main` at `3c26c8c7`. The change adds migrations
+  `0008_platform_access_settings` and `0009_governed_care_maps`, server routes,
+  additive client routes, Pages embed handling, and Terms content. Existing
+  `my_maps` rows and their ownership, editing, sharing, embed, personal-place,
+  private-note, Map Studio, and export paths are not migrated or rewritten.
+  Public discovery, authentication, organisation governance, resource listing,
+  Shared Maps, embed, notifications, scheduled Worker work, and legal copy are
+  affected surfaces.
+- Reproduction and acceptance: use fictional or explicitly consenting
+  organisations. Approve an organisation and first Organisation Admin, link two
+  partner resources in one region group, create and publish a governed map, and
+  verify the direct guest share and an allowed-origin embed. Require an
+  unapproved origin to fail, an unrelated partner to be unable to remove another
+  resource, an authorized resource steward to remove their own resource
+  immediately from the public snapshot, and a former creator with no current
+  resource role to lose map access. Retire and restore with reasons, then retire
+  again and run the archival finalizer after 30 days. Confirm the governed map is
+  unavailable publicly while the pre-existing personal My Map still exists.
+- Verification before release: PASS locally. Migration validation passed 10
+  ordered migrations. The module graph passed 499 source modules and 1,497
+  relative-import edges with no cycles. The complete server suite passed
+  `748/748`; the complete client suite passed `805/805` plus `4/4` production
+  environment checks. The locked map suite passed `104/104`. The validated
+  production client build completed across 2,493 transformed modules. Focused
+  real-PostgreSQL tests cover atomic onboarding, first-admin account creation,
+  permission records, cross-organisation stewardship, publication branding and
+  link suppression, creator departure, resource withdrawal, notifications,
+  retirement, restoration, 30-day archival, and personal-map preservation.
+- Release boundary: no commit, push, Cloudflare deployment, production access
+  switch, production migration, secret change, or production data mutation is
+  authorized by this local implementation goal. Before a pilot activation,
+  complete backup/restore evidence, a reviewed database migration plan, an
+  authenticated fictional-data UAT, applicant identity/domain verification, and
+  legal review of the updated Terms and contact details. Follow
+  `docs/governed-care-maps-pilot-runbook.md`.
+
 ## 2026-09-11 Map Studio individual pin visibility — release candidate
 
 - Current behavior: a named Map Studio view can hide or show an individual

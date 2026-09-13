@@ -30,7 +30,7 @@ test('embedded maps boot outside authenticated, saved-resource, Google, and PWA 
 });
 
 test('map-only page uses the guest endpoint and omits private-map tool surfaces', () => {
-    assert.match(embeddedPageSource, /fetchEmbeddedMap\(token\)/);
+    assert.match(embeddedPageSource, /fetchEmbeddedMap\(token, \{ mapKind \}\)/);
     assert.match(embeddedPageSource, /buildEmbeddedMapPresentation/);
     assert.match(embeddedPageSource, /buildEmbeddedMapRuntime/);
     assert.match(embeddedPageSource, /buildEmbedCategoryOptions/);

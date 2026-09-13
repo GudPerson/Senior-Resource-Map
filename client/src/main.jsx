@@ -3,6 +3,7 @@ import './index.css'
 
 const rootElement = document.getElementById('root')
 const isEmbeddedMapRoute = window.location.pathname.startsWith('/embed/maps/')
+    || window.location.pathname.startsWith('/embed/governed-maps/')
 
 // Keep a visible release marker in the shell and force a fresh hashed entry
 // whenever the bootstrap contract changes.

@@ -163,7 +163,7 @@ function SharedMapLanguageSelect({ compact = false, translatingNotes = false }) 
     );
 }
 
-function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCopyToMyMaps, onOpenPrintView, noteTranslationLoading, loginPath = '/login' }) {
+function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCopyToMyMaps, onOpenPrintView, noteTranslationLoading, loginPath = '/login', allowAccountActions = true }) {
     const { t } = useLocale();
     return (
         <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -192,7 +192,7 @@ function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCop
                         <Printer size={16} />
                         {t('printFriendlyView')}
                     </button>
-                    {!isOwner && isAuth ? (
+                    {allowAccountActions && !isOwner && isAuth ? (
                         <button
                             type="button"
                             onClick={onCopyToMyMaps}
@@ -221,7 +221,7 @@ function DirectoryHeader({ directory, isAuth, isOwner, copying, copyError, onCop
                 </div>
             </div>
 
-            {!isAuth ? (
+            {allowAccountActions && !isAuth ? (
                 <div className="mt-6 flex flex-col gap-3 rounded-[24px] border border-brand-100 bg-brand-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <p className="text-sm font-semibold text-brand-800">{t('signInToSaveSharedTitle')}</p>
@@ -260,6 +260,7 @@ function SharedMapMobileControls({
     onOpenPrintView,
     noteTranslationLoading,
     loginPath = '/login',
+    allowAccountActions = true,
 }) {
     const [open, setOpen] = useState(false);
     const { t } = useLocale();
@@ -322,7 +323,7 @@ function SharedMapMobileControls({
                         </div>
 
                         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4">
-                            <div className="rounded-[24px] border border-brand-100 bg-brand-50/70 p-4">
+                            {allowAccountActions ? <div className="rounded-[24px] border border-brand-100 bg-brand-50/70 p-4">
                                 <div className="flex items-start gap-3">
                                     <div className="mt-0.5 inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white text-brand-700 shadow-sm">
                                         <Sparkles size={18} />
@@ -363,7 +364,7 @@ function SharedMapMobileControls({
                                 {copyError ? (
                                     <p className="mt-3 text-xs font-medium text-red-600">{copyError}</p>
                                 ) : null}
-                            </div>
+                            </div> : null}
 
                             <div className="mt-4 space-y-2">
                                 <button
@@ -408,13 +409,14 @@ function SharedMapMobileControls({
     );
 }
 
-export default function SharedMapPage() {
+export default function SharedMapPage({ mapKind = 'personal' }) {
     const { token } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { isAuth, user } = useAuth();
     const { locale, t } = useLocale();
+    const isGoverned = mapKind === 'governed';
     const [directory, setDirectory] = useState(null);
     const [noteTranslationByLocale, setNoteTranslationByLocale] = useState({});
     const [noteTranslationLoading, setNoteTranslationLoading] = useState(false);
@@ -434,7 +436,7 @@ export default function SharedMapPage() {
     const isPrintView = searchParams.get('view') === 'print';
     const useDesktopLayout = useMediaQuery('(min-width: 1024px)');
     const anchorState = useDirectoryDistanceAnchor({
-        storageKey: token ? `shared-map:${token}` : 'shared-map',
+        storageKey: token ? `${isGoverned ? 'governed-map' : 'shared-map'}:${token}` : 'shared-map',
         userPostalCode: user?.postalCode || '',
     });
 
@@ -444,7 +446,7 @@ export default function SharedMapPage() {
         setError('');
         try {
             const [nextDirectory, subcategories] = await Promise.all([
-                api.getSharedMap(token),
+                isGoverned ? api.getPublishedGovernedMap(token) : api.getSharedMap(token),
                 api.getSubCategories({ suppressAuthExpired: true }).catch(() => []),
             ]);
             const enrichedDirectory = applySubCategoryMetaToDirectory(nextDirectory, subcategories);
@@ -456,14 +458,14 @@ export default function SharedMapPage() {
         } finally {
             setLoading(false);
         }
-    }, [token]);
+    }, [isGoverned, token]);
 
     useEffect(() => {
         loadDirectory();
     }, [loadDirectory]);
 
     useEffect(() => {
-        if (!token || loading || !directory) return;
+        if (isGoverned || !token || loading || !directory) return;
 
         const expectedAuthenticated = Boolean(isAuth);
         const directoryAuthenticated = Boolean(directory.viewer?.isAuthenticated);
@@ -474,10 +476,10 @@ export default function SharedMapPage() {
 
         viewerRefreshKeyRef.current = refreshKey;
         loadDirectory({ keepCurrent: true });
-    }, [directory, isAuth, loadDirectory, loading, token, user?.id]);
+    }, [directory, isAuth, isGoverned, loadDirectory, loading, token, user?.id]);
 
     useEffect(() => {
-        if (!token || !directory || locale === DEFAULT_LOCALE) {
+        if (isGoverned || !token || !directory || locale === DEFAULT_LOCALE) {
             setNoteTranslationLoading(false);
             return undefined;
         }
@@ -516,7 +518,7 @@ export default function SharedMapPage() {
         return () => {
             cancelled = true;
         };
-    }, [directory, locale, noteTranslationByLocale, token]);
+    }, [directory, isGoverned, locale, noteTranslationByLocale, token]);
 
     const noteTranslationPayload = locale === DEFAULT_LOCALE ? null : noteTranslationByLocale[locale] || null;
     const translatedDirectory = useMemo(() => (
@@ -540,9 +542,14 @@ export default function SharedMapPage() {
         buildLoginPathWithMapReturn(sharedMapReturnPath)
     ), [sharedMapReturnPath]);
     const ownerMyMapPath = useMemo(() => (
-        isAuth && isOwner ? buildOwnerMyMapPathFromSharedDirectory(translatedDirectory) : ''
-    ), [isAuth, isOwner, translatedDirectory]);
-    const canSaveSharedResources = Boolean(isAuth && !isOwner);
+        !isGoverned && isAuth && isOwner ? buildOwnerMyMapPathFromSharedDirectory(translatedDirectory) : ''
+    ), [isAuth, isGoverned, isOwner, translatedDirectory]);
+    const canSaveSharedResources = Boolean(
+        !isGoverned
+        && isAuth
+        && !isOwner
+        && translatedDirectory?.viewer?.canSaveResources !== false
+    );
 
     useEffect(() => {
         if (loading || !ownerMyMapPath) return;
@@ -644,7 +651,7 @@ export default function SharedMapPage() {
     }, []);
 
     async function handleCopyToMyMaps() {
-        if (!token || !isAuth || isOwner) return;
+        if (isGoverned || !token || !isAuth || isOwner) return;
         setCopying(true);
         setCopyError('');
         try {
@@ -736,7 +743,7 @@ export default function SharedMapPage() {
                 <div className="border-b border-slate-200 bg-white/90 backdrop-blur">
                     <div className="mx-auto flex w-full max-w-[1800px] items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8 xl:px-10 2xl:px-14">
                         <BrandLockup />
-                        {!isAuth ? (
+                        {!isGoverned && !isAuth ? (
                             <Link to={loginPath} className="btn-ghost justify-center border border-slate-200 text-slate-700">
                                 {t('signIn')}
                             </Link>
@@ -759,6 +766,7 @@ export default function SharedMapPage() {
                     onOpenPrintView={openPrintView}
                     noteTranslationLoading={noteTranslationLoading}
                     loginPath={loginPath}
+                    allowAccountActions={!isGoverned}
                 />
             ) : null}
 
@@ -775,6 +783,7 @@ export default function SharedMapPage() {
                             onOpenPrintView={openPrintView}
                             noteTranslationLoading={noteTranslationLoading}
                             loginPath={loginPath}
+                            allowAccountActions={!isGoverned}
                         />
 
                         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">

@@ -17,6 +17,12 @@ import {
     startPhoneLoginAttempt,
 } from '../utils/phoneLogin.js';
 import { buildSessionPayload, createSessionToken, setAuthCookie } from '../utils/sessionAuth.js';
+import {
+    buildPlatformAccessError,
+    evaluateExistingUserLogin,
+    evaluateRegistration,
+} from '../utils/platformAccess.js';
+import { loadPlatformAccessSettings } from '../utils/platformAccessStore.js';
 
 const startPhoneLoginBodySchema = z.object({
     phone: optionalOneLineTextSchema(80),
@@ -38,6 +44,15 @@ function errorPayload(err) {
         error: err?.message || 'Unable to start WhatsApp sign-in right now.',
         ...(err?.code ? { code: err.code } : {}),
     };
+}
+
+function throwPlatformAccessDecision(decision) {
+    if (decision.allowed) return;
+    const response = buildPlatformAccessError(decision.code);
+    const error = new Error(response.error);
+    error.status = response.status;
+    error.code = decision.code;
+    throw error;
 }
 
 function createPhoneLoginDependencies(c) {
@@ -92,6 +107,8 @@ export async function startPhoneLogin(c) {
         const input = validateRequestBody(rawBody, startPhoneLoginBodySchema, 'Phone sign-in request');
         const { db, store, gudAuthClient } = createPhoneLoginDependencies(c);
         await ensureBoundarySchema(db, c.env);
+        const platformAccess = await loadPlatformAccessSettings(db);
+        throwPlatformAccessDecision(evaluateExistingUserLogin(platformAccess, null));
         const result = await startPhoneLoginAttempt({
             store,
             gudAuthClient,
@@ -119,6 +136,8 @@ export async function getPhoneLoginAttempt(c) {
         });
 
         if (result.status === PHONE_LOGIN_ATTEMPT_STATUS.verified && result.user) {
+            const platformAccess = await loadPlatformAccessSettings(db);
+            throwPlatformAccessDecision(evaluateExistingUserLogin(platformAccess, result.user));
             const token = await createSessionToken(result.user, c);
             setAuthCookie(c, token);
             return c.json({
@@ -142,6 +161,8 @@ export async function completePhoneSignup(c) {
         const { db, store } = createPhoneLoginDependencies(c);
         await ensureBoundarySchema(db, c.env);
         await ensureUserPreferenceColumns(db, c.env);
+        const platformAccess = await loadPlatformAccessSettings(db);
+        throwPlatformAccessDecision(evaluateRegistration(platformAccess));
         const result = await completePhoneLoginSignup({
             store,
             attemptId,
@@ -150,6 +171,7 @@ export async function completePhoneSignup(c) {
         });
 
         if (result.status === PHONE_LOGIN_ATTEMPT_STATUS.verified && result.user) {
+            throwPlatformAccessDecision(evaluateExistingUserLogin(platformAccess, result.user));
             const token = await createSessionToken(result.user, c);
             setAuthCookie(c, token);
             return c.json({

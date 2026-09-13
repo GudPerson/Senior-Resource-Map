@@ -1,6 +1,6 @@
 # CareAround SG session handoff
 
-Updated: 2026-09-11 (Asia/Singapore)
+Updated: 2026-09-14 (Asia/Singapore)
 
 ## Start here
 
@@ -10,6 +10,72 @@ Updated: 2026-09-11 (Asia/Singapore)
 - Release platform: Cloudflare Pages for the client and Cloudflare Worker for the API.
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
+
+## 2026-09-14 Governed Care Maps limited release
+
+- Read `docs/governed-care-maps-limited-release-20260914.md`. This supersedes the
+  earlier blanket requirement to finish organisation-pilot governance before
+  deploying inactive code. User deployment authorization remains in force.
+- The user supplied a completed 96.47 MB production snapshot and demonstrated
+  existing Super Admin login/dashboard/Admin Tools. One operator is verified;
+  the 7 September restore exercise remains the recovery evidence.
+- New Worker and client release flags default off. New onboarding, governed-map
+  routes and scheduled archival are disabled; draft organisation terms are
+  hidden. Admin public-access controls and personal sharing remain available.
+- Current checks: server 762, client 808 plus 4 environment checks, map 104,
+  10 migrations, 504 modules / 1,513 edges, production build passed. Targeted
+  browser and atomic migration rehearsal details are in the limited release
+  report. Fresh read-only production fingerprint matches all 74 old tables.
+- Deployment still needs its execution/verification record appended. Public
+  access remains unchanged during installation; real organisation onboarding
+  and provider recruitment remain deferred.
+
+## 2026-09-13 Governed Care Maps closed pilot — historical rehearsal
+
+- Latest steering: the user authorized staged rehearsal and deployment after it
+  passes. The local rehearsal is complete; production prerequisites are pending.
+  Read `docs/governed-care-maps-pilot-rehearsal-20260913.md` first. It supersedes
+  the older authorization/test-count notes below.
+- Three rehearsal gaps were corrected: public share caching, stale/unpermitted
+  restoration, and missing participant-update display. Current proof is server
+  759, client 805 plus 4 environment checks, map lockdown 104, 10 migrations,
+  500 modules/1,499 edges, and a 2,494-module production build. Fictional Chromium
+  and full HTTP rehearsals pass, including actual allowed/denied framing.
+- Deployment has not occurred. Await current Neon target/recovery evidence,
+  qualified Terms/Privacy/entity review, and two actual recovery operators plus
+  authenticated production smoke. A question about the human prerequisites is
+  pending; the existing conditional deployment authorization need not be reasked.
+- A subsequent read-only preflight confirmed the configured production branch,
+  all 74 expected table fingerprints, enums and migration hashes through 0007,
+  and two Super Admin accounts. Provider backup freshness, independent Worker
+  binding confirmation, and actual recovery sign-ins remain separate checks.
+- The optional browser fixture uses port 5183 and a separate local-API build in
+  `output/playwright/governed-pilot-rehearsal/dist`; never deploy that artifact.
+  Original local-testing sessions on 5173/8787 were not restarted or repurposed.
+
+- Continue in the isolated checkout
+  `/Users/sweetbuns/CareAroundSG-worktrees/governed-care-maps-pilot`, branch
+  `codex/governed-care-maps-pilot-20260913`, based on `origin/main` at
+  `3c26c8c7`. Preserve the unrelated dirty primary checkout.
+- The additive implementation covers platform access switches, exact-domain
+  organisation applications and approval, staff join approval, owner-supplied
+  asset packs and agreement records, region-scoped Governed Care Maps,
+  resource-derived stewardship, sanitized public share/embed snapshots,
+  resource withdrawal, notifications, retirement/restore, and scheduled
+  30-day archival. Personal My Maps remain on their existing tables and paths.
+- Local validation passes 10 migrations, 499 modules / 1,497 import edges,
+  server `748/748`, client `805/805`, production environment `4/4`, map lockdown
+  `104/104`, clean diff whitespace, and the 2,493-module validated production
+  client build. Real-PostgreSQL integration uses fictional organisations and
+  proves atomic onboarding and the governed-map lifecycle, including former
+  creator removal and preservation of a personal My Map.
+- Read `docs/governed-care-maps-pilot-architecture.md` and
+  `docs/governed-care-maps-pilot-runbook.md` before release work. The remaining
+  release gates are database recovery evidence and migration review,
+  authenticated fictional-data UAT, manual applicant identity/domain checks,
+  and professional review of the Terms/contact details.
+- No commit, push, deploy, production migration, production access-mode change,
+  secret change, or production data mutation has been authorized or performed.
 
 ## 2026-09-11 Map Studio individual pin visibility — release candidate
 

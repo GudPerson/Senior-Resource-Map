@@ -639,6 +639,219 @@ export const sensitiveAuditLogs = pgTable('sensitive_audit_logs', {
   createdIdx: index('sensitive_audit_logs_created_idx').on(table.createdAt),
 }));
 
+// A singleton, server-authoritative access policy. The open defaults preserve
+// existing behavior until the reviewed pilot setting is explicitly changed.
+export const platformAccessSettings = pgTable('platform_access_settings', {
+  id: integer('id').primaryKey().default(1),
+  publicDirectoryMode: varchar('public_directory_mode', { length: 32 }).notNull().default('open'),
+  publicRegistrationMode: varchar('public_registration_mode', { length: 32 }).notNull().default('open'),
+  publicLoginMode: varchar('public_login_mode', { length: 32 }).notNull().default('open'),
+  revision: integer('revision').notNull().default(1),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  singletonCheck: check('platform_access_settings_singleton_check', sql`${table.id} = 1`),
+  directoryModeCheck: check('platform_access_settings_directory_mode_check', sql`${table.publicDirectoryMode} IN ('open', 'authenticated', 'closed')`),
+  registrationModeCheck: check('platform_access_settings_registration_mode_check', sql`${table.publicRegistrationMode} IN ('open', 'organization_only', 'closed')`),
+  loginModeCheck: check('platform_access_settings_login_mode_check', sql`${table.publicLoginMode} IN ('open', 'organization_only', 'closed')`),
+  revisionCheck: check('platform_access_settings_revision_check', sql`${table.revision} > 0`),
+}));
+
+export const organizationDomains = pgTable('organization_domains', {
+  id: serial('id').primaryKey(),
+  organizationId: integer('organization_id').notNull().references(() => partnerOrganizations.id, { onDelete: 'cascade' }),
+  domain: varchar('domain', { length: 255 }).notNull(),
+  status: varchar('status', { length: 32 }).notNull().default('pending'),
+  verifiedByUserId: integer('verified_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  normalizedDomainUnique: uniqueIndex('organization_domains_normalized_unique')
+    .on(sql`lower(${table.domain})`)
+    .where(sql`${table.revokedAt} IS NULL`),
+  organizationIdx: index('organization_domains_organization_idx').on(table.organizationId),
+  statusIdx: index('organization_domains_status_idx').on(table.status),
+  statusCheck: check('organization_domains_status_check', sql`${table.status} IN ('pending', 'verified', 'revoked')`),
+}));
+
+export const organizationOnboardingRequests = pgTable('organization_onboarding_requests', {
+  id: serial('id').primaryKey(),
+  organizationName: varchar('organization_name', { length: 255 }).notNull(),
+  emailDomain: varchar('email_domain', { length: 255 }).notNull(),
+  websiteUrl: text('website_url'),
+  applicantName: varchar('applicant_name', { length: 255 }).notNull(),
+  applicantEmail: varchar('applicant_email', { length: 320 }).notNull(),
+  logoUrl: text('logo_url'),
+  bannerUrl: text('banner_url'),
+  termsVersion: varchar('terms_version', { length: 80 }).notNull(),
+  termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }).notNull(),
+  digitalAssetUseGranted: boolean('digital_asset_use_granted').notNull().default(false),
+  status: varchar('status', { length: 32 }).notNull().default('pending'),
+  reviewedByUserId: integer('reviewed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  reviewReason: text('review_reason'),
+  createdOrganizationId: integer('created_organization_id').references(() => partnerOrganizations.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  statusIdx: index('organization_onboarding_requests_status_idx').on(table.status),
+  domainIdx: index('organization_onboarding_requests_domain_idx').on(table.emailDomain),
+  statusCheck: check('organization_onboarding_requests_status_check', sql`${table.status} IN ('pending', 'approved', 'rejected', 'withdrawn')`),
+  grantCheck: check('organization_onboarding_requests_grant_check', sql`${table.digitalAssetUseGranted} = TRUE`),
+}));
+
+export const organizationJoinRequests = pgTable('organization_join_requests', {
+  id: serial('id').primaryKey(),
+  organizationId: integer('organization_id').notNull().references(() => partnerOrganizations.id, { onDelete: 'cascade' }),
+  email: varchar('email', { length: 320 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  passwordHash: text('password_hash').notNull(),
+  termsVersion: varchar('terms_version', { length: 80 }).notNull(),
+  termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }).notNull(),
+  status: varchar('status', { length: 32 }).notNull().default('pending'),
+  decidedByUserId: integer('decided_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  decidedAt: timestamp('decided_at', { withTimezone: true }),
+  decisionReason: text('decision_reason'),
+  createdUserId: integer('created_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  activeEmailUnique: uniqueIndex('organization_join_requests_active_email_unique')
+    .on(sql`lower(${table.email})`)
+    .where(sql`${table.status} = 'pending'`),
+  organizationIdx: index('organization_join_requests_organization_idx').on(table.organizationId),
+  statusIdx: index('organization_join_requests_status_idx').on(table.status),
+  statusCheck: check('organization_join_requests_status_check', sql`${table.status} IN ('pending', 'approved', 'rejected', 'withdrawn')`),
+}));
+
+export const organizationAssetPacks = pgTable('organization_asset_packs', {
+  id: serial('id').primaryKey(),
+  organizationId: integer('organization_id').notNull().references(() => partnerOrganizations.id, { onDelete: 'cascade' }),
+  agreementId: integer('agreement_id').references(() => organizationAgreements.id, { onDelete: 'set null' }),
+  logoUrl: text('logo_url'),
+  bannerUrl: text('banner_url'),
+  source: varchar('source', { length: 40 }).notNull().default('organization_supplied'),
+  status: varchar('status', { length: 32 }).notNull().default('active'),
+  licenseGrantedAt: timestamp('license_granted_at', { withTimezone: true }).notNull(),
+  submittedByUserId: integer('submitted_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  activeOrganizationUnique: uniqueIndex('organization_asset_packs_active_organization_unique')
+    .on(table.organizationId)
+    .where(sql`${table.revokedAt} IS NULL`),
+  organizationIdx: index('organization_asset_packs_organization_idx').on(table.organizationId),
+  statusCheck: check('organization_asset_packs_status_check', sql`${table.status} IN ('active', 'revoked')`),
+}));
+
+// Governed Care Maps are independent from personal My Maps. Stewardship is
+// derived from active access to the resources included in each map.
+export const governedMaps = pgTable('governed_maps', {
+  id: serial('id').primaryKey(),
+  regionGroupId: integer('region_group_id').notNull().references(() => governanceGroups.id, { onDelete: 'restrict' }),
+  name: varchar('name', { length: 160 }).notNull(),
+  description: text('description'),
+  lifecycleStatus: varchar('lifecycle_status', { length: 32 }).notNull().default('draft'),
+  presentation: jsonb('presentation').notNull().default({}),
+  revision: integer('revision').notNull().default(1),
+  createdByUserId: integer('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  retirementRequestedByUserId: integer('retirement_requested_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  retirementReason: text('retirement_reason'),
+  retirementRequestedAt: timestamp('retirement_requested_at', { withTimezone: true }),
+  retirementEligibleAt: timestamp('retirement_eligible_at', { withTimezone: true }),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  regionGroupIdx: index('governed_maps_region_group_idx').on(table.regionGroupId),
+  statusIdx: index('governed_maps_status_idx').on(table.lifecycleStatus),
+  retirementIdx: index('governed_maps_retirement_idx').on(table.retirementEligibleAt),
+  lifecycleCheck: check('governed_maps_lifecycle_check', sql`${table.lifecycleStatus} IN ('draft', 'published', 'retirement_pending', 'archived')`),
+  revisionCheck: check('governed_maps_revision_check', sql`${table.revision} > 0`),
+  presentationCheck: check('governed_maps_presentation_check', sql`jsonb_typeof(${table.presentation}) = 'object'`),
+}));
+
+export const governedMapResources = pgTable('governed_map_resources', {
+  id: serial('id').primaryKey(),
+  mapId: integer('map_id').notNull().references(() => governedMaps.id, { onDelete: 'cascade' }),
+  resourceType: varchar('resource_type', { length: 20 }).notNull(),
+  resourceId: integer('resource_id').notNull(),
+  organizationIdAtAdd: integer('organization_id_at_add').references(() => partnerOrganizations.id, { onDelete: 'set null' }),
+  snapshot: jsonb('snapshot').notNull().default({}),
+  addedByUserId: integer('added_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+  removedByUserId: integer('removed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  removedAt: timestamp('removed_at', { withTimezone: true }),
+  removalReason: text('removal_reason'),
+}, (table) => ({
+  activeResourceUnique: uniqueIndex('governed_map_resources_active_unique')
+    .on(table.mapId, table.resourceType, table.resourceId)
+    .where(sql`${table.removedAt} IS NULL`),
+  mapIdx: index('governed_map_resources_map_idx').on(table.mapId),
+  resourceIdx: index('governed_map_resources_resource_idx').on(table.resourceType, table.resourceId),
+  organizationIdx: index('governed_map_resources_organization_idx').on(table.organizationIdAtAdd),
+  resourceTypeCheck: check('governed_map_resources_type_check', sql`${table.resourceType} IN ('hard', 'soft')`),
+  snapshotCheck: check('governed_map_resources_snapshot_check', sql`jsonb_typeof(${table.snapshot}) = 'object'`),
+}));
+
+export const governedMapPublications = pgTable('governed_map_publications', {
+  id: serial('id').primaryKey(),
+  mapId: integer('map_id').notNull().references(() => governedMaps.id, { onDelete: 'cascade' }),
+  shareToken: varchar('share_token', { length: 128 }).notNull(),
+  snapshot: jsonb('snapshot').notNull(),
+  allowedOrigins: jsonb('allowed_origins').notNull().default([]),
+  revision: integer('revision').notNull().default(1),
+  publishedByUserId: integer('published_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  publishedAt: timestamp('published_at', { withTimezone: true }).notNull().defaultNow(),
+  revokedByUserId: integer('revoked_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+}, (table) => ({
+  shareTokenUnique: uniqueIndex('governed_map_publications_share_token_unique').on(table.shareToken),
+  activeMapUnique: uniqueIndex('governed_map_publications_active_map_unique')
+    .on(table.mapId)
+    .where(sql`${table.revokedAt} IS NULL`),
+  mapIdx: index('governed_map_publications_map_idx').on(table.mapId),
+  revisionCheck: check('governed_map_publications_revision_check', sql`${table.revision} > 0`),
+  snapshotCheck: check('governed_map_publications_snapshot_check', sql`jsonb_typeof(${table.snapshot}) = 'object'`),
+  originsCheck: check('governed_map_publications_origins_check', sql`jsonb_typeof(${table.allowedOrigins}) = 'array'`),
+}));
+
+export const governedMapEvents = pgTable('governed_map_events', {
+  id: serial('id').primaryKey(),
+  mapId: integer('map_id').notNull().references(() => governedMaps.id, { onDelete: 'cascade' }),
+  actorUserId: integer('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+  actionType: varchar('action_type', { length: 80 }).notNull(),
+  resourceType: varchar('resource_type', { length: 20 }),
+  resourceId: integer('resource_id'),
+  reason: text('reason'),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  mapIdx: index('governed_map_events_map_idx').on(table.mapId),
+  actorIdx: index('governed_map_events_actor_idx').on(table.actorUserId),
+  createdIdx: index('governed_map_events_created_idx').on(table.createdAt),
+  metadataCheck: check('governed_map_events_metadata_check', sql`jsonb_typeof(${table.metadata}) = 'object'`),
+}));
+
+export const governedMapNotifications = pgTable('governed_map_notifications', {
+  id: serial('id').primaryKey(),
+  mapId: integer('map_id').notNull().references(() => governedMaps.id, { onDelete: 'cascade' }),
+  eventId: integer('event_id').notNull().references(() => governedMapEvents.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  eventUserUnique: uniqueIndex('governed_map_notifications_event_user_unique').on(table.eventId, table.userId),
+  userReadIdx: index('governed_map_notifications_user_read_idx').on(table.userId, table.readAt),
+  mapIdx: index('governed_map_notifications_map_idx').on(table.mapId),
+}));
+
 export const retentionRecords = pgTable('retention_records', {
   id: serial('id').primaryKey(),
   entityType: varchar('entity_type', { length: 80 }).notNull(),

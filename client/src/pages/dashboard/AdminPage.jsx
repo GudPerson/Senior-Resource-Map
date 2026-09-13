@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { CategoryBadge } from '../../lib/categories.jsx';
 import { stripMarkdownLite } from '../../lib/markdownLite.js';
-import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download, LogIn, Search, Pencil, Building2, ScrollText, Info } from 'lucide-react';
+import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download, LogIn, Search, Pencil, Building2, ScrollText, Info, LockKeyhole } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from '@e965/xlsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
@@ -17,6 +17,7 @@ import { canChangeUserRoles, canManageUserRecord as canManageUserRecordByOwnersh
 import GovernanceOrganizationsPanel from '../../components/admin/GovernanceOrganizationsPanel.jsx';
 import GovernanceGroupsPanel from '../../components/admin/GovernanceGroupsPanel.jsx';
 import AuditTrailPanel from '../../components/admin/AuditTrailPanel.jsx';
+import PlatformAccessPanel from '../../components/admin/PlatformAccessPanel.jsx';
 import { useConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import {
     buildBoundaryLayerImportPlan,
@@ -2704,6 +2705,7 @@ export default function AdminPage() {
                     { key: 'resources', label: 'Resources', Icon: BookOpen },
                     { key: 'users', label: 'Users', Icon: Users },
                     { key: 'organizations', label: 'Organisations', Icon: Building2 },
+                    { key: 'platform', label: 'Pilot Access', Icon: LockKeyhole },
                     { key: 'groups', label: 'Region Groups', Icon: Building2 },
                     { key: 'audit', label: 'Audit Trail', Icon: ScrollText },
                     { key: 'subregions', label: 'Regions', Icon: MapPin },
@@ -2930,6 +2932,8 @@ export default function AdminPage() {
                 </div>
             ) : tab === 'organizations' ? (
                 <GovernanceOrganizationsPanel />
+            ) : tab === 'platform' ? (
+                <PlatformAccessPanel />
             ) : tab === 'groups' ? (
                 <GovernanceGroupsPanel mode="region" />
             ) : tab === 'audit' ? (

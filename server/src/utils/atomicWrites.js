@@ -58,3 +58,26 @@ export async function executeAtomicBatch(db, queries, operation = 'database writ
     }
     return db.batch(preparedQueries);
 }
+
+const SERIAL_SEQUENCES = Object.freeze({
+    governedMapEvents: 'governed_map_events_id_seq',
+    governedMaps: 'governed_maps_id_seq',
+    organizationAgreements: 'organization_agreements_id_seq',
+    partnerOrganizations: 'partner_organizations_id_seq',
+    users: 'users_id_seq',
+});
+
+/**
+ * Reserves a PostgreSQL serial value before an atomic batch so later queries in
+ * that batch can safely reference the same new record. Sequence gaps after a
+ * failed batch are expected and contain no user or business data.
+ */
+export async function reserveSerialId(db, sequenceKey) {
+    const sequence = SERIAL_SEQUENCES[sequenceKey];
+    if (!sequence) throw new Error(`Unsupported serial sequence: ${sequenceKey}`);
+    const result = await db.select({
+        id: sql`nextval(${sequence}::regclass)::integer`,
+    }).from(sql`(select 1) as serial_reservation`);
+    const [row] = Array.isArray(result) ? result : (result?.rows || []);
+    return requirePositiveInteger(row?.id, `${sequenceKey} id`);
+}

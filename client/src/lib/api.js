@@ -318,6 +318,33 @@ export const api = {
     ),
     createImpersonationSession: (id) => request('POST', `/auth/impersonate/${id}`),
 
+    // Platform access and organisation-led pilot onboarding
+    getPlatformAccessSettings: () => request('GET', '/platform-access', undefined, { suppressAuthExpired: true }),
+    updatePlatformAccessSettings: (body) => request('PUT', '/platform-access', body),
+    submitOrganizationOnboardingRequest: (body) => request('POST', '/organization-onboarding/requests', body),
+    getOrganizationOnboardingRequests: () => request('GET', '/organization-onboarding/requests'),
+    approveOrganizationOnboardingRequest: (requestId) => request('POST', `/organization-onboarding/requests/${requestId}/approve`, {}),
+    rejectOrganizationOnboardingRequest: (requestId, body) => request('POST', `/organization-onboarding/requests/${requestId}/reject`, body),
+    submitOrganizationJoinRequest: (body) => request('POST', '/organization-onboarding/join', body),
+    getOrganizationJoinRequests: () => request('GET', '/organization-onboarding/join-requests'),
+    approveOrganizationJoinRequest: (requestId, body = {}) => request('POST', `/organization-onboarding/join-requests/${requestId}/approve`, body),
+    rejectOrganizationJoinRequest: (requestId, body) => request('POST', `/organization-onboarding/join-requests/${requestId}/reject`, body),
+
+    // Governed Care Maps
+    getGovernedMapRegions: () => request('GET', '/governed-maps/regions'),
+    getGovernedMaps: () => request('GET', '/governed-maps'),
+    getGovernedMap: (mapId) => request('GET', `/governed-maps/${mapId}`),
+    createGovernedMap: (body) => request('POST', '/governed-maps', body),
+    updateGovernedMap: (mapId, body) => request('PATCH', `/governed-maps/${mapId}`, body),
+    addGovernedMapResource: (mapId, body) => request('POST', `/governed-maps/${mapId}/resources`, body),
+    withdrawGovernedMapResource: (mapId, body) => request('POST', `/governed-maps/${mapId}/resources/withdraw`, body),
+    publishGovernedMap: (mapId, body = {}) => request('POST', `/governed-maps/${mapId}/publish`, body),
+    retireGovernedMap: (mapId, body) => request('POST', `/governed-maps/${mapId}/retire`, body),
+    restoreGovernedMap: (mapId, body) => request('POST', `/governed-maps/${mapId}/restore`, body),
+    getPublishedGovernedMap: (token) => request('GET', `/governed-maps/public/${encodeURIComponent(token)}`, undefined, { suppressAuthExpired: true }),
+    getGovernedMapNotifications: () => request('GET', '/governed-maps/notifications'),
+    markGovernedMapNotificationRead: (notificationId) => request('POST', `/governed-maps/notifications/${notificationId}/read`, {}),
+
     // Hard Assets
     getHardAssets: (params = {}, options = {}) => {
         const searchParams = new URLSearchParams();

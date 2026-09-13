@@ -65,6 +65,7 @@ test('Guide search delegates to public resource controllers without forwarding u
 test('Guide HTTP distinguishes unavailable search from no matches and rejects injected permissions', async () => {
     let fail = false;
     const router = createGuideRoutes({ authenticate: async (c, next) => { c.set('user', null); await next(); },
+        directoryAccess: async (c, next) => next(),
         search: async () => { if (fail) throw new Error('private diagnostic'); return { results: [], hasMore: false }; } });
     const env = { SUPPORT_INBOX_ENABLED: 'true' };
     const post = (path, data, environment = env) => router.request(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }, environment);
@@ -82,6 +83,33 @@ test('Guide HTTP distinguishes unavailable search from no matches and rejects in
     assert.equal(unavailable.status, 503);
     assert.doesNotMatch(await unavailable.text(), /private diagnostic/);
     assert.equal((await post('/search', { query: 'AAC' }, {})).status, 503);
+});
+
+test('Guide resource search obeys the platform directory boundary', async () => {
+    let searchCalled = false;
+    const router = createGuideRoutes({
+        authenticate: async (c, next) => { c.set('user', null); await next(); },
+        directoryAccess: (c) => c.json({
+            error: 'Sign in through an approved organisation to access the resource directory.',
+            code: 'directory_authentication_required',
+        }, 401),
+        search: async () => { searchCalled = true; return { results: [], hasMore: false }; },
+    });
+    const response = await router.request('/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'AAC' }),
+    }, { SUPPORT_INBOX_ENABLED: 'true' });
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).code, 'directory_authentication_required');
+    assert.equal(searchCalled, false);
+    const helpResponse = await router.request('/answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: 'How do I save a resource?' }),
+    }, { SUPPORT_INBOX_ENABLED: 'true' });
+    assert.equal(helpResponse.status, 200);
+    assert.equal(searchCalled, false);
 });
 
 test('Guide extracts only explicit bounded resource requests', () => {

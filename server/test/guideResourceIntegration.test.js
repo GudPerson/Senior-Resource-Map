@@ -73,7 +73,7 @@ test('Guide uses actual resource controllers and PostgreSQL visibility/search ru
     await t.test('signed-in staff Guide never inherits privileged catalog visibility', async () => {
         const router = createGuideRoutes({ authenticate: async (c, next) => {
             c.set('user', { id: 2, role: 'super_admin', subregionIds: [1] }); await next();
-        } });
+        }, directoryAccess: async (c, next) => next() });
         const post = (body) => router.request('/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, env);
         const response = await post({ query: 'Havelock' });
         assert.equal(response.status, 200);

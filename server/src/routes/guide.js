@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { optionalAuth } from '../middleware/auth.js';
+import { requirePlatformDirectoryAccess } from '../middleware/platformAccess.js';
 import { createRateLimiter } from '../middleware/security.js';
 import { getHardAssets } from '../controllers/hardAssetsController.js';
 import { getSoftAssets } from '../controllers/softAssetsController.js';
@@ -56,7 +57,12 @@ const questionSchema = z.object({ question: z.string().trim().min(1).max(600).op
 export const guideSearchSchema = z.object({ query: z.string().trim().min(2).max(120),
     type: z.enum(['all', 'hard', 'soft']).default('all'), page: z.number().int().min(1).max(100).default(1) }).strict();
 
-export function createGuideRoutes({ authenticate = optionalAuth, search = createGuideResourceLoader(), historyRepositoryForContext } = {}) {
+export function createGuideRoutes({
+    authenticate = optionalAuth,
+    directoryAccess = requirePlatformDirectoryAccess(),
+    search = createGuideResourceLoader(),
+    historyRepositoryForContext,
+} = {}) {
     const router = new Hono();
     router.use('*', async (c, next) => {
         c.header('Cache-Control', 'no-store');
@@ -76,6 +82,11 @@ export function createGuideRoutes({ authenticate = optionalAuth, search = create
         }
         const criteria = !parsed.data.topicId && extractGuideSearchCriteria(parsed.data.question);
         if (criteria) {
+            let directoryAllowed = false;
+            const deniedResponse = await directoryAccess(c, async () => {
+                directoryAllowed = true;
+            });
+            if (!directoryAllowed) return deniedResponse;
             try {
                 const result = await search(criteria, c.env);
                 return c.json({ version: GUIDE_KNOWLEDGE_VERSION, topicId: 'resource-search', criteria, input: parsed.data,
@@ -86,7 +97,7 @@ export function createGuideRoutes({ authenticate = optionalAuth, search = create
         }
         return c.json({ ...answerGuideQuestion(parsed.data, c.get('user')), input: parsed.data });
     });
-    router.post('/search', async (c) => {
+    router.post('/search', authenticate, directoryAccess, async (c) => {
         const parsed = guideSearchSchema.safeParse(await c.req.json().catch(() => null));
         if (!parsed.success) return c.json({ error: 'Enter 2–120 characters and a valid resource filter.' }, 400);
         try { return c.json(await search(parsed.data, c.env)); }

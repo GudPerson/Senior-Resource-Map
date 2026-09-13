@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Activity, BookOpen, Building2, CalendarDays, Files, LayoutDashboard, LogOut, Map, MapPinned, Menu, ScrollText, Shield, User } from 'lucide-react';
 
 import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { GOVERNED_PILOT_UI_ENABLED } from '../../lib/governedPilotRelease.js';
 import {
     canAccessAdmin,
     canAccessAuditTrail,
@@ -63,6 +64,7 @@ export function DashboardSidebar({
     const canShowAdmin = canAccessAdmin(user?.role);
     const canShowAudit = canAccessAuditTrail(user);
     const canShowOrganizationWorkspace = canAccessOrganizationWorkspace(user);
+    const canShowGovernedMaps = GOVERNED_PILOT_UI_ENABLED && (canShowResources || canShowOrganizationWorkspace);
     const isAssetStaff = hasHardAssetStaffAccess(user);
 
     return (
@@ -120,6 +122,15 @@ export function DashboardSidebar({
                     icon={Files}
                     label={t('overviewResourcesTitle')}
                     id="dash-managed-resources"
+                    onNavigate={onNavigate}
+                />
+            ) : null}
+            {canShowGovernedMaps ? (
+                <SidebarLink
+                    to="/dashboard/governed-maps"
+                    icon={MapPinned}
+                    label="Governed Care Maps"
+                    id="dash-governed-maps"
                     onNavigate={onNavigate}
                 />
             ) : null}

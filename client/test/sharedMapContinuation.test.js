@@ -63,7 +63,8 @@ test('shared map page wires continuation through all sign-in entry points', () =
     assert.match(sharedMapPageSource, /loadDirectory\(\{ keepCurrent: true \}\)/);
     assert.match(sharedMapPageSource, /buildOwnerMyMapPathFromSharedDirectory\(translatedDirectory\)/);
     assert.match(sharedMapPageSource, /navigate\(ownerMyMapPath, \{ replace: true \}\)/);
-    assert.match(sharedMapPageSource, /const canSaveSharedResources = Boolean\(isAuth && !isOwner\);/);
+    assert.match(sharedMapPageSource, /const canSaveSharedResources = Boolean\([\s\S]*?!isGoverned[\s\S]*?&& isAuth[\s\S]*?&& !isOwner[\s\S]*?viewer\?\.canSaveResources !== false[\s\S]*?\);/);
+    assert.match(sharedMapPageSource, /allowAccountActions=\{!isGoverned\}/);
 });
 
 test('shared map interactive view uses the My Map V2 card and pin language', () => {
