@@ -1,6 +1,6 @@
 # CareAround SG session handoff
 
-Updated: 2026-09-13 (Asia/Singapore)
+Updated: 2026-09-14 (Asia/Singapore)
 
 ## Start here
 
@@ -11,7 +11,26 @@ Updated: 2026-09-13 (Asia/Singapore)
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
 
-## 2026-09-13 Governed Care Maps closed pilot — verified locally
+## 2026-09-14 Governed Care Maps limited release
+
+- Read `docs/governed-care-maps-limited-release-20260914.md`. This supersedes the
+  earlier blanket requirement to finish organisation-pilot governance before
+  deploying inactive code. User deployment authorization remains in force.
+- The user supplied a completed 96.47 MB production snapshot and demonstrated
+  existing Super Admin login/dashboard/Admin Tools. One operator is verified;
+  the 7 September restore exercise remains the recovery evidence.
+- New Worker and client release flags default off. New onboarding, governed-map
+  routes and scheduled archival are disabled; draft organisation terms are
+  hidden. Admin public-access controls and personal sharing remain available.
+- Current checks: server 762, client 808 plus 4 environment checks, map 104,
+  10 migrations, 504 modules / 1,513 edges, production build passed. Targeted
+  browser and atomic migration rehearsal details are in the limited release
+  report. Fresh read-only production fingerprint matches all 74 old tables.
+- Deployment still needs its execution/verification record appended. Public
+  access remains unchanged during installation; real organisation onboarding
+  and provider recruitment remain deferred.
+
+## 2026-09-13 Governed Care Maps closed pilot — historical rehearsal
 
 - Latest steering: the user authorized staged rehearsal and deployment after it
   passes. The local rehearsal is complete; production prerequisites are pending.

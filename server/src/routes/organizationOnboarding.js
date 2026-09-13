@@ -11,8 +11,10 @@ import {
     postOnboardingRequest,
 } from '../controllers/organizationOnboardingController.js';
 import { authenticateToken, authorize } from '../middleware/auth.js';
+import { requireGovernedPilot } from '../utils/governedPilotRelease.js';
 
 const router = new Hono();
+router.use('*', requireGovernedPilot);
 
 router.post('/requests', postOnboardingRequest);
 router.post('/join', postJoinRequest);
@@ -24,4 +26,3 @@ router.post('/join-requests/:requestId/approve', authenticateToken, postJoinAppr
 router.post('/join-requests/:requestId/reject', authenticateToken, postJoinRejection);
 
 export default router;
-

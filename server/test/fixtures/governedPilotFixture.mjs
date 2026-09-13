@@ -10,7 +10,7 @@ export const pilotPassword = 'Fictional-Pilot-2026!';
 
 export async function createGovernedPilotFixture(t) {
     const { pg, env } = await createNeonPostgresFixture(t);
-    Object.assign(env, { NODE_ENV: 'development', JWT_SECRET: randomUUID() });
+    Object.assign(env, { NODE_ENV: 'development', JWT_SECRET: randomUUID(), GOVERNED_PILOT_ENABLED: 'true' });
     const cache = new Map();
     env.MAP_CACHE = {
         async get(key, type) { const value = cache.get(key) ?? null; return type === 'json' && value ? JSON.parse(value) : value; },

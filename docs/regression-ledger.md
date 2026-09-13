@@ -15,7 +15,31 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
-## 2026-09-13 Governed Care Maps staged rehearsal — production prerequisites pending
+## 2026-09-14 Limited release with organisation onboarding disabled
+
+- Boundary: Worker `GOVERNED_PILOT_ENABLED` and production client
+  `VITE_GOVERNED_PILOT_ENABLED` are off. Direct API calls, alternate organisation
+  signup, governed public snapshots and scheduled archival cannot activate the
+  feature. Existing Terms remain displayed. Public access is controlled
+  independently and installation does not change it.
+- Reference: reviewed limited-release commit following `95e61e31` on
+  `codex/governed-care-maps-pilot-20260913`.
+- Reproduce: `governedPilotRelease.test.js`, `governedPilotReleaseBatch.test.js`,
+  `governedPilotRehearsal.test.js`, `platformAccessBoundary.test.js`, and the
+  5185 compiled fictional fixture. Require no onboarding writes with the flag
+  off, Super Admin recovery after access closure, preserved personal sharing,
+  accurate open/private/custom status, and intact old schema after migration.
+- Validation: server 762/762, client 808/808 plus environment 4/4, map 104/104,
+  10 migrations, 504 modules / 1,513 edges without cycles, production build and
+  desktop/mobile controls passed. Exact migration batch interruption/retry and
+  wrong-target/drift rejection passed locally. Runtime rollout evidence belongs
+  in `docs/governed-care-maps-limited-release-20260914.md`.
+- User evidence: fresh completed production snapshot and one live Super Admin
+  with Admin Tools access. Professional wording review and second-operator
+  readiness are organisation-pilot decisions; they do not activate the release
+  flags or replace technical release checks.
+
+## 2026-09-13 Governed Care Maps staged rehearsal — historical prerequisites
 
 - Current behavior: governed public reads use `no-store`; restoring a map verifies
   the 30-day deadline and current asset permission, then atomically rebuilds its

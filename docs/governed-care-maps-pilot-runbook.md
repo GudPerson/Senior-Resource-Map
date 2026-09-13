@@ -1,7 +1,7 @@
 # Governed Care Maps pilot runbook
 
-Status: deployment authorized after rehearsal and go-live prerequisites; production gates pending
-Last updated: 2026-09-13 (Asia/Singapore)
+Status: limited deployment authorized; real-organisation activation deferred
+Last updated: 2026-09-14 (Asia/Singapore)
 
 The [13 September staged rehearsal](governed-care-maps-pilot-rehearsal-20260913.md)
 records the local evidence, corrected defects, migration plan, and outstanding
@@ -30,9 +30,46 @@ be reviewed and reversed independently.
 - A resource steward can remove only their own resource. Retirement and restore
   require a reason and notify current participants.
 
-## Go-live prerequisites
+## Limited production release
 
-Record evidence for every item before touching production:
+Deploying inactive code and opening an organisation pilot are separate decisions.
+The earlier requirement to complete every operational-pilot item before any
+production deployment was too broad for the limited release discussed with the
+user. This release retains the existing Terms text, disables new organisation
+onboarding and all governed-map routes and scheduled archive work, and leaves
+public access settings unchanged during rollout.
+
+Required before deployment:
+
+- Reviewed clean release commit, regression checks, and exact migration plan.
+- Current production backup plus recorded restore evidence. The user supplied a
+  completed 96.47 MB manual snapshot created at 2026-09-13 16:41:09 UTC with no
+  expiry. Reuse the 7 September non-production restore exercise; it did not test
+  live connection cutover or non-Postgres recovery.
+- One verified production Super Admin plus application rollback access. The user
+  demonstrated the live Super Admin dashboard and loaded Admin Tools. Cloudflare
+  and GitHub operator authentication were separately checked. A second operator
+  remains recommended for partner operations, not a requirement for installing
+  this inactive release.
+- Fictional rehearsal of closed public access, Super Admin email/password
+  recovery, reopening access, and continued personal My Map sharing.
+
+See [operator evidence](evidence/governed-pilot-operator-checks-20260914.json).
+
+`GOVERNED_PILOT_ENABLED=false` is explicit in Worker configuration. Absence or
+any value other than the string `true` also disables it. The production build
+pins `VITE_GOVERNED_PILOT_ENABLED=false`. Both require an intentional reviewed
+change before real onboarding. A database public-access toggle cannot enable
+these release flags.
+
+The limited Admin panel can separately set directory, registration and login to
+`closed` (Super Admin recovery remains available). This restricts the legacy
+public database while preserving existing personal share/embed paths. The UI
+requires confirmation; installation alone does not change the access row.
+
+## Organisation-pilot activation prerequisites
+
+Complete these before enabling the release flags and accepting real applicants:
 
 1. The release commit is reviewed from a clean branch and the release checklist
    passes against that exact commit.
@@ -46,7 +83,8 @@ Record evidence for every item before touching production:
 5. A manual organisation-verification procedure exists. At minimum, confirm the
    applicant through an independently obtained organisation contact and confirm
    control of the stated email domain. Do not rely only on a submitted form.
-6. At least two pilot operators can access the Super Admin recovery path.
+6. Confirm a second recovery operator or explicitly document the accepted
+   single-operator arrangement and tested fallback.
 7. Authenticated UAT credentials and fictional test organisations are ready.
 
 ## Safe release order
@@ -55,6 +93,12 @@ Record evidence for every item before touching production:
 
 - Confirm the production schema fingerprint and approved backup/restore evidence.
 - Apply migration `0008` before `0009` through the reviewed migration procedure.
+- Use `server/scripts/generate_governed_pilot_release.mjs` to generate the atomic
+  batch. It validates both immutable hashes, target branch/database/role/major,
+  existing catalog fingerprints and history, 2-second lock and 15-second
+  statement timeouts, and exactly-once installation. It does not connect or
+  execute SQL itself. The only approved production target is branch
+  `br-green-union-ailxs0g3`, database `neondb`, role `neondb_owner`, PostgreSQL 17.
 - Re-run migration validation and confirm both migrations are recorded exactly
   once.
 - Do not enable the pilot access modes yet. The access row defaults to the
@@ -72,6 +116,17 @@ behavior through the access settings and compatible code.
 - Deploy the exact validated client artifact and verify custom-domain byte and
   MIME parity under the standard release checklist.
 - Keep directory, registration, and login modes open while these checks run.
+- For the limited release, keep both release flags off. Require direct
+  onboarding, governed share/embed, publication, and restore requests to reject
+  without a write. Check that Admin access controls still load with onboarding
+  disabled and that the new agreement section is absent from Terms.
+- Confirm the deployed platform-access response sees the installed schema.
+  The Cloudflare settings API exposes the DATABASE_URL binding name/type, not
+  its secret value. The migration target is verified against the user's Neon
+  production branch and a read-only query; do not claim the secret was inspected.
+- Finish the limited release here. Steps 3–6 are for a later organisation pilot,
+  after its operational prerequisites are complete. Continue demonstrations in
+  the separate fictional environment.
 
 ### 3. Rehearse with fictional organisations
 

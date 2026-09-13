@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Activity, BookOpen, Building2, CalendarDays, Files, LayoutDashboard, LogOut, Map, MapPinned, Menu, ScrollText, Shield, User } from 'lucide-react';
 
 import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { GOVERNED_PILOT_UI_ENABLED } from '../../lib/governedPilotRelease.js';
 import {
     canAccessAdmin,
     canAccessAuditTrail,
@@ -63,7 +64,7 @@ export function DashboardSidebar({
     const canShowAdmin = canAccessAdmin(user?.role);
     const canShowAudit = canAccessAuditTrail(user);
     const canShowOrganizationWorkspace = canAccessOrganizationWorkspace(user);
-    const canShowGovernedMaps = canShowResources || canShowOrganizationWorkspace;
+    const canShowGovernedMaps = GOVERNED_PILOT_UI_ENABLED && (canShowResources || canShowOrganizationWorkspace);
     const isAssetStaff = hasHardAssetStaffAccess(user);
 
     return (

@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { getDb } from '../db/index.js';
 import { validateRequestBody } from '../utils/inputValidation.js';
+import { isGovernedPilotEnabled } from '../utils/governedPilotRelease.js';
 import {
     PUBLIC_DIRECTORY_MODES,
     PUBLIC_LOGIN_MODES,
@@ -19,7 +20,7 @@ const updateSchema = z.object({
     expectedRevision: z.number().int().nonnegative(),
 });
 
-function publicSettings(settings) {
+function publicSettings(settings, env) {
     return {
         publicDirectoryMode: settings.publicDirectoryMode,
         publicRegistrationMode: settings.publicRegistrationMode,
@@ -27,6 +28,7 @@ function publicSettings(settings) {
         revision: settings.revision,
         updatedAt: settings.updatedAt || null,
         available: settings.schemaAvailable,
+        governedPilotEnabled: isGovernedPilotEnabled(env),
     };
 }
 
@@ -34,7 +36,7 @@ export async function getPlatformAccessSettings(c) {
     try {
         const settings = await loadPlatformAccessSettings(getDb(c.env));
         c.header('Cache-Control', 'no-store');
-        return c.json({ settings: publicSettings(settings) });
+        return c.json({ settings: publicSettings(settings, c.env) });
     } catch (error) {
         console.error('getPlatformAccessSettings Error:', error);
         return c.json({ error: 'Platform access settings are temporarily unavailable.' }, 503);
@@ -55,7 +57,7 @@ export async function putPlatformAccessSettings(c) {
             body.expectedRevision,
         );
         c.header('Cache-Control', 'no-store');
-        return c.json({ settings: publicSettings(settings) });
+        return c.json({ settings: publicSettings(settings, c.env) });
     } catch (error) {
         if (!error.status || error.status >= 500) {
             console.error('putPlatformAccessSettings Error:', error);

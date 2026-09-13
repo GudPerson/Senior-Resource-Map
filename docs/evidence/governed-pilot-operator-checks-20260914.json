@@ -1,0 +1,29 @@
+{
+  "evidenceType": "user-provided Chrome screenshots and accessibility context",
+  "productionSnapshot": {
+    "projectId": "silent-queen-04984362",
+    "branchId": "br-green-union-ailxs0g3",
+    "branchName": "production",
+    "name": "production at 2026-09-13 16:41:09 UTC (manual)",
+    "createdAt": "2026-09-13T16:41:09Z",
+    "observedAt": "2026-09-13T16:46:06.387Z",
+    "displayedSize": "96.47 MB",
+    "displayedExpiry": "never",
+    "processingIndicatorAbsent": true,
+    "scheduledCoverage": "daily at 18:00 UTC, auto-delete in 14 days",
+    "pointInTimeHistory": "6 hours",
+    "restoreExecutedThisSession": false,
+    "priorRestoreEvidence": "docs/guide-inbox-neon-rehearsal-20260907.md"
+  },
+  "administratorAccess": {
+    "origin": "https://app.carearound.sg",
+    "dashboardObservedAt": "2026-09-13T16:49:33.840Z",
+    "displayedRole": "SUPER ADMIN",
+    "adminPanelObservedAt": "2026-09-13T16:50:29.418Z",
+    "path": "/dashboard/admin",
+    "authenticatedResourceRowsLoaded": true,
+    "operatorsDemonstrated": 1,
+    "postDeploymentRecoveryControlVerified": false
+  },
+  "scope": "Current snapshot creation and existing live administrator access; not a new restore rehearsal, two-operator proof, or authenticated verification of unreleased pilot controls. No passwords, cookies, or tokens collected."
+}

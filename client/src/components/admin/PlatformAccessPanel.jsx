@@ -3,6 +3,8 @@ import { Building2, Globe2, LockKeyhole, RefreshCw, ShieldCheck, UserCheck } fro
 
 import { api } from '../../lib/api.js';
 import { useConfirmDialog } from '../ConfirmDialog.jsx';
+import { GOVERNED_PILOT_UI_ENABLED } from '../../lib/governedPilotRelease.js';
+import { hasRestrictedPublicAccess, publicAccessStatusLabel, restrictedAccessSettings } from '../../lib/platformAccessBoundary.js';
 
 function Feedback({ value }) {
     if (!value) return null;
@@ -14,14 +16,6 @@ function Feedback({ value }) {
             {value.message}
         </p>
     );
-}
-
-function statusLabel(settings) {
-    if (!settings?.available) return 'Migration required';
-    const pilot = settings.publicDirectoryMode === 'authenticated'
-        && settings.publicRegistrationMode === 'organization_only'
-        && settings.publicLoginMode === 'organization_only';
-    return pilot ? 'Closed organisation pilot' : 'Open public access';
 }
 
 export default function PlatformAccessPanel() {
@@ -39,12 +33,11 @@ export default function PlatformAccessPanel() {
         setLoading(true);
         setFeedback(null);
         try {
-            const [access, onboarding, joins] = await Promise.all([
-                api.getPlatformAccessSettings(),
-                api.getOrganizationOnboardingRequests(),
-                api.getOrganizationJoinRequests(),
-            ]);
+            const access = await api.getPlatformAccessSettings();
             setSettings(access.settings);
+            const [onboarding, joins] = GOVERNED_PILOT_UI_ENABLED && access.settings.governedPilotEnabled
+                ? await Promise.all([api.getOrganizationOnboardingRequests(), api.getOrganizationJoinRequests()])
+                : [{ requests: [] }, { requests: [] }];
             setOnboardingRequests(onboarding.requests || []);
             setJoinRequests(joins.requests || []);
         } catch (error) {
@@ -56,34 +49,35 @@ export default function PlatformAccessPanel() {
 
     useEffect(() => { load(); }, [load]);
 
-    const pilotEnabled = useMemo(() => settings?.publicDirectoryMode === 'authenticated'
-        && settings?.publicRegistrationMode === 'organization_only'
-        && settings?.publicLoginMode === 'organization_only', [settings]);
+    const pilotEnabled = useMemo(() => hasRestrictedPublicAccess(settings), [settings]);
+    const onboardingEnabled = GOVERNED_PILOT_UI_ENABLED && settings?.governedPilotEnabled === true;
 
     async function setPilotMode(enable) {
         const confirmed = await requestConfirmation({
-            title: enable ? 'Activate closed organisation pilot?' : 'Reopen public access?',
+            title: enable ? (onboardingEnabled ? 'Activate closed organisation pilot?' : 'Restrict public access?') : 'Reopen public access?',
             message: enable
-                ? 'Guest discovery, general registration and general sign-in will close. Published personal and Governed Care Map share links and embeds remain available.'
+                ? (onboardingEnabled
+                    ? 'Guest discovery, general registration and general sign-in will close. Published personal and Governed Care Map share links and embeds remain available.'
+                    : 'Directory access, new registration and sign-in will be restricted to Super Admin recovery. Existing personal My Map share links and embeds remain available.')
                 : 'Public discovery, registration and general sign-in will become available again.',
             details: enable
-                ? ['Approved organisation users continue through Organisation sign-in.', 'The change is audited and can be reversed from this panel.']
+                ? [onboardingEnabled ? 'Approved organisation users continue through Organisation sign-in.' : 'Super Admins can sign in through the staff sign-in page with their existing email and password.', 'The change is audited and can be reversed from this panel.']
                 : ['This does not alter maps, resources, organisations or prior audit records.'],
             tone: 'warning',
-            confirmLabel: enable ? 'Activate pilot' : 'Reopen access',
+            confirmLabel: enable ? (onboardingEnabled ? 'Activate pilot' : 'Restrict access') : 'Reopen access',
         });
         if (!confirmed) return;
         setSaving(true);
         setFeedback(null);
         try {
             const result = await api.updatePlatformAccessSettings({
-                publicDirectoryMode: enable ? 'authenticated' : 'open',
-                publicRegistrationMode: enable ? 'organization_only' : 'open',
-                publicLoginMode: enable ? 'organization_only' : 'open',
+                ...(enable ? restrictedAccessSettings(onboardingEnabled) : {
+                    publicDirectoryMode: 'open', publicRegistrationMode: 'open', publicLoginMode: 'open',
+                }),
                 expectedRevision: settings.revision,
             });
             setSettings(result.settings);
-            setFeedback({ type: 'success', message: enable ? 'Closed organisation pilot mode is active.' : 'Public access is open.' });
+            setFeedback({ type: 'success', message: enable ? 'Public access is restricted.' : 'Public access is open.' });
         } catch (error) {
             setFeedback({ type: 'error', message: error.message || 'Unable to update pilot mode.' });
         } finally {
@@ -162,7 +156,7 @@ export default function PlatformAccessPanel() {
                             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><LockKeyhole size={22} /></span>
                             <div>
                                 <h2 className="text-xl font-black text-slate-950">Public access boundary</h2>
-                                <p className="text-sm text-slate-500">Server-authoritative access controls for the organisation-led pilot.</p>
+                                <p className="text-sm text-slate-500">Control public discovery, registration and sign-in independently of shared My Maps.</p>
                             </div>
                         </div>
                         <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -173,9 +167,9 @@ export default function PlatformAccessPanel() {
                     </div>
                     <div className="min-w-64 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <p className="text-xs font-black uppercase tracking-wider text-slate-500">Current mode</p>
-                        <p className="mt-1 font-black text-slate-950">{statusLabel(settings)}</p>
+                        <p className="mt-1 font-black text-slate-950">{publicAccessStatusLabel(settings)}</p>
                         <button type="button" disabled={loading || saving || !settings?.available} onClick={() => setPilotMode(!pilotEnabled)} className="btn-primary mt-4 w-full justify-center disabled:opacity-50">
-                            {saving ? 'Applying…' : pilotEnabled ? 'Reopen public access' : 'Activate pilot boundary'}
+                            {saving ? 'Applying…' : pilotEnabled ? 'Reopen public access' : onboardingEnabled ? 'Activate pilot boundary' : 'Restrict public access'}
                         </button>
                     </div>
                 </div>
@@ -183,6 +177,8 @@ export default function PlatformAccessPanel() {
 
             <Feedback value={feedback} />
 
+            {!onboardingEnabled && <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Organisation onboarding and Governed Care Maps are not open yet. Public access controls remain available.</p>}
+            {onboardingEnabled && <>
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                     <div><h2 className="text-xl font-black text-slate-950">Organisation onboarding</h2><p className="text-sm text-slate-500">Review domain, applicant, owner-supplied asset pack and recorded permission.</p></div>
@@ -210,6 +206,7 @@ export default function PlatformAccessPanel() {
                     ))}
                 </div>
             </section>
+            </>}
             {confirmDialog}
         </div>
     );

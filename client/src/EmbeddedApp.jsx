@@ -4,6 +4,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { A11yProvider } from './contexts/A11yContext.jsx';
 import { LocaleProvider, useLocale } from './contexts/LocaleContext.jsx';
 import { MapStyleProvider } from './contexts/MapStyleContext.jsx';
+import { GOVERNED_PILOT_UI_ENABLED } from './lib/governedPilotRelease.js';
+import GovernedPilotUnavailable from './components/GovernedPilotUnavailable.jsx';
 
 const EmbeddedMapPage = lazy(() => import('./pages/EmbeddedMapPage.jsx'));
 
@@ -25,7 +27,7 @@ export default function EmbeddedApp() {
                         <Suspense fallback={<EmbeddedMapLoading />}>
                             <Routes>
                                 <Route path="/embed/maps/:token" element={<EmbeddedMapPage />} />
-                                <Route path="/embed/governed-maps/:token" element={<EmbeddedMapPage mapKind="governed" />} />
+                                <Route path="/embed/governed-maps/:token" element={GOVERNED_PILOT_UI_ENABLED ? <EmbeddedMapPage mapKind="governed" /> : <GovernedPilotUnavailable />} />
                                 <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>
                         </Suspense>

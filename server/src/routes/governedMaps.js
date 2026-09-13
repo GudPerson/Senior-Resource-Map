@@ -19,8 +19,10 @@ import {
     postRetirement,
 } from '../controllers/governedMapsController.js';
 import { authenticateToken, authorize } from '../middleware/auth.js';
+import { requireGovernedPilot } from '../utils/governedPilotRelease.js';
 
 const router = new Hono();
+router.use('*', requireGovernedPilot);
 
 router.get('/public/:token', getPublicMap);
 router.get('/public/:token/embed', getPublicEmbedMap);

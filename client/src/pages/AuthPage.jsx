@@ -186,7 +186,7 @@ export default function AuthPage({ isPartner = false }) {
     }
 
     if (!isPartner && platformSettings && platformSettings.publicLoginMode !== 'open') {
-        return <PublicAccessNotice purpose="sign-in" />;
+        return <PublicAccessNotice purpose="sign-in" settings={platformSettings} />;
     }
 
     return (
