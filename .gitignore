@@ -26,6 +26,7 @@ dist/
 client/dist/
 output/town-map-downloads/
 output/town-map-proof/discover-derivative-*/
+output/playwright/governed-pilot-rehearsal/
 
 # OS/editor
 .DS_Store
