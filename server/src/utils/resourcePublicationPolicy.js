@@ -19,7 +19,12 @@ export const RESOURCE_PUBLICATION_FIELDS = Object.freeze([
 
 const RESOURCE_PUBLICATION_FIELD_SET = new Set(RESOURCE_PUBLICATION_FIELDS);
 const RESOURCE_TYPES = new Set(['hard', 'soft']);
-const ALWAYS_PRIVATE_RESOURCE_KEYS = new Set(['groundingSourceUrl', 'sourceUrl']);
+const ALWAYS_PRIVATE_RESOURCE_KEYS = new Set([
+    'categoryIconUrl',
+    'groundingSourceUrl',
+    'mapCategoryIconUrl',
+    'sourceUrl',
+]);
 const RESOURCE_FIELD_BY_PAYLOAD_KEY = new Map([
     ['logoUrl', 'logoUrl'],
     ['bannerUrl', 'bannerUrl'],

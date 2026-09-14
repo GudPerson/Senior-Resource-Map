@@ -31,6 +31,8 @@ function publicDirectoryFixture() {
                 resourceId: 10,
                 name: 'Example Centre',
                 contactPhone: '61234567',
+                categoryIconUrl: 'https://provider.example/category.png',
+                mapCategoryIconUrl: 'https://provider.example/map-category.png',
                 logoUrl: 'https://provider.example/logo.png',
                 bannerUrl: 'https://provider.example/banner.png',
                 galleryUrls: ['https://provider.example/gallery.png'],
@@ -56,6 +58,8 @@ test('unverified references retain care facts and curator content while provider
     assert.equal(row.name, 'Example Centre');
     assert.equal(row.contactPhone, '61234567');
     assert.equal(row.mapShortDescriptor, 'Curator note.');
+    assert.equal(row.categoryIconUrl, null);
+    assert.equal(row.mapCategoryIconUrl, null);
     assert.equal(row.logoUrl, null);
     assert.equal(row.bannerUrl, null);
     assert.deepEqual(row.galleryUrls, []);
