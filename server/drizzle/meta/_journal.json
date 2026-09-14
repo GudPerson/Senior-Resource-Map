@@ -71,6 +71,13 @@
       "when": 1789234635645,
       "tag": "0009_governed_care_maps",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1789396785385,
+      "tag": "0010_permission_first_publishing",
+      "breakpoints": true
     }
   ]
 }

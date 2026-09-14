@@ -1,6 +1,6 @@
 # CareAround SG session handoff
 
-Updated: 2026-09-14 (Asia/Singapore)
+Updated: 2026-09-15 (Asia/Singapore)
 
 ## Start here
 
@@ -10,6 +10,40 @@ Updated: 2026-09-14 (Asia/Singapore)
 - Release platform: Cloudflare Pages for the client and Cloudflare Worker for the API.
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
+
+## 2026-09-15 Permission-first publishing — release candidate
+
+- Continue in the clean worktree
+  `/Users/sweetbuns/CareAroundSG-worktrees/permission-first-publishing-20260914`,
+  branch `codex/permission-first-publishing-20260914`, based on production main
+  `cf443759`. Preserve the unrelated dirty primary checkout.
+- Existing imported hard and soft records remain unchanged and receive no new
+  row. The absence of a `resource_publication_permissions` row means
+  `unverified reference`; anonymous personal Shared Maps and embeds suppress
+  provider media, copied descriptive content and external provider links while
+  keeping names, categories, addresses, hours, contacts, map layout and
+  curator-authored map text.
+- Publication restoration is exact: the permission must be
+  `publishing_approved`, name the approved fields and shared/embed uses, belong
+  to an active organisation with a current resource link, and reference an
+  active unexpired agreement that permits public listing and external sharing.
+  Claim pending, owner verified, withdrawal, expired agreement, inactive
+  organisation, unlinked resource, missing migration or absent record all fail
+  closed.
+- Validation passes focused policy/migration/Shared Map tests `20/20`, the
+  guarded production-batch rehearsal, complete server `768/768`, complete
+  client `808/808` plus `4/4` production
+  environment checks, locked map `104/104`, 11 ordered migrations, 505 modules /
+  1,514 relative imports without cycles, and the validated 2,497-module
+  production client build. Final diff and Graft caller review passed. Anonymous
+  Shared Map and embed responses use `Cache-Control: no-store` so permission
+  withdrawal is re-evaluated on the next request.
+- The production migration must be generated with
+  `server/scripts/generate_permission_first_release.mjs` from the exact clean
+  release commit. It is target-, history- and schema-guarded, preserves the
+  current public-access row, and is idempotent. No claim/review API or UI has
+  been opened, and this release creates no permission record or public-access
+  change.
 
 ## 2026-09-14 Governed Care Maps limited release
 

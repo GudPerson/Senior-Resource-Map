@@ -32,7 +32,7 @@ test('map embed owner and guest routes remain separate', () => {
     assert.match(sharedMapsRoutesSource, /router\.get\('\/:token\/embed', getEmbeddedMap\)/);
     assert.equal(
         sharedMapsControllerSource.match(/c\.header\('Cache-Control', 'no-store'\)/g)?.length,
-        2,
+        3,
     );
 });
 

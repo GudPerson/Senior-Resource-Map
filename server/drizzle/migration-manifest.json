@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "authoritativeSchema": "src/db/schema.js",
-  "currentSchemaSha256": "dc426a1606b32265b05e1fb6ad2f372544f5613344a46a0334739b1ae44ee3d7",
+  "currentSchemaSha256": "109c907594f511c0f6da50badeea45de45393f29c0bbbfc2a11c716b517648dd",
   "runtimeCompatibilityBootstrap": "src/utils/boundarySchema.js",
   "runtimeCompatibilityBootstrapSha256": "8a9bdb2545fe0ce03c37aaf11ddee97ae5f04834d586c2381c3e04360f60c63f",
   "migrations": [
@@ -176,6 +176,24 @@
         "Stewardship must be recomputed from current resource staff and organization access on every mutation. Public responses use publication snapshots and opaque tokens.",
         "The installed generator omits CHECK constraints and partial-index predicates; the reviewed SQL restores fourteen checks and five partial or expression index definitions, which disposable PostgreSQL tests verify.",
         "Retirement is reversible for thirty days and archival is a scheduled forward action. It does not delete underlying resources or personal maps."
+      ]
+    },
+    {
+      "id": "0010_permission_first_publishing",
+      "file": "drizzle/0010_permission_first_publishing.sql",
+      "sha256": "c985d339506f1b0bd584de3856c754fa1a5d87166d13f30bd4aa5e5688bb4492",
+      "snapshotFile": "drizzle/meta/0010_snapshot.json",
+      "snapshotSha256": "2390a16a6ce7a48e8139982b43ebff9e52b55b672f7a5ad00d526d14a9ec5b2e",
+      "type": "additive-resource-publication-permissions",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "Roll back the Worker while retaining the additive permission records. Existing resources, personal My Maps, governed maps, calendars and source content are not transformed. Removing permission history requires a separately reviewed retention decision.",
+      "environmentStatus": "Repository candidate tested locally only; no development, staging or production migration, permission decision, push or deployment is authorised or applied.",
+      "cautions": [
+        "Apply before recording an owner claim or publishing approval; a missing table fails closed and leaves every resource as an unverified reference on anonymous shared and embedded maps.",
+        "A publishing approval requires an active linked organisation, an active unexpired agreement allowing public listing and external sharing, an approved field list, and the requested public use.",
+        "Existing imported resources receive no permission row and no source data is deleted or rewritten.",
+        "The installed generator omits CHECK constraints; the reviewed SQL restores all seven permission checks and migration tests must verify them."
       ]
     }
   ]
