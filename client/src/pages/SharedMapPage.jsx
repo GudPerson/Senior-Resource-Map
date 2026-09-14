@@ -447,7 +447,9 @@ export default function SharedMapPage({ mapKind = 'personal' }) {
         try {
             const [nextDirectory, subcategories] = await Promise.all([
                 isGoverned ? api.getPublishedGovernedMap(token) : api.getSharedMap(token),
-                api.getSubCategories({ suppressAuthExpired: true }).catch(() => []),
+                isGoverned
+                    ? api.getSubCategories({ suppressAuthExpired: true }).catch(() => [])
+                    : Promise.resolve([]),
             ]);
             const enrichedDirectory = applySubCategoryMetaToDirectory(nextDirectory, subcategories);
             setDirectory(await backfillGroupFocusPlaceKeys(enrichedDirectory));

@@ -361,6 +361,8 @@ test('unverified public sharing removes provider content without changing factua
                 resourceId: 29,
                 name: 'Fei Yue Active Ageing Centre',
                 contactPhone: '61234567',
+                categoryIconUrl: 'https://provider.example/category.png',
+                mapCategoryIconUrl: 'https://provider.example/map-category.png',
                 logoUrl: 'https://provider.example/logo.png',
                 bannerUrl: 'https://provider.example/banner.png',
                 galleryUrls: ['https://provider.example/gallery.png'],
@@ -376,6 +378,8 @@ test('unverified public sharing removes provider content without changing factua
     const sanitized = sanitizeRestrictedPublicDirectory(directory);
 
     assert.equal(sanitized.places[0].rows[0].logoUrl, null);
+    assert.equal(sanitized.places[0].rows[0].categoryIconUrl, null);
+    assert.equal(sanitized.places[0].rows[0].mapCategoryIconUrl, null);
     assert.equal(sanitized.places[0].rows[0].bannerUrl, null);
     assert.deepEqual(sanitized.places[0].rows[0].galleryUrls, []);
     assert.equal(sanitized.places[0].rows[0].website, null);

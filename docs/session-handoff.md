@@ -20,9 +20,9 @@ Updated: 2026-09-15 (Asia/Singapore)
 - Existing imported hard and soft records remain unchanged and receive no new
   row. The absence of a `resource_publication_permissions` row means
   `unverified reference`; anonymous personal Shared Maps and embeds suppress
-  provider media, copied descriptive content and external provider links while
-  keeping names, categories, addresses, hours, contacts, map layout and
-  curator-authored map text.
+  provider media, copied descriptive content, external provider links and
+  externally hosted category artwork while keeping names, category labels,
+  addresses, hours, contacts, map layout and curator-authored map text.
 - Publication restoration is exact: the permission must be
   `publishing_approved`, name the approved fields and shared/embed uses, belong
   to an active organisation with a current resource link, and reference an

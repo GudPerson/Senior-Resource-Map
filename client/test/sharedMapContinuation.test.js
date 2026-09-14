@@ -69,6 +69,7 @@ test('shared map page wires continuation through all sign-in entry points', () =
 
 test('shared map interactive view uses the My Map V2 card and pin language', () => {
     assert.match(sharedMapPageSource, /api\.getSubCategories\(\{ suppressAuthExpired: true \}\)\.catch\(\(\) => \[\]\)/);
+    assert.match(sharedMapPageSource, /isGoverned[\s\S]*?api\.getSubCategories\([\s\S]*?: Promise\.resolve\(\[\]\)/);
     assert.match(sharedMapPageSource, /const enrichedDirectory = applySubCategoryMetaToDirectory\(nextDirectory, subcategories\)/);
     assert.match(sharedMapPageSource, /setDirectory\(await backfillGroupFocusPlaceKeys\(enrichedDirectory\)\)/);
     assert.match(sharedMapPageSource, /buildDirectoryPresentation\(translatedDirectory, \{ query, activeAnchor, presentationMode: 'v2-cards' \}\)/);

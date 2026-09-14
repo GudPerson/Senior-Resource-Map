@@ -21,9 +21,11 @@ Rules:
   resource with no explicit publication-permission row as an unverified
   reference. They keep factual care-map fields and curator-authored map content,
   while suppressing provider logos, banners, galleries, descriptions, websites,
-  social links, calls to action and internal source links. The underlying hard
-  and soft resources, saved snapshots and authenticated owner/staff views are not
-  changed. This policy is independent of whether the wider directory is open or
+  social links, calls to action, internal source links and externally hosted
+  category artwork. The public pages fall back to CareAround's generic category
+  presentation. The underlying hard and soft resources, saved snapshots and
+  authenticated owner/staff views are not changed. This policy is independent
+  of whether the wider directory is open or
   restricted, so reopening discovery cannot implicitly approve provider content.
 - Known-good reference and blast radius: branch
   `codex/permission-first-publishing-20260914` in
