@@ -23,6 +23,11 @@ function publicDirectoryFixture() {
         name: 'Curator-authored care map',
         description: 'A map description written by the curator.',
         assets: [{ resourceType: 'hard', resourceId: 10 }],
+        pins: [{
+            title: 'Example Centre',
+            categoryIconUrl: 'https://provider.example/pin-category.png',
+            mapCategoryIconUrl: 'https://provider.example/pin-map-category.png',
+        }],
         places: [{
             name: 'Example Centre',
             address: '10 Example Street',
@@ -54,6 +59,8 @@ test('unverified references retain care facts and curator content while provider
     const sanitized = applyResourcePublicationPolicy(directory);
     const row = sanitized.places[0].rows[0];
     assert.equal(sanitized.description, 'A map description written by the curator.');
+    assert.equal(sanitized.pins[0].categoryIconUrl, null);
+    assert.equal(sanitized.pins[0].mapCategoryIconUrl, null);
     assert.equal(sanitized.places[0].address, '10 Example Street');
     assert.equal(row.name, 'Example Centre');
     assert.equal(row.contactPhone, '61234567');

@@ -179,7 +179,7 @@ export function applyResourcePublicationPolicy(value, approvedByResource = new M
         : new Set();
 
     return Object.fromEntries(Object.entries(value).map(([key, item]) => {
-        if (currentResourceKey && ALWAYS_PRIVATE_RESOURCE_KEYS.has(key)) {
+        if (ALWAYS_PRIVATE_RESOURCE_KEYS.has(key)) {
             return [key, null];
         }
         const publicationField = currentResourceKey ? RESOURCE_FIELD_BY_PAYLOAD_KEY.get(key) : null;
