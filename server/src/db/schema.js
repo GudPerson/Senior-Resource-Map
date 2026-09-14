@@ -199,6 +199,42 @@ export const organizationResourceLinks = pgTable('organization_resource_links', 
   coverageStatusIdx: index('organization_resource_links_coverage_status_idx').on(table.agreementCoverageStatus),
 }));
 
+// Existing imported resources have no row here and therefore remain
+// unverified references for public-content purposes. A row records the current
+// owner-claim and publishing decision without changing the underlying resource.
+export const resourcePublicationPermissions = pgTable('resource_publication_permissions', {
+  id: serial('id').primaryKey(),
+  organizationId: integer('organization_id').references(() => partnerOrganizations.id, { onDelete: 'cascade' }).notNull(),
+  agreementId: integer('agreement_id').references(() => organizationAgreements.id, { onDelete: 'set null' }),
+  resourceType: varchar('resource_type', { length: 20 }).notNull(),
+  resourceId: integer('resource_id').notNull(),
+  status: varchar('status', { length: 32 }).notNull().default('claim_pending'),
+  approvedFields: jsonb('approved_fields').notNull().default([]),
+  allowedUses: jsonb('allowed_uses').notNull().default({}),
+  provenanceNote: text('provenance_note'),
+  termsVersion: varchar('terms_version', { length: 80 }),
+  requestedByUserId: integer('requested_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  reviewedByUserId: integer('reviewed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
+  withdrawalReason: text('withdrawal_reason'),
+  revision: integer('revision').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  organizationResourceUnique: uniqueIndex('resource_publication_permissions_org_resource_unique')
+    .on(table.organizationId, table.resourceType, table.resourceId),
+  resourceIdx: index('resource_publication_permissions_resource_idx').on(table.resourceType, table.resourceId),
+  statusIdx: index('resource_publication_permissions_status_idx').on(table.status),
+  resourceTypeCheck: check('resource_publication_permissions_type_check', sql`${table.resourceType} IN ('hard', 'soft')`),
+  statusCheck: check('resource_publication_permissions_status_check', sql`${table.status} IN ('claim_pending', 'owner_verified', 'publishing_approved', 'permission_withdrawn')`),
+  approvedFieldsCheck: check('resource_publication_permissions_fields_check', sql`jsonb_typeof(${table.approvedFields}) = 'array' AND ${table.approvedFields} <@ '["logoUrl", "bannerUrl", "galleryUrls", "description", "website", "socialLinks", "ctaUrl"]'::jsonb`),
+  allowedUsesCheck: check('resource_publication_permissions_uses_check', sql`jsonb_typeof(${table.allowedUses}) = 'object'`),
+  revisionCheck: check('resource_publication_permissions_revision_check', sql`${table.revision} > 0`),
+  approvalStateCheck: check('resource_publication_permissions_approval_state_check', sql`${table.status} <> 'publishing_approved' OR (${table.agreementId} IS NOT NULL AND ${table.requestedByUserId} IS NOT NULL AND ${table.reviewedByUserId} IS NOT NULL AND ${table.approvedAt} IS NOT NULL AND length(trim(${table.termsVersion})) > 0)`),
+  withdrawalStateCheck: check('resource_publication_permissions_withdrawal_state_check', sql`${table.status} <> 'permission_withdrawn' OR (${table.withdrawnAt} IS NOT NULL AND length(trim(${table.withdrawalReason})) > 0)`),
+}));
+
 export const governanceGroups = pgTable('governance_groups', {
   id: serial('id').primaryKey(),
   groupType: varchar('group_type', { length: 20 }).notNull(),
@@ -1445,6 +1481,7 @@ export const partnerOrganizationsRelations = relations(partnerOrganizations, ({ 
   governanceAccess: many(organizationAccessMemberships),
   agreements: many(organizationAgreements),
   resourceLinks: many(organizationResourceLinks),
+  resourcePublicationPermissions: many(resourcePublicationPermissions),
   governanceGroups: many(governanceGroups),
   groupLinks: many(governanceGroupOrganizations),
 }));
@@ -1476,6 +1513,27 @@ export const organizationResourceLinksRelations = relations(organizationResource
   organization: one(partnerOrganizations, {
     fields: [organizationResourceLinks.organizationId],
     references: [partnerOrganizations.id],
+  }),
+}));
+
+export const resourcePublicationPermissionsRelations = relations(resourcePublicationPermissions, ({ one }) => ({
+  organization: one(partnerOrganizations, {
+    fields: [resourcePublicationPermissions.organizationId],
+    references: [partnerOrganizations.id],
+  }),
+  agreement: one(organizationAgreements, {
+    fields: [resourcePublicationPermissions.agreementId],
+    references: [organizationAgreements.id],
+  }),
+  requester: one(users, {
+    fields: [resourcePublicationPermissions.requestedByUserId],
+    references: [users.id],
+    relationName: 'resource_publication_permission_requester',
+  }),
+  reviewer: one(users, {
+    fields: [resourcePublicationPermissions.reviewedByUserId],
+    references: [users.id],
+    relationName: 'resource_publication_permission_reviewer',
   }),
 }));
 

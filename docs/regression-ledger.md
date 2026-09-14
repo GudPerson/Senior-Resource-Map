@@ -15,6 +15,56 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-15 Permission-first shared and embedded resource content — release candidate
+
+- Current behavior: anonymous personal Shared Map and embed responses treat a
+  resource with no explicit publication-permission row as an unverified
+  reference. They keep factual care-map fields and curator-authored map content,
+  while suppressing provider logos, banners, galleries, descriptions, websites,
+  social links, calls to action and internal source links. The underlying hard
+  and soft resources, saved snapshots and authenticated owner/staff views are not
+  changed. This policy is independent of whether the wider directory is open or
+  restricted, so reopening discovery cannot implicitly approve provider content.
+- Known-good reference and blast radius: branch
+  `codex/permission-first-publishing-20260914` in
+  `/Users/sweetbuns/CareAroundSG-worktrees/permission-first-publishing-20260914`,
+  based on `origin/main` at `cf443759`. The change adds the forward-only
+  `0010_permission_first_publishing` migration and one shared publication-policy
+  utility, then applies it only at the anonymous Shared Map and embed HTTP
+  response boundary. Resource CRUD, imports, My Map owner data, governed-map
+  snapshots, discovery, authentication, map layout and production data are not
+  rewritten.
+- Reproduce: create a fictional shared map containing provider artwork, gallery
+  media, descriptive copy, website/social links, a contact number, address and a
+  curator short descriptor. With no permission row, require only the protected
+  provider content to be absent. Add a publishing-approved permission for the
+  same resource and exact fields, attach it to an active linked organisation and
+  active unexpired agreement allowing public listing and external sharing, and
+  permit `sharedMaps` but not `embeds`. Require only those fields to return on the
+  shared link and remain suppressed in the embed. Unlink the resource and require
+  all protected fields to be suppressed immediately.
+- Acceptance and verification: focused policy, migration and existing Shared Map
+  tests passed `20/20`; the guarded production-batch rehearsal passed and the
+  complete server suite passed `768/768`. Migration
+  validation passed 11 ordered migrations and the module graph passed 505 source
+  modules / 1,514 relative imports without cycles. The migration preserves
+  existing resources, creates zero permission rows, and enforces resource type,
+  claim status, approved-field, public-use, revision, approval-provenance and
+  withdrawal-reason constraints. The complete client suite passed `808/808`
+  plus `4/4` production-environment checks, the locked map suite passed
+  `104/104`, and the validated production client build completed across 2,497
+  transformed modules. Final diff and Graft caller review passed; the anonymous
+  Shared Map and embed responses are `no-store`, so a revoked permission is
+  re-evaluated on the next request.
+- Release boundary: migration `0010` must use the reviewed
+  `generate_permission_first_release.mjs` batch against the exact production
+  target, after backup and live schema checks, and before the matching Worker is
+  deployed. The batch preserves the public-access setting and records exactly
+  one release-ledger row. No permission decision, source-data edit or
+  public-access change is part of this release. The claim/review management UI
+  and API remain a later pilot slice; until then, no resource can gain approval
+  through a user-facing workflow.
+
 ## 2026-09-14 Limited release with organisation onboarding disabled
 
 - Boundary: Worker `GOVERNED_PILOT_ENABLED` and production client

@@ -343,24 +343,31 @@ test('getSharedMapDirectory returns a public grouped directory payload', async (
     assert.equal(directory.assets[0].notes, undefined);
 });
 
-test('restricted public sharing removes stored corporate artwork and provider links without changing care details', () => {
+test('unverified public sharing removes provider content without changing factual or curator-authored details', () => {
     const directory = createSnapshotDirectory({
         assets: [{
             resourceType: 'hard',
             resourceId: 29,
             logoUrl: 'https://provider.example/logo.png',
+            galleryUrls: ['https://provider.example/gallery.png'],
             website: 'https://provider.example',
+            description: 'Provider-supplied description.',
         }],
         places: [{
             name: 'Fei Yue Active Ageing Centre',
             address: '153 Jalan Teck Whye Singapore 680153',
             rows: [{
+                resourceType: 'hard',
+                resourceId: 29,
                 name: 'Fei Yue Active Ageing Centre',
                 contactPhone: '61234567',
                 logoUrl: 'https://provider.example/logo.png',
                 bannerUrl: 'https://provider.example/banner.png',
+                galleryUrls: ['https://provider.example/gallery.png'],
                 website: 'https://provider.example',
                 socialLinks: { facebook: 'https://facebook.com/provider' },
+                descriptor: 'Provider-supplied description.',
+                mapShortDescriptor: 'Call before visiting.',
                 detailPath: '/resource/hard/29',
             }],
         }],
@@ -370,12 +377,43 @@ test('restricted public sharing removes stored corporate artwork and provider li
 
     assert.equal(sanitized.places[0].rows[0].logoUrl, null);
     assert.equal(sanitized.places[0].rows[0].bannerUrl, null);
+    assert.deepEqual(sanitized.places[0].rows[0].galleryUrls, []);
     assert.equal(sanitized.places[0].rows[0].website, null);
     assert.deepEqual(sanitized.places[0].rows[0].socialLinks, {});
-    assert.equal(sanitized.places[0].rows[0].detailPath, null);
+    assert.equal(sanitized.places[0].rows[0].descriptor, null);
+    assert.equal(sanitized.places[0].rows[0].mapShortDescriptor, 'Call before visiting.');
+    assert.equal(sanitized.places[0].rows[0].detailPath, '/resource/hard/29');
     assert.equal(sanitized.places[0].rows[0].contactPhone, '61234567');
     assert.equal(sanitized.places[0].address, '153 Jalan Teck Whye Singapore 680153');
+    assert.equal(sanitized.description, 'Helpful services around Teck Whye.');
     assert.equal(directory.places[0].rows[0].logoUrl, 'https://provider.example/logo.png');
+});
+
+test('public sharing restores only fields explicitly approved for that resource', () => {
+    const directory = createSnapshotDirectory({
+        places: [{
+            placeKey: 'hard-29',
+            name: 'Fei Yue Active Ageing Centre',
+            address: '153 Jalan Teck Whye Singapore 680153',
+            rows: [{
+                resourceType: 'hard',
+                resourceId: 29,
+                name: 'Fei Yue Active Ageing Centre',
+                logoUrl: 'https://provider.example/logo.png',
+                bannerUrl: 'https://provider.example/banner.png',
+                website: 'https://provider.example',
+                descriptor: 'Provider-supplied description.',
+            }],
+        }],
+    });
+    const approvals = new Map([['hard:29', new Set(['logoUrl', 'website'])]]);
+
+    const sanitized = sanitizeRestrictedPublicDirectory(directory, approvals);
+
+    assert.equal(sanitized.places[0].rows[0].logoUrl, 'https://provider.example/logo.png');
+    assert.equal(sanitized.places[0].rows[0].website, 'https://provider.example');
+    assert.equal(sanitized.places[0].rows[0].bannerUrl, null);
+    assert.equal(sanitized.places[0].rows[0].descriptor, null);
 });
 
 test('getSharedMapDirectory includes only handoff notes when sharing opts in', async () => {
@@ -613,6 +651,15 @@ test('embedded map config and directory require live opt-in settings', async () 
     assert.equal(ordinarySharedDirectory.places[0].rows[0].website, undefined);
     assert.equal(ordinarySharedDirectory.places[0].rows[0].contactPhone, undefined);
     assert.equal(ordinarySharedDirectory.places[0].rows[0].socialLinks, undefined);
+
+    const permissionAwareSharedDirectory = await getSharedMapDirectory(db, 'shared-token', GUEST_USER, {
+        includeEmbeddedResourceContacts: true,
+    });
+    assert.equal(permissionAwareSharedDirectory.places[0].rows[0].website, 'https://care.example.org/');
+    assert.equal(permissionAwareSharedDirectory.places[0].rows[0].contactPhone, '+65 6000 1234');
+    assert.deepEqual(permissionAwareSharedDirectory.places[0].rows[0].socialLinks, {
+        facebook: 'https://facebook.com/care-example',
+    });
 });
 
 test('embedded resource allowlist filters only the map-only embed snapshot', async () => {
