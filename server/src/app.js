@@ -33,6 +33,7 @@ import releaseRoutes from './routes/release.js';
 import platformAccessRoutes from './routes/platformAccess.js';
 import governedMapsRoutes from './routes/governedMaps.js';
 import organizationOnboardingRoutes from './routes/organizationOnboarding.js';
+import resourceClaimsRoutes from './routes/resourceClaims.js';
 import { createNotificationRoutes } from './routes/notifications.js';
 import { createSavedSearchRoutes } from './routes/savedSearches.js';
 import {
@@ -119,6 +120,7 @@ app.route('/api/release', releaseRoutes);
 app.route('/api/platform-access', platformAccessRoutes);
 app.route('/api/governed-maps', governedMapsRoutes);
 app.route('/api/organization-onboarding', organizationOnboardingRoutes);
+app.route('/api/resource-claims', resourceClaimsRoutes);
 app.route('/api/notifications', createNotificationRoutes());
 app.route('/api/saved-searches', createSavedSearchRoutes());
 

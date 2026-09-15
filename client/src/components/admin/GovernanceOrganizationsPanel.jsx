@@ -243,6 +243,7 @@ export default function GovernanceOrganizationsPanel({
     workspaceMode = 'admin',
     readOnly = false,
     showCreateControls = true,
+    resourceClaimsEnabled = true,
 } = {}) {
     const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const [organizations, setOrganizations] = useState([]);
@@ -294,9 +295,10 @@ export default function GovernanceOrganizationsPanel({
         && isGovernanceControlVisible({ readOnly, control: 'deleteEmptyDraft' });
     const canAddAccess = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'addAccess' });
     const canRevokeAccess = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'revokeAccess' });
-    const canLinkResource = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'linkResource' });
+    const canUseDirectResourceGovernanceControls = !isOrganizationWorkspace;
+    const canLinkResource = canManageOrganization && canUseDirectResourceGovernanceControls && isGovernanceControlVisible({ readOnly, control: 'linkResource' });
     const canUnlinkResource = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'unlinkResource' });
-    const canSaveAgreement = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'saveAgreement' });
+    const canSaveAgreement = canManageOrganization && canUseDirectResourceGovernanceControls && isGovernanceControlVisible({ readOnly, control: 'saveAgreement' });
     const canRevokeAgreement = canManageOrganization && isGovernanceControlVisible({ readOnly, control: 'revokeAgreement' });
 
     const selectedOrganization = useMemo(() => (
@@ -831,6 +833,13 @@ export default function GovernanceOrganizationsPanel({
                             {!organizationOpenForNewRecords ? (
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
                                     This organisation is {selectedOrganizationStatus}. You can still review history and remove old links/access, but new access, agreement records, and linked resources are closed until it is set back to Active or Draft.
+                                </div>
+                            ) : null}
+                            {isOrganizationWorkspace ? (
+                                <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+                                    {resourceClaimsEnabled
+                                        ? 'Use Resource Claims to request ownership and publication permission. Existing links and agreements remain visible here, and you can still withdraw or remove them.'
+                                        : 'New resource claims and publication agreements open at Gate 2. Existing links and agreements remain visible, and you can still withdraw or remove them.'}
                                 </div>
                             ) : null}
 

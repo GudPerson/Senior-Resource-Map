@@ -64,6 +64,7 @@ const SERIAL_SEQUENCES = Object.freeze({
     governedMaps: 'governed_maps_id_seq',
     organizationAgreements: 'organization_agreements_id_seq',
     partnerOrganizations: 'partner_organizations_id_seq',
+    resourcePublicationPermissions: 'resource_publication_permissions_id_seq',
     users: 'users_id_seq',
 });
 

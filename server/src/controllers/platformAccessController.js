@@ -2,7 +2,14 @@ import { z } from 'zod';
 
 import { getDb } from '../db/index.js';
 import { validateRequestBody } from '../utils/inputValidation.js';
-import { isGovernedPilotEnabled } from '../utils/governedPilotRelease.js';
+import {
+    getGovernedPilotReleaseStage,
+    isGovernedMapLifecycleEnabled,
+    isGovernedMapsEnabled,
+    isGovernedPilotEnabled,
+    isOrganizationOnboardingEnabled,
+    isResourceClaimsEnabled,
+} from '../utils/governedPilotRelease.js';
 import {
     PUBLIC_DIRECTORY_MODES,
     PUBLIC_LOGIN_MODES,
@@ -29,6 +36,11 @@ function publicSettings(settings, env) {
         updatedAt: settings.updatedAt || null,
         available: settings.schemaAvailable,
         governedPilotEnabled: isGovernedPilotEnabled(env),
+        governedPilotStage: getGovernedPilotReleaseStage(env),
+        organizationOnboardingEnabled: isOrganizationOnboardingEnabled(env),
+        resourceClaimsEnabled: isResourceClaimsEnabled(env),
+        governedMapsEnabled: isGovernedMapsEnabled(env),
+        governedMapLifecycleEnabled: isGovernedMapLifecycleEnabled(env),
     };
 }
 

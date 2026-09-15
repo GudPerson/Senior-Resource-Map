@@ -9,6 +9,7 @@ const VALIDATOR = path.join(REPO_ROOT, 'scripts', 'validate-cloudflare-client-en
 const BASE_ENV = Object.freeze({
   VITE_API_URL: 'https://api.carearound.sg/api',
   VITE_SUPPORT_INBOX_ENABLED: 'true',
+  VITE_GOVERNED_PILOT_RELEASE_STAGE: 'off',
   VITE_TOWN_MAP_PROOF_ENABLED: 'true',
   VITE_TOWN_MAP_ASSET_BASE_URL: 'https://maps.carearound.sg/v2/native-scale-20260722/default',
   VITE_TOWN_MAP_GRAY_ASSET_BASE_URL: 'https://maps.carearound.sg/v2/native-scale-20260722/gray',
@@ -48,6 +49,25 @@ test('production client validation requires the exact CareAround Help and inbox 
     });
     assert.equal(result.status, 1);
     assert.match(result.stderr, /VITE_SUPPORT_INBOX_ENABLED=true/);
+  }
+});
+
+test('production client validation requires an explicit governed pilot release stage', () => {
+  for (const value of ['', 'true', 'ONBOARDING ', 'future']) {
+    const result = runValidator({
+      ...DERIVATIVE_ENV,
+      VITE_GOVERNED_PILOT_RELEASE_STAGE: value,
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /VITE_GOVERNED_PILOT_RELEASE_STAGE/);
+  }
+
+  for (const value of ['off', 'onboarding', 'claims', 'maps', 'lifecycle']) {
+    const result = runValidator({
+      ...DERIVATIVE_ENV,
+      VITE_GOVERNED_PILOT_RELEASE_STAGE: value,
+    });
+    assert.equal(result.status, 0, `${value}: ${result.stderr}`);
   }
 });
 

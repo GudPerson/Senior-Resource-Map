@@ -6,7 +6,10 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { api } from '../lib/api.js';
 import { getOrganizationAccess, hasPartnerStaffAccess, normalizeRole } from '../lib/roles.js';
 import { LoadingState } from './LoadingState.jsx';
-import { GOVERNED_PILOT_UI_ENABLED } from '../lib/governedPilotRelease.js';
+import {
+    GOVERNED_MAPS_UI_ENABLED,
+    ORGANIZATION_ONBOARDING_UI_ENABLED,
+} from '../lib/governedPilotRelease.js';
 
 function userCanUseDirectory(user, settings) {
     const role = normalizeRole(user?.role);
@@ -21,7 +24,8 @@ function userCanUseDirectory(user, settings) {
 }
 
 export function PublicAccessNotice({ purpose = 'directory', settings }) {
-    const onboardingEnabled = GOVERNED_PILOT_UI_ENABLED && settings?.governedPilotEnabled === true;
+    const onboardingEnabled = ORGANIZATION_ONBOARDING_UI_ENABLED && settings?.organizationOnboardingEnabled === true;
+    const governedMapsEnabled = GOVERNED_MAPS_UI_ENABLED && settings?.governedMapsEnabled === true;
     return (
         <main className="min-h-[calc(100vh-80px)] px-4 py-14" style={{ background: 'var(--page-gradient)' }}>
             <div className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-7 shadow-xl sm:p-9">
@@ -31,7 +35,9 @@ export function PublicAccessNotice({ purpose = 'directory', settings }) {
                     ? 'Public discovery, registration and sign-in are restricted. Existing My Maps shared with you remain accessible through their direct links and website embeds. Organisation onboarding is not open yet.'
                     : purpose === 'sign-in'
                     ? 'General public registration and sign-in are closed during this pilot. Approved organisation users can continue through the organisation pathway.'
-                    : 'The full resource directory is available only to approved organisation users. Public Care Maps shared by service providers remain accessible through their direct links and website embeds.'}</p>
+                    : governedMapsEnabled
+                    ? 'The full resource directory is available only to approved organisation users. Published personal My Maps and approved Governed Care Maps remain accessible through their direct links and website embeds.'
+                    : 'The full resource directory is available only to approved organisation users. Existing personal My Maps shared by service providers remain accessible through their direct links and website embeds.'}</p>
                 <div className="mt-7 grid gap-3 sm:grid-cols-2">
                     <Link to="/partner-login" className="btn-primary justify-center"><Building2 size={17} /> {onboardingEnabled ? 'Organisation sign-in' : 'Administrator sign-in'}</Link>
                     {onboardingEnabled && <Link to="/organization/join" className="btn-secondary justify-center"><MapPinned size={17} /> Request staff access</Link>}

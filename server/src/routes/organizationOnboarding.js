@@ -11,10 +11,10 @@ import {
     postOnboardingRequest,
 } from '../controllers/organizationOnboardingController.js';
 import { authenticateToken, authorize } from '../middleware/auth.js';
-import { requireGovernedPilot } from '../utils/governedPilotRelease.js';
+import { requireOrganizationOnboarding } from '../utils/governedPilotRelease.js';
 
 const router = new Hono();
-router.use('*', requireGovernedPilot);
+router.use('*', requireOrganizationOnboarding);
 
 router.post('/requests', postOnboardingRequest);
 router.post('/join', postJoinRequest);

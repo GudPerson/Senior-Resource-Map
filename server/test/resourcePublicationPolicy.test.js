@@ -119,6 +119,11 @@ test('database approval is resource, field and public-use specific', async () =>
         assert.equal(embedded.places[0].rows[0].logoUrl, null);
         assert.equal(embedded.places[0].rows[0].website, null);
 
+        await pg.exec("UPDATE organization_agreements SET effective_at = CURRENT_TIMESTAMP + interval '1 hour'");
+        assert.equal((await loadApprovedResourcePublicationFields(db, directory, 'sharedMaps')).size, 0);
+        await pg.exec("UPDATE organization_agreements SET effective_at = NULL, expires_at = CURRENT_TIMESTAMP - interval '1 hour'");
+        assert.equal((await loadApprovedResourcePublicationFields(db, directory, 'sharedMaps')).size, 0);
+        await pg.exec("UPDATE organization_agreements SET expires_at = '2099-01-01T00:00:00Z'");
         await pg.exec("UPDATE organization_resource_links SET link_status = 'unlinked', unlinked_at = now()");
         const withdrawnLinkApprovals = await loadApprovedResourcePublicationFields(db, directory, 'sharedMaps');
         assert.equal(withdrawnLinkApprovals.size, 0);

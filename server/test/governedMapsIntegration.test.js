@@ -8,6 +8,7 @@ import {
     createGovernedMap,
     getGovernedMap,
     getPublishedGovernedMap,
+    loadRegionCandidateResources,
     publishGovernedMap,
     requestGovernedMapRetirement,
     restoreGovernedMap,
@@ -36,45 +37,56 @@ test('Governed Care Map lifecycle follows current resources and preserves person
         VALUES ('governed-super', 'super@carearound.test', 'not-a-password', 'Super Admin', 'super_admin')
         RETURNING id
     `);
+    const legacyStaffId = await insertReturningId(pg, `
+        INSERT INTO users (username, email, password_hash, name, role)
+        VALUES ('governed-legacy', 'legacy@orga.example', 'not-a-password', 'Legacy Staff', 'standard')
+        RETURNING id
+    `);
     const orgAId = await insertReturningId(pg, `INSERT INTO partner_organizations (name, governance_status) VALUES ('Fictional Org A', 'active') RETURNING id`);
     const orgBId = await insertReturningId(pg, `INSERT INTO partner_organizations (name, governance_status) VALUES ('Fictional Org B', 'active') RETURNING id`);
     const resourceAId = await insertReturningId(pg, `
-        INSERT INTO hard_assets (name, sub_category, lat, lng, address, country, postal_code, phone, website, logo_url)
-        VALUES ('Fictional Centre A', 'Active Ageing Centres', 1.3800000, 103.7500000, '1 Fictional Road', 'SG', '680001', '61230001', 'https://old-source.example/a', 'https://old-source.example/a.png')
+        INSERT INTO hard_assets (name, sub_category, lat, lng, address, country, postal_code, phone, description, website, logo_url)
+        VALUES ('Fictional Centre A', 'Active Ageing Centres', 1.3800000, 103.7500000, '1 Fictional Road', 'SG', '680001', '61230001', 'Owner supplied A', 'https://orga.example/a', 'https://orga.example/a.png')
         RETURNING id
     `);
     const resourceBId = await insertReturningId(pg, `
-        INSERT INTO hard_assets (name, sub_category, lat, lng, address, country, postal_code, phone, website, logo_url)
-        VALUES ('Fictional Centre B', 'Active Ageing Centres', 1.3900000, 103.7600000, '2 Fictional Road', 'SG', '680002', '61230002', 'https://old-source.example/b', 'https://old-source.example/b.png')
+        INSERT INTO hard_assets (name, sub_category, lat, lng, address, country, postal_code, phone, description, website, logo_url)
+        VALUES ('Fictional Centre B', 'Active Ageing Centres', 1.3900000, 103.7600000, '2 Fictional Road', 'SG', '680002', '61230002', 'Owner supplied B', 'https://orgb.example/b', 'https://orgb.example/b.png')
         RETURNING id
     `);
     const groupId = await insertReturningId(pg, `INSERT INTO governance_groups (group_type, name) VALUES ('region', 'Fictional ICCP Sub-region') RETURNING id`);
     const agreementAId = await insertReturningId(pg, `
-        INSERT INTO organization_agreements (organization_id, agreement_reference, agreement_type, status, effective_at, allowed_uses)
-        VALUES (${orgAId}, 'AGR-A', 'content_and_digital_assets', 'active', now(), '{"publicListing":true,"externalSharing":true,"notifications":true}'::jsonb)
+        INSERT INTO organization_agreements (organization_id, agreement_reference, agreement_type, status, effective_at, approved_at, allowed_uses)
+        VALUES (${orgAId}, 'AGR-A', 'content_and_digital_assets', 'active', now() - interval '1 minute', now(), '{"publicListing":true,"externalSharing":true,"notifications":true}'::jsonb)
         RETURNING id
     `);
     const agreementBId = await insertReturningId(pg, `
-        INSERT INTO organization_agreements (organization_id, agreement_reference, agreement_type, status, effective_at, allowed_uses)
-        VALUES (${orgBId}, 'AGR-B', 'content_and_digital_assets', 'active', now(), '{"publicListing":true,"externalSharing":true,"notifications":true}'::jsonb)
+        INSERT INTO organization_agreements (organization_id, agreement_reference, agreement_type, status, effective_at, approved_at, allowed_uses)
+        VALUES (${orgBId}, 'AGR-B', 'content_and_digital_assets', 'active', now() - interval '1 minute', now(), '{"publicListing":true,"externalSharing":true,"notifications":true}'::jsonb)
         RETURNING id
     `);
     await pg.exec(`
         INSERT INTO organization_access_memberships (organization_id, user_id, access_role) VALUES
             (${orgAId}, ${johnId}, 'admin'),
             (${orgBId}, ${aliceId}, 'admin');
+        INSERT INTO partner_staff_memberships (organization_id, user_id, staff_role)
+            VALUES (${orgAId}, ${legacyStaffId}, 'editor');
         INSERT INTO organization_resource_links (organization_id, resource_type, resource_id, link_status, agreement_coverage_status) VALUES
             (${orgAId}, 'hard', ${resourceAId}, 'active', 'covered'),
             (${orgBId}, 'hard', ${resourceBId}, 'active', 'covered');
         INSERT INTO governance_group_organizations (group_id, organization_id) VALUES
             (${groupId}, ${orgAId}),
             (${groupId}, ${orgBId});
-        INSERT INTO governance_group_resource_links (group_id, resource_type, resource_id) VALUES
-            (${groupId}, 'hard', ${resourceAId}),
-            (${groupId}, 'hard', ${resourceBId});
-        INSERT INTO organization_asset_packs (organization_id, agreement_id, logo_url, banner_url, source, status, license_granted_at) VALUES
-            (${orgAId}, ${agreementAId}, 'https://orga.example/approved-logo.png', 'https://orga.example/approved-banner.png', 'organization_supplied', 'active', now()),
-            (${orgBId}, ${agreementBId}, 'https://orgb.example/approved-logo.png', 'https://orgb.example/approved-banner.png', 'organization_supplied', 'active', now());
+        INSERT INTO resource_publication_permissions
+            (organization_id, agreement_id, resource_type, resource_id, status, approved_fields, allowed_uses,
+             terms_version, requested_by_user_id, reviewed_by_user_id, approved_at)
+        VALUES
+            (${orgAId}, ${agreementAId}, 'hard', ${resourceAId}, 'publishing_approved',
+             '["logoUrl","description","website"]'::jsonb, '{"sharedMaps":true,"embeds":true}'::jsonb,
+             'pilot-v1', ${johnId}, ${superId}, now()),
+            (${orgBId}, ${agreementBId}, 'hard', ${resourceBId}, 'publishing_approved',
+             '["logoUrl","description","website"]'::jsonb, '{"sharedMaps":true,"embeds":true}'::jsonb,
+             'pilot-v1', ${aliceId}, ${superId}, now());
         INSERT INTO my_maps (user_id, name) VALUES (${johnId}, 'Existing personal care map');
     `);
 
@@ -82,6 +94,12 @@ test('Governed Care Map lifecycle follows current resources and preserves person
     const alice = { id: aliceId, role: 'standard', organizationAccess: [{ organizationId: orgBId, accessRole: 'admin' }] };
     const superAdmin = { id: superId, role: 'super_admin' };
     const db = getDb(env);
+    const regionCandidates = await loadRegionCandidateResources(db, groupId);
+    assert.deepEqual(
+        regionCandidates.candidates.map((resource) => resource.resourceId).sort((a, b) => a - b),
+        [resourceAId, resourceBId],
+        'Every provider-approved resource in the region should be available without a manual map-resource link.',
+    );
 
     let map = await createGovernedMap(db, john, {
         regionGroupId: groupId,
@@ -101,14 +119,37 @@ test('Governed Care Map lifecycle follows current resources and preserves person
     assert.equal(publication.snapshot.viewer.canSaveCopy, false);
     assert.equal(publication.snapshot.places[0].rows[0].detailPath, null);
     const publicationText = JSON.stringify(publication.snapshot);
-    assert.doesNotMatch(publicationText, /old-source\.example/);
-    assert.match(publicationText, /approved-logo\.png/);
+    assert.match(publicationText, /orga\.example\/a\.png/);
+    assert.match(publicationText, /orgb\.example\/b\.png/);
+
+    await pg.exec(`UPDATE resource_publication_permissions
+        SET allowed_uses='{"sharedMaps":true,"embeds":false}'::jsonb
+        WHERE resource_type='hard' AND resource_id=${resourceBId}`);
+    const sharedAfterEmbedWithdrawal = await getPublishedGovernedMap(db, map.publication.shareToken, 'sharedMaps');
+    const embedAfterEmbedWithdrawal = await getPublishedGovernedMap(db, map.publication.shareToken, 'embeds');
+    assert.match(JSON.stringify(sharedAfterEmbedWithdrawal.snapshot), /orgb\.example\/b\.png/);
+    assert.doesNotMatch(JSON.stringify(embedAfterEmbedWithdrawal.snapshot), /orgb\.example/);
+    await assert.rejects(
+        () => publishGovernedMap(db, alice, map.id, { allowedOrigins: ['https://partner.example.org'] }),
+        (error) => error.status === 409 && error.code === 'governed_map_permission_required',
+    );
+    await pg.exec(`UPDATE resource_publication_permissions
+        SET allowed_uses='{"sharedMaps":true,"embeds":true}'::jsonb
+        WHERE resource_type='hard' AND resource_id=${resourceBId}`);
 
     map = await requestGovernedMapRetirement(db, alice, map.id, { reason: 'Partner review is required before continued publication.' });
     assert.equal(map.lifecycleStatus, 'retirement_pending');
     await assert.rejects(() => getPublishedGovernedMap(db, map.publication.shareToken), (error) => error.status === 404);
     map = await restoreGovernedMap(db, john, map.id, { reason: 'All participating partners approved restoring the pilot.' });
     assert.equal(map.lifecycleStatus, 'published');
+
+    await pg.exec(`UPDATE resource_publication_permissions
+        SET status='permission_withdrawn', withdrawn_at=now(), withdrawal_reason='Owner withdrew public content permission.'
+        WHERE resource_type='hard' AND resource_id=${resourceBId}`);
+    const shareAfterPermissionWithdrawal = await getPublishedGovernedMap(db, map.publication.shareToken, 'sharedMaps');
+    const withdrawnText = JSON.stringify(shareAfterPermissionWithdrawal.snapshot);
+    assert.doesNotMatch(withdrawnText, /orgb\.example/);
+    assert.match(withdrawnText, /Fictional Centre B/);
 
     await assert.rejects(
         () => withdrawGovernedMapResource(db, alice, map.id, {
@@ -137,6 +178,7 @@ test('Governed Care Map lifecycle follows current resources and preserves person
     assert.equal((await pg.query(`SELECT count(*)::int AS count FROM my_maps WHERE name = 'Existing personal care map'`)).rows[0].count, 1);
     assert.equal((await pg.query(`SELECT count(*)::int AS count FROM governed_map_events WHERE map_id = ${map.id}`)).rows[0].count, 9);
     assert.ok((await pg.query(`SELECT count(*)::int AS count FROM governed_map_notifications WHERE map_id = ${map.id}`)).rows[0].count > 0);
+    assert.equal((await pg.query(`SELECT count(*)::int AS count FROM governed_map_notifications WHERE map_id = ${map.id} AND user_id = ${legacyStaffId}`)).rows[0].count, 0);
     assert.equal((await pg.query(`SELECT count(*)::int AS count FROM sensitive_audit_logs WHERE entity_type = 'governed_map' AND entity_id = ${map.id}`)).rows[0].count, 9);
     assert.ok(statements.some((statement) => statement.includes('pg_advisory_xact_lock')));
 });

@@ -35,6 +35,7 @@ import {
     updateRetentionRecord,
 } from '../controllers/governanceController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { requireDirectResourceGovernanceAccess } from '../utils/governedPilotRelease.js';
 
 const router = new Hono();
 
@@ -46,13 +47,13 @@ router.get('/organizations/:id', getGovernanceOrganization);
 router.put('/organizations/:id', updateGovernanceOrganization);
 router.delete('/organizations/:id', deleteGovernanceOrganization);
 router.get('/organizations/:id/access-candidates', getOrganizationAccessCandidates);
-router.get('/organizations/:id/resource-candidates', getOrganizationResourceCandidates);
+router.get('/organizations/:id/resource-candidates', requireDirectResourceGovernanceAccess, getOrganizationResourceCandidates);
 router.post('/organizations/:id/access', addOrganizationAccess);
 router.delete('/organizations/:id/access/:membershipId', revokeOrganizationAccess);
-router.post('/organizations/:id/agreements', createOrganizationAgreement);
-router.put('/organizations/:id/agreements/:agreementId', updateOrganizationAgreement);
+router.post('/organizations/:id/agreements', requireDirectResourceGovernanceAccess, createOrganizationAgreement);
+router.put('/organizations/:id/agreements/:agreementId', requireDirectResourceGovernanceAccess, updateOrganizationAgreement);
 router.delete('/organizations/:id/agreements/:agreementId', revokeOrganizationAgreement);
-router.post('/organizations/:id/resources', linkOrganizationResource);
+router.post('/organizations/:id/resources', requireDirectResourceGovernanceAccess, linkOrganizationResource);
 router.delete('/organizations/:id/resources/:linkId', unlinkOrganizationResource);
 
 router.get('/groups', listGovernanceGroups);

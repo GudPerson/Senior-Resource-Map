@@ -11,7 +11,6 @@ import {
 
 import {
     governanceGroupOrganizations,
-    governanceGroupResourceLinks,
     governanceGroups,
     governedMapEvents,
     governedMapNotifications,
@@ -20,15 +19,12 @@ import {
     governedMaps,
     hardAssetStaffMemberships,
     organizationAccessMemberships,
-    organizationAgreements,
-    organizationAssetPacks,
-    partnerStaffMemberships,
+    resourcePublicationPermissions,
     softAssetStaffMemberships,
     users,
 } from '../db/schema.js';
 import { buildAuditLogInsert } from './auditTrail.js';
 import { executeAtomicBatch, reserveSerialId } from './atomicWrites.js';
-import { buildAgreementCoverageSummary } from './governance.js';
 import {
     canStewardGovernedResource,
     deriveGovernedMapCapabilities,
@@ -39,6 +35,10 @@ import {
     buildMyMapDirectory,
 } from './myMapDirectory.js';
 import { normalizeMapEmbedOrigins } from './mapEmbed.js';
+import {
+    applyResourcePublicationPolicy,
+    loadApprovedResourcePublicationFields,
+} from './resourcePublicationPolicy.js';
 import { createShareToken } from './shareTokens.js';
 
 const RETIREMENT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
@@ -218,23 +218,44 @@ async function requireGovernedMapAccess(db, user, mapId, capability) {
 
 export async function loadRegionCandidateResources(db, groupId) {
     const group = await requireRegionGroup(db, groupId);
-    const [links, organizationIds] = await Promise.all([
-        db.select().from(governanceGroupResourceLinks)
-            .where(and(
-                eq(governanceGroupResourceLinks.groupId, group.id),
-                isNull(governanceGroupResourceLinks.unlinkedAt),
-            )),
-        loadRegionOrganizationIds(db, group.id),
+    const organizationIds = await loadRegionOrganizationIds(db, group.id);
+    const permissionRows = organizationIds.length
+        ? await db.select({
+            organizationId: resourcePublicationPermissions.organizationId,
+            resourceType: resourcePublicationPermissions.resourceType,
+            resourceId: resourcePublicationPermissions.resourceId,
+        }).from(resourcePublicationPermissions).where(and(
+            inArray(resourcePublicationPermissions.organizationId, organizationIds),
+            eq(resourcePublicationPermissions.status, 'publishing_approved'),
+            isNull(resourcePublicationPermissions.withdrawnAt),
+        ))
+        : [];
+    const permittedOrganizationsByResource = new Map();
+    for (const row of permissionRows) {
+        const key = resourceKey(row.resourceType, row.resourceId);
+        const ids = permittedOrganizationsByResource.get(key) || new Set();
+        ids.add(Number(row.organizationId));
+        permittedOrganizationsByResource.set(key, ids);
+    }
+    const enriched = await enrichResourceContexts(db, [...permittedOrganizationsByResource.keys()].map((key) => {
+        const [resourceType, resourceId] = key.split(':');
+        return { resourceType, resourceId: Number(resourceId) };
+    }));
+    const [sharedApprovals, embedApprovals] = await Promise.all([
+        loadApprovedResourcePublicationFields(db, enriched, 'sharedMaps'),
+        loadApprovedResourcePublicationFields(db, enriched, 'embeds'),
     ]);
-    const enriched = await enrichResourceContexts(db, links.map((link) => ({
-        resourceType: link.resourceType,
-        resourceId: link.resourceId,
-    })));
     const regionOrganizationSet = new Set(organizationIds);
     const candidates = [];
     for (const resource of enriched) {
+        const key = resourceKey(resource.resourceType, resource.resourceId);
+        if (!sharedApprovals.has(key) && !embedApprovals.has(key)) continue;
+        const permittedOrganizationIds = permittedOrganizationsByResource.get(key) || new Set();
         const organizationContexts = resource.organizationContexts
-            .filter((entry) => regionOrganizationSet.has(Number(entry.organizationId)));
+            .filter((entry) => (
+                regionOrganizationSet.has(Number(entry.organizationId))
+                && permittedOrganizationIds.has(Number(entry.organizationId))
+            ));
         if (organizationContexts.length === 0) continue;
         const snapshot = await buildLiveMyMapAssetSnapshotFromDb(db, resource.resourceType, resource.resourceId);
         if (!snapshot) continue;
@@ -307,7 +328,7 @@ async function participantUserIds(db, resources) {
     const hardIds = resources.filter((item) => item.resourceType === 'hard').map((item) => item.resourceId);
     const softIds = resources.filter((item) => item.resourceType === 'soft').map((item) => item.resourceId);
     const organizationIds = [...new Set(resources.flatMap((item) => item.organizationIds || []).map(Number).filter(Boolean))];
-    const [hardRows, softRows, organizationRows, legacyRows] = await Promise.all([
+    const [hardRows, softRows, organizationRows] = await Promise.all([
         hardIds.length ? db.select({ userId: hardAssetStaffMemberships.userId }).from(hardAssetStaffMemberships)
             .where(and(inArray(hardAssetStaffMemberships.hardAssetId, hardIds), isNull(hardAssetStaffMemberships.revokedAt))) : [],
         softIds.length ? db.select({ userId: softAssetStaffMemberships.userId }).from(softAssetStaffMemberships)
@@ -318,13 +339,8 @@ async function participantUserIds(db, resources) {
                 eq(organizationAccessMemberships.accessRole, 'admin'),
                 isNull(organizationAccessMemberships.revokedAt),
             )) : [],
-        organizationIds.length ? db.select({ userId: partnerStaffMemberships.userId }).from(partnerStaffMemberships)
-            .where(and(
-                inArray(partnerStaffMemberships.organizationId, organizationIds),
-                isNull(partnerStaffMemberships.revokedAt),
-            )) : [],
     ]);
-    return [...new Set([...hardRows, ...softRows, ...organizationRows, ...legacyRows]
+    return [...new Set([...hardRows, ...softRows, ...organizationRows]
         .map((row) => Number(row.userId)).filter(Boolean))];
 }
 
@@ -509,37 +525,7 @@ function sanitizePublishedDirectory(value) {
     }));
 }
 
-function applyApprovedResourceBranding(value, approvedLogos) {
-    if (Array.isArray(value)) return value.map((item) => applyApprovedResourceBranding(item, approvedLogos));
-    if (!value || typeof value !== 'object') return value;
-    const branded = Object.fromEntries(Object.entries(value).map(([key, item]) => {
-        if (key === 'logoUrl' || key === 'bannerUrl') return [key, null];
-        if (['externalUrl', 'groundingSourceUrl', 'sourceUrl', 'website', 'websiteUrl'].includes(key)) {
-            return [key, null];
-        }
-        if (key === 'socialLinks') return [key, {}];
-        return [key, applyApprovedResourceBranding(item, approvedLogos)];
-    }));
-    const key = resourceKey(branded.resourceType, branded.resourceId);
-    if (approvedLogos.has(key)) branded.logoUrl = approvedLogos.get(key);
-    return branded;
-}
-
-function extractApprovedResourceBranding(snapshot) {
-    const logos = new Map();
-    const collect = (item) => {
-        if (Array.isArray(item)) return item.forEach(collect);
-        if (!item || typeof item !== 'object') return;
-        if (item.resourceType && item.resourceId && item.logoUrl) {
-            logos.set(resourceKey(item.resourceType, item.resourceId), item.logoUrl);
-        }
-        Object.values(item).forEach(collect);
-    };
-    collect(snapshot);
-    return logos;
-}
-
-async function buildPublicationSnapshot(db, map, shareToken, approvedLogos = new Map()) {
+async function buildPublicationSnapshot(db, map, shareToken) {
     const { directory } = await buildMyMapDirectory(db, {
         map: {
             id: map.id,
@@ -560,10 +546,7 @@ async function buildPublicationSnapshot(db, map, shareToken, approvedLogos = new
         },
         mode: 'shared',
     });
-    const sanitized = applyApprovedResourceBranding(
-        sanitizePublishedDirectory(directory),
-        approvedLogos,
-    );
+    const sanitized = sanitizePublishedDirectory(directory);
     return {
         ...sanitized,
         governedMap: true,
@@ -585,59 +568,25 @@ async function buildPublicationSnapshot(db, map, shareToken, approvedLogos = new
     };
 }
 
-async function assertPublicationCoverage(db, map) {
-    const organizationIds = [...new Set(map.resources.flatMap((item) => item.organizationIds || []).map(Number).filter(Boolean))];
-    const [agreements, assetPacks] = await Promise.all([
-        organizationIds.length
-            ? db.select().from(organizationAgreements).where(inArray(organizationAgreements.organizationId, organizationIds))
-            : [],
-        organizationIds.length
-            ? db.select().from(organizationAssetPacks).where(and(
-                inArray(organizationAssetPacks.organizationId, organizationIds),
-                eq(organizationAssetPacks.status, 'active'),
-                isNull(organizationAssetPacks.revokedAt),
-            ))
-            : [],
-    ]);
-    const byOrganization = new Map();
-    agreements.forEach((agreement) => {
-        if (!byOrganization.has(agreement.organizationId)) byOrganization.set(agreement.organizationId, []);
-        byOrganization.get(agreement.organizationId).push(agreement);
-    });
-    const regionOrganizations = new Set(map.regionOrganizationIds);
+async function assertPublicationCoverage(db, map, publicUses = ['sharedMaps']) {
     const blocked = [];
-    const approvedLogos = new Map();
-    for (const resource of map.resources) {
-        let approvedPack = null;
-        const covered = resource.organizationContexts.some((context) => {
-            if (!regionOrganizations.has(Number(context.organizationId))) return false;
-            if (context.governanceStatus !== 'active' || context.linkStatus !== 'active') return false;
-            const records = byOrganization.get(context.organizationId) || [];
-            const pack = assetPacks.find((item) => Number(item.organizationId) === Number(context.organizationId));
-            if (!pack) return false;
-            const packAgreements = records.filter((record) => Number(record.id) === Number(pack.agreementId));
-            const permitted = buildAgreementCoverageSummary(packAgreements, 'publicListing').status === 'covered'
-                && buildAgreementCoverageSummary(packAgreements, 'externalSharing').status === 'covered';
-            if (permitted) approvedPack = pack;
-            return permitted;
-        });
-        if (!covered) {
-            blocked.push(resource.snapshot?.name || resourceKey(resource.resourceType, resource.resourceId));
-        } else if (approvedPack?.logoUrl) {
-            approvedLogos.set(resourceKey(resource.resourceType, resource.resourceId), approvedPack.logoUrl);
+    for (const publicUse of publicUses) {
+        const approvals = await loadApprovedResourcePublicationFields(db, map.resources, publicUse);
+        for (const resource of map.resources) {
+            if (!approvals.has(resourceKey(resource.resourceType, resource.resourceId))) {
+                blocked.push(`${resource.snapshot?.name || resourceKey(resource.resourceType, resource.resourceId)} (${publicUse})`);
+            }
         }
     }
     if (blocked.length) {
-        throw httpError(409, `Publication is blocked until an active owner-supplied asset pack and public-listing and external-sharing agreement coverage exist for: ${blocked.join(', ')}.`, 'governed_map_agreement_required');
+        throw httpError(409, `Publication is blocked until current resource permissions cover: ${blocked.join(', ')}.`, 'governed_map_permission_required');
     }
-    return approvedLogos;
 }
 
-async function buildActivePublicationRefreshQuery(db, map, actor, allowedOrigins = null, approvedLogos = null) {
+async function buildActivePublicationRefreshQuery(db, map, actor, allowedOrigins = null) {
     const publication = map.publication;
     if (!publication) return { query: null, revision: null };
-    const branding = approvedLogos || extractApprovedResourceBranding(publication.snapshot);
-    const snapshot = await buildPublicationSnapshot(db, map, publication.shareToken, branding);
+    const snapshot = await buildPublicationSnapshot(db, map, publication.shareToken);
     const normalizedOrigins = allowedOrigins === null
         ? publication.allowedOrigins
         : normalizeMapEmbedOrigins(allowedOrigins);
@@ -658,17 +607,20 @@ async function buildActivePublicationRefreshQuery(db, map, actor, allowedOrigins
 
 export async function publishGovernedMap(db, user, mapId, input = {}) {
     const { map } = await requireGovernedMapAccess(db, user, mapId, 'canPublish');
-    const approvedLogos = await assertPublicationCoverage(db, map);
     const allowedOrigins = normalizeMapEmbedOrigins(input.allowedOrigins || []);
+    await assertPublicationCoverage(db, map, [
+        'sharedMaps',
+        ...(allowedOrigins.length ? ['embeds'] : []),
+    ]);
     let publicationQuery;
     let publicationRevision;
     if (map.publication) {
-        const refresh = await buildActivePublicationRefreshQuery(db, map, user, allowedOrigins, approvedLogos);
+        const refresh = await buildActivePublicationRefreshQuery(db, map, user, allowedOrigins);
         publicationQuery = refresh.query;
         publicationRevision = refresh.revision;
     } else {
         const shareToken = createShareToken();
-        const snapshot = await buildPublicationSnapshot(db, map, shareToken, approvedLogos);
+        const snapshot = await buildPublicationSnapshot(db, map, shareToken);
         publicationRevision = 1;
         publicationQuery = db.insert(governedMapPublications).values({
             mapId: map.id,
@@ -775,7 +727,10 @@ export async function restoreGovernedMap(db, user, mapId, value) {
     if (!map.resources.length || !map.publication) {
         throw httpError(409, 'A map needs an active resource and an existing publication before restoration.');
     }
-    const approvedLogos = await assertPublicationCoverage(db, map);
+    await assertPublicationCoverage(db, map, [
+        'sharedMaps',
+        ...((map.publication.allowedOrigins || []).length ? ['embeds'] : []),
+    ]);
     const mapPatch = {
         lifecycleStatus: 'published',
         retirementRequestedByUserId: null,
@@ -787,7 +742,7 @@ export async function restoreGovernedMap(db, user, mapId, value) {
         updatedAt: new Date(),
     };
     const eventMap = { ...map, ...mapPatch };
-    const publicationRefresh = await buildActivePublicationRefreshQuery(db, eventMap, user, null, approvedLogos);
+    const publicationRefresh = await buildActivePublicationRefreshQuery(db, eventMap, user);
     const eventQueries = await buildGovernedMapEventQueries(db, user, eventMap, 'restored', { reason });
     await executeAtomicBatch(db, [
         buildMapMutationGuard(db, map),
@@ -800,7 +755,7 @@ export async function restoreGovernedMap(db, user, mapId, value) {
     return publicMapSummary(nextMap, capabilitiesFor(user, nextMap));
 }
 
-export async function getPublishedGovernedMap(db, token) {
+export async function getPublishedGovernedMap(db, token, publicUse = 'sharedMaps') {
     const cleanToken = cleanText(token, 128);
     if (!cleanToken) throw httpError(404, 'Published map was not found.');
     const [row] = await db.select({ publication: governedMapPublications, map: governedMaps })
@@ -813,7 +768,12 @@ export async function getPublishedGovernedMap(db, token) {
         ))
         .limit(1);
     if (!row) throw httpError(404, 'Published map was not found.');
-    return { snapshot: row.publication.snapshot, publication: row.publication, map: row.map };
+    let snapshot = row.publication.snapshot;
+    if (publicUse) {
+        const approvals = await loadApprovedResourcePublicationFields(db, snapshot, publicUse);
+        snapshot = applyResourcePublicationPolicy(snapshot, approvals);
+    }
+    return { snapshot, publication: row.publication, map: row.map };
 }
 
 export async function listGovernedMapNotifications(db, user) {

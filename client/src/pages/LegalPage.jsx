@@ -1,9 +1,9 @@
 import { Link, Navigate } from 'react-router-dom';
 import { ArrowLeft, FileText, ShieldCheck } from 'lucide-react';
 import BrandLockup from '../components/layout/BrandLockup.jsx';
-import { GOVERNED_PILOT_UI_ENABLED } from '../lib/governedPilotRelease.js';
+import { ORGANIZATION_ONBOARDING_UI_ENABLED } from '../lib/governedPilotRelease.js';
 
-const UPDATED_DATE = GOVERNED_PILOT_UI_ENABLED ? '13 September 2026' : '3 May 2026';
+const UPDATED_DATE = ORGANIZATION_ONBOARDING_UI_ENABLED ? '13 September 2026' : '3 May 2026';
 
 const PRIVACY_SECTIONS = [
     {
@@ -146,7 +146,7 @@ const TERMS_SECTIONS = [
             'Shared map links may allow others to view a prepared directory. Share links only with appropriate recipients and review the content before sharing.',
         ],
     },
-    ...(GOVERNED_PILOT_UI_ENABLED ? [{
+    ...(ORGANIZATION_ONBOARDING_UI_ENABLED ? [{
         title: '8. Organisation content and digital assets',
         body: [
             'An organisation that submits a logo, banner, listing, programme description, or other content confirms that it owns the material or has authority to provide it and to grant the permissions described here.',
@@ -155,21 +155,21 @@ const TERMS_SECTIONS = [
         ],
     }] : []),
     {
-        title: GOVERNED_PILOT_UI_ENABLED ? '9. Intellectual property' : '8. Intellectual property',
+        title: ORGANIZATION_ONBOARDING_UI_ENABLED ? '9. Intellectual property' : '8. Intellectual property',
         body: [
             'CareAround SG, its design, software, branding, and original content are owned by or licensed to the relevant CareAround SG operator, except for third-party content and provider-submitted materials.',
             'You may use CareAround SG for its intended personal, caregiving, staff, or administrative purposes. You may not copy, resell, redistribute, or exploit the service beyond those purposes without permission.',
         ],
     },
     {
-        title: GOVERNED_PILOT_UI_ENABLED ? '10. Service availability and beta status' : '9. Service availability and beta status',
+        title: ORGANIZATION_ONBOARDING_UI_ENABLED ? '10. Service availability and beta status' : '9. Service availability and beta status',
         body: [
             'CareAround SG is currently in beta and may change, contain errors, experience downtime, or have features added, changed, restricted, or removed.',
             'CareAround SG may suspend access, remove content, correct listings, restrict features, or take other reasonable action to protect users, partners, the public, or the service.',
         ],
     },
     {
-        title: GOVERNED_PILOT_UI_ENABLED ? '11. Disclaimers and limitation of liability' : '10. Disclaimers and limitation of liability',
+        title: ORGANIZATION_ONBOARDING_UI_ENABLED ? '11. Disclaimers and limitation of liability' : '10. Disclaimers and limitation of liability',
         body: [
             'CareAround SG is provided on an as-is and as-available basis to the extent permitted by law.',
             'To the extent permitted by Singapore law, CareAround SG and its operators are not liable for indirect, incidental, special, consequential, or punitive loss, or for loss arising from reliance on unverified resource information, third-party services, provider-submitted content, downtime, or user misuse.',
@@ -177,13 +177,13 @@ const TERMS_SECTIONS = [
         ],
     },
     {
-        title: GOVERNED_PILOT_UI_ENABLED ? '12. Governing law' : '11. Governing law',
+        title: ORGANIZATION_ONBOARDING_UI_ENABLED ? '12. Governing law' : '11. Governing law',
         body: [
             'These Terms of Use are governed by the laws of Singapore. Any dispute should be handled according to Singapore law and the competent courts or dispute-resolution forum in Singapore, unless otherwise required by law.',
         ],
     },
     {
-        title: GOVERNED_PILOT_UI_ENABLED ? '13. Contact' : '12. Contact',
+        title: ORGANIZATION_ONBOARDING_UI_ENABLED ? '13. Contact' : '12. Contact',
         body: [
             'General and legal contact: to be confirmed by CareAround SG.',
             'This placeholder should be replaced before wider public rollout.',

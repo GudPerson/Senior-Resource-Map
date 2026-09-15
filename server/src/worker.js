@@ -3,10 +3,10 @@ import { runResourceNotificationBatch } from './utils/notificationProcessor.js';
 import { runSavedSearchBatch } from './utils/savedSearchProcessor.js';
 import { getDb } from './db/index.js';
 import { archiveDueGovernedMaps } from './utils/governedMaps.js';
-import { isGovernedPilotEnabled } from './utils/governedPilotRelease.js';
+import { isGovernedMapLifecycleEnabled } from './utils/governedPilotRelease.js';
 
 export async function runGovernedMapArchiveSweep(env) {
-    if (!isGovernedPilotEnabled(env)) return { enabled: false, scanned: 0, archived: 0, failed: 0 };
+    if (!isGovernedMapLifecycleEnabled(env)) return { enabled: false, scanned: 0, archived: 0, failed: 0 };
     const databaseUrl = env?.DATABASE_URL || globalThis.process?.env?.DATABASE_URL;
     if (!databaseUrl) return { enabled: false, scanned: 0, archived: 0, failed: 0 };
     return { enabled: true, ...await archiveDueGovernedMaps(getDb(env)) };

@@ -8,9 +8,12 @@ import { createNeonPostgresFixture } from './neonPostgresFixture.mjs';
 
 export const pilotPassword = 'Fictional-Pilot-2026!';
 
-export async function createGovernedPilotFixture(t) {
+export async function createGovernedPilotFixture(t, {
+    releaseStage = 'lifecycle',
+    defaultIp = '192.0.2.10',
+} = {}) {
     const { pg, env } = await createNeonPostgresFixture(t);
-    Object.assign(env, { NODE_ENV: 'development', JWT_SECRET: randomUUID(), GOVERNED_PILOT_ENABLED: 'true' });
+    Object.assign(env, { NODE_ENV: 'development', JWT_SECRET: randomUUID(), GOVERNED_PILOT_RELEASE_STAGE: releaseStage });
     const cache = new Map();
     env.MAP_CACHE = {
         async get(key, type) { const value = cache.get(key) ?? null; return type === 'json' && value ? JSON.parse(value) : value; },
@@ -25,7 +28,7 @@ export async function createGovernedPilotFixture(t) {
         await pg.query(`INSERT INTO users (username,email,password_hash,name,role,postal_code)
             VALUES ($1,$2,$3,$4,$5,'680001')`, [username, `${username}@carearound.test`, hash, `Fictional ${username}`, role]);
     }
-    async function request(path, { method = 'GET', body, cookie = '', expected = 200, ip = '192.0.2.10' } = {}) {
+    async function request(path, { method = 'GET', body, cookie = '', expected = 200, ip = defaultIp } = {}) {
         const headers = { host: 'localhost:5183', origin: 'http://localhost:5183', 'cf-connecting-ip': ip };
         if (body !== undefined) headers['content-type'] = 'application/json';
         if (cookie) headers.cookie = cookie;
@@ -71,13 +74,34 @@ export async function createGovernedPilotFixture(t) {
         // administration. Onboarding and sign-in above use actual HTTP routes.
         await pg.query(`UPDATE users SET postal_code='680001' WHERE id=$1`, [userId]);
         const resourceId = await id(`INSERT INTO hard_assets (name,sub_category,lat,lng,address,country,description,website,logo_url,banner_url)
-            VALUES ($1,'Active Ageing Centres',$2,$3,$4,'SG','Fictional resource for pilot rehearsal',
-                'https://unapproved.example/source','https://unapproved.example/logo.png','https://unapproved.example/banner.png') RETURNING id`,
-        [`Fictional Resource ${key.toUpperCase()}`, 1.38 + index * 0.01, 103.75 + index * 0.01, `${index + 1} Fictional Road`]);
+            VALUES ($1,'Active Ageing Centres',$2,$3,$4,'SG','Fictional resource for pilot rehearsal',$5,$6,$7) RETURNING id`,
+        [
+            `Fictional Resource ${key.toUpperCase()}`,
+            1.38 + index * 0.01,
+            103.75 + index * 0.01,
+            `${index + 1} Fictional Road`,
+            `https://${domain}/resource`,
+            `https://${domain}/approved-logo.png`,
+            `https://${domain}/approved-banner.png`,
+        ]);
         await pg.query(`INSERT INTO organization_resource_links (organization_id,resource_type,resource_id,link_status,agreement_coverage_status)
             VALUES ($1,'hard',$2,'active','covered')`, [orgId, resourceId]);
         await pg.query(`INSERT INTO governance_group_organizations (group_id,organization_id) VALUES ($1,$2)`, [groupId, orgId]);
-        await pg.query(`INSERT INTO governance_group_resource_links (group_id,resource_type,resource_id) VALUES ($1,'hard',$2)`, [groupId, resourceId]);
+        const agreementId = (await pg.query(`SELECT id FROM organization_agreements
+            WHERE organization_id=$1 AND status='active' AND revoked_at IS NULL
+            ORDER BY id DESC LIMIT 1`, [orgId])).rows[0].id;
+        await pg.query(`INSERT INTO resource_publication_permissions
+            (organization_id,agreement_id,resource_type,resource_id,status,approved_fields,allowed_uses,
+             terms_version,requested_by_user_id,reviewed_by_user_id,approved_at)
+            VALUES ($1,$2,'hard',$3,'publishing_approved',$4::jsonb,$5::jsonb,'pilot-v1',$6,$7,now())`, [
+            orgId,
+            agreementId,
+            resourceId,
+            JSON.stringify(['logoUrl', 'bannerUrl', 'description', 'website']),
+            JSON.stringify({ sharedMaps: true, embeds: true }),
+            userId,
+            admin.data.user.id,
+        ]);
         partners.push({ orgId, userId, resourceId, email: `admin@${domain}`, ...(await login(`admin@${domain}`)) });
     }
     return { app, pg, env, execution, request, login, admin, recovery, publicUser, groupId, partners };

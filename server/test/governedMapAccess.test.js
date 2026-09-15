@@ -13,10 +13,17 @@ test('governed map stewardship follows current resource and organization access'
     const directStaff = { role: 'standard', hardAssetStaffAccess: [{ hardAssetId: 10, staffRole: 'staff' }] };
     const orgAdmin = { role: 'standard', organizationAccess: [{ organizationId: 2, accessRole: 'admin' }] };
     const orgStaff = { role: 'standard', organizationAccess: [{ organizationId: 2, accessRole: 'staff' }] };
+    const legacyOrganizationStaff = { role: 'standard', partnerStaffAccess: [{ organizationId: 2, staffRole: 'staff' }] };
 
     assert.equal(canStewardGovernedResource(directStaff, resourceA), true);
     assert.equal(canStewardGovernedResource(orgAdmin, resourceB), true);
     assert.equal(canStewardGovernedResource(orgStaff, resourceB), false);
+    assert.equal(canStewardGovernedResource(legacyOrganizationStaff, resourceB), false);
+    assert.equal(deriveGovernedMapCapabilities({
+        user: legacyOrganizationStaff,
+        regionOrganizationIds: [2],
+        resources: [resourceB],
+    }).canView, false);
 });
 
 test('creator identity is irrelevant to governed map capabilities', () => {

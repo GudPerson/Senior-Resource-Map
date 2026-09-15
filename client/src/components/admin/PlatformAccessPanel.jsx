@@ -3,7 +3,12 @@ import { Building2, Globe2, LockKeyhole, RefreshCw, ShieldCheck, UserCheck } fro
 
 import { api } from '../../lib/api.js';
 import { useConfirmDialog } from '../ConfirmDialog.jsx';
-import { GOVERNED_PILOT_UI_ENABLED } from '../../lib/governedPilotRelease.js';
+import ResourceClaimsPanel from '../ResourceClaimsPanel.jsx';
+import {
+    GOVERNED_MAPS_UI_ENABLED,
+    ORGANIZATION_ONBOARDING_UI_ENABLED,
+    RESOURCE_CLAIMS_UI_ENABLED,
+} from '../../lib/governedPilotRelease.js';
 import { hasRestrictedPublicAccess, publicAccessStatusLabel, restrictedAccessSettings } from '../../lib/platformAccessBoundary.js';
 
 function Feedback({ value }) {
@@ -35,7 +40,7 @@ export default function PlatformAccessPanel() {
         try {
             const access = await api.getPlatformAccessSettings();
             setSettings(access.settings);
-            const [onboarding, joins] = GOVERNED_PILOT_UI_ENABLED && access.settings.governedPilotEnabled
+            const [onboarding, joins] = ORGANIZATION_ONBOARDING_UI_ENABLED && access.settings.organizationOnboardingEnabled
                 ? await Promise.all([api.getOrganizationOnboardingRequests(), api.getOrganizationJoinRequests()])
                 : [{ requests: [] }, { requests: [] }];
             setOnboardingRequests(onboarding.requests || []);
@@ -50,14 +55,18 @@ export default function PlatformAccessPanel() {
     useEffect(() => { load(); }, [load]);
 
     const pilotEnabled = useMemo(() => hasRestrictedPublicAccess(settings), [settings]);
-    const onboardingEnabled = GOVERNED_PILOT_UI_ENABLED && settings?.governedPilotEnabled === true;
+    const onboardingEnabled = ORGANIZATION_ONBOARDING_UI_ENABLED && settings?.organizationOnboardingEnabled === true;
+    const resourceClaimsEnabled = RESOURCE_CLAIMS_UI_ENABLED && settings?.resourceClaimsEnabled === true;
+    const governedMapsEnabled = GOVERNED_MAPS_UI_ENABLED && settings?.governedMapsEnabled === true;
 
     async function setPilotMode(enable) {
         const confirmed = await requestConfirmation({
             title: enable ? (onboardingEnabled ? 'Activate closed organisation pilot?' : 'Restrict public access?') : 'Reopen public access?',
             message: enable
                 ? (onboardingEnabled
-                    ? 'Guest discovery, general registration and general sign-in will close. Published personal and Governed Care Map share links and embeds remain available.'
+                    ? (governedMapsEnabled
+                        ? 'Guest discovery, general registration and general sign-in will close. Published personal and Governed Care Map share links and embeds remain available.'
+                        : 'Guest discovery, general registration and general sign-in will close. Published personal My Map share links and embeds remain available. Governed Care Maps remain unavailable until their release stage.')
                     : 'Directory access, new registration and sign-in will be restricted to Super Admin recovery. Existing personal My Map share links and embeds remain available.')
                 : 'Public discovery, registration and general sign-in will become available again.',
             details: enable
@@ -207,6 +216,7 @@ export default function PlatformAccessPanel() {
                 </div>
             </section>
             </>}
+            {resourceClaimsEnabled ? <ResourceClaimsPanel /> : null}
             {confirmDialog}
         </div>
     );

@@ -1,6 +1,7 @@
 # Governed Care Maps limited production release
 
-Status: validated candidate; deployment evidence to be appended after rollout.
+Status: historical limited-release evidence; activation instructions superseded
+by `docs/closed-iccp-pilot-goal.md`.
 
 ## Scope and evidence
 
@@ -26,18 +27,20 @@ See `docs/evidence/governed-pilot-operator-checks-20260914.json` and
 
 ## Release boundary
 
-`GOVERNED_PILOT_ENABLED` must equal the string `true` before new onboarding or
-governed-map routes execute. The same guard blocks public governed reads,
-publication, restoration, approval, the alternate join path in ordinary
-registration, and scheduled archival. Requests receive `503` and `no-store`
-while disabled. No browser flag or access-setting value bypasses this guard.
+`GOVERNED_PILOT_RELEASE_STAGE` now controls the Worker in the reviewed order
+`off`, `onboarding`, `claims`, `maps`, then `lifecycle`. The matching client
+variable is `VITE_GOVERNED_PILOT_RELEASE_STAGE`. Both production defaults are
+explicitly `off`; absent, legacy, unknown or misspelled values also resolve to
+`off`. Advancing to `onboarding` does not enable governed-map routes, public
+governed reads, publication, restoration or scheduled archival. Disabled
+requests receive `503` and `no-store`, and no browser stage or access-setting
+value bypasses the Worker stage.
 
-The production build explicitly pins `VITE_GOVERNED_PILOT_ENABLED=false`.
-It hides new application forms, governed map navigation and the draft
-organisation content grant, retaining the prior Terms/date. Both release flags
-remain off pending organisation verification and agreement/privacy/operator
-readiness. This is not a declaration of legal compliance; the earlier public
-legal baseline and existing personal-data obligations still apply.
+The stage-off production build hides new application forms, governed-map
+navigation and the draft organisation content grant, retaining the prior
+Terms/date. Both Worker and client remain off pending the separately reviewed
+gate activation. This is not a declaration of legal compliance; the earlier
+public legal baseline and existing personal-data obligations still apply.
 
 Admin → Pilot Access remains usable without onboarding. It can separately close
 public directory, registration and login, with a confirmation explaining Super
@@ -51,7 +54,7 @@ or assigned new ownership. Wider provider recruitment remains deferred.
 - Map lockdown: 104 passed. Static: 10 migrations, 504 modules, 1,513 edges,
   no cycles. The production client build passed with all required map roots.
 - Disabled-route tests require rejection before database access or request-body
-  parsing. An authenticated Super Admin also cannot bypass the release flag.
+  parsing. An authenticated Super Admin also cannot bypass the release stage.
 - Full HTTP rehearsal verifies no alternate registration writes, preserved
   personal sharing, removal of unapproved branding under restricted access,
   fresh Super Admin login after closure, ordinary-user denial, and reopening.
