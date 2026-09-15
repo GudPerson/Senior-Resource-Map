@@ -1,7 +1,7 @@
 # Governed Care Maps pilot runbook
 
-Status: limited deployment authorized; real-organisation activation deferred
-Last updated: 2026-09-14 (Asia/Singapore)
+Status: staged gate model active; real-organisation activation deferred
+Last updated: 2026-09-15 (Asia/Singapore)
 
 The [13 September staged rehearsal](governed-care-maps-pilot-rehearsal-20260913.md)
 records the local evidence, corrected defects, migration plan, and outstanding
@@ -56,11 +56,12 @@ Required before deployment:
 
 See [operator evidence](evidence/governed-pilot-operator-checks-20260914.json).
 
-`GOVERNED_PILOT_ENABLED=false` is explicit in Worker configuration. Absence or
-any value other than the string `true` also disables it. The production build
-pins `VITE_GOVERNED_PILOT_ENABLED=false`. Both require an intentional reviewed
-change before real onboarding. A database public-access toggle cannot enable
-these release flags.
+`GOVERNED_PILOT_RELEASE_STAGE=off` is explicit in Worker configuration. The
+production build pins `VITE_GOVERNED_PILOT_RELEASE_STAGE=off`. Absent, legacy,
+unknown or misspelled values resolve to `off`. Advance the matching Worker and
+client stages through `onboarding`, `claims`, `maps`, then `lifecycle`; each
+advance requires its own review. A database public-access toggle cannot enable
+any release stage.
 
 The limited Admin panel can separately set directory, registration and login to
 `closed` (Super Admin recovery remains available). This restricts the legacy
@@ -69,7 +70,7 @@ requires confirmation; installation alone does not change the access row.
 
 ## Organisation-pilot activation prerequisites
 
-Complete these before enabling the release flags and accepting real applicants:
+Complete these before advancing to `onboarding` and accepting real applicants:
 
 1. The release commit is reviewed from a clean branch and the release checklist
    passes against that exact commit.
@@ -116,7 +117,7 @@ behavior through the access settings and compatible code.
 - Deploy the exact validated client artifact and verify custom-domain byte and
   MIME parity under the standard release checklist.
 - Keep directory, registration, and login modes open while these checks run.
-- For the limited release, keep both release flags off. Require direct
+- For the limited release, keep the Worker and client release stages `off`. Require direct
   onboarding, governed share/embed, publication, and restore requests to reject
   without a write. Check that Admin access controls still load with onboarding
   disabled and that the new agreement section is absent from Terms.

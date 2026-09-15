@@ -1,0 +1,84 @@
+{
+  "evidenceType": "sanitized read-only production readiness capture",
+  "capturedAt": "2026-09-14T18:52:03.019Z",
+  "sourceCandidate": {
+    "branch": "codex/iccp-gate4-lifecycle-20260915",
+    "baseHead": "c2b08a2b433d44ebec24d74bdd5862565a3ae396",
+    "originMain": "c2b08a2b433d44ebec24d74bdd5862565a3ae396",
+    "baseMatchesOriginMain": true,
+    "committed": false,
+    "pushed": false,
+    "deployed": false
+  },
+  "liveBoundary": {
+    "apiHealthStatus": 200,
+    "publicDirectoryMode": "closed",
+    "publicRegistrationMode": "closed",
+    "publicLoginMode": "closed",
+    "platformAccessRevision": 5,
+    "governedPilotEnabled": false,
+    "cacheControl": "no-store",
+    "mobileBrowser": {
+      "viewport": "390x844",
+      "discoverRestricted": true,
+      "registrationRestricted": true,
+      "loginRestricted": true,
+      "personalSharedMapRendered": true,
+      "personalSharedMapResourceRendered": true,
+      "candidateTouchesPersonalSharedMapPage": false,
+      "existingHeaderOverflowPixels": 16
+    }
+  },
+  "productionSchema": {
+    "transactionReadOnly": true,
+    "database": "neondb",
+    "runtimeRole": "neondb_owner",
+    "branchId": "br-green-union-ailxs0g3",
+    "serverMajor": 17,
+    "expectedTables": [
+      "platform_access_settings",
+      "governed_map_events",
+      "governed_map_notifications",
+      "governed_map_publications",
+      "governed_map_resources",
+      "governed_maps",
+      "organization_asset_packs",
+      "organization_domains",
+      "organization_join_requests",
+      "organization_onboarding_requests"
+    ],
+    "missingTables": [],
+    "migrationHistory": [
+      {
+        "changeId": "0008_platform_access_settings",
+        "kind": "executed_migration",
+        "sha256": "8e7662a0b0791f7d9b8c7eb3acab415eb3924f45f70d434d10ca8992176021b1",
+        "sourceRevision": "4593f23f56a345335fd642a582739023ab5e0cd4"
+      },
+      {
+        "changeId": "0009_governed_care_maps",
+        "kind": "executed_migration",
+        "sha256": "36742b97b8c40f112067f4b0fd458cd866f6dc23125adc63ccf84d1d5c0c4688",
+        "sourceRevision": "4593f23f56a345335fd642a582739023ab5e0cd4"
+      }
+    ],
+    "platformAccessRows": 1,
+    "governedMapRows": 0,
+    "onboardingRequestRows": 0
+  },
+  "localCandidateValidation": {
+    "focusedTests": "27/27 passed",
+    "serverTests": "778/778 passed",
+    "clientTests": "810/810 passed",
+    "environmentTests": "5/5 passed",
+    "mapLockdownTests": "104/104 passed",
+    "productionBuildModules": 2498,
+    "lifecycleBrowserRehearsal": "passed with fictional data at desktop and 390x844"
+  },
+  "releaseDecision": {
+    "inactiveStageOffInstallation": "held pending clean reviewed commit, fresh release-time recovery point, exact-artifact release checks and credentialed smoke",
+    "closedPilotActivation": "held pending qualified legal and privacy review, accepted recovery-operator arrangement, named approved pilot organisations and their UAT",
+    "generalPublicReopening": "outside this goal"
+  },
+  "productionMutations": []
+}

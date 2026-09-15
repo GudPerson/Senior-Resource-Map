@@ -15,6 +15,205 @@ Rules:
   - acceptance criteria
   - verification result before deploy
 
+## 2026-09-15 Closed ICCP pilot production-readiness checkpoint
+
+- Surface: cumulative four-gate candidate, live containment boundary,
+  production schema, and existing personal Shared Map continuity.
+- Source boundary: the Gate 4 candidate and `origin/main` share base
+  `c2b08a2b433d44ebec24d74bdd5862565a3ae396`; the candidate remains local,
+  uncommitted, unpushed, undeployed and inactive.
+- Live evidence: health returned 200; platform access returned `no-store`, all
+  three public modes `closed`, revision 5 and `governedPilotEnabled: false`.
+  Discover, registration and login showed the restricted notice at 390 x 844.
+  The existing personal Shared Map rendered its title and a known resource.
+- Schema evidence: a serializable transaction forced to read-only confirmed the
+  expected Neon target, both reviewed migration hashes, all ten `0008`/`0009`
+  tables, one platform-access row, zero governed maps and zero onboarding
+  requests. No record contents were read.
+- Existing observation: the live personal Shared Map's unchanged mobile sticky
+  header extends document width from 390 to 406 pixels. The cumulative pilot
+  candidate does not modify `SharedMapPage.jsx`; treat a strict no-overflow fix
+  as a separate locked-surface change.
+- Release boundary: inactive installation still requires a clean reviewed
+  commit, a fresh release-time recovery point, exact-artifact release checks and
+  credentialed smoke. Real pilot activation additionally requires external
+  legal/operational evidence and named-organisation UAT. No production mutation,
+  commit, push or deployment occurred.
+- Evidence: `docs/closed-iccp-pilot-production-readiness-20260915.md` and
+  `docs/evidence/closed-iccp-pilot-production-readiness-20260915.json`.
+
+## 2026-09-15 Closed ICCP pilot Gate 2 ownership-race remediation
+
+- Surface: resource-claim resubmission, Super Admin Owner verification,
+  cross-organisation resource-link exclusivity and accurate claim audit events.
+- Known-good candidate: cumulative Gate 4 worktree
+  `codex/iccp-gate4-lifecycle-20260915`, after remediation of Codex Security
+  scan `707677af-fc0a-4c7b-8c75-db5122207a23`. The separately frozen Gate 2
+  worktree predates this fix and is not a release source.
+- Reproduce: Organisation A submits a claim and is rejected; Organisation B
+  then obtains a current claim or active link for the same resource; A tries to
+  resubmit. Separately synchronize two cross-organisation Super Admin Owner
+  verifications after their initial conflict reads. Finally resubmit a rejected
+  claim with a stale client revision.
+- Acceptance: the competing resubmission returns `409`, keeps A withdrawn and
+  writes no resubmission audit; simultaneous verification produces one `200`,
+  one `409`, one active link, one Owner, one verified claim and one audit; a
+  legitimate rejected or publication-withdrawn claim still resubmits when
+  uncontested, including with its retained same-organisation link; a stale
+  revision returns `409` and writes no false audit event. Publication approval
+  must also reject a future or expired agreement under an `Asia/Singapore`
+  database session without changing the claim or writing an approval audit.
+- Verification: independent pre-patch review and controlled PostgreSQL
+  reproducers confirmed both unsafe ownership states. Independent post-patch
+  review confirmed the ownership bypass closed and exposed the stale-audit
+  regression, which was then corrected. Final source review reproduced the
+  timezone-sensitive agreement approval and moved its effective/expiry check
+  into a locked PostgreSQL guard in the atomic batch. The final focused
+  resource-claim, policy and atomic-write suite passed 17/17; full server coverage passed
+  780/780; and `npm run check:diff` passed.
+- Residual risk: schema uniqueness remains organisation-scoped, so every
+  privileged resource-link writer must use the resource advisory-lock protocol.
+  The legacy Super Admin direct-link recovery route remains a separate
+  hardening item outside this patch and must not become the normal pilot path.
+
+## 2026-09-15 Closed ICCP pilot Gate 3 — collaborative Care Maps release candidate
+
+- Current behavior: the explicit `maps` stage lets participating Organisation
+  Admins create and maintain one common region-scoped Care Map from resources
+  with current Gate 2 publication permission. Map authority is recalculated
+  from current direct resource staff/owner and Organisation Admin access; the
+  creator receives no permanent right and legacy organisation-wide staff
+  receive neither map access nor notifications. Each resource steward can
+  remove only that resource.
+- Known-good reference and blast radius: branch
+  `codex/iccp-gate3-collaborative-maps-20260915` in the isolated cumulative
+  worktree
+  `/Users/sweetbuns/CareAroundSG-worktrees/iccp-gate3-collaborative-maps-20260915`,
+  based on `origin/main` at `c2b08a2b`. The change narrows governed-map
+  candidate selection, access, notification recipients and public publication
+  policy. It adds no schema and does not alter source resources, personal My
+  Maps, production data, secrets or public-access settings.
+- Reproduce: at `maps`, sign in as two fictional admins whose organisations and
+  provider-approved resources share a region. Create, populate and publish the
+  map as one partner; require both partners to see and revision-safely edit it,
+  while each can remove only its own resource. Withdraw one field/use permission
+  and require immediate response filtering and a blocked incompatible
+  republication. Restrict anonymous discovery, then require the direct share to
+  remain available and the embed CSP to name only the exact approved HTTPS
+  origin. A future or expired agreement must publish no protected provider
+  field.
+- Acceptance and verification: focused cumulative checks pass 29/29 and the
+  final governed-map/policy subset passes 17/17. `npm run verify:quality` passes
+  with 11 migrations, 509 modules / 1,538 edges, server 778/778, client 810/810
+  plus 5/5 environment checks and the 2,498-module exact stage-off build. Map
+  lockdown passes 104/104 plus its exact build. The isolated 2,498-module
+  `maps` artifact on `localhost:5188` passes cross-partner stewardship,
+  owner-scoped removal, non-Super-Admin platform-setting denial, restricted
+  discovery with anonymous share continuity, exact-origin CSP, zero unexpected
+  CareAround browser errors and 390 px no-overflow. See
+  `docs/closed-iccp-pilot-gate3-20260915.md`.
+- Release boundary: no commit, push, deployment, migration, production stage or
+  production-data change occurred. Gate 4 lifecycle and pilot activation remain
+  unavailable until their own candidate and release decision.
+
+## 2026-09-15 Closed ICCP pilot Gate 2 — resource claims release candidate
+
+- Current behavior: the explicit `claims` stage adds a reviewable workflow for
+  an Organisation Admin to claim an existing demonstration resource. A Super
+  Admin independently verifies the accountable resource Owner and separately
+  approves only the requested provider fields and the personal Shared Map or
+  embed uses covered by a current organisation agreement. An authorised
+  Organisation Admin or Super Admin can withdraw permission with a reason.
+  Withdrawal redacts protected provider content on the next anonymous request
+  while preserving the organisation link and resource ownership record.
+- Known-good reference and blast radius: the original branch
+  `codex/iccp-gate2-resource-claims-20260915` in the isolated worktree
+  `/Users/sweetbuns/CareAroundSG-worktrees/iccp-gate2-resource-claims-20260915`,
+  based on `origin/main` at `c2b08a2b`, is historical pre-remediation evidence.
+  The releasable implementation is the remediated cumulative Gate 4 candidate.
+  Gate 2 is cumulative with the frozen Gate 1 candidate. It adds the
+  resource-claim API and workspace/admin panel, claim
+  transition guards and field/use publication decisions. It does not change
+  resource source data, public-access settings, personal My Map ownership,
+  existing share tokens, production records, secrets or schema.
+- Reproduce: at `onboarding`, require all claim endpoints to return a no-store
+  `503`. At `claims`, submit a fictional resource claim as an Organisation
+  Admin, reject ordinary staff access, reject same-organisation and competing
+  organisation claims, reject the older direct link/agreement bypasses, verify
+  the Owner as Super Admin, approve a strict subset under a current agreement,
+  confirm only those fields appear in the approved public use, then withdraw
+  with a reason and require immediate redaction. Direct Governed Care Maps
+  navigation must remain unavailable at this stage.
+- Acceptance: claim creation and transitions must be atomic and revision-safe;
+  organisation scope and role checks must fail closed; approval cannot broaden
+  requested fields or uses; missing, pending, rejected, expired, withdrawn or
+  unlinked permission must publish no protected provider content; and focused,
+  full server/client, map-lockdown, production-build, diff and fictional browser
+  checks must pass.
+- Verification so far: focused resource-claim, policy and atomic-write checks
+  pass 17/17; full server passes 780/780; full client passes 810/810 plus 5/5 environment
+  checks; map lockdown passes 104/104; and both the checked-in stage-off build
+  and isolated claims-stage browser build pass across 2,498 modules. The formal
+  `npm run verify:quality` gate passes with exit code 0, including 11 ordered
+  migrations, 509 source modules, 1,538 relative imports, no cycles and a clean
+  diff check. The
+  compiled fictional browser rehearsal on `localhost:5187` passes organisation
+  submission, Super Admin Owner verification, field/use-limited publication
+  approval, reasoned withdrawal, direct governed-map closure and 390 px
+  no-overflow. Its only console errors are Google Identity Services rejecting
+  the unregistered localhost origin. See
+  `docs/closed-iccp-pilot-gate2-20260915.md`.
+- Release boundary: no commit, push, deployment, production activation or data
+  change has occurred. Installing this cumulative candidate with both client
+  and Worker stages at `off` opens nothing. Advancing both to `claims` is a
+  separate release decision and must preserve the independent restricted-public
+  access setting. Gate 3 remains unavailable.
+
+## 2026-09-15 Closed ICCP pilot Gate 1 — staged activation release candidate
+
+- Current behavior: one explicit release stage now controls the ordered pilot
+  capabilities: `off`, `onboarding`, `claims`, `maps`, then `lifecycle`. Unknown,
+  absent and legacy boolean values fail closed. The production configuration and
+  validated client build remain `off` in this candidate.
+- Known-good reference and blast radius: branch
+  `codex/iccp-gate1-organization-onboarding-20260915` in the isolated worktree
+  `/Users/sweetbuns/CareAroundSG-worktrees/iccp-gate1-organization-onboarding-20260915`,
+  based on `origin/main` at `c2b08a2b`. Server onboarding, registration,
+  governed-map routing, scheduled archival, the public platform-access summary,
+  client onboarding/map routes, legal copy visibility and lifecycle controls are
+  stage-aware. Public access settings, resource records, permission rows,
+  personal My Maps, personal share/embed payloads, schema and secrets are not
+  changed.
+- Reproduce: at `off`, require every onboarding and governed-map API to return a
+  no-store `503` before database, authentication or body parsing. At
+  `onboarding`, complete fictional organisation and first-admin approval while
+  map APIs and archival stay disabled. At `claims`, maps remain disabled. At
+  `maps`, map routes reach authentication while retirement, restore and archival
+  stay disabled. At `lifecycle`, all four stages are available.
+- Acceptance: stage-specific server and client checks, fictional Neon-compatible
+  onboarding, full server/client suites, module graph, map lockdown, exact
+  production client build and diff review must pass. Real organisation approval
+  also requires `docs/organisation-verification-procedure.md` and reviewed legal
+  wording.
+- Verification so far: focused server and fictional onboarding checks pass
+  `6/6`; focused client and production environment checks pass `7/7`; module
+  graph passes 505 modules / 1,515 relative imports; full server passes 771/771;
+  full client passes 810/810 plus 5/5 production-environment checks; map
+  lockdown passes 104/104; and the exact stage-off production client build
+  passes across 2,497 transformed modules. An isolated compiled-browser
+  rehearsal passes organisation application/approval, exact-domain staff
+  request, pre-approval login rejection, post-approval login, public access
+  closure with organisation paths retained, governed-map unavailability and
+  390 px no-overflow. The rehearsal also caught and corrected two messages that
+  previously implied governed maps were already available. Final Graft caller,
+  exhaustive legacy-flag and diff review passes with no executable bypass; the
+  only server legacy-flag reference is its fail-closed regression assertion.
+  See `docs/closed-iccp-pilot-gate1-20260915.md`.
+- Release boundary: merging this candidate with stage `off` installs the staged
+  controls without opening onboarding. Advancing production to `onboarding`
+  requires a separately reviewed Worker/client release and does not permit
+  claims, maps or lifecycle actions.
+
 ## 2026-09-15 Permission-first shared and embedded resource content — release candidate
 
 - Current behavior: anonymous personal Shared Map and embed responses treat a
@@ -10451,3 +10650,44 @@ Last reviewed: 2026-05-04.
 - KIV: `drizzle-orm` still reports a high-severity advisory. Current code scan did not find the advisory's riskiest dynamic identifier patterns, but the package remains officially vulnerable. Do not bundle this into routine feature work. Surface it explicitly with the product owner before starting, then handle it as a dedicated database-query migration with full server regression coverage, workbook/import checks, auth/session checks, discovery/resource checks, translation checks, partner-only checks, and My Maps checks.
 - `drizzle-kit` still reports moderate dev-tool advisories through `esbuild`/`@esbuild-kit`; the available npm audit fix is also a breaking major upgrade and should be handled with the Drizzle migration.
 - Production session signing now requires a real `JWT_SECRET`; local development keeps the fallback only outside production.
+## Closed ICCP pilot Gate 4 lifecycle candidate — 2026-09-15
+
+- **Surface:** Governed Care Map retirement, restoration, participant updates,
+  anonymous share/embed suspension, publication-token continuity, 30-day
+  archival and lifecycle release-stage guards.
+- **Known-good candidate:** isolated branch
+  `codex/iccp-gate4-lifecycle-20260915` from `origin/main` `c2b08a2b`, carrying
+  the separately frozen cumulative Gates 1–3 patch without additional
+  lifecycle code changes.
+- **Reproduction:** build the client with
+  `VITE_GOVERNED_PILOT_RELEASE_STAGE=lifecycle` and the loopback API, start the
+  explicit fictional browser fixture at `localhost:5183`, sign in as fictional
+  Partner A, retire the published governed map with a reason, verify its public
+  share and embed return 404, sign in as fictional Partner B, verify the actor
+  and reason notification, restore with a reason, then reopen the original
+  share and embed URLs. Separately move a pending map beyond its deadline and
+  run the archive sweep twice.
+- **Acceptance:** only a current included-resource steward can retire or
+  restore; both actions require reasons and notify current participants;
+  retirement immediately suspends anonymous share and embed responses;
+  restoration before the deadline rechecks current resource permissions,
+  rebuilds current content and preserves the token; late restoration fails;
+  archival atomically revokes publication and is idempotent; personal My Maps
+  survive; the scheduled sweep and UI controls require exact `lifecycle` stage;
+  absent or unknown stages remain `off`.
+- **Verification:** `npm run verify:quality` passed with 11 migrations, 509
+  modules / 1,538 relative import edges with no cycle, server 780/780, client
+  810/810, release-environment 5/5 and the production stage-off client build.
+  `npm run verify:map-lockdown` passed 104/104 plus its exact build. The focused
+  lifecycle/access/publication/embed suite passed 27/27. The exact lifecycle
+  build transformed 2,498 modules. The eight-phase server rehearsal passed.
+  Final compiled-browser evidence at 1440px and a real 390 by 844 viewport
+  passed with a 390-pixel scroll width, the same token after restore, exact
+  `https://partner.fixture.example` frame ancestry and zero browser errors.
+  Screenshots are under `output/playwright/governed-pilot-rehearsal/` with the
+  `gate4-` prefix.
+- **Release boundary:** local release candidate only. No commit, push,
+  migration, deploy, production setting/data, public-access or secret action
+  occurred. Client and Worker production defaults remain `off`. Production
+  release checks, named closed-pilot UAT and the operational/legal/recovery/
+  employment prerequisites remain open; general public reopening is excluded.

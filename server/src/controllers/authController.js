@@ -26,7 +26,7 @@ import {
     evaluateRegistration,
 } from '../utils/platformAccess.js';
 import { loadPlatformAccessSettings } from '../utils/platformAccessStore.js';
-import { governedPilotUnavailable, isGovernedPilotEnabled } from '../utils/governedPilotRelease.js';
+import { governedPilotUnavailable, isOrganizationOnboardingEnabled } from '../utils/governedPilotRelease.js';
 import {
     findVerifiedOrganizationForEmail,
     submitOrganizationJoinRequest,
@@ -277,7 +277,7 @@ export const register = async (c) => {
             return platformAccessDeniedResponse(c, registrationDecision);
         }
         if (registrationDecision.pendingApproval) {
-            if (!isGovernedPilotEnabled(c.env)) return governedPilotUnavailable(c);
+            if (!isOrganizationOnboardingEnabled(c.env)) return governedPilotUnavailable(c, 'onboarding');
             const request = await submitOrganizationJoinRequest(db, {
                 email,
                 password,

@@ -25,13 +25,6 @@ function hasOrganizationAdminAccess(user, organizationIds) {
     ));
 }
 
-function hasLegacyOrganizationStewardship(user, organizationIds) {
-    if (organizationIds.size === 0) return false;
-    return activeEntries(user?.partnerStaffAccess).some((entry) => (
-        organizationIds.has(toId(entry?.organizationId))
-    ));
-}
-
 function hasDirectResourceStaffAccess(user, resource) {
     const resourceId = toId(resource?.resourceId);
     if (!resourceId) return false;
@@ -50,15 +43,13 @@ export function canStewardGovernedResource(user, resource) {
     if (normalizeRole(user?.role) === 'super_admin') return true;
     if (hasDirectResourceStaffAccess(user, resource)) return true;
     const organizationIds = organizationIdsForResource(resource);
-    return hasOrganizationAdminAccess(user, organizationIds)
-        || hasLegacyOrganizationStewardship(user, organizationIds);
+    return hasOrganizationAdminAccess(user, organizationIds);
 }
 
 export function canParticipateInGovernedRegion(user, organizationIds = []) {
     if (normalizeRole(user?.role) === 'super_admin') return true;
     const regionOrganizationIds = new Set(organizationIds.map(toId).filter(Boolean));
-    return hasOrganizationAdminAccess(user, regionOrganizationIds)
-        || hasLegacyOrganizationStewardship(user, regionOrganizationIds);
+    return hasOrganizationAdminAccess(user, regionOrganizationIds);
 }
 
 export function deriveGovernedMapCapabilities({

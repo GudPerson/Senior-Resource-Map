@@ -151,7 +151,7 @@ export async function postRestore(c) {
 
 export async function getPublicMap(c) {
     try {
-        const result = await getPublishedGovernedMap(getDb(c.env), c.req.param('token'));
+        const result = await getPublishedGovernedMap(getDb(c.env), c.req.param('token'), 'sharedMaps');
         c.header('Cache-Control', 'no-store');
         c.header('X-Robots-Tag', 'noindex, nofollow');
         return c.json(result.snapshot);
@@ -162,7 +162,7 @@ export async function getPublicMap(c) {
 
 export async function getPublicEmbedMap(c) {
     try {
-        const result = await getPublishedGovernedMap(getDb(c.env), c.req.param('token'));
+        const result = await getPublishedGovernedMap(getDb(c.env), c.req.param('token'), 'embeds');
         c.header('Cache-Control', 'no-store');
         c.header('X-Robots-Tag', 'noindex, nofollow');
         return c.json(result.snapshot);
@@ -173,7 +173,7 @@ export async function getPublicEmbedMap(c) {
 
 export async function getEmbedConfig(c) {
     try {
-        const result = await getPublishedGovernedMap(getDb(c.env), c.req.param('token'));
+        const result = await getPublishedGovernedMap(getDb(c.env), c.req.param('token'), null);
         c.header('Cache-Control', 'no-store');
         return c.json({ allowedOrigins: result.publication.allowedOrigins || [] });
     } catch (error) {

@@ -26,6 +26,10 @@ const discoverDerivativeEnabled = String(
     process.env.VITE_DISCOVER_DETAILED_DERIVATIVE_ENABLED || '',
 ).trim() === 'true';
 const supportInboxEnabled = process.env.VITE_SUPPORT_INBOX_ENABLED === 'true';
+const governedPilotReleaseStage = String(
+    process.env.VITE_GOVERNED_PILOT_RELEASE_STAGE || '',
+);
+const governedPilotReleaseStages = Object.freeze(['off', 'onboarding', 'claims', 'maps', 'lifecycle']);
 
 function fail(message) {
     console.error(message);
@@ -68,6 +72,10 @@ if (!supportInboxEnabled) {
     fail(
         'Missing VITE_SUPPORT_INBOX_ENABLED=true. Omitting it compiles CareAround Help and the notification inbox out of the production bundle.'
     );
+}
+
+if (!governedPilotReleaseStages.includes(governedPilotReleaseStage)) {
+    fail('VITE_GOVERNED_PILOT_RELEASE_STAGE must explicitly be off, onboarding, claims, maps, or lifecycle.');
 }
 
 let parsed;

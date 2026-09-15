@@ -13,7 +13,10 @@ import { LoadingState } from './components/LoadingState.jsx';
 import MobileMyMapEntryScrollReset from './components/MobileMyMapEntryScrollReset.jsx';
 import PublicDirectoryGate from './components/PublicDirectoryGate.jsx';
 import GovernedPilotUnavailable from './components/GovernedPilotUnavailable.jsx';
-import { GOVERNED_PILOT_UI_ENABLED } from './lib/governedPilotRelease.js';
+import {
+    GOVERNED_MAPS_UI_ENABLED,
+    ORGANIZATION_ONBOARDING_UI_ENABLED,
+} from './lib/governedPilotRelease.js';
 import { SUPPORT_UI_ENABLED } from './lib/supportInbox.js';
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage.jsx'));
@@ -204,9 +207,9 @@ function AppShell() {
 
                         <Route path="/resource/:type/:id" element={<PublicDirectoryGate><ResourcePage /></PublicDirectoryGate>} />
                         <Route path="/shared/maps/:token" element={<SharedMapPage />} />
-                        <Route path="/governed/maps/:token" element={GOVERNED_PILOT_UI_ENABLED ? <SharedMapPage mapKind="governed" /> : <GovernedPilotUnavailable />} />
-                        <Route path="/organization/register" element={GOVERNED_PILOT_UI_ENABLED ? <OrganizationOnboardingPage mode="organization" /> : <GovernedPilotUnavailable />} />
-                        <Route path="/organization/join" element={GOVERNED_PILOT_UI_ENABLED ? <OrganizationOnboardingPage mode="join" /> : <GovernedPilotUnavailable />} />
+                        <Route path="/governed/maps/:token" element={GOVERNED_MAPS_UI_ENABLED ? <SharedMapPage mapKind="governed" /> : <GovernedPilotUnavailable capability="Governed Care Maps" />} />
+                        <Route path="/organization/register" element={ORGANIZATION_ONBOARDING_UI_ENABLED ? <OrganizationOnboardingPage mode="organization" /> : <GovernedPilotUnavailable capability="Organisation onboarding" />} />
+                        <Route path="/organization/join" element={ORGANIZATION_ONBOARDING_UI_ENABLED ? <OrganizationOnboardingPage mode="join" /> : <GovernedPilotUnavailable capability="Organisation onboarding" />} />
                         <Route path="/my-directory" element={<ProtectedRoute requireDirectoryAccess><MyDirectoryPage /></ProtectedRoute>} />
                         <Route path="/my-directory/town-maps" element={<ProtectedRoute requireDirectoryAccess><TownMapDownloadsPage /></ProtectedRoute>} />
                         <Route path="/my-directory/maps/:mapId" element={<ProtectedRoute requireDirectoryAccess><MyMapDetailPage /></ProtectedRoute>} />
@@ -216,7 +219,7 @@ function AppShell() {
                             <Route index element={<DashboardOverview />} />
                             <Route path="calendar" element={<CareCalendarPage />} />
                             <Route path="resources" element={<ResourcesPage />} />
-                            <Route path="governed-maps" element={GOVERNED_PILOT_UI_ENABLED ? <GovernedMapsPage /> : <GovernedPilotUnavailable />} />
+                            <Route path="governed-maps" element={GOVERNED_MAPS_UI_ENABLED ? <GovernedMapsPage /> : <GovernedPilotUnavailable capability="Governed Care Maps" />} />
                             <Route path="profile" element={<ProfilePage />} />
                             <Route path="admin" element={<ProtectedRoute requireAdmin><AdminPage /></ProtectedRoute>} />
                             <Route path="audit" element={<ProtectedRoute requireAuditAccess><AuditTrailPage /></ProtectedRoute>} />

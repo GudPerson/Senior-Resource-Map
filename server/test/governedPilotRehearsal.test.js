@@ -53,8 +53,8 @@ test('staged fictional pilot through the full HTTP application and Pages embed b
         assert.equal((await embedResponse()).status, 404);
         const shared = await request(publicPath());
         assert.equal(shared.data.summary.resourceCount, 2);
-        assert.doesNotMatch(JSON.stringify(shared.data), /unapproved\.example|approved-banner/);
-        assert.match(JSON.stringify(shared.data), /approved-logo/);
+        assert.match(JSON.stringify(shared.data), /pilot-a\.example\/approved-logo/);
+        assert.match(JSON.stringify(shared.data), /pilot-b\.example\/approved-logo/);
         assert.equal(shared.data.viewer.canSaveCopy, false);
         map = (await request(`/governed-maps/${map.id}/publish`, { method: 'POST', cookie: b.cookie,
             body: { allowedOrigins: ['https://partner.fixture.example'] } })).data.map;
@@ -97,10 +97,14 @@ test('staged fictional pilot through the full HTTP application and Pages embed b
         await request(`/governed-maps/${map.id}/resources/withdraw`, { method: 'POST', cookie: replacement.cookie,
             body: { resourceType: 'hard', resourceId: a.resourceId, reason: 'Withdraw while the publication is retired.' } });
         await pg.query(`UPDATE hard_assets SET name='Fictional revised Resource B' WHERE id=$1`, [b.resourceId]);
-        await pg.query(`UPDATE organization_asset_packs SET status='revoked',revoked_at=now() WHERE organization_id=$1`, [b.orgId]);
+        await pg.query(`UPDATE resource_publication_permissions
+            SET status='permission_withdrawn',withdrawn_at=now(),withdrawal_reason='Fictional owner withdrew publication permission.'
+            WHERE resource_type='hard' AND resource_id=$1`, [b.resourceId]);
         await request(`/governed-maps/${map.id}/restore`, { method: 'POST', expected: 409, cookie: b.cookie, body: { reason: 'Revoked permission must block restoration.' } });
         await request(publicPath(), { expected: 404 });
-        await pg.query(`UPDATE organization_asset_packs SET status='active',revoked_at=NULL WHERE organization_id=$1`, [b.orgId]);
+        await pg.query(`UPDATE resource_publication_permissions
+            SET status='publishing_approved',withdrawn_at=NULL,withdrawal_reason=NULL
+            WHERE resource_type='hard' AND resource_id=$1`, [b.resourceId]);
         map = (await request(`/governed-maps/${map.id}/restore`, { method: 'POST', cookie: b.cookie, body: { reason: 'Fictional partners approve restoration.' } })).data.map;
         assert.equal(map.publication.shareToken, token);
         const restored = (await request(publicPath())).data;
@@ -124,7 +128,7 @@ test('staged fictional pilot through the full HTTP application and Pages embed b
         await request(publicPath());
         const personalShared = await request(`/shared-maps/${personalToken}`);
         assert.equal(personalShared.data.name, 'Fictional personal map');
-        assert.doesNotMatch(JSON.stringify(personalShared.data), /unapproved\.example/);
+        assert.match(JSON.stringify(personalShared.data), /pilot-a\.example\/approved-logo/);
         await request('/platform-access', { method: 'PUT', cookie: f.recovery.cookie,
             body: { publicDirectoryMode: 'open', publicRegistrationMode: 'open', publicLoginMode: 'open', expectedRevision: closed.data.settings.revision } });
     });

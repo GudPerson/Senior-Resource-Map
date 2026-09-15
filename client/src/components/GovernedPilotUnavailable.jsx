@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
 
-export default function GovernedPilotUnavailable() {
+export default function GovernedPilotUnavailable({ capability = 'This closed-pilot feature' }) {
     return (
         <main className="mx-auto max-w-2xl px-5 py-14">
-            <h1 className="text-2xl font-bold">Organisation onboarding is not open yet</h1>
-            <p className="mt-3 text-slate-600">New organisation applications and Governed Care Maps will become available when the pilot opens.</p>
+            <h1 className="text-2xl font-bold">{capability} is not open yet</h1>
+            <p className="mt-3 text-slate-600">CareAround SG is opening the closed organisation pilot in reviewed stages.</p>
             <Link to="/" className="btn-secondary mt-6">Back to CareAround SG</Link>
         </main>
     );

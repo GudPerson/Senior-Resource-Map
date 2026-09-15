@@ -2,6 +2,56 @@
 
 Updated: 2026-09-15 (Asia/Singapore)
 
+## 2026-09-15 Gate 2 security remediation in the cumulative Gate 4 candidate
+
+- Codex Security scan `707677af-fc0a-4c7b-8c75-db5122207a23` found that a
+  withdrawn claim could be resubmitted after another organisation obtained a
+  current claim/link, and source tracing exposed the related concurrent Owner
+  verification race.
+- The approved narrow patch is in
+  `/Users/sweetbuns/CareAroundSG-worktrees/iccp-gate4-lifecycle-20260915`.
+  Resubmission and verification now take the shared resource advisory lock and
+  perform their authoritative exclusivity checks inside the atomic batch.
+- Independent post-patch review found that a stale resubmission revision could
+  return `409` while committing a false audit row. The controller now rejects
+  that stale request before batching, and regression coverage asserts no audit
+  event is written.
+- Final source review then reproduced an expired agreement being accepted under
+  an `Asia/Singapore` PostgreSQL session. Publication approval now locks and
+  validates the agreement inside the atomic batch and uses the database clock
+  for effective and expiry dates.
+- Final focused claim/policy/atomic coverage passes 17/17 and the full server
+  suite passes 780/780. The original frozen Gate 2 worktree predates this
+  remediation and must not be released by itself.
+- Residual hardening: the older Super Admin direct-link recovery route does not
+  yet participate in the shared resource-lock protocol. Keep it outside the
+  ordinary pilot onboarding workflow and handle it as a separate reviewed
+  security change.
+- No commit, push, deployment, activation, public-access change, secret action
+  or production-data write occurred during remediation.
+
+## 2026-09-15 Closed ICCP pilot — production-readiness checkpoint
+
+- The active Goal still contains four separate gates. All four are locally
+  validated release candidates; no new development gate is planned.
+- Current production is contained: directory, registration and login are
+  closed; `governedPilotEnabled` is false; health is 200; the tested personal
+  Shared Map remains anonymously readable.
+- A fresh production transaction forced to read-only confirmed the expected
+  Neon target, exact `0008`/`0009` migration journal entries, all ten migration
+  tables, one access row, zero governed maps and zero onboarding requests.
+- The live personal Shared Map has a pre-existing 16-pixel mobile sticky-header
+  overflow at 390 pixels. The Gate 4 candidate does not touch
+  `SharedMapPage.jsx`; keep any correction separate and regression-led.
+- Next release work: freeze and review one clean cumulative commit, refresh the
+  production recovery point, run the exact-commit release checklist, deploy with
+  both stages still `off`, then run artifact parity and credentialed production
+  smoke. Activation remains later and requires the legal/operational evidence
+  plus named-organisation UAT in the goal document.
+- No commit, push, migration, deployment, stage change, public-access change,
+  secret output or production-data write occurred. See
+  `docs/closed-iccp-pilot-production-readiness-20260915.md`.
+
 ## Start here
 
 - Repository: `/Users/sweetbuns/CareAroundSG`
@@ -10,6 +60,100 @@ Updated: 2026-09-15 (Asia/Singapore)
 - Release platform: Cloudflare Pages for the client and Cloudflare Worker for the API.
 - Production database: Neon PostgreSQL. Never print the connection value or run a migration without the exact environment, migration IDs, backup/restore evidence, and explicit approval.
 - Read `AGENTS.md`, `docs/regression-ledger.md`, and `docs/release-checklist.md` before changing a locked surface.
+
+## 2026-09-15 Closed ICCP pilot goal — Gate 3 collaborative Care Maps
+
+- Continue in the isolated cumulative worktree
+  `/Users/sweetbuns/CareAroundSG-worktrees/iccp-gate3-collaborative-maps-20260915`,
+  branch `codex/iccp-gate3-collaborative-maps-20260915`, based on `origin/main`
+  `c2b08a2b`. Gates 1 and 2 remain frozen and separately reviewable in their own
+  worktrees. Preserve the unrelated dirty primary checkout.
+- Gates 1–3 are local release candidates under one four-gate Goal. Completion of
+  a gate never commits, deploys, activates or advances another gate. The
+  checked-in client and Worker stages remain `off`; only the isolated browser
+  artifact used `maps`.
+- Gate 3 derives region candidates from current provider-approved resources and
+  gives current direct resource staff/owners and Organisation Admins shared map
+  stewardship independent of the creator. Legacy broad staff access grants no
+  map authority or notification. Publication rechecks Gate 2 fields and
+  `sharedMaps`/`embeds` uses on every public response, and exact HTTPS embed
+  origins remain enforced.
+- The formal quality gate passes 11 migrations, 509 modules / 1,538 edges,
+  server 778/778, client 810/810 plus 5/5 environment checks and a
+  2,498-module stage-off build. Map lockdown passes 104/104 plus its exact
+  build. The compiled fictional `maps` browser rehearsal on `localhost:5188`
+  passes two-partner access, each partner's own-resource removal boundary,
+  shared editing, restricted public discovery with anonymous share continuity,
+  exact-origin embed CSP and 390 px no-overflow with no unexpected CareAround
+  browser errors.
+- The candidate also moves agreement effective/expiry evaluation into the
+  PostgreSQL query after the rehearsal exposed an eight-hour Singapore timezone
+  conversion risk. Future and expired agreements fail closed in regression
+  coverage. The complete record is
+  `docs/closed-iccp-pilot-gate3-20260915.md`.
+- No commit, push, deployment, migration, activation, secret or production-data
+  action occurred. Freeze and review Gate 3 before creating the cumulative Gate
+  4 worktree.
+
+## 2026-09-15 Closed ICCP pilot goal — Gate 2 resource claims
+
+- Continue in the isolated cumulative worktree
+  `/Users/sweetbuns/CareAroundSG-worktrees/iccp-gate2-resource-claims-20260915`,
+  branch `codex/iccp-gate2-resource-claims-20260915`, based on `origin/main`
+  `c2b08a2b`. Gate 1 remains frozen and separately reviewable in its own
+  worktree. Preserve the unrelated dirty primary checkout.
+- The parent objective remains one goal with four independent sequential gates.
+  Gate completion never implies commit, deployment or production activation.
+  The checked-in client and Worker stages remain `off`; `claims` is enabled only
+  in an isolated compiled-browser artifact for rehearsal.
+- Gate 2 adds Organisation Admin claim submission and withdrawal, Super Admin
+  Owner verification and publication approval, direct resource Owner
+  assignment, field/use-specific permission, organisation isolation and
+  revision-safe atomic transitions. Ordinary staff cannot read claim evidence.
+  Older direct candidate/link/agreement creation routes cannot bypass the claim
+  workflow for Organisation Admins; removal and revocation stay available.
+- Validation passes focused claim/policy/UI-source 9/9, full server 778/778,
+  full client 810/810 plus 5/5 environment checks, map lockdown 104/104, and
+  stage-off and claims-stage builds at 2,498 modules. The final formal
+  `npm run verify:quality` gate passes with 11 migrations, 509 source modules,
+  1,538 relative imports, no cycles and a clean diff check. The fictional compiled
+  browser rehearsal passes submit, verify, approve, withdraw, direct Gate 3
+  closure and 390 px no-overflow. Google Identity Services produced the two
+  expected localhost-origin console errors; the CareAround flows had no
+  unexpected console failure.
+- The complete candidate record is
+  `docs/closed-iccp-pilot-gate2-20260915.md`. No commit, push, deployment,
+  activation, secret, schema or production-data change has occurred. Freeze and
+  review Gate 2 before creating the cumulative Gate 3 worktree.
+
+## 2026-09-15 Closed ICCP pilot goal — Gate 1 staged activation
+
+- Continue in the isolated worktree
+  `/Users/sweetbuns/CareAroundSG-worktrees/iccp-gate1-organization-onboarding-20260915`,
+  branch `codex/iccp-gate1-organization-onboarding-20260915`, based on current
+  `origin/main` `c2b08a2b`. Preserve the unrelated dirty primary checkout.
+- The four-gate goal and completion rule are in
+  `docs/closed-iccp-pilot-goal.md`. Gate 1 replaces the monolithic pilot boolean
+  with ordered, fail-closed stages: `off`, `onboarding`, `claims`, `maps`, and
+  `lifecycle`.
+- At the Gate 1 stage, organisation application, independent approval, exact
+  domain join requests and first-admin approval work with fictional data while
+  governed map/public/lifecycle routes and archival remain disabled. Client
+  onboarding links and legal text are separate from map routes and retirement
+  controls.
+- Production defaults remain `off`; no database, access-setting, secret or
+  deployed behavior changed. Real organisation approval additionally requires
+  `docs/organisation-verification-procedure.md`, reviewed legal wording and the
+  stated employment boundary.
+- Current verification: focused server/onboarding `6/6`, focused client/env
+  `7/7`, module graph 505/1,515, full server 771/771, full client 810/810 plus
+  5/5 production-environment checks, map lockdown 104/104 and the exact
+  stage-off 2,497-module production client build. The fictional compiled-browser
+  rehearsal passes the organisation and staff approval sequence, pre/post
+  approval login, public closure with organisation paths retained, governed-map
+  unavailability and 390 px no-overflow. Its full record is
+  `docs/closed-iccp-pilot-gate1-20260915.md`. Final Graft caller,
+  exhaustive legacy-flag and diff review passes with no executable bypass.
 
 ## 2026-09-15 Permission-first publishing — release candidate
 
@@ -960,3 +1104,46 @@ Ignore untracked `graft/` indexes and generated Playwright output when reviewing
 4. **Private-file quota:** aggregate storage quota control remains the one original Phase 1 finding not implemented.
 
 Recommended next step: confirm that Neon scheduled snapshots are actually active, then plan a non-production restore rehearsal and schema-reconciliation review. Keep Drizzle, schema migrations, and production data changes frozen until those recovery gates are evidenced.
+## 2026-09-15 closed ICCP pilot Gate 4 lifecycle candidate
+
+Gate 4 is frozen in its own isolated worktree:
+
+- path:
+  `/Users/sweetbuns/CareAroundSG-worktrees/iccp-gate4-lifecycle-20260915`
+- branch: `codex/iccp-gate4-lifecycle-20260915`
+- baseline: `origin/main` `c2b08a2b`
+- stage: `lifecycle`
+- state: local release candidate; uncommitted, unpushed, undeployed and inactive
+
+This candidate carries the cumulative Gates 1–3 patch unchanged at the
+lifecycle code boundary. Architecture review found that the existing
+implementation already provides reasoned retirement and restoration, current
+participant notification, immediate guest suspension, current-permission
+revalidation, token continuity and idempotent archival after 30 days. No extra
+lifecycle code was added.
+
+Independent Gate 4 evidence passed:
+
+- focused lifecycle/access/publication/embed suite: 27/27;
+- eight-phase fictional HTTP and Pages-boundary rehearsal: pass;
+- `npm run verify:quality`: 11 migrations, 509 modules / 1,538 edges with no
+  cycle, server 778/778, client 810/810, environment 5/5 and production
+  stage-off build;
+- `npm run verify:map-lockdown`: 104/104 plus exact build;
+- exact lifecycle artifact: 2,498 modules; and
+- compiled browser: immediate share/embed suspension, Partner B actor/reason
+  notification, safe restoration with the same token, exact approved embed
+  origin, no `X-Frame-Options`, true 390 by 844 rendering with a 390-pixel
+  scroll width, and zero browser errors.
+
+Evidence notes are in `docs/closed-iccp-pilot-gate4-20260915.md`; screenshots
+are under `output/playwright/governed-pilot-rehearsal/` with the `gate4-`
+prefix. The initial unsupported Playwright viewport option was discarded; final
+mobile evidence asserts the actual client and scroll widths.
+
+All four local candidates now exist separately. The completion Goal remains
+active until Gate 4 passes production release checks and closed-pilot UAT with
+named, approved organisations. Do not infer release authorization from this
+local validation. No commit, push, migration, deploy, stage activation,
+production-data, public-access or secret action occurred; production defaults
+remain `off` and general public reopening stays outside the Goal.

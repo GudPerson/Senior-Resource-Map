@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 
 import {
     organizationAgreements,
@@ -106,8 +106,6 @@ export async function loadApprovedResourcePublicationFields(db, directory, publi
             permissionTermsVersion: resourcePublicationPermissions.termsVersion,
             agreementAllowedUses: organizationAgreements.allowedUses,
             agreementApprovedAt: organizationAgreements.approvedAt,
-            agreementEffectiveAt: organizationAgreements.effectiveAt,
-            agreementExpiresAt: organizationAgreements.expiresAt,
         })
             .from(resourcePublicationPermissions)
             .innerJoin(partnerOrganizations, eq(
@@ -132,25 +130,28 @@ export async function loadApprovedResourcePublicationFields(db, directory, publi
                 isNull(organizationResourceLinks.unlinkedAt),
                 eq(organizationAgreements.status, 'active'),
                 isNull(organizationAgreements.revokedAt),
+                or(
+                    isNull(organizationAgreements.effectiveAt),
+                    sql`${organizationAgreements.effectiveAt} <= CURRENT_TIMESTAMP`,
+                ),
+                or(
+                    isNull(organizationAgreements.expiresAt),
+                    sql`${organizationAgreements.expiresAt} >= CURRENT_TIMESTAMP`,
+                ),
             ));
     } catch (error) {
         if (isMissingPublicationPermissionTable(error)) return new Map();
         throw error;
     }
 
-    const now = Date.now();
     const approvedByResource = new Map();
     for (const row of rows) {
         const permissionUses = normalizeAllowedUses(row.permissionAllowedUses);
         const agreementUses = normalizeAllowedUses(row.agreementAllowedUses);
-        const effectiveAt = row.agreementEffectiveAt ? new Date(row.agreementEffectiveAt).getTime() : null;
-        const expiresAt = row.agreementExpiresAt ? new Date(row.agreementExpiresAt).getTime() : null;
         if (!row.permissionApprovedAt || !String(row.permissionTermsVersion || '').trim()) continue;
         if (!row.agreementApprovedAt) continue;
         if (permissionUses[publicUse] !== true) continue;
         if (agreementUses.publicListing !== true || agreementUses.externalSharing !== true) continue;
-        if (Number.isFinite(effectiveAt) && effectiveAt > now) continue;
-        if (Number.isFinite(expiresAt) && expiresAt < now) continue;
 
         const key = resourceKey(row.resourceType, row.resourceId);
         if (!key) continue;
