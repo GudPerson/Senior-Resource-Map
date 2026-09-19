@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    applyPinNumberSequence,
     buildDirectoryPresentation,
     buildPinVisibilityPresentation,
     buildOwnerNumberedPinPresentation,
@@ -150,10 +151,11 @@ test('owner numbered pins keep every resource number visible at a shared postal 
     assert.equal(basePresentation.pins[0].categoryBubbleItems.length, 2);
 });
 
-test('Map Studio pin visibility removes one shared-postal member without changing cards or numbering', () => {
+test('Map Studio pin visibility removes one shared-postal member and closes the visible number sequence', () => {
     const presentation = buildDirectoryPresentation(directory, { presentationMode: 'v2-cards' });
     const filtered = buildPinVisibilityPresentation(presentation, ['hard-10']);
     const numbered = buildOwnerNumberedPinPresentation(filtered);
+    const cardPresentation = applyPinNumberSequence(presentation, filtered, ['hard-10']);
 
     assert.deepEqual(presentation.displayGroups.map((group) => group.name), [
         'Alpha Active Ageing',
@@ -164,8 +166,11 @@ test('Map Studio pin visibility removes one shared-postal member without changin
     assert.deepEqual(filtered.mappedGroups.map((group) => group.placeKey), ['hard-20', 'hard-30']);
     assert.equal(numbered.pins.some((pin) => pin.memberPlaceKeys?.includes('hard-10')), false);
     assert.equal(numbered.pins.some((pin) => pin.memberPlaceKeys?.includes('hard-20')), true);
-    assert.equal(numbered.placeNumberByKey['hard-20'], 2);
-    assert.equal(numbered.placeNumberByKey['hard-10'], 1);
+    assert.equal(numbered.placeNumberByKey['hard-20'], 1);
+    assert.equal(numbered.placeNumberByKey['hard-30'], 2);
+    assert.equal(numbered.placeNumberByKey['hard-10'], undefined);
+    assert.equal(cardPresentation.displayGroups.find((group) => group.placeKey === 'hard-10').number, null);
+    assert.equal(cardPresentation.displayGroups.find((group) => group.placeKey === 'hard-20').number, 1);
 });
 
 test('v2 card presentation applies a map category sequence without reordering resources inside a category', () => {

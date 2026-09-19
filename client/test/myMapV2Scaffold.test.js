@@ -157,7 +157,9 @@ test('my map v2 preserves category bubbles by default while allowing the scoped 
 test('owner print can use V2 print cards without hiding the app toolbar or changing shared print', () => {
     assert.match(directoryPrintViewSource, /const useV2OwnerPrint = mode === 'owner'/);
     assert.match(directoryPrintViewSource, /presentationMode: useV2OwnerPrint \? 'v2-cards' : 'default'/);
-    assert.match(directoryPrintViewSource, /buildOwnerNumberedPinPresentation\(basePresentation\)/);
+    assert.match(directoryPrintViewSource, /buildOwnerNumberedPinPresentation\(ownerCardBasePresentation\)/);
+    assert.match(directoryPrintViewSource, /buildPinVisibilityPresentation\([\s\S]*printMapState\?\.hiddenPinPlaceKeys/);
+    assert.match(directoryPrintViewSource, /applyPinNumberSequence\([\s\S]*mapPinBasePresentation/);
     assert.match(directoryPrintViewSource, /markerMode=\{printMapState\?\.studioMarkerMode \|\| \(useV2Format \? 'print-badge' : 'number'\)\}/);
     assert.match(directoryPrintViewSource, /pinBadgeMode=\{useV2Format \? 'none' : 'count'\}/);
     assert.match(directoryPrintViewSource, /studioMarkerMode === 'category-icon'/);
@@ -203,7 +205,9 @@ test('owner print builds one composite badge pin per mapped V2 coordinate group'
 test('my map v2 uses the dedicated V2 card-ordering presentation', () => {
     assert.match(myMapDetailPageSource, /presentationMode: 'v2-cards'/);
     assert.match(myMapDetailPageSource, /const baseOwnerPresentation = isV2View \? v2Presentation : interactivePresentation/);
-    assert.match(myMapDetailPageSource, /buildOwnerNumberedPinPresentation\(baseOwnerPresentation\)/);
+    assert.match(myMapDetailPageSource, /buildOwnerNumberedPinPresentation\(ownerCardPresentation\)/);
+    assert.match(myMapDetailPageSource, /buildPinVisibilityPresentation\(assetExportPresentation, hiddenPinPlaceKeys\)/);
+    assert.match(myMapDetailPageSource, /applyPinNumberSequence\([\s\S]*visiblePinSequencePresentation/);
     assert.match(myMapDetailPageSource, /presentation=\{ownerPresentation\}/);
     assert.match(myMapDetailPageSource, /ownerPresentation\.hoverPlaceKeysByKey/);
     assert.match(myMapDetailPageSource, /focusPlaceOnMap\(placeKey\)[\s\S]*ownerPresentation\.groupKeyByPlaceKey/);

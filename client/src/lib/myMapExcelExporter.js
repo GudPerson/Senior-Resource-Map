@@ -36,10 +36,18 @@ function setTextColumn(XLSX, sheet, columnIndex) {
 export async function createMyMapExcelWorkbook({
     directory,
     presentation,
+    mapNumberPresentation = presentation,
+    hiddenPlaceKeys = [],
     locale = 'en-SG',
 } = {}) {
     const XLSX = await import('@e965/xlsx');
-    const ledger = buildMyMapAssetLedger({ directory, presentation, locale });
+    const ledger = buildMyMapAssetLedger({
+        directory,
+        presentation,
+        mapNumberPresentation,
+        hiddenPlaceKeys,
+        locale,
+    });
     const rows = buildMyMapAssetWorkbookRows(ledger);
     const workbook = XLSX.utils.book_new();
     const summary = XLSX.utils.aoa_to_sheet([
@@ -55,19 +63,24 @@ export async function createMyMapExcelWorkbook({
     summary['!cols'] = [{ wch: 24 }, { wch: 58 }];
 
     const assets = XLSX.utils.json_to_sheet(rows.assets, {
-        header: ['Map no.', 'Resource name', 'Category', 'Address', 'Postal code', 'Type', 'Description count'],
+        header: [
+            'Map no.',
+            'Resource name',
+            'Category',
+            'Address',
+            'Postal code',
+            'Type',
+            'Description count',
+            'Descriptions',
+            'Description text colours',
+            'Description highlight colours',
+        ],
     });
-    setSheetLayout(assets, [12, 36, 28, 48, 16, 18, 18]);
+    setSheetLayout(assets, [12, 36, 28, 48, 16, 18, 18, 64, 26, 30]);
     setTextColumn(XLSX, assets, 4);
-
-    const descriptions = XLSX.utils.json_to_sheet(rows.descriptions, {
-        header: ['Map no.', 'Resource name', 'Category', 'Description no.', 'Description', 'Text colour', 'Highlight colour'],
-    });
-    setSheetLayout(descriptions, [12, 36, 28, 16, 64, 16, 18]);
 
     XLSX.utils.book_append_sheet(workbook, summary, 'Summary');
     XLSX.utils.book_append_sheet(workbook, assets, 'Map Assets');
-    XLSX.utils.book_append_sheet(workbook, descriptions, 'Descriptions');
     return { workbook, ledger, XLSX };
 }
 

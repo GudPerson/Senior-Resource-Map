@@ -32,8 +32,21 @@ function getPostalCode(row, place, group) {
         || cleanText(group?.postalCode);
 }
 
-function getMapNumber(row, group, place, presentation) {
+function getMapNumber(
+    row,
+    group,
+    place,
+    presentation,
+    mapNumberPresentation,
+    hiddenPlaceKeySet,
+) {
+    const placeKeys = [row?.placeKey, place?.placeKey, group?.placeKey]
+        .map((value) => cleanText(value))
+        .filter(Boolean);
+    if (placeKeys.some((placeKey) => hiddenPlaceKeySet.has(placeKey))) return 'Hidden';
+
     const candidates = [
+        ...placeKeys.map((placeKey) => mapNumberPresentation?.placeNumberByKey?.[placeKey]),
         row?.sourceMapNumber,
         row?.mapNumber,
         row?.number,
@@ -65,7 +78,7 @@ function collectRows(presentation) {
     return entries;
 }
 
-function buildAsset(entry, presentation) {
+function buildAsset(entry, presentation, mapNumberPresentation, hiddenPlaceKeySet) {
     const { row, group, place, mapped } = entry;
     return {
         assetKey: getRowAssetKey(row),
@@ -78,7 +91,16 @@ function buildAsset(entry, presentation) {
         category: getCategory(row),
         address: getAddress(row, place),
         postalCode: getPostalCode(row, place, group),
-        sourceMapNumber: mapped ? getMapNumber(row, group, place, presentation) : 'List only',
+        sourceMapNumber: mapped
+            ? getMapNumber(
+                row,
+                group,
+                place,
+                presentation,
+                mapNumberPresentation,
+                hiddenPlaceKeySet,
+            )
+            : 'List only',
         placeKey: cleanText(row?.placeKey || place?.placeKey || group?.placeKey),
         categoryColor: cleanText(row?.categoryColor || group?.categoryColor),
         descriptions: normalizeMapShortDescriptorItems(row).map((item) => ({
@@ -94,13 +116,25 @@ function buildAsset(entry, presentation) {
 export function buildMyMapAssetLedger({
     directory,
     presentation,
+    mapNumberPresentation = presentation,
+    hiddenPlaceKeys = [],
     locale = 'en-SG',
 } = {}) {
+    const hiddenPlaceKeySet = new Set(
+        (Array.isArray(hiddenPlaceKeys) ? hiddenPlaceKeys : [])
+            .map((value) => cleanText(value))
+            .filter(Boolean),
+    );
     const assetsByKey = new Map();
     for (const entry of collectRows(presentation)) {
         const key = getRowAssetKey(entry.row);
         if (!key || assetsByKey.has(key)) continue;
-        assetsByKey.set(key, buildAsset(entry, presentation));
+        assetsByKey.set(key, buildAsset(
+            entry,
+            presentation,
+            mapNumberPresentation,
+            hiddenPlaceKeySet,
+        ));
     }
 
     const assets = [...assetsByKey.values()];
@@ -162,15 +196,15 @@ export function buildMyMapAssetWorkbookRows(ledger) {
         'Postal code': toSafeExcelText(asset.postalCode),
         Type: toSafeExcelText(getAssetTypeLabel(asset)),
         'Description count': asset.descriptions.length,
+        Descriptions: asset.descriptions
+            .map((description) => toSafeExcelText(description.text))
+            .join('\n'),
+        'Description text colours': asset.descriptions
+            .map((description) => toSafeExcelText(description.textColor || ''))
+            .join('\n'),
+        'Description highlight colours': asset.descriptions
+            .map((description) => toSafeExcelText(description.highlightColor || ''))
+            .join('\n'),
     }));
-    const descriptions = ledger.assets.flatMap((asset) => asset.descriptions.map((description, index) => ({
-        'Map no.': toSafeExcelText(asset.sourceMapNumber),
-        'Resource name': toSafeExcelText(asset.name),
-        Category: toSafeExcelText(asset.category),
-        'Description no.': index + 1,
-        Description: toSafeExcelText(description.text),
-        'Text colour': description.textColor || '',
-        'Highlight colour': description.highlightColor || '',
-    })));
-    return { assets, descriptions };
+    return { assets };
 }

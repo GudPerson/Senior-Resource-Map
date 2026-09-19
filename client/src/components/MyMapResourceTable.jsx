@@ -28,7 +28,13 @@ export default function MyMapResourceTable({
     columnCount = 1,
 }) {
     const { locale, t } = useLocale();
-    const ledger = buildMyMapAssetLedger({ directory, presentation, locale });
+    const ledger = buildMyMapAssetLedger({
+        directory,
+        presentation,
+        mapNumberPresentation: presentation,
+        hiddenPlaceKeys,
+        locale,
+    });
     const detail = getMyMapResourceTableDetailVisibility(labelDetail);
     const normalizedColumnCount = normalizeMyMapResourceTableColumnCount(columnCount);
     const categoryColumns = splitMyMapResourceTableCategories(
@@ -98,6 +104,10 @@ export default function MyMapResourceTable({
                                                     {asset.sourceMapNumber === 'List only' ? (
                                                         <span className="inline-flex min-h-7 items-center rounded-full bg-slate-100 px-2 text-xs font-bold text-slate-600">
                                                             {t('mapAssetListOnly')}
+                                                        </span>
+                                                    ) : asset.sourceMapNumber === 'Hidden' ? (
+                                                        <span className="inline-flex min-h-7 items-center rounded-full bg-amber-50 px-2 text-xs font-bold text-amber-800">
+                                                            {t('mapAssetHidden')}
                                                         </span>
                                                     ) : (
                                                         <span

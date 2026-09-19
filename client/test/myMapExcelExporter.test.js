@@ -6,7 +6,7 @@ import {
     createMyMapExcelWorkbook,
 } from '../src/lib/myMapExcelExporter.js';
 
-test('Excel exporter creates the three reviewable sheets without map notes', async () => {
+test('Excel exporter keeps descriptions in Map Assets and excludes private map notes', async () => {
     const { workbook, XLSX } = await createMyMapExcelWorkbook({
         directory: { name: 'Jurong / Partners' },
         presentation: {
@@ -28,12 +28,13 @@ test('Excel exporter creates the three reviewable sheets without map notes', asy
         },
     });
 
-    assert.deepEqual(workbook.SheetNames, ['Summary', 'Map Assets', 'Descriptions']);
+    assert.deepEqual(workbook.SheetNames, ['Summary', 'Map Assets']);
     assert.equal(buildMyMapExcelFileName('Jurong / Partners'), 'jurong-partners-assets.xlsx');
     const assets = XLSX.utils.sheet_to_json(workbook.Sheets['Map Assets']);
-    const descriptions = XLSX.utils.sheet_to_json(workbook.Sheets.Descriptions);
     assert.equal(assets[0]['Resource name'], 'Jurong AAC');
     assert.equal(assets[0]['Postal code'], '012345');
+    assert.equal(assets[0].Descriptions, 'Morning activities');
+    assert.equal(assets[0]['Description text colours'], '#0F766E');
     assert.equal(workbook.Sheets['Map Assets'].E2.t, 's');
     assert.equal(workbook.Sheets['Map Assets'].E2.v, '012345');
     assert.equal(workbook.Sheets['Map Assets'].E2.z, '@');
@@ -42,6 +43,5 @@ test('Excel exporter creates the three reviewable sheets without map notes', asy
     assert.equal(reloaded.Sheets['Map Assets'].E2.t, 's');
     assert.equal(reloaded.Sheets['Map Assets'].E2.v, '012345');
     assert.equal(reloaded.Sheets['Map Assets'].E2.z, '@');
-    assert.equal(descriptions[0].Description, 'Morning activities');
     assert.doesNotMatch(JSON.stringify(workbook), /Private note must stay out/);
 });

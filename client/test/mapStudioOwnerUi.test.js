@@ -20,10 +20,13 @@ test('the client exposes only the owner Map Studio GET and atomic PUT contract',
     assert.doesNotMatch(apiSource, /shared-maps\/\$\{[^}]+\}\/studio/);
 });
 
-test('owner view management uses explicit save and discard with optimistic conflict recovery', () => {
-    assert.match(panelSource, /prepareMapStudioOwnerSave\(ownerState\)/);
+test('owner view management autosaves with retry, flush, and optimistic conflict recovery', () => {
+    assert.match(panelSource, /prepareMapStudioOwnerSave\(stateToSave\)/);
     assert.match(panelSource, /api\.updateMyMapStudio\(mapId, prepared\.payload\)/);
-    assert.match(panelSource, /!dirty \|\| saving \|\| editorMode/);
+    assert.match(panelSource, /window\.setTimeout\(\(\) => \{[\s\S]*saveOwnerState\(\);[\s\S]*\}, 900\)/);
+    assert.match(panelSource, /pendingDesignPatches/);
+    assert.match(panelSource, /flushPendingSave/);
+    assert.match(panelSource, /mapStudioRetrySave/);
     assert.match(panelSource, /error\?\.status === 409/);
     assert.match(panelSource, /discardOwnerMapStudioChanges\(ownerState\)/);
     assert.match(panelSource, /selectOwnerMapStudioView\(current, nextViewId\)/);
@@ -66,15 +69,15 @@ test('runtime design stays owner-scoped while exploration remains temporary', ()
     assert.match(ownerPageSource, /mapPresentation=\{mapOwnerPresentation\}/);
 });
 
-test('sharing publishes only the selected persisted view and blocks unsaved owner state', () => {
-    assert.match(ownerPageSource, /mapStudioRuntimeSnapshot\?\.ownerDirty \|\| mapStudioRuntimeSnapshot\?\.designDirty/);
+test('sharing flushes autosave and publishes only the selected persisted view', () => {
+    assert.match(ownerPageSource, /const savedStudioSnapshot = await flushMapStudioChanges\(\)/);
     assert.match(ownerPageSource, /t\('mapStudioSaveBeforeShare'\)/);
     assert.match(ownerPageSource, /await printAnnotations\.flushPendingChanges\(\)/);
     assert.match(ownerPageSource, /typeof options\?\.includeAnnotations === 'boolean'/);
     assert.match(ownerPageSource, /isShared: options\.includeAnnotations/);
     assert.match(ownerPageSource, /if \(!annotationsReadyForShare\)[\s\S]*setShareError\(t\('failedPublishShare'\)\)[\s\S]*return false;/);
     assert.match(ownerPageSource, /await printAnnotations\.flushPendingChanges\(\)[\s\S]*await api\.publishMyMapShare/);
-    assert.match(ownerPageSource, /\{ studioViewId: mapStudioRuntimeSnapshot\.activeViewId \}/);
+    assert.match(ownerPageSource, /\{ studioViewId: shareStudioSnapshot\.activeViewId \}/);
     assert.match(ownerPageSource, /await loadMap\(\);[\s\S]*return true;/);
     assert.match(ownerPageSource, /setShareError\(err\.message \|\| t\('failedPublishShare'\)\);[\s\S]*return false;/);
     assert.match(ownerStateSource, /documentRevision: Number\(state\.persistedDocument\.revision\) \|\| 0/);
