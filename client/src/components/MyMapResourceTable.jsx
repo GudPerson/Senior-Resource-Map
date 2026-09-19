@@ -32,7 +32,7 @@ export default function MyMapResourceTable({
         directory,
         presentation,
         mapNumberPresentation: presentation,
-        hiddenPlaceKeys,
+        hiddenPlaceKeys: hiddenPinPlaceKeys,
         locale,
     });
     const detail = getMyMapResourceTableDetailVisibility(labelDetail);

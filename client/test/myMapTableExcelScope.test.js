@@ -31,3 +31,8 @@ test('table display reuses Card detail and column settings with category-only pi
     assert.match(resourceTableSource, /<CategoryPinShapeBadge[\s\S]*compact/);
     assert.doesNotMatch(resourceTableSource, /label=\{asset\.sourceMapNumber\}/);
 });
+
+test('table display passes the component hidden-pin prop into the asset ledger', () => {
+    assert.match(resourceTableSource, /hiddenPlaceKeys:\s*hiddenPinPlaceKeys/);
+    assert.doesNotMatch(resourceTableSource, /\n\s*hiddenPlaceKeys,\n/);
+});

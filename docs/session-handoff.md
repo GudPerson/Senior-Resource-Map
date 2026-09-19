@@ -1171,3 +1171,24 @@ and the locked map gate passed 104/104 plus its exact production-configured
 build. No database, migration, API/Worker, authentication, permission,
 governed-map lifecycle, production-data, public-access, or secret contract is
 changed by this candidate.
+
+## 2026-09-20 Map Studio Table-view production recovery
+
+The initial Map Studio refinement release exposed a client-only render crash
+when a saved view used Table resource display. `MyMapResourceTable` received
+the existing `hiddenPinPlaceKeys` prop but passed an undefined
+`hiddenPlaceKeys` local into the asset ledger. Cards views did not execute that
+component path, which explains why the map could appear before the route error
+boundary replaced it.
+
+The isolated `codex/map-studio-table-hidden-pin-hotfix-20260920` branch applies
+one prop-alias correction and adds an exact source regression assertion. A
+production-shaped fictional owner session reproduced the released
+`ReferenceError: hiddenPlaceKeys is not defined` and confirmed the hotfix build
+renders Map Studio without the route error boundary. Focused coverage passed
+45/45, full client coverage passed 813/813 plus release-environment validation
+5/5, the production client build and locked map build passed, the locked map
+suite passed 104/104, the server baseline passed, and static migration, module
+graph, and diff checks passed. This recovery changes no API, Worker, database,
+saved Map Studio document, authentication, permission, sharing, governed-map,
+or public-access contract.
