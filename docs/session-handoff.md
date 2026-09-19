@@ -1147,3 +1147,27 @@ named, approved organisations. Do not infer release authorization from this
 local validation. No commit, push, migration, deploy, stage activation,
 production-data, public-access or secret action occurred; production defaults
 remain `off` and general public reopening stays outside the Goal.
+
+## 2026-09-20 Map Studio refinement release candidate
+
+The isolated `codex/map-studio-autosave-sequence-export-20260920` branch starts
+from released `main` at `e99348df106a48824652d4371d768adc286c2dc3` and keeps
+the change client-only. Map Studio Design changes now autosave after a short
+quiet period, retain edits made during an in-flight save, and expose explicit
+saving, saved, failed, Retry, and revision-conflict states. View switching,
+Share publication, Export View, and Excel download flush pending design changes
+before consuming the selected view.
+
+Hiding a pin now removes it from the visible numbering sequence while keeping
+its resource card available with a `Hidden` label. Visible pins are numbered
+contiguously in the existing stable display order, and owner interactive cards,
+Export View, and the Excel asset ledger consume that same sequence. The Excel
+workbook now contains `Summary` and `Map Assets` only; descriptions and their
+text/highlight colours are newline-aligned columns on each asset row.
+
+Focused regression coverage passed 94/94. Full client coverage passed 812/812
+plus release-environment validation 5/5, the production client build passed,
+and the locked map gate passed 104/104 plus its exact production-configured
+build. No database, migration, API/Worker, authentication, permission,
+governed-map lifecycle, production-data, public-access, or secret contract is
+changed by this candidate.

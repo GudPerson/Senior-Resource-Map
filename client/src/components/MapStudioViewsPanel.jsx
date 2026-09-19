@@ -15,7 +15,6 @@ import {
     Plus,
     RefreshCw,
     RotateCcw,
-    Save,
     Star,
     Trash2,
     X,
@@ -32,7 +31,6 @@ import {
     createUniqueMapStudioViewId,
     deleteOwnerMapStudioView,
     discardOwnerMapStudioChanges,
-    discardOwnerMapStudioDraft,
     duplicateOwnerMapStudioView,
     getMapStudioOwnerRuntimeSnapshot,
     isMapStudioOwnerStateDirty,
@@ -75,10 +73,15 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
     const viewSequenceRef = useRef(0);
     const loadRequestRef = useRef(0);
     const ownerStateMapIdRef = useRef('');
+    const ownerStateRef = useRef(null);
+    const savingRef = useRef(false);
+    const savePromiseRef = useRef(null);
+    const pendingDesignPatchesRef = useRef([]);
     const designSettingsPanelRef = useRef(null);
     const [ownerState, setOwnerState] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [saveStatus, setSaveStatus] = useState('saved');
     const [loadError, setLoadError] = useState('');
     const [actionError, setActionError] = useState('');
     const [conflict, setConflict] = useState(false);
@@ -88,6 +91,14 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
     const [designSettingsCollapsed, setDesignSettingsCollapsed] = useState(false);
     const [designSettingsSide, setDesignSettingsSide] = useState(readMapStudioLayoutPanelSide);
 
+    const updateOwnerState = useCallback((updater) => {
+        const current = ownerStateRef.current;
+        const next = typeof updater === 'function' ? updater(current) : updater;
+        ownerStateRef.current = next;
+        setOwnerState(next);
+        return next;
+    }, []);
+
     const handleDesignSettingsSideChange = useCallback((nextSide) => {
         setDesignSettingsSide(writeMapStudioLayoutPanelSide(nextSide));
     }, []);
@@ -96,14 +107,18 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
         if (saving || editorMode) return;
         setDesignSettingsOpen(nextMode === MAP_STUDIO_MODE_DESIGN);
         if (nextMode === MAP_STUDIO_MODE_DESIGN) setDesignSettingsCollapsed(false);
-        setOwnerState((current) => (
+        updateOwnerState((current) => (
             current ? setOwnerMapStudioMode(current, nextMode) : current
         ));
-    }, [editorMode, saving]);
+    }, [editorMode, saving, updateOwnerState]);
 
     const handleDesignPatch = useCallback((patch, { enterDesign = false } = {}) => {
-        if (saving || editorMode) return;
-        setOwnerState((current) => {
+        if (editorMode) return;
+        if (savingRef.current) {
+            pendingDesignPatchesRef.current.push({ patch });
+        }
+        setSaveStatus('pending');
+        updateOwnerState((current) => {
             if (!current) return current;
             let next = current;
             if (next.session.mode !== MAP_STUDIO_MODE_DESIGN) {
@@ -112,23 +127,13 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
             }
             return patchOwnerMapStudioDraft(next, patch);
         });
-    }, [editorMode, saving]);
+    }, [editorMode, updateOwnerState]);
 
     const handleExplorationPatch = useCallback((patch) => {
-        setOwnerState((current) => (
+        updateOwnerState((current) => (
             current ? patchOwnerMapStudioExploration(current, patch) : current
         ));
-    }, []);
-
-    useImperativeHandle(ref, () => ({
-        setMode: handleModeChange,
-        openLayoutSettings: () => {
-            setDesignSettingsCollapsed(false);
-            handleModeChange(MAP_STUDIO_MODE_DESIGN);
-        },
-        patchDesign: handleDesignPatch,
-        patchExploration: handleExplorationPatch,
-    }), [handleDesignPatch, handleExplorationPatch, handleModeChange]);
+    }, [updateOwnerState]);
 
     useEffect(() => {
         defaultsRef.current = { mapStyle: defaultMapStyle, detailMode: defaultDetailMode };
@@ -143,8 +148,11 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
         loadRequestRef.current += 1;
         const requestId = loadRequestRef.current;
         ownerStateMapIdRef.current = '';
+        ownerStateRef.current = null;
+        pendingDesignPatchesRef.current = [];
         setLoading(true);
-        setOwnerState(null);
+        updateOwnerState(null);
+        setSaveStatus('saved');
         setLoadError('');
         setActionError('');
         setConflict(false);
@@ -155,23 +163,25 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
             const response = await api.getMyMapStudio(mapId);
             if (requestId !== loadRequestRef.current) return;
             ownerStateMapIdRef.current = String(mapId);
-            setOwnerState(createMapStudioOwnerState(response?.document ?? null, defaultsRef.current));
+            updateOwnerState(createMapStudioOwnerState(response?.document ?? null, defaultsRef.current));
         } catch (error) {
             if (requestId !== loadRequestRef.current) return;
             console.error('Failed to load Map Studio views:', error);
             ownerStateMapIdRef.current = '';
-            setOwnerState(null);
+            updateOwnerState(null);
             setLoadError(tRef.current('mapStudioLoadFailed'));
         } finally {
             if (requestId === loadRequestRef.current) setLoading(false);
         }
-    }, [mapId]);
+    }, [mapId, updateOwnerState]);
 
     useEffect(() => {
         loadStudio();
         return () => {
             loadRequestRef.current += 1;
             ownerStateMapIdRef.current = '';
+            ownerStateRef.current = null;
+            pendingDesignPatchesRef.current = [];
         };
     }, [loadStudio]);
 
@@ -180,6 +190,105 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
         (view) => view.id === ownerState.session.activeViewId,
     ) || null;
     const isDefaultView = activeView?.id === ownerState?.workingDocument?.defaultViewId;
+
+    const saveOwnerState = useCallback(async () => {
+        if (savePromiseRef.current) return savePromiseRef.current;
+        const stateToSave = ownerStateRef.current;
+        const saveMapId = String(mapId || '');
+        if (
+            !stateToSave
+            || !isMapStudioOwnerStateDirty(stateToSave)
+            || ownerStateMapIdRef.current !== saveMapId
+        ) {
+            return true;
+        }
+
+        const prepared = prepareMapStudioOwnerSave(stateToSave);
+        pendingDesignPatchesRef.current = [];
+        savingRef.current = true;
+        setSaving(true);
+        setSaveStatus('saving');
+        setActionError('');
+        setConflict(false);
+
+        const savePromise = (async () => {
+            try {
+                const response = await api.updateMyMapStudio(mapId, prepared.payload);
+                if (ownerStateMapIdRef.current !== saveMapId) return false;
+                const pendingDesignPatches = pendingDesignPatchesRef.current.splice(0);
+                updateOwnerState((current) => acknowledgeMapStudioOwnerSave(
+                    current || stateToSave,
+                    response.document,
+                    {
+                        ...prepared,
+                        mode: current?.session?.mode ?? prepared.mode,
+                        exploration: current?.session?.exploration ?? prepared.exploration,
+                        pendingDesignPatches,
+                    },
+                ));
+                setSaveStatus(pendingDesignPatches.length ? 'pending' : 'saved');
+                return true;
+            } catch (error) {
+                console.error('Failed to autosave Map Studio views:', error);
+                pendingDesignPatchesRef.current = [];
+                setSaveStatus('error');
+                if (error?.status === 409) {
+                    setConflict(true);
+                    setActionError(tRef.current('mapStudioConflictMessage'));
+                } else {
+                    setActionError(tRef.current('mapStudioSaveFailed'));
+                }
+                return false;
+            }
+        })();
+
+        savePromiseRef.current = savePromise;
+        try {
+            return await savePromise;
+        } finally {
+            if (savePromiseRef.current === savePromise) savePromiseRef.current = null;
+            savingRef.current = false;
+            setSaving(false);
+        }
+    }, [mapId, updateOwnerState]);
+
+    const flushPendingSave = useCallback(async () => {
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+            const inFlightSave = savePromiseRef.current;
+            if (inFlightSave && !await inFlightSave) return null;
+            const current = ownerStateRef.current;
+            if (!current || !isMapStudioOwnerStateDirty(current)) {
+                return getMapStudioOwnerRuntimeSnapshot(current);
+            }
+            if (!await saveOwnerState()) return null;
+        }
+        return null;
+    }, [saveOwnerState]);
+
+    useImperativeHandle(ref, () => ({
+        setMode: handleModeChange,
+        openLayoutSettings: () => {
+            setDesignSettingsCollapsed(false);
+            handleModeChange(MAP_STUDIO_MODE_DESIGN);
+        },
+        patchDesign: handleDesignPatch,
+        patchExploration: handleExplorationPatch,
+        flushPendingSave,
+    }), [flushPendingSave, handleDesignPatch, handleExplorationPatch, handleModeChange]);
+
+    useEffect(() => {
+        if (!ownerState || loading || loadError || conflict || saving) return undefined;
+        if (!dirty) {
+            setSaveStatus('saved');
+            return undefined;
+        }
+        if (saveStatus === 'error') return undefined;
+        setSaveStatus('pending');
+        const timeoutId = window.setTimeout(() => {
+            saveOwnerState();
+        }, 900);
+        return () => window.clearTimeout(timeoutId);
+    }, [conflict, dirty, loadError, loading, ownerState, saveOwnerState, saveStatus, saving]);
 
     useEffect(() => {
         const snapshot = !loading
@@ -230,36 +339,15 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
         setDesignSettingsCollapsed(false);
     }, []);
 
-    async function discardDesignDraftIfNeeded() {
-        if (!ownerState?.session?.dirty) return ownerState;
-        const confirmed = await requestConfirmation({
-            title: t('mapStudioDiscardDraftTitle'),
-            message: t('mapStudioDiscardDraftMessage'),
-            tone: 'warning',
-            confirmLabel: t('mapStudioDiscardAndContinue'),
-            cancelLabel: t('cancel'),
-        });
-        return confirmed ? discardOwnerMapStudioDraft(ownerState) : null;
-    }
-
     async function handleViewChange(event) {
         const nextViewId = event.target.value;
         if (!ownerState || nextViewId === ownerState.session.activeViewId) return;
-        let current = ownerState;
-        if (current.session.dirty) {
-            const confirmed = await requestConfirmation({
-                title: t('mapStudioSwitchViewTitle'),
-                message: t('mapStudioSwitchViewMessage'),
-                tone: 'warning',
-                confirmLabel: t('mapStudioDiscardAndSwitch'),
-                cancelLabel: t('cancel'),
-            });
-            if (!confirmed) return;
-            current = discardOwnerMapStudioDraft(current);
-        }
+        if (!await flushPendingSave()) return;
+        const current = ownerStateRef.current;
+        if (!current) return;
         setActionError('');
         setEditorMode(null);
-        setOwnerState(selectOwnerMapStudioView(current, nextViewId));
+        updateOwnerState(selectOwnerMapStudioView(current, nextViewId));
     }
 
     function openCreateEditor() {
@@ -278,7 +366,8 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
     async function handleEditorSubmit(event) {
         event.preventDefault();
         if (!ownerState || !viewName.trim() || saving) return;
-        const cleanState = await discardDesignDraftIfNeeded();
+        if (!await flushPendingSave()) return;
+        const cleanState = ownerStateRef.current;
         if (!cleanState) return;
         try {
             if (editorMode === 'create') {
@@ -287,9 +376,9 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                     cleanState.workingDocument,
                     createViewEntropy(viewSequenceRef.current),
                 );
-                setOwnerState(createOwnerMapStudioView(cleanState, { id, name: viewName }));
+                updateOwnerState(createOwnerMapStudioView(cleanState, { id, name: viewName }));
             } else if (editorMode === 'rename') {
-                setOwnerState(renameOwnerMapStudioView(
+                updateOwnerState(renameOwnerMapStudioView(
                     cleanState,
                     cleanState.session.activeViewId,
                     viewName,
@@ -298,6 +387,7 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
             setEditorMode(null);
             setViewName('');
             setActionError('');
+            setSaveStatus('pending');
         } catch (error) {
             console.error('Failed to update Map Studio view:', error);
             setActionError(t('mapStudioActionFailed'));
@@ -306,7 +396,8 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
 
     async function handleDuplicate() {
         if (!ownerState || !activeView) return;
-        const cleanState = await discardDesignDraftIfNeeded();
+        if (!await flushPendingSave()) return;
+        const cleanState = ownerStateRef.current;
         if (!cleanState) return;
         try {
             viewSequenceRef.current += 1;
@@ -314,13 +405,14 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                 cleanState.workingDocument,
                 createViewEntropy(viewSequenceRef.current),
             );
-            setOwnerState(duplicateOwnerMapStudioView(
+            updateOwnerState(duplicateOwnerMapStudioView(
                 cleanState,
                 cleanState.session.activeViewId,
                 { id, name: t('mapStudioCopyName', { name: activeView.name }) },
             ));
             setEditorMode(null);
             setActionError('');
+            setSaveStatus('pending');
         } catch (error) {
             console.error('Failed to duplicate Map Studio view:', error);
             setActionError(t('mapStudioActionFailed'));
@@ -329,15 +421,18 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
 
     async function handleSetDefault() {
         if (!ownerState || !activeView || isDefaultView) return;
-        const cleanState = await discardDesignDraftIfNeeded();
+        if (!await flushPendingSave()) return;
+        const cleanState = ownerStateRef.current;
         if (!cleanState) return;
-        setOwnerState(setDefaultOwnerMapStudioView(cleanState, cleanState.session.activeViewId));
+        updateOwnerState(setDefaultOwnerMapStudioView(cleanState, cleanState.session.activeViewId));
         setActionError('');
+        setSaveStatus('pending');
     }
 
     async function handleDelete() {
         if (!ownerState || !activeView || ownerState.workingDocument.views.length <= 1) return;
-        const cleanState = await discardDesignDraftIfNeeded();
+        if (!await flushPendingSave()) return;
+        const cleanState = ownerStateRef.current;
         if (!cleanState) return;
         const confirmed = await requestConfirmation({
             title: t('mapStudioDeleteViewTitle'),
@@ -348,9 +443,10 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
         });
         if (!confirmed) return;
         try {
-            setOwnerState(deleteOwnerMapStudioView(cleanState, cleanState.session.activeViewId));
+            updateOwnerState(deleteOwnerMapStudioView(cleanState, cleanState.session.activeViewId));
             setEditorMode(null);
             setActionError('');
+            setSaveStatus('pending');
         } catch (error) {
             console.error('Failed to delete Map Studio view:', error);
             setActionError(t('mapStudioActionFailed'));
@@ -367,42 +463,17 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
             cancelLabel: t('cancel'),
         });
         if (!confirmed) return;
-        setOwnerState(discardOwnerMapStudioChanges(ownerState));
+        updateOwnerState(discardOwnerMapStudioChanges(ownerState));
         setEditorMode(null);
         setViewName('');
         setActionError('');
         setConflict(false);
+        setSaveStatus('saved');
     }
 
-    async function handleSave() {
-        if (!ownerState || !dirty || saving || editorMode) return;
-        setSaving(true);
-        setActionError('');
-        setConflict(false);
-        try {
-            const prepared = prepareMapStudioOwnerSave(ownerState);
-            const response = await api.updateMyMapStudio(mapId, prepared.payload);
-            setOwnerState((current) => acknowledgeMapStudioOwnerSave(
-                current || ownerState,
-                response.document,
-                {
-                    ...prepared,
-                    mode: current?.session?.mode ?? prepared.mode,
-                    exploration: current?.session?.exploration ?? prepared.exploration,
-                },
-            ));
-            setEditorMode(null);
-        } catch (error) {
-            console.error('Failed to save Map Studio views:', error);
-            if (error?.status === 409) {
-                setConflict(true);
-                setActionError(t('mapStudioConflictMessage'));
-            } else {
-                setActionError(t('mapStudioSaveFailed'));
-            }
-        } finally {
-            setSaving(false);
-        }
+    async function handleRetrySave() {
+        setSaveStatus('pending');
+        await flushPendingSave();
     }
 
     async function handleReloadLatest() {
@@ -436,7 +507,13 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                                 {t('mapStudioTitle')}
                             </h2>
                             <p className="text-xs font-semibold text-slate-500">
-                                {dirty ? t('mapStudioUnsavedChanges') : t('mapStudioNoUnsavedChanges')}
+                                {saving
+                                    ? t('mapStudioAutosaveSaving')
+                                    : saveStatus === 'error'
+                                        ? t('mapStudioAutosaveFailed')
+                                        : dirty
+                                            ? t('mapStudioAutosavePending')
+                                            : t('mapStudioAllChangesSaved')}
                             </p>
                         </div>
                     </div>
@@ -501,10 +578,12 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                                     <RotateCcw size={16} aria-hidden="true" />
                                     {t('mapStudioDiscardChanges')}
                                 </button>
-                                <button type="button" onClick={handleSave} disabled={!dirty || saving || Boolean(editorMode)} className="btn-primary min-h-11 flex-1 justify-center px-4 text-xs disabled:opacity-45 sm:text-sm lg:flex-none">
-                                    {saving ? <LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
-                                    {saving ? t('saving') : t('mapStudioSaveChanges')}
-                                </button>
+                                {saveStatus === 'error' && !conflict ? (
+                                    <button type="button" onClick={handleRetrySave} disabled={saving} className="btn-primary min-h-11 flex-1 justify-center px-4 text-xs disabled:opacity-45 sm:text-sm lg:flex-none">
+                                        <RefreshCw size={16} aria-hidden="true" />
+                                        {t('mapStudioRetrySave')}
+                                    </button>
+                                ) : null}
                             </div>
                         </div>
                     )}
@@ -563,7 +642,7 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                                     onPanelSideChange={handleDesignSettingsSideChange}
                                     onPatch={handleDesignPatch}
                                     onClose={closeDesignSettings}
-                                    disabled={saving || Boolean(editorMode)}
+                                    disabled={Boolean(editorMode)}
                                 />
                             )}
                         </div>

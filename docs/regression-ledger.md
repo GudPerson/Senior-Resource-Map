@@ -10607,6 +10607,14 @@ Active next recovery family:
 
 ## Recovery workflow
 
+### Map Studio autosave, visible-pin numbering, and workbook parity
+
+- **Surface:** authenticated owner Map Studio views, owner card and map-pin numbering, owner Export View, Share publication, and the Map Assets Excel workbook.
+- **Known-good candidate:** `codex/map-studio-autosave-sequence-export-20260920`, based on released `main` at `e99348df106a48824652d4371d768adc286c2dc3`.
+- **Reproduction:** open an owner My Map and change several Design settings without pressing a save button; make another change while the first request is still saving; switch views only after the pending save completes. Hide an early numbered pin and compare the remaining owner cards, map pins, Export View, and downloaded Map Assets workbook. Add more than one description to one resource and inspect its workbook row.
+- **Acceptance:** design changes queue automatically after a short quiet period; edits made during an in-flight save remain dirty and are sent by the next save; view switching, Share, Export View, and Excel download flush pending changes first; save failures retain the draft and expose Retry, while revision conflicts retain the established Reload latest flow. Hidden pins remain listed but show `Hidden`, consume no map number, and leave all visible mapped resources numbered contiguously in the current stable sequence. Owner interactive, Export View, and Excel numbering agree. The workbook contains only `Summary` and `Map Assets`; each asset row includes its descriptions and their text/highlight colours. Shared/embed privacy, governed-map lifecycle, permissions, schema, and Worker behavior are unchanged.
+- **Automated evidence:** focused Map Studio/presentation/workbook coverage passed 94/94; full client coverage passed 812/812 plus release-environment validation 5/5; `npm run build:client` passed; and `npm run verify:map-lockdown` passed 104/104 plus its exact production-configured build. `git diff --check` passed for source, tests, and documentation.
+
 ### Adaptive Manage Resources and My Directory workspaces
 
 - **Surface:** authenticated desktop Manage My Resources, My Directory Saved Resources, and the shared dashboard side navigation.

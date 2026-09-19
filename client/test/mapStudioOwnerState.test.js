@@ -114,6 +114,30 @@ test('server acknowledgement resets the whole editor to the returned revision an
     assert.equal(isMapStudioOwnerStateDirty(acknowledged), false);
 });
 
+test('server acknowledgement replays design patches made while an autosave was in flight', () => {
+    const initial = createMapStudioOwnerState({ ...createMapStudioDocument(), revision: 3 });
+    const designing = setOwnerMapStudioMode(initial, MAP_STUDIO_MODE_DESIGN);
+    const firstDraft = patchOwnerMapStudioDraft(designing, {
+        basemap: { style: 'gray' },
+    });
+    const prepared = prepareMapStudioOwnerSave(firstDraft);
+    const returned = { ...prepared.payload, revision: 4 };
+    const acknowledged = acknowledgeMapStudioOwnerSave(firstDraft, returned, {
+        ...prepared,
+        pendingDesignPatches: [
+            { pins: { hiddenPlaceKeys: ['hard:20'] } },
+            { layout: { resourceColumnCount: 3 } },
+        ],
+    });
+
+    assert.equal(acknowledged.persistedDocument.revision, 4);
+    assert.equal(acknowledged.persistedDocument.views[0].design.basemap.style, 'gray');
+    assert.deepEqual(acknowledged.session.draftDesign.pins.hiddenPlaceKeys, ['hard:20']);
+    assert.equal(acknowledged.session.draftDesign.layout.resourceColumnCount, 3);
+    assert.equal(acknowledged.session.dirty, true);
+    assert.equal(isMapStudioOwnerStateDirty(acknowledged), true);
+});
+
 test('discard restores the last server document after unsaved named-view changes', () => {
     const initial = createMapStudioOwnerState({ ...createMapStudioDocument(), revision: 2 });
     const created = createOwnerMapStudioView(initial, { id: 'view-new', name: 'New view' });

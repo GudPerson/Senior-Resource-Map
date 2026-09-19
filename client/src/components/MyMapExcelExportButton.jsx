@@ -6,6 +6,9 @@ import { useLocale } from '../contexts/LocaleContext.jsx';
 export default function MyMapExcelExportButton({
     directory,
     presentation,
+    mapNumberPresentation = presentation,
+    hiddenPlaceKeys = [],
+    beforeDownload = null,
     className = '',
 }) {
     const { locale, t } = useLocale();
@@ -23,8 +26,18 @@ export default function MyMapExcelExportButton({
         setExporting(true);
         setError('');
         try {
+            const ready = await beforeDownload?.();
+            if (ready === false || ready === null) {
+                throw new Error('Map Studio changes could not be saved before export.');
+            }
             const { downloadMyMapExcel } = await import('../lib/myMapExcelExporter.js');
-            await downloadMyMapExcel({ directory, presentation, locale });
+            await downloadMyMapExcel({
+                directory,
+                presentation,
+                mapNumberPresentation,
+                hiddenPlaceKeys,
+                locale,
+            });
         } catch (downloadError) {
             console.error(downloadError);
             if (mountedRef.current) setError(t('failedDownloadExcel'));

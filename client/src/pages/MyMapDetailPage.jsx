@@ -56,6 +56,7 @@ import {
     mergeGroupFocusDetailsIntoDirectory,
 } from '../lib/directoryGroupFocus.js';
 import {
+    applyPinNumberSequence,
     buildDirectoryPresentation,
     buildDirectoryShareUrl,
     buildPinVisibilityPresentation,
@@ -2066,21 +2067,38 @@ export default function MyMapDetailPage() {
     const v2Presentation = useMemo(() => (
         buildDirectoryPresentation(mapStudioFilteredDirectory, { query, activeAnchor, presentationMode: 'v2-cards' })
     ), [activeAnchor, mapStudioFilteredDirectory, query]);
+    const assetExportPresentation = useMemo(() => (
+        buildDirectoryPresentation(mapStudioFilteredDirectory, { presentationMode: 'v2-cards' })
+    ), [mapStudioFilteredDirectory]);
+    const hiddenPinPlaceKeys = useMemo(() => (
+        mapStudioInteractiveModel?.directoryMap?.hiddenPlaceKeys || []
+    ), [mapStudioInteractiveModel?.directoryMap?.hiddenPlaceKeys]);
+    const visiblePinSequencePresentation = useMemo(() => (
+        buildPinVisibilityPresentation(assetExportPresentation, hiddenPinPlaceKeys)
+    ), [assetExportPresentation, hiddenPinPlaceKeys]);
     const categoryOrderOptions = useMemo(() => (
         collectMyMapCategoryOptions(townMapCoveragePresentation)
     ), [townMapCoveragePresentation]);
     const baseOwnerPresentation = isV2View ? v2Presentation : interactivePresentation;
     const mapPinBasePresentation = useMemo(() => (
-        buildPinVisibilityPresentation(
-            baseOwnerPresentation,
-            mapStudioInteractiveModel?.directoryMap?.hiddenPlaceKeys,
+        applyPinNumberSequence(
+            buildPinVisibilityPresentation(baseOwnerPresentation, hiddenPinPlaceKeys),
+            visiblePinSequencePresentation,
+            hiddenPinPlaceKeys,
         )
-    ), [baseOwnerPresentation, mapStudioInteractiveModel?.directoryMap?.hiddenPlaceKeys]);
+    ), [baseOwnerPresentation, hiddenPinPlaceKeys, visiblePinSequencePresentation]);
+    const ownerCardPresentation = useMemo(() => (
+        applyPinNumberSequence(
+            baseOwnerPresentation,
+            visiblePinSequencePresentation,
+            hiddenPinPlaceKeys,
+        )
+    ), [baseOwnerPresentation, hiddenPinPlaceKeys, visiblePinSequencePresentation]);
     const ownerPresentation = useMemo(() => (
         mapStudioInteractiveModel?.directoryMap?.markerMode === 'print-badge'
-            ? buildOwnerNumberedPinPresentation(baseOwnerPresentation)
-            : baseOwnerPresentation
-    ), [baseOwnerPresentation, mapStudioInteractiveModel?.directoryMap?.markerMode]);
+            ? buildOwnerNumberedPinPresentation(ownerCardPresentation)
+            : ownerCardPresentation
+    ), [mapStudioInteractiveModel?.directoryMap?.markerMode, ownerCardPresentation]);
     const mapOwnerPresentation = useMemo(() => (
         mapStudioInteractiveModel?.directoryMap?.markerMode === 'print-badge'
             ? buildOwnerNumberedPinPresentation(mapPinBasePresentation)
@@ -2100,6 +2118,11 @@ export default function MyMapDetailPage() {
         return `${window.location.origin}/my-directory/maps/${encodeURIComponent(mapId)}${queryString ? `?${queryString}` : ''}`;
     }, [mapId, searchParams]);
     const printQrDirectoryUrl = sharedDirectoryUrl || ownerInteractiveDirectoryUrl;
+    const flushMapStudioChanges = useCallback(async () => {
+        const flush = mapStudioControllerRef.current?.flushPendingSave;
+        if (!flush) return mapStudioRuntimeSnapshot || true;
+        return flush();
+    }, [mapStudioRuntimeSnapshot]);
     const renderPdfExportButton = useCallback((className = '') => (
         <>
             <MyMapPdfExportButton
@@ -2109,11 +2132,21 @@ export default function MyMapDetailPage() {
             />
             <MyMapExcelExportButton
                 directory={directory}
-                presentation={pdfPresentation}
+                presentation={assetExportPresentation}
+                mapNumberPresentation={visiblePinSequencePresentation}
+                hiddenPlaceKeys={hiddenPinPlaceKeys}
+                beforeDownload={flushMapStudioChanges}
                 className={className}
             />
         </>
-    ), [directory, pdfPresentation]);
+    ), [
+        assetExportPresentation,
+        directory,
+        flushMapStudioChanges,
+        hiddenPinPlaceKeys,
+        pdfPresentation,
+        visiblePinSequencePresentation,
+    ]);
 
     const townMapCoveragePoints = useMemo(() => {
         const pinPoints = (townMapCoveragePresentation.pins || []).map((pin) => ({
@@ -3222,10 +3255,14 @@ export default function MyMapDetailPage() {
 
     async function handlePublishShare(options = {}) {
         if (!directory) return false;
-        if (mapStudioRuntimeSnapshot?.ownerDirty || mapStudioRuntimeSnapshot?.designDirty) {
+        const savedStudioSnapshot = await flushMapStudioChanges();
+        if (!savedStudioSnapshot) {
             setShareError(t('mapStudioSaveBeforeShare'));
             return false;
         }
+        const shareStudioSnapshot = savedStudioSnapshot === true
+            ? mapStudioRuntimeSnapshot
+            : savedStudioSnapshot;
         setShareSubmitting(true);
         setShareError('');
         try {
@@ -3240,8 +3277,8 @@ export default function MyMapDetailPage() {
                 setShareError(t('failedPublishShare'));
                 return false;
             }
-            await api.publishMyMapShare(directory.id, mapStudioRuntimeSnapshot?.documentRevision > 0
-                ? { studioViewId: mapStudioRuntimeSnapshot.activeViewId }
+            await api.publishMyMapShare(directory.id, shareStudioSnapshot?.documentRevision > 0
+                ? { studioViewId: shareStudioSnapshot.activeViewId }
                 : {});
             await loadMap();
             return true;
@@ -3453,17 +3490,25 @@ export default function MyMapDetailPage() {
         }
     }, []);
 
-    function openPrintView() {
+    async function openPrintView() {
         if (interactiveAnnotationEditorOpen) {
             printAnnotations.saveNow();
             setInteractiveAnnotationEditorOpen(false);
         }
-        const studioSnapshot = mapStudioRuntimeSnapshot?.design
+        const savedStudioSnapshot = await flushMapStudioChanges();
+        if (!savedStudioSnapshot) {
+            setActionError(t('mapStudioSaveFailed'));
+            return;
+        }
+        const currentStudioSnapshot = savedStudioSnapshot === true
+            ? mapStudioRuntimeSnapshot
+            : savedStudioSnapshot;
+        const studioSnapshot = currentStudioSnapshot?.design
             ? {
-                id: mapStudioRuntimeSnapshot.activeViewId,
-                name: mapStudioRuntimeSnapshot.activeViewName,
-                design: mapStudioRuntimeSnapshot.design,
-                designDirty: Boolean(mapStudioRuntimeSnapshot.designDirty),
+                id: currentStudioSnapshot.activeViewId,
+                name: currentStudioSnapshot.activeViewName,
+                design: currentStudioSnapshot.design,
+                designDirty: Boolean(currentStudioSnapshot.designDirty),
             }
             : null;
         const routeViewport = resolveMapStudioRouteViewport(
@@ -3471,7 +3516,7 @@ export default function MyMapDetailPage() {
             mapStudioViewportContext,
         );
         const runtimeCameraView = routeViewport.cameraView
-            || mapStudioRuntimeSnapshot?.exploration?.cameraView
+            || currentStudioSnapshot?.exploration?.cameraView
             || null;
         pendingPrintStudioViewRef.current = studioSnapshot;
         setActivePrintStudioView(studioSnapshot);
@@ -4014,7 +4059,7 @@ export default function MyMapDetailPage() {
                     onViewSection={handleViewSection}
                     onRemoveResource={resourceRemovalMode ? handleRemoveResource : null}
                     onTogglePinVisibility={pinVisibilityMode ? handleTogglePinVisibility : null}
-                    hiddenPinPlaceKeys={mapStudioInteractiveModel?.directoryMap?.hiddenPlaceKeys || []}
+                    hiddenPinPlaceKeys={hiddenPinPlaceKeys}
                     onEditPersonalPlace={handleEditPersonalPlace}
                     onEditResourceShortDescription={interactiveShortDescriptionMode
                         ? handleEditResourceShortDescription
@@ -4323,7 +4368,7 @@ export default function MyMapDetailPage() {
                                 onHoverPlaceEnd={handleMapHoverEnd}
                                 onRemoveResource={resourceRemovalMode ? handleRemoveResource : null}
                                 onTogglePinVisibility={pinVisibilityMode ? handleTogglePinVisibility : null}
-                                hiddenPinPlaceKeys={mapStudioInteractiveModel?.directoryMap?.hiddenPlaceKeys || []}
+                                hiddenPinPlaceKeys={hiddenPinPlaceKeys}
                                 onEditPersonalPlace={handleEditPersonalPlace}
                                 onEditResourceShortDescription={interactiveShortDescriptionMode
                                     ? handleEditResourceShortDescription

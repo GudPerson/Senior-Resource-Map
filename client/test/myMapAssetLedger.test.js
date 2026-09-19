@@ -72,12 +72,34 @@ test('asset ledger includes saved assets, personal places, and every formatted s
 
     const workbookRows = buildMyMapAssetWorkbookRows(ledger);
     assert.equal(workbookRows.assets.length, 2);
-    assert.equal(workbookRows.descriptions.length, 3);
-    assert.equal(workbookRows.assets.find((asset) => asset['Resource name'] === 'AAC One').Type, 'Place');
+    assert.equal(Object.hasOwn(workbookRows, 'descriptions'), false);
+    const aacWorkbookRow = workbookRows.assets.find((asset) => asset['Resource name'] === 'AAC One');
+    assert.equal(aacWorkbookRow.Type, 'Place');
+    assert.equal(aacWorkbookRow.Descriptions, 'Morning programme\nWheelchair access');
+    assert.equal(aacWorkbookRow['Description text colours'], '#0F766E\n#1D4ED8');
+    assert.equal(aacWorkbookRow['Description highlight colours'], '#DCFCE7\n');
     assert.equal(workbookRows.assets.find((asset) => asset['Resource name'] === 'My activity room').Type, 'Personal place');
     assert.equal(workbookRows.assets.find((asset) => asset['Resource name'] === 'AAC One')['Postal code'], '012345');
     assert.equal(workbookRows.assets.find((asset) => asset['Resource name'] === 'My activity room')['Postal code'], '600347');
     assert.doesNotMatch(JSON.stringify(workbookRows), /Private owner note/);
+});
+
+test('asset ledger uses the active visible-pin sequence and labels hidden pins without consuming a number', () => {
+    const presentation = {
+        mappedGroups: [
+            { placeKey: 'hard-1', number: 14, rows: [row({ resourceId: 1, name: 'Hidden AAC' })] },
+            { placeKey: 'hard-2', number: 18, rows: [row({ resourceId: 2, name: 'Visible AAC' })] },
+        ],
+    };
+    const ledger = buildMyMapAssetLedger({
+        directory: { name: 'Sequence check' },
+        presentation,
+        mapNumberPresentation: { placeNumberByKey: { 'hard-2': 1 } },
+        hiddenPlaceKeys: ['hard-1'],
+    });
+
+    assert.equal(ledger.assets.find((asset) => asset.assetKey === 'hard-1').sourceMapNumber, 'Hidden');
+    assert.equal(ledger.assets.find((asset) => asset.assetKey === 'hard-2').sourceMapNumber, '1');
 });
 
 test('Excel text neutralizes formula-like user content', () => {

@@ -221,7 +221,7 @@ export function acknowledgeMapStudioOwnerSave(state, serverDocument, saveContext
     )
         ? saveContext.activeViewId
         : persistedDocument.defaultViewId;
-    return {
+    let nextState = {
         persistedDocument: clone(persistedDocument),
         workingDocument: clone(persistedDocument),
         session: createMapStudioSession(persistedDocument, {
@@ -230,4 +230,15 @@ export function acknowledgeMapStudioOwnerSave(state, serverDocument, saveContext
             exploration: saveContext.exploration ?? state?.session?.exploration,
         }),
     };
+
+    for (const pendingPatch of saveContext.pendingDesignPatches || []) {
+        const patch = pendingPatch?.patch ?? pendingPatch;
+        if (!patch || typeof patch !== 'object') continue;
+        if (nextState.session.mode !== MAP_STUDIO_MODE_DESIGN) {
+            nextState = setOwnerMapStudioMode(nextState, MAP_STUDIO_MODE_DESIGN);
+        }
+        nextState = patchOwnerMapStudioDraft(nextState, patch);
+    }
+
+    return nextState;
 }

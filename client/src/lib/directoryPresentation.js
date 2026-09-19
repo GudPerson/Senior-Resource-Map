@@ -731,8 +731,9 @@ export function buildOwnerNumberedPinPresentation(presentation) {
 
 /**
  * Build the map-only portion of a Map Studio presentation after applying
- * per-view pin visibility. Card groups, numbers, ordering, and counts stay in
- * the caller's original presentation; this returned model is only for the map.
+ * per-view pin visibility. Visible mapped groups are renumbered contiguously in
+ * their existing display order; hidden and list-only groups do not consume a
+ * map-pin number.
  */
 export function buildPinVisibilityPresentation(
     presentation,
@@ -757,16 +758,37 @@ export function buildPinVisibilityPresentation(
         || group?.lng === null
         || visiblePlaceKeys.has(String(group?.placeKey || ''))
     ));
-    const hardCategoryEntriesByPostal = buildHardCategoryEntriesByPostal(visibleMappedGroups);
-    const pinGroups = buildGroupedMappedGroups(visibleMappedGroups);
+    const placeNumberByKey = {};
+    let nextVisibleNumber = 1;
+    visibleDisplayGroups.forEach((group) => {
+        const placeKey = String(group?.placeKey || '');
+        if (!placeKey || !visiblePlaceKeys.has(placeKey)) return;
+        const number = nextVisibleNumber;
+        nextVisibleNumber += 1;
+        placeNumberByKey[placeKey] = number;
+        (group.memberPlaceKeys || []).forEach((memberPlaceKey) => {
+            const normalizedMemberPlaceKey = String(memberPlaceKey || '');
+            if (normalizedMemberPlaceKey) placeNumberByKey[normalizedMemberPlaceKey] = number;
+        });
+    });
+    const numberedMappedGroups = visibleMappedGroups.map((group) => ({
+        ...group,
+        number: placeNumberByKey[group.placeKey] || null,
+    }));
+    const numberedDisplayGroups = visibleDisplayGroups.map((group) => ({
+        ...group,
+        number: placeNumberByKey[group.placeKey] || null,
+    }));
+    const hardCategoryEntriesByPostal = buildHardCategoryEntriesByPostal(numberedMappedGroups);
+    const pinGroups = buildGroupedMappedGroups(numberedMappedGroups);
     const pins = buildGroupedPins(pinGroups, {
         hardRowsOnly: true,
         hardCategoryEntriesByPostal,
         preferMapCategory: true,
     }).map((pin) => ({
         ...pin,
-        number: presentation.placeNumberByKey?.[pin.placeKey]
-            || presentation.placeNumberByKey?.[pin.memberPlaceKeys?.[0]]
+        number: placeNumberByKey[pin.placeKey]
+            || placeNumberByKey[pin.memberPlaceKeys?.[0]]
             || null,
     }));
     const groupKeyByPlaceKey = {};
@@ -786,10 +808,58 @@ export function buildPinVisibilityPresentation(
     return {
         ...presentation,
         pins,
-        mappedGroups: visibleMappedGroups,
-        displayGroups: visibleDisplayGroups,
+        mappedGroups: numberedMappedGroups,
+        displayGroups: numberedDisplayGroups,
+        placeNumberByKey,
         groupKeyByPlaceKey,
-        hoverPlaceKeysByKey: buildHoverPlaceKeysByKey(visibleMappedGroups, pinGroups),
+        hoverPlaceKeysByKey: buildHoverPlaceKeysByKey(numberedMappedGroups, pinGroups),
+    };
+}
+
+/**
+ * Apply a Map Studio visible-pin sequence to a full card presentation. Hidden
+ * cards remain in the directory, but their map number is cleared so callers can
+ * label them as hidden without reserving a number in the visible sequence.
+ */
+export function applyPinNumberSequence(
+    presentation,
+    sequencePresentation,
+    hiddenPlaceKeys = [],
+) {
+    if (!presentation) return presentation;
+    const placeNumberByKey = { ...(sequencePresentation?.placeNumberByKey || {}) };
+    const hiddenKeys = new Set(
+        (Array.isArray(hiddenPlaceKeys) ? hiddenPlaceKeys : [])
+            .map((value) => String(value || '').trim())
+            .filter(Boolean),
+    );
+    const decorateGroup = (group) => {
+        const placeKey = String(group?.placeKey || '');
+        return {
+            ...group,
+            number: hiddenKeys.has(placeKey) ? null : (placeNumberByKey[placeKey] || null),
+        };
+    };
+    const decorateGroups = (groups) => (
+        Array.isArray(groups) ? groups.map(decorateGroup) : groups
+    );
+    const pins = (presentation.pins || []).map((pin) => ({
+        ...pin,
+        number: placeNumberByKey[pin.placeKey]
+            || placeNumberByKey[pin.memberPlaceKeys?.[0]]
+            || null,
+    }));
+
+    return {
+        ...presentation,
+        pins,
+        mappedGroups: decorateGroups(presentation.mappedGroups),
+        displayGroups: decorateGroups(presentation.displayGroups),
+        mobileDisplayGroups: decorateGroups(presentation.mobileDisplayGroups),
+        leftGroups: decorateGroups(presentation.leftGroups),
+        rightGroups: decorateGroups(presentation.rightGroups),
+        mapColumnGroups: decorateGroups(presentation.mapColumnGroups),
+        placeNumberByKey,
     };
 }
 

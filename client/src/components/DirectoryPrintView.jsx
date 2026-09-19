@@ -8,6 +8,7 @@ import PrintMapLayersControl from './PrintMapLayersControl.jsx';
 import SharedMapDirectoryList from './SharedMapDirectoryList.jsx';
 import BrandLockup from './layout/BrandLockup.jsx';
 import {
+    applyPinNumberSequence,
     buildDirectoryPresentation,
     buildDirectoryShareUrl,
     buildPinVisibilityPresentation,
@@ -881,13 +882,18 @@ export default function DirectoryPrintView({
         : null;
     const usesOwnerPrintBadgePins = useV2OwnerPrint
         && (!studioMarkerMode || studioMarkerMode === 'print-badge');
-    const ownerPrintPresentation = usesOwnerPrintBadgePins
-        ? buildOwnerNumberedPinPresentation(basePresentation)
-        : basePresentation;
     const mapPinBasePresentation = buildPinVisibilityPresentation(
         basePresentation,
         printMapState?.hiddenPinPlaceKeys,
     );
+    const ownerCardBasePresentation = applyPinNumberSequence(
+        basePresentation,
+        mapPinBasePresentation,
+        printMapState?.hiddenPinPlaceKeys,
+    );
+    const ownerPrintPresentation = usesOwnerPrintBadgePins
+        ? buildOwnerNumberedPinPresentation(ownerCardBasePresentation)
+        : ownerCardBasePresentation;
     const ownerPrintMapPresentation = usesOwnerPrintBadgePins
         ? buildOwnerNumberedPinPresentation(mapPinBasePresentation)
         : mapPinBasePresentation;
@@ -1095,6 +1101,7 @@ export default function DirectoryPrintView({
                 onRemoveResource={variant === 'screen'
                     ? onRemovePersonalPlace
                     : null}
+                hiddenPinPlaceKeys={printMapState?.hiddenPinPlaceKeys || []}
                 highlightPlaceKeys={activePrintPlaceKeys}
                 // Keep Balanced exact, while Map focus swaps to a constrained single label rail.
                 desktopGridClassName={printLayoutConfig.gridClassName}
