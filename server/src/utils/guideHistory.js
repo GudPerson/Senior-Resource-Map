@@ -3,6 +3,16 @@ import { z } from 'zod';
 import { normalizeRole } from './roles.js';
 import { SupportError, sanitizeSupportText, supportIdSchema } from './supportDomain.js';
 import { GUIDE_TOPICS, GUIDE_KNOWLEDGE_VERSION, answerGuideQuestion, extractGuideSearchCriteria } from './guideKnowledge.js';
+import { answerGuideResourceAccessQuestion } from './guideAccess.js';
+import { answerGuideOracleFact, answerGuideUnverifiedWorkflow } from './guideOracleKnowledge.js';
+import { guideManagedResourceIntent } from './guideManagedResources.js';
+import { guideSavedResourceIntent } from './guideSavedResources.js';
+import { guidePersonalPlaceIntent } from './guidePersonalPlaces.js';
+import { guidePlansIntent } from './guidePlans.js';
+import { answerGuideCompositeQuestion } from './guideCompositeQuestions.js';
+import { answerGuideVerifiedBoundaryQuestion } from './guideVerifiedBoundary.js';
+import { guideOwnRegionScopeIntent } from './guideOwnRegionScope.js';
+import { guideAuditActivityIntent } from './guideAuditActivity.js';
 
 export const guideHistoryInputSchema = z.object({
     question: z.string().trim().min(1).max(600)
@@ -35,11 +45,32 @@ export function restoreGuideHistory(row, user) {
             const parsed = guideHistoryInputSchema.safeParse(stored);
             const input = parsed.success ? parsed.data : null;
             const criteria = input?.question && extractGuideSearchCriteria(input.question);
+            const question = input?.question || '';
+            const auditActivity = question && guideAuditActivityIntent(question);
+            const boundary = !auditActivity && question && answerGuideVerifiedBoundaryQuestion(question, user);
+            const composite = !auditActivity && question && answerGuideCompositeQuestion(question, user);
+            const access = !auditActivity && question && answerGuideResourceAccessQuestion(question, user);
+            const needsAccountRefresh = question && (['list', 'groups', 'groups-with-access'].includes(guideManagedResourceIntent(question))
+                || guideSavedResourceIntent(question) === 'list' || guidePersonalPlaceIntent(question) === 'list'
+                || guidePlansIntent(question) === 'list' || guideOwnRegionScopeIntent(question)
+                || auditActivity);
             const answer = criteria ? {
                 version: GUIDE_KNOWLEDGE_VERSION, topicId: 'resource-search', criteria,
                 message: 'This was a directory search. Run these keywords again to see currently available public resources.',
                 actions: [],
-            } : answerGuideQuestion(input || {}, user);
+            } : boundary ? { version: GUIDE_KNOWLEDGE_VERSION, ...boundary }
+                : composite ? { version: GUIDE_KNOWLEDGE_VERSION, ...composite }
+                : access ? { version: GUIDE_KNOWLEDGE_VERSION, ...access, answerSource: 'account' }
+                : needsAccountRefresh ? {
+                    version: GUIDE_KNOWLEDGE_VERSION, topicId: 'account-refresh',
+                    message: 'This saved question needs current account information. Ask it again to check the latest list; the old account answer was not saved.',
+                    actions: [],
+                } : question ? {
+                    version: GUIDE_KNOWLEDGE_VERSION,
+                    ...(answerGuideUnverifiedWorkflow(question) || answerGuideOracleFact(question)
+                        || answerGuideQuestion(input, user)),
+                    answerSource: 'reviewed',
+                } : answerGuideQuestion(input || {}, user);
             return { ...answer, id: `${row.id}:${index}`, question: input ? input.question || titleFor(input) : 'Earlier help topic', input };
         }) };
 }

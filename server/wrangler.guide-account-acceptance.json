@@ -1,0 +1,59 @@
+{
+  "name": "carearound-guide-account-acceptance",
+  "main": "src/preview/guideAcceptancePilot.worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "nodejs_compat_populate_process_env"
+  ],
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [],
+  "triggers": {
+    "crons": []
+  },
+  "observability": {
+    "enabled": false
+  },
+  "assets": {
+    "directory": "../client/dist-guide-account-acceptance",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "NODE_ENV": "production",
+    "SUPPORT_INBOX_ENABLED": "true",
+    "ALLOW_RUNTIME_SCHEMA_BOOTSTRAP": "false",
+    "GUIDE_CHAT_ENABLED": "true",
+    "GUIDE_SEMANTIC_RETRIEVAL_ENABLED": "true",
+    "GUIDE_ACTIONS_ENABLED": "true",
+    "GROUNDED_AI_ENABLED": "false",
+    "GOVERNED_PILOT_RELEASE_STAGE": "off",
+    "ORACLE_ACCOUNT_ACCEPTANCE_ENABLED": "true",
+    "ORACLE_ACCOUNT_ACCEPTANCE_DATABASE_HOST": "ep-rapid-hill-aigmz42s-pooler.c-4.us-east-1.aws.neon.tech",
+    "ALLOWED_ORIGINS": "https://carearound-guide-account-acceptance.joshuachua79.workers.dev",
+    "GUIDE_AI_GATEWAY_ID": "carearound-guide",
+    "ORACLE_PREVIEW_LLM_ENABLED": "true",
+    "GUIDE_CONVERSATIONAL_ANSWERS_ENABLED": "true"
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "GUIDE_PILOT_BUDGET",
+        "class_name": "GuidePilotBudget"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "guide-pilot-budget-v1",
+      "new_sqlite_classes": [
+        "GuidePilotBudget"
+      ]
+    }
+  ]
+}

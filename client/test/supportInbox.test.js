@@ -63,8 +63,12 @@ test('support client keeps review controls role-specific and only accepts safe G
     for (const user of [null, { id: 1, role: 'regional_admin' }, { id: 1, role: 'super_admin', isImpersonating: true }]) assert.equal(canReviewSupportInbox(user), false);
     assert.equal(safeGuideActionRoute('/my-directory'), null);
     assert.equal(safeGuideActionRoute('/my-directory', true), '/my-directory');
+    for (const path of ['/dashboard', '/dashboard/organization', '/dashboard/audit', '/dashboard/admin']) {
+        assert.equal(safeGuideActionRoute(path), null);
+        assert.equal(safeGuideActionRoute(path, true), path);
+    }
     assert.equal(safeGuideActionRoute('/resource/soft/23'), '/resource/soft/23');
-    for (const path of ['https://evil.example', '//evil.example', '/dashboard/admin', '/resource/soft/23?private=secret', '/resource/hard/-2']) assert.equal(safeGuideActionRoute(path, true), null);
+    for (const path of ['https://evil.example', '//evil.example', '/dashboard/admin?tab=users', '/resource/soft/23?private=secret', '/resource/hard/-2']) assert.equal(safeGuideActionRoute(path, true), null);
 });
 
 test('guest recovery is random, optional, session-scoped, and can be forgotten', () => {

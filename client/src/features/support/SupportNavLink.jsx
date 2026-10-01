@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MessageCircle } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import { useGuideAssistant } from './GuideAssistant.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { createSupportApi, isSupportImpersonating, readGuestSupportKey, SUPPORT_UPDATED_EVENT } from '../../lib/supportInbox.js';
 import { createNotificationApi } from '../../lib/notifications.js';
@@ -9,6 +10,7 @@ import { notificationInboxPath } from './notificationState.js';
 
 function SupportLink({ user, isImpersonating }) {
     const location = useLocation();
+    const guide = useGuideAssistant();
     const [counts, setCounts] = useState({ messages: 0, updates: 0 });
     const unread = counts.messages + counts.updates;
     useEffect(() => {
@@ -36,11 +38,19 @@ function SupportLink({ user, isImpersonating }) {
         window.addEventListener(SUPPORT_UPDATED_EVENT, update);
         return () => { controller.abort(); clearInterval(timer); window.removeEventListener('focus', update); window.removeEventListener(SUPPORT_UPDATED_EVENT, update); };
     }, [user?.id, isImpersonating]);
-    return <Link to={notificationInboxPath(counts.messages, counts.updates)} state={{ supportContext: { pathname: location.pathname } }}
+    const destination = notificationInboxPath(counts.messages, counts.updates);
+    const control = <>
+        <Sparkles size={18} aria-hidden="true" />
+        <span className="hidden lg:inline">Ask Guide</span>
+        {unread > 0 && <span aria-hidden="true" className="absolute -right-1 -top-1 rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{unread > 99 ? '99+' : unread}</span>}
+    </>;
+    if (guide?.available) return <button type="button" data-guide-launcher onClick={() => guide.openGuide({ inboxPath: destination })}
+        className="relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-xl border border-slate-200 px-2 text-sm font-semibold text-brand-700 hover:bg-brand-50"
+        aria-label={unread ? `Ask Guide, ${unread} unread inbox items` : 'Ask Guide'} aria-expanded={guide.open} aria-controls="carearound-guide-assistant" title="Ask Guide">{control}</button>;
+    return <Link to={destination} state={{ supportContext: { pathname: location.pathname } }}
         className="relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-slate-200 text-brand-700 hover:bg-brand-50"
         aria-label={unread ? `Help and inbox, ${unread} unread ${unread === 1 ? 'item' : 'items'}` : 'Help and inbox'} title="Help and inbox">
-        <MessageCircle size={18} aria-hidden="true" />
-        {unread > 0 && <span aria-hidden="true" className="absolute -right-1 -top-1 rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{unread > 99 ? '99+' : unread}</span>}
+        {control}
     </Link>;
 }
 

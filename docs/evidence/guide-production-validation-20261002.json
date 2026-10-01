@@ -1,0 +1,47 @@
+{
+  "status": "validated_for_release",
+  "date": "2026-10-02",
+  "baseline": "ea23d90f36224123ebf238c2a3a7ee5c98b564d6",
+  "validation": {
+    "serverPassed": 994,
+    "clientPassed": 826,
+    "migrationDefinitions": 11,
+    "sourceModules": 564,
+    "relativeImportEdges": 1716,
+    "cycles": 0,
+    "requiredClientBuild": "passed",
+    "mapLockdown": "passed",
+    "workerDryRun": "passed",
+    "scrollChecks": 4,
+    "actionBrowserChecks": 22,
+    "threeLayerFixtureChecks": 188,
+    "publicFixtureSmoke": {
+      "passed": false,
+      "reason": "Fixture shows the existing restricted-public-access screen, so Discover heading is absent. No access-policy change made.",
+      "failedChecks": 1,
+      "retries": 1
+    },
+    "finalDependencyBaseline": "Tracked dependencies restored; full quality 993 server/826 client then final 994 server after budget flag guard."
+  },
+  "proofBoundaries": [
+    "Browser accounts/database/model are fictional and disposable.",
+    "Actual Cloudflare model was observed in the earlier isolated preview; live production acceptance follows deployment.",
+    "Full credentialed partner smoke was not run; no production secrets requested.",
+    "No production database migration or test resource write.",
+    "Existing public smoke fails in the restricted fixture; production access checked separately."
+  ],
+  "aiPolicy": {
+    "gateway": "carearound-guide",
+    "estimatedSlidingDailyUsd": 0.5,
+    "cumulativePhysicalCallLimit": 80,
+    "sharedWith": "carearound-guide-account-acceptance",
+    "objectName": "carearound-guide-pilot-20261001",
+    "expiresAt": "2026-10-02T10:54:34Z",
+    "resetOrExtension": false
+  },
+  "rollback": {
+    "workerVersion": "5e121bcb-eec0-4392-8352-d951c419cbcc",
+    "workerDeployment": "d26382b6-cbb9-4598-8102-74cb0ce0e066",
+    "sourceBaseline": "ea23d90f36224123ebf238c2a3a7ee5c98b564d6"
+  }
+}

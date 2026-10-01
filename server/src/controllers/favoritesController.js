@@ -234,6 +234,40 @@ export async function listSavedSoftAssets(db, user, resolutionContext = null) {
     return hydrateSavedSoftAssetRecords(db, user, favorites, finalResolutionContext);
 }
 
+// Guide saves are one-way and safe to retry. The existing toggle remains the
+// behavior of the normal Save/Remove controls.
+export async function ensureSavedAsset(db, user, resourceType, resourceId, resolutionContext = null) {
+    const existing = await findFavoriteRecord(db, user.id, resourceType, resourceId);
+    if (existing) return { success: true, saved: true, alreadySaved: true, resourceType, resourceId };
+
+    const finalResolutionContext = resolutionContext || await createSavedAssetResolutionContext(db, user);
+    const resolved = await resolveSavedAssetSummary(db, user, resourceType, resourceId, finalResolutionContext);
+    if (!resolved?.summary || resolved.status !== 'available') {
+        const err = new Error('Resource unavailable');
+        err.status = 404;
+        throw err;
+    }
+
+    let alreadySaved = false;
+    try {
+        await db.insert(userFavorites).values({
+            userId: user.id,
+            resourceType,
+            resourceId,
+            snapshot: buildSavedAssetSnapshot(resolved.summary),
+        });
+    } catch (err) {
+        if (!isUniqueConstraintViolation(err)) throw err;
+        alreadySaved = true;
+    }
+    if (!await findFavoriteRecord(db, user.id, resourceType, resourceId)) {
+        const err = new Error('The save could not be confirmed. Retry this same request.');
+        err.status = 503;
+        throw err;
+    }
+    return { success: true, saved: true, alreadySaved, resourceType, resourceId };
+}
+
 export async function toggleSavedAsset(db, user, resourceType, resourceId, resolutionContext = null) {
     const existing = await findFavoriteRecord(db, user.id, resourceType, resourceId);
 

@@ -1,5 +1,14 @@
 # CareAround SG session handoff
 
+## 2026-10-02 CareAround Guide production release candidate
+
+User explicitly approved commit, push and production deployment. Prepared from fresh `origin/main` (`ea23d90f`), preserving the original dirty Guide and documentation worktrees. Assistant UI, reviewed Oracle knowledge, scoped account readers and confirmed Programme/service/Create/Save actions are enabled in the production candidate. The existing production database, secrets, routes and cron are retained; no SQL migration is required.
+
+The live AI connection retains the existing shared 80-attempt pilot and USD 0.50 sliding daily estimated Gateway limit. Production and preview reserve the same persistent counter. It expires at **2 October 2026, 18:54:34 Singapore time**; no reset/extension is authorized. Reviewed help/account/manual confirmed actions continue after expiry. Broader semantic accuracy and real write acceptance are not inferred from fictional tests.
+
+Quality: 994 server and 826 client checks pass, required client build/static checks pass, locked map validation and Worker dry-run pass. Disposable browser/three-layer action checks and scroll geometry pass. Full credentialed partner smoke was not run. Production deployment/verification is pending in this prepared record; the final local release receipt records actual deployment identifiers and live checks. See `docs/guide-production-release-20261002.md` and `docs/evidence/guide-production-validation-20261002.json`.
+
+
 Updated: 2026-09-15 (Asia/Singapore)
 
 ## 2026-09-15 Gate 2 security remediation in the cumulative Gate 4 candidate

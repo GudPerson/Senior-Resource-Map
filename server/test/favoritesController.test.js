@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    ensureSavedAsset,
     listSavedAssets,
     listSavedSoftAssets,
     loadSavedAssetMyMapUsage,
@@ -295,6 +296,33 @@ test('listSavedAssets falls back to snapshot when the live asset is unavailable'
     assert.equal(Object.hasOwn(item, 'snapshot'), false);
 });
 
+test('Saved Place and Offering entries persist through hidden and visible status transitions', async () => {
+    const place = createHardAsset();
+    const offering = createSoftAsset(44);
+    const db = createFakeDb({ favorites: [createFavorite(), createFavorite({
+        id: 2, resourceType: 'soft', resourceId: 44,
+    })], hardAssets: [place], softAssets: [offering] });
+    const member = { id: 7, role: 'standard' };
+    const visible = await listSavedAssets(db, member, DEFAULT_CONTEXT);
+    assert.deepEqual(visible.map(({ status }) => status), ['available', 'available']);
+    place.isHidden = true;
+    offering.isHidden = true;
+    const hidden = await listSavedAssets(db, member, DEFAULT_CONTEXT);
+    assert.deepEqual(hidden.map(({ id, status }) => ({ id, status })), [
+        { id: 1, status: 'unavailable' }, { id: 2, status: 'unavailable' },
+    ]);
+    assert.equal(db.state.favorites.length, 2);
+    const admin = await listSavedAssets(db, { id: 7, role: 'super_admin' }, DEFAULT_CONTEXT);
+    assert.deepEqual(admin.map(({ status }) => status), ['available', 'available']);
+    place.isHidden = false;
+    offering.isHidden = false;
+    const shown = await listSavedAssets(db, member, DEFAULT_CONTEXT);
+    assert.deepEqual(shown.map(({ id, status }) => ({ id, status })), [
+        { id: 1, status: 'available' }, { id: 2, status: 'available' },
+    ]);
+    assert.equal(db.state.favorites.length, 2);
+});
+
 test('listSavedAssets batches a large mixed list and preserves favorite order', async () => {
     const favorites = Array.from({ length: 80 }, (_, index) => {
         const resourceType = index % 2 === 0 ? 'hard' : 'soft';
@@ -491,6 +519,41 @@ test('toggleSavedAsset returns final saved state with item payload on save', asy
         detailPath: '/resource/hard/29',
         hostHardAssetIds: [],
     });
+});
+
+test('ensureSavedAsset adds once and repeated Guide saves never toggle it off', async () => {
+    const db = createFakeDb({ hardAsset: createHardAsset() });
+    const user = { id: 7, role: 'standard', postalCode: '680153' };
+
+    const first = await ensureSavedAsset(db, user, 'hard', 29, DEFAULT_CONTEXT);
+    const retry = await ensureSavedAsset(db, user, 'hard', 29, DEFAULT_CONTEXT);
+
+    assert.equal(first.saved, true);
+    assert.equal(first.alreadySaved, false);
+    assert.equal(retry.saved, true);
+    assert.equal(retry.alreadySaved, true);
+    assert.equal(db.state.favorites.length, 1);
+});
+
+test('ensureSavedAsset checks current resource visibility before a new save', async () => {
+    const user = { id: 7, role: 'standard', postalCode: '680153' };
+    for (const asset of [createHardAsset({ isDeleted: true }), createHardAsset({ isHidden: true })]) {
+        const db = createFakeDb({ hardAsset: asset });
+        await assert.rejects(() => ensureSavedAsset(db, user, 'hard', 29, DEFAULT_CONTEXT),
+            (error) => error.status === 404);
+        assert.equal(db.state.favorites.length, 0);
+    }
+});
+
+test('ensureSavedAsset treats a simultaneous unique save as already saved', async () => {
+    const db = createFakeDb({ favorites: [createFavorite()], hardAsset: createHardAsset(), raceConflict: true });
+    const user = { id: 7, role: 'standard', postalCode: '680153' };
+
+    const result = await ensureSavedAsset(db, user, 'hard', 29, DEFAULT_CONTEXT);
+
+    assert.equal(result.saved, true);
+    assert.equal(result.alreadySaved, true);
+    assert.equal(db.state.favorites.length, 1);
 });
 
 test('toggleSavedAsset returns final saved state on remove', async () => {

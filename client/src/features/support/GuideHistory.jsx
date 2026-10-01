@@ -39,7 +39,7 @@ export default function GuideHistory({ api, messages, onRestore, onStartNew, bus
         <summary className="cursor-pointer font-semibold">My private Guide history</summary>
         <div className="mt-3 space-y-3">
             <p className="text-xs text-slate-600">Questions are saved to your account only when you choose Save. Support cannot read this history through the support inbox. Save up to 20 conversations, with the latest 20 questions each. You can delete them here.</p>
-            <p className="text-xs text-slate-600">Saved questions use current help answers when reopened. Search results are not stored; run the search again for current resources.</p>
+            <p className="text-xs text-slate-600">Saved questions use current reviewed help when reopened. Search results and account lists are not stored; ask again for current results.</p>
             {active && <p className="text-sm">Opened: {active.title}{signature !== savedSignature ? ' · unsaved changes' : ''}</p>}
             <div className="flex flex-wrap gap-2">
                 <button type="button" className="btn-ghost text-sm" disabled={disabled || !inputs.length || signature === savedSignature} onClick={prepare}>{active ? 'Review history update' : 'Review questions to save'}</button>

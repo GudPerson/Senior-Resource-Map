@@ -3,14 +3,14 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { canReviewSupportInbox, createSupportApi, isGuestSupportKey, isSupportImpersonating, readGuestSupportKey, rememberGuestSupportKey, signalSupportUpdate } from '../lib/supportInbox.js';
-import GuidePanel from '../features/support/GuidePanel.jsx';
+import { useGuideAssistant } from '../features/support/GuideAssistant.jsx';
 import SupportReportComposer from '../features/support/SupportReportComposer.jsx';
 import SupportInbox from '../features/support/SupportInbox.jsx';
 import NotificationPanel from '../features/support/NotificationPanel.jsx';
-import { buildGuideReportDraft } from '../features/support/guideHistoryState.js';
 
 function SupportHub({ user, isImpersonating }) {
     const location = useLocation();
+    const guide = useGuideAssistant();
     const { locale } = useLocale();
     const [params, setParams] = useSearchParams();
     const heading = useRef(null);
@@ -20,7 +20,7 @@ function SupportHub({ user, isImpersonating }) {
     const [initialReportId, setInitialReportId] = useState(null);
     const [newReportKey, setNewReportKey] = useState(0);
     const [reportDraft, setReportDraft] = useState(null);
-    const [context] = useState(() => ({ pathname: String(location.state?.supportContext?.pathname || '/help').slice(0, 1000) }));
+    const [context, setContext] = useState(() => ({ pathname: String(location.state?.supportContext?.pathname || '/help').slice(0, 1000) }));
     const signedIn = Boolean(user?.id);
     const canReview = canReviewSupportInbox(user, isImpersonating);
     const requestedTab = params.get('tab');
@@ -28,6 +28,13 @@ function SupportHub({ user, isImpersonating }) {
     const showUpdates = tab === 'inbox' && signedIn && !guestKey && params.get('view') === 'updates';
     const api = useMemo(() => createSupportApi({ guestKey: tab === 'review' ? '' : guestKey, reviewer: tab === 'review' }), [guestKey, tab]);
     useEffect(() => { heading.current?.focus(); }, [tab, guestKey, showUpdates]);
+    useEffect(() => {
+        if (guide?.reportDraft) {
+            setContext(guide.reportContext || { pathname: '/help' });
+            setReportDraft(guide.reportDraft); setNewReportKey((value) => value + 1);
+            guide.consumeReportDraft();
+        }
+    }, [guide?.reportDraft, guide?.reportContext, guide?.consumeReportDraft]);
     function changeTab(value) { setParams(value === 'guide' ? {} : { tab: value }); }
     function recover(event) {
         event.preventDefault();
@@ -44,11 +51,12 @@ function SupportHub({ user, isImpersonating }) {
         <nav className="flex flex-wrap gap-2" aria-label="Help sections">{[['guide', 'Guide & search'], ['inbox', 'Inbox'], ['report', 'Report a problem'], ...(canReview ? [['review', 'Support review']] : [])].map(([value, label]) =>
             <button type="button" key={value} className={tab === value ? 'btn-primary' : 'btn-ghost'} aria-current={tab === value ? 'page' : undefined} onClick={() => changeTab(value)}>{label}</button>)}</nav>
         {isImpersonating && tab !== 'guide' ? <section className="card p-6"><h2 className="font-bold">Exit User View to use the inbox</h2><p className="mt-2 text-sm">Private conversations and support review are not available through impersonation.</p></section>
-            : tab === 'guide' ? <GuidePanel api={api} signedIn={signedIn} canSaveHistory={signedIn && !isImpersonating} onDraftReport={isImpersonating ? undefined : (message) => {
-                const draft = buildGuideReportDraft(message);
-                if (!draft) return;
-                setReportDraft(draft); setNewReportKey((value) => value + 1); changeTab('report');
-            }} />
+            : tab === 'guide' ? <section className="mx-auto max-w-2xl space-y-4 py-8">
+                <h2 className="text-xl font-bold">What would you like to do?</h2>
+                <p className="text-slate-600">Ask about CareAround, find resources, or prepare a programme for a place you manage. Your conversation stays with you as you move around the app.</p>
+                <button type="button" className="btn-primary" onClick={() => guide?.openGuide()}>Open CareAround Guide</button>
+                <p className="text-xs text-slate-500">Programme drafts are reviewed before anything is created. Saved help history is optional.</p>
+            </section>
                 : tab === 'report' ? <SupportReportComposer key={newReportKey} signedIn={signedIn} context={context} initialDraft={reportDraft} onCreated={(report, key) => {
                     setGuestKey(key); setInitialReportId(report.id); setReportDraft(null); setNewReportKey((value) => value + 1); changeTab('inbox');
                 }} />

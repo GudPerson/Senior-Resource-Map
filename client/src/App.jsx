@@ -18,6 +18,7 @@ import {
     ORGANIZATION_ONBOARDING_UI_ENABLED,
 } from './lib/governedPilotRelease.js';
 import { SUPPORT_UI_ENABLED } from './lib/supportInbox.js';
+import GuideAssistantProvider from './features/support/GuideAssistant.jsx';
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage.jsx'));
 const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview.jsx'));
@@ -80,7 +81,7 @@ export default function App() {
         <LocaleProvider>
             <SavedAssetsProvider>
                 <BrowserRouter>
-                    <AppShell />
+                    <GuideAssistantProvider><AppShell /></GuideAssistantProvider>
                 </BrowserRouter>
             </SavedAssetsProvider>
         </LocaleProvider>

@@ -42,7 +42,8 @@ export function signalSupportUpdate() {
 
 export function safeGuideActionRoute(route, signedIn = false) {
     if (['/discover', '/login', '/privacy', '/terms', '/help', '/help?tab=report', '/help?tab=inbox'].includes(route)) return route;
-    if (signedIn && ['/my-directory', '/dashboard/calendar', '/dashboard/profile'].includes(route)) return route;
+    if (signedIn && ['/my-directory', '/dashboard', '/dashboard/calendar', '/dashboard/profile', '/dashboard/resources',
+        '/dashboard/organization', '/dashboard/audit', '/dashboard/admin'].includes(route)) return route;
     if (/^\/resource\/(hard|soft)\/[1-9]\d*$/.test(route || '')) return route;
     return null;
 }
@@ -61,6 +62,12 @@ export function createSupportApi({ guestKey = '', reviewer = false, request = re
         topics: (signal) => call('GET', '/guide/topics', undefined, signal),
         answer: (body, signal) => call('POST', '/guide/answer', body, signal),
         search: (body, signal) => call('POST', '/guide/search', body, signal),
+        guideManagedAccess: (query, signal) => call('GET', `/guide/managed-access?${new URLSearchParams({ q: query })}`, undefined, signal),
+        guideProgrammePlaces: (query = '', signal) => call('GET', `/guide/actions/programmes/places${query ? `?${new URLSearchParams({ q: query })}` : ''}`, undefined, signal),
+        guideProgrammeDraft: (body, signal) => call('POST', '/guide/actions/programmes/draft', body, signal),
+        guideProgrammeReview: (body, signal) => call('POST', '/guide/actions/programmes/review', body, signal),
+        guideProgrammeCreate: (body, signal) => call('POST', '/guide/actions/programmes/create', body, signal),
+        guideSaveResource: (body, signal) => call('POST', '/guide/actions/saved-resources', body, signal),
         guideHistory: (signal) => call('GET', '/guide/history', undefined, signal),
         guideConversation: (id, signal) => call('GET', `/guide/history/${encodeURIComponent(id)}`, undefined, signal),
         saveGuideConversation: (body) => call('POST', '/guide/history', body),

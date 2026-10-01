@@ -1,0 +1,344 @@
+{
+  "oracleVersion": "2026-09-30.40",
+  "fictionalProductQuestionsOnly": true,
+  "liveModelRequests": 0,
+  "note": "Captured before replacing keyword-only ranking. Expected IDs mean relevant context within four candidates, not a fully correct displayed answer. This development set was used while designing the content ranker.",
+  "results": [
+    {
+      "question": "Where can I amend the dated sessions on an existing service?",
+      "expected": [
+        "offering-schedule-edit"
+      ],
+      "retrieved": [
+        "offering-translation-review",
+        "provider-plan-lifecycle",
+        "guide-existing-resource-edit-scope"
+      ],
+      "contextHit": false
+    },
+    {
+      "question": "Which download produces the PDF ledger for an owned map?",
+      "expected": [
+        "my-map-exports"
+      ],
+      "retrieved": [
+        "my-map-exports",
+        "town-maps"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Can a downloaded map file track later changes automatically?",
+      "expected": [
+        "my-map-exports"
+      ],
+      "retrieved": [
+        "map-studio"
+      ],
+      "contextHit": false
+    },
+    {
+      "question": "Where should a provider change phone or email details for a service?",
+      "expected": [
+        "offering-contact-edit"
+      ],
+      "retrieved": [
+        "offering-contact-edit",
+        "provider-contact",
+        "place-contact-edit",
+        "provider-plan-privacy"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "How can a centre change its public contact details?",
+      "expected": [
+        "place-contact-edit"
+      ],
+      "retrieved": [
+        "offering-contact-edit",
+        "place-contact-edit",
+        "offering-template-propagation",
+        "provider-contact"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Can a hidden centre be brought back using Show in app?",
+      "expected": [
+        "resource-hide-delete"
+      ],
+      "retrieved": [
+        "resource-hide-delete"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Does hiding erase the directory entry permanently?",
+      "expected": [
+        "resource-hide-delete"
+      ],
+      "retrieved": [],
+      "contextHit": false
+    },
+    {
+      "question": "Do private planning locations get included when exporting an owned map?",
+      "expected": [
+        "personal-place-sharing"
+      ],
+      "retrieved": [
+        "my-places",
+        "help-calendar",
+        "personal-place-sharing",
+        "private-map-export-sharing"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "What happens to local overrides when I propagate a template?",
+      "expected": [
+        "offering-template-propagation"
+      ],
+      "retrieved": [],
+      "contextHit": false
+    },
+    {
+      "question": "Do generated place versions start hidden?",
+      "expected": [
+        "offering-template-overview"
+      ],
+      "retrieved": [
+        "offering-template-delete",
+        "offering-template-overview",
+        "offering-template-propagation"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Does deleting a template leave its generated versions in place?",
+      "expected": [
+        "offering-template-delete"
+      ],
+      "retrieved": [
+        "offering-template-propagation",
+        "offering-template-delete",
+        "offering-template-overview",
+        "save-place-separately"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Will a visitors separate map copy affect the original?",
+      "expected": [
+        "shared-map-copy"
+      ],
+      "retrieved": [
+        "shared-map-copy",
+        "embedded-map-notes",
+        "map-note-privacy",
+        "personal-place-sharing"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "What should I do about a schedule change after planning a session?",
+      "expected": [
+        "plan-schedule-update"
+      ],
+      "retrieved": [
+        "help-calendar",
+        "plan-schedule-update",
+        "offering-schedule-edit",
+        "plan-date-change"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Can acknowledgements automatically move my earlier planned session?",
+      "expected": [
+        "plan-schedule-update"
+      ],
+      "retrieved": [
+        "plan-date-change",
+        "plan-schedule-update"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Are in-app updates the same as WhatsApp or email alerts?",
+      "expected": [
+        "saved-schedule-notifications"
+      ],
+      "retrieved": [
+        "help-login"
+      ],
+      "contextHit": false
+    },
+    {
+      "question": "Is a plan proof of attendance or a confirmed provider reservation?",
+      "expected": [
+        "plans-not-bookings"
+      ],
+      "retrieved": [
+        "plans-not-bookings",
+        "provider-plan-privacy"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Do missing required profile values prove that a person is ineligible?",
+      "expected": [
+        "offering-profile-missing"
+      ],
+      "retrieved": [
+        "offering-profile-missing"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Is everyone shown the same set of restricted Offerings?",
+      "expected": [
+        "offering-eligibility",
+        "offering-not-visible"
+      ],
+      "retrieved": [
+        "offering-profile-missing"
+      ],
+      "contextHit": false
+    },
+    {
+      "question": "How do I get a separate private copy of a published map?",
+      "expected": [
+        "shared-map-copy"
+      ],
+      "retrieved": [
+        "help-sharing",
+        "private-map-export-sharing",
+        "shared-map-copy",
+        "embedded-map-notes"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "How do I choose a filtered count before hiding many listings?",
+      "expected": [
+        "resource-hide-delete"
+      ],
+      "retrieved": [
+        "provider-usage-boundary"
+      ],
+      "contextHit": false
+    },
+    {
+      "question": "Where does an owned map keep its resource annotations?",
+      "expected": [
+        "my-map-note-edit",
+        "map-note-privacy"
+      ],
+      "retrieved": [
+        "embedded-map-notes",
+        "map-membership",
+        "my-map-note-edit",
+        "my-map-resource-removal"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Can the regional role alone confer write access to every centre?",
+      "expected": [
+        "regional-admin-place-edit-boundary"
+      ],
+      "retrieved": [
+        "regional-admin-place-edit-boundary"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Which information is left out of an embedded map response?",
+      "expected": [
+        "embedded-map-notes"
+      ],
+      "retrieved": [
+        "help-sharing",
+        "embedded-map-notes",
+        "help-privacy"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Is the provider availability counter a confirmed seat?",
+      "expected": [
+        "provider-availability"
+      ],
+      "retrieved": [],
+      "contextHit": false
+    },
+    {
+      "question": "How do I review translated text before saving an existing service?",
+      "expected": [
+        "offering-translation-review"
+      ],
+      "retrieved": [
+        "offering-translation-review",
+        "guide-existing-resource-edit-scope"
+      ],
+      "contextHit": true
+    },
+    {
+      "question": "Can I diagnose my knee pain using this app?",
+      "expected": [],
+      "retrieved": [],
+      "contextHit": true
+    },
+    {
+      "question": "What is the weather forecast tomorrow?",
+      "expected": [],
+      "retrieved": [],
+      "contextHit": true
+    },
+    {
+      "question": "How do I repair a broken washing machine?",
+      "expected": [],
+      "retrieved": [
+        "help-support"
+      ],
+      "contextHit": false
+    },
+    {
+      "question": "Can I buy an insurance policy here?",
+      "expected": [],
+      "retrieved": [],
+      "contextHit": true
+    },
+    {
+      "question": "What is the recipe for chicken rice?",
+      "expected": [],
+      "retrieved": [],
+      "contextHit": true
+    },
+    {
+      "question": "Can CareAround arrange a taxi ride?",
+      "expected": [],
+      "retrieved": [],
+      "contextHit": true
+    },
+    {
+      "question": "Can I upload a workbook to predict stock prices?",
+      "expected": [],
+      "retrieved": [
+        "asset-workbook-import",
+        "region-boundary-layers"
+      ],
+      "contextHit": false
+    },
+    {
+      "question": "Do you support cryptocurrency portfolio rebalancing?",
+      "expected": [],
+      "retrieved": [
+        "help-support",
+        "discover-nearby"
+      ],
+      "contextHit": false
+    }
+  ]
+}

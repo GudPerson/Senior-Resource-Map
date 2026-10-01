@@ -30,7 +30,45 @@ test('Guide history requires real account ownership and reviewed minimal inputs'
     assert.equal(restored.messages[1].actions[0].route, '/my-directory');
     assert.match(restored.messages[1].message, /Care Calendar/);
     assert.equal(restored.messages[2].input, null);
-    assert.match(restored.messages[2].message, /do not have a verified answer/);
+    assert.match(restored.messages[2].message, /Which task did you mean/);
+});
+
+test('saved Guide questions use current reviewed facts and avoid stale account lists', () => {
+    const inputs = [
+        { question: 'How do I import a workbook?' },
+        { question: 'How do I edit a Resource Group?' },
+        { question: 'Can I import workbook into My Map?' },
+        { question: 'What plans do I have?' },
+        { question: 'Which Subregions am I assigned to administer?' },
+        { question: 'Can I import a workbook to create programmes?' },
+        { question: 'Can I delete a Place?' },
+        { question: 'Show Programme edits yesterday' },
+        { question: 'Can you show me who changed my Place listing yesterday?' },
+    ];
+    const row = { id: crypto.randomUUID(), title: 'Saved', revision: 1, inputs };
+    const staffMessages = restoreGuideHistory(row, member).messages;
+    assert.equal(staffMessages[0].topicId, 'asset-workbook-import');
+    assert.match(staffMessages[0].message, /Upload Workbook starts the import immediately/);
+    assert.equal(staffMessages[1].topicId, 'group-edit');
+    assert.match(staffMessages[1].message, /Groups.*Edit/);
+    assert.equal(staffMessages[2].topicId, 'unverified-workflow');
+    assert.match(staffMessages[2].message, /cannot verify a workbook-upload workflow for My Maps/);
+    assert.equal(staffMessages[3].topicId, 'account-refresh');
+    assert.match(staffMessages[3].message, /Ask it again/);
+    assert.equal(staffMessages[4].topicId, 'account-refresh');
+    assert.match(staffMessages[4].message, /Ask it again/);
+    assert.equal(staffMessages[5].topicId, 'composite-guidance');
+    assert.match(staffMessages[5].message, /workbook-import screen is not available/);
+    assert.match(staffMessages[5].message, /not available to this account/);
+    assert.equal(staffMessages[6].topicId, 'lifecycle-access');
+    assert.match(staffMessages[6].message, /does not currently have Manage My Resources access/);
+    assert.equal(staffMessages[7].topicId, 'account-refresh');
+    assert.match(staffMessages[7].message, /Ask it again/);
+    assert.equal(staffMessages[8].topicId, 'account-refresh');
+    const adminMessages = restoreGuideHistory(row, admin).messages;
+    assert.match(adminMessages[5].message, /This account can open Admin/);
+    assert.match(adminMessages[6].message, /does not confirm it may delete a particular Place or Offering/);
+    assert.doesNotMatch(JSON.stringify(staffMessages), /Staff Future Session|Other Private Session/);
 });
 
 test('Guide history PostgreSQL migration, ownership, bounds and retry behaviour', async (t) => {

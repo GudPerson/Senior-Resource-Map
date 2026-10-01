@@ -17,6 +17,8 @@ import { hasAnyPartnerStaffAccess } from '../utils/partnerStaff.js';
 import { buildEligibilityContext, buildMembershipHostIdMap, getOfferingAccessMetadata, normalizeEligibilityRules, shouldExposeOfferingToViewer } from '../utils/eligibility.js';
 import { resolveStandardAudiencePartnerIds } from '../utils/partnerBoundaries.js';
 import { normalizeRole } from '../utils/roles.js';
+import { GUIDE_ACTION_CONTEXT } from '../utils/guideActionDomain.js';
+import { persistGuideProgramme } from '../utils/guideActionPersistence.js';
 import { formatSoftAssetListSummary } from '../utils/softAssetListSummary.js';
 import { loadSingaporeFallbackRegion } from '../utils/singaporePostalFallback.js';
 import { isAssetVisible } from '../utils/visibility.js';
@@ -1859,9 +1861,10 @@ export const createSoftAsset = async (c) => {
             await assertManageableAudienceZones(db, user, audienceZoneIds, { hardAssetIds: linkedIds });
         }
 
-        const [asset] = await db.insert(softAssets).values({
+        const guideContext = c.get(GUIDE_ACTION_CONTEXT);
+        const insertValues = {
             assetMode: SOFT_ASSET_MODES.STANDALONE,
-            externalKey: await resolveOrCreateExternalKey(db, softAssets, softAssets.externalKey, {
+            externalKey: guideContext?.externalKey || await resolveOrCreateExternalKey(db, softAssets, softAssets.externalKey, {
                 requestedKey: body.externalKey,
                 prefix: 'offering',
                 name,
@@ -1896,7 +1899,17 @@ export const createSoftAsset = async (c) => {
             isHidden: Boolean(isHidden),
             hideFrom: hideFrom ? new Date(hideFrom) : null,
             hideUntil: hideUntil ? new Date(hideUntil) : null,
-        }).returning();
+        };
+        if (guideContext) {
+            const { asset, replayed } = await persistGuideProgramme(db, user, insertValues, linkedIds, scheduleMutation, guideContext);
+            if (!replayed) {
+                // Core save is already durable. Follow-up failure must never turn it into another create.
+                await triggerSoftAssetTranslation(db, c.env, asset, user).catch(() => null);
+                await rebuildSoftAssetCaches([finalSubregionId], c.env, user).catch(() => null);
+            }
+            return c.json({ ...asset, guideReplayed: replayed }, replayed ? 200 : 201);
+        }
+        const [asset] = await db.insert(softAssets).values(insertValues).returning();
 
         try {
             if (scheduleMutation?.changed) {
@@ -1937,6 +1950,10 @@ export const createSoftAsset = async (c) => {
 
         return c.json({ ...asset, translationStatus }, 201);
     } catch (err) {
+        if (c.get(GUIDE_ACTION_CONTEXT)) {
+            console.error(JSON.stringify({ event: 'guide_programme_create', outcome: 'failed', status: err.status || 500 }));
+            return c.json({ error: err.status ? err.message : 'The save outcome could not be confirmed. Retry the same reviewed request.', ...(err.code?.startsWith?.('GUIDE_') ? { code: err.code } : {}) }, err.status || 500);
+        }
         console.error('createSoftAsset Error:', err);
         return c.json({ error: err.message || 'Failed to create soft asset' }, err.status || 500);
     }

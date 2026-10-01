@@ -24,7 +24,24 @@ ALLOWED_ORIGINS = "http://localhost:5173,https://senior-resource-map.pages.dev,h
 AI_IMPORT_PROVIDER = "gemini"
 GEMINI_API_MODEL = "gemini-3.1-flash-lite"
 GROUNDED_AI_ENABLED = "false"
+GUIDE_CHAT_ENABLED = "true"
+GUIDE_SEMANTIC_RETRIEVAL_ENABLED = "true"
+
+GUIDE_ACTIONS_ENABLED = "true"
+GUIDE_AI_GATEWAY_ID = "carearound-guide"
+GUIDE_LLM_PILOT_ENABLED = "true"
+GUIDE_CONVERSATIONAL_ANSWERS_ENABLED = "true"
+
+[ai]
+binding = "AI"
 
 [[kv_namespaces]]
 binding = "MAP_CACHE"
 id = "2a6899a5a6a5440590166ab8e1d3a2d8"
+
+# Shared approved pilot: never create a second counter or reset this allowance.
+# After its fixed expiry, reviewed help and server-owned account/actions remain.
+[[durable_objects.bindings]]
+name = "GUIDE_PILOT_BUDGET"
+class_name = "GuidePilotBudget"
+script_name = "carearound-guide-account-acceptance"

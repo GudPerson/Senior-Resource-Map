@@ -1,0 +1,15 @@
+# Disposable local test bridge. Never deploy this Worker.
+name = "carearound-guide-local-ai-bridge"
+main = "guideWorkersAiBridge.worker.js"
+compatibility_date = "2026-09-28"
+workers_dev = false
+routes = []
+
+[ai]
+binding = "AI"
+remote = true
+
+[vars]
+GUIDE_AI_GATEWAY_ID = "carearound-guide"
+# Override only after human approval and authenticated Gateway read-back.
+GUIDE_LIVE_PILOT_APPROVED = "false"

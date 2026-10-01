@@ -8,7 +8,7 @@ import { createSupportService, resolveSupportPrincipal } from '../src/utils/supp
 import { createSupportRoutes } from '../src/routes/support.js';
 import {
     canReviewSupport, createSupportGuestCredential, sanitizeSupportContext,
-    sanitizeSupportText, validateReleaseEvidence,
+    sanitizeSupportText, supportReportSchema, validateReleaseEvidence,
 } from '../src/utils/supportDomain.js';
 import { verifySupportProductionRelease } from '../src/utils/supportReleaseVerification.js';
 import { createReleaseFixture } from './fixtures/releaseFixture.mjs';
@@ -44,6 +44,23 @@ test('support domain keeps private context and review permissions bounded', asyn
     assert.doesNotMatch(sanitizeSupportText('Report /shared/maps/private-token?view=1 challengeVerifier=sensitive-proof +6581234567'), /private-token|sensitive-proof|81234567/);
     await assert.rejects(resolveSupportPrincipal({ ...member, isImpersonating: true }), { status: 403 });
     await assert.rejects(resolveSupportPrincipal({}, 'wrong-key'), { status: 401 });
+});
+
+test('support context preserves its own coarse output across Guide preview and report validation', () => {
+    for (const [raw, expected] of [
+        ['/resource/hard/100?contact=private#details', '/resource'],
+        ['/my-directory/maps/42?view=private', '/my-directory/maps'],
+        ['/shared/maps/private-token#secret', '/shared/maps'],
+    ]) {
+        const context = sanitizeSupportContext({ pathname: raw, appVersion: 'a'.repeat(40), requestId: 'guide-request-123' });
+        assert.equal(context.pathname, expected);
+        assert.deepEqual(sanitizeSupportContext(context), context);
+        assert.deepEqual(supportReportSchema.parse({ ...reportInput(), context }).context, context);
+        assert.doesNotMatch(JSON.stringify(context), /private|secret|100|42/);
+    }
+    for (const pathname of ['/resources', '/resourceful', '/shared/maps-secret', '/my-directory/maps-private', '/private/files/1']) {
+        assert.equal(sanitizeSupportContext({ pathname }).pathname, '/');
+    }
 });
 
 test('support release verification only accepts observed evidence for the approved revision', async () => {

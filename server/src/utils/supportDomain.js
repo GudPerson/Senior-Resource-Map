@@ -40,6 +40,7 @@ export function sanitizeSupportContext(value = {}) {
         '/discover', '/login', '/partner-login', '/my-directory',
         '/dashboard/calendar', '/dashboard/resources', '/dashboard/profile',
         '/dashboard/admin', '/dashboard/support', '/inbox', '/help',
+        '/resource', '/my-directory/maps', '/shared/maps',
     ].includes(path) ? path
         : path.startsWith('/my-directory/maps/') ? '/my-directory/maps'
             : path.startsWith('/shared/maps/') ? '/shared/maps'
