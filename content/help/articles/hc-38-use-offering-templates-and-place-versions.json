@@ -1,0 +1,187 @@
+{
+  "id": "HC-38",
+  "slug": "use-offering-templates-and-place-versions",
+  "title": "Use Offering templates and place versions",
+  "summary": "Review shared template content and separate local place-version controls.",
+  "category": "resource-management",
+  "audiences": [
+    "resource owner",
+    "resource staff",
+    "admin"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/pages/dashboard/ResourcesPage.jsx:2390-2415,2640-2655,3410-3450,3690-3782; client/src/components/SoftAssetTemplateForm.jsx:72,775-789; server/src/controllers/softAssetParentsController.js:317-441,590-671; server/src/utils/softAssetHierarchy.js:111-147",
+      "client/src/pages/dashboard/ResourcesPage.jsx:3410-3428,3430-3590; server/src/controllers/softAssetParentsController.js:443-530; server/src/utils/softAssetHierarchy.js:11-43,149-169,176-260",
+      "client/src/pages/dashboard/ResourcesPage.jsx:1768-1790,3410-3428,3890-3918; server/src/controllers/softAssetParentsController.js:532-588",
+      "client/src/components/SoftAssetTemplateForm.jsx:207-301,303-604,775-791; client/src/pages/dashboard/ResourcesPage.jsx:3410-3455,3665-3785,3890-3918",
+      "client/src/components/SoftAssetChildForm.jsx:47-60,81-126,209-275; client/src/pages/dashboard/ResourcesPage.jsx:2286-2311"
+    ]
+  },
+  "sections": [
+    {
+      "id": "create-and-generate-template",
+      "title": "Create a template, then generate hidden place versions",
+      "paragraphs": [
+        "An Offering template holds shared Programme/service content. It is not itself a public listing. Use this workflow only if your account has the required template and host permissions."
+      ],
+      "steps": [
+        "Open Dashboard → Manage My Resources → Templates and select New Template if available.",
+        "In Profile, enter the template name, bucket, category, description and approved public website/contact details. Leave the optional External Key blank unless an approved workbook process requires one.",
+        "Open Defaults and review Default Schedule. In Visibility, review Audience, For linked members, Target areas where applicable and eligibility rules.",
+        "Review Generate: this step explains the next action but does not generate versions inside the unsaved form. Select Preview, check the shared content, then choose Create Template.",
+        "After the successful save, find the saved template and select Generate place versions.",
+        "Choose the intended Places in Eligible Hosts and check Generation Preview. Review which pairs already exist and which will become new hidden place versions.",
+        "Select Generate place versions and review the result. Existing active template/host pairs are skipped rather than duplicated.",
+        "Open Manage place versions, review each new host’s local details and visibility, and prepare that exact version before using its permitted Show in app or local visibility controls."
+      ],
+      "notes": [
+        "Each generated version is tied to one host Place and starts hidden. Saving or editing the template does not automatically unhide those versions.",
+        "Shared fields come from the template; local schedule/contact overrides, availability and hidden status belong to the individual version. See the Programme/service article for Edit place version steps.",
+        "Default Schedule and a child’s Local Schedule are text fields in this workflow; do not promise structured Care Calendar sessions merely from entering text.",
+        "If New Template, a host or a generation action is unavailable, ask the responsible resource manager to review the exact permission. The server checks the template and each host.",
+        "The Guide cannot create a template or generate a batch of place versions in chat. Use only approved public content and keep private operating notes in the permitted restricted-content tools."
+      ],
+      "queryRequiresAny": [
+        "new template",
+        "create template",
+        "generate place versions",
+        "template rollout"
+      ],
+      "facts": []
+    },
+    {
+      "id": "edit-shared-template",
+      "title": "Review propagation before saving a shared template change",
+      "paragraphs": [
+        "A template edit can affect several active generated versions. Review the intended shared change and local overrides before saving."
+      ],
+      "steps": [
+        "Open Manage My Resources → Templates and find the exact template you may manage.",
+        "Select Manage place versions to review the existing hosts and versions. Identify which values must remain host-specific.",
+        "Select Edit Template and change only the intended shared profile, defaults or visibility fields.",
+        "Select Preview, check the revised shared content, then choose Save Template.",
+        "Wait for success and review the affected versions. Use Edit place version for local details rather than broad template edits."
+      ],
+      "notes": [
+        "Shared fields propagate to active versions unless that field has a local override. Local visibility and availability remain local controls; editing the template does not automatically publish a hidden version.",
+        "If a generated version must change its name or shared description, those fields are inherited and read-only in the local-version editor.",
+        "Reset on a local override immediately saves the removal and reloads its inherited value. Do not use it only as a preview or assume Cancel reverses it.",
+        "If the save fails, review the latest template and reported error before trying again. The Guide cannot edit either template or version in chat."
+      ],
+      "queryRequiresAny": [
+        "edit template",
+        "update template",
+        "template propagation",
+        "shared template change"
+      ],
+      "facts": []
+    },
+    {
+      "id": "delete-template-or-one-version",
+      "title": "Distinguish deleting a template from deleting one place version",
+      "paragraphs": [
+        "Deleting a template also deletes all of its generated place versions. Review this wider consequence before selecting its Delete control."
+      ],
+      "steps": [
+        "Open Manage My Resources → Templates and find the exact template.",
+        "Select Manage place versions and review every generated version before a whole-template deletion.",
+        "If the intention is to remove only one version, use that exact version’s permitted Delete control instead of the parent template’s Delete.",
+        "Select the intended Delete control, read its confirmation and choose Cancel if the target or consequence is wrong.",
+        "Explicitly confirm Delete only when intended, wait for the result, then check the refreshed template/version list."
+      ],
+      "notes": [
+        "The reviewed UI has no restore workflow to promise. The Guide cannot delete or restore a template or version for you.",
+        "To temporarily take a version off discovery, review its local Hide from app control instead of deleting it.",
+        "If Delete is unavailable or the operation fails, request review of the exact template/version permission."
+      ],
+      "queryRequiresAny": [
+        "delete template",
+        "delete place version",
+        "remove template",
+        "remove generated version"
+      ],
+      "facts": []
+    },
+    {
+      "id": "offering-template-overview",
+      "title": "Offering templates and place versions",
+      "facts": [
+        {
+          "id": "offering-template-overview",
+          "title": "Offering templates and place versions",
+          "keywords": [
+            "offering template",
+            "programme template",
+            "parent template",
+            "new template",
+            "templates tab",
+            "generate place versions",
+            "create a template"
+          ],
+          "message": "An Offering template is shared Programme/service content, not itself a public listing. If New Template is available to your account, open Manage My Resources → Templates, choose New Template, review Profile, Defaults, Visibility, Generate and Translate, then choose Create Template. Save the template before choosing Generate place versions for selected host Places. The server checks permission for the template and every host; each newly generated place version starts hidden until its local details and visibility are reviewed. An existing active version at a selected host is skipped. The Guide’s direct Create action is for one new Programme/service, not a template or batch of place versions.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/pages/dashboard/ResourcesPage.jsx:2390-2415,2640-2655,3410-3450,3690-3782; client/src/components/SoftAssetTemplateForm.jsx:72,775-789; server/src/controllers/softAssetParentsController.js:317-441,590-671; server/src/utils/softAssetHierarchy.js:111-147",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "offering-template-propagation",
+      "title": "Edit an Offering template and its place versions",
+      "facts": [
+        {
+          "id": "offering-template-propagation",
+          "title": "Edit an Offering template and its place versions",
+          "keywords": [
+            "edit offering template",
+            "update template",
+            "change template",
+            "template changes place versions",
+            "template propagation",
+            "place version override"
+          ],
+          "message": "An Offering template holds shared content for its generated place versions. When an authorised person saves a template edit, shared fields are propagated to existing active versions unless a field has a local override. A place version can keep its own schedule or contact overrides; its visibility and availability are local controls. Review the affected versions before saving a broad change, and use Edit place version for local details. Editing the template does not automatically unhide or publish a hidden version. The Guide cannot edit either one in chat.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/pages/dashboard/ResourcesPage.jsx:3410-3428,3430-3590; server/src/controllers/softAssetParentsController.js:443-530; server/src/utils/softAssetHierarchy.js:11-43,149-169,176-260",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "offering-template-delete",
+      "title": "Delete an Offering template",
+      "facts": [
+        {
+          "id": "offering-template-delete",
+          "title": "Delete an Offering template",
+          "keywords": [
+            "delete an offering template",
+            "delete template",
+            "remove template",
+            "delete place versions",
+            "delete generated versions"
+          ],
+          "message": "Deleting an Offering template also deletes all of its generated place versions. In Manage My Resources → Templates, review the template and its place versions before using that template’s Delete control and confirmation. If you mean removing only one place version, open Manage place versions and choose that version instead. There is no reviewed restore workflow to promise from chat. The Guide cannot delete either one for you; the server checks the exact template or place-version permission.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/pages/dashboard/ResourcesPage.jsx:1768-1790,3410-3428,3890-3918; server/src/controllers/softAssetParentsController.js:532-588",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-33",
+    "HC-35",
+    "HC-36",
+    "HC-37",
+    "HC-41"
+  ]
+}

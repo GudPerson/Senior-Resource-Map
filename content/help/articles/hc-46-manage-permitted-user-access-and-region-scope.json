@@ -1,0 +1,166 @@
+{
+  "id": "HC-46",
+  "slug": "manage-permitted-user-access-and-region-scope",
+  "title": "Manage permitted user access and region scope",
+  "summary": "Understand permitted Region Scope changes and Subregion boundary operations.",
+  "category": "admin-support",
+  "audiences": [
+    "admin",
+    "super admin"
+  ],
+  "visibility": "admin",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/pages/dashboard/AdminPage.jsx:1060-1115,4148-4161,4424-4526; server/src/utils/adminRegionScope.js:45-85",
+      "client/src/lib/roles.js:206-214; client/src/pages/dashboard/AdminPage.jsx:2944-3120,3127-3209; server/src/routes/subregions.js:1-12; server/src/controllers/subregionsController.js:430-488,569-692",
+      "client/src/pages/dashboard/AdminPage.jsx:619-625,695-710,996-1004,1057-1115,2045-2126,2944-3209,4106-4128,4148-4161,4424-4526",
+      "client/src/lib/roles.js:163-165,206-217; server/src/controllers/userController.js:813-865; server/src/utils/adminRegionScope.js:45-85"
+    ]
+  },
+  "sections": [
+    {
+      "id": "change-permitted-platform-role",
+      "title": "Review a permitted platform-role change for another account",
+      "paragraphs": [
+        "Only Super Admin can change platform roles through the current Users table, and cannot change their own role. A platform role is separate from Place/Offering assignments and organisation or group access."
+      ],
+      "steps": [
+        "As an authorised Super Admin, open Dashboard → Admin → Users and find the exact account.",
+        "Check the intended account identity and current role before touching the role selector. Do not use personal profile details beyond what is needed for this authorised task.",
+        "Choose the approved next role from that account’s available role selector only when ready to apply it. Selecting a role starts the saved update immediately; there is no later Save button for this table action.",
+        "Wait for the refreshed Users table and verify the saved role. If the change fails, review the reported error and current role before retrying."
+      ],
+      "notes": [
+        "The server checks the target account, allowable role and relevant manager compatibility. A job title is not an account role and cannot establish a permission.",
+        "A role change does not by itself create a resource Owner/Staff assignment, organisation membership or group membership. Review each permitted access domain separately.",
+        "If the role selector is unavailable, do not substitute another account or a hidden route. Ask the responsible Super Admin for review.",
+        "The Guide cannot change another account’s role or inspect its private assignment records in chat."
+      ],
+      "queryRequiresAny": [
+        "platform role",
+        "change user role",
+        "change account role",
+        "admin users"
+      ],
+      "facts": []
+    },
+    {
+      "id": "assign-admin-region-scope",
+      "title": "Review and save an Admin’s assigned Region Scope",
+      "paragraphs": [
+        "Only Super Admin can assign Region Scope to an Admin account. This controls scoped administrative work; it does not grant resource editing, organisation access or group access."
+      ],
+      "steps": [
+        "Open Dashboard → Admin → Users and find the exact Admin account.",
+        "Select that account’s Manage Region Scope control and verify the target shown in the dialog.",
+        "Review Assigned Region Scope and select the intended Subregions. Select all and Clear change the pending selection, so review the resulting set carefully.",
+        "Check that the Admin’s managed users remain within the proposed scope before saving. If that would not be true, arrange the appropriate approved user-management change first.",
+        "Select Save Region Scope and wait for Region scope updated. Check the saved selections; use Cancel or Close to leave an unsaved selection.",
+        "If the server blocks the change, review the reported out-of-scope users and approved reassignment plan. Do not remove boundaries simply to bypass the validation."
+      ],
+      "notes": [
+        "The UI’s Region Scope targets operational Subregions. It is distinct from a person’s profile postal code or general support coverage.",
+        "A signed-in Admin can ask the Guide for this account’s current assigned Subregions. The Guide cannot show or change another account’s scope in chat.",
+        "Keep user names, postal details and scope screenshots within authorised operational channels. This procedure does not require sharing credentials or private profile values."
+      ],
+      "queryRequiresAny": [
+        "region scope",
+        "assigned subregions",
+        "assign admin region",
+        "admin scope"
+      ],
+      "facts": []
+    },
+    {
+      "id": "review-and-update-boundary-postcodes",
+      "title": "Export and review permitted Subregion boundaries before an upload",
+      "paragraphs": [
+        "Super Admin can maintain Subregion metadata. An Admin can upload or export boundary postcodes only inside their assigned scope. Regions, operational Subregions and Unmapped postcodes are separate layers; account/resource routing uses Subregion postcodes."
+      ],
+      "steps": [
+        "Open Dashboard → Admin → Regions and inspect the Boundary Layers and relevant Subregions. Verify the operational layer and scope you intend to change.",
+        "Select the intended Subregions and use Export Boundaries to review their current postcodes. Use Boundary Template to prepare a correctly structured CSV or Excel upload.",
+        "Review the file’s Subregion references and postal codes or ranges against the approved change. Keep Add to existing boundaries selected when adding codes to the existing boundaries.",
+        "Select Upload Boundaries and choose the reviewed file only when ready for the import. For Add to existing boundaries, upload begins processing without a separate replacement confirmation.",
+        "For an approved planned rebuild only, choose Replace listed subregions before the upload. Read Replace existing boundaries? and explicitly choose Replace only when the removal-and-rebuild scope is intended; Cancel stops that replacement.",
+        "Wait for the outcome and review successful/failed counts and errors. Export the affected boundaries again to verify the intended result before relying on the changed routing."
+      ],
+      "notes": [
+        "Replace listed subregions removes existing codes for affected Subregions first. It is not the default add operation, and files too large for the permitted single replacement upload are rejected; review a planned rebuild rather than blindly retrying.",
+        "Subregion names, codes, metadata changes and deletion remain Super Admin controls. Uploading boundaries does not grant a wider Admin scope.",
+        "Load mapping workbook is a separate Super Admin three-layer operation using the mapping workbook’s postal/Region/Subregion columns. Do not treat it as a substitute for a small additive boundary upload.",
+        "A failed or partially successful report does not prove all boundaries changed. Review the report and actual exported result before proceeding.",
+        "The Guide cannot upload, replace or inspect current mapping records in chat. Keep exports and operational mapping details in authorised channels."
+      ],
+      "queryRequiresAny": [
+        "subregion boundaries",
+        "boundary postcodes",
+        "upload boundaries",
+        "replace boundaries",
+        "export boundaries",
+        "mapping workbook"
+      ],
+      "facts": []
+    },
+    {
+      "id": "admin-region-scope",
+      "title": "Admin Region Scope",
+      "facts": [
+        {
+          "id": "admin-region-scope",
+          "title": "Admin Region Scope",
+          "keywords": [
+            "admin region scope",
+            "manage region scope",
+            "assign region scope",
+            "change admin region scope",
+            "region scope",
+            "which regions can an admin manage"
+          ],
+          "message": "Region Scope assigns Subregions to an Admin account. A Super Admin can open Admin → Users, choose the exact Admin, then use Manage Region Scope to review and save its assigned Subregions. The server checks the current roles and prevents a scope change that would leave that Admin’s managed users outside the new scope. Region Scope controls scoped admin work; it does not grant editing of a Place or Programme/service, organisation access, or group access. A signed-in Admin can ask the Guide for this account’s current assigned Subregions; the Guide cannot show or change another account’s assignment in chat.",
+          "route": "/dashboard/admin",
+          "actionLabel": "Open Admin",
+          "evidence": "client/src/pages/dashboard/AdminPage.jsx:1060-1115,4148-4161,4424-4526; server/src/utils/adminRegionScope.js:45-85",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "region-boundary-layers",
+      "title": "Regions and Subregion boundaries",
+      "facts": [
+        {
+          "id": "region-boundary-layers",
+          "title": "Regions and Subregion boundaries",
+          "keywords": [
+            "region configuration",
+            "configure regions",
+            "regions tab",
+            "region boundaries",
+            "subregion boundaries",
+            "mapping workbook",
+            "unmapped postcodes",
+            "create subregion",
+            "upload boundaries"
+          ],
+          "message": "Admin → Regions shows three separate layers: Regions, operational Subregions, and Unmapped postcodes awaiting review. Only Subregion postcodes route accounts and resources. Super Admin can create or change Subregion metadata and load the three-layer mapping workbook. An Admin can upload or export boundary postcodes only for Subregions within their assigned scope; names, codes and deletion remain Super Admin controls. Upload Boundaries defaults to Add to existing boundaries. Replace listed subregions removes existing codes for affected Subregions first, so use it only for a planned rebuild after reviewing the file and confirmation. The Guide cannot inspect current mappings or upload or replace boundaries in chat.",
+          "route": "/dashboard/admin",
+          "actionLabel": "Open Admin Regions",
+          "evidence": "client/src/lib/roles.js:206-214; client/src/pages/dashboard/AdminPage.jsx:2944-3120,3127-3209; server/src/routes/subregions.js:1-12; server/src/controllers/subregionsController.js:430-488,569-692",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-33",
+    "HC-44",
+    "HC-32"
+  ]
+}

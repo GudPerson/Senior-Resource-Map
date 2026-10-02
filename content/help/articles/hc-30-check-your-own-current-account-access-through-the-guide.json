@@ -1,0 +1,104 @@
+{
+  "id": "HC-30",
+  "slug": "check-your-own-current-account-access-through-the-guide",
+  "title": "Check your own current account access through the Guide",
+  "summary": "Distinguish a general permission explanation from a supported authenticated account check.",
+  "category": "guide-and-support",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "server/src/utils/guideAccess.js:276-320",
+      "server/src/routes/guide.js",
+      "server/src/controllers/favoritesController.js:216-224,329-338; server/src/utils/guideSavedResources.js:34-58; server/src/controllers/myMapsController.js:757-841",
+      "server/src/routes/guide.js; server/src/routes/guideActions.js; reviewed saved-identity-privacy and provider-contact facts",
+      "server/src/utils/guideCompositeQuestions.js:77-100 at b8345be4d2f7a097e81cb03eef64b473abd0cec9; public refusal summaries only"
+    ]
+  },
+  "sections": [
+    {
+      "id": "current-account",
+      "title": "Ask about this account’s access",
+      "paragraphs": [
+        "Ask a specific question such as whether this account can manage resources. Supported account checks use the signed-in account’s permissions. They do not grant access or inspect another person’s account."
+      ],
+      "notes": [
+        "If you are in User View, exit User View before checking your own resource permissions or using Guide actions.",
+        "Current-account replies and general product explanations have different proof: an article explains a rule; a supported authenticated check reports this account’s current result."
+      ],
+      "facts": []
+    },
+    {
+      "id": "other-account-saved-privacy",
+      "title": "Another person’s saved resources",
+      "facts": [
+        {
+          "id": "other-account-saved-privacy",
+          "title": "Another person’s saved resources",
+          "keywords": [
+            "what resources did my colleague save",
+            "see what someone else saved",
+            "colleague saved list"
+          ],
+          "message": "The Guide reads only the signed-in account’s saved resources and cannot show a colleague’s saved list from your chat. A colleague may choose to share a selected My Map snapshot, but that is separate from their whole My Directory. Do not use another person’s sign-in details; open My Directory for your own saved resources.",
+          "route": "/my-directory",
+          "evidence": "server/src/controllers/favoritesController.js:216-224,329-338; server/src/utils/guideSavedResources.js:34-58; server/src/controllers/myMapsController.js:757-841",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "guide-provider-identity-check",
+      "title": "Checking what a provider has received",
+      "facts": [
+        {
+          "id": "guide-provider-identity-check",
+          "title": "Checking what a provider has received",
+          "keywords": [
+            "check provider received my name",
+            "verify my personal information was sent to a centre",
+            "provider already told my name"
+          ],
+          "message": "The Guide cannot check whether a provider has received your name or personal information. It cannot inspect the provider’s messages, registration records or contact history. Saving a listing does not send your profile to its provider, but that does not establish what the provider received through membership, registration or other contact. For confirmation, contact the provider using the channels on its listing if available. This chat has not contacted the provider or verified delivery.",
+          "route": "/discover",
+          "evidence": "server/src/routes/guide.js; server/src/routes/guideActions.js; reviewed saved-identity-privacy and provider-contact facts",
+          "reviewed": "2026-10-01"
+        }
+      ]
+    },
+    {
+      "id": "other-account-access-boundary",
+      "title": "Other people’s account permissions",
+      "facts": [
+        {
+          "id": "guide-other-account-access-boundary",
+          "title": "Other people’s account permissions",
+          "keywords": [
+            "another person group admin role",
+            "another person organisation admin role",
+            "colleague permissions"
+          ],
+          "message": "The Guide cannot check another person’s Group Admin role from chat. The Guide cannot check another person’s Organisation Admin role or show their memberships from chat. Ask about this signed-in account’s own current access instead. An article explains the rules; it does not prove anyone’s role.",
+          "route": "/help",
+          "evidence": "server/src/utils/guideCompositeQuestions.js:83-88 at b8345be4d2f7a097e81cb03eef64b473abd0cec9; server account-read scope boundaries",
+          "reviewed": "2026-10-02"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-06",
+    "HC-25",
+    "HC-29"
+  ]
+}

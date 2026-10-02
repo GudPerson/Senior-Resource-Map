@@ -1,0 +1,149 @@
+{
+  "id": "HC-03",
+  "slug": "find-a-resource-by-name-category-or-location",
+  "title": "Find a resource by name, category or location",
+  "summary": "Search public listings and use location as a starting point for checking support.",
+  "category": "find-and-save",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "Reviewed Guide topic: discover",
+      "client/src/features/discover/DiscoveryFilterPanel.jsx:304-352,684-738; client/src/features/discover/useDiscoveryLocation.js:45-73,221-306; client/src/pages/DiscoverPage.jsx:2162-2183",
+      "client/src/features/discover/DiscoveryFilterPanel.jsx:669-730,959-971; client/src/pages/DiscoverPage.jsx:220-250,648-689; reviewed Discover filters",
+      "client/src/features/discover/DiscoveryFilterPanel.jsx:297-425,652-754,954-979; client/src/locales/en.js:1116-1146,1196",
+      "client/src/pages/DiscoverPage.jsx:220-250,640-733; client/src/features/discover/useDiscoveryLocation.js:221-327"
+    ]
+  },
+  "sections": [
+    {
+      "id": "resource-search-steps",
+      "title": "Search Discover by name, service or category wording",
+      "paragraphs": [
+        "Use Discover to find public Places and Programmes/services. You do not need an account for public browsing."
+      ],
+      "steps": [
+        "Open Discover.",
+        "Enter a resource name, service, category wording, tag or address in the search field. For example, try a service term that a provider might use in its listing.",
+        "Use All to search both types, or choose Places or Programme/service. On a phone, open Filter and use Show to choose All, Places or Programmes & services only.",
+        "Open a matching result and read its location, description and any provider contact information. Confirm suitability and participation directly with the provider before relying on the result."
+      ],
+      "notes": [
+        "Search matches recorded listing information; a missing result does not prove that a service or facility is unavailable.",
+        "If results are too narrow, shorten the wording, select All and turn off Saved only if it is enabled. Saved only restricts results to resources you have already saved.",
+        "Browsing or searching does not save a resource, book a seat or confirm eligibility. Use the related saving article when you want to keep a result in My Directory."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "discover",
+        "search",
+        "find a resource",
+        "find resources",
+        "resource search"
+      ]
+    },
+    {
+      "id": "nearby-search-steps",
+      "title": "Find resources near a postal code or your location",
+      "paragraphs": [
+        "A location gives Discover a starting point for nearby browsing. You can combine it with a resource keyword; it is not an eligibility check."
+      ],
+      "steps": [
+        "Open Discover. On a phone, open Filter to reach the location controls.",
+        "Enter a 6-digit Singapore postal code and wait for it to locate the address. Alternatively, select Locate me and allow the browser to use your location. If Home is available, select it to use your saved home postal code.",
+        "Choose All, Places or the Programme/service option and, if helpful, add a keyword such as a service name.",
+        "Open a result and check its actual address, service information and provider contact details before planning a visit."
+      ],
+      "notes": [
+        "If the postal code cannot be located, check all six digits or try another valid nearby postal code. Discover looks up a completed postal code automatically; this control does not require a Find location button.",
+        "If browser location permission is denied or a location request times out, enter a postal code instead. Home is offered only when the account has a home postal code.",
+        "The search location changes this browsing starting point; it does not update your profile address or verify a provider’s current availability."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "nearby",
+        "near me",
+        "postal code",
+        "locate me",
+        "home location"
+      ]
+    },
+    {
+      "id": "help-discover",
+      "title": "Find a resource",
+      "facts": [
+        {
+          "id": "help-discover",
+          "title": "Find a resource",
+          "keywords": [
+            "discover",
+            "search",
+            "find resource",
+            "find a resource",
+            "nearby"
+          ],
+          "message": "Use resource search for a name, service, tag, or address. Open a result to check its current details. Discover also lets you browse Places and Programmes/services on the map. Search results are information, not a booking or a confirmation of eligibility.",
+          "route": "/discover",
+          "evidence": "Reviewed Guide topic: discover",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    },
+    {
+      "id": "discover-nearby",
+      "title": "Find resources near you",
+      "facts": [
+        {
+          "id": "discover-nearby",
+          "title": "Find resources near you",
+          "keywords": [
+            "support near me",
+            "resources near me",
+            "find nearby services",
+            "nearby programmes",
+            "search by postal code"
+          ],
+          "message": "Open Discover and enter a 6-digit Singapore postal code, or choose Locate Me and allow browser location access. If your account has a home postal code, you can use Home as the search location. Browse the resulting Places and Programmes/services and open a listing for its current details; location is a search aid, not a confirmation of eligibility or availability.",
+          "route": "/discover",
+          "evidence": "client/src/features/discover/DiscoveryFilterPanel.jsx:304-352,684-738; client/src/features/discover/useDiscoveryLocation.js:45-73,221-306; client/src/pages/DiscoverPage.jsx:2162-2183",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "accessibility-search-boundary",
+      "title": "Search for wheelchair-accessible resources",
+      "facts": [
+        {
+          "id": "accessibility-search-boundary",
+          "title": "Search for wheelchair-accessible resources",
+          "keywords": [
+            "wheelchair accessible programme",
+            "wheelchair-accessible service",
+            "step free place near me",
+            "accessible programmes nearby",
+            "mobility accessible services"
+          ],
+          "message": "In Discover, try a keyword such as “wheelchair” or “step-free” with a postal code or Locate Me. Search can match wording in a listing’s name, description or tags, but I cannot verify a dedicated wheelchair-accessibility filter or that every provider records this information. Open a result and confirm the exact access needs, route and facilities directly with the provider before visiting. A missing keyword result does not prove a resource is inaccessible.",
+          "route": "/discover",
+          "evidence": "client/src/features/discover/DiscoveryFilterPanel.jsx:669-730,959-971; client/src/pages/DiscoverPage.jsx:220-250,648-689; reviewed Discover filters",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-04",
+    "HC-05"
+  ]
+}

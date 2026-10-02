@@ -6,6 +6,7 @@ import { getCookie, setCookie } from 'hono/cookie';
 import { serve } from '@hono/node-server';
 import { createSupportRoutes } from '../../src/routes/support.js';
 import { createGuideRoutes } from '../../src/routes/guide.js';
+import { createHelpArticleRoutes } from '../../src/routes/helpArticles.js';
 import { GUIDE_ORACLE_FACTS } from '../../src/utils/guideOracleKnowledge.js';
 import { createGuideLiveAiClient, GUIDE_PILOT_GATEWAY_ID } from './guideLiveAiClient.js';
 import { createNotificationRoutes } from '../../src/routes/notifications.js';
@@ -43,6 +44,21 @@ const { pg, env } = await createNeonPostgresFixture({ after: (callback) => clean
 env.GUIDE_ACTIONS_ENABLED = 'true';
 env.GUIDE_CHAT_ENABLED = 'true';
 const liveGuideAi = process.env.CAREAROUND_SUPPORT_FIXTURE_LIVE_AI === 'true';
+// Optional HC-09 workflow replay. No live geocoding: the browser and this
+// process use the same fictional response; all other server fetches are denied.
+const personalLocationReplay = process.env.CAREAROUND_SUPPORT_FIXTURE_PERSONAL_LOCATION === 'true';
+if (personalLocationReplay) {
+    if (liveGuideAi) throw new Error('Personal location replay cannot use live AI.');
+    globalThis.fetch = async (input) => {
+        const url = new URL(typeof input === 'string' ? input : input.url);
+        if (url.origin !== 'https://www.onemap.gov.sg' || url.pathname !== '/api/common/elastic/search')
+            throw new Error('External network is disabled in the personal-location replay.');
+        const results = url.searchParams.get('searchVal') === '123456'
+            ? [{ POSTAL: '123456', ADDRESS: 'FICTIONAL DEMONSTRATION ADDRESS', BUILDING: 'FICTIONAL DEMONSTRATION POINT', LATITUDE: '1.294', LONGITUDE: '103.821' }] : [];
+        return Response.json({ found: results.length, totalNumPages: 1, pageNum: 1, results });
+    };
+}
+
 // Live transport preserves the named Gateway; simulated mode remains local-only.
 env.GUIDE_AI_GATEWAY_ID = liveGuideAi ? GUIDE_PILOT_GATEWAY_ID : 'guide-oracle-fixture';
 env.GUIDE_CHAT_SIMULATED = liveGuideAi ? 'false' : 'true';
@@ -277,6 +293,7 @@ api.get('/api/audience-zones', (c) => c.json([]));
 api.route('/api/support', createSupportRoutes({ authenticate, repositoryForContext: () => repository,
     verifyProduction: async (target) => Object.fromEntries((target === 'both' ? ['client', 'server'] : [target])
         .map((item) => [item, { sourceRevision: matchingRelease ? sourceRevision : 'b'.repeat(40), healthy: true, checkedAt: new Date().toISOString() }])) }));
+api.route('/api/help/articles', createHelpArticleRoutes({ authenticate }));
 const publicResources = new Hono();
 publicResources.use('*', async (c, next) => { c.set('user', userFor(c) || { role: 'guest' }); await next(); });
 publicResources.get('/hard-assets', getHardAssets);

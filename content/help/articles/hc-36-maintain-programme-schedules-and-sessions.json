@@ -1,0 +1,120 @@
+{
+  "id": "HC-36",
+  "slug": "maintain-programme-schedules-and-sessions",
+  "title": "Maintain Programme schedules and sessions",
+  "summary": "Add individual or weekly sessions, review the public dates, and safely change or unpublish an existing schedule.",
+  "category": "resource-management",
+  "audiences": [
+    "resource owner",
+    "resource staff",
+    "admin"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/AssetForm.jsx:1764-1878; server/src/controllers/softAssetsController.js:2165-2177,2248-2289; docs/regression-ledger.md",
+      "client/src/components/AssetForm.jsx:1764-1976,2325-2342; client/src/components/OfferingScheduleEntriesEditor.jsx:15-195",
+      "client/src/lib/offeringSchedule.js:135-176; server/src/controllers/softAssetsController.js:2165-2177,2240-2290",
+      "client/src/features/support/GuideProgrammeDraft.jsx:9-107; client/src/components/SoftAssetChildForm.jsx:209-221"
+    ]
+  },
+  "sections": [
+    {
+      "id": "publish-structured-sessions",
+      "title": "Add or update individual and recurring Programme sessions",
+      "paragraphs": [
+        "Use these steps for a Programme/service that opens the standard Offering editor. You must be able to edit the exact listing. Confirm dates and times with the provider before publishing; all session times here use Asia/Singapore."
+      ],
+      "steps": [
+        "Sign in and open Dashboard → Manage My Resources → Offerings. Select Edit on the exact Programme/service. For a new listing, complete Profile in New Offering first.",
+        "Open Schedule and turn on Publish sessions. If there are no rows, the editor creates the first session row. If sessions are already published, review the existing rows before changing them.",
+        "For a single date, choose Session type → Individual session. Enter Session starts and, if known, Session ends (optional). Choose Status → Scheduled or Cancelled to reflect the provider’s confirmed status, and add a Session note if needed.",
+        "For a weekly series, choose Session type → Recurring weekly. Enter the actual first date and time in Series starts, choose the weekdays under Repeats on, and set Session ends and Last repeat date if known. The first date must fall on one of the selected weekdays.",
+        "Select Add another schedule for a different session or series. Duplicate copies a row for you to adjust; Remove removes that row from the edited schedule. Add Schedule notes only for information that applies to the whole schedule.",
+        "Check Public schedule preview and Next generated sessions carefully, including dates, times, cancellations and repeats. Review the Offering’s host Places, visibility and hide settings if those affect the programme.",
+        "Select Save Offering and wait for success. Reopen the Offering to verify the saved schedule; eligible sessions also feed Care Calendar, subject to the listing’s visibility and audience rules."
+      ],
+      "notes": [
+        "If validation stops you, add at least one session, supply a valid start date/time, set any end after the start, choose at least one weekly repeat day, and ensure the first date matches a selected day. A last repeat date must not precede the first session. Remove or correct duplicate rows.",
+        "Older public schedule text remains until reviewed session rows are published. Publishing those rows replaces the older text with one generated schedule for the Offering and Care Calendar; check the generated preview before saving.",
+        "Saving a changed schedule alerts affected users inside CareAround to review their personal plans. It does not send email or WhatsApp, register anyone, create a provider booking or cancel a booking.",
+        "If another manager changed the schedule while you were saving, refresh the Offering, review the latest sessions and apply the intended changes again. Do not assume a failed save published your version.",
+        "A standard Offering linked to multiple Places uses one shared structured schedule. For different host-specific timing, review separate listings or the template/place-version workflow.",
+        "Edit place version uses a Local Schedule text field instead of this structured editor. A Resource Group also uses a separate Group form. Do not apply these Publish sessions instructions to those forms or promise Care Calendar entries from local schedule text.",
+        "When using the Guide’s supported new Programme/service draft, open Dates & recurrence and select Add dated sessions for Care Calendar. Requested timing text alone does not create sessions. Review the dates, then choose Review programme/service and explicitly Create programme/service; the Guide cannot update an existing schedule."
+      ],
+      "queryRequiresAny": [
+        "programme",
+        "program",
+        "offering",
+        "service"
+      ],
+      "facts": []
+    },
+    {
+      "id": "cancel-or-unpublish-sessions",
+      "title": "Cancel a session or unpublish a Programme’s reviewed sessions",
+      "paragraphs": [
+        "First confirm with the provider whether one date is cancelled, a whole recurring series is cancelled, or the published schedule should be withdrawn. These changes affect CareAround’s information and personal plans; they do not cancel a provider booking."
+      ],
+      "steps": [
+        "Open Dashboard → Manage My Resources → Offerings, select Edit on the exact Programme/service you may edit, and open Schedule.",
+        "For an individual session row that is cancelled, change Status to Cancelled and review the preview. Changing Status on a Recurring weekly row applies to that series; these controls do not establish cancellation of just one occurrence inside a weekly series.",
+        "To withdraw the reviewed sessions, turn off Publish sessions. If sessions were already published, read the Unpublish sessions? confirmation and its consequences.",
+        "Choose Unpublish sessions only if that is the intended change. Cancelling that confirmation leaves the switch unchanged. After confirming, review the form and select Save Offering to save the withdrawal.",
+        "Wait for a successful save and reopen the Offering to check its schedule. A status change likewise needs Save Offering. If the save fails or conflicts with a newer revision, refresh and review the current schedule before trying again."
+      ],
+      "notes": [
+        "Unpublishing removes upcoming sessions from the Offering and Care Calendar. People with personal plans need to review the schedule change; the previous published version remains in schedule history.",
+        "Remove edits the session rows in this form; it is not a provider booking-cancellation control. Review the generated schedule before saving any removed rows.",
+        "If sessions have not yet been published, there is no previously published schedule to withdraw. If the Offering still shows older schedule text, publishing reviewed session rows is the separate replacement workflow described above.",
+        "A hidden Offering and an unpublished schedule are different things. Use the related visibility article when the intended change is to hide the listing rather than alter its dates.",
+        "The Guide cannot change an existing Offering or its schedule in chat. Use the exact listing’s edit form, and contact the provider separately about anyone’s registration or booking."
+      ],
+      "queryRequiresAny": [
+        "programme",
+        "program",
+        "offering",
+        "sessions"
+      ],
+      "facts": []
+    },
+    {
+      "id": "offering-schedule-edit",
+      "title": "Change an Offering’s published sessions",
+      "facts": [
+        {
+          "id": "offering-schedule-edit",
+          "title": "Change an Offering’s published sessions",
+          "keywords": [
+            "update offering schedule",
+            "change programme sessions",
+            "switch off offering schedule",
+            "turn off programme dates"
+          ],
+          "message": "Open Manage My Resources → Offerings and choose Edit on a Programme/service you may edit. In Schedule, review the dated sessions or recurring weekly series and the public preview before saving. Turning off already published sessions asks for confirmation because upcoming sessions will leave the Offering and Care Calendar; people with personal plans must review the change. A changed schedule is not a provider booking cancellation, and the Guide cannot edit the existing Offering for you.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/components/AssetForm.jsx:1764-1878; server/src/controllers/softAssetsController.js:2165-2177,2248-2289; docs/regression-ledger.md",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-21",
+    "HC-22",
+    "HC-23",
+    "HC-35",
+    "HC-37",
+    "HC-38",
+    "HC-39",
+    "HC-31",
+    "HC-32"
+  ]
+}

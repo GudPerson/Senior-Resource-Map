@@ -1,0 +1,51 @@
+{
+  "id": "HC-21",
+  "slug": "understand-which-activities-appear-in-care-calendar",
+  "title": "Understand which activities appear in Care Calendar",
+  "summary": "Understand the reviewed schedule sources available for personal activity planning.",
+  "category": "calendar",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "Reviewed Guide topic: calendar"
+    ]
+  },
+  "sections": [
+    {
+      "id": "help-calendar",
+      "title": "Use Care Calendar",
+      "facts": [
+        {
+          "id": "help-calendar",
+          "title": "Use Care Calendar",
+          "keywords": [
+            "calendar",
+            "schedule",
+            "my plans",
+            "planning"
+          ],
+          "message": "Open Care Calendar from your dashboard to view supported saved Offering schedules and your personal plans. Saving an Offering does not guarantee it has a supported schedule to show in Care Calendar, and a personal plan is not a provider booking or registration. Review source changes before relying on dates, and confirm attendance with the provider. Unsaving an Offering in My Directory can remove its saved calendar source.",
+          "route": "/dashboard/calendar",
+          "evidence": "Reviewed Guide topic: calendar",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-22",
+    "HC-23",
+    "HC-24"
+  ]
+}

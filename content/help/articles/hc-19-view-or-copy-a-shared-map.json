@@ -1,0 +1,100 @@
+{
+  "id": "HC-19",
+  "slug": "view-or-copy-a-shared-map",
+  "title": "View or copy a Shared Map",
+  "summary": "Use a view-only snapshot or make an editable private copy when offered.",
+  "category": "sharing",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "server/src/controllers/myMapsController.js:881-912; server/src/controllers/sharedMapsController.js:404-471; client/src/pages/SharedMapPage.jsx:655-668",
+      "client/src/pages/SharedMapPage.jsx:166-249,273-376,655-678; server/src/controllers/sharedMapsController.js:404-471"
+    ]
+  },
+  "sections": [
+    {
+      "id": "view-shared-map-steps",
+      "title": "Open a published Shared Map",
+      "paragraphs": [
+        "A published ordinary Shared Map is a view-only snapshot you can open without signing in. You need its current working share link."
+      ],
+      "steps": [
+        "Open the published Shared Map link provided by its owner.",
+        "Check the map name and browse its map and resource list. Open a resource to read its supplied details.",
+        "If you want a print-friendly layout, choose Print-friendly view. On a phone, open the shared map controls menu to find this option.",
+        "Confirm time-sensitive details with the resource provider before using them for a visit or registration."
+      ],
+      "notes": [
+        "You are viewing the version the owner last published. Later private edits appear only after the owner updates the shared link.",
+        "The shared page does not let you add to or edit the owner’s original My Map. Viewing it does not save its resources in your My Directory.",
+        "If the link no longer opens, ask the owner for a working published link. It may have been unpublished; signing in does not restore an unavailable snapshot."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "map"
+      ]
+    },
+    {
+      "id": "copy-shared-map-steps",
+      "title": "Make your own private copy when offered",
+      "paragraphs": [
+        "Copy to My Maps creates a separate private map from the published snapshot. You must be signed in with access to My Maps, be a visitor rather than its owner and have this copy option available."
+      ],
+      "steps": [
+        "Open the ordinary Shared Map link and review the snapshot you want to copy.",
+        "If you are signed out, use Sign in and return to the shared page after signing in to your existing account.",
+        "Select Copy to My Maps when it is offered. On a phone, open the shared map controls menu to find it.",
+        "Wait for the copy to open as your own My Map. Check its resources and any copied shared notes.",
+        "Edit your own copy using its map controls. Keep it private, or deliberately use Share when you later want to publish your version."
+      ],
+      "notes": [
+        "Your copy does not change the owner’s original and does not automatically follow later updates to that original. It contains the public snapshot rather than the owner’s private map data.",
+        "Copied shared resource notes start private in your new map. Review your own sharing choices before publishing your copy.",
+        "Copying a map does not give you permission to edit the providers’ public resource listings.",
+        "Copy to My Maps is not offered for every shared-map type: governed shared maps do not support this workflow, and owners already have their original map. If the button is absent, use the view-only page or open the original map you already own. If copying reports an error, check your sign-in and retry only after the problem is resolved."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "copy",
+        "duplicate"
+      ]
+    },
+    {
+      "id": "shared-map-copy",
+      "title": "Copy a Shared Map",
+      "facts": [
+        {
+          "id": "shared-map-copy",
+          "title": "Copy a Shared Map",
+          "keywords": [
+            "copy a shared map",
+            "copy shared map",
+            "copy someone elses map",
+            "copy of a public map",
+            "edit a shared map",
+            "shared map copy"
+          ],
+          "message": "Only the owner can add a saved resource to the original private My Map. Sharing publishes a view-only snapshot; it does not let a visitor add a Place to your original. When Copy to My Maps is available, a signed-in visitor can make a separate private map from the snapshot and edit their copy; it does not change the original map.",
+          "route": "/my-directory",
+          "evidence": "server/src/controllers/myMapsController.js:881-912; server/src/controllers/sharedMapsController.js:404-471; client/src/pages/SharedMapPage.jsx:655-668",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-07",
+    "HC-14"
+  ]
+}

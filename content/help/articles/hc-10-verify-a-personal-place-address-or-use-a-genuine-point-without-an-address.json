@@ -1,0 +1,70 @@
+{
+  "id": "HC-10",
+  "slug": "verify-a-personal-place-address-or-use-a-genuine-point-without-an-address",
+  "title": "Verify a Personal place address or use a genuine point without an address",
+  "summary": "An addressed Personal place needs a verified Singapore address and six-digit postal code. Find location fills the returned address and coordinates; check that they describe the intended place.",
+  "category": "my-maps",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "client/src/components/personalPlaces/PersonalPlaceEditorModal.jsx:104-202,235-432",
+      "server/src/utils/personalPlaceLocation.js:15-68",
+      "server/src/controllers/personalPlacesController.js:109-113,373-451; server/src/controllers/myMapsController.js:1150-1169",
+      "client/src/components/personalPlaces/PersonalPlacesSection.jsx:67-84,272-295; client/src/pages/MyMapDetailPage.jsx:3060-3113",
+      "server/src/utils/myMapDirectory.js:1201-1282; server/src/controllers/sharedMapsController.js:310-335; client/src/lib/myMapExcelExporter.js:36-84; client/src/lib/myMapAssetLedger.js:116-176"
+    ]
+  },
+  "sections": [
+    {
+      "id": "verify-location",
+      "title": "Verify an addressed place or choose a genuine map-only point",
+      "paragraphs": [
+        "An addressed Personal place needs a verified Singapore address and six-digit postal code. Find location fills the returned address and coordinates; check that they describe the intended place.",
+        "Sign in to create or edit your own Personal places. Open My Directory → My Places to edit a place you own, or use the Personal place editor on a My Map you own. Guests can read these instructions but cannot save Personal places."
+      ],
+      "steps": [
+        "In the Personal place editor, enter the address or postal code in the location lookup.",
+        "Select Find location and review the returned address, postal code and location.",
+        "If you change the address, postal code or coordinates afterward, verify the location again before saving.",
+        "Use This point has no postal address only for a genuine coordinate-only planning point, then review its map location before Save.",
+        "Select Save after checking the name, category and location. When saving succeeds, the editor closes and My Places or the owned map you are editing shows the saved location."
+      ],
+      "notes": [
+        "An addressed place cannot be saved while location verification is incomplete. If verification is temporarily unavailable, retry later; do not convert an addressed building into a map-only point to bypass verification.",
+        "A genuine map-only point has no address or postal code.",
+        "Personal places stay private: saving does not add them to Discover or public Shared Maps. Your owner map exports can include these places, so review downloaded files before sharing them."
+      ],
+      "facts": [
+        {
+          "id": "personal-place-location-verification",
+          "title": "Verify an addressed place or choose a genuine map-only point",
+          "keywords": [
+            "personal place address",
+            "find location",
+            "postal verification",
+            "point without address"
+          ],
+          "answerKind": "procedure",
+          "route": "/my-directory?section=my-places",
+          "evidence": "client/src/components/personalPlaces/PersonalPlaceEditorModal.jsx:104-202,235-432; server/src/utils/personalPlaceLocation.js:15-68; server/src/controllers/personalPlacesController.js:109-113,373-451; server/src/controllers/myMapsController.js:1150-1169; client/src/components/personalPlaces/PersonalPlacesSection.jsx:67-84,272-295; client/src/pages/MyMapDetailPage.jsx:3060-3113; server/src/utils/myMapDirectory.js:1201-1282; server/src/controllers/sharedMapsController.js:310-335; client/src/lib/myMapExcelExporter.js:36-84; client/src/lib/myMapAssetLedger.js:116-176",
+          "reviewed": "2026-10-02"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-09",
+    "HC-11",
+    "HC-18"
+  ]
+}

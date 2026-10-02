@@ -1,6 +1,7 @@
 // Page labels are intentionally coarse: never forward resource IDs, map names,
 // share tokens, query strings or private page contents to the Guide.
 export function guidePageLabel(pathname = '') {
+    if (pathname === '/help-centre' || pathname.startsWith('/help-centre/')) return 'Help Centre';
     if (pathname.startsWith('/dashboard/resources')) return 'Manage resources';
     if (pathname.startsWith('/dashboard/calendar')) return 'Care Calendar';
     if (pathname.startsWith('/my-directory/maps/')) return 'My Maps';
@@ -23,6 +24,6 @@ export function guideReportContext(pathname = '') {
     const route = String(pathname).split(/[?#]/, 1)[0];
     const family = ['/dashboard/resources', '/dashboard/calendar', '/my-directory/maps',
         '/my-directory', '/resource', '/dashboard/profile', '/dashboard/admin', '/dashboard/support',
-        '/discover', '/help', '/login', '/partner-login', '/inbox'].find((base) => route === base || route.startsWith(`${base}/`));
+        '/discover', '/help-centre', '/help', '/login', '/partner-login', '/inbox'].find((base) => route === base || route.startsWith(`${base}/`));
     return { pathname: family || '/' };
 }

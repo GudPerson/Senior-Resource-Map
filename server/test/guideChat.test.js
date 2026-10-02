@@ -238,8 +238,14 @@ test('Resource Group questions distinguish how-to, account creation rights and g
     const governance = await (await post(makeRouter(directPlaceStaff),
         { question: 'How are governance groups created?', useAi: true }, env,
         { 'cf-connecting-ip': '203.0.113.211' })).json();
-    assert.equal(governance.topicId, 'governance-group-overview');
-    assert.match(governance.message, /separate from public Resource Groups.*Org Group.*Region Group/s);
+    assert.equal(governance.topicId, 'help-access');
+    assert.deepEqual(governance.sources, []);
+    assert.doesNotMatch(governance.message, /Org Group.*Region Group/s);
+    const permittedGovernance = createGuideRoutes({ authenticate: async (c, next) => { c.set('user', directPlaceStaff); await next(); },
+        helpCapabilities: async () => ({ organization: { workspaceView: true } }) });
+    const permitted = await (await post(permittedGovernance, { question: 'How are governance groups created?' }, env)).json();
+    assert.equal(permitted.topicId, 'governance-group-overview');
+    assert.match(permitted.message, /separate from public Resource Groups.*Org Group.*Region Group/s);
     assert.equal(calls, 0);
 });
 
@@ -290,8 +296,13 @@ test('Workbook import questions use the Data Tools role gate and do not imply a 
     const howTo = await (await post(staff,
         { question: 'How do I import a workbook to create programmes?', useAi: true }, env)).json();
     assert.equal(howTo.answerSource, 'reviewed');
-    assert.equal(howTo.topicId, 'asset-workbook-import');
-    assert.match(howTo.message, /Super Admin.*Upload Workbook starts the import immediately/s);
+    assert.equal(howTo.topicId, 'help-access');
+    assert.deepEqual(howTo.sources, []);
+    assert.doesNotMatch(howTo.message, /Upload Workbook starts the import immediately/s);
+    const permittedHowTo = await (await post(makeRouter({ id: 3, role: 'super_admin' }),
+        { question: 'How do I import a workbook to create programmes?' }, env)).json();
+    assert.equal(permittedHowTo.topicId, 'asset-workbook-import');
+    assert.match(permittedHowTo.message, /Super Admin.*Upload Workbook starts the import immediately/s);
     const map = await (await post(staff,
         { question: 'Can I import a workbook into My Map?', useAi: true }, env)).json();
     assert.equal(map.topicId, 'unverified-workflow');

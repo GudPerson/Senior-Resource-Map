@@ -1,0 +1,214 @@
+{
+  "id": "HC-37",
+  "slug": "change-resource-visibility-and-distinguish-hiding-from-deleting",
+  "title": "Change resource visibility and distinguish hiding from deleting",
+  "summary": "Distinguish visibility changes, personal saved entries and permanent deletion.",
+  "category": "resource-management",
+  "audiences": [
+    "resource owner",
+    "resource staff",
+    "admin"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "server/src/controllers/favoritesController.js:216-223; server/src/utils/savedAssets.js:124-166,346-431; server/src/utils/visibility.js:17-86; server/src/controllers/hardAssetsController.js:1966-1972,2032-2036; server/src/controllers/softAssetsController.js:2045-2064,2220-2225,2238-2279",
+      "client/src/pages/dashboard/ResourcesPage.jsx:1562-1600,1887-1913,2554-2590,2764-2813,3280-3295,3830-3917; server/src/controllers/hardAssetsController.js:1968-1972,2075-2115; server/src/controllers/softAssetsController.js:2058-2064,2358-2393; docs/regression-ledger.md:1719-1743",
+      "client/src/components/AssetForm.jsx:1261-1287,2038-2066; client/src/components/ResourceClaimsPanel.jsx:222-265; server/src/controllers/resourceClaimsController.js:667-741; server/src/controllers/softAssetsController.js:1758-1960; client/src/lib/governedPilotRelease.js:21",
+      "client/src/pages/dashboard/ResourcesPage.jsx:1887-1925,2540-2595,2764-2813,3280-3295,3825-3918",
+      "client/src/components/AssetForm.jsx:1261-1297,1944-1976; client/src/components/SoftAssetChildForm.jsx:350-390"
+    ]
+  },
+  "sections": [
+    {
+      "id": "hide-or-show-one-listing",
+      "title": "Hide or show one managed public listing",
+      "paragraphs": [
+        "Use this flow only when the selected resource’s card offers the relevant visibility control. Visibility permission and editing permission are checked separately."
+      ],
+      "steps": [
+        "Open Dashboard → Manage My Resources and choose Places, Offerings or Groups. Find the exact listing and check its current hidden status.",
+        "Select Hide from app to hide it, or Show in app to restore it, when that control is offered. This card action starts the update immediately; it is not a Delete action.",
+        "Wait for the result, then check the refreshed card and intended visibility. If it fails, read the error and verify the listing’s permission before retrying."
+      ],
+      "notes": [
+        "Showing a listing does not override its audience, linked-member or eligibility rules. A scheduled hide window may also affect whether it is currently visible.",
+        "Existing saved entries in My Directory are not automatically removed by hiding. They can remain unavailable for viewers who no longer have visibility, and become available again when visibility permits.",
+        "A heart or an Unsave action changes your saved collection. It does not hide or delete the public resource.",
+        "The Guide cannot change an existing listing’s visibility in chat."
+      ],
+      "queryRequiresAny": [
+        "hide listing",
+        "hide resource",
+        "hide from app",
+        "show in app",
+        "unhide resource"
+      ],
+      "facts": []
+    },
+    {
+      "id": "schedule-a-listing-hide",
+      "title": "Set a planned hide window in a resource editor",
+      "paragraphs": [
+        "Use the exact resource editor only if your account can change its visibility. A planned hide window is different from cancelling a Programme session or deleting the listing."
+      ],
+      "steps": [
+        "Open Manage My Resources, choose the exact Place or Offering and select Edit if available.",
+        "For a Place, open Visibility. For a standard Offering, open Schedule and find Hide window.",
+        "Review Hide from App and enter the intended Scheduled Hide (From) and Scheduled Hide (Until) dates and times. Check that the values describe the intended period.",
+        "Review the public Preview and other audience rules, then choose Save Place or Save Offering as appropriate.",
+        "Wait for a successful save and reopen the exact resource to confirm its hide settings."
+      ],
+      "notes": [
+        "A template-generated version has its own local Hide from app and scheduled hide controls; review that exact version rather than changing the shared template to unhide it.",
+        "If the form or card does not permit a visibility change, ask the responsible resource Owner or administrator. These instructions do not grant a wider scope.",
+        "If the intention is to withdraw dated sessions, use the schedules article. Hiding the listing is a different change."
+      ],
+      "queryRequiresAny": [
+        "scheduled hide",
+        "hide window",
+        "scheduled hide dates",
+        "temporarily hide"
+      ],
+      "facts": []
+    },
+    {
+      "id": "confirm-filtered-visibility",
+      "title": "Confirm a visibility change for all filtered results",
+      "paragraphs": [
+        "Bulk visibility controls apply across every page of the active filtered result set, not only the cards on screen. Review the complete scope before confirming."
+      ],
+      "steps": [
+        "Open Manage My Resources and choose the relevant Places, Offerings or Groups tab. Set the intended search and Region filters.",
+        "Under Bulk actions for filtered results, select Hide all or Unhide all when available.",
+        "Read the confirmation’s resource count and filter details, including any results skipped because this account cannot change their visibility.",
+        "Choose Cancel if the scope is wrong. Otherwise explicitly select Hide all or Unhide all in the confirmation.",
+        "Wait for completion and review the result notice, including any partial failures. Check the affected listings before repeating an action."
+      ],
+      "notes": [
+        "Resources already in the requested state remain unchanged. Permission checks still apply to each listing, and some results can be skipped.",
+        "Templates do not use these bulk listing controls. Save all and Unsave all concern your saved collection rather than public visibility.",
+        "An error or partial result is not evidence that every filtered resource changed; review the reported outcome."
+      ],
+      "queryRequiresAny": [
+        "hide all",
+        "unhide all",
+        "bulk hide",
+        "bulk visibility"
+      ],
+      "facts": []
+    },
+    {
+      "id": "review-before-listing-delete",
+      "title": "Review and confirm deletion of an exact listing",
+      "paragraphs": [
+        "Delete is separate from Hide/Show and from removing a saved entry. Use it only when permanently removing the selected listing is intended and your account has the required permission."
+      ],
+      "steps": [
+        "Open Manage My Resources and find the exact Place, Offering or Group. Confirm that its Delete control refers to the intended listing.",
+        "Before deleting a Place, review any linked Offerings and whether any rely solely on it. If you only need temporary removal from discovery, use Hide from app instead.",
+        "Select Delete and read the resource-specific confirmation. Choose Cancel if you selected the wrong listing or have not reviewed its dependencies.",
+        "Select Delete in the confirmation only when removal is intended, then wait for the result.",
+        "Check the refreshed resource list. If deletion fails, review the error and current state rather than assuming removal happened."
+      ],
+      "notes": [
+        "The UI does not offer an undo for a deleted listing. Do not promise that the Guide can restore it.",
+        "Deleting an Offering template is a broader operation that also deletes its generated place versions; use the template article’s review steps.",
+        "Removing your own saved entry does not delete the public listing. The Guide cannot delete an existing listing for you."
+      ],
+      "queryRequiresAny": [
+        "delete listing",
+        "delete resource",
+        "delete place",
+        "delete offering",
+        "delete group"
+      ],
+      "facts": []
+    },
+    {
+      "id": "hidden-saved-resources",
+      "title": "Hiding a public listing and existing saved entries",
+      "facts": [
+        {
+          "id": "hidden-saved-resources",
+          "title": "Hiding a public listing and existing saved entries",
+          "keywords": [
+            "hidden listing saved copy",
+            "hide resource saved entry",
+            "provider hides saved programme",
+            "hidden saved place unavailable"
+          ],
+          "message": "Hiding a public Place or Programme/service does not automatically remove people’s saved entries from My Directory. The saved entry can remain and be marked unavailable when that viewer can no longer see the listing. If the listing becomes visible to that viewer again, the same saved entry can become available again; other audience rules still apply. Hide/Show changes visibility and is separate from Delete. Removing your own saved entry is another action and does not delete the public listing. The Guide cannot inspect everybody’s saved list or confirm a particular person’s entry from this general question.",
+          "route": "/my-directory",
+          "evidence": "server/src/controllers/favoritesController.js:216-223; server/src/utils/savedAssets.js:124-166,346-431; server/src/utils/visibility.js:17-86; server/src/controllers/hardAssetsController.js:1966-1972,2032-2036; server/src/controllers/softAssetsController.js:2045-2064,2220-2225,2238-2279",
+          "reviewed": "2026-10-01"
+        }
+      ]
+    },
+    {
+      "id": "resource-hide-delete",
+      "title": "Hide, show or delete a managed resource",
+      "facts": [
+        {
+          "id": "resource-hide-delete",
+          "title": "Hide, show or delete a managed resource",
+          "keywords": [
+            "hide a place",
+            "hide an offering",
+            "hide a resource",
+            "unhide a place",
+            "show in app",
+            "hide from app",
+            "delete a place",
+            "delete an offering",
+            "delete a resource",
+            "hide vs delete",
+            "hide or delete",
+            "hiding and deleting",
+            "hiding vs deleting",
+            "bulk hide"
+          ],
+          "message": "In Manage My Resources, Hide from app or Show in app changes a Place or Offering’s visibility when that card permits it; it is separate from Delete. The filtered Hide all and Unhide all controls show a count-and-filter confirmation and skip items this account cannot change. Delete has its own confirmation and removes the listing from the directory; the UI does not offer an undo. Check the exact resource and any linked Offerings before deleting a Place. Saving or unsaving in My Directory does neither of these things.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/pages/dashboard/ResourcesPage.jsx:1562-1600,1887-1913,2554-2590,2764-2813,3280-3295,3830-3917; server/src/controllers/hardAssetsController.js:1968-1972,2075-2115; server/src/controllers/softAssetsController.js:2058-2064,2358-2393; docs/regression-ledger.md:1719-1743",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "listing-publication-boundary",
+      "title": "Directory visibility and Resource Claims approval",
+      "facts": [
+        {
+          "id": "listing-publication-boundary",
+          "title": "Directory visibility and Resource Claims approval",
+          "keywords": [
+            "resource claims publication approval",
+            "approve directory listing",
+            "approval to publish a place",
+            "approval for every listing"
+          ],
+          "message": "The ordinary Place or Offering editor has its own directory visibility controls and permission checks. Resource Claims publication approval is a separate governed-pilot workflow: after Owner verification and an active agreement, a Super Admin can approve selected provider fields and public uses in personal Shared Maps or embeds. That approval is not the general create step for every Discover listing, and the governed-pilot workspace may be unavailable in the current app release. The Guide cannot approve a claim or publish an existing listing from chat.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/components/AssetForm.jsx:1261-1287,2038-2066; client/src/components/ResourceClaimsPanel.jsx:222-265; server/src/controllers/resourceClaimsController.js:667-741; server/src/controllers/softAssetsController.js:1758-1960; client/src/lib/governedPilotRelease.js:21",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-05",
+    "HC-33",
+    "HC-36",
+    "HC-34",
+    "HC-35",
+    "HC-38",
+    "HC-39"
+  ]
+}

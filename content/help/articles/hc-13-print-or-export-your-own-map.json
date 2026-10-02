@@ -1,0 +1,114 @@
+{
+  "id": "HC-13",
+  "slug": "print-or-export-your-own-map",
+  "title": "Print or export your own map",
+  "summary": "Choose the right visual map, notes or resource-list download.",
+  "category": "map-design-and-exports",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/MyMapPdfExportButton.jsx:6-66; client/src/components/MyMapExcelExportButton.jsx:6-63; docs/user-guide.md:191-202",
+      "client/src/pages/MyMapDetailPage.jsx:481-485,730-740,2128-2150,3493-3535,3764-3783,3860-3909; client/src/components/MapImageExportButton.jsx:605-714",
+      "client/src/components/MyMapPdfExportButton.jsx:6-66; client/src/components/MyMapExcelExportButton.jsx:6-63; client/src/lib/myMapExcelExporter.js:36-85; client/src/locales/en.js:655-657,794-802,816-821",
+      "server/src/utils/myMapDirectory.js:1201-1282; reviewed Personal places and sharing boundary in HC-14"
+    ]
+  },
+  "sections": [
+    {
+      "id": "visual-map-export-steps",
+      "title": "Save a visual map as PNG or PDF, then print it",
+      "paragraphs": [
+        "Sign in and open a map you own. Export View creates a visual copy; it is separate from the Map Notes PDF and the resource workbook."
+      ],
+      "steps": [
+        "Open My Directory → My Maps and open your map.",
+        "If you use Map Studio, select the view you want to export and wait for its saved-status confirmation.",
+        "Select Export View in the map toolbar. On a phone, open the map menu to find Export View.",
+        "Review the export preview, including the title, visible resources, private planning content and the map’s position and zoom.",
+        "Wait for Map ready to download. Select Save PNG for an image or Save PDF for the visual PDF.",
+        "Open the downloaded file and check the map and its pages before sharing it. To print, use the Print control in the PDF viewer."
+      ],
+      "notes": [
+        "Some layouts show separate Save Map PNG and Save Resource PNG controls. Choose the page you need; the resource-only image is not a map image.",
+        "If Map download is not ready is shown, use Retry map preparation and wait. If Studio changes could not be saved, return to the map, resolve the save error and reopen Export View.",
+        "Owner exports can contain Personal places and other private planning content. Public Shared Map exclusions are not a promise that your own file contains only public content; inspect the file before giving it to anyone.",
+        "The download is a snapshot. Recheck important provider contacts, dates, availability and eligibility before relying on or sharing an older copy.",
+        "Exporting does not publish or update a Shared Map. Use Share separately for its public version."
+      ],
+      "queryRequiresAny": [
+        "map",
+        "export view",
+        "print view"
+      ],
+      "facts": []
+    },
+    {
+      "id": "map-notes-and-workbook-steps",
+      "title": "Download notes or an Excel resource list",
+      "paragraphs": [
+        "Use your owned map’s separate downloads when you need notes or a resource list rather than a picture of the map."
+      ],
+      "steps": [
+        "Sign in, open My Directory → My Maps and open the map you own.",
+        "For the notes ledger, select Download Map Notes. For an Excel resource workbook, select Export Map Assets. On a phone, find these controls in the map menu.",
+        "Wait for the PDF or Excel preparation to finish. If exporting the resource workbook, allow pending Map Studio changes to save first.",
+        "Open the downloaded PDF or workbook and check its contents, including any Personal places, before sharing or printing it.",
+        "If you need a visual map instead, return to the map and select Export View, then choose Save PNG or Save PDF."
+      ],
+      "notes": [
+        "Export Map Assets creates an Excel workbook with a Summary and Map Assets sheet. Private map notes are not included in that workbook; review the remaining resource and Personal place details before sharing.",
+        "Download Map Notes produces the notes/ledger PDF, not the visual-map PDF. Save PDF inside Export View is the visual version.",
+        "If preparation fails, read the error and retry the same download once the map and any Studio save have finished. A preparation message does not mean the file was downloaded.",
+        "Downloads are copies of the current map content, not live updates or programme registrations."
+      ],
+      "queryRequiresAny": [
+        "download",
+        "export"
+      ],
+      "facts": []
+    },
+    {
+      "id": "my-map-exports",
+      "title": "My Map downloads",
+      "facts": [
+        {
+          "id": "my-map-exports",
+          "title": "My Map downloads",
+          "queryRequiresAny": [
+            "map"
+          ],
+          "keywords": [
+            "download map notes",
+            "download map assets excel",
+            "my map export",
+            "map exports",
+            "map pdf",
+            "map spreadsheet",
+            "resource list from my map",
+            "download a resource list from my map"
+          ],
+          "message": "An owned My Map has separate downloads for different purposes: Download Map Notes creates a PDF ledger, and Export Map Assets creates a resource workbook. Use the map image or Export View when you need a visual map. A downloaded file is a snapshot; recheck important provider details before sharing it.",
+          "route": "/my-directory",
+          "evidence": "client/src/components/MyMapPdfExportButton.jsx:6-66; client/src/components/MyMapExcelExportButton.jsx:6-63; docs/user-guide.md:191-202",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-18",
+    "HC-20",
+    "HC-14"
+  ]
+}

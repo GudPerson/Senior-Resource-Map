@@ -1,0 +1,536 @@
+{
+  "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+  "topics": [
+    {
+      "id": "overview",
+      "digest": "3c9647dcf3dd8178b48046d1d8c1762f9e5a78fd78e93436179a4a05f33bc1b3"
+    },
+    {
+      "id": "discover",
+      "digest": "c8dfe36e91ae0817dd99c80b17fa6f38ad761c3a7369e8a8e5b017a4b612c1d6"
+    },
+    {
+      "id": "save",
+      "digest": "6bf2b03a18ac49661dbdf98a661acdd44923b41c38ae1152a6b271aa83e108bc"
+    },
+    {
+      "id": "add-resource",
+      "digest": "020d6aea7e84dda8b5284e431136418ff229ce9cea62e74ea579ce3ecab7f9ea"
+    },
+    {
+      "id": "unsave",
+      "digest": "5cd39c58f8d737c700370200a946422566d1a10a526fb84c10836ef5fe2edcf9"
+    },
+    {
+      "id": "maps",
+      "digest": "68b8b7faa215338ab2cbb007e58c0e8e62d48841df3538d9d8a440c67d3b7cf7"
+    },
+    {
+      "id": "sharing",
+      "digest": "4058f8e75b9f8d51f71c346550ae27d3a6a030b4a389852940cd9e0d428b59a7"
+    },
+    {
+      "id": "calendar",
+      "digest": "d02b8351563d3c4986c9feb3b63df99f810ea28e583c4e9272fc8bedf98a6f27"
+    },
+    {
+      "id": "detailed-map",
+      "digest": "26695bfb9f434910b5ae0db9cc4244715472e0af55e2267807ddc57315c3aa6e"
+    },
+    {
+      "id": "login",
+      "digest": "688e6c4f956fbc56f02701cd9fa5700e4e7201046b0b67d79d751ba9715ef177"
+    },
+    {
+      "id": "support",
+      "digest": "98d6b5a948e4b25ce5a8dc51838a83f759a0f07bf9e4ba5428a85d2e03adea3c"
+    },
+    {
+      "id": "privacy",
+      "digest": "781a34761956d1020502b51c55d89d8a26f5eeb308946294a99690842b1794cc"
+    }
+  ],
+  "facts": [
+    {
+      "id": "help-overview",
+      "digest": "98fa6bde90975e4caa3f77d14809064ea1172d76601755405302bc716be226e3"
+    },
+    {
+      "id": "help-discover",
+      "digest": "7d6ea7fd3057a7cf8a81a373424b77afa209464ba3dc221400ae5c4947628eaf"
+    },
+    {
+      "id": "help-save",
+      "digest": "0f966e08d5cc83b766f315ce54a5c1075c777f8d1fb4a1c0b71ccf1e0ff27a8a"
+    },
+    {
+      "id": "help-add-resource",
+      "digest": "1e992b1375df8598aeb84762b694873b8ecbf66fcee0d845e2eb06a55b97c1f4"
+    },
+    {
+      "id": "help-unsave",
+      "digest": "359c803b8a79b11cde069c99ea29332ef8454da95e532e5ed3220bb9096f38d8"
+    },
+    {
+      "id": "help-maps",
+      "digest": "59d20be20e6b80d66308bf6ceda65417284bbf1992337207c669f170eeab7aca"
+    },
+    {
+      "id": "help-sharing",
+      "digest": "c79a123e315defcffc9dd5aa3dba78324fc05a75e2768eb1b0c8dadd6e3ffc5e"
+    },
+    {
+      "id": "help-calendar",
+      "digest": "f69dcc70418952376d9cb9e861cf9be06b24a40c513a27332f2db5d73b9fecf8"
+    },
+    {
+      "id": "help-detailed-map",
+      "digest": "aa8e147f7decc3400273e967ef1f5f61198585daf1f63da7c73fc1b79aaa0a04"
+    },
+    {
+      "id": "help-login",
+      "digest": "29858a562094f84f2589b747e565b3361069d42e2b3f67e3f45d17f5bc9e8576"
+    },
+    {
+      "id": "help-support",
+      "digest": "ffa623991d68cc90d0a75d118dc730e154392880b30fae7056327dd299c72827"
+    },
+    {
+      "id": "help-privacy",
+      "digest": "509cee4fee684aa936725440c4305547d8ab3b01f32eee7a627a4fe5c74b9031"
+    },
+    {
+      "id": "hidden-saved-resources",
+      "digest": "c287a88a17eb37169cf4c23b09dd191ed4a2c1a5466595890f18120de6848719"
+    },
+    {
+      "id": "guide-notification-controls",
+      "digest": "201e3fd0f6909afc8335d75c5d7216bb000b6452686949a5c60836f9c29c5630"
+    },
+    {
+      "id": "notification-delivery-channels",
+      "digest": "a866f672b0ccae357344f6b66f523c2c3e29a25e2528f033dd4c0e4a5d2a8989"
+    },
+    {
+      "id": "resource-export-context",
+      "digest": "a74bb9eb716500ad5adf33f55e576123308ce8ac3568ca30606cd986c60e98e0"
+    },
+    {
+      "id": "offering-translation-review",
+      "digest": "239654dadfa7a629a178d8f2d3d164c7e926a516d44a6b8950a0cf21de7fc784"
+    },
+    {
+      "id": "saved-schedule-notifications",
+      "digest": "e08cedc48b0a1365836cdeccd3514f4d04652265b124cb11dd8801269e7df0b9"
+    },
+    {
+      "id": "shared-map-viewer-boundary",
+      "digest": "663529957517a7b92bb136aa45ff27937566b030aa2532320822d8e656d5ff9f"
+    },
+    {
+      "id": "offering-template-delete",
+      "digest": "fce835429a15d48d34f7b7434322e64192c0bd428b75a444ccd92cbba609acf8"
+    },
+    {
+      "id": "offering-template-propagation",
+      "digest": "67aab8de19f1a142e6580954bfe6b9c659d27e21c1c99445307ca977568d1fc5"
+    },
+    {
+      "id": "offering-template-overview",
+      "digest": "db7e398d0817a24fe1749c5089f44f5b8f4910829cd9d644512cfb3eccc97a7d"
+    },
+    {
+      "id": "admin-region-scope",
+      "digest": "c4d76cabe08c0b81107fa659cb878c63d5de242f8336f96b2b8e883b0902d426"
+    },
+    {
+      "id": "region-boundary-layers",
+      "digest": "a2bf0f23700065629e9a95d22a0d7c0caca812c24e6fb86d5568270b7782db3b"
+    },
+    {
+      "id": "governance-group-membership",
+      "digest": "42c3ad8a8fa6bf8edfcb4cff5b6c724be1c599c79651073b7049550395fbb8d3"
+    },
+    {
+      "id": "governance-group-overview",
+      "digest": "9d281498ca417ed390932706e2d5302ee7ba46187997fe61b76dd5bc59fabe50"
+    },
+    {
+      "id": "governance-org-group",
+      "digest": "c1a33a8d2379dbe1132994c72f817bfdde3a84f8a2464e6d5bbf069eaeb74eb7"
+    },
+    {
+      "id": "governance-region-group",
+      "digest": "94119f784979030c40637d20e93436e6ffd2b561ea6e88e8d7b8f150669e9c8c"
+    },
+    {
+      "id": "organization-workspace",
+      "digest": "40eae60c93ac022a13d0010dd71e93f65c449ced0438589dd211746f10f7cb88"
+    },
+    {
+      "id": "audit-trail",
+      "digest": "304a4bd34bec04bc0651517ea998f8d1633335850c03ceb09af0517e46b8843f"
+    },
+    {
+      "id": "saved-versus-managed",
+      "digest": "56726618e53e654e93fdf0f89f527d72a9df8c0496bff517e3a3b279c3f8cf9f"
+    },
+    {
+      "id": "saved-identity-privacy",
+      "digest": "14d75ea4cd7acf2210a36032645979b3bec07b77dea27671c46a6f8fc773169e"
+    },
+    {
+      "id": "guide-provider-identity-check",
+      "digest": "b70caa05e3c30a5f0a11a759f109fc69977c094cab3f01629ba9f524d9827c85"
+    },
+    {
+      "id": "saved-versus-membership",
+      "digest": "a4b3eba3f0cbb3d92b9cf8ef1d35e4ee4fe9b701b6e6537a9bf82adb7547d999"
+    },
+    {
+      "id": "saved-list-privacy",
+      "digest": "22f3111c635ece09659b7f0dbd3e209a71ae77cf390137621ff94fe9612f2fef"
+    },
+    {
+      "id": "other-account-saved-privacy",
+      "digest": "9e7dd29c450a1b625770c8623a7781d75e83a22ab7169cf6584fe75d8d9dcaf5"
+    },
+    {
+      "id": "save-place-separately",
+      "digest": "ff6806e39e67a9afa8bf3052fa92755104fc094c7cec7a4a3b0f3d1e90565701"
+    },
+    {
+      "id": "my-places",
+      "digest": "47016923d325ceb8b613b100ce4fea13872bee180149803b13916e85a2bc454c"
+    },
+    {
+      "id": "personal-place-address-edit",
+      "digest": "90684a5de6b192df6161960ae08e4792cb204e48accc0e6203fdb90a53d21c9d"
+    },
+    {
+      "id": "personal-place-sharing",
+      "digest": "df7391f84b691dc8ffec90639d7d5cf90247a92b604d2e4a4294edb532661220"
+    },
+    {
+      "id": "map-membership",
+      "digest": "5e9a50f73c6a6ed58d2ad7dfe675a6d88e5dc2ebff80003832dd61f9ec559fa4"
+    },
+    {
+      "id": "saved-to-shared-map",
+      "digest": "9b0f50c460c8b3a74dcb4d1c47bb514efa348f478568d9bc72bab251b7de8fa6"
+    },
+    {
+      "id": "map-studio",
+      "digest": "669df99bbe924ec820c929809212e8a84dac4a5d583952e403d0403ebdd69594"
+    },
+    {
+      "id": "plans-not-bookings",
+      "digest": "c84c4a996a411f18c5c49afb843ecaccad62ec76c5c6ab2ca15b711765d0d3a6"
+    },
+    {
+      "id": "provider-plan-lifecycle",
+      "digest": "b142d3b8b2d27f512eb85f4b3316946d7484f923623d6603bfec140f614c7630"
+    },
+    {
+      "id": "provider-plan-privacy",
+      "digest": "d5d45caa3085e3e9decb44d7870e45b847d3e81ab0cc23ca61705c01ffb5f37d"
+    },
+    {
+      "id": "plan-a-session",
+      "digest": "50aa691e13539bd1da7c9c818c8347c475421b0968f4adfde092c5eb7e475d83"
+    },
+    {
+      "id": "plan-schedule-update",
+      "digest": "40a6a8efbe991027289210143d53fbc5d5fabef9c83cfe1735e620ff0edc811f"
+    },
+    {
+      "id": "calendar-personal-entry",
+      "digest": "2b6ebe600987e6a452e16054b18d8c7bb51ea110da80b2f8de36890ce45a3c66"
+    },
+    {
+      "id": "plan-date-change",
+      "digest": "5dafe183ac412406cb92d20705c827535708747a2e43966de23e1cfe9955e8db"
+    },
+    {
+      "id": "resource-types",
+      "digest": "9b5e65a6d8d784e3e8330a02af67f5c809679cae09af912459ce0e69a8cb4a0e"
+    },
+    {
+      "id": "town-maps",
+      "digest": "ee66ad60f883d8277ff297879a3f8f7b2d19c3afbb2f52f11cb716f0325f04ba"
+    },
+    {
+      "id": "resource-groups",
+      "digest": "8d180c87d469c2765912eb71356c54b9b2eec9b29e53cd15526ec3eeef79788c"
+    },
+    {
+      "id": "group-other-provider-members",
+      "digest": "b6d4b4f2a4cda6f9afd5501a63d090c81e0b9263a279afee89948bae94018694"
+    },
+    {
+      "id": "group-target-regions",
+      "digest": "fde188c7c5ed1acf29fe870b5a30c72d029fb589ba4b84aaa447c1c36a9496b7"
+    },
+    {
+      "id": "group-staff-visibility",
+      "digest": "a1ed691688ed6540ed44c549f3a294eea144603a3b750724b01c12a34d5dcc03"
+    },
+    {
+      "id": "group-create",
+      "digest": "205cbe6cf5cd83ee6def7a4f56c5fac663d0d209bbf5644c83877ed93f141d0b"
+    },
+    {
+      "id": "group-edit",
+      "digest": "a411326addb1c4e0c81a96ac71cd5f3d3a80717ff9533e01d0acf5c82b78bce7"
+    },
+    {
+      "id": "asset-workbook-import",
+      "digest": "2c3f1a452c370c3762d7b298011a3420a3028786c872ca64f667be8c383b309a"
+    },
+    {
+      "id": "resource-edit",
+      "digest": "1efea4b47f72fd42a4b66cf7fb3c6d6e61b83624d277dd42c29a77b757d2d8fc"
+    },
+    {
+      "id": "offering-host-change",
+      "digest": "66baf5135ea328028bd428b8990c54d7174e7e491771563f32c9f5357f97bf46"
+    },
+    {
+      "id": "offering-multi-host",
+      "digest": "a68b01cc18221a42c394198c4a6b237520781c2d0234fcad4f7f4de505bc7614"
+    },
+    {
+      "id": "place-owner-transfer-boundary",
+      "digest": "79b06f4a45129994167cf95cdd3057b4e863a56f03ee62bdeb61131941c36a55"
+    },
+    {
+      "id": "place-contact-edit",
+      "digest": "5ec32cc86b53b7aa4f2552b558da0c0bf250862cc90176c1dbf199a20123aa3c"
+    },
+    {
+      "id": "offering-contact-edit",
+      "digest": "d27aaba23d096c439aceea54c96f1ae27d9929e5a8eb01f916b388121ce520fc"
+    },
+    {
+      "id": "offering-schedule-edit",
+      "digest": "a7e648412cfd0584eeb330f5e2c6bb5cfcaa13a7cdc5b1621e202bff8fc1c2e4"
+    },
+    {
+      "id": "listing-publication-boundary",
+      "digest": "b7f4eaca8bc65e6d3fc12b50c385f31092d714c79d2784fc4524a2104310d28e"
+    },
+    {
+      "id": "resource-hide-delete",
+      "digest": "727aca698a1fa436e9b6d9654a7df93ba18b5b7cf539336170c351f5c404de21"
+    },
+    {
+      "id": "saved-resource-removal",
+      "digest": "ad88a907917ee9b8e1f10e88b126fb3ae70affb4551c35849257572cba788515"
+    },
+    {
+      "id": "my-map-resource-removal",
+      "digest": "8a8533b406f7da6ff5b8ecf506f6bbfc20eb8acc0da2240df2653351040adb37"
+    },
+    {
+      "id": "remove-plan",
+      "digest": "998cb1b8aa424f3d6a30261a6ad34e256eccc6fa0dabf7f78756ef5ac07bb19e"
+    },
+    {
+      "id": "shared-map-copy",
+      "digest": "62a0b12aa86f114a0e8a4af8a001ab2f9db7391eb539ef35ef261a8252a4995e"
+    },
+    {
+      "id": "my-map-exports",
+      "digest": "c418cc8fd89f4e59e57218c8a5cc6e4dbc63ecc1dec119ca5d5521e697c88e03"
+    },
+    {
+      "id": "private-map-export-sharing",
+      "digest": "d8b0d4959dd573055c829cf6338d8d5723a401f14d4fe7c4ecc5adfeb547ffb2"
+    },
+    {
+      "id": "directory-export-boundary",
+      "digest": "1d5dd7348d1f9e04a48eacd53ab0593fef159f14ecee5e7e46c77b387264b968"
+    },
+    {
+      "id": "offering-host-versus-membership",
+      "digest": "eef83cda030e2ddcba2700c3f775c8e1db650a338f7b865ed83404d248cedd74"
+    },
+    {
+      "id": "other-place-memberships",
+      "digest": "244a91d8b269475dd6f8850337005e8aaf7f6dc66ade5b8bcdff37af91f1207d"
+    },
+    {
+      "id": "place-membership-navigation",
+      "digest": "d6a989475a199efdb092bce01cf88feb8ebc839c0ebecb14299aa0bd481d4690"
+    },
+    {
+      "id": "place-membership",
+      "digest": "07b3fce3848ebbf57eb1a0a2c357cb8422cc2a34c61b9d4881e75c0635123c16"
+    },
+    {
+      "id": "offering-eligibility",
+      "digest": "1b81edc35095bc3549fdda2aa5ad3374cd5ac4309effaff4c5e24202e651c8f8"
+    },
+    {
+      "id": "offering-profile-missing",
+      "digest": "30c9f6136fd28e1f005839dca01ccc30aef0c3075f749be070e3b48dd846c86a"
+    },
+    {
+      "id": "saved-not-eligible",
+      "digest": "4dccb24a925fe66e47f4ca3c441186a94719b923d8a14317633490d8eef2e992"
+    },
+    {
+      "id": "offering-not-visible",
+      "digest": "0000be8f2b4c010df26e7982a2f208a077c7664c81dd49bf0b402f8638ae2a01"
+    },
+    {
+      "id": "profile-update",
+      "digest": "2a1ab56dffb915aa3156a327669cb7a9a19871c334fc90b5c979380d32388238"
+    },
+    {
+      "id": "embedded-map-notes",
+      "digest": "3b2ff9c10d77609a4443d8864cc0a0f74827eeea4cfc765f238ab28b02c7efa1"
+    },
+    {
+      "id": "place-assignment-scope",
+      "digest": "2f66f6ce106d534351c0d5fb04729f3c79ef4d467bb340831ac5729332af564b"
+    },
+    {
+      "id": "place-staff-assignment",
+      "digest": "36496f821afe2277710a7122c390c39ef934c658e9ce9f632d86984e70d65120"
+    },
+    {
+      "id": "guide-create-scope",
+      "digest": "68a247119f55a134a4f0a18b6f0210e87870cc6c9ce95350f87f0837cda43049"
+    },
+    {
+      "id": "guide-existing-resource-edit-scope",
+      "digest": "268d3499ad4e7c7c08b5ada50aab1f2fe1a128d96daa7a2e3d1408582c11880d"
+    },
+    {
+      "id": "volunteer-place-create-boundary",
+      "digest": "00cfca7b33f82df611a075b309ecdc2cde3b4df1723a7ca7fba115b57c4d16c5"
+    },
+    {
+      "id": "regional-admin-place-edit-boundary",
+      "digest": "e0426d9163f631fc373f72c015f1613d125b962c77cbc72277e727ae77e60ecd"
+    },
+    {
+      "id": "map-note-privacy",
+      "digest": "7f4b5c6de8149f7b51a889159a99ce19e729ef3a336f7aa7c9872634ff03d202"
+    },
+    {
+      "id": "my-map-note-edit",
+      "digest": "c689a3ee7bb71794bc4fea1c84c329b11eed02ebae7db268efeb3266efb93896"
+    },
+    {
+      "id": "discover-nearby",
+      "digest": "28bd38ccc7338d390a65aba40f7def49dadf5a268386076311ef7a0c984669fc"
+    },
+    {
+      "id": "accessibility-search-boundary",
+      "digest": "a39c49ffb6d9e28676dc5a0af392c0add55765b966e9a2dfdbaa9e7c40f1fdb1"
+    },
+    {
+      "id": "provider-contact",
+      "digest": "6f92fce0c62f3d608ff46c01dbf698f0d2cedbc1f1c8cb0abd14fe63ff10b00b"
+    },
+    {
+      "id": "provider-wait-time",
+      "digest": "4eccb7c348518b2ed47d13d1869993dfc0bb3243623d660e19dcea0ab896d963"
+    },
+    {
+      "id": "provider-availability",
+      "digest": "3432b83e6289300e8dbed3af01655fe9b58ae5267e5230421fb3562ef9022f3a"
+    },
+    {
+      "id": "provider-usage-boundary",
+      "digest": "fb6ba2fbe5780c0784055555fbb6ac1f8c56d5f81e3cf2d640065bda118c71c2"
+    },
+    {
+      "id": "language-choice",
+      "digest": "80d7fe06760b19fa71b83c84210f2ae38c15a39e919696e1ed95c8a7cb1adae3"
+    },
+    {
+      "id": "account-recovery-help",
+      "digest": "5bf952cd1864e3ba65b9be95f87fe6bbf934ab9750093c541105e0750544b033"
+    },
+    {
+      "id": "account-deletion-help",
+      "digest": "4e492451f6ae8af060848151d88d672967c5f26c86fda07c8801c9a37878bfa1"
+    },
+    {
+      "id": "website-embeds",
+      "digest": "b620650ae573147528084da8103bb16737d686571daa01446da643c9ff8bd7be"
+    },
+    {
+      "id": "public-browsing",
+      "digest": "b068672c329eb525b8973274afe4febe0ffd4ffb18e914dcd8e153c959a65efa"
+    },
+    {
+      "id": "saved-resource-status",
+      "digest": "216a8255e422da7cfe1bfa10d093fceef38088200038c807da19ca27c1512212"
+    }
+  ],
+  "editorialCorrections": [
+    {
+      "id": "directory-export-boundary",
+      "expectedDigest": "90c5485c963fa6f4170adbfc14025dd87994cdc13de7123bc2667708d61c1702",
+      "reviewedAt": "2026-10-02",
+      "reviewer": "Codex source review",
+      "reason": "Current English control labels; workflows and permission/privacy qualifications unchanged.",
+      "evidence": [
+        "client/src/locales/en.js:655",
+        "client/src/locales/en.js:819",
+        "client/src/components/MyMapExcelExportButton.jsx:24-58"
+      ]
+    },
+    {
+      "id": "governance-region-group",
+      "expectedDigest": "c1c0edf42e1978d0878c2258f97de9d9ddb6bd86957f41ce92c5e63eaafbd56e",
+      "reviewedAt": "2026-10-02",
+      "reviewer": "Codex source review",
+      "reason": "Correct a nonexistent current Admin navigation path; no role, permission or governance behaviour changed.",
+      "evidence": [
+        "client/src/lib/roles.js:206-217",
+        "client/src/pages/dashboard/AdminPage.jsx:2704-2725"
+      ]
+    },
+    {
+      "id": "my-map-exports",
+      "expectedDigest": "d8fc884318746d6c93148c4a23e3a64fdf23fb1be8500273e5e0ffa659660780",
+      "reviewedAt": "2026-10-02",
+      "reviewer": "Codex source review",
+      "reason": "Current English control labels; workflows and permission/privacy qualifications unchanged.",
+      "evidence": [
+        "client/src/locales/en.js:655",
+        "client/src/locales/en.js:819",
+        "client/src/components/MyMapExcelExportButton.jsx:24-58"
+      ]
+    },
+    {
+      "id": "private-map-export-sharing",
+      "expectedDigest": "74547c0d746139f6877b3c29b76251da3974ecf7de170004cb84586103a43be1",
+      "reviewedAt": "2026-10-02",
+      "reviewer": "Codex source review",
+      "reason": "Current English control labels; workflows and permission/privacy qualifications unchanged.",
+      "evidence": [
+        "client/src/locales/en.js:655",
+        "client/src/locales/en.js:819",
+        "client/src/components/MyMapExcelExportButton.jsx:24-58"
+      ]
+    },
+    {
+      "id": "resource-export-context",
+      "expectedDigest": "1e12af8a2a10a446055855229296e222f57dbe0b3bf4c7114ac3de464d71e1c0",
+      "reviewedAt": "2026-10-02",
+      "reviewer": "Codex source review",
+      "reason": "Current English control labels; workflows and permission/privacy qualifications unchanged.",
+      "evidence": [
+        "client/src/locales/en.js:655",
+        "client/src/locales/en.js:819",
+        "client/src/components/MyMapExcelExportButton.jsx:24-58"
+      ]
+    }
+  ]
+}

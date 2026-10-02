@@ -39,12 +39,13 @@ export function sanitizeSupportContext(value = {}) {
     const pathname = [
         '/discover', '/login', '/partner-login', '/my-directory',
         '/dashboard/calendar', '/dashboard/resources', '/dashboard/profile',
-        '/dashboard/admin', '/dashboard/support', '/inbox', '/help',
+        '/dashboard/admin', '/dashboard/support', '/inbox', '/help', '/help-centre',
         '/resource', '/my-directory/maps', '/shared/maps',
     ].includes(path) ? path
         : path.startsWith('/my-directory/maps/') ? '/my-directory/maps'
             : path.startsWith('/shared/maps/') ? '/shared/maps'
-                : path.startsWith('/resource/') ? '/resource' : '/';
+                : path.startsWith('/help-centre/') ? '/help-centre'
+                    : path.startsWith('/resource/') ? '/resource' : '/';
     const appVersion = /^[a-f0-9]{7,40}$/.test(value.appVersion || '') ? value.appVersion : '';
     const requestId = /^[a-zA-Z0-9-]{8,80}$/.test(value.requestId || '') ? value.requestId : '';
     return { pathname, appVersion, requestId };

@@ -1,0 +1,174 @@
+{
+  "id": "HC-04",
+  "slug": "read-resource-details-and-check-information-with-the-provider",
+  "title": "Read resource details and check information with the provider",
+  "summary": "Check provider contact details, suitability, fees and participation before relying on a listing.",
+  "category": "find-and-save",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/ResourceDetailContent.jsx:315-322,709-790; client/src/pages/LegalPage.jsx:112-118",
+      "server/src/routes/guide.js:61-239; reviewed provider-contact fact; Guide has no live provider-queue lookup",
+      "client/src/components/ResourceDetailContent.jsx:327-329,596-605; client/src/pages/dashboard/ResourcesPage.jsx:212-296,2064-2087; client/src/pages/LegalPage.jsx:112-118",
+      "server/src/utils/eligibility.js:128-225,306-342; server/src/controllers/softAssetsController.js:1695-1756; server/test/eligibility.test.js:1-115",
+      "server/src/controllers/softAssetsController.js:1509-1756; server/src/utils/eligibility.js:306-342",
+      "client/src/components/ResourceDetailContent.jsx:306-335,565-605,709-790; client/src/pages/LegalPage.jsx:112-118",
+      "server/src/utils/eligibility.js:128-225,306-342; server/src/controllers/softAssetsController.js:1509-1756"
+    ]
+  },
+  "sections": [
+    {
+      "id": "provider-details-steps",
+      "title": "Read a listing and contact its provider",
+      "paragraphs": [
+        "Open a public listing to learn what the provider has supplied, then use an available provider channel to confirm anything needed for a visit or registration. Public browsing does not require sign-in."
+      ],
+      "steps": [
+        "In Discover, search for the Place or Programme/service and open the matching result.",
+        "Check the listing’s name and location, then read its description and any schedule, audience, fees or availability information that is provided.",
+        "Look for the provider’s contact information. Use Website, Email, WhatsApp contact or an external link when shown; if a phone number is listed, use it through your phone.",
+        "Ask the provider to confirm current hours, fees, vacancies, eligibility and how to register or book. Tell them which Place or Programme/service you mean.",
+        "Keep any provider confirmation with your own planning information. Saving the listing in CareAround is a separate action and does not register you with the provider."
+      ],
+      "notes": [
+        "Contact fields are optional. If no suitable channel is listed, do not infer that the provider can be reached through Guide chat; check another official provider channel or report the missing listing information.",
+        "A displayed availability count is not a confirmed seat or a live queue estimate. A directory fee is not a current price quote.",
+        "Website, email and WhatsApp links leave CareAround or open another app. Share personal details only with the intended provider through its appropriate channel; keep medical and identity details out of Guide chat.",
+        "If a listing is not visible, sign in and recheck Discover, then ask the provider or report its name. Profile criteria and active Place membership can affect visibility; the Guide cannot infer eligibility from an account role alone."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "provider",
+        "contact",
+        "listing details",
+        "resource details",
+        "availability",
+        "fees",
+        "eligibility",
+        "vacancies"
+      ]
+    },
+    {
+      "id": "provider-contact",
+      "title": "Contact a resource provider",
+      "facts": [
+        {
+          "id": "provider-contact",
+          "title": "Contact a resource provider",
+          "keywords": [
+            "contact a service provider",
+            "how to contact provider",
+            "phone number for a programme",
+            "email a provider",
+            "contact details on a listing"
+          ],
+          "message": "Find the Place or Programme/service in Discover and open its details. If the provider supplied contact information, the details can show a phone number, email, WhatsApp, website or external link. Use the available provider channel to confirm current hours, fees, places and registration. The Guide cannot message or register with the provider or book a seat for you, and I cannot verify an in-app provider chat or booking here.",
+          "route": "/discover",
+          "evidence": "client/src/components/ResourceDetailContent.jsx:315-322,709-790; client/src/pages/LegalPage.jsx:112-118",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "provider-wait-time",
+      "title": "Current provider wait time",
+      "facts": [
+        {
+          "id": "provider-wait-time",
+          "title": "Current provider wait time",
+          "keywords": [
+            "current wait time",
+            "waiting time",
+            "queue length",
+            "queue time"
+          ],
+          "message": "I cannot verify a Place or Programme/service’s current wait time from Guide chat. Open its listing in Discover and use any contact channel the provider has supplied to ask for a current estimate. A directory listing is not a live queue update.",
+          "route": "/discover",
+          "evidence": "server/src/routes/guide.js:61-239; reviewed provider-contact fact; Guide has no live provider-queue lookup",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "provider-availability",
+      "title": "Confirm availability and fees",
+      "facts": [
+        {
+          "id": "provider-availability",
+          "title": "Confirm availability and fees",
+          "keywords": [
+            "verified vacancies",
+            "programme vacancies",
+            "programme still has vacancies",
+            "verify programme vacancies",
+            "available slots",
+            "real time availability",
+            "current fees",
+            "confirm availability"
+          ],
+          "message": "Some Programme/service details show an availability count when its manager enables that feature. Do not assume a listed service is free or that a remaining-seat count is live. A displayed count or fee is not a confirmed seat, price quote or provider booking. Resource details can change; contact the provider to confirm current availability, fees, eligibility and registration before relying on them.",
+          "route": "/discover",
+          "evidence": "client/src/components/ResourceDetailContent.jsx:327-329,596-605; client/src/pages/dashboard/ResourcesPage.jsx:212-296,2064-2087; client/src/pages/LegalPage.jsx:112-118",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "offering-eligibility",
+      "title": "Programme and service eligibility",
+      "facts": [
+        {
+          "id": "offering-eligibility",
+          "title": "Programme and service eligibility",
+          "keywords": [
+            "member-only programme access",
+            "restricted programme eligibility",
+            "qualify for a programme",
+            "eligible for a service",
+            "programme access criteria"
+          ],
+          "message": "A Programme/service may have profile criteria, and a member-only one also requires an active membership at a linked Place. An account role alone does not bypass those checks. The Guide cannot confirm your eligibility for a particular listing from chat; open its current details if visible and confirm participation requirements with the provider. Eligibility is separate from booking or registration.",
+          "route": "/discover",
+          "evidence": "server/src/utils/eligibility.js:128-225,306-342; server/src/controllers/softAssetsController.js:1695-1756; server/test/eligibility.test.js:1-115",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "offering-not-visible",
+      "title": "A Programme or service is not visible",
+      "facts": [
+        {
+          "id": "offering-not-visible",
+          "title": "A Programme or service is not visible",
+          "keywords": [
+            "programme hidden from me",
+            "friend can see programme",
+            "cannot see restricted service",
+            "programme missing from discover"
+          ],
+          "message": "I cannot determine from chat why a particular Programme/service is not visible to you. Public visibility, audience scope, profile criteria and active linked-Place membership are separate checks. Sign in and recheck Discover; if the listing is still missing, ask the provider or report the listing name without sharing private profile details.",
+          "route": "/discover",
+          "evidence": "server/src/controllers/softAssetsController.js:1509-1756; server/src/utils/eligibility.js:306-342",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-03",
+    "HC-05",
+    "HC-28"
+  ]
+}

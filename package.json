@@ -79,14 +79,17 @@
     "test:client": "npm run test --workspace=client && node --test scripts/validate-cloudflare-client-env.test.mjs",
     "check:modules": "node scripts/validate-module-graph.mjs",
     "check:diff": "git diff --check -- . ':(exclude)node_modules/**'",
-    "check:static": "npm run verify:migrations --workspace=server && npm run check:modules && npm run check:diff",
+    "check:static": "npm run help:check && npm run verify:migrations --workspace=server && npm run check:modules && npm run check:diff",
     "test:smoke:install-browser": "npx playwright install chromium",
     "test:smoke": "npx playwright test --config=playwright.smoke.config.mjs",
     "verify:quality": "npm run check:static && npm run test:server && npm run test:client && npm run build:client",
     "verify:release": "npm run verify:quality && npm run test:smoke",
     "audit:db-fingerprint": "npm run audit:db-fingerprint --workspace=server",
     "audit:clean-slate": "node --env-file=server/.env server/scripts/audit_clean_slate.js",
-    "reset:clean-slate": "node --env-file=server/.env server/scripts/reset_clean_slate.js"
+    "reset:clean-slate": "node --env-file=server/.env server/scripts/reset_clean_slate.js",
+    "help:build": "node scripts/build-help-content.mjs",
+    "help:check": "node scripts/build-help-content.mjs --check && node --test scripts/build-help-content.test.mjs",
+    "prebuild:client:bare": "npm run help:check"
   },
   "devDependencies": {
     "playwright": "^1.54.2"

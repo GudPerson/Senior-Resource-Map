@@ -1,0 +1,211 @@
+{
+  "version": "2026-10-02.help-centre.6",
+  "categories": [
+    {
+      "id": "getting-started",
+      "title": "Getting started"
+    },
+    {
+      "id": "find-and-save",
+      "title": "Find and save resources"
+    },
+    {
+      "id": "my-maps",
+      "title": "My Maps and Personal places"
+    },
+    {
+      "id": "map-design-and-exports",
+      "title": "Map design and exports"
+    },
+    {
+      "id": "sharing",
+      "title": "Sharing maps"
+    },
+    {
+      "id": "calendar",
+      "title": "Calendar and My Plans"
+    },
+    {
+      "id": "account-and-display",
+      "title": "Account and display"
+    },
+    {
+      "id": "guide-and-support",
+      "title": "Guide and support"
+    },
+    {
+      "id": "resource-management",
+      "title": "Manage resources"
+    },
+    {
+      "id": "organisation-governance",
+      "title": "Organisation workspaces"
+    },
+    {
+      "id": "admin-support",
+      "title": "Administration and support"
+    }
+  ],
+  "topics": [
+    {
+      "id": "overview",
+      "label": "Explore Discover"
+    },
+    {
+      "id": "discover",
+      "label": "Open Discover"
+    },
+    {
+      "id": "save",
+      "label": "Open My Directory",
+      "signedIn": true
+    },
+    {
+      "id": "add-resource",
+      "label": "Find an existing resource"
+    },
+    {
+      "id": "unsave",
+      "label": "Review saved resources",
+      "signedIn": true
+    },
+    {
+      "id": "maps",
+      "label": "Open My Maps",
+      "signedIn": true
+    },
+    {
+      "id": "sharing",
+      "label": "Open My Directory",
+      "signedIn": true
+    },
+    {
+      "id": "calendar",
+      "label": "Open Care Calendar",
+      "signedIn": true
+    },
+    {
+      "id": "detailed-map",
+      "label": "Report a map problem"
+    },
+    {
+      "id": "login",
+      "label": "Open sign in"
+    },
+    {
+      "id": "support",
+      "label": "Draft a report"
+    },
+    {
+      "id": "privacy",
+      "label": "Read Privacy"
+    }
+  ],
+  "guideFactOrder": [
+    "help-overview",
+    "help-discover",
+    "help-save",
+    "help-add-resource",
+    "help-unsave",
+    "help-maps",
+    "help-sharing",
+    "help-calendar",
+    "help-detailed-map",
+    "help-login",
+    "help-support",
+    "help-privacy",
+    "hidden-saved-resources",
+    "guide-notification-controls",
+    "notification-delivery-channels",
+    "resource-export-context",
+    "offering-translation-review",
+    "saved-schedule-notifications",
+    "shared-map-viewer-boundary",
+    "offering-template-delete",
+    "offering-template-propagation",
+    "offering-template-overview",
+    "admin-region-scope",
+    "region-boundary-layers",
+    "governance-group-membership",
+    "governance-group-overview",
+    "governance-org-group",
+    "governance-region-group",
+    "organization-workspace",
+    "audit-trail",
+    "saved-versus-managed",
+    "saved-identity-privacy",
+    "guide-provider-identity-check",
+    "saved-versus-membership",
+    "saved-list-privacy",
+    "other-account-saved-privacy",
+    "save-place-separately",
+    "my-places",
+    "personal-place-address-edit",
+    "personal-place-sharing",
+    "map-membership",
+    "saved-to-shared-map",
+    "map-studio",
+    "plans-not-bookings",
+    "provider-plan-lifecycle",
+    "provider-plan-privacy",
+    "plan-a-session",
+    "plan-schedule-update",
+    "calendar-personal-entry",
+    "plan-date-change",
+    "resource-types",
+    "town-maps",
+    "resource-groups",
+    "group-other-provider-members",
+    "group-target-regions",
+    "group-staff-visibility",
+    "group-create",
+    "group-edit",
+    "asset-workbook-import",
+    "resource-edit",
+    "offering-host-change",
+    "offering-multi-host",
+    "place-owner-transfer-boundary",
+    "place-contact-edit",
+    "offering-contact-edit",
+    "offering-schedule-edit",
+    "listing-publication-boundary",
+    "resource-hide-delete",
+    "saved-resource-removal",
+    "my-map-resource-removal",
+    "remove-plan",
+    "shared-map-copy",
+    "my-map-exports",
+    "private-map-export-sharing",
+    "directory-export-boundary",
+    "offering-host-versus-membership",
+    "other-place-memberships",
+    "place-membership-navigation",
+    "place-membership",
+    "offering-eligibility",
+    "offering-profile-missing",
+    "saved-not-eligible",
+    "offering-not-visible",
+    "profile-update",
+    "embedded-map-notes",
+    "place-assignment-scope",
+    "place-staff-assignment",
+    "guide-create-scope",
+    "guide-existing-resource-edit-scope",
+    "volunteer-place-create-boundary",
+    "regional-admin-place-edit-boundary",
+    "map-note-privacy",
+    "my-map-note-edit",
+    "discover-nearby",
+    "accessibility-search-boundary",
+    "provider-contact",
+    "provider-wait-time",
+    "provider-availability",
+    "provider-usage-boundary",
+    "language-choice",
+    "account-recovery-help",
+    "account-deletion-help",
+    "website-embeds",
+    "public-browsing",
+    "saved-resource-status"
+  ]
+}

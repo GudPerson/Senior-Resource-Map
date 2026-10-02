@@ -1,0 +1,52 @@
+{
+  "id": "HC-44",
+  "slug": "use-organisation-workspace-and-governance-access",
+  "title": "Use Organisation Workspace and governance access",
+  "summary": "Understand organisation governance access and its separate resource permission limits.",
+  "category": "organisation-governance",
+  "audiences": [
+    "organisation staff",
+    "organisation admin",
+    "super admin"
+  ],
+  "visibility": "organization",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/lib/roles.js:136-150; client/src/App.jsx:55-77,227; client/src/pages/dashboard/OrganizationWorkspacePage.jsx:8-29; client/src/components/admin/GovernanceOrganizationsPanel.jsx:290-303,742-862; server/src/utils/governance.js:226-256; server/src/controllers/governanceController.js:864-894"
+    ]
+  },
+  "sections": [
+    {
+      "id": "organization-workspace",
+      "title": "Organisation Workspace",
+      "facts": [
+        {
+          "id": "organization-workspace",
+          "title": "Organisation Workspace",
+          "keywords": [
+            "organisation workspace",
+            "organization workspace",
+            "organisation access",
+            "organization access",
+            "organisation admin",
+            "organization admin"
+          ],
+          "message": "Organisation Workspace appears in the dashboard for accounts with active organisation access. Organisation Staff can view their assigned organisation context; Organisation Admin can manage its profile and access, subject to server checks. New organisation creation is not offered in that workspace. Organisation governance access alone does not give editing rights over a Place or Programme/service. The Guide cannot show organisation records or change access in chat; ask whether this account can open the workspace for a current access check.",
+          "route": "/dashboard/organization",
+          "evidence": "client/src/lib/roles.js:136-150; client/src/App.jsx:55-77,227; client/src/pages/dashboard/OrganizationWorkspacePage.jsx:8-29; client/src/components/admin/GovernanceOrganizationsPanel.jsx:290-303,742-862; server/src/utils/governance.js:226-256; server/src/controllers/governanceController.js:864-894",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-06",
+    "HC-33"
+  ]
+}

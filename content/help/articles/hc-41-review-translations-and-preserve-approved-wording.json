@@ -1,0 +1,89 @@
+{
+  "id": "HC-41",
+  "slug": "review-translations-and-preserve-approved-wording",
+  "title": "Review translations and preserve approved wording",
+  "summary": "Review translated wording while preserving English and staff-reviewed versions.",
+  "category": "resource-management",
+  "audiences": [
+    "resource owner",
+    "resource staff",
+    "admin"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/AssetForm.jsx:314-315,2151-2162,2175-2184; client/src/components/TranslationReviewPanel.jsx:109-242,245-427; client/src/lib/api.js:496-504",
+      "client/src/components/TranslationReviewPanel.jsx:112-260,275-429; client/src/components/AssetForm.jsx:1327-1337,2151-2162",
+      "client/src/components/SoftAssetTemplateForm.jsx:587-604; client/src/components/SoftAssetChildForm.jsx:278-289"
+    ]
+  },
+  "sections": [
+    {
+      "id": "review-managed-translation",
+      "title": "Review and save translated wording for a managed resource",
+      "paragraphs": [
+        "You must be able to edit the exact resource. English is the main version. Save the English public content first so the translation review compares against the current saved source."
+      ],
+      "steps": [
+        "Open Dashboard → Manage My Resources and select Edit on the exact Place or Offering. For a template, use Edit Template on that saved template.",
+        "Open Translate. If the editor says to save the resource first, complete the English save, reopen the saved resource and return to Translate.",
+        "Choose the language card you want to review. Read its status and the fields needing attention alongside the displayed English wording.",
+        "If translated text is missing, use Fill all missing text or Refresh this language as appropriate, then review the generated wording rather than accepting it unseen.",
+        "Use Show all translated fields when you need to check or adjust fields that are currently hidden because they are ready.",
+        "Correct the visible translated text against the English meaning. Check names, instructions and sensitive wording carefully.",
+        "Select Save review and wait for the saved-review notice. Repeat for other languages that need review.",
+        "Reopen the review or the permitted public-language view to check the saved wording. If an action fails, review the error and current source before retrying."
+      ],
+      "notes": [
+        "Saving unchanged automatically prepared text marks it reviewed. Changing the wording marks it staff edited, and staff-edited wording is not overwritten automatically when English changes.",
+        "Save review is a separate saved operation from Save Place, Save Offering or Save Template. Switching languages or closing an unsaved review does not submit edited text.",
+        "Refresh/fill actions respect protected staff-edited wording; do not promise a force-overwrite control. Review any retained wording after the English source changes.",
+        "Use the correct template or place-version editor for inherited versus local fields. Do not infer that translating a shared template and translating a local override are the same operation.",
+        "The Guide cannot translate or save edits to an existing resource in chat. Keep private operating information out of public-language fields."
+      ],
+      "queryRequiresAny": [
+        "translation review",
+        "translate resource",
+        "translate offering",
+        "translate programme",
+        "translate place",
+        "save review",
+        "translated wording"
+      ],
+      "facts": []
+    },
+    {
+      "id": "offering-translation-review",
+      "title": "Translate a managed Programme/service",
+      "facts": [
+        {
+          "id": "offering-translation-review",
+          "title": "Translate a managed Programme/service",
+          "keywords": [
+            "translate a programme i manage",
+            "translate an offering",
+            "programme translation review",
+            "translate existing service",
+            "edit programme translation"
+          ],
+          "message": "The Guide cannot translate or edit an existing Programme/service in chat. If Edit is available on the exact listing, open Manage My Resources → Offerings → Edit → Translate. Save its English content first, then review the language cards. The editor can fill missing translated text or refresh one language; check the wording and choose Save review. English remains the main version, and staff-edited wording is not overwritten automatically. The server checks permission for the selected listing.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/components/AssetForm.jsx:314-315,2151-2162,2175-2184; client/src/components/TranslationReviewPanel.jsx:109-242,245-427; client/src/lib/api.js:496-504",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-33",
+    "HC-35",
+    "HC-34",
+    "HC-38"
+  ]
+}

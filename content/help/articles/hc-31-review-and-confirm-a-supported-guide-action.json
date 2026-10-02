@@ -1,0 +1,132 @@
+{
+  "id": "HC-31",
+  "slug": "review-and-confirm-a-supported-guide-action",
+  "title": "Review and confirm a supported Guide action",
+  "summary": "Review the supported action before choosing Create or Save.",
+  "category": "guide-and-support",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "server/src/routes/guideActions.js:75-224; client/src/features/support/GuidePanel.jsx:63-82; client/src/pages/dashboard/ResourcesPage.jsx:2385-2423",
+      "server/src/routes/guideActions.js:75-224; client/src/pages/dashboard/ResourcesPage.jsx:1562-1600,2699-2812,3183-3295; server/src/controllers/softAssetsController.js:2045-2090",
+      "client/src/features/support/GuidePanel.jsx:63-91; client/src/features/support/GuideProgrammeDraft.jsx:37-107; client/src/features/support/guideProgrammeState.js:4-7,18-40; client/src/features/support/useGuideProgramme.js:35-76; client/src/features/support/GuideResourceSearch.jsx:43-106; server/src/routes/guideActions.js:82-255",
+      "client/src/features/support/GuidePanel.jsx:110-111,146 (current creation/search controls)"
+    ]
+  },
+  "sections": [
+    {
+      "id": "guide-programme-confirmation-steps",
+      "title": "Review and create a new Programme/service with the Guide",
+      "paragraphs": [
+        "Sign in, exit User View if it is active, and use a Place your account is permitted to manage. Guide actions must be enabled; this workflow creates a new Programme/service rather than editing an existing listing."
+      ],
+      "steps": [
+        "Open Ask Guide and select Create a programme/service, or ask it to create a Programme/service.",
+        "In the Programme/service draft, enter Name and Type. Search Linked place and choose the exact Place you can manage.",
+        "Choose Visibility and review its explanation. Complete Description and Contact details if needed. Hidden from directory is not a promise that nobody with permitted access can see it.",
+        "For real calendar sessions, open Dates & recurrence, enable Add dated sessions for Care Calendar, and enter the actual dates and times in Singapore time. Requested timing text alone does not create dated sessions.",
+        "Select Review programme/service. In Create this programme/service?, check the type, name, linked Place, visibility, description, contact details and any calendar dates.",
+        "Use Edit draft if anything needs changing, then review again. Only when the details are correct, select Create programme/service to confirm saving the real resource.",
+        "Wait for the message that the Programme/service has been created and open its returned resource link to check the result."
+      ],
+      "notes": [
+        "A prepared draft or review is not a saved resource. Creating uses your account’s existing permissions, which are checked by the server; it does not book anyone into a service.",
+        "Before creation, Discard draft clears the chat draft. It does not delete an already saved Programme/service.",
+        "If the save result is not confirmed, keep the conversation open and use Retry same request to check or complete that reviewed request safely. Do not start another draft to recreate it.",
+        "If the panel says the saved request has changed or cannot be reconciled, open Manage resources and check your resources before starting another draft.",
+        "No matching manageable Place means you must check your resource access rather than assume the Guide can grant it. New public Places, Resource Groups and changes to existing listings use their permitted standard forms."
+      ],
+      "queryRequiresAny": [
+        "guide",
+        "ai",
+        "chat",
+        "assistant"
+      ],
+      "facts": []
+    },
+    {
+      "id": "guide-review-resource-save-steps",
+      "title": "Review a Guide search result before saving it",
+      "paragraphs": [
+        "Sign in to use the Guide’s resource save action. Searching uses public directory keywords rather than your private profile."
+      ],
+      "steps": [
+        "Open Ask Guide and select Find and save a resource, or expand Search the public directory.",
+        "Enter Resource keywords, choose the resource type, and select Search directory.",
+        "Find the intended public result and select Review save. If it already says Saved in My Directory, it is already saved.",
+        "Check the name, type and address in Save [resource name] to My Directory?. Use Cancel if it is the wrong result.",
+        "Select Save to My Directory to confirm the save.",
+        "Wait for Saved or Already saved, then select Open My Directory to check your private list."
+      ],
+      "notes": [
+        "Saving does not register you with the provider, grant management rights, or add the resource to a My Map. Check dates, fees, availability and registration with the provider.",
+        "If no public match appears, try a shorter name, service or address, or use Continue in Discover. If saving reports an error, check My Directory before retrying the same resource save.",
+        "Save this search is a separate action that keeps search criteria; it does not save every result."
+      ],
+      "queryRequiresAny": [
+        "guide",
+        "ai",
+        "chat",
+        "assistant"
+      ],
+      "facts": []
+    },
+    {
+      "id": "guide-create-scope",
+      "title": "What the Guide can create",
+      "facts": [
+        {
+          "id": "guide-create-scope",
+          "title": "What the Guide can create",
+          "keywords": [
+            "guide create place",
+            "guide create group",
+            "can you create a place",
+            "can you create a group",
+            "create resource for me"
+          ],
+          "message": "The Guide’s direct Create action currently supports a Programme/service at a Place your account may manage: prepare a draft, review it, then choose Create. The Guide cannot submit a new public Place or Resource Group from chat. Those use the existing New Place or New Group forms in Manage My Resources when your account has permission.",
+          "route": "/dashboard/resources",
+          "evidence": "server/src/routes/guideActions.js:75-224; client/src/features/support/GuidePanel.jsx:63-82; client/src/pages/dashboard/ResourcesPage.jsx:2385-2423",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "guide-existing-resource-edit-scope",
+      "title": "What the Guide can edit",
+      "facts": [
+        {
+          "id": "guide-existing-resource-edit-scope",
+          "title": "What the Guide can edit",
+          "keywords": [
+            "can ai update an existing offering",
+            "can guide edit an existing place",
+            "can you change my programme listing",
+            "can you update a published service"
+          ],
+          "message": "The Guide cannot edit an existing public Place or Offering, including its schedule. It can prepare a new Programme/service for your review and explicit Create when your account may manage its Place. To change an existing listing, open Manage My Resources, choose that exact resource and select Edit if available. Review and save the change there; the server checks permission for that listing.",
+          "route": "/dashboard/resources",
+          "evidence": "server/src/routes/guideActions.js:75-224; client/src/pages/dashboard/ResourcesPage.jsx:1562-1600,2699-2812,3183-3295; server/src/controllers/softAssetsController.js:2045-2090",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-29",
+    "HC-33",
+    "HC-35"
+  ]
+}

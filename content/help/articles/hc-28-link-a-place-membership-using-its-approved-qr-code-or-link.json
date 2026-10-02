@@ -1,0 +1,165 @@
+{
+  "id": "HC-28",
+  "slug": "link-a-place-membership-using-its-approved-qr-code-or-link",
+  "title": "Link a Place membership using its approved QR code or link",
+  "summary": "Review linked Place memberships and distinguish them from bookmarks and registration.",
+  "category": "account-and-display",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "server/src/utils/eligibility.js:306-327; server/src/controllers/hardAssetsController.js:1903-1943; docs/user-guide.md:289-303",
+      "client/src/pages/dashboard/ProfilePage.jsx:153-177,451-522; client/src/locales/en.js:1063-1068; server/src/controllers/membershipsController.js:85-101; server/src/utils/memberships.js:107-148",
+      "server/src/controllers/favoritesController.js:216-269,271-340; server/src/controllers/membershipsController.js:10-83; server/src/utils/memberships.js:5-12,49-105; reviewed saved-identity-privacy and place-membership facts",
+      "server/src/db/schema.js:467-478,1361-1364; server/src/controllers/membershipsController.js:10-83; server/src/utils/eligibility.js:220-243,306-327; server/src/utils/softAssetScope.js:84-93; server/src/controllers/softAssetsController.js:2045-2320; client/src/components/AssetForm.jsx:1978-2036; reviewed offering-host-change and place-membership facts",
+      "server/src/controllers/membershipsController.js:85-101; client/src/pages/dashboard/ProfilePage.jsx:153-177,451-522; server/src/routes/guide.js:85-369 (no membership-list adapter)",
+      "client/src/pages/MembershipLinkPage.jsx:14-109; server/src/controllers/membershipsController.js:10-101; client/src/pages/dashboard/ProfilePage.jsx:153-177,451-522; client/src/locales/en.js:1063-1068,1226-1235; server/src/utils/memberships.js:5-12,49-105"
+    ]
+  },
+  "sections": [
+    {
+      "id": "place-membership-link-steps",
+      "title": "Join the intended Place through its membership QR code or link",
+      "paragraphs": [
+        "Use the membership QR code or link provided for the Place you intend to join. Check that intention before opening it: for a signed-in account, opening a valid membership link starts linking automatically, without another Join confirmation button."
+      ],
+      "steps": [
+        "Sign in to the CareAround account that should receive the Place membership.",
+        "Check with the Place that you have its intended membership QR code or link. A normal public listing link or the save heart is a different action.",
+        "Scan the membership QR code or open the membership link. If CareAround asks you to sign in, use the intended account and return through that flow.",
+        "Wait for the linking result. On success, check You’re now linked and the Place name shown in Your account has been linked to [Place name].",
+        "Open dashboard → Profile and scroll below the profile form to Linked places. Check the Place, its status and linking method there."
+      ],
+      "notes": [
+        "Authorised Place managers can see membership details, including names. This is not the same as a private bookmark.",
+        "Membership can help with member-only eligibility, but does not register you for a Programme/service, grant resource editing rights, or automatically save the Place or its programmes in My Directory.",
+        "If the link is missing, invalid or fails, ask the Place for the correct current membership link. Do not assume you joined unless the success result or your Linked places confirms it.",
+        "The Guide cannot grant membership, remove another person’s membership or confirm your personal membership records from a general question."
+      ],
+      "queryRequiresAny": [
+        "membership",
+        "member-only",
+        "join place",
+        "linked places",
+        "membership qr"
+      ],
+      "facts": []
+    },
+    {
+      "id": "place-membership",
+      "title": "Linked Place membership",
+      "facts": [
+        {
+          "id": "place-membership",
+          "title": "Linked Place membership",
+          "keywords": [
+            "place membership",
+            "membership qr",
+            "link membership",
+            "member only programme",
+            "membership means registered",
+            "membership grants editing"
+          ],
+          "message": "A Place membership link can connect your signed-in account to that Place and may help with access to member-only Programmes/services. Other eligibility rules can still apply. Linking membership does not register you for a Programme/service or give you permission to edit the Place; check registration with the provider.",
+          "route": "/dashboard/profile",
+          "evidence": "server/src/utils/eligibility.js:306-327; server/src/controllers/hardAssetsController.js:1903-1943; docs/user-guide.md:289-303",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    },
+    {
+      "id": "place-membership-navigation",
+      "title": "Review your linked Place memberships",
+      "facts": [
+        {
+          "id": "place-membership-navigation",
+          "title": "Review your linked Place memberships",
+          "keywords": [
+            "where to see my place memberships",
+            "which centres have my membership",
+            "find linked places in profile"
+          ],
+          "message": "To check your linked Place memberships yourself, sign in and open dashboard → Profile. Scroll below the profile form to Linked places, which shows Places joined through the membership QR flow, their status and the linking method. You do not need to send your personal profile fields to the Guide. This reply has not checked your membership records or confirmed that you belong to any Place. Linked places is separate from saved resources in My Directory and from resources you can edit in Manage My Resources; membership does not grant editing rights or Programme registration.",
+          "route": "/dashboard/profile",
+          "evidence": "client/src/pages/dashboard/ProfilePage.jsx:153-177,451-522; client/src/locales/en.js:1063-1068; server/src/controllers/membershipsController.js:85-101; server/src/utils/memberships.js:107-148",
+          "reviewed": "2026-10-01"
+        }
+      ]
+    },
+    {
+      "id": "saved-versus-membership",
+      "title": "Private bookmarks and Place membership",
+      "facts": [
+        {
+          "id": "saved-versus-membership",
+          "title": "Private bookmarks and Place membership",
+          "keywords": [
+            "membership qr versus bookmark",
+            "joining a place same as saving",
+            "membership link versus private bookmark",
+            "difference between heart and joining"
+          ],
+          "message": "Saving with the heart is a private bookmark in your My Directory. Joining a Place through its membership link or QR connects your signed-in account to that Place; it is a separate membership, not a saved resource. Authorised Place managers can see membership details, including names. Saving does not create that membership, and joining does not automatically save the Place or its Programme/service. Membership may help with member-only eligibility, but it does not register you for a Programme/service or grant editing rights. Review your memberships in Profile and your bookmarks in My Directory.",
+          "route": "/dashboard/profile",
+          "evidence": "server/src/controllers/favoritesController.js:216-269,271-340; server/src/controllers/membershipsController.js:10-83; server/src/utils/memberships.js:5-12,49-105; reviewed saved-identity-privacy and place-membership facts",
+          "reviewed": "2026-10-01"
+        }
+      ]
+    },
+    {
+      "id": "offering-host-versus-membership",
+      "title": "Programme host Places and personal membership",
+      "facts": [
+        {
+          "id": "offering-host-versus-membership",
+          "title": "Programme host Places and personal membership",
+          "keywords": [
+            "host place versus membership",
+            "programme host location same as user membership",
+            "linking programme places makes me a member",
+            "offering host and place membership difference"
+          ],
+          "message": "A Programme/service’s Host Locations connect that listing to one or more public Places. A personal Place membership connects a signed-in person’s account to a Place through its membership link; these are separate relationships. Linking or changing a Programme’s host Places does not make you a member of those Places, register you for the Programme, or give you editing rights. People who saved the listing are not enrolled by that host change. A member-only Programme may require an active membership at a linked Place and other eligibility checks. An authorised manager changes hosts in the Offering editor; you can review your own Place membership in Profile. The Guide cannot grant membership, confirm your eligibility or edit an existing listing in chat.",
+          "route": "/dashboard/profile",
+          "evidence": "server/src/db/schema.js:467-478,1361-1364; server/src/controllers/membershipsController.js:10-83; server/src/utils/eligibility.js:220-243,306-327; server/src/utils/softAssetScope.js:84-93; server/src/controllers/softAssetsController.js:2045-2320; client/src/components/AssetForm.jsx:1978-2036; reviewed offering-host-change and place-membership facts",
+          "reviewed": "2026-10-01"
+        }
+      ]
+    },
+    {
+      "id": "other-place-memberships",
+      "title": "Another person’s Place memberships",
+      "facts": [
+        {
+          "id": "other-place-memberships",
+          "title": "Another person’s Place memberships",
+          "keywords": [
+            "friend place membership lookup",
+            "father joined places",
+            "another user linked centres"
+          ],
+          "message": "The Guide cannot check or list another person’s Place memberships in this chat. Linked places in Profile shows the signed-in account’s own memberships; it is not a lookup of someone else. This reply has not checked anyone’s membership records or confirmed which Places they have joined. Place membership is separate from saving a resource, editing it and registering for a Programme/service. Keep personal profile details out of chat.",
+          "route": "/help",
+          "actionLabel": "Open help",
+          "evidence": "server/src/controllers/membershipsController.js:85-101; client/src/pages/dashboard/ProfilePage.jsx:153-177,451-522; server/src/routes/guide.js:85-369 (no membership-list adapter)",
+          "reviewed": "2026-10-01"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-04",
+    "HC-05",
+    "HC-25"
+  ]
+}

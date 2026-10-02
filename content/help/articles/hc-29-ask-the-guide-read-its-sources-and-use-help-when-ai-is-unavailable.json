@@ -1,0 +1,145 @@
+{
+  "id": "HC-29",
+  "slug": "ask-the-guide-read-its-sources-and-use-help-when-ai-is-unavailable",
+  "title": "Ask the Guide, read its sources and use help when AI is unavailable",
+  "summary": "Ask about CareAround tasks, follow reviewed sources and find manual help when AI is unavailable.",
+  "category": "guide-and-support",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "server/src/routes/guide.js",
+      "server/src/utils/guideOracleKnowledge.js",
+      "server/src/utils/guideKnowledge.js",
+      "client/src/features/help/HelpCentrePage.jsx and helpLibrary.js: candidate public article reading works without inference; disposable browser verification",
+      "Reviewed Guide topic: privacy",
+      "server/src/routes/guide.js:120-258; reviewed Guide account loaders; no provider usage read in the current Guide",
+      "client/src/pages/SupportHubPage.jsx:42-58; client/src/features/support/GuideSourceLinks.jsx:4-12; client/src/features/help/HelpCentrePage.jsx:55-75",
+      "client/src/features/help/HelpCentrePage.jsx:37-92 and helpLibrary.js:15-36: public Help Centre browsing, task search, article links and no-results recovery require no Guide request or inference"
+    ]
+  },
+  "sections": [
+    {
+      "id": "ask-guide",
+      "title": "Ask a product question and use its sources",
+      "paragraphs": [
+        "Yes. You can still read the public Help Centre without AI. Open the CareAround Help Centre to search for your task and read its complete reviewed instructions. Use the app’s normal controls to carry out the task; an unanswered Guide request has not created, saved or changed anything. Sign in for account-specific guidance and checks."
+      ],
+      "steps": [
+        "Open Help → Guide & search and select Open CareAround Guide. Enter your CareAround question in the Guide and send it.",
+        "Read the response. Under Related reviewed guidance, select the article title to open its complete instructions when a source is offered.",
+        "If the question concerns this account, sign in and use the supported current-account checks. A general help answer has not inspected your records.",
+        "If AI is unavailable, open the CareAround Help Centre, use Search for your task, and read the reviewed article. Use the app’s manual controls to carry out the task; an unanswered request has not changed anything."
+      ],
+      "notes": [
+        "The Guide supports CareAround product help. Confirm provider eligibility, fees and availability with the provider.",
+        "Use Report a problem for a reproducible app issue; keep passwords, verification codes and sensitive personal information out of chat."
+      ],
+      "facts": []
+    },
+    {
+      "id": "read-help-without-ai",
+      "title": "Read the Help Centre without AI",
+      "paragraphs": [
+        "Yes. You can still read the public Help Centre without AI. You do not need to send a Guide question or wait for an AI response before reading the instructions."
+      ],
+      "steps": [
+        "Open the CareAround Help Centre.",
+        "Choose a category under Browse by topic, or enter your task or a button name in Search help articles and select Search.",
+        "Open the matching article and read its numbered steps and notes. If there is no match, try a shorter search or select Show all help articles.",
+        "Return to the relevant app page and follow the instructions using its normal controls. Review and confirm any change before saving it."
+      ],
+      "notes": [
+        "An unanswered Guide request has not created, saved or changed anything. Reading instructions does not perform the task for you.",
+        "Public Help Centre articles can be read without signing in. Sign in when the task needs account-specific checks; reading help does not grant account access or permission to make changes."
+      ],
+      "queryRequiresAny": [
+        "unavailable",
+        "offline",
+        "disabled",
+        "off",
+        "expired",
+        "not working",
+        "not available",
+        "not responding",
+        "isnt working",
+        "isnt available",
+        "isnt responding",
+        "budget",
+        "limit",
+        "without ai"
+      ],
+      "facts": []
+    },
+    {
+      "id": "help-privacy",
+      "title": "Keep private information out of chat",
+      "facts": [
+        {
+          "id": "help-privacy",
+          "title": "Keep private information out of chat",
+          "keywords": [
+            "privacy",
+            "private information",
+            "private details",
+            "private data",
+            "private link",
+            "private sharing link",
+            "personal data",
+            "medical",
+            "password",
+            "verification code",
+            "identity number"
+          ],
+          "message": "Do not include identity numbers, passwords, verification codes, medical histories, private notes, or private sharing links. Support only needs a description of the app problem. The Guide cannot give medical advice or confirm provider eligibility, fees, or availability.",
+          "route": "/privacy",
+          "evidence": "Reviewed Guide topic: privacy",
+          "reviewed": "2026-09-28",
+          "queryRequiresAny": [
+            "private",
+            "privacy",
+            "medical",
+            "password",
+            "identity",
+            "verification"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "provider-usage-boundary",
+      "title": "Provider usage information in the Guide",
+      "facts": [
+        {
+          "id": "provider-usage-boundary",
+          "title": "Provider usage information in the Guide",
+          "keywords": [
+            "how many people saved my listing",
+            "who viewed my listing",
+            "provider listing views",
+            "provider save count"
+          ],
+          "message": "The Guide cannot look up a provider report showing how many people viewed or saved a particular Place or Offering, or identify those people. Manage My Resources shows listing-management controls, which are different from usage analytics. I cannot verify a provider-facing usage report from Guide chat. If your organisation needs an official report, describe that need in a support report without putting other people’s details in chat.",
+          "route": "/help?tab=report",
+          "evidence": "server/src/routes/guide.js:120-258; reviewed Guide account loaders; no provider usage read in the current Guide",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-30",
+    "HC-31",
+    "HC-32"
+  ]
+}

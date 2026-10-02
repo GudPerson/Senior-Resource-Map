@@ -1,0 +1,68 @@
+{
+  "id": "HC-40",
+  "slug": "review-extracted-flyer-or-calendar-drafts-before-saving",
+  "title": "Review extracted flyer or calendar drafts before saving",
+  "summary": "Compare extracted draft rows with their source material before create/update decisions.",
+  "category": "resource-management",
+  "audiences": [
+    "resource owner",
+    "resource staff",
+    "admin"
+  ],
+  "visibility": "resource-manager",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "client/src/components/SoftAssetCollateralImportWizard.jsx:263-344,400-490,950-1005",
+      "client/src/pages/dashboard/ResourcesPage.jsx:2783-2805,2928-2960; client/src/components/SoftAssetCollateralImportWizard.jsx:263-344,350-375,442-466,760-868,903-1005; server/src/controllers/softAssetCollateralImportController.js:561-691; server/src/routes/softAssets.js:27"
+    ]
+  },
+  "sections": [
+    {
+      "id": "review-import-drafts",
+      "title": "Review each extracted row before saving",
+      "paragraphs": [
+        "Sign in and use a Place you are permitted to edit. Import Material appears with that Place’s management actions when the workflow is available; a public viewer or a saved bookmark does not grant import access.",
+        "When the authorised Place import wizard is available, PDF or image material can be previewed as draft offerings. Extraction suggests information; it does not replace your review."
+      ],
+      "steps": [
+        "Open Manage My Resources, find the intended Place, and select Import Material on its card. Check the Host place name and address in the importer.",
+        "Choose New material for a new source, or Refresh existing material to review matching and missing offerings. Select Upload material and choose the permitted PDF or image files.",
+        "Select Preview extracted offerings. Wait for the review rows; nothing is created, updated or hidden by the preview alone.",
+        "Use Expand on each row and compare its name, description, category, schedule, contact details, availability and hidden status with the original material.",
+        "Under Action, select Create new, Update existing or Skip for each row. Check the proposed target, match and differences before updating an existing listing.",
+        "Review dated schedule rows and warnings. In a refresh, review each missing offering’s Follow-up action: Review later, Keep active, Hide from app or Mark as ended / hide.",
+        "Check Selected host place and Batch summary, then select Save reviewed rows only when the choices are correct. That button submits the reviewed creates, updates and missing-offering actions.",
+        "Read the completion summary in Manage My Resources and check the saved listings. If it lists failed rows, review those rows and current resources before trying the import again."
+      ],
+      "notes": [
+        "The import can create or update selected rows. Do not assume that a suggestion, confidence badge or preview is a verified provider fact.",
+        "An AI extraction feature can be unavailable. Use the standard resource editor when offered; an unavailable preview has not saved an import.",
+        "Before selecting Save reviewed rows, use Back to upload to abandon the preview or Cancel to leave without submitting it. After saving has started, leaving the importer does not undo the request; check the resources and completion result.",
+        "Updating with reviewed session rows replaces the Offering’s upcoming published sessions. Past schedule history and existing personal plans are preserved; affected plans need review. An import with no valid session rows does not clear an existing schedule.",
+        "A refresh’s Hide from app or Mark as ended / hide can hide an existing offering. Do not use those actions just because a programme is absent from one uploaded flyer.",
+        "An import can save some rows while others fail, including a later tag-sync failure. Do not assume an error or warning means every row was left unchanged, and do not repeat successful Create new rows without checking for duplicates.",
+        "Upload only material you are permitted to use, and keep passwords, private links, identity numbers and sensitive personal information out of source files and draft descriptions."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "flyer",
+        "collateral",
+        "printed material",
+        "import material",
+        "extracted offerings",
+        "programme calendar",
+        "calendar draft"
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-35",
+    "HC-36",
+    "HC-41"
+  ]
+}

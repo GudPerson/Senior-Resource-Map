@@ -1,0 +1,77 @@
+{
+  "id": "HC-20",
+  "slug": "download-a-town-map-versus-exporting-your-own-my-map",
+  "title": "Download a town map versus exporting your own My Map",
+  "summary": "Find town-map downloads and distinguish them from your own map exports.",
+  "category": "map-design-and-exports",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "High-Detail Town Maps; client/src/App.jsx",
+      "client/src/App.jsx:217-219; client/src/components/dashboard/DashboardNavigation.jsx:94-110; client/src/pages/TownMapDownloadsPage.jsx:35-110,118-231",
+      "client/src/components/townMaps/TownMapDownloadCard.jsx:63-149; client/src/lib/townMapDownloads.js:165-195; client/src/locales/en.js:353-380"
+    ]
+  },
+  "sections": [
+    {
+      "id": "town-map-download-steps",
+      "title": "Download a high-detail town map file",
+      "paragraphs": [
+        "High-Detail Town Maps provides prepared town-map files in PNG and PDF formats. Sign in with access to My Directory; these downloads are separate from the contents of your own My Maps."
+      ],
+      "steps": [
+        "Open High-Detail Town Maps in the dashboard navigation.",
+        "Use Search town maps to enter a town name or map code, then find the matching town card.",
+        "Check the town and covered areas, preview and PNG/PDF file sizes. Use Wi-Fi if a large download would use too much mobile data.",
+        "Select Download PNG for an image or Download PDF for a PDF file, then wait for the browser to start the download.",
+        "Check your browser’s downloads and open the file to confirm that you chose the intended town and format."
+      ],
+      "notes": [
+        "These are prepared town-map files; they do not add your saved resources, Personal places or private map notes. Downloading one does not create or change a My Map.",
+        "For your own mapped resources and layout, open an owned My Map and use Export View or its map export controls. Export Map Assets produces a resource workbook rather than this town-map PNG/PDF.",
+        "If search finds no maps, shorten the town name or use Clear search. If the catalogue cannot load, use Try again. If a download fails, check the connection and retry the required format; the preview alone is not confirmation that the full file downloaded."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "download",
+        "png",
+        "pdf"
+      ]
+    },
+    {
+      "id": "town-maps",
+      "title": "High-Detail Town Maps",
+      "facts": [
+        {
+          "id": "town-maps",
+          "title": "High-Detail Town Maps",
+          "keywords": [
+            "town maps",
+            "download town map",
+            "high detail town maps",
+            "map library"
+          ],
+          "message": "High-Detail Town Maps are downloadable town-map files in My Directory. They are separate from printing or exporting one of your own My Maps.",
+          "route": "/my-directory",
+          "evidence": "High-Detail Town Maps; client/src/App.jsx",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-13",
+    "HC-18"
+  ]
+}

@@ -1,0 +1,138 @@
+{
+  "id": "HC-34",
+  "slug": "create-or-maintain-a-public-place",
+  "title": "Create or maintain a public Place",
+  "summary": "Use the authorised public listing workflow instead of a private Personal place.",
+  "category": "resource-management",
+  "audiences": [
+    "resource owner",
+    "resource staff",
+    "admin"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "Reviewed Guide topic: add-resource",
+      "client/src/components/AssetForm.jsx:1197-1255; server/src/controllers/hardAssetsController.js:1945-1975",
+      "client/src/components/AssetForm.jsx:175-250,537-643,784-821,1055-1195,1197-1316,2300-2320",
+      "client/src/components/ResourceWizardShell.jsx:70-141; client/src/pages/dashboard/ResourcesPage.jsx:2395-2405,2784-2797"
+    ]
+  },
+  "sections": [
+    {
+      "id": "create-public-place",
+      "title": "Create a public Place with the New Place form",
+      "paragraphs": [
+        "Use New Place for an approved public directory listing, not a private meeting point or a location only for your own map. Sign in with the resource permission needed for New Place; job title, saved resources and organisation membership do not by themselves establish that permission."
+      ],
+      "steps": [
+        "Open Dashboard → Manage My Resources and select New Place if that control is available.",
+        "In Profile, enter Name and choose Category. Add a clear public description, website and approved public media where needed. Leave the optional External Key blank unless you are following an approved workbook process.",
+        "Open Location. For a Singapore Place, choose Country → Singapore, enter its verified six-digit Postal code and Street Address, and review the service-area message.",
+        "Add the public Phone, WhatsApp contact, Contact email and Hours when available. Verify these with the provider; the WhatsApp contact is a public contact field, not a sign-in number.",
+        "Open Visibility. Review Hide from App and any Scheduled Hide (From) or Scheduled Hide (Until) values so the Place has the intended availability.",
+        "Select Preview and check the profile, address, contacts and visibility. Close the preview, correct any errors, then select Save Place.",
+        "Wait for a successful save and reopen the Place to verify it. Access, Zones, Translate and Restricted tools require the resource to exist before you manage them."
+      ],
+      "notes": [
+        "If New Place is missing, ask an authorised resource manager to check your account’s current permission; the Guide cannot create a public Place in chat.",
+        "If postal validation fails, check the real six-digit Singapore code and address. A service-area warning is not permission to guess a location. Where the editor offers Singapore fallback validation, saving still checks the code on the server.",
+        "A Place that is saved but hidden is not automatically visible in Discover. Public details should contain approved provider information, not attendee information or private operating notes.",
+        "For a point only on your own map, use Personal place instead. It stays private and does not become a public Place.",
+        "A failed save is not confirmation of creation. Correct the highlighted required detail or report the issue without sharing credentials."
+      ],
+      "queryRequiresAny": [
+        "new place",
+        "create a place",
+        "create public place",
+        "public place form",
+        "public listing"
+      ],
+      "facts": []
+    },
+    {
+      "id": "maintain-public-place",
+      "title": "Update a Place’s public profile, location and contacts",
+      "paragraphs": [
+        "You must have Edit permission for the exact Place. Confirm the provider information before changing a public listing."
+      ],
+      "steps": [
+        "Open Dashboard → Manage My Resources → Places, find the exact Place, and select Edit if available.",
+        "In Profile, review its name, category, description, website and public media. Keep the saved External Key unchanged.",
+        "Open Location to update Street Address, Postal code, Phone, WhatsApp contact, Contact email or Hours. Recheck the location and service-area message after an address or postal-code change.",
+        "Review Visibility and the public Preview so the changes describe the intended Place without exposing private notes.",
+        "Select Save Place, wait for success, and reopen the Place to confirm the saved public details."
+      ],
+      "notes": [
+        "Saving the Place to My Directory or managing a different listing does not grant Edit here. If Edit is missing, request review of the exact Place assignment.",
+        "This changes the Place’s fields, not the Offering-level contact details of every Programme/service linked to it. Maintain those listings in their own editors.",
+        "An individual Owner assignment in Access is not a transfer to a different organisation. Access actions also save separately from Save Place.",
+        "If a save fails, review the validation message and confirmed provider information. The Guide cannot edit an existing public Place for you."
+      ],
+      "queryRequiresAny": [
+        "edit place",
+        "update place",
+        "place contact",
+        "place address",
+        "place phone"
+      ],
+      "facts": []
+    },
+    {
+      "id": "help-add-resource",
+      "title": "Add or create a resource",
+      "facts": [
+        {
+          "id": "help-add-resource",
+          "title": "Add or create a resource",
+          "keywords": [
+            "add a resource",
+            "adding a resource",
+            "add resource",
+            "create resource",
+            "new resource",
+            "add a place"
+          ],
+          "message": "Do you mean save an existing resource, create a Programme/service, or add a new Place? To save an existing resource, find it in Discover and use its heart to add it to My Directory. If you manage a Place and want a new Programme/service, ask me to “create a programme” or “create a service”; review the draft and choose Create to save it. To add a new Place, authorized resource managers can open Manage My Resources and choose New Place; that uses the standard resource form.",
+          "route": "/discover",
+          "evidence": "Reviewed Guide topic: add-resource",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    },
+    {
+      "id": "place-contact-edit",
+      "title": "Edit a Place’s public contact details",
+      "facts": [
+        {
+          "id": "place-contact-edit",
+          "title": "Edit a Place’s public contact details",
+          "keywords": [
+            "update place phone",
+            "change place phone",
+            "edit place contact",
+            "update place contact email"
+          ],
+          "message": "Open Manage My Resources → Places, open the exact Place and choose Edit if that control is available. In Location, update its public Phone, WhatsApp contact, Contact email or Hours, then review and save. The WhatsApp contact is not a sign-in number. Saving or managing a different resource does not grant editing rights to this Place; the Guide cannot change the listing for you.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/components/AssetForm.jsx:1197-1255; server/src/controllers/hardAssetsController.js:1945-1975",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-09",
+    "HC-33",
+    "HC-35",
+    "HC-32",
+    "HC-37",
+    "HC-41"
+  ]
+}

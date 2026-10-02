@@ -1,4 +1,7 @@
 import { Hono } from 'hono';
+import { HELP_ARTICLES } from '../generated/helpKnowledge.js';
+import { canReadHelpContent, loadHelpArticleCapabilities } from '../utils/helpArticleAccess.js';
+import { addGuideHelpCitations, answerGuideHelpWorkflow, guideAnswerHelpFacts, guideHelpWorkflowIntent, guideHelpFactSource } from '../utils/guideHelpWorkflows.js';
 import { z } from 'zod';
 import { optionalAuth } from '../middleware/auth.js';
 import { requirePlatformDirectoryAccess } from '../middleware/platformAccess.js';
@@ -22,7 +25,7 @@ import { answerGuideOracleFact, answerGuideUnverifiedWorkflow } from '../utils/g
 import { guideReviewedRelationFact } from '../utils/guideProductRelations.js';
 import { answerGuideGroupAccessQuestion, answerGuideLifecycleAccessQuestion, answerGuideResourceAccessQuestion, answerGuideTemplateAccessQuestion, answerGuideWorkbookAccessQuestion, guideTemplateAccessIntent } from '../utils/guideAccess.js';
 import { createGuideTemplateLoader } from '../utils/guideTemplates.js';
-import { answerGuideCompositeQuestion } from '../utils/guideCompositeQuestions.js';
+import { answerGuideCompositeQuestion, guideCompositeIntent } from '../utils/guideCompositeQuestions.js';
 import { answerGuideVerifiedBoundaryQuestion } from '../utils/guideVerifiedBoundary.js';
 import { answerGuideAuditAccess, guideAuditAccessIntent, loadGuideAuditAccess } from '../utils/guideAuditAccess.js';
 import { answerGuideAuditActivity, createGuideAuditActivityLoader, guideAuditActivityIntent } from '../utils/guideAuditActivity.js';
@@ -74,7 +77,7 @@ export function createGuideResourceLoader({ hard = getHardAssets, soft = getSoft
 
 const questionSchema = z.object({ question: z.string().trim().min(1).max(600).optional(),
     topicId: z.enum(GUIDE_TOPICS.map((topic) => topic.id)).optional(),
-    pageContext: z.enum(['CareAround', 'Discover', 'My Directory', 'My Maps', 'Manage resources', 'Care Calendar', 'Resource details', 'Dashboard']).optional(),
+    pageContext: z.enum(['CareAround', 'Discover', 'My Directory', 'My Maps', 'Manage resources', 'Care Calendar', 'Resource details', 'Dashboard', 'Help Centre']).optional(),
     useAi: z.boolean().optional(),
     turns: z.array(z.object({ question: z.string().max(600), answer: z.string().max(1600) }).strict()).max(4).optional() }).strict()
     .refine((value) => value.question || value.topicId);
@@ -98,6 +101,7 @@ export function createGuideRoutes({
     templates = createGuideTemplateLoader(),
     historyRepositoryForContext,
     actionOptions,
+    helpCapabilities = loadHelpArticleCapabilities,
 } = {}) {
     const router = new Hono();
     router.use('*', async (c, next) => {
@@ -112,6 +116,48 @@ export function createGuideRoutes({
     router.get('/topics', (c) => c.json({ version: GUIDE_KNOWLEDGE_VERSION,
         chatMode: guideChatAvailable(c.env) ? c.env.GUIDE_CHAT_SIMULATED === 'true' ? 'simulation' : 'cloudflare' : 'guide',
         topics: GUIDE_TOPICS.map(({ id, title }) => ({ id, title })) }));
+    router.use('/answer', async (c, next) => {
+        await next();
+        if (c.res.status !== 200) return;
+        const answer = await c.res.clone().json().catch(() => null);
+        if (!answer) return;
+        const facts = guideAnswerHelpFacts(answer);
+        const restricted = facts.filter((fact) => (fact.visibility ?? 'public') !== 'public');
+        if (restricted.length) {
+            const articleIds = new Set(restricted.map((fact) => fact.articleId));
+            const articles = HELP_ARTICLES.filter((article) => articleIds.has(article.id));
+            const capabilities = await helpCapabilities(c.get('user'), c.env, articles);
+            if (restricted.some((fact) => !canReadHelpContent(fact, c.get('user'), capabilities))) {
+                const publicBoundaryId = answer.topicId === 'composite-guidance' && ({
+                    'other-person-group-role': 'guide-other-account-access-boundary',
+                    'other-person-organization-role': 'guide-other-account-access-boundary',
+                    'public-group-people': 'public-group-people-boundary',
+                    'archive-group-members': 'governance-archive-chat-boundary',
+                })[guideCompositeIntent(answer.input?.question)];
+                const [publicBoundary] = publicBoundaryId ? guideAnswerHelpFacts({ topicId: publicBoundaryId }) : [];
+                if (publicBoundary?.visibility === 'public') {
+                    c.res = c.json({ ...answer, message: publicBoundary.message, actions: [],
+                        sources: [guideHelpFactSource(publicBoundary)], answerSource: 'reviewed' });
+                    return;
+                }
+                // These two existing composites construct only checked permission
+                // guidance, not article prose. Keep the account decision and omit
+                // any citation to instructions the viewer may not read.
+                if (answer.answerSource === 'account' && answer.topicId === 'composite-guidance'
+                    && ['programme-workbook', 'workbook-guide-publish'].includes(guideCompositeIntent(answer.input?.question))) {
+                    const deniedIds = new Set(restricted.filter((fact) => !canReadHelpContent(fact, c.get('user'), capabilities)).map((fact) => fact.id));
+                    c.res = c.json(addGuideHelpCitations({ ...answer, sources: (answer.sources || []).filter((source) => !deniedIds.has(source.id)) }));
+                    return;
+                }
+                c.res = c.json({ version: GUIDE_KNOWLEDGE_VERSION, topicId: 'help-access',
+                    message: 'These instructions require current permitted access. Sign in outside User View to check access, or browse the public Help Centre.',
+                    actions: [{ label: 'Browse help', route: '/help-centre' }], sources: [],
+                    input: answer.input ?? null, answerSource: 'reviewed' });
+                return;
+            }
+        }
+        c.res = c.json(addGuideHelpCitations(answer));
+    });
     const aiLimiter = createRateLimiter({ name: 'guide-chat', limit: 10, windowMs: 60 * 60 * 1000,
         keyFn: (c) => `user:${c.get('user')?.id || c.req.header('cf-connecting-ip') || 'anonymous'}` });
     router.post('/answer', authenticate, async (c) => {
@@ -171,6 +217,14 @@ export function createGuideRoutes({
                     ...answerGuideGovernanceGroupCreation(actor, access, governanceGroupCreation), input });
             } catch { return c.json({ error: 'Governance-group access could not be checked right now. No permission has been inferred.' }, 503); }
         }
+        const workflowIntent = !parsed.data.topicId && guideHelpWorkflowIntent(parsed.data.question,
+            parsed.data.pageContext, safeGuideChatTurns(parsed.data.turns));
+        const helpWorkflow = workflowIntent === 'public-place-create'
+            ? answerGuideResourceAccessQuestion('Can I create a Place?', actor)
+            : !parsed.data.topicId && answerGuideHelpWorkflow({ question: parsed.data.question,
+                pageContext: parsed.data.pageContext, turns: safeGuideChatTurns(parsed.data.turns) });
+        if (helpWorkflow) return c.json({ version: GUIDE_KNOWLEDGE_VERSION, ...helpWorkflow, input,
+            answerSource: workflowIntent === 'public-place-create' ? 'account' : 'reviewed' });
         const navigation = !parsed.data.topicId && answerGuideNavigationQuestion(parsed.data.question,
             parsed.data.pageContext, Boolean(actor?.id) && normalizeRole(actor.role) !== 'guest');
         if (navigation) return c.json({ version: GUIDE_KNOWLEDGE_VERSION, ...navigation, input, answerSource: 'reviewed' });

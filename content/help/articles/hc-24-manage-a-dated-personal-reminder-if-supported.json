@@ -1,0 +1,171 @@
+{
+  "id": "HC-24",
+  "slug": "manage-a-dated-personal-reminder-if-supported",
+  "title": "Manage a dated personal reminder, if supported",
+  "summary": "Use dated map notes and review the difference between a note date and a provider session.",
+  "category": "calendar",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/SharedMapDirectoryList.jsx:744-790; client/src/pages/dashboard/CareCalendarPage.jsx:266-291,369-405; server/src/controllers/calendarController.js:30-52,384-468",
+      "client/src/components/calendar/CalendarEventCard.jsx:91-130; client/src/components/SharedMapDirectoryList.jsx:775-790; client/src/pages/dashboard/CareCalendarPage.jsx:266-291; server/src/controllers/calendarController.js:470-540",
+      "client/src/components/calendar/CalendarEventCard.jsx:108-115; client/src/pages/dashboard/CareCalendarPage.jsx:225-236,389-403; server/src/controllers/calendarController.js:514-540",
+      "client/src/components/SharedMapDirectoryList.jsx:350-362,670-735,760-828; client/src/pages/dashboard/CareCalendarPage.jsx:225-238,266-291,369-414,414-450; client/src/components/calendar/CalendarEventCard.jsx:91-130; client/src/locales/en.js:301-303,323-326; server/src/controllers/calendarController.js:449-468,514-540"
+    ]
+  },
+  "sections": [
+    {
+      "id": "dated-map-note-steps",
+      "title": "Add a dated private map note to Care Calendar",
+      "paragraphs": [
+        "Sign in and use a My Map you own. This workflow dates a saved note attached to a map resource; it is not a general appointment form or a provider booking."
+      ],
+      "steps": [
+        "Open My Directory → My Maps and open your map.",
+        "Open Map Notes and select the resource you want the note to describe.",
+        "Enter the note and wait for its save to finish. Keep Share this note off if the note should remain private.",
+        "Select Add to calendar beneath the saved, non-empty note.",
+        "In Add this private note to your calendar, enter Calendar title and Starts. Enter Ends (optional) if you need an end time. Use Singapore time.",
+        "Select Add to calendar. Care Calendar opens the day containing the new entry; check its title, date and time there."
+      ],
+      "notes": [
+        "Add to calendar appears only after the note has been saved and contains text. If saving fails, resolve the note error and use Save notes before continuing.",
+        "Cancel closes the calendar form without adding an entry. The saved map note remains available.",
+        "Only you can see the dated calendar item. Sharing the original note is a separate map setting; do not put private or medical details in a shared note.",
+        "If adding the calendar entry reports an error, check that day before retrying so you do not intentionally create a second reminder for the same note."
+      ],
+      "queryRequiresAny": [
+        "date",
+        "calendar",
+        "reminder"
+      ],
+      "facts": []
+    },
+    {
+      "id": "change-dated-map-note-steps",
+      "title": "Move or remove a dated private map note",
+      "paragraphs": [
+        "Use the calendar entry for your own saved map note. The current calendar cards offer removal; to choose another date through the app, remove that entry and add the saved note again."
+      ],
+      "steps": [
+        "Open Care Calendar, select Calendar, and open the day containing the dated note.",
+        "Check the note’s title and time, then select Remove private map note on that entry. This removes the calendar item immediately.",
+        "To give the note another date, reopen its original resource in your map’s Map Notes and select Add to calendar on the saved note.",
+        "Enter the new Calendar title, Starts and any Ends (optional), then select Add to calendar. Check the new entry on its calendar day."
+      ],
+      "notes": [
+        "Removing this calendar item does not delete the original map note. Stop after removal if you do not want another reminder.",
+        "If you see Remove from My Plans instead, the entry is a provider session. Use a current session offered by that provider rather than inventing a different session time.",
+        "If removal fails, check whether the old entry is still present before adding another one. A dated private note does not register you with a provider."
+      ],
+      "queryRequiresAny": [
+        "care calendar",
+        "calendar",
+        "map note",
+        "dated note",
+        "personal reminder"
+      ],
+      "facts": []
+    },
+    {
+      "id": "remove-calendar-plan-steps",
+      "title": "Remove a Programme/service session from My Plans",
+      "paragraphs": [
+        "Sign in to the account that added the session. This removes your personal plan only."
+      ],
+      "steps": [
+        "Open Care Calendar and select My Plans.",
+        "Find the planned Programme/service session and check its name, date and time.",
+        "Select Remove from My Plans on that session. The action removes that personal plan immediately.",
+        "Check My Plans to confirm the entry has gone. If you registered with the provider, contact them separately about cancelling or changing that booking."
+      ],
+      "notes": [
+        "This does not delete or change the provider’s Programme/service listing or schedule.",
+        "If you want a different provider session, add a current active session when one is available. If the removal reports an error, check the list before retrying."
+      ],
+      "queryRequiresAny": [
+        "care calendar",
+        "calendar",
+        "my plans",
+        "planned session",
+        "planned activity"
+      ],
+      "facts": []
+    },
+    {
+      "id": "calendar-personal-entry",
+      "title": "Add a personal date to Care Calendar",
+      "facts": [
+        {
+          "id": "calendar-personal-entry",
+          "title": "Add a personal date to Care Calendar",
+          "keywords": [
+            "personal appointment in care calendar",
+            "add my own appointment",
+            "add a personal calendar date"
+          ],
+          "message": "Care Calendar shows planned sessions from saved Programmes/services and dated notes from your own My Maps. To add a personal date linked to a map resource, open that resource’s Map Notes, save a note, choose Add to Calendar, then enter its title and date. I cannot verify a general appointment-entry button outside those supported sources. A calendar entry is personal planning, not a provider booking.",
+          "route": "/dashboard/calendar",
+          "evidence": "client/src/components/SharedMapDirectoryList.jsx:744-790; client/src/pages/dashboard/CareCalendarPage.jsx:266-291,369-405; server/src/controllers/calendarController.js:30-52,384-468",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "plan-date-change",
+      "title": "Change the date of a personal plan",
+      "facts": [
+        {
+          "id": "plan-date-change",
+          "title": "Change the date of a personal plan",
+          "keywords": [
+            "change the date of a personal plan",
+            "move my planned session date",
+            "reschedule my own plan"
+          ],
+          "message": "If your plan is a provider Programme/service session, its time follows that provider’s schedule. Remove the old session from My Plans and add a different current active session if one is offered; changing your plan does not change the provider’s schedule or registration. If you mean a dated My Map note, remove its calendar entry and use Add to Calendar on the saved note to choose another date.",
+          "route": "/dashboard/calendar?section=plans",
+          "evidence": "client/src/components/calendar/CalendarEventCard.jsx:91-130; client/src/components/SharedMapDirectoryList.jsx:775-790; client/src/pages/dashboard/CareCalendarPage.jsx:266-291; server/src/controllers/calendarController.js:470-540",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "remove-plan",
+      "title": "Remove a session from My Plans",
+      "facts": [
+        {
+          "id": "remove-plan",
+          "title": "Remove a session from My Plans",
+          "keywords": [
+            "remove a programme from my plans",
+            "delete a programme from my plans",
+            "remove a session from my plans",
+            "delete a session from my plans",
+            "remove from my plans"
+          ],
+          "message": "Open Care Calendar → My Plans and choose Remove from My Plans on the planned session. This removes your own calendar plan; it does not delete the provider’s Programme/service listing or cancel a provider booking. Check with the provider separately if you registered with them.",
+          "route": "/dashboard/calendar?section=plans",
+          "evidence": "client/src/components/calendar/CalendarEventCard.jsx:108-115; client/src/pages/dashboard/CareCalendarPage.jsx:225-236,389-403; server/src/controllers/calendarController.js:514-540",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-15",
+    "HC-21",
+    "HC-22"
+  ]
+}

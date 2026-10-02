@@ -1,0 +1,275 @@
+{
+  "id": "HC-05",
+  "slug": "save-and-unsave-a-resource",
+  "title": "Save and unsave a resource",
+  "summary": "Keep a resource for later and understand what saving or removing changes.",
+  "category": "find-and-save",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "Reviewed Guide topic: save",
+      "Reviewed Guide topic: unsave",
+      "docs/user-guide.md:125-133; client/src/pages/MyDirectoryPage.jsx:493-531; docs/regression-ledger.md:1724-1740",
+      "server/src/routes/favorites.js:12-15; server/src/controllers/favoritesController.js:216-269,271-340; server/src/controllers/membershipsController.js:10-83; server/src/utils/memberships.js:5-12,49-105; server/src/controllers/hardAssetsController.js:136-138,1063-1083,1672-1692",
+      "server/src/controllers/favoritesController.js:216-224,240-262; client/src/components/SaveAssetButton.jsx:40-75; reviewed Saved resources and managed resources fact",
+      "server/src/controllers/favoritesController.js:237-251; server/src/utils/eligibility.js:128-225,306-342",
+      "My Directory; Report a problem; reviewed Save resources and Care Calendar topics",
+      "client/src/components/SaveAssetButton.jsx:29-101; client/src/contexts/SavedAssetsContext.jsx:113-160; client/src/components/SavedAssetCard.jsx:116-145",
+      "client/src/pages/MyDirectoryPage.jsx:412-531,709-750,788-840,858-877; client/src/locales/en.js:47-48,381-416"
+    ]
+  },
+  "sections": [
+    {
+      "id": "save-resource-steps",
+      "title": "Save a resource for later",
+      "paragraphs": [
+        "Sign in to your own CareAround account before saving a Place or Programme/service."
+      ],
+      "steps": [
+        "Open Discover, find the resource you want and open its details if you need to check it.",
+        "Select the heart labelled Save to My Directory on that resource.",
+        "Wait for the save request to finish. A saved heart is filled; its label changes to Remove from My Directory.",
+        "Open My Directory → Saved resources and check that the intended resource is listed."
+      ],
+      "notes": [
+        "A Place and each linked Programme/service are saved separately. Save the particular listing you want to keep.",
+        "Saving keeps a personal bookmark. It does not register you, join a Place, establish eligibility, grant editing rights or add the resource to a map.",
+        "If no heart is available, check that you are signed in. If the control is busy or saved resources cannot be loaded, wait or retry loading before trying again. A brief heart change is not enough to confirm a failed request succeeded.",
+        "If the item is missing from Saved resources, clear the saved-list search and filters and check the exact listing. For current availability, contact the provider."
+      ],
+      "queryRequiresAny": [
+        "save a",
+        "save resource",
+        "save place",
+        "save programme",
+        "save service",
+        "heart",
+        "bookmark",
+        "saving"
+      ],
+      "facts": []
+    },
+    {
+      "id": "remove-saved-resource-steps",
+      "title": "Remove one item from your saved list",
+      "paragraphs": [
+        "Use these steps to remove your own bookmark, rather than delete a public listing or remove a resource from a map. You must be signed in."
+      ],
+      "steps": [
+        "Open My Directory → Saved resources and find the item you want to remove.",
+        "Select Remove on that saved-resource card.",
+        "Read the confirmation, including any warning about My Maps or the Programme/service’s Care Calendar schedule source.",
+        "If you still want to unsave it, select Remove from My Directory. Choose Cancel to keep it.",
+        "Wait for the request to finish and check that the item is no longer in your saved list."
+      ],
+      "notes": [
+        "The public resource remains available to other people. If it was added to one of your maps, it stays in that map; map membership is a separate choice.",
+        "You can also toggle a saved heart on the resource itself. Use the Saved resources removal workflow when you need to review the map/calendar warnings first.",
+        "Unsaving a Programme/service can remove its saved schedule source from Care Calendar. Check your plans before confirming.",
+        "If map use cannot be checked or removal reports an error, retry the displayed loading action and recheck the list. Do not assume the removal finished."
+      ],
+      "queryRequiresAny": [
+        "unsave",
+        "remove saved",
+        "remove a saved",
+        "delete a saved",
+        "saved list",
+        "saved resource",
+        "saved place"
+      ],
+      "facts": []
+    },
+    {
+      "id": "remove-unused-saved-resources",
+      "title": "Remove several saved resources not used in your maps",
+      "paragraphs": [
+        "Bulk removal operates on your saved list and protects resources used in your My Maps. Sign in and wait for the app to check map use."
+      ],
+      "steps": [
+        "Open My Directory → Saved resources.",
+        "Under My Map use, choose Not used in My Maps to review the unused items.",
+        "Select Select to remove, then tick the items you want to unsave. Select all shown selects the visible unused items; Clear selection removes the ticks.",
+        "Select Remove followed by the selected count, then read the confirmation and its Care Calendar warning for any Programme/service.",
+        "Confirm Remove only when you have reviewed the selection, or choose Cancel to leave your saved list unchanged.",
+        "Read the result and check your saved list. Any items now used in My Maps are kept rather than bulk removed."
+      ],
+      "notes": [
+        "Used in My Maps is a separate filter for inspecting resources your maps use. Those items cannot be selected for bulk removal.",
+        "If map use cannot be checked, bulk removal pauses. Use Retry and wait for the check to finish; do not work around the protection.",
+        "Bulk removal does not delete public resources. Unsaving selected Programmes/services can remove their saved schedule sources from Care Calendar."
+      ],
+      "queryRequiresAny": [
+        "bulk remove",
+        "bulk unsave",
+        "unused",
+        "not used in my maps",
+        "several saved",
+        "multiple saved",
+        "remove selected saved"
+      ],
+      "facts": []
+    },
+    {
+      "id": "help-save",
+      "title": "Save resources",
+      "facts": [
+        {
+          "id": "help-save",
+          "title": "Save resources",
+          "keywords": [
+            "save resource",
+            "save a resource",
+            "heart",
+            "save to",
+            "saved resources"
+          ],
+          "message": "Use the heart on a resource to save it to My Directory. You must be signed in to save. Saving an Offering is not registration for its programme or service.",
+          "route": "/my-directory",
+          "evidence": "Reviewed Guide topic: save",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    },
+    {
+      "id": "help-unsave",
+      "title": "Remove saved resources safely",
+      "facts": [
+        {
+          "id": "help-unsave",
+          "title": "Remove saved resources safely",
+          "keywords": [
+            "unsave",
+            "bulk remove",
+            "bulk unsave",
+            "not used",
+            "remove saved",
+            "remove saved resources",
+            "delete multiple saved resources",
+            "remove multiple saved resources"
+          ],
+          "message": "In My Directory, filter saved resources by Used in My Maps or Not used in My Maps. Select unused resources and review the removal confirmation. Bulk removal protects resources used in your maps. Unsaving an Offering can remove its saved schedule source from Care Calendar; check that warning before confirming.",
+          "route": "/my-directory",
+          "evidence": "Reviewed Guide topic: unsave",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    },
+    {
+      "id": "saved-resource-removal",
+      "title": "Remove a saved resource from My Directory",
+      "facts": [
+        {
+          "id": "saved-resource-removal",
+          "title": "Remove a saved resource from My Directory",
+          "keywords": [
+            "remove a saved place",
+            "delete a saved place",
+            "remove a saved offering",
+            "delete a place from my directory",
+            "remove a place from my directory",
+            "unsave a place"
+          ],
+          "message": "If you mean removing a Place or Offering from your own saved list, open My Directory and choose its Unsave or Remove saved control. This changes your saved list; it does not delete the public listing or remove that resource from a My Map. Review any confirmation before bulk removal.",
+          "route": "/my-directory",
+          "evidence": "docs/user-guide.md:125-133; client/src/pages/MyDirectoryPage.jsx:493-531; docs/regression-ledger.md:1724-1740",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "saved-identity-privacy",
+      "title": "Saving a resource and your identity",
+      "facts": [
+        {
+          "id": "saved-identity-privacy",
+          "title": "Saving a resource and your identity",
+          "keywords": [
+            "provider see my name when i save",
+            "saving shares my profile",
+            "heart a programme and provider identity",
+            "does bookmarking tell a provider who i am"
+          ],
+          "message": "Using the heart saves the Place or Programme/service to your own My Directory. That Save action does not send your name or profile details to the provider, notify the provider that you saved the listing, register you, or link you as a Place member. My Directory is not a public saver list. Joining a Place through its membership link is separate: authorised Place managers can see membership details, including names. Contacting a provider or publishing a Shared Map is also separate from saving. The Guide cannot identify who saved a provider’s listing or check another person’s saved list.",
+          "route": "/my-directory",
+          "evidence": "server/src/routes/favorites.js:12-15; server/src/controllers/favoritesController.js:216-269,271-340; server/src/controllers/membershipsController.js:10-83; server/src/utils/memberships.js:5-12,49-105; server/src/controllers/hardAssetsController.js:136-138,1063-1083,1672-1692",
+          "reviewed": "2026-10-01"
+        }
+      ]
+    },
+    {
+      "id": "save-place-separately",
+      "title": "Save a Place separately from its Programmes",
+      "facts": [
+        {
+          "id": "save-place-separately",
+          "title": "Save a Place separately from its Programmes",
+          "keywords": [
+            "save a place without its programme",
+            "save place separately",
+            "save place without following programme"
+          ],
+          "message": "A Place and its linked Programmes/services are separate resources. You can save the Place without saving each Programme/service; use the heart on any Programme/service you also want in My Directory. Saving either one does not register you for a Programme/service or give you permission to edit its listing.",
+          "route": "/discover",
+          "evidence": "server/src/controllers/favoritesController.js:216-224,240-262; client/src/components/SaveAssetButton.jsx:40-75; reviewed Saved resources and managed resources fact",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "saved-not-eligible",
+      "title": "Saving does not grant eligibility",
+      "facts": [
+        {
+          "id": "saved-not-eligible",
+          "title": "Saving does not grant eligibility",
+          "keywords": [
+            "saved restricted programme eligibility",
+            "save programme eligible",
+            "heart member only programme",
+            "saving grants access"
+          ],
+          "message": "Saving a Programme/service to My Directory is a personal bookmark. It does not satisfy profile criteria, create Place membership, grant access to a restricted listing, or register you with the provider. Check the listing’s current details and ask the provider about participation.",
+          "route": "/my-directory",
+          "evidence": "server/src/controllers/favoritesController.js:237-251; server/src/utils/eligibility.js:128-225,306-342",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "saved-resource-status",
+      "title": "A saved resource is missing or unavailable",
+      "facts": [
+        {
+          "id": "saved-resource-status",
+          "title": "A saved resource is missing or unavailable",
+          "keywords": [
+            "saved resource no longer available",
+            "saved resource missing",
+            "saved resource disappeared",
+            "why is my saved resource"
+          ],
+          "message": "I cannot tell why a particular saved resource is missing or unavailable from a general question. Check My Directory for your saved item. If its listing has changed or disappeared, report the resource and what you expected to see. For current service availability or registration, confirm directly with the provider.",
+          "route": "/my-directory",
+          "evidence": "My Directory; Report a problem; reviewed Save resources and Care Calendar topics",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-06",
+    "HC-07",
+    "HC-21"
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "id": "HC-15",
+  "slug": "add-private-map-notes-and-review-shared-notes",
+  "title": "Add private map notes and review shared notes",
+  "summary": "Write resource notes and decide which individual notes are intended for sharing.",
+  "category": "sharing",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/SharedMapDirectoryList.jsx:601-609,665-815,945-997; server/src/controllers/myMapsController.js:757-841; server/src/controllers/sharedMapsController.js:342-402",
+      "server/src/utils/myMapDirectory.js:649-704; client/src/components/SharedMapDirectoryList.jsx:748-785; server/src/controllers/myMapsController.js:757-841; server/src/controllers/printAnnotationsController.js:145-152; server/src/utils/embeddedMapPresentation.js:147-156",
+      "client/src/components/SharedMapDirectoryList.jsx:245-252,337-365,457-549,573-624,666-830,884-902,912-954",
+      "client/src/components/ShareMapModal.jsx:480-508; client/src/locales/en.js:850-909; server/src/controllers/myMapsController.js:757-841"
+    ]
+  },
+  "sections": [
+    {
+      "id": "private-map-note-steps",
+      "title": "Write and check a private resource note",
+      "paragraphs": [
+        "Add a resource note to a My Map you own. You must be signed in, and the map needs at least one resource to choose. New notes have Share this note turned off."
+      ],
+      "steps": [
+        "Open My Directory → My Maps and choose your own map.",
+        "Select Map notes, then choose the resource you want to write about.",
+        "Enter your note. If the existing note is shown as a preview, select Edit first. Use Add another note when you want a separate note for the same resource.",
+        "Keep Share this note off for private planning information. Use Preview if you want to check how the text will read.",
+        "Use Back to map notes or Close map notes to leave the editor and start saving the changes. Reopen the resource’s note and check that the saved text is present before relying on it."
+      ],
+      "notes": [
+        "Typing a note alone is not proof that it has saved. If a save error is shown, use Save notes when offered and check again; a failed save must not be treated as persisted information.",
+        "Remove note deletes that note from your map when its save succeeds. It does not remove the resource from My Directory or delete a public listing.",
+        "Your private note is separate from the public provider description. Keep passwords, identity numbers, medical records and sensitive case details out of map notes."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "map"
+      ]
+    },
+    {
+      "id": "shared-map-note-steps",
+      "title": "Choose a note for a published Shared Map",
+      "paragraphs": [
+        "Choose sharing separately for each resource note. Marking a note for sharing does not itself update an existing public link."
+      ],
+      "steps": [
+        "Open your own My Map → Map notes and choose the resource.",
+        "Review the note’s entire text and turn on Share this note only if it is intended for anyone who can open the shared link. Leave other notes switched off.",
+        "Check that the note and its sharing choice save successfully. If an error appears, use Save notes when offered before continuing.",
+        "Close the note editor and open Share. Choose Publish share link for a map you have not shared, or Update shared link for an existing published map.",
+        "Open the published Shared Map and check the recipient view before sending its link."
+      ],
+      "notes": [
+        "Turning Share this note off changes the owner’s saved choice; update the shared link again to remove that note from the published snapshot. Visitors continue to see the last published version until you update or unpublish it.",
+        "The website embed omits resource-note rows, including notes marked for sharing. Annotation overlays use separate controls; check the actual embedded view rather than assuming it matches the regular Shared Map page.",
+        "Publishing is a separate explicit action. A shared note is intended for link recipients, and the shared link can be forwarded."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "map"
+      ]
+    },
+    {
+      "id": "my-map-note-edit",
+      "title": "Add a note to a My Map resource",
+      "facts": [
+        {
+          "id": "my-map-note-edit",
+          "title": "Add a note to a My Map resource",
+          "keywords": [
+            "add a note to my map",
+            "write a note on my map",
+            "add notes to a resource in my map",
+            "edit a map resource note"
+          ],
+          "message": "Open My Directory → My Maps and choose a map you own. Open Map Notes, choose the resource, then enter your note and check that it saves. Each note has its own Share this note switch, which is off by default. Review and explicitly update a published Shared Map before relying on a shared note there. The website embed omits resource notes from its resource rows.",
+          "route": "/my-directory",
+          "evidence": "client/src/components/SharedMapDirectoryList.jsx:601-609,665-815,945-997; server/src/controllers/myMapsController.js:757-841; server/src/controllers/sharedMapsController.js:342-402",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "map-note-privacy",
+      "title": "My Map note and annotation sharing",
+      "facts": [
+        {
+          "id": "map-note-privacy",
+          "title": "My Map note and annotation sharing",
+          "keywords": [
+            "share this note",
+            "private map note",
+            "notes on shared map",
+            "can visitors see my notes",
+            "what notes can a visitor see",
+            "embed annotations"
+          ],
+          "message": "Resource notes on your My Map stay private unless you enable Share this note for each note. An explicitly published or updated Shared Map snapshot includes the notes marked for sharing. Print annotations have a separate share setting, and a selected Map Studio view can hide annotations in an embedded presentation. Preview the published or embedded view before sharing its link.",
+          "route": "/my-directory",
+          "evidence": "server/src/utils/myMapDirectory.js:649-704; client/src/components/SharedMapDirectoryList.jsx:748-785; server/src/controllers/myMapsController.js:757-841; server/src/controllers/printAnnotationsController.js:145-152; server/src/utils/embeddedMapPresentation.js:147-156",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-14",
+    "HC-16",
+    "HC-24"
+  ]
+}

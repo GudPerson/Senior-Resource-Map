@@ -1,0 +1,147 @@
+{
+  "id": "HC-11",
+  "slug": "reuse-edit-detach-or-delete-a-personal-place",
+  "title": "Reuse, edit, detach or delete a Personal place",
+  "summary": "Keep reusable private places and check whether an action affects one map or every linked map.",
+  "category": "my-maps",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/personalPlaces/AddPersonalPlaceChooserModal.jsx:10-159",
+      "client/src/components/personalPlaces/PersonalPlacesSection.jsx:67-111",
+      "client/src/pages/MyMapDetailPage.jsx:3193-3254",
+      "client/src/components/personalPlaces/PersonalPlacesSection.jsx:67-101,149-164; client/src/pages/MyDirectoryPage.jsx:28-34; server/src/controllers/personalPlacesController.js:470-501",
+      "client/src/components/personalPlaces/PersonalPlacesSection.jsx:67-84,272-295; client/src/components/personalPlaces/PersonalPlaceEditorModal.jsx:345-390; server/src/controllers/personalPlacesController.js:423-451",
+      "client/src/pages/MyMapDetailPage.jsx:310-393,620,676-718,3193-3254; client/src/components/SharedMapDirectoryList.jsx:1589-1626; client/src/locales/en.js:461,624,664,675; server/src/controllers/personalPlacesController.js:503-534",
+      "client/src/components/personalPlaces/PersonalPlacesSection.jsx:85-111,272-282 (delete trigger, scope and confirmation)"
+    ]
+  },
+  "sections": [
+    {
+      "id": "reuse-or-remove",
+      "title": "Reuse a place and distinguish removal from deletion",
+      "steps": [
+        "Open your own map and choose + Personal place.",
+        "Search My Places, select the place or places to reuse, then choose Add to this map.",
+        "To edit a place, open My Directory → My Places and use Edit on that place. Review its location before saving.",
+        "Read the confirmation carefully before deleting from My Places: Delete everywhere removes the place from My Places and its linked maps."
+      ],
+      "notes": [
+        "Removing a Personal place from one map leaves it in My Places. Deleting it from My Places has the wider effect described in the confirmation."
+      ],
+      "facts": []
+    },
+    {
+      "id": "my-places",
+      "title": "My Places",
+      "facts": [
+        {
+          "id": "my-places",
+          "title": "My Places",
+          "keywords": [
+            "my places",
+            "personal places",
+            "personal place",
+            "private place",
+            "planning location",
+            "planning locations",
+            "private planning",
+            "create a personal place",
+            "add a personal place",
+            "private planning place"
+          ],
+          "message": "My Places in My Directory are private planning locations you can reuse across your own maps. Open My Places and choose Add personal place to create one. Removing a personal place from one map leaves it in My Places; deleting it from My Places removes it from every linked map. Saving a private planning location does not make it a public directory Place or assign it to you to manage.",
+          "route": "/my-directory?section=my-places",
+          "evidence": "client/src/components/personalPlaces/PersonalPlacesSection.jsx:67-101,149-164; client/src/pages/MyDirectoryPage.jsx:28-34; server/src/controllers/personalPlacesController.js:470-501",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "personal-place-address-edit",
+      "title": "Edit a private My Place address",
+      "facts": [
+        {
+          "id": "personal-place-address-edit",
+          "title": "Edit a private My Place address",
+          "keywords": [
+            "edit my personal place address",
+            "change my place address",
+            "update private planning place address",
+            "change address in my places"
+          ],
+          "message": "For a personal place you own, open My Directory → My Places and choose Edit on that place. In the editor, update its postal code and address, check the location, then save. The server checks ownership when saving. This changes your private planning place, not a public directory Place; the Guide cannot edit it from chat.",
+          "route": "/my-directory?section=my-places",
+          "evidence": "client/src/components/personalPlaces/PersonalPlacesSection.jsx:67-84,272-295; client/src/components/personalPlaces/PersonalPlaceEditorModal.jsx:345-390; server/src/controllers/personalPlacesController.js:423-451",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "detach-personal-place-steps",
+      "title": "Remove a Personal place from this map only",
+      "paragraphs": [
+        "Sign in and open a map you own. A Personal place’s Remove action takes effect immediately; it does not show the separate public-resource removal confirmation."
+      ],
+      "steps": [
+        "Open the map containing the Personal place. On a phone, select Open map controls to reach the map’s editing controls.",
+        "Select Edit content → Remove resources to show removal controls on the map’s resource cards.",
+        "Find the intended Personal place card and check its name. Select its Remove control, labelled Remove from map for accessibility.",
+        "Wait for Personal place removed from your map, then check that the card is no longer in this map.",
+        "Open My Directory → My Places if you want to reuse it. Removing it from one map leaves the place there and on any other maps that use it."
+      ],
+      "notes": [
+        "This is separate from Hide pin, which only changes presentation, and Delete everywhere in My Places, which removes the place more widely.",
+        "If removal or the map refresh fails, reopen the map and check its current collection before retrying. Do not use Delete everywhere as a workaround for a map-only removal."
+      ],
+      "queryRequiresAny": [
+        "personal place",
+        "my places",
+        "private place",
+        "detach place"
+      ],
+      "facts": []
+    },
+    {
+      "id": "delete-personal-place-everywhere-steps",
+      "title": "Delete a Personal place from My Places and its maps",
+      "paragraphs": [
+        "Use deletion only when you want to remove the Personal place from My Places and every map linked to it. To remove it from one map, use that map’s Remove control instead."
+      ],
+      "steps": [
+        "Open My Directory → My Places and find the Personal place you intend to delete.",
+        "Select that card’s trash control, labelled Delete everywhere.",
+        "Read Delete personal place. Check the place name and the number of maps in the confirmation, or the permanent-removal message when it is on no maps.",
+        "Select Delete everywhere in the confirmation to proceed, or Cancel to keep the place.",
+        "Wait for the card to disappear from My Places. Reopen any affected maps to check the updated collection."
+      ],
+      "notes": [
+        "Deleting a Personal place does not delete a public directory listing; Personal places are your own private planning records.",
+        "If deletion reports an error, check My Places and the affected maps before retrying. Do not assume an error means the place was kept."
+      ],
+      "queryRequiresAny": [
+        "personal place",
+        "my places",
+        "private place",
+        "delete everywhere"
+      ],
+      "facts": []
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-09",
+    "HC-10",
+    "HC-14"
+  ]
+}

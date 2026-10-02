@@ -1,0 +1,79 @@
+{
+  "id": "HC-09",
+  "slug": "add-a-personal-place-to-your-map",
+  "title": "Add a missing location as a Personal place on your map",
+  "summary": "Add a private planning location that is missing from the public directory.",
+  "category": "my-maps",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "client/src/components/personalPlaces/AddPersonalPlaceChooserModal.jsx:10-159",
+      "client/src/pages/MyMapDetailPage.jsx:3006-3113",
+      "client/src/components/personalPlaces/PersonalPlaceEditorModal.jsx:25-432",
+      "server/src/utils/personalPlaceLocation.js:15-68",
+      "server/src/controllers/personalPlacesController.js:395-421,470-501",
+      "server/src/utils/myMapDirectory.js:1201-1282",
+      "client/src/pages/MyMapDetailPage.jsx:676-700",
+      "client/src/pages/MyMapDetailPage.jsx:620,676-700; client/src/locales/en.js:664 (phone entry control)"
+    ]
+  },
+  "sections": [
+    {
+      "id": "create-personal-place",
+      "title": "Add the missing location to your own map",
+      "paragraphs": [
+        "Yes—you can add a missing location as a Personal place. You must be signed in and use a map you own."
+      ],
+      "steps": [
+        "Open My Directory → My Maps and open your map.",
+        "Select + Personal place.",
+        "Select Choose map location, then click or tap the spot on your map.",
+        "Enter the place’s name and category.",
+        "Enter its address or postal code in the lookup and select Find location to verify it.",
+        "Review the returned location and details, then select Save."
+      ],
+      "notes": [
+        "On a phone, select Open map controls, then Personal place.",
+        "For a genuine point without a postal address, select This point has no postal address instead. Do not guess a postal code from a nearby building.",
+        "The place is kept in My Places and can be reused on your other maps. It remains private: it does not enter Discover or public Shared Maps, but can appear in your own printed/exported maps.",
+        "If location verification fails, check the address or six-digit Singapore postal code and try again. A failed save is not confirmation that the place was added.",
+        "To submit a public directory listing instead, use the authorised public Place workflow; a Personal place is for your own planning."
+      ],
+      "facts": [
+        {
+          "id": "personal-place-map-create",
+          "title": "Add the missing location to your own map",
+          "keywords": [
+            "how can i add places that are not found in carearound sg",
+            "place not found",
+            "places not found",
+            "missing place",
+            "add personal place",
+            "add private place",
+            "choose map location",
+            "my maps"
+          ],
+          "answerKind": "procedure",
+          "route": "/my-directory?section=my-maps",
+          "evidence": "client/src/components/personalPlaces/AddPersonalPlaceChooserModal.jsx:10-159; client/src/pages/MyMapDetailPage.jsx:3006-3113; client/src/components/personalPlaces/PersonalPlaceEditorModal.jsx:25-432; server/src/utils/personalPlaceLocation.js:15-68; server/src/controllers/personalPlacesController.js:395-421,470-501; server/src/utils/myMapDirectory.js:1201-1282; client/src/pages/MyMapDetailPage.jsx:676-700",
+          "reviewed": "2026-10-02"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-10",
+    "HC-11",
+    "HC-14"
+  ]
+}

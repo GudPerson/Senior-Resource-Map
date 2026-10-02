@@ -1,0 +1,149 @@
+{
+  "id": "HC-17",
+  "slug": "understand-missing-pins-list-only-resources-filters-and-map-framing",
+  "title": "Understand missing pins, list-only resources, filters and map framing",
+  "summary": "Check list-only resources, pin visibility and Detailed display without assuming deletion.",
+  "category": "map-design-and-exports",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/SharedMapDirectoryList.jsx:2841-2888,2930-2960",
+      "client/src/pages/MyMapDetailPage.jsx:3193-3254,3568-3607",
+      "server/src/utils/myMapDirectory.js:1201-1282",
+      "Reviewed Guide topic: detailed-map",
+      "client/src/pages/MyMapDetailPage.jsx:310-352,620,676-730,3568-3607; client/src/components/SharedMapDirectoryList.jsx:1628-1662; client/src/components/MapStudioDesignControls.jsx:203-218,280-313; client/src/locales/en.js:462-464,548-555,664"
+    ]
+  },
+  "sections": [
+    {
+      "id": "missing-pin",
+      "title": "A listed resource may have no usable pin",
+      "paragraphs": [
+        "A resource that remains in the map’s list is not necessarily missing from the collection. List-only resources can remain in the directory without a map position."
+      ],
+      "steps": [
+        "Check whether the resource appears in this map’s list; map membership is separate from saving it in My Directory.",
+        "Look for List only or an unavailable status, and open the current resource details when offered.",
+        "If you own this map, select the intended View in Map Studio and open Edit layout; on a phone, select Open map controls → Edit layout. Check Map pins → Show and Resource categories; if needed, show the pins and tick the intended group and category. Wait for All changes saved after making changes, then move or zoom the map to inspect the intended area.",
+        "If the location is missing or incorrect, contact the listing maintainer or report the problem. Do not create duplicate public listings or guess a postal code as a workaround."
+      ],
+      "notes": [
+        "Hiding a pin changes the presentation; it does not remove the resource card or delete the public listing.",
+        "Changing these presentation settings cannot supply missing coordinates to a List only resource. A public Shared Map keeps its last published view; ask its owner about a display change rather than assuming you can edit it."
+      ],
+      "facts": [
+        {
+          "id": "map-missing-pin",
+          "title": "A listed resource may have no usable pin",
+          "keywords": [
+            "missing pin",
+            "not shown on map",
+            "list only",
+            "resource in list no pin"
+          ],
+          "answerKind": "procedure",
+          "route": "/my-directory?section=my-maps",
+          "evidence": "client/src/components/SharedMapDirectoryList.jsx:2841-2888,2930-2960; client/src/pages/MyMapDetailPage.jsx:3193-3254,3568-3607; server/src/utils/myMapDirectory.js:1201-1282; client/src/pages/MyMapDetailPage.jsx:310-352,620,676-730,3568-3607; client/src/components/SharedMapDirectoryList.jsx:1628-1662; client/src/components/MapStudioDesignControls.jsx:203-218,280-313; client/src/locales/en.js:462-464,548-555,664",
+          "reviewed": "2026-10-02"
+        }
+      ]
+    },
+    {
+      "id": "help-detailed-map",
+      "title": "Check Detailed map display",
+      "facts": [
+        {
+          "id": "help-detailed-map",
+          "title": "Check Detailed map display",
+          "keywords": [
+            "detailed map",
+            "block number",
+            "zoom",
+            "map background",
+            "wrong map"
+          ],
+          "message": "In Discover, open Map settings to choose Standard or Detailed. Detailed uses the overview map from zoom 14 up to, but not including, zoom 16; zoom 16 or above shows native detail with block numbers where the surface is available. A loading bar appears while Detailed prepares, and you can keep using the map. Discover and your editable My Map use 0.5 steps for the zoom buttons and keyboard; trackpad and pinch zoom stay smooth. My Map and its owner Print View keep native detail from zoom 15. Shared, embedded, and print map controls keep their existing behavior. If the view looks wrong, report the page and zoom level.",
+          "route": "/help?tab=report",
+          "evidence": "Reviewed Guide topic: detailed-map",
+          "reviewed": "2026-09-28",
+          "queryRequiresAny": [
+            "map",
+            "detailed",
+            "zoom",
+            "block"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "restore-hidden-map-pin-steps",
+      "title": "Show a pin hidden in your map view",
+      "paragraphs": [
+        "Use this when a mapped resource remains in your own map’s collection but its pin was hidden in the selected Studio view. A List only resource without usable coordinates cannot gain a pin through this control."
+      ],
+      "steps": [
+        "Open your map and use Map Studio’s View selector to choose the presentation you are checking.",
+        "Select Edit content → Hide map pins. On a phone, select Open map controls first to reach Edit content.",
+        "Find the intended mapped Place card and select Show pin when offered. Hide pin is the opposite action.",
+        "Wait for All changes saved in Map Studio, then move or zoom the map to inspect that location.",
+        "Select Edit content → Hide map pins again when you want to leave that editing mode."
+      ],
+      "notes": [
+        "This changes the selected view’s pin presentation. It does not add a resource to the map, fix its coordinates, or change the public listing.",
+        "Other presentation settings can still hide that pin. Check Map pins and Resource categories under Edit layout if Show pin alone does not reveal it.",
+        "If the resource is unavailable or List only, inspect the current listing details when offered and report the location problem rather than guessing a postal code."
+      ],
+      "queryRequiresAny": [
+        "pin",
+        "pins",
+        "hidden marker",
+        "show marker",
+        "missing marker"
+      ],
+      "facts": []
+    },
+    {
+      "id": "restore-map-resource-categories-steps",
+      "title": "Check hidden map pins and category filters",
+      "paragraphs": [
+        "The selected Studio view can hide all map pins or particular resource categories. Check these display choices separately from the map’s collection."
+      ],
+      "steps": [
+        "Open a map you own and select the intended View in Map Studio.",
+        "Select Edit layout. On a phone, select Open map controls → Edit layout.",
+        "Under Map pins, select Show if the pins are hidden.",
+        "Open Resource categories when available. Tick the intended group, then tick the category within it. A category cannot be turned on while its parent group is hidden.",
+        "Wait for All changes saved, then move or zoom the map to inspect the intended area. Check individual Show pin controls if one mapped Place remains hidden."
+      ],
+      "notes": [
+        "These presentation choices do not delete public resources or unsave resources from My Directory. They also cannot supply a missing map location.",
+        "A public Shared Map keeps its last published view. To change that public presentation, save your own view and explicitly update the shared link separately."
+      ],
+      "queryRequiresAny": [
+        "map pins",
+        "pin",
+        "pins",
+        "resource categories",
+        "map filters",
+        "hidden category"
+      ],
+      "facts": []
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-08",
+    "HC-12",
+    "HC-32"
+  ]
+}

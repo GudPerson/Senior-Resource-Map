@@ -1,0 +1,156 @@
+{
+  "id": "HC-25",
+  "slug": "update-profile-and-location-preferences",
+  "title": "Update profile and location preferences",
+  "summary": "Update private profile details in Profile and understand eligibility limits.",
+  "category": "account-and-display",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/App.jsx:224; client/src/pages/dashboard/ProfilePage.jsx:185-226,348-451; server/src/utils/eligibility.js:128-225",
+      "server/src/utils/eligibility.js:128-225; server/src/controllers/softAssetsController.js:1695-1756",
+      "server/src/controllers/userController.js:955-981; server/src/routes/guideActions.js:75-224; reviewed Report a problem topic",
+      "client/src/components/dashboard/DashboardNavigation.jsx:96-113,167-277; client/src/pages/dashboard/ProfilePage.jsx:185-226,281-451; client/src/features/discover/DiscoveryFilterPanel.jsx:98-132",
+      "server/src/controllers/userController.js:182-193,745-811; server/src/utils/eligibility.js:114-137,174-225; client/src/locales/en.js:1025-1062"
+    ]
+  },
+  "sections": [
+    {
+      "id": "profile-details-steps",
+      "title": "Review and save your profile details",
+      "paragraphs": [
+        "Sign in to your own account. Enter personal details in Profile, not in Guide chat."
+      ],
+      "steps": [
+        "Open Dashboard → Profile. On a phone, open the dashboard navigation menu and choose Profile.",
+        "Review the current fields and edit only the details you intend to change.",
+        "If you choose to provide them, review the optional details under Personalise your recommendations, such as date of birth, CHAS card, gender, property type, caregiver status and volunteer interest.",
+        "Leave the password fields blank when you are only changing profile or postal-code details.",
+        "Select Save changes and wait for Profile updated successfully! before treating the request as complete.",
+        "Reopen Profile to check your saved details. If you arrived from a restricted Programme/service prompt, return to that listing and check it again."
+      ],
+      "notes": [
+        "Completing a field does not guarantee access or eligibility, join a Place, register you with a provider, or establish resource-editing rights. Confirm participation requirements with the provider.",
+        "An account with an existing registered email cannot change it in this profile form. Adding recovery email/password to a WhatsApp-first account is a separate recovery workflow; do not start it just to change other details.",
+        "If saving displays an error, read the message, reopen Profile to check what is currently stored and correct the affected field before retrying. The Guide cannot save profile changes for you.",
+        "If you are using User View, exit it before changing profile details. Never paste passwords, identity numbers or medical details into chat."
+      ],
+      "queryRequiresAny": [
+        "profile",
+        "personalise",
+        "personalize",
+        "chas",
+        "caregiver status",
+        "volunteer interest"
+      ],
+      "facts": []
+    },
+    {
+      "id": "profile-postal-code-steps",
+      "title": "Set or change your home postal code",
+      "paragraphs": [
+        "Your profile postal code helps CareAround show nearby resources and information for your service area. It is not a public Place address or a Personal place pin."
+      ],
+      "steps": [
+        "Sign in and open Dashboard → Profile.",
+        "Find Postal code (recommended) on a standard user account, or the Postal code field shown for your account.",
+        "Enter the correct six-digit Singapore postal code for your home location. Do not put a resource’s postal code here merely to change that resource’s listing.",
+        "Review the rest of the form and leave password fields blank if you are only updating the postal code.",
+        "Select Save changes and wait for Profile updated successfully!.",
+        "Reopen Profile to check the saved value, then return to Discover and review the nearby results."
+      ],
+      "notes": [
+        "A standard user can leave the postal code blank or clear it and save if they do not want a home postal code stored. Some operational account roles require a postal code; follow the field validation for your own account.",
+        "If the postal code is rejected, check all six digits and the displayed message before trying again. After any save error, reopen Profile to check the stored value rather than assuming all changes were accepted.",
+        "A home postal code does not guarantee eligibility for a Programme/service or register you. Profile criteria, membership and provider participation requirements are separate.",
+        "Keep your home postal code and other private profile details out of Guide chat. Changing the profile field does not create, move or publish a map location."
+      ],
+      "queryRequiresAny": [
+        "postal code",
+        "home location",
+        "home postcode",
+        "home address"
+      ],
+      "facts": []
+    },
+    {
+      "id": "profile-update",
+      "title": "Update your profile",
+      "facts": [
+        {
+          "id": "profile-update",
+          "title": "Update your profile",
+          "keywords": [
+            "update my profile",
+            "edit my profile",
+            "change my profile",
+            "save profile details",
+            "complete my profile"
+          ],
+          "message": "Sign in, open Profile from the dashboard, update the fields you want to change, and choose Save Changes. Some details help CareAround evaluate restricted Programme/service criteria, but completing your profile does not guarantee eligibility or register you with a provider. Enter private details in Profile, not Guide chat.",
+          "route": "/dashboard/profile",
+          "evidence": "client/src/App.jsx:224; client/src/pages/dashboard/ProfilePage.jsx:185-226,348-451; server/src/utils/eligibility.js:128-225",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "offering-profile-missing",
+      "title": "Missing profile details for restricted offerings",
+      "facts": [
+        {
+          "id": "offering-profile-missing",
+          "title": "Missing profile details for restricted offerings",
+          "keywords": [
+            "missing chas details",
+            "missing profile eligibility",
+            "incomplete profile restricted programme",
+            "programme locked missing data",
+            "required personal detail",
+            "blank profile detail"
+          ],
+          "message": "When a Programme/service uses profile criteria and a required field is missing, CareAround can leave the access check unresolved. Complete the relevant field in your Profile and check the listing again. A missing field does not prove you qualify, explain every visibility difference, or register you with the provider; keep personal details out of Guide chat.",
+          "route": "/dashboard/profile",
+          "evidence": "server/src/utils/eligibility.js:128-225; server/src/controllers/softAssetsController.js:1695-1756",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "account-deletion-help",
+      "title": "Ask about deleting an account",
+      "facts": [
+        {
+          "id": "account-deletion-help",
+          "title": "Ask about deleting an account",
+          "keywords": [
+            "delete my account",
+            "remove my account",
+            "erase my data",
+            "delete my personal data"
+          ],
+          "message": "The Guide cannot delete your account or confirm that your personal data has been erased. I cannot verify a self-service deletion path here. Use Help to ask support for the current account-deletion process; describe your request without passwords, identity numbers or medical details. Sending a request is not confirmation that deletion has happened.",
+          "route": "/help?tab=report",
+          "evidence": "server/src/controllers/userController.js:955-981; server/src/routes/guideActions.js:75-224; reviewed Report a problem topic",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-27",
+    "HC-28",
+    "HC-29"
+  ]
+}

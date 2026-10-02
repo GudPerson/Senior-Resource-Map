@@ -46,6 +46,7 @@ function SupportHub({ user, isImpersonating }) {
         <header><Link className="text-sm font-semibold text-brand-700 underline" to="/discover">Back to Discover</Link>
             <h1 className="mt-3 text-2xl font-extrabold outline-none sm:text-3xl" tabIndex={-1} ref={heading}>CareAround Guide & inbox</h1>
             <p className="mt-2 text-sm text-slate-600">Find your way, get help, and follow up on a problem.</p>
+            <Link className="mt-3 inline-flex min-h-[44px] items-center text-sm font-semibold text-brand-700 underline underline-offset-4" to="/help-centre">Browse help articles</Link>
             {locale !== 'en' && <p className="mt-2 text-xs text-slate-500">Guide and support are currently in English.</p>}
         </header>
         <nav className="flex flex-wrap gap-2" aria-label="Help sections">{[['guide', 'Guide & search'], ['inbox', 'Inbox'], ['report', 'Report a problem'], ...(canReview ? [['review', 'Support review']] : [])].map(([value, label]) =>

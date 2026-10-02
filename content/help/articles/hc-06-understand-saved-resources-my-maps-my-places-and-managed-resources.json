@@ -1,0 +1,113 @@
+{
+  "id": "HC-06",
+  "slug": "understand-saved-resources-my-maps-my-places-and-managed-resources",
+  "title": "Understand Saved Resources, My Maps, My Places and managed resources",
+  "summary": "Choose the personal directory section you need and understand separate editing rights.",
+  "category": "find-and-save",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "My Directory; Manage My Resources; reviewed Save resources and Plans are not bookings topics",
+      "server/src/controllers/favoritesController.js:216-224,329-338; server/src/controllers/myMapsController.js:757-841; docs/user-guide.md:20-21",
+      "client/src/pages/MyDirectoryPage.jsx; client/src/components/MyMapExcelExportButton.jsx:6-63; client/src/lib/myMapExcelExporter.js:87-97; client/src/components/personalPlaces/PersonalPlacesSection.jsx",
+      "client/src/components/dashboard/DashboardNavigation.jsx:60-71,117-124; client/src/lib/roles.js:152-158; server/src/utils/guideManagedResources.js:102-120; client/src/pages/dashboard/ResourcesPage.jsx:3183-3295"
+    ]
+  },
+  "sections": [
+    {
+      "id": "saved-versus-managed",
+      "title": "Saved resources and managed resources",
+      "facts": [
+        {
+          "id": "saved-versus-managed",
+          "title": "Saved resources and managed resources",
+          "keywords": [
+            "saved versus managed",
+            "saved and managed",
+            "my directory vs my resources",
+            "resources i manage",
+            "manage my resources",
+            "heart a programme",
+            "heart a resource",
+            "save and edit",
+            "saved and edit"
+          ],
+          "message": "Saving a Place or Programme/service with its heart adds it to My Directory for your own use. Saving does not itself give you permission to edit or manage that resource, and saving a Programme/service does not register or book you for it. You may have separate management rights; check Manage My Resources in the dashboard for Places and Programmes/services assigned to your account.",
+          "route": "/my-directory",
+          "evidence": "My Directory; Manage My Resources; reviewed Save resources and Plans are not bookings topics",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    },
+    {
+      "id": "saved-list-privacy",
+      "title": "Who can see saved resources",
+      "facts": [
+        {
+          "id": "saved-list-privacy",
+          "title": "Who can see saved resources",
+          "keywords": [
+            "who can see my saved resources",
+            "is my directory private",
+            "saved list visible to others"
+          ],
+          "message": "My Directory loads the resources saved by your signed-in account; it is not a public list of everything you saved. A staff role alone does not grant another person a view of your whole saved list through My Directory or Guide chat. Publishing a Shared Map makes its selected snapshot available through that link, not your whole saved list. Review the shared snapshot before giving anyone its link.",
+          "route": "/my-directory",
+          "evidence": "server/src/controllers/favoritesController.js:216-224,329-338; server/src/controllers/myMapsController.js:757-841; docs/user-guide.md:20-21",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "directory-export-boundary",
+      "title": "Export all of My Directory",
+      "facts": [
+        {
+          "id": "directory-export-boundary",
+          "title": "Export all of My Directory",
+          "keywords": [
+            "export my whole my directory",
+            "export my entire my directory",
+            "download all saved resources",
+            "export all saved resources",
+            "download my directory as excel"
+          ],
+          "message": "I cannot verify a one-click export of every saved resource in My Directory. Export Map Assets belongs to an individual My Map and exports that map’s resource workbook, not your whole saved list. If you need a particular map’s list, open that owned map in My Directory and use Export Map Assets. Review the file before sharing it, especially if your map contains private planning places.",
+          "route": "/my-directory",
+          "evidence": "client/src/pages/MyDirectoryPage.jsx; client/src/components/MyMapExcelExportButton.jsx:6-63; client/src/lib/myMapExcelExporter.js:87-97; client/src/components/personalPlaces/PersonalPlacesSection.jsx",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "manage-listings",
+      "title": "Where to find listings assigned to you",
+      "paragraphs": [
+        "Sign in and open the dashboard, then choose Manage My Resources when that control is available to your account. Choose Places, Offerings or Groups to review the listings you can manage. My Directory is a separate page for resources you saved for your own use.",
+        "If Manage My Resources is missing, this account may not currently have resource-management access. Saving a listing or belonging to an organisation does not grant editing permission. Check the exact listing’s current controls or ask the responsible Owner or administrator to review your assignment; the Guide cannot grant access."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "manage",
+        "managed",
+        "assigned"
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-05",
+    "HC-07",
+    "HC-11"
+  ]
+}

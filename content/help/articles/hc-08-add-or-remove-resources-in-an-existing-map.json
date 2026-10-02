@@ -1,0 +1,112 @@
+{
+  "id": "HC-08",
+  "slug": "add-or-remove-resources-in-an-existing-map",
+  "title": "Add or remove resources in an existing map",
+  "summary": "Use the map’s resource selection to change this one map.",
+  "category": "my-maps",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/CreateMapModal.jsx:177-257,558-595",
+      "client/src/pages/MyMapDetailPage.jsx:2934-3004,3193-3254",
+      "Saved Resources; My Maps; docs/user-guide.md",
+      "client/src/pages/MyMapDetailPage.jsx:2934-2970; server/src/controllers/myMapsController.js:1107-1128; docs/regression-ledger.md:573-591",
+      "client/src/pages/MyMapDetailPage.jsx:2934-2970 (selection reconciled after individual changes and map reload)"
+    ]
+  },
+  "sections": [
+    {
+      "id": "update-map-resources",
+      "title": "Change this map’s collection",
+      "paragraphs": [
+        "Saving a Place or Programme/service adds it to My Directory. You choose separately whether to add it to a particular My Map. Use the map’s resource selection to change this one map."
+      ],
+      "steps": [
+        "Open a My Map you own and choose Manage resources.",
+        "Select resources to include and untick resources to leave out. Use the combined search and Save and add for another available listing if needed.",
+        "Review the selection and choose Update map.",
+        "Wait for the selection dialog to close, then check this map’s resource list. If an error remains, review the current selection before retrying."
+      ],
+      "notes": [
+        "Save and add saves immediately to My Directory; Update map applies the selected map membership.",
+        "Removing a resource from this map does not delete its public listing or automatically unsave it. Pin visibility is a separate presentation control.",
+        "A failed update can leave some additions or removals already applied. Check this map’s current collection before retrying; the error is not proof that nothing changed."
+      ],
+      "facts": [
+        {
+          "id": "map-resource-update-procedure",
+          "title": "Change this map’s collection",
+          "keywords": [
+            "manage resources in map",
+            "add saved resource to map",
+            "update map",
+            "map membership"
+          ],
+          "answerKind": "procedure",
+          "route": "/my-directory?section=my-maps",
+          "evidence": "client/src/components/CreateMapModal.jsx:177-257,558-595; client/src/pages/MyMapDetailPage.jsx:2934-3004,3193-3254",
+          "reviewed": "2026-10-02"
+        }
+      ]
+    },
+    {
+      "id": "map-membership",
+      "title": "Saved resources and map membership",
+      "facts": [
+        {
+          "id": "map-membership",
+          "title": "Saved resources and map membership",
+          "keywords": [
+            "saved but not on map",
+            "resource on my map",
+            "add to map",
+            "remove from map",
+            "map membership",
+            "still in my directory"
+          ],
+          "message": "Saving a resource adds it to My Directory. You choose separately whether to add it to a particular My Map. If a saved Programme/service is missing from a map, open My Directory → My Maps, choose that map and use its resource controls to add the Programme/service. Removing it from a map does not automatically unsave it from My Directory.",
+          "route": "/my-directory",
+          "evidence": "Saved Resources; My Maps; docs/user-guide.md",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    },
+    {
+      "id": "my-map-resource-removal",
+      "title": "Remove a resource from one My Map",
+      "facts": [
+        {
+          "id": "my-map-resource-removal",
+          "title": "Remove a resource from one My Map",
+          "keywords": [
+            "remove a place from my map",
+            "delete a place from my map",
+            "hide a place on my map",
+            "remove a resource from my map",
+            "hide a pin on my map"
+          ],
+          "message": "If you mean removing a resource from one of your My Maps, open that map and use its resource controls. This changes that map’s membership; it does not unsave the resource from My Directory or delete the public listing. If you mean hiding its pin in a Map Studio view instead, that is a presentation change and the resource card remains available, so check which result you want before editing.",
+          "route": "/my-directory",
+          "evidence": "client/src/pages/MyMapDetailPage.jsx:2934-2970; server/src/controllers/myMapsController.js:1107-1128; docs/regression-ledger.md:573-591",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-05",
+    "HC-07",
+    "HC-17"
+  ]
+}

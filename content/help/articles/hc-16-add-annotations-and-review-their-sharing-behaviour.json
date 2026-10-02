@@ -1,0 +1,143 @@
+{
+  "id": "HC-16",
+  "slug": "add-annotations-and-review-their-sharing-behaviour",
+  "title": "Add annotations and review their sharing behaviour",
+  "summary": "Understand the separate sharing rules for annotations, note rows and embeds.",
+  "category": "map-design-and-exports",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/ShareMapModal.jsx:139-160,456-514",
+      "server/src/controllers/printAnnotationsController.js:143-160",
+      "server/src/utils/embeddedMapPresentation.js:147-156",
+      "server/src/controllers/sharedMapsController.js:342-402; server/src/controllers/printAnnotationsController.js:143-160; client/src/pages/EmbeddedMapPage.jsx:258-276",
+      "client/src/pages/MyMapDetailPage.jsx:293-374,1727-1736,3256-3292,3543-3557; client/src/components/PrintAnnotationToolbar.jsx:57-118,279-301,522-605",
+      "client/src/hooks/useInteractiveMapAnnotationEditor.jsx:60-128,155-210; client/src/hooks/usePrintAnnotations.js:123-191; client/src/lib/printAnnotations.js:197,294-301",
+      "client/src/components/ShareMapModal.jsx:111-124,444-508; server/src/controllers/myMapsController.js:829-841; server/src/controllers/printAnnotationsController.js:145-152; client/src/pages/EmbeddedMapPage.jsx:261-270"
+    ]
+  },
+  "sections": [
+    {
+      "id": "draw-annotation-steps",
+      "title": "Draw and save an annotation on your own map",
+      "paragraphs": [
+        "Use annotations to draw a line, box, circle or boundary on a My Map you own. Sign in and use a desktop with a mouse or another fine pointer; the current editor is not available for ordinary phone touch input."
+      ],
+      "steps": [
+        "Open My Directory → My Maps and choose your own map.",
+        "Choose Edit content → Annotations and wait for the annotation editor to be ready.",
+        "Choose Draw line, Draw box, Draw circle or Draw boundary.",
+        "For a line, click its start and end points. For a box, click opposite corners. For a circle, click its centre and outer edge. For a boundary, click at least three points, then select Done drawing or press Enter.",
+        "Choose Select or adjust and select the annotation to adjust its handles or appearance. You can use Move annotation or Rotate annotation, or add an optional Note inside shape. Click outside the text field to finish that text edit.",
+        "Wait until the toolbar says Saved, then close the annotation editor."
+      ],
+      "notes": [
+        "New annotations are private unless you mark them for sharing and explicitly publish or update the shared snapshot. Drawing does not create a Personal place or a public resource listing.",
+        "Use Undo to reverse a completed change. Select an annotation and use Delete annotation to remove it; wait for Saved again.",
+        "If Annotations is unavailable, check that this is your own map, that the annotation data has loaded and that you are using a suitable desktop pointer. Normal phone/touch creation is not currently offered.",
+        "Pending, Saving... or Save failed is not confirmation of a saved annotation. Closing starts a save attempt but does not guarantee success. If Save failed persists, keep the editor open and resolve the connection problem or submit a support report before relying on or publishing the drawing."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "annotation",
+        "annotations",
+        "draw line",
+        "draw box",
+        "draw circle",
+        "draw boundary"
+      ]
+    },
+    {
+      "id": "share-annotation-steps",
+      "title": "Choose which saved annotations become public",
+      "paragraphs": [
+        "Annotation sharing is separate from resource-note sharing. Only use text and drawings intended for public link recipients."
+      ],
+      "steps": [
+        "Open the annotation editor on your own map, select the annotation and review its text and location.",
+        "Turn on Share this annotation for each item you intend to publish; leave private items switched off. Wait for Saved.",
+        "Open Share. If this map already has a shared link, review Include annotations and its count. Changing this control selects all saved annotations or none; leaving it unchanged keeps your individual choices.",
+        "Select Publish share link for a new public snapshot or Update shared link for an existing one.",
+        "Preview the actual published or embedded view that you intend to send before sharing its link."
+      ],
+      "notes": [
+        "Owner edits and sharing switches do not automatically refresh an existing published snapshot. Update the shared link after changing which annotations should be public.",
+        "Published website embeds can display shared annotations read-only, but a selected Map Studio presentation can hide them. Do not assume every ordinary Shared Map screen displays the same overlay.",
+        "Resource notes are omitted from website-embed resource rows. A Personal place’s privacy rules are separate from annotation sharing, so do not draw or label private locations that you do not want public recipients to see."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "share annotation",
+        "share annotations",
+        "shared annotation",
+        "shared annotations",
+        "include annotations",
+        "embed annotations"
+      ]
+    },
+    {
+      "id": "annotation-boundary",
+      "title": "Review annotations before sharing",
+      "paragraphs": [
+        "Resource notes and print annotations have separate sharing controls. In Share, review Include annotations before publishing or updating the snapshot. The embedded result should be previewed because its selected presentation can hide annotation overlays."
+      ],
+      "notes": [
+        "Use only information intended for recipients. Do not put identity numbers, medical records or sensitive case details into shared drawings or labels.",
+        "A personal place’s privacy rule is separate from an annotation’s sharing setting."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "map",
+        "maps",
+        "print",
+        "annotation",
+        "annotations",
+        "embed",
+        "website"
+      ]
+    },
+    {
+      "id": "embedded-map-notes",
+      "title": "Notes in an embedded Shared Map",
+      "facts": [
+        {
+          "id": "embedded-map-notes",
+          "title": "Notes in an embedded Shared Map",
+          "queryRequiresAny": [
+            "map",
+            "embed",
+            "embedded",
+            "website",
+            "print"
+          ],
+          "keywords": [
+            "notes in embedded map",
+            "private notes in embed",
+            "visitors see notes on website",
+            "embedded resource notes",
+            "embed print annotations"
+          ],
+          "message": "The embedded Shared Map response omits My Map resource notes from its resource rows, including notes marked for sharing. Print annotations are a separate control: only annotations included in the published embed snapshot can appear as an overlay. Preview the actual embed before sharing it; the regular Shared Map page has different note controls.",
+          "route": "/my-directory",
+          "evidence": "server/src/controllers/sharedMapsController.js:342-402; server/src/controllers/printAnnotationsController.js:143-160; client/src/pages/EmbeddedMapPage.jsx:258-276",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-14",
+    "HC-15"
+  ]
+}

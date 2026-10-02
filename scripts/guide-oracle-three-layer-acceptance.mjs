@@ -95,7 +95,7 @@ const productCases = [
     ['Organisation Workspace how-to is sourced', 'How does Organisation Workspace work?', 'organization-workspace', [/Staff can view.*Admin can manage/s]],
     ['governance groups differ from public groups', 'What is a governance coordination group?', 'governance-group-overview', [/separate from public Resource Groups.*Org Group.*Region Group/s]],
     ['Org Group path is sourced', 'How are Org Groups created?', 'governance-org-group', [/Organisation Workspace.*Org Groups.*New Group/s]],
-    ['Region Group path is sourced', 'How are Region Groups created?', 'governance-region-group', [/Only Super Admin.*Admin.*Region Groups/s]],
+    ['Region Group current navigation limitation is sourced', 'How are Region Groups created?', 'governance-region-group', [/current Admin navigation does not expose a Region Groups tab/i]],
     ['governance member access is separate from creation', 'How do I add a member to an Org Group?', 'governance-group-membership', [/Group access.*Org Group member.*server checks the exact group/s]],
     ['governance archive is not public Group deletion', 'Can I archive a governance group?', 'governance-group-overview', [/Archived status.*cannot archive a group/s]],
     ['Region layers do not imply operational routing', 'How do I configure Regions?', 'region-boundary-layers', [/Only Subregion postcodes route.*Replace listed subregions removes existing codes/s]],

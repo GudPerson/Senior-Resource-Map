@@ -1,0 +1,98 @@
+{
+  "id": "HC-27",
+  "slug": "verify-or-link-a-phone-using-the-available-account-controls",
+  "title": "Verify or link a phone using the available account controls",
+  "summary": "Review saved-phone and verification states using the available Profile controls.",
+  "category": "account-and-display",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "client/src/components/PhoneVerificationPanel.jsx:293-352,483-632",
+      "client/src/components/PhoneVerificationPanel.jsx:293-352,483-632; client/src/lib/phoneVerificationPanelState.js:1-40; client/src/pages/dashboard/ProfilePage.jsx:330-337; client/src/locales/en.js:980-1023,1062"
+    ]
+  },
+  "sections": [
+    {
+      "id": "verify-profile-phone-steps",
+      "title": "Verify your saved phone with WhatsApp",
+      "paragraphs": [
+        "Sign in and open your own Profile. A phone number typed into the form is not yet a verified WhatsApp identity; save the correct number before starting verification."
+      ],
+      "steps": [
+        "Open dashboard → Profile and check the Phone number field.",
+        "If the number needs changing, enter it and select Save changes. Recheck the saved number before continuing.",
+        "In the phone verification panel, select Verify with WhatsApp. If you changed an already linked number, use Verify new WhatsApp number when that is the action shown.",
+        "Follow the WhatsApp instructions for that verification attempt. If WhatsApp did not open, use Open WhatsApp when it is available.",
+        "Return to Profile and keep the page open while verification is checked. If the panel is still waiting, select Check again when offered.",
+        "Read the result in the panel. Completion is shown as WhatsApp phone verified; an unsuccessful or pending result is not verification."
+      ],
+      "notes": [
+        "Do not start several attempts at once or paste verification messages or codes into Guide chat or a support report.",
+        "For a failed or expired attempt, use Try again when the panel offers it. If it says Needs help, follow the displayed reason and contact CareAround support rather than repeatedly starting verification; Refresh status is available for those review states.",
+        "Changing the Profile phone does not immediately replace a previously verified phone. The panel can show the current verified phone and a new saved phone separately until the new verification succeeds.",
+        "If a Profile save reports an error, reopen Profile and check the saved number before verifying. The Guide cannot complete verification for you."
+      ],
+      "queryRequiresAny": [
+        "phone verification",
+        "verify phone",
+        "whatsapp verification",
+        "verified phone",
+        "link phone"
+      ],
+      "facts": []
+    },
+    {
+      "id": "remove-whatsapp-link-steps",
+      "title": "Remove an existing verified WhatsApp link",
+      "paragraphs": [
+        "Use this only if the phone verification panel shows Remove verified WhatsApp link. Read the consequence before confirming."
+      ],
+      "steps": [
+        "Open your own Profile and check the current verified phone in the verification panel.",
+        "Select Remove verified WhatsApp link.",
+        "Read the confirmation: removing WhatsApp verification does not delete your account or its contact number. Cancel if you do not want to unlink.",
+        "To proceed, select Remove verified WhatsApp link in the confirmation, then check the panel’s updated status."
+      ],
+      "notes": [
+        "If the app says to add a recovery email and password before unlinking, complete the required recovery setup first. The Guide cannot bypass this requirement or unlink the phone in chat.",
+        "If unlinking reports an error, check the current status before retrying. Saving a contact number, verifying it and removing its WhatsApp link are separate account actions."
+      ],
+      "queryRequiresAny": [
+        "whatsapp link",
+        "unlink whatsapp",
+        "phone verification",
+        "verified phone",
+        "remove phone link"
+      ],
+      "facts": []
+    },
+    {
+      "id": "phone-verification",
+      "title": "Use the phone controls shown in Profile",
+      "paragraphs": [
+        "Save the phone number in Profile before starting its available verification action. Follow the WhatsApp prompt and return to the app to review its verification status. The panel offers different controls for pending, failed, expired or changed numbers; use the action shown for your current status."
+      ],
+      "notes": [
+        "Avoid starting several attempts at once. Do not paste verification messages or codes into Guide chat or a support report.",
+        "A phone saved in Profile and a verified sign-in identity are related but separate states. Read the current panel status before assuming verification is complete.",
+        "If the app requires manual review or a recovery method, follow that message or report the access problem. The Guide cannot verify or unlink the phone for you."
+      ],
+      "facts": []
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-02",
+    "HC-25",
+    "HC-32"
+  ]
+}

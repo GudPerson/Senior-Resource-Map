@@ -1,0 +1,105 @@
+{
+  "id": "HC-43",
+  "slug": "use-permitted-restricted-notes-and-files",
+  "title": "Use permitted restricted notes and files",
+  "summary": "Use only authorised content and review its additional read-only viewers.",
+  "category": "resource-management",
+  "audiences": [
+    "resource owner",
+    "resource staff",
+    "admin"
+  ],
+  "visibility": "resource-manager",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "client/src/components/PrivateResourceContentEditor.jsx:39-118,141-230",
+      "client/src/components/PrivateResourceContentEditor.jsx:39-137,139-267; client/src/components/AssetForm.jsx:1339-1349,2163-2173"
+    ]
+  },
+  "sections": [
+    {
+      "id": "save-restricted-notes-and-viewers",
+      "title": "Save restricted notes and review additional read-only viewers",
+      "paragraphs": [
+        "The resource must already be saved, and you must have permission to edit its restricted content. Viewing a restricted Help article does not by itself grant access to every resource’s private material."
+      ],
+      "steps": [
+        "Open Manage My Resources and Edit on the exact saved Place or standard Offering that you may edit.",
+        "Open Restricted and review Restricted notes and files. If the panel cannot load or permission is denied, stop and request review of the exact resource assignment.",
+        "Enter or update only the Restricted notes you are authorised to share with the resource’s permitted viewers.",
+        "Review Additional read-only viewers and choose only the intended eligible accounts. Resource editors already have access; selecting All adds currently eligible accounts as explicit read-only viewers.",
+        "Select Save Restricted Content and wait for Restricted content saved. Reopen the permitted panel to check the notes and viewer selection."
+      ],
+      "notes": [
+        "Additional read-only viewers do not gain resource editing rights. These notes are separate from My Map personal notes and Guide history.",
+        "Save Restricted Content is its own saved action; Save Place or Save Offering is not a substitute for saving the notes/viewer selection.",
+        "Review the sharing scope before choosing All. Do not assume it includes every platform account or grants access to future accounts.",
+        "Keep secrets, credentials and unnecessary personal information out of operating notes. Do not paste restricted text or attachments into the Guide.",
+        "If saving fails, retain the error without copying sensitive note contents into a report and check the current permission before retrying."
+      ],
+      "queryRequiresAny": [
+        "restricted",
+        "private",
+        "file",
+        "attachment"
+      ],
+      "facts": []
+    },
+    {
+      "id": "upload-or-remove-private-resource-file",
+      "title": "Upload or remove an authorised private resource file",
+      "paragraphs": [
+        "Use the exact resource’s permitted Restricted panel and only material approved for its authorised viewers. Upload and file removal are separate saved actions."
+      ],
+      "steps": [
+        "Open the saved resource’s Restricted → Private files panel and review its permitted viewer scope.",
+        "Select Upload and choose a supported PDF, JPG, PNG, WEBP or HEIC file of no more than 10 MB.",
+        "Wait for Private file uploaded and check the resulting file list or permitted preview. An upload error is not confirmation that the file was stored.",
+        "To remove a file, check the exact filename and select its Delete private file control only when removal is intended. This starts removal immediately; wait for Private file removed and verify the updated list."
+      ],
+      "notes": [
+        "Save Restricted Content submits notes and viewer selection. Upload and Delete private file do not wait for that button, and closing the editor does not undo a completed file action.",
+        "File previews require a server permission check. A resource link or knowledge that a file exists does not grant permission to retrieve it.",
+        "If a file is too large or unsupported, prepare a permitted format/size rather than uploading it through another public field. Check the failure message if preview or upload fails.",
+        "No file-recovery control is promised by these steps. Keep approved originals in the authorised operational system when needed.",
+        "Do not share private file links, restricted screenshots or attachment contents in the Guide or public help."
+      ],
+      "queryRequiresAny": [
+        "restricted",
+        "private",
+        "file",
+        "attachment"
+      ],
+      "facts": []
+    },
+    {
+      "id": "restricted-content",
+      "title": "Keep restricted notes and files within permitted access",
+      "paragraphs": [
+        "Save the resource before adding restricted notes and files. In its permitted restricted-content editor, review Restricted notes and Additional read-only viewers, then save. File upload is a separate action; inspect the resulting notice and file list."
+      ],
+      "notes": [
+        "Resource editors already have access. Explicit read-only viewers do not gain editing rights. Guests, basic users and unauthorised accounts cannot view the restricted content.",
+        "The editor accepts PDF, JPG, PNG, WEBP or HEIC files up to 10 MB each. Only upload material you are authorised to share with the permitted viewers.",
+        "These are resource-operating notes, not My Map personal notes or Guide history."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "restricted",
+        "private",
+        "file",
+        "attachment"
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-29",
+    "HC-33",
+    "HC-32"
+  ]
+}

@@ -1,0 +1,255 @@
+{
+  "id": "HC-39",
+  "slug": "create-or-manage-public-resource-groups",
+  "title": "Create or manage public Resource Groups",
+  "summary": "Maintain a public collection without changing its member listings’ ownership.",
+  "category": "resource-management",
+  "audiences": [
+    "resource owner",
+    "resource staff",
+    "admin"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "Resource Groups; Coordination groups; Accounts & access",
+      "client/src/pages/dashboard/ResourcesPage.jsx:2385-2423; client/src/components/GroupAssetForm.jsx:169-175,489-571; server/src/controllers/softAssetsController.js:1080-1195",
+      "client/src/pages/dashboard/ResourcesPage.jsx:3038-3131,3590-3625; client/src/components/GroupAssetForm.jsx:524-571; server/src/controllers/softAssetsController.js:1354-1421,1456-1507",
+      "server/src/controllers/softAssetsController.js:1354-1421,1456-1507; client/src/lib/resourceListLoading.js:70-74; client/src/components/GroupAssetForm.jsx:66-88",
+      "client/src/components/GroupAssetForm.jsx:785-859; server/src/controllers/softAssetsController.js:1080-1195,1456-1507",
+      "client/src/components/GroupAssetForm.jsx:785-865; reviewed Resource Group and governance-group distinctions",
+      "server/src/utils/guideCompositeQuestions.js:77-100 at b8345be4d2f7a097e81cb03eef64b473abd0cec9; public refusal summaries only",
+      "client/src/components/GroupAssetForm.jsx:489-571,599-772,785-934,1195-1214; client/src/pages/dashboard/ResourcesPage.jsx:2390-2423,3110-3136",
+      "server/src/controllers/softAssetsController.js:1080-1195,1354-1421,1456-1507"
+    ]
+  },
+  "sections": [
+    {
+      "id": "create-public-resource-group",
+      "title": "Create a Resource Group of existing public listings",
+      "paragraphs": [
+        "A Resource Group is a directory collection of eligible public Places and Offerings. People belong in its separate Owner/Staff access controls, not as the collection’s resource members. Use New Group only when your account has the required permission."
+      ],
+      "steps": [
+        "Open Dashboard → Manage My Resources and select New Group if available.",
+        "In Profile, enter Group name, choose Category and add a public description and approved public contact/website details.",
+        "Open Visibility and review Who can see this? Choose Public or Target region/s. For Target region/s, search and select the intended existing Regions. Review Hide from public Discover.",
+        "Open Access and review Group Owner / Staff. Ensure at least one eligible account has Role → Owner; use Add access only for the intended additional operators.",
+        "Open Members, use Search places and offerings, and select the intended eligible public resource results. Check the selected member list and its readiness indication.",
+        "Select Preview and review the collection, audience, owner and members. Correct anything wrong, then select Save Group.",
+        "Wait for success and check the saved Group. A Group without an Owner or eligible public members is not ready for Discover."
+      ],
+      "notes": [
+        "Adding another provider’s eligible public listing does not transfer its ownership or grant permission to edit that member listing.",
+        "Members must be eligible public, non-hidden resources. If no members are available, check the resource’s visibility and the loading/error message rather than adding private or hidden records.",
+        "Target region/s limits where the Group is shown, not a staff role. This editor has no staff-only audience, and Group membership does not change the visibility of the member listings.",
+        "An Org Group or Region Group of people is a separate coordination workflow. Do not create a public Resource Group as a substitute for a private staff group.",
+        "If New Group or an Owner account is unavailable, ask an authorised resource administrator to review the exact permission. The Guide cannot create Groups in chat."
+      ],
+      "queryRequiresAny": [
+        "new group",
+        "create resource group",
+        "public resource group",
+        "group collection"
+      ],
+      "facts": []
+    },
+    {
+      "id": "maintain-public-resource-group",
+      "title": "Edit a Resource Group’s details, audience or resource members",
+      "paragraphs": [
+        "You need permission to edit the exact Group. Managing a member listing or having coordination-group membership does not by itself grant this Group’s editing rights."
+      ],
+      "steps": [
+        "Open Manage My Resources → Groups and choose Edit on the exact Group if available.",
+        "Review Profile and Visibility. Keep only approved public details and choose the intended Public or Target region/s audience.",
+        "Open Members and review the selected Places/Offerings. Search eligible public resources to add a member, or remove a selected member when intended.",
+        "Select Preview and check the resulting collection, audience and visibility, then select Save Group.",
+        "Wait for the update and reopen the Group to verify it. If a save fails, review its error and current members before trying again."
+      ],
+      "notes": [
+        "Editing the Group’s selected members does not edit or delete the member resources themselves and does not transfer their ownership.",
+        "The saved Group’s Access panel uses its separate permission-checked Add access and Remove actions. These actions save independently of profile edits.",
+        "If the intention is to hide or delete the collection, use the related visibility article. Do not use a public Group Delete control to archive a governance coordination group.",
+        "No staff-only audience is offered in this public Resource Group editor. The Guide cannot edit the collection or its members for you."
+      ],
+      "queryRequiresAny": [
+        "group"
+      ],
+      "facts": []
+    },
+    {
+      "id": "resource-groups",
+      "title": "Resource Groups",
+      "facts": [
+        {
+          "id": "resource-groups",
+          "title": "Resource Groups",
+          "keywords": [
+            "resource group",
+            "group resources",
+            "coordination team",
+            "collection of directory listings"
+          ],
+          "message": "A Resource Group collects existing public Places and offerings, such as Programmes and services, into one directory collection. A governance coordination group is a different kind of group; membership there does not by itself grant editing rights to a resource.",
+          "route": "/dashboard/resources",
+          "evidence": "Resource Groups; Coordination groups; Accounts & access",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    },
+    {
+      "id": "group-create",
+      "title": "Create a Resource Group",
+      "facts": [
+        {
+          "id": "group-create",
+          "title": "Create a Resource Group",
+          "keywords": [
+            "how do i create a resource group",
+            "create a resource group",
+            "make a resource group",
+            "new group",
+            "add a group to manage my resources"
+          ],
+          "message": "If New Group is available to your account, open Manage My Resources and choose New Group. Give the Group a name, choose its audience and owner, select existing public Places or offerings as members, review the preview, then save. A Group without an owner or public members is not ready for Discover. This is a Resource Group, not a governance coordination group; your account and selected scope are checked when saving.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/pages/dashboard/ResourcesPage.jsx:2385-2423; client/src/components/GroupAssetForm.jsx:169-175,489-571; server/src/controllers/softAssetsController.js:1080-1195",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "group-edit",
+      "title": "Edit a Resource Group",
+      "facts": [
+        {
+          "id": "group-edit",
+          "title": "Edit a Resource Group",
+          "keywords": [
+            "how do i edit a resource group",
+            "edit a resource group",
+            "change resource group members",
+            "add a place to a resource group",
+            "remove a programme from a resource group",
+            "edit group members"
+          ],
+          "message": "Open Manage My Resources and choose Groups. On a Group you are allowed to edit, choose Edit to change its details or selected members, review the updated preview, then save. Members must be eligible public, non-hidden resources. If Edit is not shown for that Group, this Guide cannot grant access. Changes to a governance coordination group use a separate workflow.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/pages/dashboard/ResourcesPage.jsx:3038-3131,3590-3625; client/src/components/GroupAssetForm.jsx:524-571; server/src/controllers/softAssetsController.js:1354-1421,1456-1507",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "group-other-provider-members",
+      "title": "Another provider’s listing in a Resource Group",
+      "facts": [
+        {
+          "id": "group-other-provider-members",
+          "title": "Another provider’s listing in a Resource Group",
+          "keywords": [
+            "group include another provider",
+            "group include another organisation",
+            "group include another organization",
+            "another provider place in resource group"
+          ],
+          "message": "A Resource Group can include an eligible public, non-hidden Place or Offering from another provider. Adding that listing to a Group does not transfer its ownership or give the Group manager permission to edit the member listing. You still need permission to edit the Group itself; check the exact Group in Manage My Resources before changing its members.",
+          "route": "/dashboard/resources",
+          "evidence": "server/src/controllers/softAssetsController.js:1354-1421,1456-1507; client/src/lib/resourceListLoading.js:70-74; client/src/components/GroupAssetForm.jsx:66-88",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "group-target-regions",
+      "title": "Target Regions for a Resource Group",
+      "facts": [
+        {
+          "id": "group-target-regions",
+          "title": "Target Regions for a Resource Group",
+          "queryRequiresAny": [
+            "group"
+          ],
+          "keywords": [
+            "group target regions",
+            "resource group visible only in regions",
+            "target my resource group to certain regions"
+          ],
+          "message": "In a Resource Group’s Visibility step, choose Public for everyone or Target region/s and select existing Regions. A target-region Group is shown only when the viewer is inside a selected Region boundary. The selected scope and your permission to change that Group are checked when saving; this does not change the visibility or ownership of its member listings.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/components/GroupAssetForm.jsx:785-859; server/src/controllers/softAssetsController.js:1080-1195,1456-1507",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "group-staff-visibility",
+      "title": "Resource Group staff-only visibility boundary",
+      "facts": [
+        {
+          "id": "group-staff-visibility",
+          "title": "Resource Group staff-only visibility boundary",
+          "keywords": [
+            "resource group staff only",
+            "group visible only to staff",
+            "private staff resource group"
+          ],
+          "message": "The current Resource Group Visibility step offers Public or Target region/s, not a staff-only audience. Target Regions limit where a Group is shown, not which staff role can view it. I cannot make a public Resource Group staff-only. If you mean a governance Org Group of people, that is a separate workflow.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/components/GroupAssetForm.jsx:785-865; reviewed Resource Group and governance-group distinctions",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "public-and-coordination-group-boundary",
+      "title": "Resource Groups and coordination groups are separate",
+      "facts": [
+        {
+          "id": "public-group-people-boundary",
+          "title": "Resource Groups and coordination groups are separate",
+          "keywords": [
+            "people resource group",
+            "org groups region groups",
+            "members public group"
+          ],
+          "message": "A public Resource Group collects existing eligible Places and Programmes/services as members; people are not added as its members. Org Groups and Region Groups are separate governance coordination groups, with separately checked access. The Guide cannot create either Group or add people in chat.",
+          "route": "/help",
+          "evidence": "server/src/utils/guideCompositeQuestions.js:77-79 at b8345be4d2f7a097e81cb03eef64b473abd0cec9; public Resource Group domain boundary",
+          "reviewed": "2026-10-02"
+        }
+      ]
+    },
+    {
+      "id": "governance-archive-boundary",
+      "title": "The Guide does not archive a coordination group",
+      "facts": [
+        {
+          "id": "governance-archive-chat-boundary",
+          "title": "The Guide does not archive a coordination group",
+          "keywords": [
+            "archive org group members",
+            "archive coordination group",
+            "archive region group"
+          ],
+          "message": "A governance group has an Archived status, but the Guide cannot archive it in chat or verify that its members will remain visible after that change. Ask for your own current access check before opening the relevant permitted workspace.",
+          "route": "/help",
+          "evidence": "server/src/utils/guideCompositeQuestions.js:98-100 at b8345be4d2f7a097e81cb03eef64b473abd0cec9; permission-checked governance lifecycle boundary",
+          "reviewed": "2026-10-02"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-33",
+    "HC-35",
+    "HC-37"
+  ]
+}

@@ -1,0 +1,235 @@
+{
+  "id": "HC-32",
+  "slug": "report-a-problem-use-inbox-and-recover-a-guest-report",
+  "title": "Report a problem, use Inbox and recover a guest report",
+  "summary": "Report an app issue, follow replies and check current in-app notification limits.",
+  "category": "guide-and-support",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "Reviewed Guide topic: support",
+      "server/src/routes/guideActions.js:119-224; client/src/features/support/NotificationPanel.jsx:43-77; client/src/pages/dashboard/ProfilePage.jsx:541-575; server/src/utils/governance.js:258-262",
+      "server/src/utils/governance.js:6-7,258-262; server/src/controllers/governanceController.js:1967-2008; server/src/utils/notificationRepository.js:8-14,31-52; client/src/pages/dashboard/ProfilePage.jsx:541-575; client/src/locales/en.js:1091-1092",
+      "client/src/features/support/NotificationPanel.jsx:43-77; client/src/pages/SupportHubPage.jsx:25-68; server/src/utils/notificationDomain.js:40-115; server/src/utils/notificationProcessor.js:8-48",
+      "client/src/features/support/SupportReportComposer.jsx:5-69; client/src/pages/SupportHubPage.jsx:11-89; client/src/features/support/SupportInbox.jsx:11-136; client/src/features/support/NotificationPanel.jsx:43-95; client/src/pages/dashboard/ProfilePage.jsx:541-575; client/src/locales/en.js:1076-1092"
+    ]
+  },
+  "sections": [
+    {
+      "id": "support-report-steps",
+      "title": "Write, review and send an app problem report",
+      "paragraphs": [
+        "You can submit an app problem report while signed in or as a guest. Exit User View before using the support inbox or report form. Keep the report about the app issue."
+      ],
+      "steps": [
+        "Open Help and select Report a problem.",
+        "Enter a Short title and describe What happened?. Add What did you expect? (optional) if it helps explain the issue.",
+        "Choose whether to Include the page where I opened Help (page name only). It is off unless you select it.",
+        "Select Review before sending. Read the exact text that will be saved and check for private information. Select Edit report if it needs changing.",
+        "If reporting as a guest, select Show code to copy and keep the private recovery code somewhere safe. Select I have saved my recovery code somewhere private before sending. Also remember it in this browser tab is optional.",
+        "Select Send report to submit the reviewed report.",
+        "Check the conversation opened in Inbox. Use that conversation to follow replies and progress."
+      ],
+      "notes": [
+        "The support team can read submitted reports. No screenshot is captured automatically, and unrelated Guide questions are not copied into a report draft you chose from chat.",
+        "Keep passwords, verification codes, identity numbers, medical details and private links out of the report. Automatic removal of recognisable links and credential-like text does not replace your own review.",
+        "A guest code gives anyone who has it access to read and reply for 30 days after the report is created. CareAround cannot recover a lost code for you; do not put it in another report.",
+        "If sending reports an error, your draft remains available. Check the Inbox for the report before retrying. A reviewed draft has not yet been submitted."
+      ],
+      "queryRequiresAny": [
+        "support",
+        "report",
+        "inbox",
+        "bug",
+        "app problem"
+      ],
+      "facts": []
+    },
+    {
+      "id": "support-inbox-follow-up-steps",
+      "title": "Read replies and resolve or reopen your report",
+      "paragraphs": [
+        "Use the account that submitted the report, or recover the guest report with its private code. Account reports are available only to you and authorised support reviewers."
+      ],
+      "steps": [
+        "Open Help → Inbox. For an account inbox, select Messages.",
+        "Select the report by its title. Use Refresh inbox if you need to refresh the list; Load older reports appears when another page is available.",
+        "Read its messages and status. Use Load newer messages when offered, and select Mark shown messages read after reading the messages displayed.",
+        "If a reply is needed, enter Your reply and select Send reply. Keep it about the app issue and leave private details out.",
+        "When the problem is fixed for you, select Mark resolved. If a fix-available update has not solved it, select Problem remains — reopen instead.",
+        "If an already resolved problem returns, open its report and select Reopen report. Check the updated status before continuing the conversation."
+      ],
+      "notes": [
+        "An unresolved report offers the reply form; reopen a resolved report before adding a new reply. Marking shown messages read does not claim that unseen messages were read.",
+        "Use Refresh conversation to check current replies and status. If an action reports an error, refresh before retrying.",
+        "A proposed fix still needs human approval and release verification before a fix-available update. A support status is not a promise that your reported behaviour has already been fixed."
+      ],
+      "queryRequiresAny": [
+        "support",
+        "report",
+        "inbox",
+        "bug",
+        "app problem"
+      ],
+      "facts": []
+    },
+    {
+      "id": "recover-guest-report-steps",
+      "title": "Open a guest report using its private recovery code",
+      "paragraphs": [
+        "Use the complete private recovery code you saved before submitting the guest report. You do not need to sign in to recover it, and the code is not an account sign-in credential."
+      ],
+      "steps": [
+        "Open Help and select Inbox. If you are signed in, stay on Messages.",
+        "Open Recover a guest report. It is already expanded when you are not signed in and no guest report is open.",
+        "Enter your complete code in Private recovery code and select Open guest report.",
+        "Check the guest-report banner and select the recovered report to read or reply. Opening a guest report while signed in does not attach it to your account.",
+        "When finished, select Close and forget this code if you are a guest, or Return to account inbox if you are signed in. This clears the remembered code from this browser tab."
+      ],
+      "notes": [
+        "Codes expire 30 days after the report is created, even if you reopen it later. Anyone with the code can read and reply, so keep it private.",
+        "If the code is incomplete, use the full saved code. If it is lost or expired, the app cannot recover it for you; submit a new report without exposing the old code.",
+        "Close and forget this code or Return to account inbox closes guest access in this tab; it does not delete the report or attach it to an account."
+      ],
+      "queryRequiresAny": [
+        "guest report",
+        "guest code",
+        "recovery code",
+        "recover report",
+        "support report"
+      ],
+      "facts": []
+    },
+    {
+      "id": "saved-resource-notification-steps",
+      "title": "Choose saved-resource updates in your private Inbox",
+      "paragraphs": [
+        "Sign in to use account Updates. Saved-resource notifications, calendar review decisions and support Messages are separate parts of the app."
+      ],
+      "steps": [
+        "Open Help → Inbox and select Updates.",
+        "Open Notification preferences and enable Saved schedule changes or Saved resource changes as needed. Each choice is saved when you change its checkbox.",
+        "If the panel says in-app notifications are disabled in Profile, select Open Profile. Under Pilot preferences, enable In-app and select Save notification preferences.",
+        "Return to Inbox → Updates → Notification preferences. If a resource you want to hear about is under Muted resources, select Unmute for that resource.",
+        "Use Refresh updates to check your current Inbox. Open the relevant resource or calendar action on an update before deciding what to change."
+      ],
+      "notes": [
+        "Checks run after changes rather than promising an instant alert. Enabling a category or unmuting starts from current information and does not produce catch-up alerts.",
+        "These choices do not move My Plans entries or register you with a provider. The Guide can explain them but cannot change them from chat.",
+        "Email, WhatsApp and SMS choices in Profile record preferences only in the current pilot; external delivery remains disabled. Inbox updates do not send device push messages.",
+        "If preference saving reports an error, reload the controls and check the stored choices before retrying."
+      ],
+      "queryRequiresAny": [
+        "notification",
+        "notifications",
+        "saved schedule changes",
+        "saved resource changes",
+        "inbox updates",
+        "alerts",
+        "mute"
+      ],
+      "facts": []
+    },
+    {
+      "id": "help-support",
+      "title": "Report a problem and follow its progress",
+      "facts": [
+        {
+          "id": "help-support",
+          "title": "Report a problem and follow its progress",
+          "keywords": [
+            "bug",
+            "report",
+            "broken",
+            "support",
+            "fix",
+            "not working",
+            "inbox"
+          ],
+          "message": "Describe what happened and what you expected, review the report, then submit it. Replies and progress updates stay in your inbox. A proposed fix needs human approval and release verification before a fix-available update is sent. You can confirm it is resolved or reopen it if the problem remains.",
+          "route": "/help?tab=report",
+          "evidence": "Reviewed Guide topic: support",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    },
+    {
+      "id": "guide-notification-controls",
+      "title": "Changing notification preferences outside Guide chat",
+      "facts": [
+        {
+          "id": "guide-notification-controls",
+          "title": "Changing notification preferences outside Guide chat",
+          "keywords": [
+            "guide enable notifications",
+            "turn on alerts for me",
+            "can you mute notifications",
+            "guide change notification preferences"
+          ],
+          "message": "The Guide can explain notification controls, but cannot change your preferences, mute or unmute resources, or enable message delivery from chat. To choose saved-resource updates, open Inbox → Updates → Notification preferences. For schedule changes, enable Saved schedule changes there, enable in-app notifications in Profile, and make sure that resource is not muted. Email, WhatsApp and SMS preferences do not enable external delivery in the current pilot. The Guide has not changed any setting and cannot confirm your current preferences or that an alert has fired from this general question.",
+          "route": "/help?tab=inbox",
+          "evidence": "server/src/routes/guideActions.js:119-224; client/src/features/support/NotificationPanel.jsx:43-77; client/src/pages/dashboard/ProfilePage.jsx:541-575; server/src/utils/governance.js:258-262",
+          "reviewed": "2026-10-01"
+        }
+      ]
+    },
+    {
+      "id": "notification-delivery-channels",
+      "title": "In-app and external notification channels",
+      "facts": [
+        {
+          "id": "notification-delivery-channels",
+          "title": "In-app and external notification channels",
+          "keywords": [
+            "in-app updates",
+            "email notifications",
+            "whatsapp alerts",
+            "sms alerts",
+            "notification channels",
+            "external delivery"
+          ],
+          "message": "In-app Updates and external messages are different. In the current CareAround notification pilot, email, WhatsApp and SMS choices in Profile record preferences only; external delivery remains disabled even when those choices are enabled. For a saved Programme schedule update, open Inbox → Updates and enable Saved schedule changes in Notification preferences. Profile in-app notifications must be enabled and that resource must not be muted. The Guide cannot confirm that a particular alert has fired from this general question. WhatsApp sign-in and contacting a provider are separate workflows.",
+          "route": "/help?tab=inbox",
+          "evidence": "server/src/utils/governance.js:6-7,258-262; server/src/controllers/governanceController.js:1967-2008; server/src/utils/notificationRepository.js:8-14,31-52; client/src/pages/dashboard/ProfilePage.jsx:541-575; client/src/locales/en.js:1091-1092",
+          "reviewed": "2026-09-30"
+        }
+      ]
+    },
+    {
+      "id": "saved-schedule-notifications",
+      "title": "Updates when a saved Programme schedule changes",
+      "facts": [
+        {
+          "id": "saved-schedule-notifications",
+          "title": "Updates when a saved Programme schedule changes",
+          "keywords": [
+            "saved programme schedule notification",
+            "notify when saved programme changes date",
+            "saved schedule changes",
+            "calendar notification",
+            "programme date alert"
+          ],
+          "message": "A saved Programme/service can produce an in-app Saved schedule changes update after its published Care Calendar schedule changes. Open Inbox → Updates and enable Saved schedule changes in Notification preferences. In-app notifications must also be enabled in Profile, and that resource must not be muted. Checks run after a change rather than promising an instant alert; enabling or unmuting starts from current information without a catch-up alert. This does not move your My Plans entry or book with the provider. The Guide cannot verify that a particular alert has fired from a general question.",
+          "route": "/help?tab=inbox",
+          "evidence": "client/src/features/support/NotificationPanel.jsx:43-77; client/src/pages/SupportHubPage.jsx:25-68; server/src/utils/notificationDomain.js:40-115; server/src/utils/notificationProcessor.js:8-48",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-02",
+    "HC-29"
+  ]
+}

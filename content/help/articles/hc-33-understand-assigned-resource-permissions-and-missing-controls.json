@@ -1,0 +1,207 @@
+{
+  "id": "HC-33",
+  "slug": "understand-assigned-resource-permissions-and-missing-controls",
+  "title": "Understand assigned resource permissions and missing controls",
+  "summary": "Check the exact resource’s permission rather than inferring access from a title or saved entry.",
+  "category": "resource-management",
+  "audiences": [
+    "resource owner",
+    "resource staff",
+    "admin"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "server/src/utils/ownership.js:85-100; server/src/controllers/hardAssetsController.js:1945-1974; server/test/accessControlPrivacy.test.js:80-101,162-213",
+      "server/src/utils/resourceListScope.js:16-21,78-90; server/src/controllers/hardAssetsController.js:1085-1098,1945-1974; server/src/utils/ownership.js:85-100",
+      "server/src/controllers/hardAssetsController.js:952-955,1789-1815; server/src/utils/guideAccess.js:170-225; server/src/routes/guideActions.js:75-224",
+      "client/src/pages/dashboard/ResourcesPage.jsx:1562-1600,2699-2812,3183-3295; server/src/controllers/hardAssetsController.js:1945-1975; server/src/controllers/softAssetsController.js:2045-2090",
+      "client/src/components/AssetForm.jsx:1305-1316; client/src/components/AssetAccessPanel.jsx:39-115; server/src/utils/hardAssetStaff.js:53-73; server/src/controllers/hardAssetStaffController.js:247-292",
+      "client/src/components/AssetForm.jsx:548-576,1309-1314; client/src/components/AssetAccessPanel.jsx:39-193; server/src/controllers/hardAssetsController.js:1979-1986; reviewed Place staff-access boundary",
+      "client/src/lib/roles.js:136-158; server/src/utils/ownership.js:85-100; server/src/controllers/hardAssetsController.js:1945-1975; server/src/controllers/softAssetsController.js:2045-2060",
+      "client/src/components/AssetAccessPanel.jsx:39-169,194-348; client/src/components/AssetForm.jsx:1309-1316",
+      "server/src/utils/hardAssetStaff.js:53-73; server/src/controllers/hardAssetStaffController.js:247-292"
+    ]
+  },
+  "sections": [
+    {
+      "id": "assign-or-remove-place-access",
+      "title": "Add or remove authorised Staff or Owner access for a saved Place",
+      "paragraphs": [
+        "Use this workflow only as a Super Admin or an active Owner of this exact Place. Being able to edit it as Staff is not permission to assign other people. The Place must already be saved."
+      ],
+      "steps": [
+        "Sign in and open Dashboard → Manage My Resources → Places. Find the exact Place and select Edit if available.",
+        "Open Access and review Current access, including the existing Owners and Staff. Use Refresh if you need to reload the current assignments.",
+        "In Add access, search under User, choose the intended eligible account from Select user, and choose Staff or Owner from the roles available to you. Check the person and role before continuing.",
+        "Select Add access and wait for the result. This saves the assignment immediately; check the refreshed Current access list rather than expecting Save Place to submit it later.",
+        "To revoke an existing assignment when permitted, choose Remove on that exact person’s row, review Remove access?, and select Remove only if that is intended. Their platform account is not deleted.",
+        "Verify the refreshed list. If adding or removing fails, read the error and ask the appropriate Owner or administrator to review the target’s eligibility and current assignment; do not try to bypass a missing control."
+      ],
+      "notes": [
+        "The server checks the assigning account, the target’s organisation eligibility and any existing active assignment. An unavailable search result does not prove the person lacks a CareAround account.",
+        "The final active Owner cannot be removed through this workflow. Do not remove a responsible Owner before arranging an approved replacement.",
+        "Add access and confirmed Remove are saved independently of profile edits. Closing the Place editor or choosing Cancel does not undo an access change that has succeeded.",
+        "Adding an individual Owner is not a transfer of a Place to another organisation. Use the support route for review of a true organisation-ownership transfer.",
+        "Keep names, account contact details and assignment screenshots within authorised operational channels. The Guide cannot add, remove or transfer access in chat."
+      ],
+      "queryRequiresAny": [
+        "access",
+        "assign",
+        "assignment",
+        "owner"
+      ],
+      "facts": []
+    },
+    {
+      "id": "place-assignment-scope",
+      "title": "Owner and Staff access is scoped to each Place",
+      "facts": [
+        {
+          "id": "place-assignment-scope",
+          "title": "Owner and Staff access is scoped to each Place",
+          "keywords": [
+            "owner assignment on one place",
+            "staff role edit all places",
+            "owner manage another place",
+            "owner access every centre"
+          ],
+          "message": "An active Owner or Staff assignment applies to the exact Place assigned. Being an Owner of one Place does not grant editing or management rights over every Place. Super Admin access is a separate exception; an organisation or Region Admin role alone is not a Place edit assignment. Open Manage My Resources and check Edit on the exact Place; the server checks current permission again before saving. This explains the rule, not whether your account currently has an assignment to a particular Place. The Guide cannot grant access or edit an existing listing for you.",
+          "route": "/dashboard/resources",
+          "evidence": "server/src/utils/ownership.js:85-100; server/src/controllers/hardAssetsController.js:1945-1974; server/test/accessControlPrivacy.test.js:80-101,162-213",
+          "reviewed": "2026-10-01"
+        }
+      ]
+    },
+    {
+      "id": "regional-admin-place-edit-boundary",
+      "title": "Region Admin and Place editing",
+      "facts": [
+        {
+          "id": "regional-admin-place-edit-boundary",
+          "title": "Region Admin and Place editing",
+          "keywords": [
+            "region admin edit any place",
+            "regional admin edit every place",
+            "region admin role place edit"
+          ],
+          "message": "A Region Admin role alone does not grant Edit on every Place. Current Place edit permission depends on Super Admin access or an active Owner or Staff assignment to that exact Place. Regional management visibility is separate from the listing’s Edit control; choose the exact Place in Manage My Resources to check its current permission. The server checks again before saving.",
+          "route": "/dashboard/resources",
+          "evidence": "server/src/utils/resourceListScope.js:16-21,78-90; server/src/controllers/hardAssetsController.js:1085-1098,1945-1974; server/src/utils/ownership.js:85-100",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "volunteer-place-create-boundary",
+      "title": "Can a volunteer create a Place",
+      "facts": [
+        {
+          "id": "volunteer-place-create-boundary",
+          "title": "Can a volunteer create a Place",
+          "queryRequiresAny": [
+            "volunteer"
+          ],
+          "keywords": [
+            "volunteer create a place",
+            "volunteer add a centre",
+            "volunteer create resource for organisation"
+          ],
+          "message": "“Volunteer” is a person’s title; it does not establish their CareAround account’s permission to use New Place. Place creation depends on the signed-in account’s resource role or partner resource-staff access, and the selected location and scope are checked when saving. The person should use their own account to check New Place in Manage My Resources. The Guide cannot submit a public Place from chat.",
+          "route": "/dashboard/resources",
+          "evidence": "server/src/controllers/hardAssetsController.js:952-955,1789-1815; server/src/utils/guideAccess.js:170-225; server/src/routes/guideActions.js:75-224",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "resource-edit",
+      "title": "Edit a Place or Offering",
+      "facts": [
+        {
+          "id": "resource-edit",
+          "title": "Edit a Place or Offering",
+          "keywords": [
+            "edit a place",
+            "edit a programme",
+            "edit a program",
+            "edit a service",
+            "edit an offering",
+            "change a place",
+            "update an offering",
+            "change an offering"
+          ],
+          "message": "Open Manage My Resources, choose Places or Offerings, then open the resource card and choose Edit if that control is available. Save the changes in its editor. Editing depends on the selected resource and is checked again by the server; appearing in My Directory because you saved it is not editing access. A template-generated Place version has inherited fields, so edit its parent template for those shared details.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/pages/dashboard/ResourcesPage.jsx:1562-1600,2699-2812,3183-3295; server/src/controllers/hardAssetsController.js:1945-1975; server/src/controllers/softAssetsController.js:2045-2090",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "place-staff-assignment",
+      "title": "Assign staff to a Place",
+      "facts": [
+        {
+          "id": "place-staff-assignment",
+          "title": "Assign staff to a Place",
+          "keywords": [
+            "add staff to a place",
+            "assign place staff",
+            "invite staff to place",
+            "manage place access"
+          ],
+          "message": "Open Manage My Resources, edit the saved Place, then open its Access step. Only a Super Admin or an Owner of that particular Place can add Staff or Owners; being able to edit as Staff is not enough. The server checks the target account’s organisation eligibility and existing access before saving. The Guide cannot add or remove staff.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/components/AssetForm.jsx:1305-1316; client/src/components/AssetAccessPanel.jsx:39-115; server/src/utils/hardAssetStaff.js:53-73; server/src/controllers/hardAssetStaffController.js:247-292",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "place-owner-transfer-boundary",
+      "title": "Place ownership transfer versus staff access",
+      "facts": [
+        {
+          "id": "place-owner-transfer-boundary",
+          "title": "Place ownership transfer versus staff access",
+          "keywords": [
+            "transfer a place to another organisation",
+            "transfer place ownership",
+            "change place owning organisation"
+          ],
+          "message": "I cannot verify a self-service control to transfer a Place to another organisation in the current Place editor, and the Guide cannot perform that transfer. The Place’s Access step manages individual Owners and Staff when the current account is allowed to do so; adding an Owner is not an organisation-ownership transfer. If a true transfer is needed, use Help to request review of the exact Place and intended organisation without sharing passwords or private account details.",
+          "route": "/help?tab=report",
+          "evidence": "client/src/components/AssetForm.jsx:548-576,1309-1314; client/src/components/AssetAccessPanel.jsx:39-193; server/src/controllers/hardAssetsController.js:1979-1986; reviewed Place staff-access boundary",
+          "reviewed": "2026-09-30"
+        }
+      ]
+    },
+    {
+      "id": "organisation-edit-boundary",
+      "title": "Organisation membership and listing editing are separate",
+      "paragraphs": [
+        "No. Organisation membership or a governance role alone does not grant permission to edit its Place or Programme/service listings. Organisation workspace access and resource-editing assignments are separate.",
+        "Editing depends on an active Owner or Staff assignment to the exact resource, or Super Admin access. Open Manage My Resources and check Edit on the selected listing; the server checks current permission again before saving. This is the general rule, not confirmation of your account’s assignments. The Guide cannot grant access."
+      ],
+      "queryRequiresAny": [
+        "organisation",
+        "organization"
+      ],
+      "facts": []
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-06",
+    "HC-31",
+    "HC-34",
+    "HC-35",
+    "HC-32"
+  ]
+}

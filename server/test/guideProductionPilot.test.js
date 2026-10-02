@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { guideAiAvailable, runGuideAi } from '../src/utils/guideAiRuntime.js';
 import { answerGuideWithCloudflare } from '../src/utils/guideChat.js';
+import { GUIDE_ORACLE_FACTS } from '../src/generated/helpKnowledge.js';
 import { GUIDE_LLM_PILOT } from '../src/utils/guideLlmPilotPolicy.js';
 import { reserveGuidePilotCall, readGuidePilotBudget, guidePilotRuntime } from '../src/preview/guidePilotBudget.js';
 const now = Date.parse('2026-10-01T16:00:00Z');
@@ -55,10 +56,10 @@ test('a provider failure consumes one reservation and is never retried or refund
     await assert.rejects(() => runGuideAi(subject.env, params));
     assert.equal(attempted, 1); assert.equal((await subject.stub.status()).used, 44);
 });
-test('production returns generated prose only with reviewed sources and the bounded opt-in flag', async () => {
+test('production selects reviewed sources under the bounded opt-in flag and retains canonical wording', async () => {
     const subject = harness(); subject.env.GUIDE_SEMANTIC_RETRIEVAL_ENABLED = 'false';
     const answer = await answerGuideWithCloudflare({ question: 'How can I find a resource?', topicId: 'discover', env: subject.env });
-    assert.equal(answer.message, 'Open Discover to find a resource.');
+    assert.equal(answer.message, GUIDE_ORACLE_FACTS.find(fact => fact.id === 'help-discover').message);
     assert.equal(answer.sources[0].id, 'help-discover'); assert.ok(answer.actions.every(a => a.route.startsWith('/')));
     assert.equal(subject.calls(), 1); assert.equal((await subject.stub.status()).used, 44);
 });

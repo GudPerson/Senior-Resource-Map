@@ -1,0 +1,98 @@
+{
+  "id": "HC-18",
+  "slug": "download-map-assets-excel-and-understand-its-contents",
+  "title": "Export Map Assets and understand the workbook",
+  "summary": "Download the resource workbook for one owned map and review it before forwarding.",
+  "category": "map-design-and-exports",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/MyMapExcelExportButton.jsx:6-63; client/src/lib/myMapExcelExporter.js:87-97; client/src/lib/myMapAssetLedger.js:105-172",
+      "client/src/components/MyMapExcelExportButton.jsx:6-63; client/src/lib/myMapAssetLedger.js:105-172; server/src/utils/myMapDirectory.js:1201-1271",
+      "client/src/pages/MyMapDetailPage.jsx:472-489,722-737,2060-2080,2126-2142; client/src/components/MyMapExcelExportButton.jsx:6-63; client/src/locales/en.js:819",
+      "client/src/lib/myMapExcelExporter.js:36-97; client/src/lib/myMapAssetLedger.js:113-178"
+    ]
+  },
+  "sections": [
+    {
+      "id": "map-assets-workbook-steps",
+      "title": "Download and review the Excel workbook",
+      "paragraphs": [
+        "Export Map Assets downloads an Excel workbook for one My Map you own. Sign in and open that map; this is not an export of your entire My Directory."
+      ],
+      "steps": [
+        "Open My Directory → My Maps and choose the map you want to export.",
+        "Review the resources included by the selected Map Studio view before exporting. If you need a different collection, change the view’s resource selections first and let those changes save.",
+        "Select Export Map Assets in the map controls. On a phone, open the map’s controls menu to find it.",
+        "Wait while the workbook is prepared, then find the downloaded .xlsx file using your browser’s downloads.",
+        "Open the workbook and check both Summary and Map Assets. Review names, categories, addresses, postal codes, types and short descriptions before forwarding the file."
+      ],
+      "notes": [
+        "The workbook can include your Personal places and map short descriptions. Private resource notes are not included, but that does not make the whole owner export suitable for public sharing.",
+        "Map Studio resource selections affect the exported collection. The map’s keyword search is not used to narrow this workbook, and hiding a pin is not a reliable way to remove that resource from the file. Check the actual workbook.",
+        "The file is a snapshot. Download a new workbook after relevant map or listing changes; sending it does not publish a Shared Map or give recipients editing permission.",
+        "If Excel download failed is shown, check that pending map changes have saved and retry Export Map Assets. If no file is visible after a successful preparation, check the browser’s download location or download prompt."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "download",
+        "export"
+      ]
+    },
+    {
+      "id": "resource-export-context",
+      "title": "Which resource workbook was downloaded?",
+      "facts": [
+        {
+          "id": "resource-export-context",
+          "title": "Which resource workbook was downloaded?",
+          "keywords": [
+            "exported resource workbook",
+            "downloaded resource spreadsheet",
+            "refresh a downloaded file",
+            "download tracks changes"
+          ],
+          "message": "Which download do you mean? If it is Export Map Assets from an owned My Map, the downloaded resource workbook is a snapshot and does not refresh when listings or the map change. Generate a new download when you need the map’s current resource list, and review provider details and private planning places before sharing it. A workbook from another screen has a different scope; tell me that screen or download label so I can give the matching steps. The Guide cannot re-export or upload a file for you.",
+          "route": "/my-directory",
+          "evidence": "client/src/components/MyMapExcelExportButton.jsx:6-63; client/src/lib/myMapExcelExporter.js:87-97; client/src/lib/myMapAssetLedger.js:105-172",
+          "reviewed": "2026-09-30"
+        }
+      ]
+    },
+    {
+      "id": "private-map-export-sharing",
+      "title": "Share a private My Map workbook",
+      "facts": [
+        {
+          "id": "private-map-export-sharing",
+          "title": "Share a private My Map workbook",
+          "keywords": [
+            "export my private map and share",
+            "share private map excel",
+            "share my map spreadsheet"
+          ],
+          "message": "For an owned My Map, Export Map Assets creates a workbook for that map, not your whole My Directory. Your owner map export can include private planning places, so review the workbook before sharing it with anyone. Sending the file is a separate choice from publishing a Shared Map snapshot, and the file will not track later map changes.",
+          "route": "/my-directory",
+          "evidence": "client/src/components/MyMapExcelExportButton.jsx:6-63; client/src/lib/myMapAssetLedger.js:105-172; server/src/utils/myMapDirectory.js:1201-1271",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-13",
+    "HC-14",
+    "HC-20"
+  ]
+}

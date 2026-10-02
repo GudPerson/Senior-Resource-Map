@@ -1,0 +1,114 @@
+{
+  "id": "HC-42",
+  "slug": "use-scoped-workbook-import-export",
+  "title": "Use scoped workbook import/export",
+  "summary": "Review a scoped import file before the upload can create or update resource rows.",
+  "category": "resource-management",
+  "audiences": [
+    "resource owner",
+    "resource staff",
+    "admin"
+  ],
+  "visibility": "admin",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/lib/roles.js:206-217; client/src/pages/dashboard/AdminPage.jsx:28-54,1686-1854,4193-4265; server/src/routes/admin.js:6-12; server/src/controllers/workbookController.js:2667-2725",
+      "client/src/pages/dashboard/AdminPage.jsx:28-54,1686-1744,1850-1895,4193-4360; client/src/lib/roles.js:206-217",
+      "server/src/routes/admin.js:1-14; server/src/controllers/workbookController.js:2597-2621,2667-2725; client/src/pages/dashboard/ResourcesPage.jsx:2540-2550"
+    ]
+  },
+  "sections": [
+    {
+      "id": "import-approved-resource-workbook",
+      "title": "Review a resource workbook before its immediate import",
+      "paragraphs": [
+        "The current Admin → Data Tools workspace is for Super Admin accounts. A workbook upload can create or update real records immediately. Complete the file and scope review before choosing Upload Workbook; this is not the Guide’s draft/review/Create workflow."
+      ],
+      "steps": [
+        "Open Dashboard → Admin → Data Tools and find the matching Asset Workbook Tools card: Places, Standalone Offerings, Templates, Groups or Template Rollouts.",
+        "Select Excel template on that card and read its Guide, Data and Reference sheets. Choose the same resource type for the file and upload destination.",
+        "Prepare and review the Data rows using stable external keys. Names do not drive updates. Separate standalone Offerings from generated template rollouts; rollout rows use the template and host keys described in the workbook.",
+        "Check required values, relationships, the intended create/update scope and any schedule, visibility or access consequences. Keep a reviewed export of the current relevant data where needed for comparison.",
+        "Select Upload Workbook and choose the reviewed .xlsx file only when ready for its immediate import. CSV is a data-only fallback; it does not include the Excel Guide and Reference sheets.",
+        "Wait for the Import Report and inspect Total, Created, Updated, Skipped, Warnings and Errors. Use Copy or Download .txt to retain the report in an authorised operational location.",
+        "Check the intended resources after import. Resolve reported failures or warnings before deciding whether any corrected upload is needed; a partly successful report does not mean every row was applied."
+      ],
+      "notes": [
+        "Places derive their service area from postcode on the server; imported service-area overrides are not a way to reroute them.",
+        "Group workbooks manage list-only profiles and public resource-member links. They do not create location pins or governance groups of people.",
+        "Choosing the wrong resource type or changing stable keys can change the import’s meaning. Review the template rules and current records before uploading again.",
+        "Do not share workbooks or row-error reports publicly. Keep private resource information, account details and credentials out of the Guide and public help.",
+        "The Guide cannot upload or import a workbook for you, and the upload has no preliminary chat confirmation stage."
+      ],
+      "queryRequiresAny": [
+        "workbook import",
+        "import workbook",
+        "upload workbook",
+        "asset import",
+        "template rollout import"
+      ],
+      "facts": []
+    },
+    {
+      "id": "export-current-resource-workbook",
+      "title": "Export the selected resource type’s current data",
+      "paragraphs": [
+        "Use the permitted workbook workspace and verify the type and scope before downloading. An export is an operational file to review, not a public map or a backup/restore guarantee."
+      ],
+      "steps": [
+        "Sign in as an authorised Super Admin and open Dashboard → Admin → Data Tools → Asset Workbook Tools.",
+        "Choose the exact resource-type card. Standalone Offerings and Template Rollouts are separate exports.",
+        "Select Export current data on that card and wait for the Excel download. This exports the selected type’s current permitted data; the Data Tools card is not the Manage My Resources filtered-result export.",
+        "Open the downloaded workbook and check its Guide, Data and Reference sheets, row scope and stable keys before using it for comparison or an import.",
+        "Store or share the file only through authorised operational channels. If the download fails, review the reported export error before trying again; do not treat a missing or partial file as a completed export."
+      ],
+      "notes": [
+        "For only an active managed-resource filter, use Export filtered workbook in Manage My Resources when offered, and verify its reported scope. Do not assume an Admin Data Tools export inherits a search elsewhere in the app.",
+        "Downloading does not itself create or update listings. Uploading a revised workbook is a separate immediate-write operation and requires its own review.",
+        "Review the file for internal keys and any sensitive operational details before sharing. The Guide does not inspect or export private records from this general procedure."
+      ],
+      "queryRequiresAny": [
+        "workbook export",
+        "export current data",
+        "export resource workbook",
+        "asset export"
+      ],
+      "facts": []
+    },
+    {
+      "id": "asset-workbook-import",
+      "title": "Import an asset workbook",
+      "facts": [
+        {
+          "id": "asset-workbook-import",
+          "title": "Import an asset workbook",
+          "keywords": [
+            "import a workbook",
+            "import workbook",
+            "upload workbook",
+            "import a spreadsheet",
+            "upload a spreadsheet",
+            "import xlsx",
+            "import csv",
+            "bulk import resources"
+          ],
+          "message": "Asset workbook imports are in Admin → Data Tools for Super Admin accounts. Choose the matching resource type; Standalone Offerings are separate from template-generated rollouts. Download the Excel template and review its Guide, Data and Reference sheets. Stable external keys drive updates; names do not. Upload Workbook starts the import immediately and may create or update rows, so check the file before uploading and review the Import Report afterward. CSV is a data-only fallback. This is separate from the Guide’s Programme/service draft-review-Create action; the Guide cannot import the file for you.",
+          "route": "/dashboard/admin",
+          "evidence": "client/src/lib/roles.js:206-217; client/src/pages/dashboard/AdminPage.jsx:28-54,1686-1854,4193-4265; server/src/routes/admin.js:6-12; server/src/controllers/workbookController.js:2667-2725",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-33",
+    "HC-35",
+    "HC-38"
+  ]
+}

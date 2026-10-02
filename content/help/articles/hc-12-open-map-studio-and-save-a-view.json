@@ -1,0 +1,76 @@
+{
+  "id": "HC-12",
+  "slug": "open-map-studio-and-save-a-view",
+  "title": "Open Map Studio and keep a saved view on desktop or mobile",
+  "summary": "Select a map presentation and check that its changes have saved.",
+  "category": "map-design-and-exports",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/MapStudioViewsPanel.jsx:300-357,479-633",
+      "client/src/pages/MyMapDetailPage.jsx:526-807,3256-3292",
+      "Map Studio; Shared Maps; docs/regression-ledger.md",
+      "client/src/pages/MyMapDetailPage.jsx:676-730,4055-4104,4273-4280",
+      "client/src/components/MapStudioViewsPanel.jsx:337-384,479-590,652-678; client/src/locales/en.js:478-488; client/src/pages/MyMapDetailPage.jsx:676-730"
+    ]
+  },
+  "sections": [
+    {
+      "id": "studio-view",
+      "title": "Choose a view and check its save status",
+      "paragraphs": [
+        "A named Map Studio view is a presentation of the same map, rather than another resource collection. On desktop, use the Map Studio panel on your map. On a phone, open the map menu and choose Map Studio."
+      ],
+      "steps": [
+        "Open a map you own. On desktop, use its Map Studio panel; on a phone, select Open map controls → Map Studio.",
+        "Use the View selector to choose a saved view. To start another view, select New view, enter New view name, and select Create view. To copy the selected view’s presentation instead, select Duplicate.",
+        "Use Edit layout for the view’s design controls, or Edit content for supported content-editing modes. Make the intended changes to the selected view.",
+        "Wait for All changes saved in Map Studio. If saving fails, use Retry save when offered and check the result before leaving or sharing the view."
+      ],
+      "notes": [
+        "The released Studio uses saving-status feedback. Discard abandons unsaved design changes. Do not assume closing a panel means a failed save succeeded.",
+        "A saved Studio view does not update a published Shared Map. Use the sharing controls to publish or update the intended view separately.",
+        "New view needs a non-empty name before Create view is available. Duplicate makes another presentation of the same map; it does not duplicate the resource collection into a new My Map."
+      ],
+      "facts": []
+    },
+    {
+      "id": "map-studio",
+      "title": "Map Studio views",
+      "facts": [
+        {
+          "id": "map-studio",
+          "title": "Map Studio views",
+          "keywords": [
+            "map studio",
+            "studio changes",
+            "studio view",
+            "saved map view",
+            "map presentation",
+            "publish view"
+          ],
+          "message": "Map Studio saves a presentation of a My Map. Saving or changing a Studio view does not by itself refresh the published Shared Map or its embedded presentation. Select the saved view when explicitly publishing or updating the shared snapshot, then preview the embedded result.",
+          "route": "/my-directory",
+          "evidence": "Map Studio; Shared Maps; docs/regression-ledger.md",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-13",
+    "HC-14",
+    "HC-17"
+  ]
+}

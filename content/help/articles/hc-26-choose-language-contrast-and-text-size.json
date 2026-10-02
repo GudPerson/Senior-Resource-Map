@@ -1,0 +1,114 @@
+{
+  "id": "HC-26",
+  "slug": "choose-language-contrast-and-text-size",
+  "title": "Choose language, contrast and text size",
+  "summary": "Use app language, contrast and text-size controls for readability.",
+  "category": "account-and-display",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/layout/Navbar.jsx:92-135,217-245",
+      "client/src/contexts/A11yContext.jsx:25-76",
+      "client/src/components/layout/Navbar.jsx:64-80; client/src/lib/i18n.js:1-17",
+      "client/src/components/layout/Navbar.jsx:64-135,200-280; client/src/contexts/A11yContext.jsx:25-76; client/src/contexts/LocaleContext.jsx:6-42; client/src/lib/i18n.js:1-17; client/src/locales/en.js:99-114; client/src/pages/SupportHubPage.jsx:42-45"
+    ]
+  },
+  "sections": [
+    {
+      "id": "app-language-steps",
+      "title": "Switch the app language",
+      "paragraphs": [
+        "You can change the app language from the top navigation without signing in."
+      ],
+      "steps": [
+        "Find the Language selector in the top navigation.",
+        "Select English, Mandarin, Malay or Tamil. On a narrow screen, the same choices appear as EN, 中文, MS and TA.",
+        "Check the page after the language changes. Select another language from the same control whenever you need to switch back."
+      ],
+      "notes": [
+        "The choice applies immediately and is remembered in this browser; there is no separate Save button for it.",
+        "Provider-written information may use its original language. Guide and support are currently in English, so changing the app language does not translate every answer."
+      ],
+      "queryRequiresAny": [
+        "language",
+        "mandarin",
+        "chinese",
+        "malay",
+        "tamil",
+        "translate"
+      ],
+      "facts": []
+    },
+    {
+      "id": "contrast-text-size-steps",
+      "title": "Change contrast and text size on desktop or a phone",
+      "paragraphs": [
+        "These controls change how the app is displayed. They do not change resource details or provider-written information."
+      ],
+      "steps": [
+        "On a wide screen, find Contrast and the A- / A+ controls in the top navigation. On a phone or narrow screen, select the sun or moon button labelled Open accessibility controls to open Accessibility.",
+        "On a wide screen, select Contrast to enable high contrast; select Normal to return to the normal display. In Accessibility, use Turn on high contrast or Return to normal contrast.",
+        "Select A+ to increase text size or A- to reduce it. A+ becomes unavailable at the maximum size supported for the current screen.",
+        "Check the text and controls on your page. Adjust again if needed.",
+        "On a narrow screen, select Done to close Accessibility. Your display changes apply without a separate Save action."
+      ],
+      "notes": [
+        "Contrast and text size are remembered in this browser. Clearing browser storage can reset them.",
+        "Text size has limits, and the maximum can change with the screen width. These controls do not guarantee that every image, map label or provider-written detail will become larger or clearer."
+      ],
+      "queryRequiresAny": [
+        "contrast",
+        "text size",
+        "font size",
+        "accessibility",
+        "readability",
+        "larger text"
+      ],
+      "facts": []
+    },
+    {
+      "id": "readability-controls",
+      "title": "Adjust contrast and text size",
+      "paragraphs": [
+        "Use the top navigation’s contrast control and A− / A+ controls to adjust readability. On a narrow screen, open the accessibility control to find these options. The controls apply to the app display and do not change a provider’s original information."
+      ],
+      "facts": []
+    },
+    {
+      "id": "language-choice",
+      "title": "Change the app language",
+      "facts": [
+        {
+          "id": "language-choice",
+          "title": "Change the app language",
+          "keywords": [
+            "change language to chinese",
+            "switch to mandarin",
+            "switch app language",
+            "change to malay",
+            "change to tamil"
+          ],
+          "message": "Use the Language selector in the top navigation. The app offers English, Mandarin, Malay and Tamil; on a narrow screen the choices may appear as short labels such as 中文. This changes the app language. Check a particular provider listing directly if its own wording is missing or unclear.",
+          "route": "/discover",
+          "evidence": "client/src/components/layout/Navbar.jsx:64-80; client/src/lib/i18n.js:1-17",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-03",
+    "HC-29"
+  ]
+}

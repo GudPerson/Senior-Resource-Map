@@ -1,0 +1,198 @@
+{
+  "id": "HC-45",
+  "slug": "understand-coordination-groups-versus-public-resource-groups",
+  "title": "Understand coordination groups versus public Resource Groups",
+  "summary": "Review coordination groups and their access rules separately from public Resource Groups.",
+  "category": "organisation-governance",
+  "audiences": [
+    "organisation staff",
+    "organisation admin",
+    "super admin"
+  ],
+  "visibility": "organization",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/admin/GovernanceGroupsPanel.jsx:432-613; server/src/utils/governanceGroups.js:78-80,86-192; server/src/controllers/governanceController.js:1018-1080,1183-1246",
+      "client/src/components/admin/GovernanceOrganizationsPanel.jsx:1025-1031; client/src/components/admin/GovernanceGroupsPanel.jsx:432-600; server/src/utils/governanceGroups.js:86-122; server/src/controllers/governanceController.js:1082-1138",
+      "client/src/pages/dashboard/AdminPage.jsx:2709,2938; client/src/components/admin/GovernanceGroupsPanel.jsx:432-600; server/src/utils/governanceGroups.js:86-122; server/src/controllers/governanceController.js:1082-1138",
+      "client/src/components/admin/GovernanceGroupsPanel.jsx:604-667; server/src/utils/governanceGroups.js:165-199; server/src/controllers/governanceController.js:1183-1246",
+      "client/src/components/admin/GovernanceGroupsPanel.jsx:106-192,258-343,432-667; client/src/components/admin/GovernanceOrganizationsPanel.jsx:1025-1031",
+      "server/src/utils/governanceGroups.js:86-122,165-199; server/src/controllers/governanceController.js:1018-1138,1183-1246",
+      "client/src/pages/dashboard/AdminPage.jsx:619-625,2704-2725,2932-2943; client/src/lib/roles.js:206-217"
+    ]
+  },
+  "sections": [
+    {
+      "id": "create-or-update-org-coordination-group",
+      "title": "Create or update an authorised Org Group",
+      "paragraphs": [
+        "An Org Group coordinates people within one organisation. It is separate from a public Resource Group of listings. Use this workflow only with the current permission for the selected organisation and group."
+      ],
+      "steps": [
+        "As an authorised Organisation Admin, open Organisation Workspace and select the organisation you administer. A Super Admin may open Admin → Organisations and select the organisation.",
+        "Find Org Groups. Select New Group for a new record, or select the exact existing group to edit its details.",
+        "Enter Name and choose the intended Status. Add only the necessary Coordination notes. Review Optional public phrase and Optional public summary separately so internal coordination labels or private information do not appear in public wording.",
+        "Select Create Group for a new group or Save Group for the selected existing group when that control is available.",
+        "Wait for Group created or Group updated and check the refreshed group. If the operation fails or controls are unavailable, review the organisation’s current status, permission and scope rather than assuming it saved."
+      ],
+      "notes": [
+        "The selected organisation must permit new records before creating a group. A read-only workspace is not an editing route.",
+        "Group roles coordinate the group; they do not grant resource editing, publishing or access to restricted resource notes/files.",
+        "The form offers Archived status, but archived groups leave the ordinary list and this procedure does not promise recovery or continued member visibility. Review any archive decision with the responsible governance administrator first.",
+        "Creating or editing an Org Group does not publish a public directory collection. Do not use a public Resource Group Delete control for coordination-group lifecycle changes.",
+        "The Guide cannot create, edit or archive a governance group in chat. Keep operational membership and coordination details within authorised channels."
+      ],
+      "queryRequiresAny": [
+        "org group",
+        "organisation group",
+        "organization group",
+        "coordination group"
+      ],
+      "facts": []
+    },
+    {
+      "id": "review-coordination-group-access",
+      "title": "Review and change permitted Org Group access",
+      "paragraphs": [
+        "Use the authorised Org Groups panel for the exact group. An Org Group member must already have active access to its organisation. The role options in the form do not override the server’s permission checks."
+      ],
+      "steps": [
+        "Open the permitted organisation’s Org Groups panel and select the exact saved group.",
+        "Review the existing Group access rows before adding or removing anyone.",
+        "If you may add access, choose the intended eligible User and Role → Staff or Admin. Only an Organisation Admin or Super Admin may assign an Org Group Admin.",
+        "Select Add and wait for Group member added and the refreshed list. This access action saves separately from Save Group.",
+        "If revocation is permitted, check the exact row and use its bin control only when removal is intended. It starts removal immediately; verify Group member removed and the refreshed list."
+      ],
+      "notes": [
+        "If no eligible users are available, ask the organisation administrator to review existing organisation access. Do not add a different person to bypass eligibility.",
+        "Group Staff/Admin does not become resource Owner/Staff. Resource permissions and restricted content continue to use their own assignment rules.",
+        "Removing group access does not delete the person’s platform account. The Guide cannot add or remove people in chat.",
+        "A Region Group has a separately checked scope; assigning its Admin role is a Super Admin operation. Do not reuse an Org Group as a cross-organisation membership shortcut."
+      ],
+      "queryRequiresAny": [
+        "org group access",
+        "coordination group access",
+        "governance group membership",
+        "group admin role"
+      ],
+      "facts": []
+    },
+    {
+      "id": "region-group-current-availability",
+      "title": "Check current Region Group availability before requesting changes",
+      "paragraphs": [
+        "Region Groups are a separate cross-organisation coordination capability. The current reviewed Admin navigation does not expose a Region Groups tab, even for Super Admin, so there is no available self-service UI path to promise here."
+      ],
+      "steps": [
+        "Use your own signed-in account to open its permitted Admin or Organisation Workspace and check the controls actually offered.",
+        "If the request specifically needs a cross-organisation Region Group, stop rather than creating a public Resource Group or an unrelated Org Group as a substitute.",
+        "Use Help to request an authorised governance review of the intended coordination scope and unavailable UI. Share only the minimum non-sensitive task description.",
+        "Wait for a reviewed available workflow before creating, editing, linking or assigning members to a Region Group. The Guide cannot perform those actions or enable the workspace."
+      ],
+      "notes": [
+        "The underlying reviewed capability limits Region Group creation and assigning a Region Group Admin to Super Admin. A Region Admin title does not establish that authority.",
+        "Region Group membership still does not grant resource editing, publishing or restricted-content rights.",
+        "Do not call hidden routes, alter navigation or use another person’s account to work around an unavailable control. This article does not establish an archive or restore workflow."
+      ],
+      "queryRequiresAny": [
+        "region group",
+        "cross-organisation coordination",
+        "cross-organization coordination"
+      ],
+      "facts": []
+    },
+    {
+      "id": "governance-group-overview",
+      "title": "Governance coordination groups",
+      "facts": [
+        {
+          "id": "governance-group-overview",
+          "title": "Governance coordination groups",
+          "keywords": [
+            "governance group",
+            "coordination group",
+            "governance coordination group",
+            "group access"
+          ],
+          "message": "Governance coordination groups are separate from public Resource Groups in Manage My Resources. An Org Group belongs to one organisation; a Region Group can coordinate across organisations. Open the authorised group panel to select a group and review its coordination context. Group membership does not grant editing, publishing or restricted-content rights over linked resources. The group form has an Archived status, but the Guide cannot archive a group or verify recovery from chat; do not use a public Resource Group Delete control for this.",
+          "route": "/dashboard",
+          "evidence": "client/src/components/admin/GovernanceGroupsPanel.jsx:432-613; server/src/utils/governanceGroups.js:78-80,86-192; server/src/controllers/governanceController.js:1018-1080,1183-1246",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "governance-org-group",
+      "title": "Create an Org Group",
+      "facts": [
+        {
+          "id": "governance-org-group",
+          "title": "Create an Org Group",
+          "keywords": [
+            "org group",
+            "organisation group",
+            "organization group",
+            "create org group",
+            "edit org group"
+          ],
+          "message": "An Org Group is a coordination group for one organisation. An Organisation Admin can open Organisation Workspace, select an organisation they administer, then use Org Groups → New Group; Super Admin can use Admin → Organisations. Enter a name and status, review optional coordination notes and public wording, then choose Create Group. Select an existing Org Group and choose Save Group to edit its details. The selected organisation must allow new records for creation, and the server checks current permission and scope. This is not the public Resource Group form in Manage My Resources; the Guide cannot create or edit the group in chat.",
+          "route": "/dashboard/organization",
+          "evidence": "client/src/components/admin/GovernanceOrganizationsPanel.jsx:1025-1031; client/src/components/admin/GovernanceGroupsPanel.jsx:432-600; server/src/utils/governanceGroups.js:86-122; server/src/controllers/governanceController.js:1082-1138",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "governance-region-group",
+      "title": "Create a Region Group",
+      "facts": [
+        {
+          "id": "governance-region-group",
+          "title": "Region Group access in the current release",
+          "keywords": [
+            "region group",
+            "regional coordination group",
+            "create region group",
+            "edit region group"
+          ],
+          "message": "A Region Group is a governance coordination group that can link multiple organisations. The current Admin navigation does not expose a Region Groups tab, including for Super Admin, so the previously described Admin → Region Groups creation path is not available in this release. Ask a Super Admin or support to clarify an available authorised workflow; do not use Audience Zones or public Resource Groups as substitutes. A Region Admin title alone does not grant creation. A Region Group is not a public Resource Group, and its role does not grant resource editing rights. The Guide cannot create or edit it in chat.",
+          "route": "/dashboard/admin",
+          "evidence": "client/src/lib/roles.js:206-217; client/src/pages/dashboard/AdminPage.jsx:2704-2725; server/src/utils/governanceGroups.js:86-122",
+          "reviewed": "2026-10-02"
+        }
+      ]
+    },
+    {
+      "id": "governance-group-membership",
+      "title": "Governance group access",
+      "facts": [
+        {
+          "id": "governance-group-membership",
+          "title": "Governance group access",
+          "keywords": [
+            "governance group member",
+            "coordination group member",
+            "org group access",
+            "region group access",
+            "add group member"
+          ],
+          "message": "To change governance-group membership, open the authorised Org Groups or Region Groups panel, select the exact group, then use Group access to choose an eligible user and Staff or Admin role. An Org Group member must already have access to that organisation. Only an Organisation Admin or Super Admin may assign an Org Group Admin; only Super Admin may assign a Region Group Admin. The server checks the exact group and target role. Group roles support coordination; they do not grant editing, publishing or restricted-content rights over linked resources. The Guide cannot add or remove members in chat.",
+          "route": "/dashboard",
+          "evidence": "client/src/components/admin/GovernanceGroupsPanel.jsx:604-667; server/src/utils/governanceGroups.js:165-199; server/src/controllers/governanceController.js:1183-1246",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-33",
+    "HC-39",
+    "HC-32"
+  ]
+}

@@ -1,0 +1,186 @@
+{
+  "id": "HC-14",
+  "slug": "publish-update-or-stop-sharing-a-map",
+  "title": "Publish, update or stop sharing a map",
+  "summary": "Publish the intended version and review what recipients can see.",
+  "category": "sharing",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/ShareMapModal.jsx:139-160,235-340,456-514",
+      "client/src/pages/MyMapDetailPage.jsx:3256-3292",
+      "server/src/utils/myMapDirectory.js:1201-1282",
+      "Reviewed Guide topic: sharing",
+      "server/src/controllers/myMapsController.js:881-912,757-841; reviewed map-membership and map-studio facts",
+      "client/src/components/ShareMapModal.jsx:270-435; server/src/controllers/sharedMapsController.js:310-329,475-500; server/src/routes/guide.js:120-324",
+      "client/src/components/ShareMapModal.jsx:270-435; server/src/controllers/myMapsController.js:757-841; client/src/pages/EmbeddedMapPage.jsx:200-477",
+      "server/src/utils/myMapDirectory.js:1201-1271; client/src/lib/myMapAssetLedger.js:105-172; client/src/lib/myMapExcelExporter.js:57",
+      "client/src/components/ShareMapModal.jsx:235-288,480-514; client/src/pages/MyMapDetailPage.jsx:3356-3369 (copy and unpublish controls)"
+    ]
+  },
+  "sections": [
+    {
+      "id": "update-shared-version",
+      "title": "Publish the intended saved view",
+      "paragraphs": [
+        "A Shared Map keeps the version explicitly published through Share. Editing the private map or saving its Studio presentation does not automatically change that snapshot."
+      ],
+      "steps": [
+        "Open your own map and select the Studio view you intend to share.",
+        "Check that the design has saved, then open Share.",
+        "Review the notes and annotation settings intended for recipients.",
+        "Choose Publish share link for a first publication, or Update shared link to replace the published snapshot.",
+        "After publication or update completes, use Copy link and open that link in another browser tab to inspect the public version before sending it. If the design has newer unpublished changes, Copy existing link copies the earlier published version.",
+        "To stop sharing, reopen Share and select Unpublish. Wait for the private-map status before assuming the shared version is no longer available."
+      ],
+      "notes": [
+        "Copying the existing link alone does not update its content.",
+        "Personal places are excluded from public Shared Maps. Owner prints and exports can include private planning content; check files separately.",
+        "An embedded presentation uses its published snapshot and omits resource-note rows. Preview the actual embed separately.",
+        "Unpublish starts from that button without an additional confirmation dialog. If publishing, updating or unpublishing reports an error, reopen Share and check its current status before retrying."
+      ],
+      "facts": [
+        {
+          "id": "map-studio-share-update",
+          "title": "Publish the intended saved view",
+          "keywords": [
+            "studio saved old shared map",
+            "shared link old",
+            "update shared link",
+            "save studio publish",
+            "shared map stale"
+          ],
+          "answerKind": "procedure",
+          "route": "/my-directory?section=my-maps",
+          "evidence": "client/src/components/ShareMapModal.jsx:139-160,235-340,456-514; client/src/pages/MyMapDetailPage.jsx:3256-3292; server/src/utils/myMapDirectory.js:1201-1282",
+          "reviewed": "2026-10-02"
+        }
+      ]
+    },
+    {
+      "id": "help-sharing",
+      "title": "Share a map",
+      "facts": [
+        {
+          "id": "help-sharing",
+          "title": "Share a map",
+          "keywords": [
+            "share map",
+            "share a map",
+            "shared map",
+            "sharing",
+            "publish",
+            "embed"
+          ],
+          "message": "Open your own map and review its sharing controls. A Shared Map is a view-only snapshot; update the shared version explicitly after changing your private map. Review what will be visible before sharing the link. You can stop sharing from the same controls.",
+          "route": "/my-directory",
+          "evidence": "Reviewed Guide topic: sharing",
+          "reviewed": "2026-09-28",
+          "queryRequiresAny": [
+            "map"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "saved-to-shared-map",
+      "title": "Saving versus publishing a resource on a Shared Map",
+      "facts": [
+        {
+          "id": "saved-to-shared-map",
+          "title": "Saving versus publishing a resource on a Shared Map",
+          "keywords": [
+            "save a place shared map automatically",
+            "saved resource appear on shared map",
+            "bookmark programme published map"
+          ],
+          "message": "Saving a Place or Programme/service adds it to your My Directory, not automatically to any My Map or Shared Map. Add that saved resource to the particular My Map you own. A published Shared Map is a separate snapshot: explicitly update the shared version and preview it before visitors can see the changed map. The Guide cannot add or publish it for you.",
+          "route": "/my-directory",
+          "evidence": "server/src/controllers/myMapsController.js:881-912,757-841; reviewed map-membership and map-studio facts",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "shared-map-viewer-boundary",
+      "title": "Who opened a Shared Map",
+      "facts": [
+        {
+          "id": "shared-map-viewer-boundary",
+          "title": "Who opened a Shared Map",
+          "keywords": [
+            "who opened my shared map",
+            "who viewed my shared map",
+            "shared map viewers",
+            "shared map views"
+          ],
+          "message": "The Guide cannot show who opened a Shared Map or identify viewers from chat. The reviewed My Map sharing controls let you inspect and update the published snapshot and stop sharing; I cannot verify an owner-facing viewer list or view-count report there. Review the content and link before sharing, and use Help to describe any reporting need without including other people’s details.",
+          "route": "/my-directory",
+          "evidence": "client/src/components/ShareMapModal.jsx:270-435; server/src/controllers/sharedMapsController.js:310-329,475-500; server/src/routes/guide.js:120-324",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "website-embeds",
+      "title": "Embed a Shared Map on a website",
+      "facts": [
+        {
+          "id": "website-embeds",
+          "title": "Embed a Shared Map on a website",
+          "keywords": [
+            "shared map on my website",
+            "embed a map",
+            "embed shared map",
+            "website embed",
+            "map on my website"
+          ],
+          "message": "From the Share controls of a published My Map, add an approved website, enable Website Embed, save the embed settings, and copy the embed code. The embedded presentation uses the published snapshot rather than unsaved map changes. Preview it and review guest-visible content before placing it on a website.",
+          "route": "/my-directory",
+          "evidence": "client/src/components/ShareMapModal.jsx:270-435; server/src/controllers/myMapsController.js:757-841; client/src/pages/EmbeddedMapPage.jsx:200-477",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "personal-place-sharing",
+      "title": "Personal places and sharing",
+      "facts": [
+        {
+          "id": "personal-place-sharing",
+          "title": "Personal places and sharing",
+          "keywords": [
+            "personal place shared map",
+            "personal places shared map",
+            "share my personal place",
+            "visitors see my personal places",
+            "personal place export",
+            "private planning locations shared",
+            "private planning locations spreadsheet"
+          ],
+          "message": "Personal places are excluded from a published Shared Map. Your owner map and its resource-ledger downloads can include them, so review an export before sharing it with anyone. A personal place is not a public directory Place.",
+          "route": "/my-directory?section=my-places",
+          "evidence": "server/src/utils/myMapDirectory.js:1201-1271; client/src/lib/myMapAssetLedger.js:105-172; client/src/lib/myMapExcelExporter.js:57",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-12",
+    "HC-15",
+    "HC-16",
+    "HC-19"
+  ]
+}

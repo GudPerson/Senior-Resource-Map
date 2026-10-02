@@ -38,6 +38,7 @@ const SharedMapPage = lazy(() => import('./pages/SharedMapPage.jsx'));
 const MembershipLinkPage = lazy(() => import('./pages/MembershipLinkPage.jsx'));
 const LegalPage = lazy(() => import('./pages/LegalPage.jsx'));
 const SupportHubPage = lazy(() => import('./pages/SupportHubPage.jsx'));
+const HelpCentrePage = lazy(() => import('./features/help/HelpCentrePage.jsx'));
 const OrganizationOnboardingPage = lazy(() => import('./pages/OrganizationOnboardingPage.jsx'));
 const ROUTE_RELOAD_MARKER_KEY = 'carearound:route-recovery-reload';
 
@@ -199,6 +200,8 @@ function AppShell() {
                         <Route path="/" element={<Navigate to="/discover" replace />} />
                         <Route path="/list" element={<Navigate to="/discover" replace />} />
                         <Route path="/discover" element={<PublicDirectoryGate><DiscoverPage /></PublicDirectoryGate>} />
+                        <Route path="/help-centre" element={<HelpCentrePage />} />
+                        <Route path="/help-centre/:slug" element={<HelpCentrePage />} />
                         {SUPPORT_UI_ENABLED && <Route path="/help" element={<SupportHubPage />} />}
                         {SUPPORT_UI_ENABLED && <Route path="/inbox" element={<Navigate to="/help?tab=inbox" replace />} />}
                         <Route path="/membership/link" element={<MembershipLinkPage />} />

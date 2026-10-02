@@ -1,0 +1,144 @@
+{
+  "id": "HC-22",
+  "slug": "add-a-session-to-my-plans-and-arrange-booking-with-the-provider",
+  "title": "Add a session to My Plans and arrange booking with the provider",
+  "summary": "Record intended attendance and arrange registration directly with the provider.",
+  "category": "calendar",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/calendar/CalendarEventCard.jsx:91-140",
+      "client/src/pages/dashboard/CareCalendarPage.jsx:195-236",
+      "server/src/controllers/calendarController.js:384-449,514-540",
+      "client/src/components/calendar/CalendarEventCard.jsx:91-121; client/src/pages/dashboard/CareCalendarPage.jsx:195-222; server/src/controllers/calendarController.js:384-449",
+      "My Plans & Updates; Care Calendar",
+      "server/src/controllers/calendarController.js:216-246,514-528; server/src/utils/guidePlans.js:16-53; reviewed plans-not-bookings fact",
+      "client/src/pages/dashboard/CareCalendarPage.jsx:195-222; client/src/locales/en.js:319-322; server/src/controllers/calendarController.js:394-414"
+    ]
+  },
+  "sections": [
+    {
+      "id": "plan-not-book",
+      "title": "Record a plan, then arrange attendance with the provider",
+      "paragraphs": [
+        "My Plans records intended attendance. Adding a session does not reserve a place, register you or pay the provider.",
+        "Sign in to the account that will keep the personal plan. The Programme/service must be saved and have a current active dated session available to plan."
+      ],
+      "steps": [
+        "Save the Programme/service, then open Care Calendar → Calendar.",
+        "On a current active session, choose Add to My Plans.",
+        "If This overlaps another plan appears, review the named conflicts. Select Add anyway only if you intend that overlap, or Cancel to leave the new session unplanned.",
+        "Open My Plans and check the Programme/service name, date and time before relying on your plan.",
+        "Check the provider’s current eligibility, fees, availability and registration process, and arrange attendance directly with the provider."
+      ],
+      "notes": [
+        "The Guide cannot book a seat or contact the provider for you.",
+        "To remove your personal plan, use Remove from My Plans. This does not cancel a provider booking.",
+        "If a save reports an error, check My Plans before retrying. If no active session is available, check current dates with the provider rather than assuming a saved listing has bookable sessions."
+      ],
+      "facts": [
+        {
+          "id": "my-plans-booking",
+          "title": "Record a plan, then arrange attendance with the provider",
+          "keywords": [
+            "am i booked",
+            "my plans booking",
+            "reserve seat",
+            "register programme",
+            "planned session"
+          ],
+          "answerKind": "procedure",
+          "route": "/dashboard/calendar",
+          "evidence": "client/src/components/calendar/CalendarEventCard.jsx:91-140; client/src/pages/dashboard/CareCalendarPage.jsx:195-236; server/src/controllers/calendarController.js:384-449,514-540",
+          "reviewed": "2026-10-02"
+        }
+      ]
+    },
+    {
+      "id": "plan-a-session",
+      "title": "Add a saved activity session to My Plans",
+      "facts": [
+        {
+          "id": "plan-a-session",
+          "title": "Add a saved activity session to My Plans",
+          "keywords": [
+            "add a session to my plans",
+            "add to my plans",
+            "plan an activity",
+            "plan a session",
+            "star a session",
+            "how do i plan a session",
+            "create a calendar plan",
+            "make a calendar plan"
+          ],
+          "message": "Save the Offering first, then open Care Calendar and choose Calendar. On an active session, choose Add to My Plans. If it overlaps another plan, review the conflict warning before deciding whether to add it anyway. My Plans records intended attendance only; it is not a provider booking or registration. Confirm attendance with the provider.",
+          "route": "/dashboard/calendar?section=calendar",
+          "evidence": "client/src/components/calendar/CalendarEventCard.jsx:91-121; client/src/pages/dashboard/CareCalendarPage.jsx:195-222; server/src/controllers/calendarController.js:384-449",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "plans-not-bookings",
+      "title": "Plans are not bookings",
+      "facts": [
+        {
+          "id": "plans-not-bookings",
+          "title": "Plans are not bookings",
+          "keywords": [
+            "my plans",
+            "plan attendance",
+            "calendar plan",
+            "reserve a place",
+            "reserve a seat",
+            "is it booked",
+            "booked",
+            "booking",
+            "registration",
+            "attending",
+            "signed up"
+          ],
+          "message": "A personal plan records intended attendance. It is not a booking, registration, or confirmation from the provider. Check the provider’s current details and contact them when registration is needed.",
+          "route": "/dashboard/calendar",
+          "evidence": "My Plans & Updates; Care Calendar",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    },
+    {
+      "id": "provider-plan-privacy",
+      "title": "Who planned a provider Programme",
+      "facts": [
+        {
+          "id": "provider-plan-privacy",
+          "title": "Who planned a provider Programme",
+          "keywords": [
+            "who planned my programme",
+            "members who added my programme to my plans",
+            "how many people planned my service",
+            "provider list of planned attendees"
+          ],
+          "message": "The Guide cannot show a provider who added its Programme/service to My Plans, how many people planned it, or a member or attendee list. My Plans is private to each signed-in account; the Calendar read and removal paths check that account. A personal plan is not a registration or verified attendance record. Ask the provider about its own registration process if an official attendance list is needed, without putting member details in Guide chat.",
+          "route": "/help?tab=report",
+          "evidence": "server/src/controllers/calendarController.js:216-246,514-528; server/src/utils/guidePlans.js:16-53; reviewed plans-not-bookings fact",
+          "reviewed": "2026-09-30"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-21",
+    "HC-23"
+  ]
+}

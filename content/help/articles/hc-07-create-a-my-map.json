@@ -1,0 +1,97 @@
+{
+  "id": "HC-07",
+  "slug": "create-a-my-map",
+  "title": "Create a My Map",
+  "summary": "Sign in and open My Directory → My Maps. You can choose saved resources or find more resources within the creation dialog.",
+  "category": "my-maps",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/CreateMapModal.jsx:24-95,147-257,290-355,558-595",
+      "client/src/pages/MyMapDetailPage.jsx:2972-3004",
+      "Reviewed Guide topic: maps",
+      "client/src/components/CreateMapModal.jsx:140-145",
+      "client/src/pages/MyDirectoryPage.jsx:544-559 (successful creation opens the new map)"
+    ]
+  },
+  "sections": [
+    {
+      "id": "create-map",
+      "title": "Create your map",
+      "paragraphs": [
+        "Sign in and open My Directory → My Maps. You can choose saved resources or find more resources within the creation dialog."
+      ],
+      "steps": [
+        "Choose Create map and enter a map name.",
+        "Select the saved resources you want in this map. To search other available resources, use Search saved and all resources.",
+        "For an available unsaved result, choose Save and add; review the selected resources.",
+        "Choose Create map to finish.",
+        "Wait for the new map to open, then check its name and resource list. If creation reports an error, check My Maps before trying to create it again."
+      ],
+      "notes": [
+        "A map needs a name and at least one selected resource before Create map is available.",
+        "Save and add saves that resource to My Directory immediately. Cancelling map creation does not undo that save. Creating or updating the map is a separate action.",
+        "A selected Programme/service can also select its linked Place. Review the resulting collection."
+      ],
+      "facts": [
+        {
+          "id": "map-create-cancel-save-effects",
+          "title": "Create your map",
+          "keywords": [
+            "create map",
+            "cancel create map",
+            "save and add",
+            "cancel map creation",
+            "still saved"
+          ],
+          "answerKind": "procedure",
+          "route": "/my-directory?section=my-maps",
+          "evidence": "client/src/components/CreateMapModal.jsx:24-95,147-257,290-355,558-595; client/src/pages/MyMapDetailPage.jsx:2972-3004; client/src/components/CreateMapModal.jsx:140-145",
+          "reviewed": "2026-10-02"
+        }
+      ]
+    },
+    {
+      "id": "help-maps",
+      "title": "Create and manage My Maps",
+      "facts": [
+        {
+          "id": "help-maps",
+          "title": "Create and manage My Maps",
+          "keywords": [
+            "create map",
+            "create a map",
+            "make a map",
+            "my map",
+            "personal map",
+            "manage map",
+            "map studio"
+          ],
+          "message": "If your signed-in account can use My Directory, open it and choose My Maps to create or open a map. The Create/Manage Resources controls let you search for resources and add them to that map. Use the map menu for Map Studio. Changes to your private map do not silently update an already published Shared Map.",
+          "route": "/my-directory",
+          "evidence": "Reviewed Guide topic: maps",
+          "reviewed": "2026-09-28",
+          "queryRequiresAny": [
+            "map"
+          ]
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-08",
+    "HC-09",
+    "HC-12"
+  ]
+}

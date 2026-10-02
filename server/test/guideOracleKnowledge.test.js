@@ -180,7 +180,7 @@ test('Reviewed Oracle facts have stable sources and retrieve product distinction
     assert.match(answerGuideOracleFact('How do I update my profile?').message,
         /Profile from the dashboard.*Save Changes.*does not guarantee eligibility/is);
     assert.match(answerGuideOracleFact('Can I download a list of resources on my map?').message,
-        /Download Map Assets Excel creates a resource workbook/is);
+        /Export Map Assets creates a resource workbook/is);
     assert.match(answerGuideOracleFact('Can visitors see my private notes in an embedded map?').message,
         /omits My Map resource notes.*Print annotations are a separate control/is);
     assert.equal(answerGuideOracleFact('Can visitors see my private notes on a Shared Map?').topicId, 'map-note-privacy');
@@ -213,7 +213,7 @@ test('Reviewed Oracle facts have stable sources and retrieve product distinction
     assert.match(answerGuideOracleFact('Can a volunteer create a Place for our organisation?').message,
         /Volunteer.*does not establish.*New Place.*account.*scope/is);
     assert.match(answerGuideOracleFact('Can I export my private map and share the Excel file?').message,
-        /owned My Map.*Download Map Assets Excel.*private planning places.*review.*sharing/is);
+        /owned My Map.*Export Map Assets.*private planning places.*review.*sharing/is);
     assert.equal(answerGuideOracleFact('Can I download a resource list from my map?').topicId, 'my-map-exports');
     assert.notEqual(answerGuideOracleFact('How do I change text size for accessibility?')?.topicId,
         'accessibility-search-boundary');
@@ -236,7 +236,7 @@ test('Reviewed editor and access boundaries bypass AI', async () => {
         ['How do I find wheelchair-accessible programmes nearby?', 'accessibility-search-boundary', /cannot verify a dedicated wheelchair-accessibility filter/],
         ['How can I edit my private My Place address?', 'personal-place-address-edit', /checks ownership when saving/],
         ['Can I export my whole My Directory as Excel?', 'directory-export-boundary', /not your whole saved list/],
-        ['Can I download a resource list from my map?', 'my-map-exports', /Download Map Assets Excel creates a resource workbook/],
+        ['Can I download a resource list from my map?', 'my-map-exports', /Export Map Assets creates a resource workbook/],
         ['How do I move a Programme from one Place to another?', 'offering-host-change', /standalone Programme\/service.*Host & coverage.*Host Locations/s],
         ['Can I transfer a Place to another organisation?', 'place-owner-transfer-boundary', /adding an Owner is not an organisation-ownership transfer/],
         ['Can I change the owner of our Place to another organisation?', 'place-owner-transfer-boundary', /adding an Owner is not an organisation-ownership transfer/],
@@ -411,7 +411,7 @@ test('Guide gives reviewed concept answers without model invention and lists rel
 test('Oracle routes risky product distinctions to reviewed wording before model inference', () => {
     for (const [question, id, expected] of [
         ['Where can I see my planning locations?', 'my-places', /private planning locations/],
-        ['Can I download a resource list from my map?', 'my-map-exports', /Download Map Assets Excel/],
+        ['Can I download a resource list from my map?', 'my-map-exports', /Export Map Assets/],
         ['If I change a Studio view, does the embedded map update?', 'map-studio', /does not by itself refresh/],
         ['Why is my saved resource no longer available?', 'saved-resource-status', /cannot tell why/],
         ['If I bookmark an activity, does that mean I have a confirmed seat?', 'saved-versus-managed', /does not register or book/],

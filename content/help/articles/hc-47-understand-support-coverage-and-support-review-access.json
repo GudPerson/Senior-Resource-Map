@@ -1,0 +1,41 @@
+{
+  "id": "HC-47",
+  "slug": "understand-support-coverage-and-support-review-access",
+  "title": "Understand Admin Support Coverage and its limits",
+  "summary": "Read support context without assuming it grants editing or report-review rights.",
+  "category": "admin-support",
+  "audiences": [
+    "admin",
+    "super admin"
+  ],
+  "visibility": "admin",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "client/src/pages/dashboard/AdminPage.jsx:4350-4405",
+      "server/src/utils/supportDomain.js:15-22"
+    ]
+  },
+  "sections": [
+    {
+      "id": "support-coverage",
+      "title": "Read Support Coverage without inferring extra permissions",
+      "paragraphs": [
+        "In the permitted Admin user context, Support Coverage explains why an account appears in the user list. The view is read-only. It shows the account’s support-coverage and Region Scope context where available."
+      ],
+      "notes": [
+        "Support Coverage does not grant profile edits, role changes, deletion, User View, resource ownership, organisation/group access, or private notes/files access.",
+        "Support-report review is a separate permission. Its current server predicate permits a non-impersonating Super Admin; an Admin coverage assignment does not grant that review capability."
+      ],
+      "facts": []
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-33",
+    "HC-32"
+  ]
+}

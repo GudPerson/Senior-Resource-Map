@@ -1,0 +1,75 @@
+{
+  "id": "HC-01",
+  "slug": "what-carearound-helps-you-do",
+  "title": "What CareAround helps you do",
+  "summary": "Find community support, keep useful resources and plan what to do next.",
+  "category": "getting-started",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "Reviewed Guide topic: overview",
+      "Places; Programmes & services; client/src/App.jsx"
+    ]
+  },
+  "sections": [
+    {
+      "id": "help-overview",
+      "title": "What can I do with CareAround?",
+      "facts": [
+        {
+          "id": "help-overview",
+          "title": "What can I do with CareAround?",
+          "keywords": [
+            "what can i do with carearound",
+            "what is carearound",
+            "what can i do here",
+            "how does carearound work",
+            "carearound features",
+            "getting started"
+          ],
+          "message": "CareAround SG helps you find community Places and Programmes/services in Discover. Sign in to save resources to My Directory, create private My Maps and share a view-only snapshot, and use Care Calendar for supported saved schedules and personal plans. You can also report app problems and follow replies in Inbox. If you manage a Place, the Guide can help you draft and review a Programme/service before you choose Create. Check eligibility, fees, availability, and registration with the provider.",
+          "route": "/discover",
+          "evidence": "Reviewed Guide topic: overview",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    },
+    {
+      "id": "resource-types",
+      "title": "Places and Programmes/services",
+      "facts": [
+        {
+          "id": "resource-types",
+          "title": "Places and Programmes/services",
+          "keywords": [
+            "what is a place",
+            "what is a programme",
+            "what is a service",
+            "place vs programme",
+            "what is an offering"
+          ],
+          "message": "A Place is a physical resource such as a centre or service office. A Programme/service is an activity or support offering; it may be linked to a Place. Their schedules, audiences and access details can differ.",
+          "route": "/discover",
+          "evidence": "Places; Programmes & services; client/src/App.jsx",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-03",
+    "HC-05",
+    "HC-07"
+  ]
+}

@@ -1,0 +1,189 @@
+{
+  "id": "HC-35",
+  "slug": "create-or-maintain-a-programme-service",
+  "title": "Create or maintain a Programme/service",
+  "summary": "Create a Programme/service, review its hosts and visibility, or maintain the correct shared or local details.",
+  "category": "resource-management",
+  "audiences": [
+    "resource owner",
+    "resource staff",
+    "admin"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/AssetForm.jsx:315,575-627,1978-2036; client/src/pages/dashboard/ResourcesPage.jsx:3285-3287; server/src/controllers/softAssetsController.js:2045-2110,2240-2260",
+      "client/src/components/AssetForm.jsx:590-605,835-850,1978-2036; client/src/pages/dashboard/ResourcesPage.jsx:2395-2405; server/src/controllers/softAssetsController.js:1802-1840,2045-2110",
+      "client/src/components/AssetForm.jsx:1660-1723; server/src/controllers/softAssetsController.js:2045-2059,2190-2205",
+      "client/src/components/AssetForm.jsx:315-316,537-643,823-861,1556-1762,1764-1976,1978-2097,2325-2342",
+      "client/src/components/ResourceWizardShell.jsx:70-141; client/src/pages/dashboard/ResourcesPage.jsx:2395-2405,2784-2797,2880-2901,3285-3287",
+      "client/src/components/SoftAssetChildForm.jsx:47-60,81-126,128-275,350-390; client/src/pages/dashboard/ResourcesPage.jsx:2286-2311,3790-3811",
+      "client/src/features/support/GuideProgrammeDraft.jsx:9-107; server/src/controllers/softAssetsController.js:1758-1840,2045-2110"
+    ]
+  },
+  "sections": [
+    {
+      "id": "create-standard-offering",
+      "title": "Create a Programme/service with the standard New Offering form",
+      "paragraphs": [
+        "Use this flow for a new Programme/service listing that is not a template-generated place version. Sign in with an account that has the required resource permissions. Saving a Place to My Directory, joining it as a member, or having organisation access does not by itself grant editing or creation rights."
+      ],
+      "steps": [
+        "Open Dashboard → Manage My Resources and select New Offering if that control is available to your account. Alternatively, in Places, select Add Offering on a Place you may edit; that Place is preselected as the host.",
+        "In Profile, enter Name, choose Bucket and Category, and add a clear description. Enter only the public website, contact and action details that people should see for this Programme/service.",
+        "Open Schedule. If you have verified dates, turn on Publish sessions and enter the individual sessions or recurring weekly series. Review Public schedule preview and Next generated sessions. If the dates are not ready, leave sessions unpublished; use the related schedule article for the full procedure.",
+        "Open Host & coverage. In Host Locations (Optional), select each Place that will host this listing and that your account may manage. Several linked Places must be in the same service area. For a listing without a host, leave Host Locations empty and select at least one Service region, or use a permitted Target area in Visibility.",
+        "Open Visibility and review Who can see this? Choose Public or Target areas. For Target areas, select the permitted Audience Zones. Review For linked members and any eligibility rules. In Schedule, check Hide from App and any scheduled hide dates so the listing has the intended visibility.",
+        "Select Preview and check the name, description, contacts, host Places, sessions and visibility. Close the preview, correct anything that is wrong, and select Save Offering.",
+        "Wait for the successful save, then check the new listing in Offerings. If the form reports an error, correct it and save again; an error or an open draft is not confirmation that the resource was created."
+      ],
+      "notes": [
+        "A single Offering linked to several Places has one shared profile, public contact set and structured session schedule. Do not use it for different host-specific contacts or schedules; consider separate listings or the reviewed template/place-version workflow instead.",
+        "If New Offering, Add Offering, Edit or a required host is unavailable, stop and ask the appropriate resource owner or administrator to check your exact assignment. These instructions do not establish your account’s current permission, and the server checks each linked Place and final coverage when saving.",
+        "If the form says linked Places must be in the same service area, review the chosen hosts rather than forcing an unrelated area. A hostless listing needs at least one allowed Service region or an allowed Target area.",
+        "A Resource Group is a separate collection workflow in Groups; it is not a Programme/service created by this form. An Offering template is shared content, not itself a public listing, and generates separately reviewed place versions.",
+        "The Guide offers an alternative for one new Programme/service at one manageable Place: prepare a draft, choose Review programme/service, then explicitly choose Create programme/service. The Guide does not create hostless or multi-host listings, Groups or templates, and cannot edit an existing listing in chat.",
+        "Public contact and action details belong to this Offering. They do not change the physical Place’s contact fields. Avoid personal attendee details or private contact information; an external registration link does not turn a CareAround listing into a booking.",
+        "Saving does not guarantee that every visitor can see the listing. Hidden status, audience areas, linked-member rules and eligibility still apply. Review the related visibility article before publishing."
+      ],
+      "queryRequiresAny": [
+        "programme",
+        "program",
+        "offering",
+        "service"
+      ],
+      "facts": []
+    },
+    {
+      "id": "maintain-standard-offering",
+      "title": "Update an existing Programme/service’s public details and hosts",
+      "paragraphs": [
+        "Before editing, confirm the exact Programme/service and host Places you intend to change. These steps apply to an existing listing with the standard Edit control, not an Edit place version form."
+      ],
+      "steps": [
+        "Sign in, open Dashboard → Manage My Resources → Offerings, find the exact listing, and select Edit if available.",
+        "In Profile, review the name, description and Public contact and action details. Update Contact phone, WhatsApp contact, Contact email, Action button label, Action button link or Venue note as needed, using information approved for public display.",
+        "If you are changing hosts, open Host & coverage. Remove the old host from Host Locations and choose the intended replacement, or review all selected hosts for a multi-host listing. Your account must be able to manage each linked Place.",
+        "Review Schedule and Visibility after a host or contact change. Check that the sessions, venue instructions, audience, linked-member rule and hide settings still describe the intended listing.",
+        "Select Preview to check the changes, close the preview, and select Save Offering. Wait for the successful save, then reopen the listing to verify the saved details."
+      ],
+      "notes": [
+        "Editing the Offering’s contacts does not edit its linked Place’s phone, email or other profile fields. A multi-host standalone Offering uses the same Offering-level contacts and sessions across its linked Places.",
+        "If Edit is missing or a selected host is unavailable, do not infer access from having saved the resource or from organisation membership. Ask the appropriate owner or administrator to check the exact assignment; the Guide cannot grant permission or move an existing listing in chat.",
+        "Changing a host must still satisfy the same-service-area rule for linked Places. When a listing has no linked Place, review its Service regions or permitted Target areas instead.",
+        "Use the related schedules article before changing dated sessions. If another person changes the schedule while you save, refresh the Offering and review the latest sessions before trying again.",
+        "If the card says Edit place version, use the separate local-version steps below. Those controls do not establish a way to move the generated version to another host."
+      ],
+      "queryRequiresAny": [
+        "programme",
+        "program",
+        "offering",
+        "service"
+      ],
+      "facts": []
+    },
+    {
+      "id": "maintain-local-place-version",
+      "title": "Change only the local details of a template-generated place version",
+      "paragraphs": [
+        "Use this flow when the Programme/service card says Edit place version. A generated version inherits shared content from its Offering template and has separate local details for its fixed host Place."
+      ],
+      "steps": [
+        "Open Dashboard → Manage My Resources → Offerings and select Edit place version on the exact version you may edit.",
+        "Check Inherited from template and Host place so you are editing the intended version. The shared name, category, description, audience and eligibility fields shown there are read-only in this form.",
+        "In Local place details, change only the required Local Schedule, Contact Phone, WhatsApp contact, Contact Email, Action button label, Action button link or Venue Note for this host.",
+        "Review the version’s local Availability and Hide from app settings and scheduled hide dates. Editing local details does not automatically unhide a hidden version.",
+        "Select Save place version, wait for the successful update, then check that version’s public details. Use the related template article if you need to change shared content for several generated versions."
+      ],
+      "notes": [
+        "A local schedule or contact override can differ from the parent template. Template edits propagate shared values only where the version has no corresponding local override; review the affected versions before a broad template change.",
+        "Reset appears beside an overridden field. Selecting Reset removes that override and reloads the template value immediately; it is a saved change, so do not use Reset merely to preview a value or assume Cancel will undo it.",
+        "Local Schedule is a host-specific text field in this editor. It does not offer the standalone form’s Publish sessions switch or structured session rows, so do not promise that typing here creates Care Calendar sessions.",
+        "This form’s Host place is read-only. These steps do not establish a rehost control for a generated version. If the wrong host was chosen, ask an authorised template manager to review the supported template workflow.",
+        "Use approved public contact details. If the update fails, retain the reported error, refresh the exact version where appropriate, and use the related support article; the Guide cannot save an existing-version edit for you."
+      ],
+      "queryRequiresAny": [
+        "place version",
+        "generated version",
+        "template"
+      ],
+      "facts": []
+    },
+    {
+      "id": "offering-host-change",
+      "title": "Change an existing Offering’s linked Place",
+      "facts": [
+        {
+          "id": "offering-host-change",
+          "title": "Change an existing Offering’s linked Place",
+          "keywords": [
+            "move a programme to another place",
+            "move an offering to another place",
+            "change a programme host place",
+            "replace an offering linked place",
+            "switch the host place for a service"
+          ],
+          "message": "For an existing standalone Programme/service you can edit, open Manage My Resources → Offerings → Edit → Host & coverage. In Host Locations, remove the old Place and select the new Place, then review the service area, audience, visibility and schedule before saving. If Edit or the new Place is unavailable, this Guide cannot grant access: the server checks your permission for both the Offering and each new linked Place. These steps do not establish a rehost control for a template-generated place version. The Guide cannot move an existing Offering in chat.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/components/AssetForm.jsx:315,575-627,1978-2036; client/src/pages/dashboard/ResourcesPage.jsx:3285-3287; server/src/controllers/softAssetsController.js:2045-2110,2240-2260",
+          "reviewed": "2026-09-30"
+        }
+      ]
+    },
+    {
+      "id": "offering-multi-host",
+      "title": "One Offering linked to several Places",
+      "facts": [
+        {
+          "id": "offering-multi-host",
+          "title": "One Offering linked to several Places",
+          "keywords": [
+            "create one service at several places",
+            "one programme at multiple places",
+            "link multiple places to one offering",
+            "one service at two centres"
+          ],
+          "message": "The standard standalone Offering editor can link one Programme/service to multiple Host Locations when those Places are in the same service area. An authorised manager can use New Offering, choose the Places in Host & coverage, then review Visibility and save. The server checks permission for each linked Place and, when editing, the Offering itself. If New Offering or a Place is unavailable, this Guide cannot grant that access. The Guide’s reviewed Create action currently prepares one Place-linked Programme/service; it cannot create one listing across several Places in chat. Template-generated place versions use a separate workflow.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/components/AssetForm.jsx:590-605,835-850,1978-2036; client/src/pages/dashboard/ResourcesPage.jsx:2395-2405; server/src/controllers/softAssetsController.js:1802-1840,2045-2110",
+          "reviewed": "2026-09-30"
+        }
+      ]
+    },
+    {
+      "id": "offering-contact-edit",
+      "title": "Edit an Offering’s public contact details",
+      "facts": [
+        {
+          "id": "offering-contact-edit",
+          "title": "Edit an Offering’s public contact details",
+          "keywords": [
+            "change programme phone",
+            "update offering contact",
+            "edit service contact email",
+            "change programme contact details"
+          ],
+          "message": "Open Manage My Resources → Offerings, open the exact Programme/service and choose Edit if available. In Profile → Public contact and action details, update its contact phone, WhatsApp contact, email or action link, then review and save. This changes the Offering’s details, not its linked Place’s contact fields. The server checks your permission for that listing; the Guide cannot edit an existing listing for you.",
+          "route": "/dashboard/resources",
+          "evidence": "client/src/components/AssetForm.jsx:1660-1723; server/src/controllers/softAssetsController.js:2045-2059,2190-2205",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-31",
+    "HC-33",
+    "HC-36",
+    "HC-37",
+    "HC-38",
+    "HC-39",
+    "HC-32"
+  ]
+}

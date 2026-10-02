@@ -143,8 +143,13 @@ test('Guide distinguishes Offering-template access from Programme creation and w
     assert.match(download.message, /Downloading does not import or create anything/);
     const howDownload = await (await post(routerFor(actor),
         { question: 'How do I download the Offering Templates workbook?', useAi: true })).json();
-    assert.equal(howDownload.topicId, 'asset-workbook-import');
+    assert.equal(howDownload.topicId, 'help-access');
     assert.equal(howDownload.answerSource, 'reviewed');
+    assert.deepEqual(howDownload.sources, []);
+    const permittedHowDownload = await (await post(routerFor({ id: 3, role: 'super_admin' }),
+        { question: 'How do I download the Offering Templates workbook?', useAi: true })).json();
+    assert.equal(permittedHowDownload.topicId, 'asset-workbook-import');
+    assert.ok(permittedHowDownload.sources.some(source => source.id === 'asset-workbook-import'));
     assert.deepEqual(safeGuideChatTurns([{ question: 'Can I create an Offering template?', answer: admin.message }]), []);
 });
 
@@ -526,7 +531,11 @@ test('Guide answers compound Group, workbook and plan questions without misleadi
         assert.equal(response.topicId, 'composite-guidance', question);
         assert.match(response.message, expected, question);
         assert.doesNotMatch(response.message, wrong, question);
-        assert.ok(response.sources?.length > 0 && response.sources.every((source) => source.reviewed && source.route), question);
+        if (question === 'Can I create a Programme at my assigned Place and import it with a workbook?') {
+            // The checked account denial remains; inaccessible instructions are not cited.
+            assert.deepEqual(response.sources, []);
+            assert.equal(response.answerSource, 'account');
+        } else assert.ok(response.sources?.length > 0 && response.sources.every((source) => source.reviewed && source.route), question);
     }
     const list = await (await post(router, { question: 'What Resource Groups do I manage, and can I delete them?', useAi: true })).json();
     assert.equal(list.answerSource, 'account');

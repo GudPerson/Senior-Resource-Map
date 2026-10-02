@@ -16,6 +16,8 @@ import { guideOtherPlaceMembershipFact } from './guideProductRelations.js';
 import { GUIDE_ORACLE_VERSION, guideOracleFactAction, guideProviderUsageIntent, guideUnverifiedWorkflowIntent, retrieveGuideOracleFacts } from './guideOracleKnowledge.js';
 import { GUIDE_AI_MODEL, guideAiAvailable, runGuideAi } from './guideAiRuntime.js';
 import { discoverGuideOracleFacts } from './guideSemanticRetrieval.js';
+import { publicGuideFacts } from './helpArticleAccess.js';
+import { answerGuideHelpWorkflow, guideHelpFactSource } from './guideHelpWorkflows.js';
 
 export const GUIDE_CHAT_MODEL = GUIDE_AI_MODEL;
 const MAX_TURNS = 4;
@@ -51,10 +53,10 @@ function reviewedContext(topicId) {
     return GUIDE_TOPICS.find((topic) => topic.id === topicId);
 }
 
-function readSelectedFacts(result, facts, conversational = false) {
+function readSelectedFacts(result, facts, conversational = false, question = '') {
     const content = result?.response ?? result?.choices?.[0]?.message?.content;
-    // Normal mode displays reviewed text. The separately approved bounded pilot may
-    // paraphrase cited facts; malformed responses retain the reviewed fallback.
+    // A valid citation does not prove that model prose preserves its meaning.
+    // AI selects evidence; every displayed body comes from the reviewed library.
     if (typeof content !== 'string' && (typeof content !== 'object' || !content)) return null;
     if (JSON.stringify(content).length > (conversational ? 4000 : 600)) return null;
     let selection;
@@ -68,26 +70,34 @@ function readSelectedFacts(result, facts, conversational = false) {
     if (selection.factIds.some((id) => typeof id !== 'string')) return null;
     const selected = selection.factIds.map((id) => byId.get(id));
     if (selected.some((fact) => !fact)) return null;
-    const answer = conversational ? selection.message : selected.map((fact) => fact.message).join('\n\n');
+    // Public listing creation is not a substitute for making a personal map.
+    // Keep the reviewed map fallback if either model stage selects that domain.
+    if (/\b(?:create|make|start|design)\b.{0,40}\bmaps?\b/i.test(question)
+        && selected.some(fact => !/^HC-(?:0[7-9]|1[0-9]|20)$/.test(fact.articleId || ''))) return null;
+    if (conversational && (typeof selection.message !== 'string' || !selection.message.trim()
+        || sanitizeSupportText(selection.message) !== selection.message
+        || /https?:|www\.|\]\(|<|\b(?:you are (?:an? )?(?:admin|owner|staff)|your (?:account|role|permissions?) (?:is|are)|I (?:created|saved|updated|deleted))\b/i.test(selection.message))) return null;
+    const answer = selected.map((fact) => fact.message).join('\n\n');
     if (typeof answer !== 'string' || !answer.trim() || answer.length > MAX_ANSWER_LENGTH
-        || sanitizeSupportText(answer) !== answer
-        || conversational && /https?:|www\.|\]\(|<|\b(?:you are (?:an? )?(?:admin|owner|staff)|your (?:account|role|permissions?) (?:is|are)|I (?:created|saved|updated|deleted))\b/i.test(answer)) return null;
+        || sanitizeSupportText(answer) !== answer) return null;
     const actions = [...new Map(selected.map((fact) => [fact.route, guideOracleFactAction(fact)])).values()];
     return { topicId: selected.length === 1 ? selected[0].id : 'reviewed-selection', message: answer, actions,
-        sources: selected.map(({ id, title, route, reviewed }) => ({ id, title, route, reviewed })) };
+        sources: selected.map(guideHelpFactSource) };
 }
 
 export async function answerGuideWithCloudflare({ question, topicId, pageContext = '', turns = [], env = {} } = {}) {
     if (!guideChatAvailable(env) || typeof question !== 'string' || !question.trim()
         || sanitizeSupportText(question) !== question
         || /\b(?:medicine|medication|diagnos\w*|treatment|symptom|dosage|emergency)\b/i.test(question)) return null;
+    const workflow = answerGuideHelpWorkflow({ question, pageContext, turns: safeGuideChatTurns(turns) });
+    if (workflow) return workflow;
     const semantic = env.GUIDE_SEMANTIC_RETRIEVAL_ENABLED === 'true';
     const conversational = (env.ORACLE_PREVIEW_LLM_ENABLED === 'true'
         || env.GUIDE_LLM_PILOT_ENABLED === 'true')
         && env.GUIDE_CONVERSATIONAL_ANSWERS_ENABLED === 'true';
     const safeTurns = safeGuideChatTurns(turns);
-    const facts = semantic ? await discoverGuideOracleFacts({ question, pageContext,
-        previousQuestions: safeTurns.map((turn) => turn.question), env }) : retrieveGuideOracleFacts(question, topicId);
+    const facts = publicGuideFacts(semantic ? await discoverGuideOracleFacts({ question, pageContext,
+        previousQuestions: safeTurns.map((turn) => turn.question), env }) : retrieveGuideOracleFacts(question, topicId));
     if (!facts.length) return null;
     const matched = reviewedContext(topicId);
     const context = facts.map((fact) => `${fact.id} — ${fact.title}: ${fact.message}`).join('\n');
@@ -103,7 +113,7 @@ ${pageContext ? `Current app section: ${pageContext}. This is navigation context
     messages.push({ role: 'user', content: question.trim() });
     try {
         const result = await runGuideAi(env, { messages, max_tokens: conversational ? 550 : 90, temperature: 0, stream: false });
-        return readSelectedFacts(result, facts, conversational);
+        return readSelectedFacts(result, facts, conversational, question);
     } catch {
         return null;
     }

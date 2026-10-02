@@ -1,0 +1,148 @@
+{
+  "id": "HC-02",
+  "slug": "sign-in-and-find-your-way-around",
+  "title": "Sign in and find your way around",
+  "summary": "Browse public information or sign in for your own saved resources and maps.",
+  "category": "getting-started",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/App.jsx:196-221; docs/user-guide.md:320-328; server/src/controllers/sharedMapsController.js:404-471",
+      "Reviewed Guide topic: login",
+      "client/src/pages/AuthPage.jsx:216-331; client/src/App.jsx:196-221; server/src/utils/supportService.js:37-62",
+      "client/src/pages/AuthPage.jsx:27-60,112-175,209-245,289-355,390-393; client/src/locales/en.js:117-153",
+      "client/src/components/PhoneLoginPanel.jsx:414-531,600-644; client/src/locales/en.js:152-201",
+      "client/src/components/dashboard/DashboardNavigation.jsx:94-110"
+    ]
+  },
+  "sections": [
+    {
+      "id": "sign-in-steps",
+      "title": "Sign in to your existing account",
+      "paragraphs": [
+        "Sign in to reach your own saved resources and maps. Use a sign-in method already linked to your account; staff and admins use this same sign-in form."
+      ],
+      "steps": [
+        "Open Sign in and keep the Sign in tab selected.",
+        "For email sign-in, enter your Email address and Password, then select Sign in. If Google is already linked to your account, use the Google sign-in option instead.",
+        "Wait for the sign-in handoff to return you to the page you requested or to Dashboard. If the handoff offers Continue now, select it to continue.",
+        "Open My Directory from the dashboard navigation for your saved resources and My Maps. Use Discover to browse public listings."
+      ],
+      "notes": [
+        "Discover and published Shared Maps can be browsed without signing in. Signing in does not give you permission to edit a public resource.",
+        "If a Google account needs linking, follow the message and sign in to the existing account first. Register creates an account; it is not an account-recovery step.",
+        "If your session has expired, sign in again. If the linked method fails or is unavailable, try another method already linked to the same account or submit a sign-in support report. Never put a password or verification code in chat or a report."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "sign in",
+        "signin",
+        "login",
+        "log in",
+        "account access"
+      ]
+    },
+    {
+      "id": "whatsapp-sign-in-steps",
+      "title": "Sign in with an already verified WhatsApp number",
+      "paragraphs": [
+        "WhatsApp sign-in needs a number already verified in your CareAround profile and access to that WhatsApp account."
+      ],
+      "steps": [
+        "On the Sign in tab, select Sign in with WhatsApp.",
+        "Enter the WhatsApp phone number already verified in your profile and confirm that you can use that WhatsApp account on this device.",
+        "Select Sign in with WhatsApp to start one attempt. If WhatsApp does not open, use Open WhatsApp when offered.",
+        "Send the prefilled message in WhatsApp, then return to CareAround while it checks the attempt. Keep the code within that sign-in flow.",
+        "When sign-in finishes, continue to your account. If the attempt expires or fails, use the offered Try again or Use Google/email option rather than starting several attempts at once."
+      ],
+      "notes": [
+        "A number that is not verified on an existing account cannot establish access to that account. Sign in with its existing Google/email method first and verify the number in My Profile if needed.",
+        "Starting a new registration can create a separate account. If you meant to recover an existing account, stop and use a linked sign-in method or a support report instead."
+      ],
+      "facts": [],
+      "queryRequiresAny": [
+        "whatsapp",
+        "phone sign in",
+        "phone login"
+      ]
+    },
+    {
+      "id": "public-browsing",
+      "title": "Browse without an account",
+      "facts": [
+        {
+          "id": "public-browsing",
+          "title": "Browse without an account",
+          "keywords": [
+            "sign in to browse",
+            "account to browse",
+            "browse without signing in",
+            "browse as guest",
+            "need to sign in to browse"
+          ],
+          "message": "You can browse public resources in Discover and open a published Shared Map without signing in. Sign in to save resources, create My Maps or copy someone else’s Shared Map into your own My Maps.",
+          "route": "/discover",
+          "evidence": "client/src/App.jsx:196-221; docs/user-guide.md:320-328; server/src/controllers/sharedMapsController.js:404-471",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "help-login",
+      "title": "Help with signing in",
+      "facts": [
+        {
+          "id": "help-login",
+          "title": "Help with signing in",
+          "keywords": [
+            "login",
+            "log in",
+            "sign in",
+            "whatsapp",
+            "session expired",
+            "account"
+          ],
+          "message": "Try the sign-in method already linked to your account. If your session expired, sign in again. Avoid starting several WhatsApp verification attempts at once. You can report a sign-in problem here without signing in; keep the private recovery code to return to your report. Never send passwords or verification codes.",
+          "route": "/login",
+          "evidence": "Reviewed Guide topic: login",
+          "reviewed": "2026-09-28"
+        }
+      ]
+    },
+    {
+      "id": "account-recovery-help",
+      "title": "Help with account access",
+      "facts": [
+        {
+          "id": "account-recovery-help",
+          "title": "Help with account access",
+          "keywords": [
+            "forgot my password",
+            "reset my password",
+            "recover my account",
+            "cannot sign in with password"
+          ],
+          "message": "The Guide cannot reset a password or change sign-in details. Open Sign in and use a sign-in method already available to your account. If you still cannot access it, submit a support report describing the sign-in problem. Never put a password or verification code in Guide chat or a report.",
+          "route": "/help?tab=report",
+          "evidence": "client/src/pages/AuthPage.jsx:216-331; client/src/App.jsx:196-221; server/src/utils/supportService.js:37-62",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-29",
+    "HC-32"
+  ]
+}

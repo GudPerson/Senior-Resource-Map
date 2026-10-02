@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { safeGuideActionRoute } from '../../lib/supportInbox.js';
 import { useSupportTask } from './useSupportTask.js';
 import GuideHistory from './GuideHistory.jsx';
+import GuideSourceLinks from './GuideSourceLinks.jsx';
+import GuideActionLinks from './GuideActionLinks.jsx';
 import GuideResourceSearch from './GuideResourceSearch.jsx';
 import GuideManagedAccess from './GuideManagedAccess.jsx';
 import GuideProgrammeDraft from './GuideProgrammeDraft.jsx';
@@ -117,7 +119,7 @@ export default function GuidePanel({ api, signedIn, canSaveHistory = false, canC
                     <div ref={index === messages.length - 1 ? latestReply : undefined} className="min-w-0"><p className="flex items-center gap-2 text-xs font-semibold text-brand-700"><Sparkles size={14} aria-hidden="true" />CareAround Guide</p>
                         <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">{message.message}</p>
                         {message.answerSource && <p className="mt-2 text-[11px] text-slate-500">{message.answerSource === 'ai' ? 'Cloudflare AI answer based on reviewed CareAround guidance; check the related topics below' : message.answerSource === 'simulation' ? 'Simulated AI selection of reviewed guidance for this local test' : message.answerSource === 'account' ? 'Checked against this account’s current information' : 'Reviewed CareAround help'}</p>}
-                        {message.sources?.length > 0 && <div className="mt-2 text-xs text-slate-600"><span className="font-semibold">Related reviewed guidance:</span> {message.sources.map((source, sourceIndex) => <span key={source.id}>{sourceIndex ? ', ' : ''}{safeGuideActionRoute(source.route, signedIn) ? <Link className="underline underline-offset-2" to={source.route}>{source.title}</Link> : source.title}</span>)}</div>}
+                        <GuideSourceLinks sources={message.sources} />
                         {message.aiStatus === 'limited' && <p className="mt-1 text-xs text-slate-500">AI answers are at their limit for now. The reviewed Guide is still available.</p>}
                         {message.resources?.length > 0 && <ul className="mt-3 space-y-2">{message.resources.map((resource) => <li className="border-l-2 border-brand-200 pl-3" key={`${resource.type}:${resource.id}`}>
                             <Link className="break-words text-sm font-semibold text-brand-700 underline underline-offset-4" to={safeGuideActionRoute(resource.route) || '/discover'}>{message.actionKind === 'programme' ? `Open ${resource.name}` : resource.name}</Link>
@@ -125,11 +127,7 @@ export default function GuidePanel({ api, signedIn, canSaveHistory = false, canC
                         </li>)}</ul>}
                         {message.criteria && <button type="button" className="btn-ghost mt-3 text-sm" onClick={() => { setSearchCriteria(message.criteria); setSearchOpen(true); }}>Use these keywords in resource search</button>}
                         {message.canCheckManagedListing && canSaveHistory && <button type="button" className="btn-ghost mt-3 text-sm" onClick={() => setManagedAccessOpen(true)}>Choose a listing to check</button>}
-                        <div className="mt-3 flex flex-wrap gap-2">{message.actions?.map((item) => {
-                            const route = safeGuideActionRoute(item.route, signedIn);
-                            if (route === '/help?tab=report') return null;
-                            return route ? <Link className="btn-ghost text-sm" key={route} to={route}>{item.label}</Link> : null;
-                        })}
+                        <div className="mt-3 flex flex-wrap gap-2"><GuideActionLinks actions={message.actions} signedIn={signedIn} />
                             {message.input && onDraftReport && <button type="button" className="min-h-[36px] text-left text-xs text-slate-500 underline underline-offset-4" onClick={() => onDraftReport(message)}>Use this question in a report</button>}
                         </div>
                     </div>
@@ -140,6 +138,7 @@ export default function GuidePanel({ api, signedIn, canSaveHistory = false, canC
             {action.error && !action.draft && <p role="alert" className="text-sm text-red-700">{action.error}</p>}
             {help.pending && <p role="status" className="text-sm text-slate-500">Checking CareAround guidance…</p>}
             <div className="space-y-3 border-t border-slate-100 pt-4">
+                <Link to="/help-centre" className="inline-flex min-h-[36px] items-center gap-1 text-xs font-semibold text-brand-700 underline underline-offset-4"><BookOpen size={13} aria-hidden="true" />Browse help articles</Link>
                 <details><summary className="min-h-[36px] cursor-pointer text-xs font-semibold text-slate-500">Browse help topics</summary><div className="flex flex-wrap gap-2 py-2">{topics.map((topic) => <button type="button" className="btn-ghost text-xs" key={topic.id} disabled={locked || Boolean(action.draft)} onClick={() => ask({ topicId: topic.id }, topic.title)}>{topic.title}</button>)}</div></details>
                 <details open={searchOpen} onToggle={(event) => setSearchOpen(event.currentTarget.open)}><summary className="min-h-[36px] cursor-pointer text-xs font-semibold text-slate-500"><Search size={13} className="mr-1 inline" aria-hidden="true" />Search the public directory</summary><div className="py-3"><GuideResourceSearch api={api} canSaveHistory={canSaveHistory} canSaveResource={canSaveHistory} initialCriteria={searchCriteria} /></div></details>
                 {canSaveHistory && !action.draft && <details open={managedAccessOpen} onToggle={(event) => setManagedAccessOpen(event.currentTarget.open)}><summary className="min-h-[36px] cursor-pointer text-xs font-semibold text-slate-500">Check access to a managed listing</summary><GuideManagedAccess key={historyKey} api={api} open={managedAccessOpen} onResult={(result) => { helpOrigin.current = document.activeElement; addMessage(result, { clearQuestion: false }); }} /></details>}

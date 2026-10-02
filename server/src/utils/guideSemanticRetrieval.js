@@ -1,10 +1,11 @@
 import { guideOracleDiscoveryFacts, GUIDE_ORACLE_VERSION } from './guideOracleKnowledge.js';
 import { guideAiAvailable, runGuideAi } from './guideAiRuntime.js';
 import { sanitizeSupportText } from './supportDomain.js';
+import { publicGuideFacts } from './helpArticleAccess.js';
 
 const MAX_CATALOG_FACTS = 150;
 const MAX_CATALOG_LENGTH = 14000;
-const pageFamilies = new Set(['CareAround', 'Discover', 'My Directory', 'My Maps', 'Manage resources', 'Care Calendar', 'Resource details', 'Dashboard']);
+const pageFamilies = new Set(['CareAround', 'Discover', 'My Directory', 'My Maps', 'Manage resources', 'Care Calendar', 'Resource details', 'Dashboard', 'Help Centre']);
 
 const discoveryStopWords = new Set('a an and are as at be been before by can could did do does for from has have how i if in is it its me my of on or our that the their them then there these they this to was we were what when where which who will with would you your'.split(' '));
 const discoveryTerms = (text) => String(text).toLowerCase().replace(/[’']/g, '').match(/[a-z0-9]+/g)?.filter((word) => word.length > 2 && !discoveryStopWords.has(word))
@@ -61,7 +62,7 @@ export async function discoverGuideOracleFacts({ question, pageContext = '', pre
     if (env.GUIDE_SEMANTIC_RETRIEVAL_ENABLED !== 'true' || !guideAiAvailable(env)
         || typeof question !== 'string' || !question.trim() || question.length > 600
         || sanitizeSupportText(question) !== question) return [];
-    const facts = guideOracleDiscoveryFacts(question);
+    const facts = publicGuideFacts(guideOracleDiscoveryFacts(question));
     const catalog = createGuideFactCatalog(facts, question);
     if (!catalog) return [];
     const earlier = Array.isArray(previousQuestions) ? previousQuestions.slice(-4).filter((item) =>

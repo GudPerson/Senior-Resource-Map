@@ -120,8 +120,13 @@ test('only the fully authorized preview pilot permits AI; the existing write bou
 });
 
 
-test('actual pilot entry advertises Cloudflare only with a working persistent allowance', async () => {
+test('actual pilot entry advertises Cloudflare only with a working unexpired persistent allowance', async (t) => {
     const { default: worker } = await import('../src/preview/guideAcceptance.worker.js');
+    const { GUIDE_PILOT } = await import('../src/preview/guidePilotBudget.js');
+    const expiresAt = Date.parse(GUIDE_PILOT.expiresAt);
+    let now = expiresAt - 1;
+    // Synthetic time exercises the fixed approval boundary without renewing it.
+    t.mock.method(Date, 'now', () => now);
     let calls = 0;
     const env = { ...preview(), SUPPORT_INBOX_ENABLED: 'true', ORACLE_PREVIEW_LLM_ENABLED: 'true',
         GUIDE_CHAT_ENABLED: 'true', GUIDE_SEMANTIC_RETRIEVAL_ENABLED: 'true',
@@ -131,6 +136,10 @@ test('actual pilot entry advertises Cloudflare only with a working persistent al
     assert.equal((await (await worker.fetch(request('/api/guide/topics'), env, {})).json()).chatMode, 'cloudflare');
     assert.equal((await (await worker.fetch(request('/api/guide/pilot'), env, {})).json()).used, 39);
     assert.equal((await worker.fetch(request('/api/guide/actions/programmes/create', 'POST'), env, {})).status, 405);
+    now = expiresAt;
+    assert.equal((await (await worker.fetch(request('/api/guide/topics'), env, {})).json()).chatMode, 'guide',
+        'The deadline disables AI even when the allowance still has capacity.');
+    now = expiresAt - 1;
     env.GUIDE_PILOT_BUDGET = { getByName() { return { async status() { return { remaining: 0 }; } }; } };
     assert.equal((await (await worker.fetch(request('/api/guide/topics'), env, {})).json()).chatMode, 'guide');
     assert.equal(calls, 0);

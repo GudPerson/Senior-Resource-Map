@@ -1,0 +1,108 @@
+{
+  "id": "HC-23",
+  "slug": "review-schedule-changes-cancellations-and-updates",
+  "title": "Review schedule changes, cancellations and Updates",
+  "summary": "Review changes without assuming an earlier plan has moved or been rebooked.",
+  "category": "calendar",
+  "audiences": [
+    "guest",
+    "standard user",
+    "caregiver"
+  ],
+  "visibility": "public",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/components/calendar/CalendarUpdatesView.jsx:47-132; client/src/locales/en.js:311-317; server/src/controllers/calendarController.js:197-213",
+      "server/src/controllers/calendarController.js:216-339; client/src/lib/careCalendarPlanning.js:58-123; server/test/calendarNotificationJourney.test.js:139-163",
+      "client/src/components/calendar/CalendarUpdatesView.jsx:47-132; client/src/pages/dashboard/CareCalendarPage.jsx:225-238,353-369,414-430; client/src/locales/en.js:308-318; server/src/controllers/calendarController.js:216-339,514-540"
+    ]
+  },
+  "sections": [
+    {
+      "id": "calendar-update-review-steps",
+      "title": "Review a changed or cancelled planned session",
+      "paragraphs": [
+        "Sign in to the account that made the plan. Use Care Calendar’s Updates when a session you added to My Plans has changed; your earlier choice is not moved automatically."
+      ],
+      "steps": [
+        "Open Care Calendar and select Updates.",
+        "Find the Programme/service with a change. Compare the dates and times under Your affected plans with Current sessions.",
+        "If you no longer want an earlier plan, select Remove old plan on that exact entry. This removes your personal calendar plan immediately.",
+        "If a suitable current active session is offered, select Add to My Plans on that session. If it already says In My Plans, it is already in your list.",
+        "Open My Plans to check the session you chose. Check current details and any registration separately with the provider.",
+        "Return to Updates and select Acknowledge update when you have finished reviewing the change. This clears the notice; it does not choose a replacement for you."
+      ],
+      "notes": [
+        "If there are no active replacement sessions, do not assume your old date is still available. Open the activity for the latest details or contact the provider.",
+        "Removing an old plan, adding a replacement and acknowledging a notice are separate actions. None changes the provider’s schedule or cancels or creates a provider booking.",
+        "If a calendar action reports an error, check My Plans and Updates again before deciding whether to retry. Hidden or unpublished sessions can leave earlier personal plans for you to review."
+      ],
+      "queryRequiresAny": [
+        "care calendar",
+        "calendar",
+        "my plans",
+        "planned session",
+        "planned activity",
+        "schedule change",
+        "cancelled session"
+      ],
+      "facts": []
+    },
+    {
+      "id": "plan-schedule-update",
+      "title": "Review a changed planned session",
+      "facts": [
+        {
+          "id": "plan-schedule-update",
+          "title": "Review a changed planned session",
+          "keywords": [
+            "planned session changes",
+            "plan schedule changed",
+            "schedule changes after i plan",
+            "my plan changed",
+            "plan was cancelled",
+            "my session is cancelled",
+            "review calendar update",
+            "acknowledge schedule update",
+            "acknowledging a schedule update"
+          ],
+          "message": "If an Offering schedule changes after you add a session to My Plans, your old choice is not moved automatically. Open Care Calendar > Updates to compare affected plans with current sessions. Remove an old plan and choose Add to My Plans on a current active session if needed. Acknowledging the update removes the notice; it does not add a new plan or book you with the provider. Recheck details with the provider before relying on a date.",
+          "route": "/dashboard/calendar?section=updates",
+          "evidence": "client/src/components/calendar/CalendarUpdatesView.jsx:47-132; client/src/locales/en.js:311-317; server/src/controllers/calendarController.js:197-213",
+          "reviewed": "2026-09-29"
+        }
+      ]
+    },
+    {
+      "id": "provider-plan-lifecycle",
+      "title": "Hiding a Programme and existing personal plans",
+      "facts": [
+        {
+          "id": "provider-plan-lifecycle",
+          "title": "Hiding a Programme and existing personal plans",
+          "keywords": [
+            "hide my programme existing plans",
+            "unpublish sessions existing plans",
+            "turn off calendar sessions people planned",
+            "hidden programme my plans"
+          ],
+          "message": "Hiding a Programme/service does not automatically delete an existing personal plan. While hidden, its current sessions are not offered as Care Calendar occurrences; turning off or unpublishing its sessions likewise does not delete a personal plan. A person can still see their own earlier plan in My Plans and may need to review a changed schedule in Updates. A plan is not a provider booking. The Guide cannot identify who planned the Programme or edit another person’s plans; check current details with the provider before relying on an old date.",
+          "route": "/dashboard/calendar?section=updates",
+          "evidence": "server/src/controllers/calendarController.js:216-339; client/src/lib/careCalendarPlanning.js:58-123; server/test/calendarNotificationJourney.test.js:139-163",
+          "reviewed": "2026-09-30"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-21",
+    "HC-22",
+    "HC-32"
+  ]
+}

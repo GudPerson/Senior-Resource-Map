@@ -1,0 +1,81 @@
+{
+  "id": "HC-48",
+  "slug": "read-audit-trail-and-understand-its-limits",
+  "title": "Read Audit Trail and understand its limits",
+  "summary": "Read permitted change records and distinguish audit access from general organisation access.",
+  "category": "admin-support",
+  "audiences": [
+    "organisation admin",
+    "super admin"
+  ],
+  "visibility": "audit",
+  "status": "approved",
+  "review": {
+    "date": "2026-10-02",
+    "sourceRevision": "b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+    "method": "source-review",
+    "owner": "CareAround product",
+    "evidence": [
+      "server/src/utils/guideOracleKnowledge.js: reviewed original fact objects at b8345be4d2f7a097e81cb03eef64b473abd0cec9",
+      "client/src/App.jsx:55-77,226; client/src/lib/roles.js:159-161; client/src/components/admin/AuditTrailPanel.jsx:106-275; server/src/controllers/governanceController.js:2059-2155; server/src/utils/guideAuditActivity.js",
+      "client/src/components/admin/AuditTrailPanel.jsx:35-275; client/src/App.jsx:55-77,220-230; client/src/lib/roles.js:159-161",
+      "server/src/controllers/governanceController.js:2059-2155; server/src/utils/guideAuditActivity.js"
+    ]
+  },
+  "sections": [
+    {
+      "id": "filter-and-read-permitted-audit",
+      "title": "Open and filter permitted Audit Trail records",
+      "paragraphs": [
+        "Audit Trail is available only through current verified Super Admin or active organisation-admin access. Organisation administrators see records limited to their organisations. An empty or filtered result is not proof that no event ever happened."
+      ],
+      "steps": [
+        "Sign in with your own account and open Dashboard → Audit Trail when offered. If you are unsure about access, ask the Guide whether this account can open Audit Trail.",
+        "Choose Category, enter an Action type if needed, and select the intended Organisation from the permitted filter options.",
+        "Read each matching record’s action, time, actor, Record label and available What changed summary. Some sensitive values or older-record details are not shown.",
+        "Select Refresh to reload the current filters. When Load more is available, select it to retrieve additional permitted records.",
+        "If No audit activity found appears, clear the filters and Refresh before drawing a conclusion. If access or loading fails, request review without copying sensitive records into the Guide."
+      ],
+      "notes": [
+        "The Organisation filter does not widen access. All my organisations means the organisations currently permitted to that account, not every organisation on the platform.",
+        "The Guide can separately check up to five recorded resource updates today, yesterday or in the last seven days within the current account’s Audit Trail access. That bounded answer is not a complete historical audit export.",
+        "The reviewed Audit Trail UI does not provide a date-range picker or an audit-export control to promise in these steps. Use only the controls actually available.",
+        "Recorded audit history does not prove that every possible product interaction was logged, nor does it grant permission to inspect another person’s private records.",
+        "Keep audit screenshots, account identifiers and operational change details within permitted channels. Do not paste raw metadata, private notes or credentials into chat."
+      ],
+      "queryRequiresAny": [
+        "audit trail",
+        "audit records",
+        "audit logs",
+        "filter audit",
+        "recorded updates"
+      ],
+      "facts": []
+    },
+    {
+      "id": "audit-trail",
+      "title": "Audit Trail",
+      "facts": [
+        {
+          "id": "audit-trail",
+          "title": "Audit Trail",
+          "keywords": [
+            "audit trail",
+            "audit logs",
+            "find audit trail",
+            "view audit trail"
+          ],
+          "message": "Audit Trail is a dashboard page for Super Admin and accounts with active organisation-admin access. It shows permitted governance and resource-change records, with Category, Action type and Organisation filters, Refresh and Load more. The server limits organisation admins to their organisations. Ask whether this account can open Audit Trail for a live access check. The Guide can also check up to five recorded resource updates today, yesterday or over the last seven days within current Audit Trail access; it does not display raw metadata or infer access from a job title.",
+          "route": "/dashboard/audit",
+          "evidence": "client/src/App.jsx:55-77,226; client/src/lib/roles.js:159-161; client/src/components/admin/AuditTrailPanel.jsx:106-275; server/src/controllers/governanceController.js:2059-2155; server/src/utils/guideAuditActivity.js",
+          "reviewed": "2026-09-30"
+        }
+      ]
+    }
+  ],
+  "relatedArticleIds": [
+    "HC-29",
+    "HC-33",
+    "HC-32"
+  ]
+}
