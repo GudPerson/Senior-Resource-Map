@@ -275,14 +275,45 @@ function ordinaryResponse(url, body = '<html><body>Ordinary app' + beacon + '</b
 test('ordinary delivery independently preserves analytics, cache and same-deployment security on six unmodified page requests', async t => {
     const { proof } = await htmlAssetProof(t), requests = [];
     const result = await verifyOrdinaryHtmlDelivery({ appOrigin: 'https://app.carearound.sg', artifactProof: proof, probeId: jobId, fetchImpl: async (url, options) => {
-        assert.equal(options.redirect, 'error'); assert.deepEqual(options.headers, { 'Cache-Control': 'no-cache' }); requests.push(url);
-        return ordinaryResponse(url);
+        assert.equal(options.redirect, 'error'); assert.deepEqual(options.headers, {
+            'Cache-Control': 'no-cache', 'User-Agent': 'CareAround-Release-Verification', Accept: 'text/html',
+        }); requests.push(url);
+        return ordinaryResponse(url, options.headers.Accept === 'text/html' ? undefined : '<html>Generic response without analytics</html>');
     } });
     assert.equal(result.passed, true); assert.equal(result.checked, 6); assert.equal(result.checks.every(record => record.beaconCount === 1 && record.securityHeadersMatch), true);
     assert.deepEqual(requests, ['https://app.carearound.sg/', 'https://app.carearound.sg/?help_release_check=invalid',
         'https://app.carearound.sg/?help_release_check=' + jobId + '&help_release_check=' + jobId,
         'https://app.carearound.sg/offline', 'https://app.carearound.sg/offline?help_release_check=invalid',
         'https://app.carearound.sg/offline?help_release_check=' + jobId + '&help_release_check=' + jobId]);
+});
+test('a generic response profile without document Accept still fails the ordinary analytics gate', async t => {
+    const { proof } = await htmlAssetProof(t);
+    for (const accept of [undefined, '*/*']) {
+        const result = await verifyOrdinaryHtmlDelivery({ appOrigin: 'https://app.carearound.sg', artifactProof: proof, probeId: jobId,
+            fetchImpl: async (url, options) => {
+                const sentHeaders = { ...options.headers };
+                if (accept === undefined) delete sentHeaders.Accept; else sentHeaders.Accept = accept;
+                assert.equal(sentHeaders['User-Agent'], 'CareAround-Release-Verification');
+                return ordinaryResponse(url, sentHeaders.Accept === 'text/html' ? undefined : '<html>Generic response without analytics</html>');
+            } });
+        assert.equal(result.passed, false); assert.equal(result.checked, 6);
+        assert.equal(result.checks.every(record => record.beaconCount === 0 && !record.passed), true);
+    }
+});
+test('the current provider-shaped executable module beacon passes while inert or nomodule variants fail', async t => {
+    const { proof } = await htmlAssetProof(t);
+    const moduleBeacon = '<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-fixture-only" data-cf-beacon=\'{"version":"fixture-only"}\' crossorigin="anonymous"></script>';
+    const result = await verifyOrdinaryHtmlDelivery({ appOrigin: 'https://app.carearound.sg', artifactProof: proof, probeId: jobId,
+        fetchImpl: async (url, options) => {
+            assert.equal(options.headers.Accept, 'text/html'); assert.equal(options.headers['User-Agent'], 'CareAround-Release-Verification');
+            return ordinaryResponse(url, moduleBeacon);
+        } });
+    assert.equal(result.passed, true); assert.equal(result.checked, 6); assert.equal(result.checks.every(record => record.beaconCount === 1), true);
+    for (const invalid of [moduleBeacon.replace('type="module"', 'type="application/json"'), moduleBeacon.replace('type="module"', 'type="text/plain"'),
+        moduleBeacon.replace('type="module"', 'type="module" nomodule'), moduleBeacon.replace('static.cloudflareinsights.com', 'other.example')]) {
+        const failed = await verifyOrdinaryHtmlDelivery({ appOrigin: 'https://app.carearound.sg', artifactProof: proof, probeId: jobId, fetchImpl: async url => ordinaryResponse(url, invalid) });
+        assert.equal(failed.passed, false); assert.equal(failed.checks.every(record => record.beaconCount === 0), true);
+    }
 });
 test('ordinary analytics cannot pass with text, comments, inert script types, raw-text containers, foreign sources or duplicate beacons', async t => {
     const { proof } = await htmlAssetProof(t);

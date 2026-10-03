@@ -463,7 +463,8 @@ function analyticsScriptCount(html) {
                 if (!values.has(name)) values.set(name, attribute[2] ?? attribute[3] ?? attribute[4] ?? '');
             }
             const type = normalizedMime(values.get('type'));
-            if (values.has('nomodule') || !['', 'text/javascript', 'application/javascript', 'text/ecmascript', 'application/ecmascript'].includes(type)) {
+            // Both classic JavaScript MIME types and module tags execute JS.
+            if (values.has('nomodule') || !['', 'module', 'text/javascript', 'application/javascript', 'text/ecmascript', 'application/ecmascript'].includes(type)) {
                 tags.lastIndex = end.lastIndex; continue;
             }
             try {
@@ -493,7 +494,9 @@ export async function verifyOrdinaryHtmlDelivery({ appOrigin, artifactProof, pro
         const document = documents[index], reference = references[index];
         const record = { path: document.path, case: entry.name, passed: false };
         try {
-            const response = await boundedFetch(fetchImpl, appOrigin + document.path + entry.query, { headers: { 'Cache-Control': 'no-cache' } });
+            const response = await boundedFetch(fetchImpl, appOrigin + document.path + entry.query, { headers: {
+                'Cache-Control': 'no-cache', 'User-Agent': 'CareAround-Release-Verification', Accept: 'text/html',
+            } });
             record.status = response.status; record.mime = normalizedMime(response.headers.get('Content-Type'));
             record.cacheControl = response.headers.get('Cache-Control');
             check(record.status === 200 && record.mime === 'text/html', 'ordinary HTML status/MIME mismatch.');
