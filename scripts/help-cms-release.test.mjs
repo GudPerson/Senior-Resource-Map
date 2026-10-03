@@ -186,7 +186,7 @@ function artifactFixture(t) {
 test('custom domain parity checks every public artifact and retains failures before a successful retry', async t => {
     const { dist, files } = artifactFixture(t), counts = {};
     const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, delay: async () => {}, fetchImpl: async url => {
-        const name = new URL(url).pathname.slice(1); counts[name] = (counts[name] || 0) + 1;
+        const name = new URL(url).pathname === '/' ? 'index.html' : new URL(url).pathname.slice(1); counts[name] = (counts[name] || 0) + 1;
         const value = name === 'other.json' && counts[name] === 1 ? 'stale' : files[name];
         return new Response(value, { headers: { 'Content-Type': name.endsWith('.html') ? 'text/html' : 'application/json' } });
     } });
@@ -196,10 +196,96 @@ test('custom domain parity checks every public artifact and retains failures bef
 test('matching public bytes with wrong MIME do not establish artifact parity', async t => {
     const { dist, files } = artifactFixture(t);
     const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, attempts: 1, fetchImpl: async url => {
-        const name = new URL(url).pathname.slice(1);
+        const name = new URL(url).pathname === '/' ? 'index.html' : new URL(url).pathname.slice(1);
         return new Response(files[name], { headers: { 'Content-Type': 'text/html' } });
     } });
     assert.equal(result.passed, false); assert.equal(result.records.filter(record => !record.passed).length, 3);
+});
+function canonicalHtmlFixture(t) {
+    const { dist, files } = artifactFixture(t);
+    mkdirSync(join(dist, 'nested'), { recursive: true });
+    Object.assign(files, { 'offline.html': '<html>Approved offline</html>', 'nested/index.html': '<html>Nested index</html>',
+        'nested/offline.html': '<html>Nested offline</html>' });
+    for (const name of ['offline.html', 'nested/index.html', 'nested/offline.html']) writeFileSync(join(dist, name), files[name]);
+    return { dist, files };
+}
+const artifactNameAtUrl = url => {
+    const path = new URL(url).pathname;
+    return path === '/' ? 'index.html' : path === '/offline' ? 'offline.html' : decodeURIComponent(path.slice(1));
+};
+test('a timestamped CMS release uses its separate validated UUID job marker without changing release or receipt identity', async t => {
+    const { dist, files } = canonicalHtmlFixture(t), markers = [];
+    const { onRequest: index } = await import('../client/functions/index.js');
+    const { onRequest: offline } = await import('../client/functions/offline.js');
+    const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, probeId: jobId, attempts: 1,
+        fetchImpl: async (url, options) => {
+            assert.equal(options.redirect, 'error'); const target = new URL(url), name = artifactNameAtUrl(url);
+            markers.push(target.searchParams.get('help_release_check'));
+            const response = new Response(files[name], { headers: { 'Content-Type': name.endsWith('.html') ? 'text/html' : 'application/json' } });
+            if (target.pathname !== '/' && target.pathname !== '/offline') return response;
+            const proof = await (target.pathname === '/' ? index : offline)({ request: new Request(url), next: async () => response });
+            assert.equal(proof.headers.get('Cache-Control'), 'private, no-store, no-transform');
+            return proof;
+        } });
+    assert.equal(result.passed, true); assert.equal(result.checked, 7); assert.deepEqual(markers, Array(7).fill(jobId));
+    const envelope = snapshot(); assert.equal(envelope.id, releaseId); assert.equal(envelope.jobId, jobId);
+    const receipt = runnerReceipt(expected(envelope), { version: 'cms.2', contentDigest: 'd'.repeat(64), buildSourceRevision: buildRevision },
+        { state: 'published', workerVersionId: workerId, pagesDeploymentId: pagesId, attemptedTargets: ['worker', 'pages'] });
+    assert.equal(receipt.jobId, jobId); assert.equal(envelope.id, releaseId);
+    const acknowledged = await postReceipt({ ...expected(envelope), apiOrigin: 'https://api.example.test', releaseToken: 'fixture-only-token' }, receipt,
+        async (url, options) => {
+            assert.equal(url, 'https://api.example.test/api/help/cms/release/' + releaseId + '/receipt');
+            assert.equal(JSON.parse(options.body).jobId, jobId);
+            return responseJson({ release: { id: releaseId, state: 'published' } });
+        });
+    assert.equal(acknowledged, 'published');
+    await assert.rejects(verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, probeId: releaseId }), /proof identity/);
+});
+test('only the two root HTML artifacts use explicit same-origin canonical URLs while every inventory byte remains checked', async t => {
+    const { dist, files } = canonicalHtmlFixture(t), requests = [];
+    const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, attempts: 1,
+        fetchImpl: async (url, options) => {
+            const target = new URL(url), name = artifactNameAtUrl(url);
+            assert.equal(target.origin, 'https://app.carearound.sg'); assert.equal(options.redirect, 'error');
+            requests.push(target.pathname);
+            return new Response(files[name], { headers: { 'Content-Type': name.endsWith('.html') ? 'text/html' : 'application/json' } });
+        } });
+    assert.equal(result.passed, true); assert.equal(result.checked, 7);
+    assert.deepEqual(requests, ['/help-content-status.json', '/', '/nested/index.html', '/nested/offline.html', '/offline', '/other.json', '/release.json']);
+    assert.deepEqual(result.records.map(record => record.path), ['index.html', 'help-content-status.json', 'nested/index.html', 'nested/offline.html', 'offline.html', 'other.json', 'release.json'].sort());
+    for (const record of result.records) {
+        assert.equal(record.bytes, Buffer.byteLength(files[record.path])); assert.equal(record.sha256, sha256Bytes(files[record.path]));
+    }
+});
+test('a redirect from either canonical HTML URL remains a failed artifact and never requests its same-origin or external target', async t => {
+    for (const redirectedPath of ['/', '/offline']) for (const location of ['https://app.carearound.sg/unexpected', 'https://other.example/']) {
+        const { dist, files } = canonicalHtmlFixture(t), requests = [];
+        const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, attempts: 1,
+            fetchImpl: async (url, options) => {
+                assert.equal(options.redirect, 'error'); requests.push(new URL(url).pathname);
+                const name = artifactNameAtUrl(url);
+                return new Response(files[name], { status: new URL(url).pathname === redirectedPath ? 308 : 200,
+                    headers: { 'Content-Type': name.endsWith('.html') ? 'text/html' : 'application/json', Location: location } });
+            } });
+        assert.equal(result.passed, false); assert.equal(result.checked, 7);
+        assert.deepEqual(result.records.filter(record => !record.passed).map(record => record.path), [redirectedPath === '/' ? 'index.html' : 'offline.html']);
+        assert.equal(requests.includes('/unexpected'), false); assert.equal(requests.length, 7);
+    }
+});
+test('canonical HTML with different same-length bytes or wrong MIME fails without weakening the other inventory checks', async t => {
+    for (const failure of ['bytes', 'mime']) {
+        const { dist, files } = canonicalHtmlFixture(t);
+        const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, attempts: 1,
+            fetchImpl: async url => {
+                const name = artifactNameAtUrl(url), canonicalHtml = ['index.html', 'offline.html'].includes(name);
+                const body = canonicalHtml && failure === 'bytes' ? 'X' + files[name].slice(1) : files[name];
+                const mime = canonicalHtml && failure === 'mime' ? 'application/json' : name.endsWith('.html') ? 'text/html' : 'application/json';
+                return new Response(body, { headers: { 'Content-Type': mime } });
+            } });
+        assert.equal(result.passed, false); assert.equal(result.checked, 7);
+        assert.deepEqual(result.records.filter(record => !record.passed).map(record => record.path), ['index.html', 'offline.html']);
+        assert.equal(result.records.filter(record => record.passed).length, 5);
+    }
 });
 function paired(overrides = {}) {
     return { deployWorker: async () => {}, deployPages: async () => {}, observeWorker: async () => workerId, observePages: async () => pagesId,

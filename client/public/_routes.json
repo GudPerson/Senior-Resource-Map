@@ -1,5 +1,5 @@
 {
   "version": 1,
-    "include": ["/embed/maps/*", "/embed/governed-maps/*"],
+  "include": ["/embed/maps/*", "/embed/governed-maps/*", "/", "/offline"],
   "exclude": []
 }

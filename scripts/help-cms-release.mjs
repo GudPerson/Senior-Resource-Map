@@ -398,7 +398,9 @@ function publicFiles(root, prefix = '') {
     }
     return files.sort();
 }
-export async function verifyPublicArtifacts({ dist, appOrigin, releaseId, fetchImpl = fetch, attempts = 3, delay = ms => new Promise(done => setTimeout(done, ms)) }) {
+export async function verifyPublicArtifacts({ dist, appOrigin, releaseId, probeId, fetchImpl = fetch, attempts = 3, delay = ms => new Promise(done => setTimeout(done, ms)) }) {
+    check(probeId === undefined || (typeof probeId === 'string' && probeId.length === 36 && UUID.test(probeId)), 'invalid public artifact proof identity.');
+    const marker = probeId === undefined ? releaseId : probeId;
     const records = [];
     const paths = publicFiles(dist);
     check(paths.includes('index.html') && paths.includes('release.json') && paths.includes('help-content-status.json'), 'the public artifact inventory is incomplete.');
@@ -406,10 +408,14 @@ export async function verifyPublicArtifacts({ dist, appOrigin, releaseId, fetchI
         const localBytes = readFileSync(join(dist, file)), expectedDigest = sha256Bytes(localBytes), failures = [];
         const allowedMimes = file === 'pwa/carearound-sw' ? MIMES['.js'] : MIMES[extname(file).toLowerCase()];
         check(allowedMimes, 'the public artifact inventory contains an unsupported MIME type.');
+        // Pages serves these two root HTML artifacts at canonical page URLs.
+        // Keep the original inventory/bytes and refuse redirects at those URLs.
+        const deliveryPath = file === 'index.html' ? '/' : file === 'offline.html' ? '/offline'
+            : '/' + file.split('/').map(encodeURIComponent).join('/');
         let passed = false;
         for (let attempt = 1; attempt <= attempts; attempt++) {
             try {
-                const url = appOrigin + '/' + file.split('/').map(encodeURIComponent).join('/') + '?help_release_check=' + encodeURIComponent(releaseId) + '&attempt=' + attempt;
+                const url = appOrigin + deliveryPath + '?help_release_check=' + encodeURIComponent(marker) + '&attempt=' + attempt;
                 const response = await boundedFetch(fetchImpl, url, { headers: { 'Cache-Control': 'no-cache' } });
                 check(allowedMimes.includes(normalizedMime(response.headers.get('Content-Type'))), 'public artifact MIME mismatch.');
                 const bytes = await readBoundedBytes(response, localBytes.length + 1);
@@ -600,7 +606,7 @@ export async function runHelpContentRelease({ root = process.cwd(), env = proces
                 const live = await observeReleases(config, fetchImpl);
                 check(live.workerSourceRevision === compiled.buildSourceRevision && live.pagesSourceRevision === compiled.buildSourceRevision, 'paired runtime source revisions disagree.');
                 const content = await observeContent(config, { fetchImpl, expectedVersion: compiled.version, expectedDigest: compiled.contentDigest });
-                const artifacts = await verifyPublicArtifacts({ dist: join(root, 'client/dist'), appOrigin: config.appOrigin, releaseId: config.releaseId, fetchImpl });
+                const artifacts = await verifyPublicArtifacts({ dist: join(root, 'client/dist'), appOrigin: config.appOrigin, releaseId: config.releaseId, probeId: config.jobId, fetchImpl });
                 let mediaPassed = true;
                 for (const asset of media) {
                     try {
