@@ -59,14 +59,21 @@ function resolveCorsOrigin(origin, c) {
 
 const app = new Hono();
 
-app.use('*', requestObservability);
-app.use('*', securityHeaders);
-app.use('*', cors({
+const corsOptions = {
     origin: resolveCorsOrigin,
     credentials: true,
     allowHeaders: ['Content-Type', 'X-Session-Token', 'X-Phone-Login-Token', 'X-CareAround-Support-Key'],
     exposeHeaders: ['X-Request-ID', 'Server-Timing', 'X-CareAround-Cache', 'X-CareAround-Cache-Age', 'X-CareAround-Cache-Stale'],
-}));
+};
+const appCors = cors(corsOptions);
+const helpCmsCors = cors({ ...corsOptions, allowHeaders: [...corsOptions.allowHeaders, 'X-CareAround-Session'] });
+
+app.use('*', requestObservability);
+app.use('*', securityHeaders);
+app.use('*', (c, next) => {
+    const isHelpCms = c.req.path === '/api/help/cms' || c.req.path.startsWith('/api/help/cms/');
+    return (isHelpCms ? helpCmsCors : appCors)(c, next);
+});
 app.use('*', cookieSessionCsrfGuard);
 app.use('*', requestBodyGuard);
 
