@@ -1,0 +1,428 @@
+{
+  "schemaVersion": 1,
+  "preparedAt": "2026-10-03T16:28:49.609876+00:00",
+  "releaseBase": "0c771828102e3ce8bbf06fabb25590df92c63a21",
+  "branch": "codex/personal-place-import-20261003",
+  "authorization": "User explicitly requested implementation, commit, push and deploy when complete.",
+  "proof": "Local automated and real browser/controller checks. Disposable accounts/PostgreSQL and simulated postal lookup.",
+  "sourceFiles": [
+    {
+      "path": "client/src/components/personalPlaces/AddPersonalPlaceChooserModal.jsx",
+      "bytes": 9297,
+      "sha256": "0adca7b42a148261974c7c08cd9209d4fb9b2867a4f9ba59c29756666a14252f"
+    },
+    {
+      "path": "client/src/components/personalPlaces/PersonalPlaceEditorModal.jsx",
+      "bytes": 21870,
+      "sha256": "fcd87e903164dcd3720b76f981bd886a81a7831c54cf0c9d91ace2f846d20ce5"
+    },
+    {
+      "path": "client/src/components/personalPlaces/PersonalPlaceImportModal.jsx",
+      "bytes": 21927,
+      "sha256": "48147989719717c8c953958cf8919787c2141b365c88ae3eb5e99cb5a462e064"
+    },
+    {
+      "path": "client/src/lib/api.js",
+      "bytes": 37096,
+      "sha256": "d8d43abe03330488c27d321430330cdb4af2b429acd9087f3c3007a0a7bd9a88"
+    },
+    {
+      "path": "client/src/lib/personalPlaceDraft.js",
+      "bytes": 653,
+      "sha256": "92d0dc25d0a4a3b25ee57289c8583519e3809c2b9cf177ca682fb1e2967fdfee"
+    },
+    {
+      "path": "client/src/lib/personalPlaceImport.js",
+      "bytes": 18392,
+      "sha256": "d375c1675b3f3c874b8c98c775cb1fa980e44be53b2e2b0eb6db4742c2206043"
+    },
+    {
+      "path": "client/src/pages/MyMapDetailPage.jsx",
+      "bytes": 221415,
+      "sha256": "6da0c3610712ca7930b564cdea04534db8bdf41becd3af8e5dcd40245ee07cf5"
+    },
+    {
+      "path": "client/test/personalPlaceDraft.test.js",
+      "bytes": 1414,
+      "sha256": "b1c5d07d67c8f85973939ece8ab962c10570c96a7b9e6138dea9bcd1d6952505"
+    },
+    {
+      "path": "client/test/personalPlaceImport.test.js",
+      "bytes": 27943,
+      "sha256": "a1623bfa9666ba418fc7fbda56db267a1254b707acb40a8b9ca2bee33d6cb899"
+    },
+    {
+      "path": "client/test/personalPlaceImportRender.test.js",
+      "bytes": 5253,
+      "sha256": "f830af763305f896f7119832cd5a60eec41cb688ea5dd88d80ae77f45d187744"
+    },
+    {
+      "path": "server/src/controllers/myMapsController.js",
+      "bytes": 53812,
+      "sha256": "6ba317066ff765332a9770909365303787a33bb0c0a43905394ae81f1d73111f"
+    },
+    {
+      "path": "server/src/controllers/personalPlacesController.js",
+      "bytes": 25223,
+      "sha256": "8d17e43d07d6c692c277c067eddd5a4ce580bf09e9d859dd5dbf7be0f20a94fe"
+    },
+    {
+      "path": "server/src/controllers/personalPlaceImportController.js",
+      "bytes": 13513,
+      "sha256": "3def43ad7060f2f7f31a0a90bff6b774e693ba882dfdd839c8cd248fc1b3e5a6"
+    },
+    {
+      "path": "server/src/routes/myMaps.js",
+      "bytes": 2760,
+      "sha256": "01b644b7fdda5db8c3f05c76b0310c467d446b63946c03cc800c902da87ea0d1"
+    },
+    {
+      "path": "server/src/utils/atomicWrites.js",
+      "bytes": 3385,
+      "sha256": "fb9424ed36baea26d6ee5f10824dd6d0257521de4b6e944b5adecebf9fabfb43"
+    },
+    {
+      "path": "server/src/utils/personalPlaceLocation.js",
+      "bytes": 2259,
+      "sha256": "49c89a8fa9db13c061f5aaf8ebf473c51b50167188f0950363d9ac67d3888b62"
+    },
+    {
+      "path": "server/test/personalPlaceImport.test.js",
+      "bytes": 19353,
+      "sha256": "73b81166faa9aa0ae1891336667fb02c03329b37d531ef2b458f172c52297d95"
+    },
+    {
+      "path": "server/test/personalPlaceLocation.test.js",
+      "bytes": 5195,
+      "sha256": "6bf2bb082865595507a28feecc82d923c536517090cfc14a003fb952805402ba"
+    }
+  ],
+  "gates": [
+    {
+      "gate": "server",
+      "passed": true,
+      "passCounts": [
+        1112
+      ],
+      "path": "output/personal-place-import/gates/server.log",
+      "bytes": 258677,
+      "sha256": "4a29d429cd1db75c794a3fee1fcf92a568efaf05a2197ed5bc344e72ccd8b221"
+    },
+    {
+      "gate": "client",
+      "passed": true,
+      "passCounts": [
+        875,
+        5
+      ],
+      "path": "output/personal-place-import/gates/client.log",
+      "bytes": 184123,
+      "sha256": "b9f85c74d87deb80c23e0e87e53c47bdabf1a9590b97cc41e5056bf2933414ab"
+    },
+    {
+      "gate": "mapLockdown",
+      "passed": true,
+      "passCounts": [
+        104,
+        11
+      ],
+      "path": "output/personal-place-import/gates/mapLockdown.log",
+      "bytes": 34427,
+      "sha256": "bd48bad16cfbd7e6426a2a798599eee556d12284de1e059958077460e3b8b52b"
+    },
+    {
+      "gate": "build",
+      "passed": true,
+      "passCounts": [
+        11
+      ],
+      "path": "output/personal-place-import/gates/build.log",
+      "bytes": 12284,
+      "sha256": "7f73147acdf56c0e26c619d194513ef246d6bb446235fbedc6ecb91e0382bab6"
+    },
+    {
+      "gate": "static",
+      "passed": true,
+      "passCounts": [
+        11
+      ],
+      "path": "output/personal-place-import/gates/static.log",
+      "bytes": 3270,
+      "sha256": "e3fabb74f8a42fbdc5254bb545a121f91d5a51a90ed6c7c32a155680993dd225"
+    }
+  ],
+  "browserAndApiGates": [
+    {
+      "gate": "importBrowser",
+      "passed": true,
+      "checks": [
+        {
+          "name": "desktop CSV preview address/category and repeat import",
+          "passed": true,
+          "created": 2,
+          "previewNoWrites": true,
+          "editedAddressSaved": true,
+          "changedCategorySaved": true,
+          "genericDefaultPreserved": true,
+          "leadingZeroPostalPreserved": true,
+          "repeatNoDuplicate": true,
+          "mapId": 1,
+          "placeId": 2
+        },
+        {
+          "name": "390px Excel sheet selection and cancel creates nothing",
+          "passed": true,
+          "width": 390,
+          "sheets": 2,
+          "selectedSheet": "Selected",
+          "cancelNoWrites": true,
+          "created": 1,
+          "editedAddressSaved": true,
+          "overflow": false
+        },
+        {
+          "name": "invalid or mismatched postal row blocked until explicit exclusion",
+          "passed": true,
+          "invalidBlocked": true,
+          "mismatchBlocked": true,
+          "explicitExcluded": 2,
+          "created": 1
+        },
+        {
+          "name": "all three owner branches open the importer without writes",
+          "passed": true,
+          "branches": [
+            "V2",
+            "classic",
+            "Export View"
+          ],
+          "noWrites": true
+        },
+        {
+          "name": "ordinary library editor retains imported generic category, unit address and description",
+          "passed": true,
+          "nameEdited": true,
+          "genericCategoryRetained": true,
+          "addressRetained": true,
+          "descriptionRetained": true
+        },
+        {
+          "name": "uncertain committed response reconciles saved row without duplicate retry",
+          "passed": true,
+          "actualServerCommit": true,
+          "responseFailureInjected": true,
+          "authoritativeReconciliation": true,
+          "posts": 1,
+          "created": 1
+        },
+        {
+          "name": "partial second batch failure retains 25 confirmed rows and retries only one remaining row",
+          "passed": true,
+          "width": 390,
+          "firstBatchConfirmed": 25,
+          "secondBatchFailed": true,
+          "retryRows": 1,
+          "batchSizes": [
+            25,
+            1,
+            1
+          ],
+          "totalCreated": 26
+        },
+        {
+          "name": "exact coordinate rounding tie saves and repeated import reuses the same place",
+          "passed": true,
+          "postalCode": "777777",
+          "lookupLat": 1.30000005,
+          "lookupLng": 103.80000005,
+          "storedLat": 1.3000001,
+          "storedLng": 103.8000001,
+          "repeatedNoDuplicate": true,
+          "authoritativeReconciliation": true
+        }
+      ],
+      "proof": "Real local browser and application controllers, disposable PGlite identities/database; simulated OneMap; no production writes or live AI.",
+      "freshness": "Core workflow run before final legacy matching guard; final targeted regression run covers revised matcher.",
+      "path": "output/personal-place-import/report.json",
+      "bytes": 17996,
+      "sha256": "9a73e616ecbe3ecdab1c7909b4c4e73fcb1c8fe798511d6bcacd61c3cd768557"
+    },
+    {
+      "gate": "finalBrowserRegressions",
+      "passed": true,
+      "checks": [
+        {
+          "name": "concurrent legacy multiline-note conflict cannot be falsely confirmed",
+          "passed": true,
+          "realServerStatus": 409,
+          "noFalseCompletion": true,
+          "confirmBlocked": true,
+          "noWrites": true,
+          "storedLegacyNotePreserved": true
+        },
+        {
+          "name": "normal quoted multiline description saves as canonical text with unit and category retained",
+          "passed": true,
+          "width": 390,
+          "canonicalDescription": "Alpha Beta",
+          "unitAddressPreserved": true,
+          "genericCategoryPreserved": true,
+          "savedResultConfirmed": true
+        },
+        {
+          "name": "exact rounding tie still saves and reuses after conflict correction",
+          "passed": true,
+          "storedLat": 1.3000001,
+          "storedLng": 103.8000001,
+          "noDuplicate": true,
+          "savedResultConfirmed": true
+        }
+      ],
+      "proof": "Real local browser and application controllers, disposable PGlite identities/database; simulated OneMap; no production writes or live AI.",
+      "freshness": "Final importer and owner DTO source.",
+      "path": "output/personal-place-import/legacy-regression-report.json",
+      "bytes": 5921,
+      "sha256": "8aca778d21e9b09098bd0662bbafbad5e278c4563cbaf5e271cbe1043422a7c4"
+    },
+    {
+      "gate": "api",
+      "passed": true,
+      "checks": [
+        {
+          "name": "auth/map-owner denial and invalid batch write nothing",
+          "passed": true,
+          "authDenied": true,
+          "nonOwnerDenied": true,
+          "mismatchedPostalDenied": true,
+          "invalidBatchNoWrites": true
+        },
+        {
+          "name": "imported generic category/unit address/description retained across ordinary edits",
+          "passed": true,
+          "placeId": 1,
+          "verifiedCoordinates": true,
+          "addressPreserved": true,
+          "genericCategoryPreserved": true,
+          "omittedDescriptionPreserved": true,
+          "updatePaths": [
+            "My Places",
+            "My Map"
+          ]
+        },
+        {
+          "name": "repeat and concurrent import reuses exact content and library across maps",
+          "passed": true,
+          "repeatCreated": 0,
+          "reuseAddedLink": 1,
+          "concurrentCreated": 1,
+          "concurrentLinked": 1
+        },
+        {
+          "name": "content conflict/outage rejects entire batch and shared snapshot excludes private import",
+          "passed": true,
+          "conflictDenied": true,
+          "lookupOutageDenied": true,
+          "noWrites": true,
+          "sharedPrivateExclusion": true
+        }
+      ],
+      "proof": "Actual local API controllers, PGlite/Neon transport, simulated OneMap; no production writes or live AI.",
+      "freshness": "Actual controller with import/lifecycle logic; additive metadata subsequently tested by final server and browser gates.",
+      "path": "output/personal-place-import/api-report.json",
+      "bytes": 1336,
+      "sha256": "6b1a48d1283fcd8a5770d670f8629e7fba84462746580511d191688fcd637bb2"
+    },
+    {
+      "gate": "manualPlace",
+      "passed": true,
+      "checks": [
+        {
+          "width": 1440,
+          "mode": "addressed",
+          "passed": true,
+          "savedRows": 1,
+          "selectedMapMembership": true,
+          "myPlacesReuse": true,
+          "lookup": "simulated result accepted by actual controller",
+          "productionWrites": 0
+        },
+        {
+          "width": 1440,
+          "mode": "map_only",
+          "passed": true,
+          "savedRows": 1,
+          "selectedMapMembership": true,
+          "myPlacesReuse": true,
+          "lookup": "no lookup",
+          "productionWrites": 0
+        },
+        {
+          "width": 390,
+          "mode": "addressed",
+          "passed": true,
+          "savedRows": 1,
+          "selectedMapMembership": true,
+          "myPlacesReuse": true,
+          "lookup": "simulated result accepted by actual controller",
+          "productionWrites": 0
+        },
+        {
+          "width": 390,
+          "mode": "map_only",
+          "passed": true,
+          "savedRows": 1,
+          "selectedMapMembership": true,
+          "myPlacesReuse": true,
+          "lookup": "no lookup",
+          "productionWrites": 0
+        }
+      ],
+      "proof": "real local UI and controllers; disposable accounts; simulated OneMap lookup, not live address verification",
+      "freshness": "Stable manual flow; final helper regression narrows generic-draft guard.",
+      "path": "output/playwright/personal-place-import/manual-workflow/report.json",
+      "bytes": 1278,
+      "sha256": "f509fcd55f66a281478e56f8cbd3b2381a58ccd078ecc569b0181a3f76591d89"
+    }
+  ],
+  "independentReview": {
+    "focusedServerPassed": 75,
+    "focusedImporterPassed": 42,
+    "postgresqlOwnerDtoClientContractPassed": 22,
+    "releaseBlockersRemaining": 0
+  },
+  "preservedFailures": [
+    {
+      "path": "output/personal-place-import/failure-history.json",
+      "scope": "Initial named/default API import and spreadsheet harness failures retained."
+    },
+    {
+      "path": "/private/tmp/carearound-import-final-map-lockdown.log",
+      "scope": "104+11 checks passed; sandbox denied Vite temporary config write. Final scoped build retry passed."
+    },
+    {
+      "scope": "Independent review",
+      "failures": [
+        "binary versus decimal coordinate tie rounding",
+        "incoming versus raw stored description normalization",
+        "legacy raw identity whitespace and postal distinction"
+      ],
+      "result": "Targeted implementation corrections and final SQL/client/browser regressions passed."
+    }
+  ],
+  "productionAcceptance": {
+    "deployment": "Pending at commit preparation; local production receipt records actual release.",
+    "authenticatedOwnerImport": false,
+    "livePostalLookup": false,
+    "physicalDevice": false,
+    "fullCredentialedPartnerSmoke": false,
+    "productionTestRecords": 0,
+    "schemaMigrations": 0,
+    "credentialsOrAiBudgetChanges": 0
+  },
+  "limitations": [
+    "Atomic per batch, not whole file. Prior confirmed batches survive later failure.",
+    "Content reuse serialises imports per owner; concurrent ordinary manual saves have no global uniqueness constraint.",
+    "Conservative uncommon Unicode whitespace can leave rare legacy equivalents requiring manual review.",
+    "Legacy-note explicit-clear behaviour is unchanged; explicit blank clearing proof covers imported note-null records."
+  ]
+}

@@ -17,6 +17,7 @@ import {
     createPersonalPlace,
     detachPersonalPlaceFromMap,
     personalPlaceBodySchema,
+    resolvePersonalPlaceUpdateLocation,
     updatePersonalPlace,
 } from './personalPlacesController.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
@@ -1404,7 +1405,8 @@ export const patchMyMapPersonalPlace = async (c) => {
             return c.json({ error: 'Map id and personal place id are required' }, 400);
         }
         const body = validateRequestBody(await c.req.json(), personalPlaceBodySchema, 'Personal place');
-        const location = await resolvePersonalPlaceLocation(body);
+        await requireOwnedMap(db, user.id, mapId);
+        const location = await resolvePersonalPlaceUpdateLocation(db, user, personalPlaceId, body);
         const place = await updateMyMapPersonalPlace(
             db,
             user,

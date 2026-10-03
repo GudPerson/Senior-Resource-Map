@@ -42,6 +42,7 @@ import PrintAnnotationLayer from '../components/PrintAnnotationLayer.jsx';
 import AddPersonalPlaceChooserModal from '../components/personalPlaces/AddPersonalPlaceChooserModal.jsx';
 import PersonalPlaceCategoryManagerModal from '../components/personalPlaces/PersonalPlaceCategoryManagerModal.jsx';
 import PersonalPlaceEditorModal from '../components/personalPlaces/PersonalPlaceEditorModal.jsx';
+import PersonalPlaceImportModal from '../components/personalPlaces/PersonalPlaceImportModal.jsx';
 import ShareMapModal from '../components/ShareMapModal.jsx';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import TownMapModeControl from '../components/TownMapModeControl.jsx';
@@ -1583,6 +1584,8 @@ export default function MyMapDetailPage() {
         toggleSavedAsset,
     } = useSavedAssets();
     const currentMapCacheKey = getMyMapDetailCacheKey(user, mapId);
+    const activeImportContextRef = useRef(currentMapCacheKey);
+    activeImportContextRef.current = currentMapCacheKey;
     const [directory, setDirectory] = useState(() => getCachedMyMapDetail(user, mapId));
     const [loading, setLoading] = useState(() => !getCachedMyMapDetail(user, mapId));
     const directoryCacheKeyRef = useRef(directory ? currentMapCacheKey : '');
@@ -1618,6 +1621,7 @@ export default function MyMapDetailPage() {
     const [personalPlacesLibrary, setPersonalPlacesLibrary] = useState([]);
     const [personalPlaceCategories, setPersonalPlaceCategories] = useState([]);
     const [personalPlaceChooserOpen, setPersonalPlaceChooserOpen] = useState(false);
+    const [personalPlaceImportOpen, setPersonalPlaceImportOpen] = useState(false);
     const [personalPlaceChooserSubmitting, setPersonalPlaceChooserSubmitting] = useState(false);
     const [personalPlaceChooserError, setPersonalPlaceChooserError] = useState('');
     const [personalPlaceActionStatus, setPersonalPlaceActionStatus] = useState(null);
@@ -1711,6 +1715,7 @@ export default function MyMapDetailPage() {
         || categoryOrderOpen
         || personalPlaceModalOpen
         || personalPlaceChooserOpen
+        || personalPlaceImportOpen
         || personalPlaceCategoryManagerOpen
         || Boolean(shortDescriptionRow);
     const directoryMapInteractionSuspended = suspendMapInteraction && !personalPlacePickerActive;
@@ -3030,6 +3035,36 @@ export default function MyMapDetailPage() {
         setPersonalPlacePickerActive(true);
     }
 
+    function openPersonalPlaceImport() {
+        setPersonalPlaceChooserOpen(false);
+        setPersonalPlacePickerActive(false);
+        setPersonalPlaceImportOpen(true);
+    }
+
+    async function refreshPersonalPlaceImport() {
+        // Import completion requires both authoritative reads. The ordinary
+        // route loader intentionally tolerates library failures.
+        const [personalPlaces, map, subcategories] = await Promise.all([
+            api.getPersonalPlaces(),
+            fetchMyMapWithResilience(() => api.getMyMap(mapId)),
+            api.getSubCategories({ suppressAuthExpired: true }).catch(() => []),
+        ]);
+        if (!Array.isArray(personalPlaces) || !map || Number(map.id) !== Number(mapId)) {
+            throw new Error('Places may have been added. Refresh the map before confirming the result.');
+        }
+        const enrichedDirectory = applySubCategoryMetaToDirectory(map, subcategories);
+        const addressBackfilledDirectory = await backfillMissingHardPlaceAddresses(enrichedDirectory);
+        const nextDirectory = await backfillGroupFocusPlaceKeys(addressBackfilledDirectory);
+        if (activeImportContextRef.current !== currentMapCacheKey) {
+            throw new Error('The active map changed. Reopen the map to review the import result.');
+        }
+        setPersonalPlacesLibrary(personalPlaces);
+        cacheMyMapDetail(user, mapId, nextDirectory);
+        directoryCacheKeyRef.current = currentMapCacheKey;
+        setDirectory(nextDirectory);
+        return { personalPlaces, map: nextDirectory };
+    }
+
     function closePersonalPlaceModal() {
         if (personalPlaceSubmitting) return;
         setPersonalPlaceModalOpen(false);
@@ -4005,6 +4040,17 @@ export default function MyMapDetailPage() {
                     }}
                     onAttach={handleAttachPersonalPlaces}
                     onCreateNew={startCreatingPersonalPlaceOnMap}
+                    onImport={openPersonalPlaceImport}
+                />
+
+                <PersonalPlaceImportModal
+                    open={personalPlaceImportOpen}
+                    mapId={directory.id}
+                    identityKey={user?.id}
+                    categories={personalPlaceCategories}
+                    personalPlaces={personalPlacesLibrary}
+                    onClose={() => setPersonalPlaceImportOpen(false)}
+                    onImported={refreshPersonalPlaceImport}
                 />
 
                 <PersonalPlaceEditorModal
@@ -4214,6 +4260,17 @@ export default function MyMapDetailPage() {
                     }}
                     onAttach={handleAttachPersonalPlaces}
                     onCreateNew={startCreatingPersonalPlaceOnMap}
+                    onImport={openPersonalPlaceImport}
+                />
+
+                <PersonalPlaceImportModal
+                    open={personalPlaceImportOpen}
+                    mapId={directory.id}
+                    identityKey={user?.id}
+                    categories={personalPlaceCategories}
+                    personalPlaces={personalPlacesLibrary}
+                    onClose={() => setPersonalPlaceImportOpen(false)}
+                    onImported={refreshPersonalPlaceImport}
                 />
 
                 <PersonalPlaceEditorModal
@@ -4568,6 +4625,17 @@ export default function MyMapDetailPage() {
                 }}
                 onAttach={handleAttachPersonalPlaces}
                 onCreateNew={startCreatingPersonalPlaceOnMap}
+                onImport={openPersonalPlaceImport}
+            />
+
+            <PersonalPlaceImportModal
+                open={personalPlaceImportOpen}
+                mapId={directory.id}
+                identityKey={user?.id}
+                categories={personalPlaceCategories}
+                personalPlaces={personalPlacesLibrary}
+                onClose={() => setPersonalPlaceImportOpen(false)}
+                onImported={refreshPersonalPlaceImport}
             />
 
             <PersonalPlaceEditorModal

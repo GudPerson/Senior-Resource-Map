@@ -1,5 +1,47 @@
 # Regression Ledger
 
+## 2026-10-04 Personal place spreadsheet import — authorised release candidate
+
+- Current behaviour: an authenticated non-guest owner can import CSV/XLSX/XLS
+  into an owned My Map using Name and Postal Code, with optional Short Description.
+  Exact postal lookup supplies coordinates and a preview address; unit/address
+  details and an active owned category can be reviewed before confirmation.
+  The default category is the existing generic Personal place.
+- Reference: isolated `codex/personal-place-import-20261003` worktree based on
+  released `0c771828102e3ce8bbf06fabb25590df92c63a21`. Existing Help/Guide
+  content `2026-10-02.help-centre.6` and map assets are retained. The original
+  dirty checkout is preserved.
+- Blast radius: isolated parser/modal and owner-only import endpoint; narrow
+  ordinary-edit safeguards retain unit addresses for an unchanged postal,
+  generic category and an omitted description. The stable manual-create
+  defaults, reusable-place attach/detach, map rendering, Shared/embed exclusion
+  and managed-resource imports remain subject to their existing contracts.
+- Reproduction: open Add personal place → Import spreadsheet in default,
+  classic and Export View; upload the template; check exact six-digit lookup,
+  leading zeros, editable units/category and worksheet choice. Cancel and
+  require zero writes. Confirm, inspect My Places and current map membership,
+  repeat for safe reuse, then ordinarily edit a generic imported place.
+- Acceptance: reject invalid/formula/oversized input; explicitly skip invalid
+  rows; write at most 25 rows atomically per batch; preserve reviewed addresses;
+  reject ambiguous/conflicting library matches without overwriting them; reuse
+  exact matches across owned maps; confirm both authoritative library and map
+  membership. Failed refreshes and uncertain responses must not claim complete.
+  A partial file retry sends only remaining rows. Imported places remain absent
+  from actual shared snapshots.
+- Verification: full server/client, focused parser/render/editor, production
+  build/static and locked-map gates are recorded in
+  `docs/evidence/personal-place-import-local-20261004.json`. Actual local
+  browser/controller/PGlite checks cover desktop/390 px, all three map branches,
+  cancel, ordinary edits, lost committed responses, partial batch retries and
+  decimal-coordinate ties. Older legacy descriptions use raw matching metadata
+  without changing their stored values or presentation.
+- Proof limits: postal lookup is simulated in local UAT; no physical-device,
+  production owner import or live-geocoding acceptance is inferred. Production
+  test records, schema changes, credentials and AI budget changes are outside
+  this release. Final Worker/Pages provenance and public artifact parity are
+  recorded after deployment in the local receipt
+  `output/personal-place-import/production-release-20261004.json`.
+
 ## 2026-10-02 Unified Help Centre and Guide — local candidate
 
 - The implementation goal is active in `/Users/sweetbuns/.codex/worktrees/help-centre-guide/CareAroundSG`, branch `codex/help-centre-guide-20261002`, based on released source `b8345be4d2f7a097e81cb03eef64b473abd0cec9`. No commit, push or deployment has occurred for this candidate.

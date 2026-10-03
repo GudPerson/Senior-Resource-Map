@@ -143,7 +143,10 @@ function normalizePersonalPlaceInput(body = {}) {
         postalCode: normalizeOptionalText(body.postalCode),
         lat: Number(body.lat),
         lng: Number(body.lng),
-        shortDescription: normalizeOptionalText(body.shortDescription ?? body.note),
+        shortDescription: Object.prototype.hasOwnProperty.call(body, 'shortDescription')
+            || Object.prototype.hasOwnProperty.call(body, 'note')
+            ? normalizeOptionalText(body.shortDescription ?? body.note)
+            : undefined,
     };
 }
 
@@ -178,6 +181,7 @@ export function serializePersonalPlace(place) {
         lat: Number.isFinite(lat) ? lat : null,
         lng: Number.isFinite(lng) ? lng : null,
         shortDescription: place.shortDescription || place.note || null,
+        importShortDescription: place.shortDescription ?? place.note ?? '',
         mapIds: mapLinks.map((link) => link.mapId),
         maps: mapLinks.map((link) => ({
             id: link.mapId,
@@ -420,6 +424,13 @@ async function findOwnedPersonalPlace(db, userId, personalPlaceId, includeLinks 
     });
 }
 
+export async function resolvePersonalPlaceUpdateLocation(db, user, personalPlaceId, body, fetchImpl = fetch) {
+    assertPersonalPlacesUser(user);
+    const existing = await findOwnedPersonalPlace(db, user.id, personalPlaceId);
+    if (!existing) throw createHttpError(404, 'Personal place not found');
+    return resolvePersonalPlaceLocation(body, fetchImpl, existing);
+}
+
 export async function updatePersonalPlace(db, user, personalPlaceId, body) {
     assertPersonalPlacesUser(user);
     const existing = await findOwnedPersonalPlace(db, user.id, personalPlaceId, true);
@@ -436,7 +447,7 @@ export async function updatePersonalPlace(db, user, personalPlaceId, body) {
         postalCode: values.postalCode,
         lat: String(values.lat),
         lng: String(values.lng),
-        shortDescription: values.shortDescription,
+        ...(values.shortDescription !== undefined ? { shortDescription: values.shortDescription } : {}),
         updatedAt: new Date(),
     };
     await db.update(userPersonalPlaces)
@@ -567,7 +578,7 @@ export const patchPersonalPlace = async (c) => {
         const personalPlaceId = parsePositiveId(c.req.param('placeId'));
         if (!personalPlaceId) return c.json({ error: 'Personal place id is required' }, 400);
         const body = validateRequestBody(await c.req.json(), personalPlaceBodySchema, 'Personal place');
-        const location = await resolvePersonalPlaceLocation(body);
+        const location = await resolvePersonalPlaceUpdateLocation(db, user, personalPlaceId, body);
         return c.json(await updatePersonalPlace(db, user, personalPlaceId, { ...body, ...location }));
     } catch (err) {
         console.error('patchPersonalPlace Error:', err);

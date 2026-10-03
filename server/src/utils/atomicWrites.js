@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 const WRITE_LOCK_NAMESPACES = Object.freeze({
     hardAsset: 43101,
     softAsset: 43102,
+    personalPlaceImport: 43103,
 });
 
 function requirePositiveInteger(value, label) {

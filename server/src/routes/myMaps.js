@@ -31,6 +31,7 @@ import {
     getMyMapStudio,
     putMyMapStudio,
 } from '../controllers/mapStudioController.js';
+import { postMyMapPersonalPlacesImport } from '../controllers/personalPlaceImportController.js';
 
 const router = new Hono();
 
@@ -49,6 +50,7 @@ router.put('/:id/studio', authenticateToken, putMyMapStudio);
 router.get('/:id/print-annotations', authenticateToken, getMyMapPrintAnnotations);
 router.put('/:id/print-annotations', authenticateToken, putMyMapPrintAnnotations);
 router.post('/:id/personal-places', authenticateToken, postMyMapPersonalPlace);
+router.post('/:id/personal-places/import', authenticateToken, postMyMapPersonalPlacesImport);
 router.patch('/:id/personal-places/:placeId', authenticateToken, patchMyMapPersonalPlace);
 router.patch('/:id/personal-places/:placeId/short-description', authenticateToken, patchMyMapPersonalPlaceShortDescriptor);
 router.delete('/:id/personal-places/:placeId', authenticateToken, deleteMyMapPersonalPlaceRoute);

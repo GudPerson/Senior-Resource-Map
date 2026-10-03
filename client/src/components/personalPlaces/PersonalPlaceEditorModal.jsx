@@ -6,6 +6,7 @@ import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { api } from '../../lib/api.js';
 import { searchOneMap } from '../../lib/geo.js';
 import { PersonalPlaceCategoryIcon } from '../../lib/personalPlaceCategories.jsx';
+import { getPersonalPlaceDraftCategoryId, isGenericPersonalPlaceDraft } from '../../lib/personalPlaceDraft.js';
 
 function formatCoordinate(value) {
     const parsed = Number.parseFloat(value);
@@ -61,9 +62,6 @@ export default function PersonalPlaceEditorModal({
         }
         if (initializedDraftKeyRef.current === draftKey) return;
         initializedDraftKeyRef.current = draftKey;
-        const fallbackCategory = activeCategories.find(
-            (category) => category.name === draft?.categoryLabel
-        );
         const hasAddressedLocation = Boolean(
             String(draft?.address || '').trim()
             || String(draft?.postalCode || '').trim()
@@ -72,7 +70,7 @@ export default function PersonalPlaceEditorModal({
         setForm({
             name: draft?.name || '',
             logoUrl: draft?.logoUrl || '',
-            categoryId: String(draft?.categoryId || draft?.category?.id || fallbackCategory?.id || activeCategories[0]?.id || ''),
+            categoryId: getPersonalPlaceDraftCategoryId(draft, activeCategories),
             address: draft?.address || '',
             postalCode: draft?.postalCode || '',
             locationMode,
@@ -85,7 +83,7 @@ export default function PersonalPlaceEditorModal({
     }, [activeCategories, draft, draftKey, open]);
 
     useEffect(() => {
-        if (!open || form.categoryId || activeCategories.length === 0) return;
+        if (!open || isGenericPersonalPlaceDraft(draft) || form.categoryId || activeCategories.length === 0) return;
         const fallbackCategory = activeCategories.find(
             (category) => category.name === draft?.categoryLabel
         );
@@ -189,7 +187,7 @@ export default function PersonalPlaceEditorModal({
             name: form.name.trim(),
             logoUrl: form.logoUrl.trim(),
             categoryId: selectedCategory?.id || null,
-            categoryLabel: selectedCategory?.name || draft?.categoryLabel || '',
+            categoryLabel: selectedCategory?.name || '',
             address: form.address.trim(),
             postalCode: form.postalCode.trim(),
             locationMode: form.locationMode,
@@ -333,7 +331,7 @@ export default function PersonalPlaceEditorModal({
                                             onChange={(event) => updateField('categoryId', event.target.value)}
                                             className={`input-field min-h-11 w-full appearance-none pr-8 ${selectedCategory ? 'pl-12' : ''}`}
                                         >
-                                            <option value="">{t('personalPlaceCategoryPlaceholder')}</option>
+                                            <option value="">{t('personalPlace')}</option>
                                             {activeCategories.map((category) => (
                                                 <option key={category.id} value={category.id}>{category.name}</option>
                                             ))}

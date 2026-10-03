@@ -147,7 +147,7 @@ test('all Personal Place API entry points apply the shared location validator', 
     );
 
     assert.match(personalPlacesSource, /postPersonalPlace[\s\S]*resolvePersonalPlaceLocation\(body\)/);
-    assert.match(personalPlacesSource, /patchPersonalPlace[\s\S]*resolvePersonalPlaceLocation\(body\)/);
+    assert.match(personalPlacesSource, /patchPersonalPlace[\s\S]*resolvePersonalPlaceUpdateLocation\(db, user, personalPlaceId, body\)/);
     assert.match(myMapsSource, /postMyMapPersonalPlace[\s\S]*resolvePersonalPlaceLocation\(body\)/);
-    assert.match(myMapsSource, /patchMyMapPersonalPlace[\s\S]*resolvePersonalPlaceLocation\(body\)/);
+    assert.match(myMapsSource, /patchMyMapPersonalPlace[\s\S]*resolvePersonalPlaceUpdateLocation\(db, user, personalPlaceId, body\)/);
 });

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, MapPin, Plus, Search, X } from 'lucide-react';
+import { Check, FileSpreadsheet, MapPin, Plus, Search, X } from 'lucide-react';
 
 import ResourceRowIcon from '../ResourceRowIcon.jsx';
 
@@ -16,6 +16,7 @@ export default function AddPersonalPlaceChooserModal({
     onClose,
     onAttach,
     onCreateNew,
+    onImport,
 }) {
     const [query, setQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
@@ -67,7 +68,7 @@ export default function AddPersonalPlaceChooserModal({
                     </button>
                 </header>
 
-                <div className="flex gap-2 border-b border-slate-100 p-4">
+                <div className="flex flex-wrap gap-2 border-b border-slate-100 p-4">
                     <div className="relative min-w-0 flex-1">
                         <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
@@ -83,6 +84,12 @@ export default function AddPersonalPlaceChooserModal({
                         <Plus size={16} />
                         Choose map location
                     </button>
+                    {onImport ? (
+                        <button type="button" onClick={onImport} disabled={submitting} className="btn-ghost min-h-11 flex-shrink-0 justify-center border border-slate-200 px-4 disabled:opacity-50">
+                            <FileSpreadsheet size={16} />
+                            Import spreadsheet
+                        </button>
+                    ) : null}
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto p-4">

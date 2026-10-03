@@ -12,7 +12,7 @@ function cleanLocationText(value) {
     return String(value ?? '').trim();
 }
 
-export async function resolvePersonalPlaceLocation(body = {}, fetchImpl = fetch) {
+export async function resolvePersonalPlaceLocation(body = {}, fetchImpl = fetch, existingPlace = null) {
     const address = cleanLocationText(body.address);
     const postalCode = cleanLocationText(body.postalCode);
     const requestedMode = body.locationMode || (address || postalCode ? 'addressed' : 'map_only');
@@ -60,7 +60,11 @@ export async function resolvePersonalPlaceLocation(body = {}, fetchImpl = fetch)
 
     return {
         locationMode: 'addressed',
-        address: validation.address,
+        address: existingPlace
+            && cleanLocationText(existingPlace.postalCode) === validation.postalCode
+            && cleanLocationText(existingPlace.address)
+            ? cleanLocationText(existingPlace.address)
+            : validation.address,
         postalCode: validation.postalCode,
         lat: validation.lat,
         lng: validation.lng,

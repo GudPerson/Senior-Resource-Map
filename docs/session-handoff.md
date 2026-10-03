@@ -1,5 +1,38 @@
 # CareAround SG session handoff
 
+## 2026-10-04 Personal place spreadsheet import — release preparation
+
+- User explicitly authorised implementation, commit, push and deployment when
+  complete. The isolated worktree is
+  `/Users/sweetbuns/.codex/worktrees/personal-place-import/CareAroundSG`,
+  branch `codex/personal-place-import-20261003`, based on fresh released
+  `0c771828102e3ce8bbf06fabb25590df92c63a21`. The original dirty runtime
+  checkout remains untouched.
+- Import uses only Name, Postal Code and optional Short Description. Preview
+  verifies exact postal coordinates, lets the owner edit unit/address details
+  and choose an active category, and defaults to Personal place. All three
+  owner map views expose the chooser action.
+- The dedicated endpoint rechecks owner permissions/content inside an owner
+  locked atomic batch. It creates/reuses places and links at most 25 rows,
+  rejects conflicts, and never overwrites a reusable place. Completion requires
+  refreshed owner library and canonical map membership; confirmed rows are
+  excluded from retries. Raw legacy-description matching and decimal-coordinate
+  rounding prevent false confirmation.
+- Ordinary edits retain custom address details for an unchanged postal,
+  explicit generic category and an omitted description. No schema, credentials,
+  production test records, AI budget or map assets change. Shared links and
+  embeds continue to exclude private places.
+- Local evidence is `docs/evidence/personal-place-import-local-20261004.json`;
+  user instructions/template are `docs/personal-place-import.md` and
+  `docs/templates/personal-places-import.csv`. Local browser/API proof uses
+  fictional accounts, PGlite and simulated postal lookup.
+- Release uses a separate clean main checkout and the guarded Worker then Pages
+  scripts. This committed record precedes deployment. The local receipt
+  `output/personal-place-import/production-release-20261004.json` records actual
+  source SHA/deployment IDs, custom-domain MIME/byte/hash parity and limitations.
+  After release, the next product check is the owner's first real spreadsheet
+  import with live postal lookup.
+
 ## 2026-10-02 Unified Help Centre and Guide — local candidate
 
 - The implementation goal is active in `/Users/sweetbuns/.codex/worktrees/help-centre-guide/CareAroundSG`, branch `codex/help-centre-guide-20261002`, based on released source `b8345be4d2f7a097e81cb03eef64b473abd0cec9`. No commit, push or deployment has occurred for this candidate.
