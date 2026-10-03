@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import {
     digestValue, sha256Bytes, httpsOrigin, readReleaseConfiguration, assertPrivateAutomation,
     validateSnapshot, validateOwnerReview, assertContentOnlyPaths, validateBaseSource, validateSourceIdentities,
-    deriveEditorialCorrections, collectApprovedMedia, readBoundedBytes, verifyPublicArtifacts,
+    deriveEditorialCorrections, collectApprovedMedia, readBoundedBytes, verifyPublicArtifacts, verifyOrdinaryHtmlDelivery,
     pairedRelease, deploymentArguments, runnerReceipt, assertLatestHelpContentForAppRelease, validatedWranglerPath, validateRecoverySurfaces, priorReleaseState, postReceipt, postCheckpoint, uncommittedContentPaths, assertPrivateSeedUntracked,
 } from './help-cms-release.mjs';
 
@@ -183,23 +183,151 @@ function artifactFixture(t) {
     for (const [name, text] of Object.entries(files)) writeFileSync(join(dist, name), text);
     return { dist, files };
 }
+const securityHeaders = { 'content-security-policy': "default-src 'self'; frame-ancestors 'none'", 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-frame-options': 'DENY', 'x-content-type-options': 'nosniff', 'referrer-policy': 'strict-origin-when-cross-origin',
+    'permissions-policy': 'camera=(), microphone=(), geolocation=(self), payment=()' };
+const artifactNameAtUrl = url => {
+    const path = new URL(url).pathname;
+    return path === '/__help-release-proof/home' ? 'index.html' : path === '/__help-release-proof/offline' ? 'offline.html' : decodeURIComponent(path.slice(1));
+};
+function artifactResponse(name, body, mime = name.endsWith('.html') ? 'text/html' : 'application/json') {
+    return new Response(body, { headers: { ...securityHeaders, 'Content-Type': mime, 'Cache-Control': 'private, no-store, no-transform' } });
+}
 test('custom domain parity checks every public artifact and retains failures before a successful retry', async t => {
     const { dist, files } = artifactFixture(t), counts = {};
-    const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, delay: async () => {}, fetchImpl: async url => {
-        const name = new URL(url).pathname.slice(1); counts[name] = (counts[name] || 0) + 1;
+    const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, probeId: jobId, delay: async () => {}, fetchImpl: async url => {
+        const name = artifactNameAtUrl(url); counts[name] = (counts[name] || 0) + 1;
         const value = name === 'other.json' && counts[name] === 1 ? 'stale' : files[name];
-        return new Response(value, { headers: { 'Content-Type': name.endsWith('.html') ? 'text/html' : 'application/json' } });
+        return artifactResponse(name, value);
     } });
     assert.equal(result.passed, true); assert.equal(result.checked, 4); assert.equal(counts._headers, undefined);
     assert.equal(result.records.find(record => record.path === 'other.json').failures.length, 1);
 });
 test('matching public bytes with wrong MIME do not establish artifact parity', async t => {
     const { dist, files } = artifactFixture(t);
-    const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, attempts: 1, fetchImpl: async url => {
-        const name = new URL(url).pathname.slice(1);
-        return new Response(files[name], { headers: { 'Content-Type': 'text/html' } });
+    const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, probeId: jobId, attempts: 1, fetchImpl: async url => {
+        const name = artifactNameAtUrl(url);
+        return artifactResponse(name, files[name], 'text/html');
     } });
     assert.equal(result.passed, false); assert.equal(result.records.filter(record => !record.passed).length, 3);
+});
+function htmlArtifactFixture(t) {
+    const { dist, files } = artifactFixture(t); mkdirSync(join(dist, 'nested'), { recursive: true });
+    Object.assign(files, { 'offline.html': '<html>Approved offline</html>', 'nested/index.html': '<html>Nested index</html>', 'nested/offline.html': '<html>Nested offline</html>' });
+    for (const name of ['offline.html', 'nested/index.html', 'nested/offline.html']) writeFileSync(join(dist, name), files[name]);
+    return { dist, files };
+}
+async function htmlAssetProof(t) {
+    const { dist, files } = htmlArtifactFixture(t);
+    const proof = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, probeId: jobId, attempts: 1,
+        fetchImpl: async url => artifactResponse(artifactNameAtUrl(url), files[artifactNameAtUrl(url)]) });
+    assert.equal(proof.passed, true); return { dist, files, proof };
+}
+test('only the two root HTML files map to dedicated same-origin asset proofs, using the distinct UUID job identity', async t => {
+    const { dist, files } = htmlArtifactFixture(t), requests = [];
+    const { onRequest: index } = await import('../client/functions/__help-release-proof/home.js');
+    const { onRequest: offline } = await import('../client/functions/__help-release-proof/offline.js');
+    const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, probeId: jobId, attempts: 1,
+        fetchImpl: async (url, options) => {
+            const target = new URL(url), name = artifactNameAtUrl(url);
+            assert.equal(target.origin, 'https://app.carearound.sg'); assert.equal(target.searchParams.get('help_release_check'), jobId); assert.equal(options.redirect, 'error');
+            requests.push(target.pathname);
+            if (!['index.html', 'offline.html'].includes(name)) return artifactResponse(name, files[name]);
+            return (name === 'index.html' ? index : offline)({ request: new Request(url), env: { ASSETS: { fetch: async request => {
+                assert.equal(request.url, name === 'index.html' ? 'https://app.carearound.sg/' : 'https://app.carearound.sg/offline');
+                return artifactResponse(name, files[name]);
+            } } } });
+        } });
+    assert.equal(result.passed, true); assert.equal(result.checked, 7);
+    assert.deepEqual(requests, ['/help-content-status.json', '/__help-release-proof/home', '/nested/index.html', '/nested/offline.html', '/__help-release-proof/offline', '/other.json', '/release.json']);
+    for (const record of result.records) {
+        assert.equal(record.bytes, Buffer.byteLength(files[record.path])); assert.equal(record.sha256, sha256Bytes(files[record.path]));
+    }
+    const envelope = snapshot(), receipt = runnerReceipt(expected(envelope), { version: 'cms.2', contentDigest: 'd'.repeat(64), buildSourceRevision: buildRevision }, { state: 'published', workerVersionId: workerId, pagesDeploymentId: pagesId });
+    await postReceipt({ ...expected(envelope), apiOrigin: 'https://api.example.test', releaseToken: 'fixture-only' }, receipt, async (url, options) => {
+        assert.equal(url, 'https://api.example.test/api/help/cms/release/' + releaseId + '/receipt'); assert.equal(JSON.parse(options.body).jobId, jobId);
+        return responseJson({ release: { id: releaseId, state: 'published' } });
+    });
+    await assert.rejects(verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, probeId: releaseId }), /proof identity/);
+});
+test('raw HTML proof refuses redirects, mismatched bytes/MIME/cache and missing security headers without skipping other files', async t => {
+    for (const failure of ['redirect', 'status', 'followed', 'bytes', 'mime', 'cache', 'security']) {
+        const { dist, files } = htmlArtifactFixture(t), requests = [];
+        const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, probeId: jobId, attempts: 1, fetchImpl: async (url, options) => {
+            assert.equal(options.redirect, 'error'); requests.push(new URL(url).pathname);
+            const name = artifactNameAtUrl(url), proof = ['index.html', 'offline.html'].includes(name);
+            const response = proof && ['redirect', 'status'].includes(failure) ? new Response('', { status: failure === 'redirect' ? 308 : 201, headers: { Location: 'https://other.example/', 'Content-Type': 'text/html' } })
+                : artifactResponse(name, proof && failure === 'bytes' ? 'X' + files[name].slice(1) : files[name], proof && failure === 'mime' ? 'application/json' : undefined);
+            if (proof && failure === 'followed') Object.defineProperty(response, 'redirected', { value: true });
+            if (proof && failure === 'cache') response.headers.set('Cache-Control', 'public');
+            if (proof && failure === 'security') response.headers.delete('Content-Security-Policy');
+            return response;
+        } });
+        assert.equal(result.passed, false); assert.equal(result.checked, 7); assert.equal(requests.length, 7);
+        assert.deepEqual(result.records.filter(record => !record.passed).map(record => record.path), ['index.html', 'offline.html']);
+    }
+});
+const beacon = '<script defer src="https://static.cloudflareinsights.com/beacon.min.js/vfixture"></script>';
+function ordinaryResponse(url, body = '<html><body>Ordinary app' + beacon + '</body></html>') {
+    return new Response(body, { headers: { ...securityHeaders, 'Content-Type': 'text/html; charset=UTF-8',
+        'Cache-Control': new URL(url).pathname === '/' ? 'public, max-age=0, must-revalidate' : 'no-cache' } });
+}
+test('ordinary delivery independently preserves analytics, cache and same-deployment security on six unmodified page requests', async t => {
+    const { proof } = await htmlAssetProof(t), requests = [];
+    const result = await verifyOrdinaryHtmlDelivery({ appOrigin: 'https://app.carearound.sg', artifactProof: proof, probeId: jobId, fetchImpl: async (url, options) => {
+        assert.equal(options.redirect, 'error'); assert.deepEqual(options.headers, { 'Cache-Control': 'no-cache' }); requests.push(url);
+        return ordinaryResponse(url);
+    } });
+    assert.equal(result.passed, true); assert.equal(result.checked, 6); assert.equal(result.checks.every(record => record.beaconCount === 1 && record.securityHeadersMatch), true);
+    assert.deepEqual(requests, ['https://app.carearound.sg/', 'https://app.carearound.sg/?help_release_check=invalid',
+        'https://app.carearound.sg/?help_release_check=' + jobId + '&help_release_check=' + jobId,
+        'https://app.carearound.sg/offline', 'https://app.carearound.sg/offline?help_release_check=invalid',
+        'https://app.carearound.sg/offline?help_release_check=' + jobId + '&help_release_check=' + jobId]);
+});
+test('ordinary analytics cannot pass with text, comments, inert script types, raw-text containers, foreign sources or duplicate beacons', async t => {
+    const { proof } = await htmlAssetProof(t);
+    const cases = ['https://static.cloudflareinsights.com/beacon.min.js', '<!--' + beacon + '-->', '<textarea>' + beacon + '</textarea>',
+        '<style>' + beacon + '</style>', '<template>' + beacon + '</template>', '<svg>' + beacon + '</svg>',
+        '<div title=\'' + beacon + '\'></div>', '<script>' + JSON.stringify(beacon) + '</script>',
+        beacon.replace('<script ', '<script type="application/json" '), beacon.replace('<script ', '<script type="text/plain" '),
+        beacon.replace('<script ', '<script nomodule '), beacon.replace('https:', 'http:'), beacon.replace('static.cloudflareinsights.com', 'other.example'), beacon + beacon];
+    for (const body of cases) {
+        const result = await verifyOrdinaryHtmlDelivery({ appOrigin: 'https://app.carearound.sg', artifactProof: proof, probeId: jobId, fetchImpl: async url => ordinaryResponse(url, body) });
+        assert.equal(result.passed, false, body); assert.equal(result.checks.every(record => !record.passed), true);
+    }
+    const jsType = await verifyOrdinaryHtmlDelivery({ appOrigin: 'https://app.carearound.sg', artifactProof: proof, probeId: jobId,
+        fetchImpl: async url => ordinaryResponse(url, beacon.replace('<script ', '<script type="text/javascript" ')) });
+    assert.equal(jsType.passed, true);
+});
+test('ordinary status, MIME, redirects, bounded bytes, cache changes and each security-header regression block publication', async t => {
+    const { proof } = await htmlAssetProof(t);
+    const failures = ['status', 'mime', 'redirect', 'bytes', 'private-cache', 'transform-cache', ...Object.keys(securityHeaders)];
+    for (const failure of failures) {
+        const result = await verifyOrdinaryHtmlDelivery({ appOrigin: 'https://app.carearound.sg', artifactProof: proof, probeId: jobId, fetchImpl: async url => {
+            if (failure === 'status' || failure === 'redirect') return new Response('', { status: failure === 'status' ? 500 : 308, headers: { Location: 'https://other.example/' } });
+            const response = ordinaryResponse(url, failure === 'bytes' ? 'X'.repeat(100000) : undefined);
+            if (failure === 'mime') response.headers.set('Content-Type', 'application/json');
+            if (failure === 'private-cache') response.headers.set('Cache-Control', 'private, no-store');
+            if (failure === 'transform-cache') response.headers.set('Cache-Control', 'no-cache, no-transform');
+            if (Object.hasOwn(securityHeaders, failure)) response.headers.delete(failure);
+            return response;
+        } });
+        assert.equal(result.passed, false, failure); assert.equal(result.checked, 6);
+    }
+    const ordinary = await verifyOrdinaryHtmlDelivery({ appOrigin: 'https://app.carearound.sg', artifactProof: proof, probeId: jobId, fetchImpl: async url => ordinaryResponse(url, '<html>Analytics missing</html>') });
+    const result = await pairedRelease(paired({ verify: async () => ({ passed: proof.passed && ordinary.passed, artifactCount: proof.checked, artifactChecks: proof.records, ordinaryHtml: ordinary }) }));
+    assert.equal(result.state, 'partially-released');
+    const receipt = runnerReceipt(expected(), { version: 'cms.2', contentDigest: 'd'.repeat(64), buildSourceRevision: buildRevision }, result);
+    assert.equal(receipt.verification.passed, false); assert.equal(Object.hasOwn(receipt.verification, 'ordinaryHtml'), false);
+});
+test('failed, absent or incomplete asset proofs cannot establish ordinary HTML acceptance', async t => {
+    const { proof } = await htmlAssetProof(t);
+    const missingHeader = structuredClone(proof); delete missingHeader.records.find(record => record.path === 'index.html').securityHeaders['content-security-policy'];
+    for (const artifactProof of [null, { ...proof, passed: false }, { ...proof, records: [] }, missingHeader]) {
+        let requests = 0;
+        const result = await verifyOrdinaryHtmlDelivery({ appOrigin: 'https://app.carearound.sg', artifactProof, probeId: jobId, fetchImpl: async () => { requests++; return ordinaryResponse('https://app.carearound.sg/'); } });
+        assert.equal(result.passed, false); assert.equal(result.checked, 0); assert.equal(requests, 0);
+    }
 });
 function paired(overrides = {}) {
     return { deployWorker: async () => {}, deployPages: async () => {}, observeWorker: async () => workerId, observePages: async () => pagesId,

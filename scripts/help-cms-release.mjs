@@ -35,6 +35,9 @@ const jsonFile = file => JSON.parse(readFileSync(file, 'utf8'));
 export const sha256Bytes = bytes => createHash('sha256').update(bytes).digest('hex');
 export const digestValue = value => sha256Bytes(JSON.stringify(value));
 const normalizedMime = value => String(value || '').split(';')[0].trim().toLowerCase();
+const HTML_PROOFS = Object.freeze({ 'index.html': '/__help-release-proof/home', 'offline.html': '/__help-release-proof/offline' });
+const HTML_SECURITY_HEADERS = Object.freeze(['content-security-policy', 'strict-transport-security', 'x-frame-options',
+    'x-content-type-options', 'referrer-policy', 'permissions-policy']);
 
 export function httpsOrigin(value) {
     let url;
@@ -398,7 +401,9 @@ function publicFiles(root, prefix = '') {
     }
     return files.sort();
 }
-export async function verifyPublicArtifacts({ dist, appOrigin, releaseId, fetchImpl = fetch, attempts = 3, delay = ms => new Promise(done => setTimeout(done, ms)) }) {
+export async function verifyPublicArtifacts({ dist, appOrigin, releaseId, probeId, fetchImpl = fetch, attempts = 3, delay = ms => new Promise(done => setTimeout(done, ms)) }) {
+    const marker = probeId === undefined ? releaseId : probeId;
+    check(typeof marker === 'string' && marker.length === 36 && UUID.test(marker), 'invalid public artifact proof identity.');
     const records = [];
     const paths = publicFiles(dist);
     check(paths.includes('index.html') && paths.includes('release.json') && paths.includes('help-content-status.json'), 'the public artifact inventory is incomplete.');
@@ -406,21 +411,103 @@ export async function verifyPublicArtifacts({ dist, appOrigin, releaseId, fetchI
         const localBytes = readFileSync(join(dist, file)), expectedDigest = sha256Bytes(localBytes), failures = [];
         const allowedMimes = file === 'pwa/carearound-sw' ? MIMES['.js'] : MIMES[extname(file).toLowerCase()];
         check(allowedMimes, 'the public artifact inventory contains an unsupported MIME type.');
-        let passed = false;
+        const proofHtml = Object.hasOwn(HTML_PROOFS, file);
+        const deliveryPath = proofHtml ? HTML_PROOFS[file] : '/' + file.split('/').map(encodeURIComponent).join('/');
+        let passed = false, securityHeaders = null;
         for (let attempt = 1; attempt <= attempts; attempt++) {
             try {
-                const url = appOrigin + '/' + file.split('/').map(encodeURIComponent).join('/') + '?help_release_check=' + encodeURIComponent(releaseId) + '&attempt=' + attempt;
+                const url = appOrigin + deliveryPath + '?help_release_check=' + encodeURIComponent(marker) + '&attempt=' + attempt;
                 const response = await boundedFetch(fetchImpl, url, { headers: { 'Cache-Control': 'no-cache' } });
+                if (proofHtml) check(response.status === 200 && !response.redirected, 'HTML asset proof delivery mismatch.');
                 check(allowedMimes.includes(normalizedMime(response.headers.get('Content-Type'))), 'public artifact MIME mismatch.');
                 const bytes = await readBoundedBytes(response, localBytes.length + 1);
                 check(bytes.length === localBytes.length && sha256Bytes(bytes) === expectedDigest, 'public artifact byte/digest mismatch.');
+                if (proofHtml) {
+                    check(response.headers.get('Cache-Control') === 'private, no-store, no-transform', 'HTML asset proof cache policy mismatch.');
+                    securityHeaders = Object.fromEntries(HTML_SECURITY_HEADERS.map(name => [name, response.headers.get(name)]));
+                    check(Object.values(securityHeaders).every(isText), 'HTML asset proof security headers are incomplete.');
+                }
                 passed = true; break;
             } catch { failures.push({ attempt, result: 'byte-mime-or-delivery-mismatch' }); }
             if (attempt < attempts) await delay(1500);
         }
-        records.push({ path: file, bytes: localBytes.length, sha256: expectedDigest, passed, failures });
+        records.push({ path: file, deliveryPath, proofMode: proofHtml ? 'deployed-html-asset' : 'public-artifact',
+            bytes: localBytes.length, sha256: expectedDigest, passed, failures, ...(proofHtml ? { securityHeaders } : {}) });
     }
     return { passed: records.every(record => record.passed), checked: records.length, records };
+}
+function analyticsScriptCount(html) {
+    // Inspect element tokens without altering the response or its proof bytes.
+    // Skip comments and raw-text/inert containers so text mentioning the beacon
+    // cannot establish that an executable analytics script was delivered.
+    const tags = /<!--[\s\S]*?-->|<![^>]*>|<\/?([a-z][a-z0-9:-]*)\b((?:"[^"]*"|'[^']*'|[^'">])*)>/gi;
+    const raw = new Set(['script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes', 'noscript']);
+    let count = 0, templates = 0, foreign = 0, tag;
+    while ((tag = tags.exec(html))) {
+        if (!tag[1]) continue;
+        const name = tag[1].toLowerCase(), closing = tag[0].startsWith('</');
+        if (name === 'template') { templates = Math.max(0, templates + (closing ? -1 : 1)); continue; }
+        if (['svg', 'math'].includes(name)) { foreign = Math.max(0, foreign + (closing ? -1 : 1)); continue; }
+        if (closing) continue;
+        if (name === 'plaintext') break;
+        if (!raw.has(name)) continue;
+        const end = new RegExp('</' + name + '\\s*>', 'gi'); end.lastIndex = tags.lastIndex;
+        const close = end.exec(html);
+        if (!close) break;
+        if (name === 'script' && templates === 0 && foreign === 0) {
+            const attributes = /([^\s=/'">]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+            let attribute;
+            const values = new Map();
+            while ((attribute = attributes.exec(tag[2]))) {
+                const name = attribute[1].toLowerCase();
+                if (!values.has(name)) values.set(name, attribute[2] ?? attribute[3] ?? attribute[4] ?? '');
+            }
+            const type = normalizedMime(values.get('type'));
+            if (values.has('nomodule') || !['', 'text/javascript', 'application/javascript', 'text/ecmascript', 'application/ecmascript'].includes(type)) {
+                tags.lastIndex = end.lastIndex; continue;
+            }
+            try {
+                const url = new URL(values.get('src'));
+                if (!url.username && !url.password && url.origin === 'https://static.cloudflareinsights.com'
+                    && (url.pathname === '/beacon.min.js' || url.pathname.startsWith('/beacon.min.js/'))) count++;
+            } catch { /* An invalid/non-absolute source cannot be the analytics script. */ }
+        }
+        tags.lastIndex = end.lastIndex;
+    }
+    return count;
+}
+export async function verifyOrdinaryHtmlDelivery({ appOrigin, artifactProof, probeId, fetchImpl = fetch }) {
+    check(typeof probeId === 'string' && probeId.length === 36 && UUID.test(probeId), 'invalid ordinary HTML proof identity.');
+    const documents = [{ file: 'index.html', path: '/', cache: 'public, max-age=0, must-revalidate' },
+        { file: 'offline.html', path: '/offline', cache: 'no-cache' }];
+    const references = documents.map(document => artifactProof?.records?.find(record => record.path === document.file));
+    if (artifactProof?.passed !== true || references.some((record, index) => !record?.passed || record.proofMode !== 'deployed-html-asset'
+        || record.deliveryPath !== HTML_PROOFS[documents[index].file] || !Number.isSafeInteger(record.bytes) || record.bytes < 0
+        || !HTML_SECURITY_HEADERS.every(name => isText(record.securityHeaders?.[name])))) {
+        return { passed: false, checked: 0, checks: [], failure: 'complete-html-asset-proof-required' };
+    }
+    const cases = [{ name: 'bare', query: '' }, { name: 'invalid-marker', query: '?help_release_check=invalid' },
+        { name: 'duplicate-marker', query: '?help_release_check=' + probeId + '&help_release_check=' + probeId }];
+    const checks = [];
+    for (let index = 0; index < documents.length; index++) for (const entry of cases) {
+        const document = documents[index], reference = references[index];
+        const record = { path: document.path, case: entry.name, passed: false };
+        try {
+            const response = await boundedFetch(fetchImpl, appOrigin + document.path + entry.query, { headers: { 'Cache-Control': 'no-cache' } });
+            record.status = response.status; record.mime = normalizedMime(response.headers.get('Content-Type'));
+            record.cacheControl = response.headers.get('Cache-Control');
+            check(record.status === 200 && record.mime === 'text/html', 'ordinary HTML status/MIME mismatch.');
+            check(record.cacheControl === document.cache, 'ordinary HTML cache policy changed.');
+            record.securityHeadersMatch = HTML_SECURITY_HEADERS.every(name => response.headers.get(name) === reference.securityHeaders[name]);
+            check(record.securityHeadersMatch, 'ordinary HTML security headers changed.');
+            const bytes = await readBoundedBytes(response, reference.bytes + 64 * 1024);
+            record.beaconCount = analyticsScriptCount(bytes.toString('utf8'));
+            check(record.beaconCount === 1, 'ordinary HTML analytics delivery changed.');
+            record.passed = true;
+        } catch { record.failure = 'ordinary-html-delivery-mismatch'; }
+        checks.push(record);
+    }
+    return { passed: checks.every(record => record.passed), checked: checks.length, checks };
 }
 async function observeReleases(config, fetchImpl = fetch) {
     const nonce = '?help_release_check=' + encodeURIComponent(config.releaseId);
@@ -600,7 +687,8 @@ export async function runHelpContentRelease({ root = process.cwd(), env = proces
                 const live = await observeReleases(config, fetchImpl);
                 check(live.workerSourceRevision === compiled.buildSourceRevision && live.pagesSourceRevision === compiled.buildSourceRevision, 'paired runtime source revisions disagree.');
                 const content = await observeContent(config, { fetchImpl, expectedVersion: compiled.version, expectedDigest: compiled.contentDigest });
-                const artifacts = await verifyPublicArtifacts({ dist: join(root, 'client/dist'), appOrigin: config.appOrigin, releaseId: config.releaseId, fetchImpl });
+                const artifacts = await verifyPublicArtifacts({ dist: join(root, 'client/dist'), appOrigin: config.appOrigin, releaseId: config.releaseId, probeId: config.jobId, fetchImpl });
+                const ordinaryHtml = await verifyOrdinaryHtmlDelivery({ appOrigin: config.appOrigin, artifactProof: artifacts, probeId: config.jobId, fetchImpl });
                 let mediaPassed = true;
                 for (const asset of media) {
                     try {
@@ -610,8 +698,8 @@ export async function runHelpContentRelease({ root = process.cwd(), env = proces
                         check(bytes.length === asset.bytes && sha256Bytes(bytes) === asset.sha256, 'released media bytes mismatch.');
                     } catch { mediaPassed = false; }
                 }
-                return { passed: artifacts.passed && mediaPassed, content, artifactCount: artifacts.checked, mediaCount: media.length, mediaPassed,
-                    artifactChecks: artifacts.records };
+                return { passed: artifacts.passed && ordinaryHtml.passed && mediaPassed, content, artifactCount: artifacts.checked, mediaCount: media.length, mediaPassed,
+                    artifactChecks: artifacts.records, ordinaryHtml };
             },
         });
     } catch (error) {
@@ -634,7 +722,9 @@ export async function runHelpContentRelease({ root = process.cwd(), env = proces
         catch { receiptError = 'receipt-delivery'; result.failedStage ||= receiptError; if (result.state === 'published') result.state = 'partially-released'; }
     }
     return { ...runnerReceipt(config, compiled || { version: publication.version }, result), releaseId: config.releaseId,
-        receiptAccepted, receiptError, failedStage: result.failedStage, qualityGates, state: result.state, recoveryObservation: result.recovery || null, artifactChecks: result.verification?.artifactChecks || [], productionAttempted: result.productionAttempted || result.attemptedTargets.length > 0 };
+        receiptAccepted, receiptError, failedStage: result.failedStage, qualityGates, state: result.state, recoveryObservation: result.recovery || null,
+        artifactChecks: result.verification?.artifactChecks || [], ordinaryHtml: result.verification?.ordinaryHtml || null,
+        productionAttempted: result.productionAttempted || result.attemptedTargets.length > 0 };
 }
 
 // Ordinary application releases must call this before building/deploying. It

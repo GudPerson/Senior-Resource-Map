@@ -121,11 +121,11 @@ test('onRequest rejects non-read methods and preserves HEAD headers without a bo
     }
 });
 
-test('Pages Functions routing is limited to embedded map documents', () => {
+test('Pages Functions routing preserves embedded maps and isolates the two Help asset proof URLs', () => {
     const routes = JSON.parse(readFileSync(new URL('../public/_routes.json', import.meta.url), 'utf8'));
     assert.deepEqual(routes, {
         version: 1,
-        include: ['/embed/maps/*', '/embed/governed-maps/*'],
+        include: ['/embed/maps/*', '/embed/governed-maps/*', '/__help-release-proof/home', '/__help-release-proof/offline'],
         exclude: [],
     });
 });
