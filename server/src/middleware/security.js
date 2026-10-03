@@ -84,7 +84,8 @@ function isJsonContentType(contentType) {
 }
 
 function isLargeBodyRoute(pathname) {
-    return pathname.startsWith('/api/upload')
+    return pathname === '/api/help/cms/' || pathname === '/api/help/cms' || pathname === '/api/help/cms/media'
+        || pathname.startsWith('/api/upload')
         || (pathname.startsWith('/api/private-resource-content/') && pathname.includes('/files'))
         || pathname === '/api/soft-assets/import/collateral/preview'
         || pathname.startsWith('/api/admin/imports/');

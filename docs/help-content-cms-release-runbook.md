@@ -1,0 +1,155 @@
+# Help Content CMS: activation and recovery runbook
+
+Date: 4 October 2026 (Asia/Singapore)
+
+Status: implemented and locally checked; production setup, initial installation, real-account acceptance and the first CMS publication remain separate approval gates. This document authorises no account, infrastructure, credential, Git or production action by itself. Local and synthetic passes are not production acceptance.
+
+Use this runbook with [the release checklist](release-checklist.md), [the regression ledger](regression-ledger.md), and the current CMS release evidence. The earlier [CMS architecture plan](plans/2026-10-02-help-content-cms.md) is design history; the implementation described here is the current operating contract.
+
+## 1. Record the concrete activation scope before execution
+
+Fill in these non-secret deployment identities in the private release record:
+
+- The verified existing Joshua account ID and confirmation that its existing role is `super_admin`. A name or browser role claim is insufficient.
+- The selected **private** automation repository as `owner/repo`; its default/release branch is `main`.
+- The approved public application commit on `GudPerson/Senior-Resource-Map` `origin/main`, after the CMS implementation has been merged and pushed with approval.
+- The existing Cloudflare account, Worker `senior-resource-map-api`, Pages project `senior-resource-map`, API `https://api.carearound.sg`, and application `https://app.carearound.sg`.
+- The original production Worker version/source revision, Pages deployment/source revision, and Help content version/digest needed for recovery.
+- The approved initial installation window and the first baseline/no-op publication, if approved, containing the same already-approved public facts.
+
+Keep account IDs, private repository identity and release receipts in the appropriate private operator record. Never place credential values, draft snapshots, restricted prose, private review notes or copied `.env` files in the public repository or this runbook. Do not invent the account ID, private repository, source SHA or deployment IDs.
+
+The final execution approval should cover the dedicated private bucket and owner/publisher configuration, the validated CMS source commit/merge/push to public `main` (including any Git-connected Pages deployment that push triggers), and the initial paired Worker/Pages production installation. Prefer an explicitly reviewed baseline/no-op first publication with the same already-approved public facts. Explicitly identify its new release/version and any real-account acceptance writes included in approval; do not infer permission to create synthetic public articles or resources. Later owner clicks on Publish approve only the reviewed content snapshot; they do not authorise unrelated application or infrastructure changes.
+
+## 2. Provision and configure, after that approval
+
+### Private storage
+
+Provision the dedicated R2 bucket `carearound-help-content-private` in the existing CareAround Cloudflare account. The new `server/wrangler.toml` binding is `HELP_CMS_BUCKET`. Confirm that the bucket exists before deploying the runtime with that binding, and enable the editor only when its configuration is complete.
+
+Keep R2 public development access and custom public domains disabled. Drafts, saved revisions, review records, immutable approved snapshots and original media use this private bucket. Do not reuse the map bucket or map credentials. Do not set lifecycle deletion rules that discard saved revisions, release recovery records or media referenced by a retained publication. Establish the operator's private backup/retention policy before relying on restore history.
+
+The Worker accesses R2 through its binding. The content workflow does not need a separate R2 access key: it downloads only approved snapshot/media through the authenticated CMS runner API. Approved public images are served at `/api/help/media/<assetId>` only while the current compiled public article library references the image. They are not copied into a public R2 bucket or `client/public`.
+
+### Worker configuration
+
+Configure these fields on the existing Worker without replacing its other variables, bindings, routes, secrets, cron, compatibility settings, map cache or AI budget binding:
+
+| Field | Exact meaning |
+| --- | --- |
+| `HELP_CMS_ENABLED` | Set to the string `true` after private storage and owner configuration are ready. Missing/disabled configuration leaves the editor unavailable. |
+| `HELP_CMS_OWNER_ID` | Verified existing positive numeric Joshua account ID; the account must already be `super_admin`. Impersonated sessions are denied. |
+| `HELP_CMS_PUBLIC_APP_ORIGIN` | `https://app.carearound.sg`. |
+| `HELP_CMS_PUBLIC_API_ORIGIN` | `https://api.carearound.sg`. This is the **Worker publisher** field; it differs from the workflow's `HELP_CMS_API_ORIGIN`. |
+| `HELP_CMS_PUBLISH_REPOSITORY` | The selected private automation `owner/repo`. Never the public application repository. |
+| `HELP_CMS_PUBLISH_WORKFLOW` | `help-content-release.yml`. |
+| `HELP_CMS_PUBLISH_BRANCH` | `main`; other dispatch branches are rejected. |
+| `HELP_CMS_SOURCE_REVISION` | Exact 40-character SHA of the current approved public application `origin/main`. This is the application base, not the private content build SHA. |
+| `HELP_CMS_GITHUB_TOKEN` | Worker-only secret authorised to read the selected private repository's metadata, dispatch its workflow, and read workflow-run status for reconciliation. Limit repository access to that private repository; no public application push/write grant is needed. |
+| `HELP_CMS_RELEASE_TOKEN` | Separate high-entropy runner secret of at least 32 characters, shared only by this Worker and the private release environment. It grants snapshot/media download plus checkpoint/receipt submission; it is not an owner login token. |
+
+Store secret fields using the platform's secret mechanism. Configure ordinary fields using the existing Worker configuration process. Verify existing authorised values privately; do not print them in commands, logs, screenshots or documentation. The required Cloudflare operator authority covers creating/configuring this private bucket and attaching it to this Worker; do not expand the runner to account administration or database access.
+
+### Private GitHub release environment
+
+Install [the reviewed workflow template](templates/help-content-release.yml) as `.github/workflows/help-content-release.yml` **in the selected private automation repository only**. Create/use its `help-content-production` environment. Apply the owner's desired environment approval protection and confirm that the owner can approve its runs.
+
+| Private workflow field | Configuration |
+| --- | --- |
+| Repository variable `HELP_CMS_API_ORIGIN` | `https://api.carearound.sg`. |
+| Repository variable `HELP_CMS_PUBLIC_APP_ORIGIN` | `https://app.carearound.sg`. |
+| Environment/repository secret `HELP_CMS_RELEASE_TOKEN` | Same dedicated runner secret configured on the Worker. |
+| Environment/repository secret `CLOUDFLARE_ACCOUNT_ID` | Existing CareAround account identifier. |
+| Environment/repository secret `CLOUDFLARE_API_TOKEN` | Existing authorised release token with the Worker/Pages deployment and deployment-metadata access the adapter uses. Keep it scoped to the existing account/resources; do not substitute an account-wide administrative key. |
+| Automatic `GITHUB_ACTIONS` / `GITHUB_REPOSITORY` | GitHub-provided `true` and the selected private `owner/repo`. The adapter refuses a non-Actions invocation or the public application repository; do not spoof these fields. |
+| Automatic `GITHUB_TOKEN` | GitHub's token for that private job, with the template's `contents: read` permission; used to verify that the automation repository is private. No push permission. |
+| Fixed `HELP_CMS_WRANGLER_VERSION` | `4.145.0`, already pinned in the template; the adapter rejects another version. |
+
+The Worker dispatch token and the workflow's automatic `GITHUB_TOKEN` are distinct. The Worker token needs private Actions dispatch and run-read access plus repository metadata; the workflow token does not need to push either repository. R2 provisioning and credential setup are operator actions, not workflow capabilities.
+
+Preserve the exact workflow `run-name`, `Help publication` followed by its `inputs.job_id`. The owner’s Check release job action matches this display title, `workflow_dispatch`, and branch `main`; a renamed title prevents reconciliation. The template uses Node `22.14.0`, Ubuntu, a 45-minute timeout and concurrency group `carearound-help-content-production` with cancellation disabled.
+
+Dispatch inputs are exactly `release_id`, `job_id`, `content_digest`, `base_source_revision`. They map to runner environment fields `HELP_CMS_RELEASE_ID`, `HELP_CMS_JOB_ID`, `HELP_CMS_CONTENT_DIGEST`, `HELP_CMS_BASE_SOURCE_REVISION`. The release ID is a 13-digit timestamp plus UUID; the job ID is a UUID. Inputs come from the API's immutable release record, not from manually edited workflow forms.
+
+### Public source and privacy boundary
+
+The application repository `GudPerson/Senior-Resource-Map` is public. It contains runtime/compiler/adapter code and the reviewed baseline, and must already contain this implementation on approved `main` before a content job starts. The private workflow checks out exactly the dispatched public base SHA and independently requires it still to equal current remote `main`. Drift stops the job before the next upload; do not override the SHA check.
+
+The API and adapter both require the configured automation repository to be private. The workflow also refuses the public application repository. Never install this workflow in the public repository, change either private-repository check, push a hydrated content snapshot to public `main`, or log snapshots/credentials. Runner output retains non-secret hashes, gate results, deployment identities and delivery proof in the private job.
+
+A content job hydrates approved canonical content, derives the owner-reviewed correction registry, compiles the shared Help/Guide library and creates a temporary **private local** content-only commit. Its actual SHA is recorded as `buildSourceRevision` in Worker/Pages provenance. It is never pushed to either repository. Root `node_modules` installation changes are excluded from source cleanliness/staging; application/runtime changes outside the approved content allowlist remain forbidden. Wrangler is installed at exactly `4.145.0` outside the application lockfile.
+
+The full CMS authoring module `server/src/generated/helpCmsSeed.js` is an ignored **private server build artifact**. It is absent from public application Git history and from the runner's content commit. The canonical compiler generates it locally from validated canonical input before CMS tests and Worker packaging. `npm run help:check` still byte-checks the tracked client library, server knowledge and content-status outputs before generating only the private seed; it never repairs their drift during a check. Supported server npm test/deploy/dev/start entry points and standalone module/CMS checks bootstrap it automatically, so a cold public clone works without a pre-existing seed. Direct Node/Wrangler invocations must first run `npm run help:check`. Never force-add the seed or publish a rejected commit/history that contained it; the runner refuses a tracked or non-ignored seed.
+
+## 3. Install the CMS runtime once
+
+1. Complete local release gates for the final reviewed CMS implementation and document any pending smoke/account checks. The expected gates include `npm run verify:quality`, `npm run test:map-lockdown`, the required production build preset and Worker dry run. Credential-free tests alone do not pass real-account smoke.
+2. Obtain the single concrete setup/source/initial production approval described above. Provision private storage and configure the selected private repository, verified owner and secrets without changing unrelated configuration.
+3. Commit/merge/push the approved application source through the normal release process. A public `main` push may trigger Git-connected Pages production delivery; include that trigger in the approval and record the deployment it produces. Do not claim that a push is documentation-only or has no production effect.
+4. Record the resulting clean current public `origin/main` SHA and set `HELP_CMS_SOURCE_REVISION` to that exact SHA. The configured source pin must match the commit containing the runtime and adapter, rather than the earlier planning/worktree commit. Ensure the dedicated R2 bucket exists before the first Worker deployment with its binding.
+5. Release the initial Worker and Pages runtime using the existing main-only `npm run deploy:server` and `npm run deploy:client` paths and the [release checklist](release-checklist.md). Keep their separate deployment IDs/source revisions and verify the custom domains, Pages Functions and locked map behaviour. Existing published Help content should stay at its reviewed baseline version until an owner approves a CMS publication.
+6. Sign in as the verified owner at `https://app.carearound.sg/dashboard/help-content`. Confirm configured capability, private draft persistence and publishing configuration. Complete the real-account checks below before routine use. A missing CMS configuration must show unavailable access and leave existing public Help/Guide reading usable.
+
+The private content adapter is not the bootstrap installer: it requires a deployed CMS API, configured R2, approved snapshot and the runtime/adapter on public `main`. Its `--prepare` mode also downloads private content and creates a local commit; it is not a read-only public probe and is not needed to activate the editor.
+
+There is **no database migration**, fresh-schema bootstrap, runtime DDL, account creation/role grant, resource-data import or map-data write in this installation. Preserve the existing expired AI pilot, persistent shared allowance, expiry and Gateway budget. Do not reset or renew them, create a replacement budget counter, change paid-model credentials, or make a paid-model call to validate CMS knowledge. Reviewed Help/Guide content remains available without an active model pilot.
+
+## 4. Publish approved content after installation
+
+1. The owner edits structured text/order/media in Help Content, saves the private draft, then reviews desktop/phone preview and affected Guide text, manually comparing the affected published articles and the complete saved change set. The current editor has no published-diff viewer. The saved ETag must still match. Use fictional demonstration data; restricted attachments and direct video uploads remain disabled.
+2. Mark intended articles approved and enter a meaningful review note before Publish. Saving or previewing does not release anything. Existing unapproved edits retain previously published source in a release; brand-new drafts stay out of the release. Review the complete approved change set, not just the currently selected article.
+3. Publish freezes a specific snapshot, version, base public source SHA, job ID and SHA-256 of the publication JSON. The private job uses only that immutable snapshot, including its approved media. Later draft changes do not change the running publication.
+4. Approve the private environment run if protection requires it. The adapter checks privacy, source pin, paths/IDs/visibility/owner review, media signatures and canonical compiler parity. It runs adapter tests, `verify:quality`, map lockdown and Worker dry run from the private content commit before uploading.
+5. The runner records original Worker/Pages/content recovery, a prepared checkpoint, then an intent checkpoint before each target. It deploys Worker first and Pages second, with source drift checks between stages. Worker variables/secrets/bindings and the production build/map preset are preserved. No database writes or AI-budget changes occur.
+6. For initial acceptance, prefer a baseline/no-op publication of the existing approved library; no editorial change is needed to prove delivery. Treat the publication as complete only after the API acknowledges `published`. The runner must verify current Worker/Pages build provenance, matching Help/Guide/client version and digest, every publicly served build artifact's bytes/SHA-256/MIME, and approved public image bytes/MIME/hash. Platform control files are not public artifact URLs. A preview URL or successful upload alone is insufficient.
+7. Keep the private terminal report, acknowledged receipt, source/base/build SHAs, Worker version ID, Pages deployment ID, content version/digests and failed retry evidence. The API independently checks `/api/help/articles`, `/api/guide/topics` and `/help-content-status.json` before advancing the published pointer and releasing the publication lock.
+
+The snapshot digest and compiled content digest have different meanings: `snapshotDigest` authenticates the approved publication JSON; `compiledContentDigest` identifies the generated shared Help/Guide library. Record both without relabelling them as the same hash.
+
+## 5. Recover an incomplete publication
+
+Pages and Worker uploads are separate operations. Never infer that production stayed unchanged after an attempted upload, a timeout, cancelled runner or failed receipt. Do not clear R2 locks, edit release records, manufacture a successful receipt, start a different publication or manually rerun dispatch inputs to conceal that uncertainty.
+
+| Observed result | Operator action |
+| --- | --- |
+| `failed`, with no deployment attempted | Review the private gate failure; prior live content should be unchanged, but verify it. Correct configuration or infrastructure only within approval. Retry the same publication only if its immutable content and public base are still valid. Content/source changes require a reviewed new publication. |
+| `queued`, `dispatched`, `prepared` or `dispatch-unconfirmed`, with no confirmed final receipt | Keep the publication pending. Open the exact private job identified by its job ID/title and use **Check release job**. The API requires matching runs to be completed; a running/missing/ambiguous result must remain blocked. |
+| `partially-released`, or any recorded attempted target/unknown upload | Keep the active lock and original recovery identities. Confirm the private run has ended; inspect which target/version was actually delivered. Use **Retry same publication** to complete that exact immutable snapshot after source and content checks pass. Do not publish a replacement while the uncertain release is active. |
+| `published` but the same publication remains active | Use **Check release job**. The API rechecks the three live content surfaces before repairing publication-pointer/finalisation state; it does not redeploy or overwrite a newer draft. |
+| Any public source drift or unrelated live content version/digest | Stop. Keep partial/uncertain recovery pending. Review the changed application/content source and obtain an explicit recovery decision; do not force the old source pin or bypass version checks. |
+| Paired delivery is correct but receipt delivery failed | Preserve the private report and durable checkpoints; success is still unconfirmed. Check the job and retry the same publication/finalisation through the owner flow. Do not call the release accepted merely because the browser appears updated. |
+
+Checkpoint contract: the runner-token endpoint `POST /api/help/cms/release/<releaseId>/checkpoint` persists compiled/build identities and complete **original** recovery before any upload. `stage: prepared` has no attempted targets. Before Worker, `stage: deploying` records `worker`; before Pages it records `worker` and `pages`. A checkpoint failure stops before that target's upload. Recovery cannot be replaced on retry, and attempted-target evidence is cumulative. Thus a hard timeout still leaves useful recovery and an active lock.
+
+A same-publication retry accepts each Help/Guide/client surface only at the exact approved **base** version/digest or exact **target** version/digest. This permits Worker-new/Pages-old recovery while rejecting a third version or edited target. It recompiles the same snapshot, requires the same compiled digest, preserves the original recovery and validates current public `main` again. A retry that fails preflight after an earlier attempted deployment remains partial/unconfirmed; it cannot erase that attempt or unlock the publication as a harmless failure.
+
+If completion is impossible, preserve the original `workerVersionId`, `pagesDeploymentId`, both original source revisions and original content version/digest. Request a concrete operator-approved paired rollback/forward-recovery plan for those references. There is no automatic rollback and no generic force-unlock. Rollback is a separate production action; do not roll unrelated application code back just to restore prose.
+
+After a successful publication, restore older content through **History → Restore**, review/save/approve it, and make a new CMS publication. Restore makes a private draft; it does not instantly replace live content. If a newer publication made a retained draft stale, review the rebase report and conflicts against current published content before saving/publishing. Publication promotion must retain newer draft edits and the private archive/history needed for future restore.
+
+## 6. Keep later application releases from reverting CMS content
+
+Ordinary production Worker/Pages release commands and the production Pages `main` prebuild run `scripts/help-cms-live-content-guard.mjs`. After a `.help-cms.` version is live, a checkout with an older/different generated Help version or digest is rejected. The existing clean/current-main requirements remain in force.
+
+Before a later application release, privately obtain the latest independently published CMS snapshot using the runner-token `GET /api/help/cms/release/latest` endpoint and plan how the reviewed current content will be carried into the new compatible application build. A first installation may legitimately return 404 because no CMS publication exists yet. The adapter exports `assertLatestHelpContentForAppRelease` for a stronger check of all three live surfaces and, when the runner token is available, the latest private snapshot.
+
+The guard is a stop gate, not automatic content hydration. The current runtime does not provide an unattended general application-release workflow that merges a changed application base with private CMS content. Until that application-release integration is explicitly reviewed and prepared, a normal public `main` build after a CMS publication may intentionally stop. Do not solve that stop by publishing private snapshots/restricted source to the public repository, disabling the guard, spoofing a digest or relaxing main-only checks.
+
+Any application base change also requires the configured `HELP_CMS_SOURCE_REVISION` to move to its newly approved clean public `main` SHA as part of the authorised compatible release. Do not repin an active partial publication to new application source. Resolve its recovery first; then rebase/review content and release from the correct new base.
+
+## 7. Remaining real-account acceptance checklist
+
+All checks below remain real-environment acceptance work until evidence records the actual target, account/device and result. Run privacy/failure exercises in a configured isolated environment where practical. A production content write or deliberately broken deployment requires its exact bounded approval; do not create database test resources or reset AI allowances. Use the existing approved library for the first real publication. Fictional image/video/editor exercises belong in the isolated acceptance environment or a retained private draft; they must not become synthetic publicly visible production articles.
+
+- [ ] **Owner boundary:** Joshua's verified existing non-impersonated `super_admin` session can open/save/preview/publish at `/dashboard/help-content`. A different `super_admin`, staff, guest/restricted reader and impersonated Joshua are denied capability and direct writes. Expired/logged-out sessions, cross-origin mutation and bad session/CSRF requests fail safely. Existing resource/map/organisation/action access remains unchanged.
+- [ ] **Durability/concurrency:** save a fictional draft, reload, close/reopen and sign in again; the R2 draft remains. Two tabs saving the same ETag produce a conflict without silently overwriting the earlier save. Internal editor navigation and reload/close warn about unsaved work. Browser Back remains unguarded; record that limitation and save before using it. Saving draft never changes live Help or Guide.
+- [ ] **Reading/Guide parity:** edit title, paragraphs, steps, notes and order; review desktop and a 390-pixel phone preview, accessible keyboard use and the related written Guide procedure/transcript. Stable article/section/step/fact identities and citation anchors remain intact. A publication excludes other unpublished draft changes and restricted/internal review material from public output.
+- [ ] **Images:** use fictional public PNG/JPEG/WebP examples; verify caption/alt/placement/order, 2 MB limit, signature/type checks, 8192-pixel side and 20-megapixel limits. Wrong type and restricted-article upload fail. Owner-only draft preview works; unauthorised private API/R2 access and the public image route before approved reference fail. After publication, image bytes/MIME/hash match; archiving/removing the public reference denies fresh public API requests. Previously downloaded public bytes or immutable browser caches are not revoked by removing a reference. R2 public domains remain disabled.
+- [ ] **Linked video:** a reviewed supported YouTube/Vimeo link requires deliberate playback and has title/caption plus reviewed transcript. Unsafe/unsupported links and unreviewed transcript publication fail. No video upload/transcoding or restricted-media publication is enabled.
+- [ ] **First approved content publication:** use the explicitly reviewed baseline/no-op snapshot with the same already-approved public facts; record that it creates a new release/content version rather than changing product facts. Verify exact private repository/job title, current public base SHA, frozen snapshot hash, private local build SHA, all quality gates, Worker version ID, Pages deployment ID, custom-domain artifact/image proof and all three matching content version/digest surfaces. Confirm an acknowledged `published` receipt and unlocked publication; do not use a paid model call as the knowledge check.
+- [ ] **Restore/archive/rebase:** history restore produces a private draft and a newly reviewed publication/version, without reverting unrelated application source. Draft edits made during publication survive completion. Private archived identities and source survive publish/rebase/restore without becoming public. Review explicit conflicts rather than forcing them away.
+- [ ] **Failure/retry:** demonstrate pre-upload failure retaining old live content, Worker-success/Pages-failure retaining lock/recovery, and timeout after a durable intent checkpoint. Check release job must not accept unfinished/unknown job evidence. A terminal exact job permits the same snapshot retry across exact old/new surface digests. Third-version/source drift stops without discarding recovery; final verification/acknowledgement alone unlocks success. Retain failed checks and retries in evidence.
+- [ ] **Application-release protection:** after a CMS version is live, an older generated library fails the ordinary release/prebuild guard. A privately prepared compatible candidate carrying the exact latest library passes the content check while still satisfying existing source/main/build/map gates. Record that general application content hydration remains an explicit integration step.
+- [ ] **Locked production regression and handoff:** complete relevant real-account smoke and Help/Guide/restricted reading, navigation/session, Discover/My Map/Print View and Pages Function checks from the ledger/release checklist. Record exact source/build/content identities and paired deployment IDs. Label unavailable accounts/devices or failed gates as pending/failed. Confirm no DB migration/data churn, AI renewal/reset, secret exposure or public private-content commit occurred.
+
+Activation is accepted only when the approved installation and relevant real-account checks have their own evidence. Keep the local/synthetic report, real-account results and production delivery proof separate in the final handoff.

@@ -46,3 +46,10 @@ client/.netlify/
 /graft/
 
 /client/dist-guide-account-acceptance/
+
+# Local workspace dependency links are never release sources.
+/server/node_modules
+
+# Private CMS authoring seed is generated locally for server tests/builds.
+# Never publish its full restricted records in application Git history.
+/server/src/generated/helpCmsSeed.js

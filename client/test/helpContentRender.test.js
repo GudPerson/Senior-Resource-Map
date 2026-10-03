@@ -1,0 +1,120 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { build } from 'esbuild';
+import { createRequire } from 'node:module';
+
+const article = { id: 'HC-09', slug: 'personal-place', title: 'Add a Personal place', summary: 'Keep it private.', category: 'maps', audiences: ['everyone'], visibility: 'public', status: 'approved', review: { date: '2026-10-02' }, relatedArticleIds: [], sections: [
+    { id: 'instructions', title: 'Add the place', paragraphs: ['<script>keep this literal</script>'], steps: ['Choose a point.', 'Review and save.'], stepIds: ['choose', 'save'], notes: [], facts: [], media: [
+        { id: 'image-one', type: 'image', afterStepId: 'save', caption: 'Example form', alt: 'Location fields', assetId: 'a'.repeat(64) },
+        { id: 'video-one', type: 'video', afterStepId: 'save', caption: 'Save procedure', url: 'https://youtu.be/AbcDef12345', transcript: 'Check location.', transcriptReviewed: true },
+        { id: 'intro-image', type: 'image', afterStepId: null, caption: 'Overview', alt: 'Overview example', assetId: 'b'.repeat(64) },
+    ] },
+    { id: 'afterwards', title: 'After saving', paragraphs: ['Return to My Places.'], steps: [], stepIds: [], notes: ['Reuse the place.'], facts: [], media: [] },
+] };
+const workspace = { manifest: { categories: [{ id: 'maps', title: 'My Maps' }, { id: 'archived-topic', title: 'Old topic', archived: true }], articleOrder: ['HC-09', 'HC-10'] }, articles: [article, { ...article, id: 'HC-10', slug: 'old-place', title: 'Old article', category: 'archived-topic', status: 'retired' }] };
+let loaded;
+async function renderers() {
+    if (loaded) return loaded;
+    const { outputFiles } = await build({ stdin: { contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import { MemoryRouter } from 'react-router-dom'; import ArticleEditor from './ArticleEditor.jsx'; import HelpCatalogue from './HelpCatalogue.jsx'; import HelpContentPreview, { GuideDraftContent } from './HelpContentPreview.jsx'; import { CmsField } from './CmsControls.jsx'; import HelpContentPublications from './HelpContentPublications.jsx'; export const editor=(article,allowImageUpload=true)=>renderToStaticMarkup(<ArticleEditor article={article} allowImageUpload={allowImageUpload} categories={[{id:'maps',title:'My Maps'}]} onChange={()=>{}} onRemoveStep={()=>{}} onUpload={()=>{}} />); export const catalogue=(workspace,showArchived=false)=>renderToStaticMarkup(<HelpCatalogue workspace={workspace} selectedId='HC-09' query='' onQuery={()=>{}} showArchived={showArchived} onShowArchived={()=>{}} onSelect={()=>{}} onAddTopic={()=>{}} onTopicAction={()=>{}} onAddArticle={()=>{}} onArticleMove={()=>{}} />); export const preview=(article)=>renderToStaticMarkup(<MemoryRouter><HelpContentPreview article={article} mediaUrls={{['a'.repeat(64)]:'blob:owner-image',['b'.repeat(64)]:'blob:owner-intro'}} /></MemoryRouter>); export const guide=(article)=>renderToStaticMarkup(<GuideDraftContent article={article} />); export const publications=(releases,publishingAvailable=true,activeReleaseId=null)=>renderToStaticMarkup(<HelpContentPublications releases={releases} publishingAvailable={publishingAvailable} activeReleaseId={activeReleaseId} onRetry={()=>{}} onCheck={()=>{}} />); export const select=()=>renderToStaticMarkup(<CmsField label='Topic'><select value='maps' onChange={()=>{}}><option value='maps'>My Maps</option></select></CmsField>);`, resolveDir: new URL('../src/features/help-content', import.meta.url).pathname, loader: 'jsx' }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.css': 'empty' }, logLevel: 'silent' });
+    const module = { exports: {} }; new Function('require', 'module', 'exports', outputFiles[0].text)(createRequire(import.meta.url), module, module.exports); loaded = module.exports; return loaded;
+}
+
+test('catalogue shows approved and draft articles while archived items remain an explicit view', async () => {
+    const render = await renderers();
+    const normal = render.catalogue(workspace);
+    assert.match(normal, /My Maps/); assert.match(normal, /Add a Personal place/);
+    assert.doesNotMatch(normal, /Old topic|Old article/);
+    assert.match(normal, /aria-current="true"/);
+    assert.match(normal, /aria-label="Move topic My Maps up"/);
+    const archived = render.catalogue(workspace, true);
+    assert.match(archived, /Old topic/); assert.match(archived, /Old article/); assert.match(archived, /Archived topic/);
+});
+
+test('multi-section editor contains per-instruction attachment fields and no global media editor', async () => {
+    const html = (await renderers()).editor(article);
+    assert.match(html, /Edit section 1/); assert.match(html, /Edit section 2/);
+    assert.match(html, /data-step-id="choose"/); assert.match(html, /data-step-id="save"/);
+    assert.equal((html.match(/data-media-id=/g) || []).length, 3);
+    assert.equal((html.match(/>Add images</g) || []).length, 4);
+    assert.match(html, /Written transcript/); assert.match(html, /Accessible description/);
+    assert.doesNotMatch(html, /Images and video editor/);
+    assert.match(html, /&lt;script&gt;keep this literal&lt;\/script&gt;/);
+    assert.doesNotMatch(html, /<script>/);
+});
+
+test('restricted article editor disables attachment creation without changing its access policy', async () => {
+    const value = { ...article, visibility: 'resource-manager', sections: article.sections.map((section) => ({ ...section, media: [] })) };
+    const html = (await renderers()).editor(value);
+    assert.match(html, /Account access required/);
+    assert.doesNotMatch(html, />Add images<|>Add video link</);
+    assert.doesNotMatch(html, /name="visibility"/);
+});
+
+test('draft preview uses article renderer, safe literal text and no inherited reviewed stamp', async () => {
+    const html = (await renderers()).preview(article);
+    assert.match(html, /Unpublished draft/);
+    assert.match(html, /Scrollable draft preview/);
+    assert.match(html, /Add a Personal place/);
+    assert.match(html, /Choose a point\./);
+    assert.match(html, /After saving/);
+    assert.doesNotMatch(html, /Reviewed <time/);
+    assert.match(html, /&lt;script&gt;keep this literal&lt;\/script&gt;/);
+    assert.doesNotMatch(html, /<iframe|<script/);
+});
+
+test('topic field has an explicit accessible association with its select', async () => {
+    const html = (await renderers()).select();
+    const labelId = html.match(/for="([^"]+)"/)[1], selectId = html.match(/<select id="([^"]+)"/)[1];
+    assert.equal(labelId, selectId);
+});
+
+test('unsaved new article keeps image upload unavailable while video links remain editable', async () => {
+    const html = (await renderers()).editor(article, false);
+    assert.match(html, /Save this new article before uploading images/);
+    const images = html.match(/<button[^>]*disabled=""[^>]*>Add images<\/button>/g) || [];
+    assert.equal(images.length, 4);
+    assert.match(html, />Add video link<\/button>/);
+});
+test('Guide view renders separate conceptual answers from their edited paragraphs', async () => {
+    const value = { ...article, sections: [{ ...article.sections[0], title: 'Common questions', steps: [], stepIds: [], paragraphs: ['Changed first answer.', 'Changed second answer.'], facts: [{ id: 'first', title: 'First question' }, { id: 'second', title: 'Second question' }], media: [] }] };
+    const html = (await renderers()).guide(value);
+    assert.match(html, /First question/); assert.match(html, /Second question/);
+    assert.equal((html.match(/class="cms-guide-text"/g) || []).length, 2);
+    assert.match(html, /Changed first answer\./); assert.match(html, /Changed second answer\./);
+});
+
+test('publication list uses actual backend state records and offers exact-release recovery', async () => {
+    const render = await renderers();
+    const html = render.publications([{ id: 'release-one', state: 'published', version: 'content-one' }, { id: 'release-two', state: 'dispatch-unconfirmed', version: 'content-two', jobReconciled: true }, { id: 'release-three', state: 'partially-released', version: 'content-three' }]);
+    assert.match(html, /Published and verified/); assert.match(html, /Publication needs confirmation/); assert.match(html, /Publication incomplete/);
+    assert.equal((html.match(/Retry same publication/g) || []).length, 2);
+    assert.doesNotMatch(render.publications([{ id: 'release-four', state: 'failed' }], false), /Retry same publication/);
+});
+
+test('uncertain or running publication jobs require a server job check before retry', async () => {
+    const render = await renderers();
+    const html = render.publications([{ id: 'queued', state: 'queued' }, { id: 'dispatched', state: 'dispatched' }, { id: 'uncertain', state: 'dispatch-unconfirmed' }]);
+    assert.equal((html.match(/Check release job/g) || []).length, 3);
+    assert.doesNotMatch(html, /Retry same publication/);
+    const reconciled = render.publications([{ id: 'checked', state: 'dispatch-unconfirmed', jobReconciled: true }]);
+    assert.match(reconciled, /Retry same publication/);
+    assert.doesNotMatch(reconciled, /Check release job/);
+});
+
+test('verified releases with a remaining publication lock offer explicit final recovery', async () => {
+    const render = await renderers();
+    const release = { id: 'verified', state: 'published', jobReconciled: true };
+    const html = render.publications([release], true, 'verified');
+    assert.match(html, /Published and verified/);
+    assert.match(html, /Check its job to finish recovery/);
+    assert.match(html, /Check release job/);
+    assert.doesNotMatch(html, /Retry same publication/);
+    assert.doesNotMatch(render.publications([release], true, null), /Check release job/);
+});
+
+test('prepared checkpoint remains unpublished and offers an explicit release job check', async () => {
+    const html = (await renderers()).publications([{ id: 'prepared-release', state: 'prepared' }]);
+    assert.match(html, /Ready for release verification/);
+    assert.match(html, /Check release job/);
+    assert.doesNotMatch(html, /Published and verified|Retry same publication/);
+});

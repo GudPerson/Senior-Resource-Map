@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Activity, BookOpen, Building2, CalendarDays, Files, LayoutDashboard, LogOut, Map, MapPinned, Menu, ScrollText, Shield, User } from 'lucide-react';
 
+import { createHelpContentApi } from '../../features/help-content/helpContentApi.js';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { GOVERNED_MAPS_UI_ENABLED } from '../../lib/governedPilotRelease.js';
 import {
@@ -40,6 +41,7 @@ function label(t, key, fallback, params) {
 
 export function getDashboardSectionLabel(pathname, t) {
     if (pathname === '/dashboard' || pathname === '/dashboard/') return label(t, 'overview', 'Overview');
+    if (pathname.startsWith('/dashboard/help-content')) return 'Help content';
     if (pathname.startsWith('/dashboard/profile')) return label(t, 'profileTitle', 'Profile');
     if (pathname.startsWith('/dashboard/admin')) return label(t, 'overviewAdminTitle', 'Admin');
     if (pathname.startsWith('/dashboard/audit')) return label(t, 'auditTrailTitle', 'Audit Trail');
@@ -66,6 +68,14 @@ export function DashboardSidebar({
     const canShowOrganizationWorkspace = canAccessOrganizationWorkspace(user);
     const canShowGovernedMaps = GOVERNED_MAPS_UI_ENABLED && (canShowResources || canShowOrganizationWorkspace);
     const isAssetStaff = hasHardAssetStaffAccess(user);
+    const [canShowHelpContent, setCanShowHelpContent] = useState(false);
+    useEffect(() => {
+        setCanShowHelpContent(false);
+        if (isImpersonating || user?.isImpersonating || user?.role !== 'super_admin') return undefined;
+        const controller = new AbortController();
+        createHelpContentApi().capability(controller.signal).then(data => { if (!controller.signal.aborted) setCanShowHelpContent(data?.canEdit === true); }).catch(() => {});
+        return () => controller.abort();
+    }, [user?.id, user?.role, user?.isImpersonating, isImpersonating]);
 
     return (
         <>
@@ -93,6 +103,7 @@ export function DashboardSidebar({
                 </div>
             </div>
 
+            {canShowHelpContent && <SidebarLink to="/dashboard/help-content" icon={BookOpen} label="Help content" id="dash-help-content" onNavigate={onNavigate} />}
             <SidebarLink to="/discover" icon={Map} label={t('overviewDiscoverTitle')} id="dash-discover" onNavigate={onNavigate} />
             <SidebarLink to="/dashboard" icon={LayoutDashboard} label={t('overview')} id="dash-overview" onNavigate={onNavigate} />
             <SidebarLink

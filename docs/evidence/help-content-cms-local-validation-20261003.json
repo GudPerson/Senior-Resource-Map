@@ -1,0 +1,141 @@
+{
+  "date": "2026-10-03",
+  "state": "locally_verified_implementation_not_deployed",
+  "worktree": "/Users/sweetbuns/.codex/worktrees/help-cms-production/CareAroundSG",
+  "branch": "codex/help-cms-production-20261003",
+  "baseSourceRevision": "0c771828102e3ce8bbf06fabb25590df92c63a21",
+  "contentVersion": "2026-10-02.help-centre.6",
+  "contentDigest": "44e8b868a4f7680894b00eb6af4e1699a00605902a08172c20d5ffe2851a049d",
+  "baseline": {
+    "articles": 48,
+    "publicArticles": 40,
+    "restrictedArticles": 8,
+    "guideFacts": 196,
+    "legacyTopics": 12,
+    "readerCategories": 11,
+    "digestPreserved": true
+  },
+  "checks": {
+    "fullQuality": "pass",
+    "finalServer": {
+      "passed": 1112,
+      "total": 1112
+    },
+    "client": {
+      "passed": 862,
+      "total": 862
+    },
+    "clientEnvironment": {
+      "passed": 5,
+      "total": 5
+    },
+    "canonicalBuilder": {
+      "passed": 11,
+      "total": 11
+    },
+    "cmsModelReleaseGuard": {
+      "passed": 44,
+      "total": 44
+    },
+    "lockedMap": {
+      "passed": 104,
+      "total": 104
+    },
+    "independentFocusedFinal": {
+      "passed": 63,
+      "total": 63
+    },
+    "independentSyntheticApi": {
+      "passed": 3,
+      "total": 3
+    },
+    "guideOffline": {
+      "passedQuestions": 60,
+      "totalQuestions": 60,
+      "passedAssertions": 393,
+      "totalAssertions": 393,
+      "modelAttempts": 0,
+      "paidCalls": 0
+    },
+    "workerDryRun": {
+      "passed": true,
+      "wrangler": "4.145.0",
+      "uploadOccurred": false,
+      "bundleKiB": 4858.74,
+      "gzipKiB": 978.86,
+      "cmsBinding": "carearound-help-content-private"
+    }
+  },
+  "browser": {
+    "kind": "real_local_client_synthetic_owner_in_memory_API",
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "checks": [
+      "first_save",
+      "create_topic_article",
+      "topic_order",
+      "two_images_same_step",
+      "save_reload_retention",
+      "archive_restore",
+      "saved_revision_restore",
+      "independent_editor_preview_catalogue_scroll",
+      "guest_cms_redirect_to_sign_in"
+    ],
+    "productionData": false,
+    "publishingEnabled": false,
+    "modelCalls": false,
+    "persistentAcrossServerRestart": false,
+    "settledScrollProof": {
+      "catalogueScrollTop": 1434.5,
+      "editorScrollTop": 3127.5,
+      "previewScrollTop": 0,
+      "editorBottom": 696,
+      "previewBottom": 696,
+      "screenshot": "/private/tmp/carearound-help-cms-independent-scroll-20261003.jpg"
+    }
+  },
+  "retainedFailedAttempts": [
+    "Initial browser save rejected seedless workspace by an overstrict client authority check; fixed and retested.",
+    "JPEG bytes supplied with PNG filename correctly rejected; correctly named JPEG accepted.",
+    "Guide evaluation without required --offline flag rejected; explicit offline evaluation passed."
+  ],
+  "knownLimits": [
+    "Browser Back is not intercepted for unsaved edits by the current router.",
+    "Only public articles currently support attachments.",
+    "Published image bytes and caches cannot be retroactively promised private.",
+    "Real R2, configured owner, private publisher dispatch and production release/recovery acceptance are pending."
+  ],
+  "pending": [
+    "explicit_cms_setup_and_release_approval",
+    "dedicated_private_R2_bucket",
+    "verified_real_owner_config",
+    "private_publishing_repository_workflow",
+    "scoped_private_credentials_and_source_pin",
+    "fresh_exact_source_release_gates",
+    "initial_worker_pages_release",
+    "real_owner_access_storage_media_history_acceptance",
+    "real_publication_delivery_and_recovery_acceptance"
+  ],
+  "mutationsThisImplementation": {
+    "commit": false,
+    "push": false,
+    "deploy": false,
+    "productionDataWrite": false,
+    "migration": false,
+    "infrastructure": false,
+    "secrets": false,
+    "aiBudget": false
+  },
+  "localLogPaths": {
+    "quality": "/private/tmp/cms-quality-complete.log",
+    "serverFinal": "/private/tmp/cms-server-complete.log",
+    "map": "/private/tmp/cms-map-tests.log",
+    "workerFinal": "/private/tmp/cms-worker-final.log",
+    "guideOffline": "/private/tmp/cms-guide-evaluation-final.log",
+    "independentProbe": "/private/tmp/help-cms-final-independent-review.test.mjs",
+    "offlineResult": "/private/tmp/carearound-cms-activation-20261004/offline-evaluation.json"
+  },
+  "ownerReviewPolicy": "Owner chose progressive editorial review; no new up-front sixty-answer human scoring gate."
+}

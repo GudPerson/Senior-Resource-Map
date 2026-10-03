@@ -1,12 +1,12 @@
 import { Hono } from 'hono';
 import { optionalAuth } from '../middleware/auth.js';
-import { HELP_ARTICLES, HELP_CATEGORIES, HELP_CONTENT_VERSION } from '../generated/helpKnowledge.js';
+import { HELP_ARTICLES, HELP_CATEGORIES, HELP_CONTENT_VERSION, HELP_CONTENT_DIGEST } from '../generated/helpKnowledge.js';
 import { loadHelpArticleCapabilities, visibleHelpArticles } from '../utils/helpArticleAccess.js';
 
 export function helpArticleSummary(article) {
     return { id: article.id, slug: article.slug, title: article.title, summary: article.summary,
         category: article.category, audiences: article.audiences || [], reviewedAt: article.reviewedAt,
-        articleRoute: article.articleRoute };
+        articleRoute: article.articleRoute, ...(article.position !== undefined ? { position: article.position } : {}) };
 }
 
 export function helpArticleResponse(article, visibleArticles = []) {
@@ -17,7 +17,8 @@ export function helpArticleResponse(article, visibleArticles = []) {
         relatedArticleIds: relatedArticles.map((item) => item.id),
         relatedArticles,
         sections: (article.sections || []).map((section) => ({ id: section.id, title: section.title,
-            paragraphs: section.paragraphs || [], steps: section.steps || [], notes: section.notes || [] })),
+            paragraphs: section.paragraphs || [], steps: section.steps || [], notes: section.notes || [],
+            ...(section.media?.length ? { stepIds: section.stepIds, media: section.media } : {}) })),
     };
 }
 
@@ -36,7 +37,7 @@ export function searchHelpArticles(articles, question) {
 }
 
 export function createHelpArticleRoutes({ authenticate = optionalAuth, articles = HELP_ARTICLES,
-    version = HELP_CONTENT_VERSION, categories = HELP_CATEGORIES, capabilities = loadHelpArticleCapabilities } = {}) {
+    version = HELP_CONTENT_VERSION, contentDigest = HELP_CONTENT_DIGEST, categories = HELP_CATEGORIES, capabilities = loadHelpArticleCapabilities } = {}) {
     const router = new Hono();
     router.use('*', async (c, next) => {
         c.header('Cache-Control', 'private, no-store');
@@ -48,12 +49,12 @@ export function createHelpArticleRoutes({ authenticate = optionalAuth, articles 
         await capabilities(c.get('user'), c.env, articles));
     const categorySummaries = (visibleArticles) => {
         const visibleCategoryIds = new Set(visibleArticles.map((article) => article.category));
-        return categories.filter((category) => visibleCategoryIds.has(category.id)).map(({ id, title }) => ({ id, title }));
+        return categories.filter((category) => visibleCategoryIds.has(category.id)).map(({ id, title, position }) => ({ id, title, ...(position !== undefined ? { position } : {}) }));
     };
     router.get('/', async (c) => {
         try {
             const visibleArticles = await visible(c);
-            return c.json({ version, categories: categorySummaries(visibleArticles), articles: visibleArticles.map(helpArticleSummary) });
+            return c.json({ version, contentDigest, categories: categorySummaries(visibleArticles), articles: visibleArticles.map(helpArticleSummary) });
         }
         catch { return c.json({ error: 'Help articles are temporarily unavailable.' }, 503); }
     });
@@ -62,7 +63,7 @@ export function createHelpArticleRoutes({ authenticate = optionalAuth, articles 
         if (!query || query.length > 120) return c.json({ error: 'Enter 1–120 characters to search help.' }, 400);
         try {
             const visibleArticles = await visible(c);
-            return c.json({ version, query, categories: categorySummaries(visibleArticles), articles: searchHelpArticles(visibleArticles, query).map(helpArticleSummary) });
+            return c.json({ version, contentDigest, query, categories: categorySummaries(visibleArticles), articles: searchHelpArticles(visibleArticles, query).map(helpArticleSummary) });
         }
         catch { return c.json({ error: 'Help articles are temporarily unavailable.' }, 503); }
     });
@@ -75,7 +76,7 @@ export function createHelpArticleRoutes({ authenticate = optionalAuth, articles 
             if (!article || sectionId !== undefined && !article.sections.some((section) => section.id === sectionId))
                 return c.json({ error: 'Help article not found.' }, 404);
             if (sectionId !== undefined) article = { ...article, sections: article.sections.filter((section) => section.id === sectionId) };
-            return c.json({ version, article: helpArticleResponse(article, visibleArticles) });
+            return c.json({ version, contentDigest, article: helpArticleResponse(article, visibleArticles) });
         } catch { return c.json({ error: 'Help articles are temporarily unavailable.' }, 503); }
     });
     return router;

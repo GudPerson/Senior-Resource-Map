@@ -1,8 +1,9 @@
+import HelpMedia from './HelpMedia.jsx';
 import { ArrowLeft, ArrowUpRight, BookOpen, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatHelpReviewedDate, helpArticleRoute, helpAudienceLabel } from './helpLibrary.js';
 
-export default function HelpArticle({ article, relatedArticles = [], backRoute = '/help-centre', onOpenGuide }) {
+export default function HelpArticle({ article, relatedArticles = [], backRoute = '/help-centre', onOpenGuide, mediaUrls = {} }) {
     const reviewed = formatHelpReviewedDate(article.reviewedAt);
     const audiences = [...new Set((article.audiences || []).map(helpAudienceLabel))];
     return <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-12">
@@ -25,7 +26,8 @@ export default function HelpArticle({ article, relatedArticles = [], backRoute =
                 <h2 id={`help-section-${section.id}`} className="text-xl font-bold leading-snug text-slate-900 sm:text-2xl">{section.title}</h2>
                 <div className="mt-4 space-y-4 text-[15px] leading-7 text-slate-700">
                     {section.paragraphs?.map((paragraph, index) => <p className="whitespace-pre-line break-words" key={index}>{paragraph}</p>)}
-                    {section.steps?.length > 0 && <ol className="list-decimal space-y-4 pl-6 marker:font-semibold marker:text-brand-700">{section.steps.map((step, index) => <li className="break-words pl-2" key={index}>{step}</li>)}</ol>}
+                    <HelpMedia items={(section.media || []).filter(item => item.afterStepId === null)} mediaUrls={mediaUrls} />
+                    {section.steps?.length > 0 && <ol className="list-decimal space-y-4 pl-6 marker:font-semibold marker:text-brand-700">{section.steps.map((step, index) => <li className="break-words pl-2" key={section.stepIds?.[index] || index}>{step}<HelpMedia items={(section.media || []).filter(item => item.afterStepId === section.stepIds?.[index])} mediaUrls={mediaUrls} /></li>)}</ol>}
                     {section.notes?.length > 0 && <div className="space-y-3 border-l-2 border-brand-300 bg-brand-50/50 px-4 py-3">{section.notes.map((note, index) => <p className="break-words" key={index}>{note}</p>)}</div>}
                 </div>
             </section>)}</div>

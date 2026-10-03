@@ -5,9 +5,13 @@
   "scripts": {
     "dev": "npm run dev:node",
     "dev:node": "node --env-file=.env --watch src/index.js",
+    "predev:node": "node ../scripts/build-help-content.mjs --check",
     "dev:worker": "npx wrangler dev --config wrangler.toml --local",
+    "predev:worker": "node ../scripts/build-help-content.mjs --check",
     "dev:worker:local": "npx wrangler dev --config wrangler.toml --local --var NODE_ENV:development",
+    "predev:worker:local": "node ../scripts/build-help-content.mjs --check",
     "deploy": "node ../scripts/deploy-worker-release.mjs",
+    "predeploy": "node ../scripts/build-help-content.mjs --check",
     "bootstrap:boundary-schema": "node --env-file=.env scripts/bootstrap_boundary_schema.js",
     "bootstrap:map-embed-schema": "node --env-file=.env scripts/bootstrap_map_embed_schema.js",
     "bootstrap:map-studio-schema": "node --env-file=.env scripts/bootstrap_map_studio_schema.js",
@@ -21,6 +25,8 @@
     "audit:clean-slate": "node --env-file=.env scripts/audit_clean_slate.js",
     "reset:clean-slate": "node --env-file=.env scripts/reset_clean_slate.js",
     "start": "node src/index.js",
+    "prestart": "node ../scripts/build-help-content.mjs --check",
+    "pretest": "node ../scripts/build-help-content.mjs --check",
     "test": "node --test test/**/*.test.js"
   },
   "dependencies": {

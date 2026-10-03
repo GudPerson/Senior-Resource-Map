@@ -1,3 +1,4 @@
+import { verifyCmsLiveContent } from './help-cms-live-content-guard.mjs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -68,7 +69,7 @@ export function deployClientRelease({
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
     try {
-        deployClientRelease();
+        await verifyCmsLiveContent(); deployClientRelease();
     } catch (error) {
         console.error(error.message);
         process.exitCode = 1;

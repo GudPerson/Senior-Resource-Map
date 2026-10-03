@@ -1,3 +1,4 @@
+import { verifyCmsLiveContent } from './help-cms-live-content-guard.mjs';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
@@ -21,6 +22,6 @@ export function deployWorkerRelease({ validate = validateWorkerReleaseLine, read
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
-    try { deployWorkerRelease(); }
+    try { await verifyCmsLiveContent(); deployWorkerRelease(); }
     catch (error) { console.error(error.message); process.exitCode = 1; }
 }

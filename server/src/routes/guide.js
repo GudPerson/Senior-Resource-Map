@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { HELP_ARTICLES } from '../generated/helpKnowledge.js';
+import { HELP_CONTENT_DIGEST, HELP_ARTICLES } from '../generated/helpKnowledge.js';
 import { canReadHelpContent, loadHelpArticleCapabilities } from '../utils/helpArticleAccess.js';
 import { addGuideHelpCitations, answerGuideHelpWorkflow, guideAnswerHelpFacts, guideHelpWorkflowIntent, guideHelpFactSource } from '../utils/guideHelpWorkflows.js';
 import { z } from 'zod';
@@ -113,7 +113,7 @@ export function createGuideRoutes({
         keyFn: (c) => `ip:${c.req.header('cf-connecting-ip') || 'anonymous'}` }));
     router.route('/actions', createGuideActionRoutes(actionOptions));
     router.route('/history', createGuideHistoryRoutes({ authenticate, repositoryForContext: historyRepositoryForContext }));
-    router.get('/topics', (c) => c.json({ version: GUIDE_KNOWLEDGE_VERSION,
+    router.get('/topics', (c) => c.json({ version: GUIDE_KNOWLEDGE_VERSION, contentDigest: HELP_CONTENT_DIGEST,
         chatMode: guideChatAvailable(c.env) ? c.env.GUIDE_CHAT_SIMULATED === 'true' ? 'simulation' : 'cloudflare' : 'guide',
         topics: GUIDE_TOPICS.map(({ id, title }) => ({ id, title })) }));
     router.use('/answer', async (c, next) => {

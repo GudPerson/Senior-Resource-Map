@@ -1,0 +1,420 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
+import {
+    digestValue, sha256Bytes, httpsOrigin, readReleaseConfiguration, assertPrivateAutomation,
+    validateSnapshot, validateOwnerReview, assertContentOnlyPaths, validateBaseSource, validateSourceIdentities,
+    deriveEditorialCorrections, collectApprovedMedia, readBoundedBytes, verifyPublicArtifacts,
+    pairedRelease, deploymentArguments, runnerReceipt, assertLatestHelpContentForAppRelease, validatedWranglerPath, validateRecoverySurfaces, priorReleaseState, postReceipt, postCheckpoint, uncommittedContentPaths, assertPrivateSeedUntracked,
+} from './help-cms-release.mjs';
+
+const revision = 'a'.repeat(40), buildRevision = 'b'.repeat(40);
+const oldWorkerId = '11111111-1111-4111-8111-111111111111';
+const releaseId = '1791000000000-' + oldWorkerId, jobId = '22222222-2222-4222-8222-222222222222';
+const workerId = '33333333-3333-4333-8333-333333333333', pagesId = '44444444-4444-4444-8444-444444444444';
+const review = { date: '2026-10-03', owner: 'Verified owner', method: 'owner-cms-review', sourceRevision: revision, evidence: ['Owner checked wording, privacy and Guide answer.'] };
+const fact = { id: 'help-overview', title: 'Overview', keywords: ['overview'], message: 'Old wording.', route: '/help', evidence: 'Reviewed source', reviewed: '2026-10-02' };
+const topic = { id: 'overview', title: 'Overview', keywords: ['overview'], message: 'Old wording.', route: '/help', label: 'Read help' };
+const article = { id: 'HC-01', slug: 'overview', title: 'Overview', summary: 'Read help.', status: 'approved', visibility: 'public',
+    sections: [{ id: 'overview', title: 'Overview', facts: [fact], media: [] }] };
+function fixturePublication() {
+    return { schemaVersion: 1, version: 'cms.2', baseContentVersion: 'baseline.1', review: structuredClone(review),
+        manifest: { version: 'cms.2', articleOrder: ['HC-01'], guideFactOrder: ['help-overview'], topics: [{ id: 'overview', label: 'Read help' }], retiredFactIds: [] },
+        articles: [structuredClone(article)] };
+}
+function snapshot(publication = fixturePublication()) {
+    return { id: releaseId, jobId, baseSourceRevision: revision, version: publication.version, publication, snapshotDigest: digestValue(publication) };
+}
+function expected(envelope = snapshot()) {
+    return { releaseId, jobId, baseSourceRevision: revision, snapshotDigest: envelope.snapshotDigest };
+}
+function temp(t, prefix = 'carearound-help-adapter-test-') {
+    const root = mkdtempSync(join(tmpdir(), prefix));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    return root;
+}
+const responseJson = value => new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
+const baseline = { facts: [{ id: fact.id, digest: digestValue(fact) }], topics: [{ id: topic.id, digest: digestValue(topic) }], editorialCorrections: [] };
+const compiled = (f = fact, top = topic) => ({ facts: f ? [{ ...f, articleId: 'HC-01', sectionId: 'overview', articleRoute: '/help-centre/overview#overview', visibility: 'public' }] : [], topics: top ? [top] : [] });
+
+test('snapshot identity, approved digest and schema are bound to exactly one dispatch', () => {
+    const good = snapshot();
+    assert.equal(validateSnapshot(good, expected(good)), good.publication);
+    const idEnvelope = { ...good, releaseId: good.id, id: undefined };
+    assert.equal(validateSnapshot(idEnvelope, expected(good)), good.publication);
+    for (const mutate of [
+        value => value.jobId = releaseId,
+        value => value.baseSourceRevision = buildRevision,
+        value => value.publication.articles[0].summary = 'Unreviewed tamper.',
+        value => value.publication.schemaVersion = 2,
+    ]) {
+        const bad = structuredClone(good); mutate(bad);
+        assert.throws(() => validateSnapshot(bad, expected(good)));
+    }
+});
+test('owner review must be deliberate, named and source bound', () => {
+    assert.equal(validateOwnerReview(review, revision).reviewer, review.owner);
+    for (const change of [{ owner: '' }, { method: 'test-pass' }, { evidence: [] }, { date: 'invalid' }, { sourceRevision: buildRevision }]) {
+        assert.throws(() => validateOwnerReview({ ...review, ...change }, revision), /owner review/);
+    }
+});
+test('drafts, traversal addresses, duplicate identities and restricted media cannot enter the snapshot', () => {
+    for (const mutate of [
+        p => p.articles[0].status = 'draft',
+        p => p.articles[0].slug = '../../server',
+        p => p.articles.push(structuredClone(p.articles[0])),
+        p => { p.articles[0].visibility = 'admin'; p.articles[0].sections[0].media = [{ type: 'image', assetId: 'c'.repeat(64) }]; },
+        p => p.manifest.articleOrder = [],
+    ]) {
+        const publication = fixturePublication(); mutate(publication);
+        const envelope = snapshot(publication);
+        assert.throws(() => validateSnapshot(envelope, expected(envelope)));
+    }
+});
+test('configured origin cannot smuggle a token through credentials, a path, query or insecure redirect', () => {
+    assert.equal(httpsOrigin('https://api.carearound.sg'), 'https://api.carearound.sg');
+    for (const origin of ['http://api.carearound.sg', 'https://user:secret@api.carearound.sg', 'https://api.carearound.sg/api', 'https://api.carearound.sg?token=secret', 'https://api.carearound.sg:8443']) {
+        assert.throws(() => httpsOrigin(origin));
+    }
+});
+test('public or unverified runner configuration is rejected before retrieving private content', async () => {
+    const env = { HELP_CMS_RELEASE_ID: releaseId, HELP_CMS_JOB_ID: jobId, HELP_CMS_CONTENT_DIGEST: 'c'.repeat(64), HELP_CMS_BASE_SOURCE_REVISION: revision,
+        HELP_CMS_RELEASE_TOKEN: 'private-placeholder-'.repeat(2), HELP_CMS_API_ORIGIN: 'https://api.carearound.sg', GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'Owner/private-releases', GITHUB_TOKEN: 'fixture-token', HELP_CMS_WRANGLER_VERSION: '4.145.0' };
+    const config = readReleaseConfiguration(env);
+    await assertPrivateAutomation(config, async () => responseJson({ private: true, full_name: 'Owner/private-releases' }));
+    assert.throws(() => readReleaseConfiguration({ ...env, GITHUB_REPOSITORY: 'GudPerson/Senior-Resource-Map' }), /private automation/);
+    await assert.rejects(assertPrivateAutomation(config, async () => responseJson({ private: false, full_name: 'Owner/private-releases' })), /private automation/);
+    await assert.rejects(assertPrivateAutomation(config, async () => responseJson({ private: true, full_name: 'Other/private-releases' })), /private automation/);
+});
+test('release path allowlist cannot modify runtime, secrets, workflow or frozen test baseline', () => {
+    assertContentOnlyPaths(['content/help/articles/hc-01-overview.json', 'content/help/manifest.json',
+        'content/help/editorial-corrections.json', 'client/src/generated/helpArticles.json', 'server/src/generated/helpKnowledge.js',
+        'client/public/help-content-status.json']);
+    for (const file of ['server/wrangler.toml', 'server/.env', 'client/src/App.jsx', 'server/test/fixtures/helpMigrationBaseline.json',
+        'content/help/articles/../manifest.json', 'content/help/articles/hc-01-overview.json/../../server', '.github/workflows/release.yml',
+        'server/src/generated/helpCmsSeed.js']) {
+        assert.throws(() => assertContentOnlyPaths([file]), /outside/);
+    }
+});
+test('public source drift, dirty source and a different repository fail closed', () => {
+    const state = { head: revision, originMain: revision, clean: true, remote: 'https://github.com/GudPerson/Senior-Resource-Map.git' };
+    validateBaseSource(state, revision);
+    for (const change of [{ head: buildRevision }, { originMain: buildRevision }, { clean: false }, { remote: 'https://github.com/Other/Repository.git' }]) {
+        assert.throws(() => validateBaseSource({ ...state, ...change }, revision));
+    }
+});
+test('private seed is ignored and a force-staged seed is rejected before content hydration', t => {
+    const root = temp(t), run = args => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    mkdirSync(join(root, 'server/src/generated'), { recursive: true });
+    writeFileSync(join(root, '.gitignore'), '/server/src/generated/helpCmsSeed.js\n');
+    writeFileSync(join(root, 'server/src/generated/helpCmsSeed.js'), 'export const HELP_CMS_SEED = {};\n');
+    run(['init', '--quiet']);
+    assertPrivateSeedUntracked(root);
+    assert.equal(run(['ls-files', '--', 'server/src/generated/helpCmsSeed.js']).trim(), '');
+    run(['add', '--force', '--', 'server/src/generated/helpCmsSeed.js']);
+    assert.throws(() => assertPrivateSeedUntracked(root), /must remain untracked/);
+});
+test('stable article access, citation identities and fact routes survive content hydration', () => {
+    const p = fixturePublication(), seed = { articles: [structuredClone(article)], manifest: structuredClone(p.manifest) };
+    p.articles[0].sections[0].facts[0].message = 'Reviewed new wording.';
+    validateSourceIdentities(p, seed);
+    for (const mutate of [
+        value => value.articles[0].visibility = 'admin',
+        value => value.articles[0].slug = 'new-address',
+        value => value.articles[0].sections[0].facts[0].route = '/delete-account',
+        value => value.articles[0].sections[0].id = 'replacement-anchor',
+        value => value.manifest.guideFactOrder = [],
+    ]) {
+        const bad = structuredClone(p); mutate(bad);
+        assert.throws(() => validateSourceIdentities(bad, seed));
+    }
+});
+test('unchanged legacy facts and original reviewed correction exceptions need no mutable override', () => {
+    assert.deepEqual(deriveEditorialCorrections({ baseline, compiled: compiled(), publication: fixturePublication() }), { facts: [], topics: [] });
+    const original = { ...baseline, editorialCorrections: [{ id: fact.id, expectedDigest: digestValue({ ...fact, message: 'Original documented correction.' }) }] };
+    assert.deepEqual(deriveEditorialCorrections({ baseline: original, compiled: compiled({ ...fact, message: 'Original documented correction.' }), publication: fixturePublication() }), { facts: [], topics: [] });
+});
+test('fact and topic wording changes produce review records and preserve matching previous owner review', () => {
+    const changedFact = { ...fact, message: 'Owner reviewed new wording.' }, changedTopic = { ...topic, message: changedFact.message };
+    const first = deriveEditorialCorrections({ baseline, compiled: compiled(changedFact, changedTopic), publication: fixturePublication() });
+    assert.equal(first.facts[0].expectedDigest, digestValue(changedFact));
+    assert.equal(first.topics[0].expectedDigest, digestValue(changedTopic));
+    assert.equal(first.facts[0].reviewer, review.owner);
+    const previous = structuredClone(first); previous.facts[0].reviewer = 'Previous verified owner';
+    const again = deriveEditorialCorrections({ baseline, compiled: compiled(changedFact, changedTopic), publication: fixturePublication(), previous });
+    assert.equal(again.facts[0].reviewer, 'Previous verified owner');
+    assert.deepEqual(baseline.facts, [{ id: fact.id, digest: digestValue(fact) }]);
+});
+test('retirements require archived source identities and record owner review for facts and topics', () => {
+    const p = fixturePublication(); p.manifest.retiredFactIds = [fact.id];
+    const retired = deriveEditorialCorrections({ baseline, compiled: compiled(null, null), publication: p });
+    assert.equal(retired.facts[0].kind, 'retired'); assert.equal(retired.topics[0].kind, 'retired');
+    assert.equal(retired.facts[0].reviewedAt, review.date);
+    assert.throws(() => deriveEditorialCorrections({ baseline, compiled: compiled(null, null), publication: fixturePublication() }), /archived source/);
+    assert.throws(() => deriveEditorialCorrections({ baseline, compiled: compiled(), publication: fixturePublication(), previous: { facts: [{ id: fact.id, kind: 'changed' }], topics: [] } }), /registry/);
+});
+test('private media bytes must match the immutable asset hash and canonical signature validator', async () => {
+    const bytes = Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]);
+    const assetId = sha256Bytes(bytes), p = fixturePublication();
+    p.articles[0].sections[0].media = [{ type: 'image', assetId }];
+    let validated = false;
+    const config = { apiOrigin: 'https://api.carearound.sg', releaseId, releaseToken: 'fixture-private-token' };
+    const fetchImpl = async (url, options) => {
+        assert.equal(url, config.apiOrigin + '/api/help/cms/release/' + releaseId + '/media/' + assetId);
+        assert.equal(options.redirect, 'error'); assert.equal(options.headers.Authorization, 'Bearer ' + config.releaseToken);
+        return new Response(bytes, { headers: { 'Content-Type': 'image/png' } });
+    };
+    const media = await collectApprovedMedia(p, config, { fetchImpl, validateImage: (value, mime) => { validated = true; assert.equal(mime, 'image/png'); assert.equal(value.length, bytes.length); } });
+    assert.equal(validated, true); assert.equal(media[0].sha256, assetId); assert.equal(media[0].bytes, bytes.length);
+    await assert.rejects(collectApprovedMedia(p, config, { fetchImpl: async () => new Response('wrong', { headers: { 'Content-Type': 'image/png' } }), validateImage: () => {} }), /content identity/);
+    p.articles[0].visibility = 'admin';
+    await assert.rejects(collectApprovedMedia(p, config, { fetchImpl, validateImage: () => {} }), /restricted/);
+});
+test('streamed HTTP bodies cannot exceed a limit regardless of content-length', async () => {
+    await assert.rejects(readBoundedBytes(new Response('too large', { headers: { 'Content-Length': '1' } }), 2), /size limit/);
+});
+function artifactFixture(t) {
+    const dist = temp(t);
+    const files = { 'index.html': '<html>Approved build</html>', 'release.json': '{}', 'help-content-status.json': '{"version":"cms.2"}', 'other.json': '{"required":"all files"}', '_headers': 'private platform controls' };
+    for (const [name, text] of Object.entries(files)) writeFileSync(join(dist, name), text);
+    return { dist, files };
+}
+test('custom domain parity checks every public artifact and retains failures before a successful retry', async t => {
+    const { dist, files } = artifactFixture(t), counts = {};
+    const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, delay: async () => {}, fetchImpl: async url => {
+        const name = new URL(url).pathname.slice(1); counts[name] = (counts[name] || 0) + 1;
+        const value = name === 'other.json' && counts[name] === 1 ? 'stale' : files[name];
+        return new Response(value, { headers: { 'Content-Type': name.endsWith('.html') ? 'text/html' : 'application/json' } });
+    } });
+    assert.equal(result.passed, true); assert.equal(result.checked, 4); assert.equal(counts._headers, undefined);
+    assert.equal(result.records.find(record => record.path === 'other.json').failures.length, 1);
+});
+test('matching public bytes with wrong MIME do not establish artifact parity', async t => {
+    const { dist, files } = artifactFixture(t);
+    const result = await verifyPublicArtifacts({ dist, appOrigin: 'https://app.carearound.sg', releaseId, attempts: 1, fetchImpl: async url => {
+        const name = new URL(url).pathname.slice(1);
+        return new Response(files[name], { headers: { 'Content-Type': 'text/html' } });
+    } });
+    assert.equal(result.passed, false); assert.equal(result.records.filter(record => !record.passed).length, 3);
+});
+function paired(overrides = {}) {
+    return { deployWorker: async () => {}, deployPages: async () => {}, observeWorker: async () => workerId, observePages: async () => pagesId,
+        verify: async () => ({ passed: true }), assertSource: async () => {}, recovery: { workerVersionId: oldWorkerId, pagesDeploymentId: jobId, workerSourceRevision: revision, pagesSourceRevision: revision, contentVersion: 'baseline.1', contentDigest: 'a'.repeat(64) }, ...overrides };
+}
+test('paired release reports publication only after both deployments, public verification and final source check', async () => {
+    const events = [];
+    const result = await pairedRelease(paired({ deployWorker: async () => events.push('worker'), deployPages: async () => events.push('pages'), verify: async () => { events.push('verify'); return { passed: true }; } }));
+    assert.deepEqual(events, ['worker', 'pages', 'verify']); assert.equal(result.state, 'published');
+    assert.equal(result.workerVersionId, workerId); assert.equal(result.pagesDeploymentId, pagesId);
+});
+test('Pages failure retains actual Worker identity and recovery references', async () => {
+    const result = await pairedRelease(paired({ deployPages: async () => { throw new Error('upload failed'); }, observePages: async () => { throw new Error('unknown Pages identity'); } }));
+    assert.equal(result.state, 'partially-released'); assert.equal(result.workerVersionId, workerId); assert.equal(result.pagesDeploymentId, null);
+    assert.deepEqual(result.attemptedTargets, ['worker', 'pages']); assert.equal(result.recovery.workerVersionId, oldWorkerId);
+});
+test('uncertain Worker CLI failure is partial truth and records a version observed after failure', async () => {
+    let pagesAttempted = false;
+    const result = await pairedRelease(paired({ deployWorker: async () => { throw new Error('lost connection after upload'); }, deployPages: async () => { pagesAttempted = true; } }));
+    assert.equal(result.state, 'partially-released'); assert.equal(result.workerVersionId, workerId); assert.equal(pagesAttempted, false);
+    assert.deepEqual(result.attemptedTargets, ['worker']);
+});
+test('preflight source drift attempts no deployment; failed readiness after deployment remains partial', async () => {
+    const blocked = await pairedRelease(paired({ assertSource: async () => { throw new Error('source drift'); } }));
+    assert.equal(blocked.state, 'failed'); assert.deepEqual(blocked.attemptedTargets, []);
+    const partial = await pairedRelease(paired({ verify: async () => ({ passed: false }) }));
+    assert.equal(partial.state, 'partially-released'); assert.equal(partial.workerVersionId, workerId); assert.equal(partial.pagesDeploymentId, pagesId);
+});
+test('deployment arguments preserve settings, provenance and Functions discovery without accepting shell input', () => {
+    const worker = deploymentArguments('worker', buildRevision), pages = deploymentArguments('pages', buildRevision);
+    assert.ok(worker.includes('--keep-vars')); assert.ok(worker.includes('wrangler.toml')); assert.ok(worker.includes('git-' + buildRevision));
+    assert.ok(pages.includes('--commit-dirty=false')); assert.ok(pages.includes(buildRevision)); assert.ok(pages.includes('--skip-caching'));
+    assert.throws(() => deploymentArguments('worker', revision + '; echo secret'));
+    assert.throws(() => deploymentArguments('arbitrary', buildRevision));
+});
+test('runner receipts distinguish public source, private build commit and partial deployment identity', () => {
+    const receipt = runnerReceipt({ jobId, snapshotDigest: 'c'.repeat(64), baseSourceRevision: revision }, { version: 'cms.2', contentDigest: 'd'.repeat(64), buildSourceRevision: buildRevision },
+        { state: 'partially-released', workerVersionId: workerId, pagesDeploymentId: null, attemptedTargets: ['worker'] });
+    assert.equal(receipt.baseSourceRevision, revision); assert.equal(receipt.buildSourceRevision, buildRevision);
+    assert.equal(receipt.workerVersionId, workerId); assert.equal(receipt.pagesDeploymentId, null); assert.equal(receipt.state, 'partially-released');
+});
+test('ordinary application release guard blocks old content even when the app source is newer', async t => {
+    const root = temp(t); mkdirSync(join(root, 'client/public'), { recursive: true });
+    writeFileSync(join(root, 'client/public/help-content-status.json'), JSON.stringify({ version: 'baseline.1', contentDigest: 'a'.repeat(64) }));
+    const fetchImpl = async () => responseJson({ version: 'cms.2', contentDigest: 'b'.repeat(64) });
+    await assert.rejects(assertLatestHelpContentForAppRelease({ root, env: {}, fetchImpl }), /latest published/);
+    writeFileSync(join(root, 'client/public/help-content-status.json'), JSON.stringify({ version: 'cms.2', contentDigest: 'b'.repeat(64) }));
+    const passed = await assertLatestHelpContentForAppRelease({ root, env: {}, fetchImpl });
+    assert.equal(passed.version, 'cms.2');
+});
+
+test('installed release CLI must match its exact reviewed package version', t => {
+    const tooling = temp(t);
+    mkdirSync(join(tooling, 'node_modules/wrangler/bin'), { recursive: true });
+    writeFileSync(join(tooling, 'node_modules/wrangler/bin/wrangler.js'), '// fixture only');
+    writeFileSync(join(tooling, 'node_modules/wrangler/package.json'), JSON.stringify({ name: 'wrangler', version: '4.145.0' }));
+    assert.equal(validatedWranglerPath(tooling, '4.145.0'), join(tooling, 'node_modules/wrangler/bin/wrangler.js'));
+    assert.throws(() => validatedWranglerPath(tooling, '4.144.0'), /reviewed exact version/);
+});
+
+async function compiledCorpusPublication(t, mutate) {
+    const root = fileURLToPath(new URL('..', import.meta.url));
+    const { cmsSeedWorkspace, prepareCmsPublication } = await import('../shared/helpContentCms.js');
+    const { compileHelpContent } = await import('./build-help-content.mjs');
+    const seed = { manifest: JSON.parse(readFileSync(join(root, 'content/help/manifest.json'), 'utf8')),
+        articles: readdirSync(join(root, 'content/help/articles')).filter(file => file.endsWith('.json')).sort()
+            .map(file => JSON.parse(readFileSync(join(root, 'content/help/articles', file), 'utf8'))) };
+    const frozenPath = join(root, 'server/test/fixtures/helpMigrationBaseline.json');
+    const frozenBytes = readFileSync(frozenPath);
+    const frozen = JSON.parse(frozenBytes.toString('utf8'));
+    const workspace = cmsSeedWorkspace(seed);
+    mutate(workspace);
+    const publication = prepareCmsPublication(workspace, { seed, owner: review.owner, reviewNote: 'Reviewed fixture-only owner change.',
+        date: review.date, sourceRevision: revision, version: '2026-10-03.help-cms.fixture.1' });
+    const contentRoot = temp(t);
+    mkdirSync(join(contentRoot, 'content/help/articles'), { recursive: true });
+    writeFileSync(join(contentRoot, 'content/help/manifest.json'), JSON.stringify(publication.manifest));
+    for (const item of publication.articles) writeFileSync(join(contentRoot, 'content/help/articles', item.id.toLowerCase() + '-' + item.slug + '.json'), JSON.stringify(item));
+    const built = compileHelpContent({ root: contentRoot });
+    const registry = deriveEditorialCorrections({ baseline: frozen, compiled: built, publication });
+    assert.equal(frozen.facts.length, 105); assert.equal(frozen.topics.length, 12);
+    assert.deepEqual(readFileSync(frozenPath), frozenBytes);
+    return { registry, built, publication };
+}
+test('the full 105-fact/12-topic corpus compiles a reviewed owner edit without changing the frozen baseline', async t => {
+    const result = await compiledCorpusPublication(t, workspace => {
+        const entry = workspace.articles.find(item => item.sections.some(section => section.facts.some(value => value.id === 'help-overview')));
+        const section = entry.sections.find(item => item.facts.some(value => value.id === 'help-overview'));
+        section.paragraphs[0] += ' Reviewed fixture-only wording.';
+    });
+    assert.equal(result.registry.facts.find(entry => entry.id === 'help-overview').kind, 'changed');
+    assert.equal(result.registry.topics.find(entry => entry.id === 'overview').kind, 'changed');
+    assert.equal(result.registry.facts.some(entry => entry.id === 'my-map-exports'), false);
+});
+test('the full corpus archives an article and retires its fact/topic evidence through one owner-reviewed compilation', async t => {
+    const result = await compiledCorpusPublication(t, workspace => {
+        workspace.articles.find(item => item.sections.some(section => section.facts.some(value => value.id === 'help-overview'))).status = 'retired';
+    });
+    assert.equal(result.registry.facts.find(entry => entry.id === 'help-overview').kind, 'retired');
+    assert.equal(result.registry.topics.find(entry => entry.id === 'overview').kind, 'retired');
+    assert.equal(result.built.facts.some(entry => entry.id === 'help-overview'), false);
+    assert.ok(result.publication.manifest.retiredFactIds.includes('help-overview'));
+});
+
+async function realBackendRelease() {
+    const { createHelpCmsRepository } = await import('../server/src/utils/helpCmsRepository.js');
+    const rows = new Map([['workspace/current.json', { text: JSON.stringify({ workspace: {}, revisionId: 'fixture', baselineSeed: {} }), etag: 'saved-etag' }]]);
+    const bucket = {
+        get: async key => { const item = rows.get(key); return item ? { etag: item.etag, json: async () => JSON.parse(item.text) } : null; },
+        put: async (key, text) => { const record = { text, etag: 'etag-' + rows.size }; rows.set(key, record); return { etag: record.etag }; },
+    };
+    const repo = createHelpCmsRepository(bucket, { now: () => new Date('2026-10-03T00:00:00Z') });
+    const publication = fixturePublication();
+    const release = await repo.createRelease({ publication, version: publication.version, snapshotDigest: digestValue(publication), baseSourceRevision: revision }, 'saved-etag', 7);
+    return { release, repo };
+}
+test('real backend repository and private workflow dispatch produce an adapter-compatible timestamped release identity', async () => {
+    const { release } = await realBackendRelease();
+    const { dispatchHelpCmsRelease } = await import('../server/src/utils/helpCmsPublisher.js');
+    let dispatched;
+    const env = { HELP_CMS_PUBLISH_REPOSITORY: 'Owner/private-releases', HELP_CMS_GITHUB_TOKEN: 'fixture-github-token',
+        HELP_CMS_RELEASE_TOKEN: 'fixture-private-release-token-'.repeat(2), HELP_CMS_SOURCE_REVISION: revision,
+        HELP_CMS_PUBLIC_API_ORIGIN: 'https://api.carearound.sg', NODE_ENV: 'production' };
+    await dispatchHelpCmsRelease(release, env, async (url, options) => {
+        if (url.endsWith('/dispatches')) { dispatched = JSON.parse(options.body).inputs; return new Response(null, { status: 204 }); }
+        return responseJson({ private: true, full_name: env.HELP_CMS_PUBLISH_REPOSITORY });
+    });
+    const config = readReleaseConfiguration({ GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: env.HELP_CMS_PUBLISH_REPOSITORY,
+        GITHUB_TOKEN: env.HELP_CMS_GITHUB_TOKEN, HELP_CMS_RELEASE_TOKEN: env.HELP_CMS_RELEASE_TOKEN,
+        HELP_CMS_API_ORIGIN: env.HELP_CMS_PUBLIC_API_ORIGIN, HELP_CMS_RELEASE_ID: dispatched.release_id, HELP_CMS_JOB_ID: dispatched.job_id,
+        HELP_CMS_CONTENT_DIGEST: dispatched.content_digest, HELP_CMS_BASE_SOURCE_REVISION: dispatched.base_source_revision });
+    assert.match(config.releaseId, /^\d{13}-/);
+    assert.equal(validateSnapshot(release, config), release.publication);
+});
+test('real partial receipt survives a queued retry and accepts exact old/new surfaces while keeping failed retry locked', async () => {
+    const { release, repo } = await realBackendRelease();
+    const { validateHelpCmsReceipt } = await import('../server/src/utils/helpCmsPublisher.js');
+    const target = { baseVersion: 'baseline.1', baseDigest: 'a'.repeat(64), targetVersion: 'cms.2', targetDigest: 'b'.repeat(64) };
+    let surfaces = ['help', 'guide', 'client'].map(target => ({ target, version: 'baseline.1', contentDigest: 'a'.repeat(64) }));
+    const first = await pairedRelease(paired({
+        deployWorker: async () => { surfaces = surfaces.map(item => item.target === 'client' ? item : { ...item, version: target.targetVersion, contentDigest: target.targetDigest }); },
+        deployPages: async () => { throw new Error('Pages failed after Worker success'); },
+        observePages: async () => { throw new Error('not deployed'); },
+    }));
+    const receipt = runnerReceipt({ jobId: release.jobId, snapshotDigest: release.snapshotDigest, baseSourceRevision: revision },
+        { version: release.version, contentDigest: target.targetDigest, buildSourceRevision: buildRevision }, first);
+    const accepted = validateHelpCmsReceipt(receipt, release);
+    await repo.updateRelease(release.id, accepted);
+    const queued = await repo.updateRelease(release.id, { state: 'queued' });
+    assert.equal(priorReleaseState(queued).productionAttempted, true);
+    assert.equal(validateRecoverySurfaces(surfaces, target).mixed, true);
+    const blockedRetry = await pairedRelease(paired({ previous: queued, assertSource: async () => { throw new Error('remote main drift'); } }));
+    assert.equal(blockedRetry.state, 'partially-released');
+    assert.equal(runnerReceipt({ jobId, snapshotDigest: 'c'.repeat(64), baseSourceRevision: revision }, {}, blockedRetry).deploymentAttempted, true);
+    const completedRetry = await pairedRelease(paired({
+        previous: queued,
+        deployPages: async () => { surfaces = surfaces.map(item => ({ ...item, version: target.targetVersion, contentDigest: target.targetDigest })); },
+        verify: async () => ({ passed: !validateRecoverySurfaces(surfaces, target).mixed }),
+    }));
+    assert.equal(completedRetry.state, 'published');
+    assert.throws(() => validateRecoverySurfaces(surfaces.map(item => item.target === 'client' ? { ...item, contentDigest: 'f'.repeat(64) } : item), target), /neither/);
+});
+test('compact server receipt remains bounded with a complete 1000-file parity report retained privately', async () => {
+    const config = { jobId, releaseId, snapshotDigest: 'c'.repeat(64), baseSourceRevision: revision, apiOrigin: 'https://api.carearound.sg', releaseToken: 'fixture-only' };
+    const result = { state: 'published', attemptedTargets: ['worker', 'pages'], workerVersionId: workerId, pagesDeploymentId: pagesId,
+        verification: { passed: true, artifactCount: 1000, mediaCount: 0, mediaPassed: true,
+            artifactChecks: Array.from({ length: 1000 }, (_, index) => ({ path: 'assets/' + index + '.js', sha256: 'd'.repeat(64), passed: true, failures: [] })) } };
+    const receipt = runnerReceipt(config, { version: 'cms.2', contentDigest: 'd'.repeat(64), buildSourceRevision: buildRevision }, result);
+    assert.ok(Buffer.byteLength(JSON.stringify(receipt)) < 16384);
+    assert.equal(receipt.verification.artifactCount, 1000); assert.equal(receipt.verification.artifactChecks, undefined);
+    const acknowledged = await postReceipt(config, receipt, async () => responseJson({ release: { id: releaseId, state: 'partially-released' } }));
+    assert.equal(acknowledged, 'partially-released');
+    await assert.rejects(postReceipt(config, receipt, async () => responseJson({ release: { id: 'wrong', state: 'published' } })), /acknowledge/);
+});
+test('content hydration excludes Linux dependency regeneration while detecting every actual runtime source change', t => {
+    const root = temp(t), run = args => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    mkdirSync(join(root, 'node_modules/mac-only'), { recursive: true });
+    mkdirSync(join(root, 'content/help/articles'), { recursive: true });
+    writeFileSync(join(root, 'node_modules/mac-only/binary'), 'tracked Mac binary');
+    writeFileSync(join(root, 'content/help/articles/hc-01-overview.json'), '{}');
+    run(['init', '--quiet']); run(['add', '--', '.']);
+    run(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test', 'commit', '--quiet', '-m', 'Fixture baseline']);
+    rmSync(join(root, 'node_modules/mac-only/binary'));
+    mkdirSync(join(root, 'node_modules/linux-only'), { recursive: true });
+    writeFileSync(join(root, 'node_modules/linux-only/binary'), 'generated Linux binary');
+    writeFileSync(join(root, 'content/help/articles/hc-01-overview.json'), '{"approved":true}');
+    let changes = uncommittedContentPaths(root);
+    assert.deepEqual(changes.changed, ['content/help/articles/hc-01-overview.json']); assert.deepEqual(changes.untracked, []);
+    assertContentOnlyPaths(changes.changed);
+    writeFileSync(join(root, 'runtime.js'), 'unexpected runtime change');
+    changes = uncommittedContentPaths(root);
+    assert.throws(() => assertContentOnlyPaths([...changes.changed, ...changes.untracked]), /outside/);
+    assert.equal(run(['diff', '--cached', '--name-only']).trim(), '');
+});
+
+test('private checkpoints persist complete recovery and deployment intent before each upload, and checkpoint failure stops upload', async () => {
+    const config = { jobId, releaseId, snapshotDigest: 'c'.repeat(64), baseSourceRevision: revision,
+        apiOrigin: 'https://api.carearound.sg', releaseToken: 'fixture-private-token' };
+    const built = { version: 'cms.2', contentDigest: 'b'.repeat(64), buildSourceRevision: buildRevision };
+    const recovery = paired().recovery, events = [];
+    const persist = async checkpoint => postCheckpoint(config, built, recovery, checkpoint, async (url, options) => {
+        assert.equal(url, config.apiOrigin + '/api/help/cms/release/' + releaseId + '/checkpoint');
+        assert.equal(options.headers.Authorization, 'Bearer ' + config.releaseToken);
+        const body = JSON.parse(options.body);
+        assert.deepEqual(body.recovery, recovery); assert.equal(body.snapshotDigest, config.snapshotDigest);
+        events.push(body.stage + ':' + body.attemptedTargets.join(','));
+        return responseJson({ release: { id: releaseId, state: body.stage } });
+    });
+    await persist({ stage: 'prepared', attemptedTargets: [] });
+    const done = await pairedRelease(paired({ recovery, beforeDeploy: targets => persist({ stage: 'deploying', attemptedTargets: targets }),
+        deployWorker: async () => events.push('worker-upload'), deployPages: async () => events.push('pages-upload') }));
+    assert.equal(done.state, 'published');
+    assert.deepEqual(events, ['prepared:', 'deploying:worker', 'worker-upload', 'deploying:worker,pages', 'pages-upload']);
+    let uploaded = false;
+    const blocked = await pairedRelease(paired({ beforeDeploy: async () => { throw new Error('checkpoint rejected'); }, deployWorker: async () => { uploaded = true; } }));
+    assert.equal(uploaded, false); assert.deepEqual(blocked.attemptedTargets, []); assert.equal(blocked.failedStage, 'worker-checkpoint');
+    await assert.rejects(postCheckpoint(config, built, { workerVersionId: workerId }, { stage: 'prepared', attemptedTargets: [] }), /complete original recovery/);
+});

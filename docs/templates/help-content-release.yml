@@ -1,0 +1,82 @@
+# Install this workflow ONLY in the configured private automation repository.
+# It has no push permission and never publishes the private content commit to GitHub.
+#
+# Private repository variables:
+#   HELP_CMS_API_ORIGIN: https://api.carearound.sg
+#   HELP_CMS_PUBLIC_APP_ORIGIN: https://app.carearound.sg
+#
+# Private repository/environment secrets:
+#   HELP_CMS_RELEASE_TOKEN: the dedicated runner token configured on the API
+#   CLOUDFLARE_API_TOKEN: existing authorised Worker/Pages release token
+#   CLOUDFLARE_ACCOUNT_ID: the existing CareAround Cloudflare account
+#
+# Wrangler 4.145.0 is installed in a private temporary tooling directory.
+# The public main commit must already contain the CMS runtime and adapter.
+# R2 binding/owner/release configuration and initial runtime release are separate
+# explicitly authorised setup actions. This template does not provision them.
+name: Approved Help content release
+run-name: Help publication ${{ inputs.job_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Immutable approved release identity
+        required: true
+        type: string
+      job_id:
+        description: Publication job identity
+        required: true
+        type: string
+      content_digest:
+        description: SHA-256 of the approved publication JSON
+        required: true
+        type: string
+      base_source_revision:
+        description: Exact current public main source revision
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: carearound-help-content-production
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event.repository.private == true && github.repository != 'GudPerson/Senior-Resource-Map'
+    runs-on: ubuntu-latest
+    environment: help-content-production
+    timeout-minutes: 45
+    steps:
+      - name: Check out the exact public application source
+        uses: actions/checkout@v4
+        with:
+          repository: GudPerson/Senior-Resource-Map
+          ref: ${{ inputs.base_source_revision }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: source
+
+      - name: Use the supported Node runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+
+      - name: Validate and release the approved content snapshot
+        working-directory: source
+        run: node scripts/help-cms-release.mjs --execute
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HELP_CMS_RELEASE_ID: ${{ inputs.release_id }}
+          HELP_CMS_JOB_ID: ${{ inputs.job_id }}
+          HELP_CMS_CONTENT_DIGEST: ${{ inputs.content_digest }}
+          HELP_CMS_BASE_SOURCE_REVISION: ${{ inputs.base_source_revision }}
+          HELP_CMS_API_ORIGIN: ${{ vars.HELP_CMS_API_ORIGIN }}
+          HELP_CMS_PUBLIC_APP_ORIGIN: ${{ vars.HELP_CMS_PUBLIC_APP_ORIGIN }}
+          HELP_CMS_WRANGLER_VERSION: '4.145.0'
+          HELP_CMS_RELEASE_TOKEN: ${{ secrets.HELP_CMS_RELEASE_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

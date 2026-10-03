@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -87,6 +87,27 @@ test('generation is deterministic and freshness check catches stale outputs', t 
     assert.deepEqual(generateHelpContent({ root: temp }), initial);
 });
 
+test('cold checkout check bootstraps only the private seed and still rejects every tracked output drift', t => {
+    const temp = fixture(t);
+    const seedPath = resolve(temp, 'server/src/generated/helpCmsSeed.js');
+    const tracked = ['client/src/generated/helpArticles.json', 'server/src/generated/helpKnowledge.js', 'client/public/help-content-status.json'];
+    const initial = generateHelpContent({ root: temp });
+    const original = new Map(tracked.map(path => [path, readFileSync(resolve(temp, path), 'utf8')]));
+    const expectedSeed = readFileSync(seedPath, 'utf8');
+    rmSync(seedPath);
+    assert.deepEqual(generateHelpContent({ root: temp, check: true }), initial);
+    assert.equal(readFileSync(seedPath, 'utf8'), expectedSeed);
+    for (const [path, data] of original) assert.equal(readFileSync(resolve(temp, path), 'utf8'), data);
+    for (const path of tracked) {
+        rmSync(seedPath, { force: true });
+        writeFileSync(resolve(temp, path), '{}');
+        assert.throws(() => generateHelpContent({ root: temp, check: true }), /generated output is stale/);
+        assert.equal(readFileSync(resolve(temp, path), 'utf8'), '{}');
+        assert.equal(existsSync(seedPath), false);
+        writeFileSync(resolve(temp, path), original.get(path));
+    }
+});
+
 test('published corpus preserves original identities and bodies except five documented source-reviewed corrections', () => {
     const baseline = JSON.parse(readFileSync(resolve(root, 'server/test/fixtures/helpMigrationBaseline.json'), 'utf8'));
     const compiled = compileHelpContent({ root });
@@ -94,7 +115,22 @@ test('published corpus preserves original identities and bodies except five docu
     const facts = new Map(compiled.facts.map(({ articleId, sectionId, articleRoute, visibility, ...original }) => [original.id, original]));
     assert.equal(baseline.topics.length, 12);
     assert.equal(baseline.facts.length, 105);
-    for (const entry of baseline.topics) assert.equal(digest(topics.get(entry.id)), entry.digest, entry.id);
+    const ownerPath = resolve(root, 'content/help/editorial-corrections.json');
+    let ownerCorrections = { facts: [], topics: [] };
+    try { ownerCorrections = JSON.parse(readFileSync(ownerPath, 'utf8')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    const validateCorrection = entry => {
+        assert.ok(entry && ['changed', 'retired'].includes(entry.kind) && /^\d{4}-\d{2}-\d{2}$/.test(entry.reviewedAt) && entry.reviewer && entry.reason && Array.isArray(entry.evidence) && entry.evidence.length, 'Explicit owner review required');
+        if (entry.kind === 'changed') assert.match(entry.expectedDigest, /^[a-f0-9]{64}$/);
+    };
+    [...ownerCorrections.facts, ...ownerCorrections.topics].forEach(validateCorrection);
+    const ownerFacts = new Map(ownerCorrections.facts.map(entry => [entry.id, entry]));
+    const ownerTopics = new Map(ownerCorrections.topics.map(entry => [entry.id, entry]));
+    assert.equal(ownerFacts.size, ownerCorrections.facts.length); assert.equal(ownerTopics.size, ownerCorrections.topics.length);
+    for (const entry of baseline.topics) {
+        const reviewed = ownerTopics.get(entry.id);
+        if (reviewed?.kind === 'retired') { assert.equal(topics.has(entry.id), false); assert.ok(compiled.facts.every(fact => fact.id !== 'help-' + entry.id)); }
+        else assert.equal(digest(topics.get(entry.id)), reviewed?.expectedDigest || entry.digest, entry.id);
+    }
     const corrections = new Map((baseline.editorialCorrections || []).map((entry) => [entry.id, entry]));
     assert.deepEqual([...corrections.keys()].sort(), ['directory-export-boundary', 'governance-region-group', 'my-map-exports', 'private-map-export-sharing', 'resource-export-context']);
     for (const correction of corrections.values()) {
@@ -105,7 +141,12 @@ test('published corpus preserves original identities and bodies except five docu
     for (const entry of baseline.facts) {
         const correction = corrections.get(entry.id);
         if (correction) assert.notEqual(correction.expectedDigest, entry.digest, 'Original migration digest remains preserved.');
-        assert.equal(digest(facts.get(entry.id)), correction?.expectedDigest || entry.digest, entry.id);
+        const ownerReviewed = ownerFacts.get(entry.id);
+        if (ownerReviewed?.kind === 'retired') {
+            assert.equal(facts.has(entry.id), false);
+            const manifest = JSON.parse(readFileSync(resolve(root, 'content/help/manifest.json'), 'utf8'));
+            assert.ok(manifest.retiredFactIds.includes(entry.id), 'Retirement is preserved in canonical content');
+        } else assert.equal(digest(facts.get(entry.id)), ownerReviewed?.expectedDigest || correction?.expectedDigest || entry.digest, entry.id);
     }
 });
 

@@ -45,3 +45,9 @@ id = "2a6899a5a6a5440590166ab8e1d3a2d8"
 name = "GUIDE_PILOT_BUDGET"
 class_name = "GuidePilotBudget"
 script_name = "carearound-guide-account-acceptance"
+
+# Private owner CMS storage. Provision this dedicated bucket before activating
+# HELP_CMS_ENABLED; drafts and revision history never use public map storage.
+[[r2_buckets]]
+binding = "HELP_CMS_BUCKET"
+bucket_name = "carearound-help-content-private"

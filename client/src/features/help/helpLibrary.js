@@ -48,7 +48,7 @@ export function mergeHelpArticles(publicArticles, permittedArticles = []) {
             || !helpArticleRoute(article.slug) || knownIds.has(article.id) || knownSlugs.has(article.slug)) continue;
         articles.push(article); knownIds.add(article.id); knownSlugs.add(article.slug);
     }
-    return articles;
+    return articles.sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER));
 }
 
 export function mergeHelpCategories(publicCategories, permittedCategories = []) {
@@ -56,9 +56,9 @@ export function mergeHelpCategories(publicCategories, permittedCategories = []) 
     const knownIds = new Set(categories.map((category) => category.id));
     for (const category of permittedCategories) {
         if (!category || !HELP_SLUG_PATTERN.test(category.id || '') || typeof category.title !== 'string' || knownIds.has(category.id)) continue;
-        categories.push({ id: category.id, title: category.title }); knownIds.add(category.id);
+        categories.push({ id: category.id, title: category.title, ...(Number.isInteger(category.position) ? { position: category.position } : {}) }); knownIds.add(category.id);
     }
-    return categories;
+    return categories.sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER));
 }
 
 export function helpIdentityKey(user, isImpersonating = false, isLoading = false) {
