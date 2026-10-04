@@ -1,5 +1,9 @@
 # Regression Ledger
 
+## Owner CMS ordering and publishing routing
+
+Numbered vertical owner topics, grip ordering and aligned row actions are deployed from fb6587. The unchanged approved library publication was separately recovered after a Worker custom-domain self-fetch readiness failure. Keep `global_fetch_strictly_public` in the production Worker configuration; original run37221246970 remains failed, and operational recovery has three-surface readiness/published pointer/workspace promotion/cleared lock proof. Permanent configuration candidate passes 1,146 server tests and Worker dry-run; a subsequent normal CMS job is still an explicit acceptance gate. See `docs/help-cms-owner-ordering-release-20261005.md`.
+
 ## 2026-10-05 Help CMS owner ordering and publication lookup — release candidate
 
 - Request: the owner wants topic order shown vertically, hold-and-drag movement and tidy aligned article controls. Apply only within owner editing; preserve public reading, stable IDs/attachments, pending-edit protection and explicit draft save/review/publication.

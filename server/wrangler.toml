@@ -1,7 +1,7 @@
 name = "senior-resource-map-api"
 main = "src/worker.js"
 compatibility_date = "2026-03-12"
-compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env"]
+compatibility_flags = ["nodejs_compat", "nodejs_compat_populate_process_env", "global_fetch_strictly_public"]
 workers_dev = true
 routes = [
   { pattern = "api.carearound.sg", custom_domain = true }

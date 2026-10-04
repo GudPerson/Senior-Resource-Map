@@ -1,5 +1,9 @@
 # CareAround SG session handoff
 
+## 5 October 2026 — CMS ordering and publishing routing
+
+Owner ordering polish is live from fb6587; approved baseline publication recovered as 2026-10-04.help-cms.1791135472846 after a code-preserving Worker runtime flag update. Saved workspace promotion and release-lock clearance passed. Preserve the failed GitHub run37221246970 and original two asset retries. The tracked `global_fetch_strictly_public` setting prevents future jobs removing the live routing fix. After committing/pushing this bounded candidate, pin the private CMS to the new public source and prove an unchanged-content publication through the normal private job. Do not redeploy stale public content or bypass its live-content guard. See `docs/help-cms-owner-ordering-release-20261005.md`.
+
 ## 2026-10-05 Owner editing refinements and final publishing correction
 
 The owner requested a clear vertical topic sequence, drag handles and aligned
