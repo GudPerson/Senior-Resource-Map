@@ -51,7 +51,7 @@ Exit, ETag save/reload/history restore, conflict retention, identity clearing,
 multiple step images/video/transcript/reordering, menu navigation and desktop/
 390px overflow. Initial selector-expectation failures and a real menu obstruction
 were retained separately, repaired, and rerun. Screenshots were inspected.
-The final browser receipt passes 12/12 cases with no runtime errors or unexpected
+The final browser receipt passes 13/13 cases with no runtime errors or unexpected
 writes, including pristine first-upload navigation protection. This proves intercepted
 client behaviour, not real R2 writes, publication or physical-device acceptance.
 
@@ -68,7 +68,28 @@ under `output/playwright/help-cms-context/`. Record failures separately from
 successful repairs. Physical-device usability is not inferred from browser
 viewport emulation.
 
-## Recovery
+## Initial delivery and live navigation correction
+
+Initial source `e9b989d5eadde92fb82f316f2c254534e25ab41c` was pushed and deployed.
+Its Worker was `320eb065-42f2-4912-a69a-dedd86992038`; Pages was
+`8996dc68-b5ac-4656-ba06-bd2550a1a228`. Independent CI passed. Custom-domain
+verification passed 101/101 exact byte/hash/MIME checks with no retries and six
+ordinary HTML checks; API, Guide and client retained the .6 version/digest, and
+anonymous CMS capability returned 401. Real owner Edit, inline Cancel, article
+Preview and saved history worked without production content writes.
+
+The subsequent real-owner secondary-tools check found that Preview/Exit could
+change the footer state while leaving history/publication content displayed.
+That actual failure and its phone screenshot remain retained outside Git.
+The narrow correction returns to the existing article tab before changing
+presentation flags, retaining route, draft and pending-edit/upload guards.
+Full client/environment, static and production-build checks passed again;
+independent source review passed. The browser receipt adds explicit secondary
+history/publication Preview/Continue/Exit checks. A separate final deployment
+and owner verification are required; initial artifact success does not establish
+acceptance of this correction.
+
+## Recovery references
 
 The starting Worker was `cc652b2e-1777-4f9d-9dc2-3786d94ca2ff`; starting Pages was
 `7916bd11-dcce-47de-b0f8-81169b822ac4`. A narrow UI rollback must preserve later

@@ -21,9 +21,13 @@ live acceptance. The release packet is
 `docs/help-cms-context-edit-release-20261004.md`. Published Help/Guide remains
 `2026-10-02.help-centre.6` with digest `44e8b868a4f7680894b00eb6af4e1699a00605902a08172c20d5ffe2851a049d`.
 
-Deployment is authorised and next requires a separate clean main clone inside
-the active root, explicit guarded Worker/Pages deploys, the public CMS source
-pin, custom-domain artifact proof and real-owner reading/edit/Cancel checks.
+Initial source `e9b989d5` passed explicit Worker/Pages deployment, 101/101
+custom-domain artifact checks, six ordinary HTML checks and real-owner Edit/
+Cancel/history checks. A live secondary-panel Preview/Exit mismatch was retained
+and narrowly corrected; full client/static/build checks and all 13 intercepted
+browser cases pass. Final corrected Worker/Pages deployment and real-owner
+secondary navigation proof are authorised next, from the separate clean main
+clone inside the active root, including the nonsecret CMS source pin.
 Do not move the main ref attached to an unrelated old worktree. Dedicated
 publisher tokens remain pending; this release adds no credentials, migration,
 AI allowance or content publication.

@@ -365,6 +365,44 @@ try {
         assert.equal(await uploading.page.getByRole('button', { name: 'Edit article title', exact: true }).isEnabled(), true);
         return { navigationBlockedDuringFirstUpload: true, uploadCompletedInOriginalInstruction: true, ...(await noOverflow(uploading.page)) };
     });
+    await check('history and publication Preview, Continue and Exit return to the current article without losing edits', async () => {
+        const exercised = [];
+        for (const width of [390, 1440]) {
+            const secondary = await fixture(width);
+            await enterArticle(secondary);
+            const title = `Fictional secondary panel draft at ${width}px`;
+            await changeBlock(secondary.page, 'Edit article title', 'Article title', title);
+            const articleUrl = secondary.page.url();
+            for (const panel of [{ tool: 'Saved history', heading: 'Saved history' }, { tool: 'Review & publish', heading: 'Publish saved content' }]) {
+                if (await secondary.page.getByRole('button', { name: 'Edit this article', exact: true }).isVisible()) await secondary.page.getByRole('button', { name: 'Edit this article', exact: true }).click();
+                await ownerTool(secondary.page, panel.tool);
+                await secondary.page.getByRole('heading', { name: panel.heading, exact: true }).waitFor();
+                await secondary.page.getByRole('button', { name: 'Preview draft', exact: true }).click();
+                await secondary.page.getByRole('button', { name: 'Help article', exact: true }).waitFor();
+                await secondary.page.getByRole('heading', { name: title, exact: true, level: 1 }).waitFor();
+                assert.equal(await secondary.page.getByRole('heading', { name: panel.heading, exact: true }).count(), 0, 'Preview must replace the secondary panel with the article preview.');
+                assert.equal(secondary.page.url(), articleUrl);
+                await noOverflow(secondary.page);
+                await secondary.page.getByRole('button', { name: 'Continue editing', exact: true }).click();
+                await secondary.page.getByRole('button', { name: 'Edit article title', exact: true }).waitFor();
+                await secondary.page.getByRole('heading', { name: title, exact: true, level: 1 }).waitFor();
+                assert.equal(secondary.page.url(), articleUrl);
+                await ownerTool(secondary.page, panel.tool);
+                await secondary.page.getByRole('heading', { name: panel.heading, exact: true }).waitFor();
+                await secondary.page.getByRole('button', { name: 'Exit editing', exact: true }).click();
+                await secondary.page.getByRole('button', { name: 'Edit this article', exact: true }).waitFor();
+                await secondary.page.getByRole('heading', { name: title, exact: true, level: 1 }).waitFor();
+                assert.equal(await secondary.page.getByRole('heading', { name: panel.heading, exact: true }).count(), 0, 'Exit must replace the secondary panel with the reading article.');
+                assert.equal(await secondary.page.getByRole('button', { name: 'Edit article title', exact: true }).count(), 0);
+                assert.equal(secondary.page.url(), articleUrl);
+                assert.equal(secondary.state.saves.length, 0, 'View changes must never save or publish implicitly.');
+                assert.equal(secondary.state.calls.filter((call) => call.path === '/api/help/cms' && call.method === 'GET').length, 1);
+                exercised.push({ width, panel: panel.tool });
+            }
+            await secondary.page.screenshot({ path: new URL(`${width < 640 ? 'phone' : 'desktop'}-secondary-exit-reading.png`, output).pathname, fullPage: false });
+        }
+        return { combinations: exercised, draftRetained: true, routeUnchanged: true, noImplicitSave: true };
+    });
 } finally {
     report.finishedAt = new Date().toISOString();
     await writeFile(new URL('report.json', output), JSON.stringify(report, null, 2));
