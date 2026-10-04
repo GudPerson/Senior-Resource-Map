@@ -522,16 +522,23 @@ async function observeReleases(config, fetchImpl = fetch) {
         && UUID.test(worker.deploymentId || ''), 'current production recovery identities are unavailable.');
     return { workerVersionId: worker.deploymentId, workerSourceRevision: worker.sourceRevision, pagesSourceRevision: client.sourceRevision };
 }
-async function pagesDeployment(config, revision, fetchImpl = fetch) {
+export async function pagesDeployment(config, revision, fetchImpl = fetch) {
     check(/^[a-f0-9]{32}$/.test(config.cloudflareAccountId || '') && isText(config.cloudflareToken), 'Cloudflare release verification is not configured.');
-    const response = await fetchJson('https://api.cloudflare.com/client/v4/accounts/' + config.cloudflareAccountId
-        + '/pages/projects/senior-resource-map/deployments?per_page=100', {
-        fetchImpl, maximumBytes: 2 * 1024 * 1024, headers: { Authorization: 'Bearer ' + config.cloudflareToken },
-    });
-    check(response.success === true && Array.isArray(response.result), 'Pages deployment metadata is unavailable.');
-    const matches = response.result.filter(entry => entry.environment === 'production'
-        && entry.deployment_trigger?.metadata?.commit_hash === revision && entry.latest_stage?.status === 'success' && UUID.test(entry.id || ''))
-        .sort((a, b) => Date.parse(b.created_on) - Date.parse(a.created_on));
+    const pageSize = 25, maximumPages = 4, matches = [];
+    // The Pages API accepts at most 25 records per page. Keep the original
+    // bounded 100-deployment window, including older recovery builds.
+    for (let page = 1; page <= maximumPages; page++) {
+        const response = await fetchJson('https://api.cloudflare.com/client/v4/accounts/' + config.cloudflareAccountId
+            + '/pages/projects/senior-resource-map/deployments?per_page=' + pageSize + '&page=' + page, {
+            fetchImpl, maximumBytes: 2 * 1024 * 1024, headers: { Authorization: 'Bearer ' + config.cloudflareToken },
+        });
+        check(response.success === true && Array.isArray(response.result) && response.result.length <= pageSize,
+            'Pages deployment metadata is unavailable.');
+        matches.push(...response.result.filter(entry => entry.environment === 'production'
+            && entry.deployment_trigger?.metadata?.commit_hash === revision && entry.latest_stage?.status === 'success' && UUID.test(entry.id || '')));
+        if (response.result.length < pageSize) break;
+    }
+    matches.sort((a, b) => Date.parse(b.created_on) - Date.parse(a.created_on));
     check(matches.length > 0, 'Pages has no successful deployment for the private build commit.');
     return matches[0].id;
 }

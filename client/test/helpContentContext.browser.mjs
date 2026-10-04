@@ -29,7 +29,7 @@ function envelope(state) {
 }
 async function fixture(width = 1440, options = {}) {
     const state = { actor: clone(owner), capability: true, workspace: clone(seedWorkspace), etag: 'fixture-etag-1', saves: [], revisions: [], calls: [], saveConflict: false, mediaUploads: 0, ...options };
-    const context = await browser.newContext({ viewport: { width, height: width < 640 ? 844 : 1000 }, locale: 'en-SG', timezoneId: 'Asia/Singapore', serviceWorkers: 'block' });
+    const context = await browser.newContext({ viewport: { width, height: width < 640 ? 844 : 1000 }, locale: 'en-SG', timezoneId: 'Asia/Singapore', serviceWorkers: 'block', hasTouch: width < 640 });
     await context.route('**/*', async (route) => {
         const request = route.request(), url = new URL(request.url()), path = url.pathname;
         const respond = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', headers: { 'Cache-Control': 'private, no-store' }, body: JSON.stringify(body) });
@@ -289,11 +289,13 @@ try {
         await video.getByRole('checkbox', { name: 'I checked that this transcript agrees with the written instructions.', exact: true }).check();
         await video.locator('summary').click();
         await changeBlock(mobile.page, 'Edit note 2', 'Note 2', 'Fictional retained second note.');
+        await mobile.page.getByRole('button', { name: 'Note 1 options', exact: true }).click();
         await mobile.page.getByRole('button', { name: 'Remove note 1', exact: true }).click();
         await mobile.page.getByRole('button', { name: 'Add note', exact: true }).click();
         const addedNoteNumber = specimen.sections[0].notes.length;
         await changeBlock(mobile.page, `Edit note ${addedNoteNumber}`, `Note ${addedNoteNumber}`, 'Fictional additional note.');
-        await instruction.getByRole('button', { name: 'Move instruction 2 in section 1 up', exact: true }).click();
+        const handle = instruction.getByRole('button', { name: 'Reorder instruction 2 in section 1', exact: true });
+        await handle.focus(); await handle.press('Space'); await handle.press('ArrowUp'); await handle.press('Space');
         await mobile.page.getByRole('button', { name: 'Save draft', exact: true }).click();
         await mobile.page.getByText('Draft saved. Published articles and Guide answers change after publication completes.', { exact: true }).waitFor();
         const savedSection = mobile.state.saves.at(-1).workspace.articles.find((value) => value.id === specimen.id).sections[0];
@@ -316,6 +318,135 @@ try {
         assert.equal(await mobile.page.locator('iframe').count(), 0, 'A video link must not autoplay or load an external frame.');
         await mobile.page.screenshot({ path: new URL('phone-step-media-preview.png', output).pathname, fullPage: false });
         return { images: 2, videoLinks: 1, stableMediaPlacement: true, notesRetainedByContent: true, ...(await noOverflow(mobile.page)) };
+    });
+    await check('owner topic ordering has vertical rows, deliberate pointer drops and keyboard cancellation', async () => {
+        for (const width of [390, 1440]) {
+            const sorted = await fixture(width);
+            await sorted.page.goto(`${app}/help-centre?manage=1`);
+            await sorted.page.getByRole('button', { name: 'Manage topics', exact: true }).click();
+            const list = sorted.page.locator('[data-sort-list="Help topics"]');
+            const ids = () => list.locator(':scope > [data-sort-id]').evaluateAll((nodes) => nodes.map((node) => node.dataset.sortId));
+            const original = await ids(), first = list.locator(`[data-sort-id="${original[0]}"]`), second = list.locator(`[data-sort-id="${original[1]}"]`);
+            const handle = first.getByRole('button', { name: /^Reorder topic / });
+            const firstBox = await first.boundingBox(), secondBox = await second.boundingBox();
+            assert.ok(secondBox.y >= firstBox.y + firstBox.height, 'Topics must follow a vertical reading order.');
+            await handle.focus(); await handle.press('Space'); await handle.press('ArrowDown');
+            assert.equal(await sorted.page.getByRole('button', { name: 'Save draft', exact: true }).isEnabled(), false);
+            await handle.press('Escape'); assert.deepEqual(await ids(), original);
+            assert.equal(await handle.evaluate((node) => node === document.activeElement), true);
+            await handle.press('Space'); await handle.press('ArrowDown'); await handle.press('Tab');
+            await sorted.page.waitForTimeout(50);
+            assert.deepEqual(await ids(), original);
+            assert.equal(await handle.evaluate((node) => node === document.activeElement), false, 'Tab cancellation must keep native focus traversal.');
+            await handle.evaluate((node) => node.scrollIntoView({ block: 'center' }));
+            await sorted.page.waitForTimeout(50);
+            const start = await handle.boundingBox(), target = await second.boundingBox();
+            await sorted.page.mouse.move(start.x + start.width / 2, start.y + start.height / 2); await sorted.page.mouse.down(); await sorted.page.waitForTimeout(200);
+            await sorted.page.mouse.move(4, 10, { steps: 5 }); await sorted.page.mouse.up();
+            assert.deepEqual(await ids(), original, 'Dropping outside the list must cancel.');
+            await handle.evaluate((node) => node.scrollIntoView({ block: 'center' }));
+            await sorted.page.waitForTimeout(50);
+            const grab = await handle.boundingBox(), destination = await second.boundingBox();
+            await sorted.page.mouse.move(grab.x + grab.width / 2, grab.y + grab.height / 2); await sorted.page.mouse.down(); await sorted.page.waitForTimeout(200);
+            assert.equal(await handle.getAttribute('aria-pressed'), 'true', `Pointer hold must activate at ${width}px before a secondary release. Grab=${JSON.stringify(grab)} destination=${JSON.stringify(destination)}`);
+            await handle.dispatchEvent('pointerup', { pointerId: 999, isPrimary: false, clientX: destination.x + 10, clientY: destination.y + 10 });
+            assert.equal(await handle.getAttribute('aria-pressed'), 'true', 'An unrelated pointer must not commit the drag.');
+            await sorted.page.mouse.move(grab.x + grab.width / 2, destination.y + destination.height / 2, { steps: 8 }); await sorted.page.mouse.up();
+            const moved = [...original]; [moved[0], moved[1]] = [moved[1], moved[0]];
+            assert.deepEqual(await ids(), moved); assert.equal(sorted.state.saves.length, 0);
+            assert.deepEqual(sorted.state.workspace.manifest.categories.map((value) => value.id), original, 'Drag must not save by itself.');
+            await sorted.page.getByRole('button', { name: 'Save draft', exact: true }).click();
+            await sorted.page.getByText('Draft saved. Published articles and Guide answers change after publication completes.', { exact: true }).waitFor();
+            assert.deepEqual(sorted.state.workspace.manifest.categories.map((value) => value.id), moved);
+            await noOverflow(sorted.page);
+            await sorted.page.screenshot({ path: new URL(`topics-${width}.png`, output).pathname, fullPage: false });
+        }
+        return { pointerDropSavedOnlyOnSave: true, outsideAndOtherPointerCancel: true, keyboardCancelAndTab: true };
+    });
+    await check('touch hold reorders instructions and touch cancellation leaves the draft unchanged', async () => {
+        const touch = await fixture(390); await enterArticle(touch);
+        const list = touch.page.locator('[data-sort-list="Instructions in section 1"]');
+        const ids = () => list.locator(':scope > [data-step-id]').evaluateAll((nodes) => nodes.map((node) => node.dataset.stepId));
+        const original = await ids(), first = list.locator(`[data-step-id="${original[0]}"]`), second = list.locator(`[data-step-id="${original[1]}"]`);
+        const handle = first.getByRole('button', { name: 'Reorder instruction 1 in section 1', exact: true });
+        await handle.scrollIntoViewIfNeeded();
+        const session = await touch.context.newCDPSession(touch.page);
+        async function gesture(cancel) {
+            const start = await handle.boundingBox(), end = await second.boundingBox(), x = start.x + start.width / 2, y = start.y + start.height / 2;
+            await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
+            await touch.page.waitForTimeout(300);
+            assert.equal(await handle.getAttribute('aria-pressed'), 'true');
+            await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: end.y + 20, id: 1 }] });
+            await session.send('Input.dispatchTouchEvent', { type: cancel ? 'touchCancel' : 'touchEnd', touchPoints: [] });
+        }
+        await gesture(true); assert.deepEqual(await ids(), original); assert.equal(touch.state.saves.length, 0);
+        await gesture(false);
+        const moved = [...original]; [moved[0], moved[1]] = [moved[1], moved[0]];
+        assert.deepEqual(await ids(), moved); assert.equal(touch.state.saves.length, 0);
+        await touch.page.getByRole('button', { name: 'Save draft', exact: true }).click();
+        await touch.page.getByText('Draft saved. Published articles and Guide answers change after publication completes.', { exact: true }).waitFor();
+        const saved = touch.state.workspace.articles.find((value) => value.id === specimen.id).sections[0];
+        assert.deepEqual(saved.stepIds, moved); assert.equal(saved.steps[1], specimen.sections[0].steps[0]);
+        return { touchHoldDrop: true, pointerCancel: true, stableStepText: true, ...(await noOverflow(touch.page)) };
+    });
+    await check('handle order menu works without drag and restores focus on Escape', async () => {
+        const menu = await fixture(390); await enterArticle(menu);
+        const handle = menu.page.getByRole('button', { name: 'Reorder instruction 2 in section 1', exact: true });
+        await handle.click();
+        const earlier = menu.page.getByRole('button', { name: 'Move earlier', exact: true }); await earlier.waitFor();
+        await earlier.focus(); await earlier.press('Escape');
+        assert.equal(await earlier.count(), 0); assert.equal(await handle.evaluate((node) => node === document.activeElement), true);
+        await handle.click(); await menu.page.getByRole('button', { name: 'Move earlier', exact: true }).click();
+        assert.equal(await menu.page.locator('[data-sort-list="Instructions in section 1"] > li').first().getAttribute('data-step-id'), specimen.sections[0].stepIds[1]);
+        assert.equal(menu.state.saves.length, 0);
+        await menu.page.getByRole('button', { name: 'Edit instruction 1 text', exact: true }).click();
+        assert.equal(await menu.page.getByRole('button', { name: 'Reorder instruction 1 in section 1', exact: true }).isEnabled(), false, 'Pending text must block ordering.');
+        await menu.page.getByRole('button', { name: 'Cancel', exact: true }).click();
+        await menu.page.screenshot({ path: new URL('phone-aligned-instructions.png', output).pathname, fullPage: false });
+        return { accessibleOrderMenu: true, escapeReturnsFocus: true, pendingTextLocksOrdering: true };
+    });
+    await check('secondary catalogue ordering preserves hidden topic and filtered article slots', async () => {
+        const altered = clone(seedWorkspace), hiddenTopic = altered.manifest.categories[1]; hiddenTopic.archived = true;
+        for (const value of altered.articles) if (value.category === hiddenTopic.id) value.status = 'retired';
+        const visibleTopic = altered.manifest.categories.find((topic) => !topic.archived && altered.articles.filter((value) => value.category === topic.id).length >= 3), peerIds = altered.manifest.articleOrder.filter((id) => altered.articles.find((value) => value.id === id).category === visibleTopic.id);
+        assert.ok(peerIds.length >= 3);
+        const first = altered.articles.find((value) => value.id === peerIds[0]), hidden = altered.articles.find((value) => value.id === peerIds[1]), last = altered.articles.find((value) => value.id === peerIds[2]);
+        first.title = 'Fictional ordering match A'; hidden.title = 'Fictional hidden article'; last.title = 'Fictional ordering match B';
+        validateCmsWorkspace(altered, HELP_CMS_SEED);
+        const catalogue = await fixture(1440, { workspace: altered });
+        await catalogue.page.goto(`${app}/help-centre?manage=1`); await ownerTool(catalogue.page, 'Manage content');
+        await catalogue.page.getByRole('searchbox', { name: 'Find an article', exact: true }).fill('Fictional ordering match');
+        const firstArticle = catalogue.page.getByRole('button', { name: `Reorder article ${first.title.toLowerCase()}`, exact: true });
+        await firstArticle.focus(); await firstArticle.press('Space'); await firstArticle.press('ArrowDown');
+        assert.equal(await catalogue.page.getByRole('button', { name: 'Save draft', exact: true }).isEnabled(), false);
+        assert.equal(await catalogue.page.getByRole('searchbox', { name: 'Find an article', exact: true }).isEnabled(), false);
+        await firstArticle.press('Space');
+        const topicHandle = catalogue.page.getByRole('button', { name: `Reorder topic ${visibleTopic.title.toLowerCase()}`, exact: true });
+        await topicHandle.click(); await catalogue.page.getByRole('button', { name: 'Move later', exact: true }).click();
+        assert.equal(catalogue.state.saves.length, 0);
+        await catalogue.page.getByRole('button', { name: 'Save draft', exact: true }).click();
+        await catalogue.page.getByText('Draft saved. Published articles and Guide answers change after publication completes.', { exact: true }).waitFor();
+        const expected = [...altered.manifest.articleOrder], a = expected.indexOf(first.id), b = expected.indexOf(last.id); [expected[a], expected[b]] = [expected[b], expected[a]];
+        assert.deepEqual(catalogue.state.workspace.manifest.articleOrder, expected);
+        assert.equal(catalogue.state.workspace.manifest.categories[1].id, hiddenTopic.id);
+        assert.equal(catalogue.state.workspace.manifest.articleOrder.indexOf(hidden.id), altered.manifest.articleOrder.indexOf(hidden.id));
+        return { hiddenTopicSlotPreserved: true, filteredArticleSlotsPreserved: true, catalogueDragLock: true, ...(await noOverflow(catalogue.page)) };
+    });
+    await check('section keyboard ordering preserves the whole section and leaves normal content touch scrolling available', async () => {
+        const altered = clone(seedWorkspace), alteredArticle = altered.articles.find((value) => value.id === specimen.id);
+        alteredArticle.sections.push({ id: 'fictional-supplement', title: 'Fictional supplementary section', paragraphs: ['Fictional additional explanation.'], steps: [], stepIds: [], notes: [], media: [], facts: [] });
+        const sections = await fixture(390, { workspace: altered }); await enterArticle(sections);
+        const handle = sections.page.getByRole('button', { name: 'Reorder section 2', exact: true });
+        await handle.focus(); await handle.press('Space'); await handle.press('ArrowUp'); await handle.press('Enter');
+        assert.equal(await sections.page.locator('[data-sort-list="Article sections"] > section').first().getAttribute('id'), 'fictional-supplement');
+        assert.equal(sections.state.saves.length, 0);
+        await sections.page.getByRole('button', { name: 'Save draft', exact: true }).click();
+        await sections.page.getByText('Draft saved. Published articles and Guide answers change after publication completes.', { exact: true }).waitFor();
+        const savedArticle = sections.state.workspace.articles.find((value) => value.id === specimen.id);
+        assert.equal(savedArticle.sections[1].id, specimen.sections[0].id); assert.deepEqual(savedArticle.sections[1].facts, specimen.sections[0].facts);
+        assert.equal(await sections.page.locator('.cms-context-text').first().evaluate((node) => getComputedStyle(node).touchAction), 'auto');
+        assert.equal(await sections.page.getByRole('button', { name: 'Reorder section 1', exact: true }).evaluate((node) => getComputedStyle(node).touchAction), 'none');
+        return { stableSectionAndFacts: true, contentTouchScrollAvailable: true, ...(await noOverflow(sections.page)) };
     });
     await check('browser Back keeps an unfinished inline edit available for explicit completion', async () => {
         const pending = await fixture(390);

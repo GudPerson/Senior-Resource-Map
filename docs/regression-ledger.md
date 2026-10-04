@@ -1,5 +1,13 @@
 # Regression Ledger
 
+## 2026-10-05 Help CMS owner ordering and publication lookup — release candidate
+
+- Request: the owner wants topic order shown vertically, hold-and-drag movement and tidy aligned article controls. Apply only within owner editing; preserve public reading, stable IDs/attachments, pending-edit protection and explicit draft save/review/publication.
+- Publishing reproduction: the fresh approved baseline job completed all four local quality gates, but its Cloudflare recovery lookup requested an unsupported 100-record page and received HTTP 400 before any production upload. Same approved token and source returned valid evidence at 25 records. Failed job and receipts are retained privately.
+- Narrow correction: read at most four 25-record pages, preserve per-response limits and exact successful production source verification. Independent review found no blocker; focused adapter cases pass. No token scope expansion or guard bypass is required.
+- Local proof: compiler12/12, CMS59/59, server1146/1146, client917/917 + environment5/5, maps104/104, static checks, production build and Worker packaging pass. Independent model/source review, 18/18 expanded fictional browser checks and 2/2 desktop/390px layout checks pass. Earlier failed evidence and the obsolete-arrow test failure are retained privately.
+- Release gates: after the final source is frozen, run required quality/build/map checks; configure the new source pin before a final tagged Worker deployment; verify paired application source and baseline content; then publish a fresh immutable baseline snapshot. Require actual private job and acknowledged published receipt, cleared lock and promoted saved workspace before claiming activation.
+
 ## 2026-10-05 Help CMS live publishing compatibility — validated correction
 
 - Authority and scope: existing owner approval covers scoped CMS credential setup, commit/push/deployment and first publication of the unchanged approved library. Work is isolated in `output/help-cms-activation-fix`; dirty primary work remains preserved.

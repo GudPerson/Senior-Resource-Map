@@ -1,5 +1,26 @@
 # CareAround SG session handoff
 
+## 2026-10-05 Owner editing refinements and final publishing correction
+
+The owner requested a clear vertical topic sequence, drag handles and aligned
+in-place controls. Implement within the owner CMS only, retaining stable
+identities, attachment placement, unsaved/pending-edit locks and explicit Save.
+The publishing lookup is independently narrowed to four accepted 25-record
+Pages metadata requests. The preceding job passed local gates but failed this
+read before any production upload; it is retained as failed evidence.
+
+Work remains isolated in `output/help-cms-activation-fix`. The existing CMS
+production release approval covers the bounded publishing correction; the UI
+refinements are the owner's subsequent requested scope. Finish source/browser
+validation before a combined release. Preserve the original dirty checkout.
+No database, authentication, public resource, paid AI or budget change is needed.
+Local static/compiler/CMS/server/client/environment/map/build/packaging gates
+pass; independent source/model and desktop/390px fictional browser review
+passed. Root inspected the real local layout. Failed checks are retained.
+After all secret/source-pin changes, deploy the approved clean source with its
+Git tag. Complete a fresh unchanged baseline publication and final state/delivery
+verification. Do not confuse successful local checks with live publication.
+
 ## 2026-10-05 CMS publishing activation — validated correction
 
 The approved scoped credentials have been saved and configured privately. The

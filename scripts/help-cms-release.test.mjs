@@ -9,7 +9,7 @@ import {
     digestValue, sha256Bytes, httpsOrigin, readReleaseConfiguration, assertPrivateAutomation,
     validateSnapshot, validateOwnerReview, assertContentOnlyPaths, validateBaseSource, validateSourceIdentities,
     deriveEditorialCorrections, collectApprovedMedia, readBoundedBytes, verifyPublicArtifacts, verifyOrdinaryHtmlDelivery,
-    pairedRelease, deploymentArguments, runnerReceipt, assertLatestHelpContentForAppRelease, validatedWranglerPath, validateRecoverySurfaces, priorReleaseState, postReceipt, postCheckpoint, uncommittedContentPaths, assertPrivateSeedUntracked,
+    pairedRelease, deploymentArguments, pagesDeployment, runnerReceipt, assertLatestHelpContentForAppRelease, validatedWranglerPath, validateRecoverySurfaces, priorReleaseState, postReceipt, postCheckpoint, uncommittedContentPaths, assertPrivateSeedUntracked,
 } from './help-cms-release.mjs';
 
 const revision = 'a'.repeat(40), buildRevision = 'b'.repeat(40);
@@ -40,6 +40,85 @@ function temp(t, prefix = 'carearound-help-adapter-test-') {
 const responseJson = value => new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
 const baseline = { facts: [{ id: fact.id, digest: digestValue(fact) }], topics: [{ id: topic.id, digest: digestValue(topic) }], editorialCorrections: [] };
 const compiled = (f = fact, top = topic) => ({ facts: f ? [{ ...f, articleId: 'HC-01', sectionId: 'overview', articleRoute: '/help-centre/overview#overview', visibility: 'public' }] : [], topics: top ? [top] : [] });
+
+const pagesConfiguration = { cloudflareAccountId: 'f'.repeat(32), cloudflareToken: 'fictional-cloudflare-token' };
+const deployment = (overrides = {}) => ({ id: pagesId, environment: 'production', created_on: '2026-10-05T12:00:00Z',
+    deployment_trigger: { metadata: { commit_hash: buildRevision } }, latest_stage: { status: 'success' }, ...overrides });
+const unrelatedDeployments = () => Array.from({ length: 25 }, () => deployment({
+    deployment_trigger: { metadata: { commit_hash: revision } },
+}));
+
+test('Pages lookup uses the accepted page size and requires the exact successful production build identity', async () => {
+    const requested = [];
+    const result = await pagesDeployment(pagesConfiguration, buildRevision, async (url, options) => {
+        requested.push(new URL(url));
+        assert.equal(options.headers.Authorization, 'Bearer fictional-cloudflare-token');
+        return responseJson({ success: true, result: [
+            deployment({ environment: 'preview', created_on: '2026-10-06T12:00:00Z' }),
+            deployment({ latest_stage: { status: 'failure' }, created_on: '2026-10-06T12:00:00Z' }),
+            deployment({ deployment_trigger: { metadata: { commit_hash: revision } } }),
+            deployment({ id: 'unverified-id' }),
+            deployment({ id: oldWorkerId, created_on: '2026-10-04T12:00:00Z' }),
+            deployment(),
+        ] });
+    });
+    assert.equal(result, pagesId);
+    assert.equal(requested.length, 1);
+    assert.equal(requested[0].searchParams.get('per_page'), '25');
+    assert.equal(requested[0].searchParams.get('page'), '1');
+});
+
+test('Pages recovery finds an older exact build on the second page', async () => {
+    const requested = [];
+    const result = await pagesDeployment(pagesConfiguration, buildRevision, async url => {
+        const page = Number(new URL(url).searchParams.get('page')); requested.push(page);
+        return responseJson({ success: true, result: page === 1 ? unrelatedDeployments() : [deployment()] });
+    });
+    assert.equal(result, pagesId);
+    assert.deepEqual(requested, [1, 2]);
+});
+
+test('Pages lookup chooses the newest matching deployment across the bounded pages', async () => {
+    const result = await pagesDeployment(pagesConfiguration, buildRevision, async url => {
+        const first = Number(new URL(url).searchParams.get('page')) === 1;
+        const entries = first ? unrelatedDeployments() : [deployment()];
+        if (first) entries[0] = deployment({ id: oldWorkerId, created_on: '2026-10-04T12:00:00Z' });
+        return responseJson({ success: true, result: entries });
+    });
+    assert.equal(result, pagesId);
+});
+
+test('Pages lookup stops after at most one hundred deployment records and refuses a missing build', async () => {
+    const requested = [];
+    await assert.rejects(pagesDeployment(pagesConfiguration, buildRevision, async url => {
+        const page = Number(new URL(url).searchParams.get('page')); requested.push(page);
+        return responseJson({ success: true, result: unrelatedDeployments() });
+    }), /no successful deployment/);
+    assert.deepEqual(requested, [1, 2, 3, 4]);
+});
+
+test('Pages lookup refuses HTTP, provider and malformed pagination responses', async () => {
+    for (const response of [
+        () => new Response(JSON.stringify({ success: false }), { status: 400, headers: { 'Content-Type': 'application/json' } }),
+        () => responseJson({ success: false, result: [deployment()] }),
+        () => responseJson({ success: true, result: null }),
+        () => responseJson({ success: true, result: [...unrelatedDeployments(), deployment()] }),
+    ]) await assert.rejects(pagesDeployment(pagesConfiguration, buildRevision, async () => response()));
+    let requests = 0;
+    await assert.rejects(pagesDeployment(pagesConfiguration, buildRevision, async () => {
+        requests++;
+        if (requests === 2) return responseJson({ success: false });
+        const entries = unrelatedDeployments(); entries[0] = deployment();
+        return responseJson({ success: true, result: entries });
+    }), /metadata is unavailable/);
+    assert.equal(requests, 2);
+});
+
+test('Pages deployment metadata retains its per-response byte bound', async () => {
+    await assert.rejects(pagesDeployment(pagesConfiguration, buildRevision, async () => responseJson({
+        success: true, result: [deployment()], padding: 'x'.repeat(2 * 1024 * 1024),
+    })), /exceeds its size limit/);
+});
 
 test('snapshot identity, approved digest and schema are bound to exactly one dispatch', () => {
     const good = snapshot();
