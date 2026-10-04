@@ -50,6 +50,8 @@ Configure these fields on the existing Worker without replacing its other variab
 
 Store secret fields using the platform's secret mechanism. Configure ordinary fields using the existing Worker configuration process. Verify existing authorised values privately; do not print them in commands, logs, screenshots or documentation. The required Cloudflare operator authority covers creating/configuring this private bucket and attaching it to this Worker; do not expand the runner to account administration or database access.
 
+Complete every required Worker secret update, including the source pin, **before** the final tagged, guarded Worker deployment. A secret-triggered Cloudflare version can omit the `git-<full source SHA>` annotation required by `/api/release`; the first account activation reproduced this and the publisher correctly stopped before upload. After configuration, deploy the approved clean source through `npm run deploy:server` with its existing `--keep-vars` contract and require `/api/release` to return verified matching source metadata before dispatching content. Do not relax the provenance gate or retry a frozen publication against a different public source revision.
+
 ### Private GitHub release environment
 
 Install [the reviewed workflow template](templates/help-content-release.yml) as `.github/workflows/help-content-release.yml` **in the selected private automation repository only**. Create/use its `help-content-production` environment. Apply the owner's desired environment approval protection and confirm that the owner can approve its runs.

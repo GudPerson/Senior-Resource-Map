@@ -1,5 +1,13 @@
 # Regression Ledger
 
+## 2026-10-05 Help CMS live publishing compatibility — validated correction
+
+- Authority and scope: existing owner approval covers scoped CMS credential setup, commit/push/deployment and first publication of the unchanged approved library. Work is isolated in `output/help-cms-activation-fix`; dirty primary work remains preserved.
+- Reproduction: production Publish recorded an unconfirmed dispatch and job reconciliation returned temporary unavailability. Actual workerd rejects the helper's `redirect: 'error'` before network I/O. The exact private job, dispatched separately, failed before any upload because the secret-triggered Worker version lacked the required source tag; its failed receipt was accepted and retained.
+- Correction: only the CMS publisher helper uses manual redirects and refuses every 3xx; timeout, immutable release/owner/private-repository/receipt protections remain unchanged. Complete secret/source-pin configuration before the final tagged guarded Worker deployment and require verified `/api/release` metadata before new publication.
+- Validation: 1,146 server, 53 CMS, 912 client plus five environment, 12 compiler and 104 map checks pass; static/locked client build/Worker dry run pass. Seven added focused tests cover dispatch, reconciliation, readiness, redirect refusal and abort cleanup. Actual-runtime proof and live acceptance are separate.
+- Deployment gate: clean fetched main, matching Worker/Pages source and unchanged baseline content, full custom-domain artifact and ordinary HTML proof, then a new exact baseline publication. Require acknowledged Published and verified plus no active lock; retain both initial failures. See `docs/help-cms-publishing-activation-20261005.md`.
+
 ## 2026-10-04 Contextual Help Centre owner editing — release candidate
 
 - Authority: Joshua approved the in-place prototype and explicitly requested commit, push and production deployment. Candidate starts from released main `4dccc8b8aab37bbd0597abe94e6a58bf1f79c5df` in `output/help-cms-context-release`; the unrelated dirty primary checkout is preserved.

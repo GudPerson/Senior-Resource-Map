@@ -27,7 +27,15 @@ export function helpCmsPublishingConfiguration(env = {}) {
 async function boundedFetch(fetchImpl, url, options = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 15000);
-    try { return await fetchImpl(url, { ...options, signal: controller.signal, redirect: 'error' }); }
+    try {
+        // The deployed Worker runtime rejects redirect: 'error'; manual mode keeps credentials at
+        // the intended origin while the status check preserves redirect refusal.
+        const response = await fetchImpl(url, { ...options, signal: controller.signal, redirect: 'manual' });
+        if (response.status >= 300 && response.status < 400) {
+            throw new HelpCmsError('The release service returned an unexpected redirect.', 503);
+        }
+        return response;
+    }
     finally { clearTimeout(timer); }
 }
 export async function dispatchHelpCmsRelease(release, env, fetchImpl = fetch) {

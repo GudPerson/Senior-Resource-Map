@@ -1,5 +1,26 @@
 # CareAround SG session handoff
 
+## 2026-10-05 CMS publishing activation — validated correction
+
+The approved scoped credentials have been saved and configured privately. The
+whole saved library exactly matches the approved 48-article, 11-topic,
+zero-media baseline. The first dispatch/runtime failure and private job's
+pre-upload provenance failure are retained; neither is publishing acceptance.
+
+The isolated correction in `output/help-cms-activation-fix` changes only the
+CMS outbound helper to manual redirects with explicit 3xx refusal. Full local
+quality, map and build gates pass; Worker-runtime proof is separate. Before
+the final guarded tagged deployment, configure the newly approved public
+source pin. Verify `/api/release`, paired delivery and unchanged content, then
+create a fresh baseline publication for that new source. Require exact private
+job proof, accepted published receipt and cleared lock. Never retry the old
+frozen source against a new main or disable provenance/content protection.
+
+The user's existing setup/release approval remains the authority for this
+bounded correction and baseline test. No DB migration, account role, public
+test resource, paid AI or budget change belongs to it. Detailed evidence and
+remaining live gates are in `docs/help-cms-publishing-activation-20261005.md`.
+
 ## 2026-10-04 Contextual CMS — validated release candidate
 
 Joshua approved the Help Centre-first owner-editing prototype and its commit,
