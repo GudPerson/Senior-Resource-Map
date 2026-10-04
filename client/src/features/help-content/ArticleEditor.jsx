@@ -25,7 +25,7 @@ function AttachmentEditor({ item, section, index, siblings, update, mediaUrls })
         <CmsButton danger onClick={() => update({ ...section, media: section.media.filter((value) => value.id !== item.id) })}>Remove attachment</CmsButton>
     </div>;
 }
-function AttachmentGroup({ article, section, afterStepId, update, onUpload, mediaUrls, uploadBusy, allowImageUpload }) {
+export function AttachmentGroup({ article, section, afterStepId, update, onUpload, mediaUrls, uploadBusy, allowImageUpload, compact = false }) {
     const input = useRef(null), inputId = useId();
     const items = section.media.filter((item) => item.afterStepId === afterStepId);
     const all = article.sections.flatMap((item) => item.media || []);
@@ -44,7 +44,7 @@ function AttachmentGroup({ article, section, afterStepId, update, onUpload, medi
         </div>
         <input ref={input} id={inputId} type="file" multiple accept="image/png,image/jpeg,image/webp" aria-label={`Upload images ${afterStepId ? 'after this instruction' : 'in the introduction'}`} style={{ display: 'none' }} onChange={(event) => { const files = Array.from(event.target.files); event.target.value = ''; onUpload(section.id, afterStepId, files); }} />
         {!allowImageUpload && <p className="cms-muted">Save this new article before uploading images.</p>}
-        {items.map((item, index) => <AttachmentEditor key={item.id} item={item} section={section} index={index} siblings={items} update={update} mediaUrls={mediaUrls} />)}
+        {items.map((item, index) => compact ? <details key={item.id} className="cms-context-attachment"><summary>{item.type === 'image' ? 'Image' : 'Video link'} {index + 1} · {item.caption || 'Add a caption and details'}</summary><AttachmentEditor item={item} section={section} index={index} siblings={items} update={update} mediaUrls={mediaUrls} /></details> : <AttachmentEditor key={item.id} item={item} section={section} index={index} siblings={items} update={update} mediaUrls={mediaUrls} />)}
     </div>;
 }
 function SectionEditor({ article, section, index, update, onMove, onRemove, onRemoveStep, onUpload, mediaUrls, uploadBusy, allowImageUpload }) {

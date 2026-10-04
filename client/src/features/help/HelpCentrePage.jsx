@@ -9,6 +9,8 @@ import publicLibrary from '../../generated/helpArticles.json';
 import HelpArticle from './HelpArticle.jsx';
 import { createHelpArticlesApi } from './helpApi.js';
 import { canReadAccountHelp, helpArticleRoute, helpIdentityKey, mergeHelpArticles, mergeHelpCategories, normalizeHelpQuery, searchHelpArticles } from './helpLibrary.js';
+import HelpContentPage from '../help-content/HelpContentPage.jsx';
+import { createHelpContentApi } from '../help-content/helpContentApi.js';
 
 // Restricted responses live only in this mounted identity. Clear them before
 // rechecking on navigation/focus; an aborted response can never restore them.
@@ -120,19 +122,38 @@ function HelpArticleLoader({ api, canRead, slug, onOpenGuide }) {
     return <section className="py-10"><Link to="/help-centre" className="inline-flex min-h-[44px] items-center gap-2 text-sm font-semibold text-brand-700"><ArrowLeft size={16} aria-hidden="true" />All help articles</Link><h1 className="mt-4 text-2xl font-bold text-slate-900">This article is unavailable</h1><p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-600">It may have moved, or it may require account access. Browse the Help Centre for available instructions.</p>{canRead && permitted.error ? <button type="button" onClick={permitted.retry} className="btn-ghost mt-5">Try again</button> : !canRead && <Link to="/login" className="btn-ghost mt-5">Sign in</Link>}</section>;
 }
 
-function HelpCentreSession({ canRead }) {
+function HelpCentreSession({ canRead, canEdit = false, onEdit }) {
     const { slug } = useParams();
+    const [params] = useSearchParams();
     const { locale } = useLocale();
     const guide = useGuideAssistant();
     const api = useMemo(() => createHelpArticlesApi(), []);
     const openGuide = guide?.available ? () => guide.openGuide() : undefined;
     return <main className="mx-auto w-full max-w-6xl px-4 py-5 pb-20 sm:px-6 sm:py-7" lang="en">
         {locale !== 'en' && <p className="mb-5 border-l-2 border-brand-300 bg-brand-50 px-4 py-3 text-xs leading-relaxed text-slate-600">Help Centre articles are currently in English. Your app language setting is unchanged.</p>}
+        {canEdit && <div className="mb-5 flex flex-wrap items-center justify-end gap-3 border-b border-slate-200 pb-4"><span className="text-xs text-slate-500">Content owner</span><button type="button" onClick={onEdit} className="btn-ghost text-sm">{slug ? 'Edit this article' : params.get('category') ? 'Edit topic' : 'Manage help content'}</button></div>}
         {slug ? <HelpArticleLoader key={slug} api={api} canRead={canRead} slug={slug} onOpenGuide={openGuide} /> : <HelpCentreIndex api={api} canRead={canRead} onOpenGuide={openGuide} />}
     </main>;
 }
 
+function HelpCentreOwnerSession({ user, canRead, isImpersonating, isLoading }) {
+    const api = useMemo(() => createHelpContentApi(), []);
+    const [params] = useSearchParams();
+    const [canEdit, setCanEdit] = useState(false), [started, setStarted] = useState(false), [initialEditing, setInitialEditing] = useState(false);
+    useEffect(() => {
+        setCanEdit(false);
+        if (isLoading || isImpersonating || user?.isImpersonating || user?.role !== 'super_admin') return undefined;
+        const controller = new AbortController();
+        api.capability(controller.signal).then((data) => { if (!controller.signal.aborted) setCanEdit(data?.canEdit === true); }).catch(() => {});
+        return () => controller.abort();
+    }, [api, user?.id, user?.role, user?.isImpersonating, isImpersonating, isLoading]);
+    // The protected dashboard entry opens this same persistent reading session.
+    useEffect(() => { if (canEdit && params.get('manage') === '1') setStarted(true); }, [canEdit, params]);
+    if (canEdit && started) return <HelpContentPage api={api} context initialEditing={initialEditing} />;
+    return <HelpCentreSession canRead={canRead} canEdit={canEdit} onEdit={() => { setInitialEditing(true); setStarted(true); }} />;
+}
+
 export default function HelpCentrePage() {
     const { user, isLoading, isImpersonating } = useAuth();
-    return <HelpCentreSession key={helpIdentityKey(user, isImpersonating, isLoading)} canRead={canReadAccountHelp(user, isImpersonating, isLoading)} />;
+    return <HelpCentreOwnerSession key={helpIdentityKey(user, isImpersonating, isLoading)} user={user} isLoading={isLoading} isImpersonating={isImpersonating} canRead={canReadAccountHelp(user, isImpersonating, isLoading)} />;
 }

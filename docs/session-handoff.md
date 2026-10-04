@@ -1,5 +1,34 @@
 # CareAround SG session handoff
 
+## 2026-10-04 Contextual CMS — validated release candidate
+
+Joshua approved the Help Centre-first owner-editing prototype and its commit,
+push and production deployment. The candidate is isolated inside the active
+root at `output/help-cms-context-release` on
+`codex/help-cms-context-edit-20261004`, based on released main `4dccc8b8`.
+Existing dirty work and old attached main worktrees remain untouched.
+
+Owners enter editing from the article/topic itself or the dashboard Help Content
+entry. A single library session retains inline Done/Cancel, step attachments,
+Preview/Continue/Exit, Save, history, organisation and publishing safeguards.
+Public readers keep the existing renderer. Server capability, account changes,
+API denial, upload locking and ETag conflicts remain authoritative.
+
+Server 1,139/1,139, CMS 53/53, final client 912/912 plus environment 5/5, compiler
+12/12, static checks and production-preset build passed. Independent source
+review passed; intercepted desktop/390px browser evidence remains distinct from
+live acceptance. The release packet is
+`docs/help-cms-context-edit-release-20261004.md`. Published Help/Guide remains
+`2026-10-02.help-centre.6` with digest `44e8b868a4f7680894b00eb6af4e1699a00605902a08172c20d5ffe2851a049d`.
+
+Deployment is authorised and next requires a separate clean main clone inside
+the active root, explicit guarded Worker/Pages deploys, the public CMS source
+pin, custom-domain artifact proof and real-owner reading/edit/Cancel checks.
+Do not move the main ref attached to an unrelated old worktree. Dedicated
+publisher tokens remain pending; this release adds no credentials, migration,
+AI allowance or content publication.
+
+
 ## 2026-10-04 Production CMS setup/release approval — prepared installation
 
 - Joshua explicitly approved dedicated private CMS storage/publishing setup, required scoped service credentials, this candidate's commit/push, Worker + Pages production release and verification with the existing approved Help content. No database migration, AI allowance renewal or synthetic public article/resource is authorised.

@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import HelpArticle from '../help/HelpArticle.jsx';
 import { cmsReadingArticle } from '../../../../shared/helpContentCms.js';
 import { cmsGuideMessages } from './helpContentDraftModel.js';
 import { CmsButton } from './CmsControls.jsx';
 
-export function useCmsMediaUrls(article, api) {
+export function useCmsMediaUrls(article, api, onDenied) {
+    const denied = useRef(onDenied);
+    denied.current = onDenied;
     const assetIds = [...new Set((article?.sections || []).flatMap((section) => section.media || []).filter((item) => item.type === 'image').map((item) => item.assetId))].sort();
     const key = assetIds.join('|');
     const [state, setState] = useState({ key, urls: {}, errors: [] });
@@ -12,7 +14,9 @@ export function useCmsMediaUrls(article, api) {
         const controller = new AbortController(), urls = {};
         setState({ key, urls: {}, errors: [] });
         Promise.allSettled(assetIds.map(async (id) => {
-            const blob = await api.media(id, controller.signal);
+            let blob;
+            try { blob = await api.media(id, controller.signal); }
+            catch (cause) { if (!controller.signal.aborted && [401, 403].includes(cause.status)) denied.current?.(cause); throw cause; }
             if (controller.signal.aborted) return;
             urls[id] = URL.createObjectURL(blob);
         })).then((results) => {

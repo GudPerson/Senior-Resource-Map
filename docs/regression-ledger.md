@@ -1,5 +1,14 @@
 # Regression Ledger
 
+## 2026-10-04 Contextual Help Centre owner editing — release candidate
+
+- Authority: Joshua approved the in-place prototype and explicitly requested commit, push and production deployment. Candidate starts from released main `4dccc8b8aab37bbd0597abe94e6a58bf1f79c5df` in `output/help-cms-context-release`; the unrelated dirty primary checkout is preserved.
+- Behaviour: a server-authorised owner opens the Help Centre's article/topic and chooses Edit. Inline blocks use Done/Cancel, attachments remain with stable steps, Preview/Continue/Exit share one library draft, and the fixed Save bar explains library-wide saving. Dashboard Help Content leads into the same reading/editing flow. Organisation, history and publication remain secondary tools.
+- Acceptance: public reading and Help/Guide digest stay unchanged; role or URL alone does not reveal private content; identity/role/User View or API denial clears and aborts private state; navigation/pending uploads protect edits; stale saves retain drafts; existing model/media/publication guards remain intact.
+- Verification: server 1,139/1,139; CMS 53/53; final client 912/912 plus environment 5/5; compiler 12/12; static checks and production-preset build pass. Independent source review passes. Fictional intercepted browser coverage and its retained failures are recorded in `docs/help-cms-context-edit-release-20261004.md` and `output/playwright/help-cms-context/`; this is not production publishing or physical-device proof.
+- Release gate: only clean fetched main may deploy. Verify paired Worker/Pages provenance, exact custom-domain public artifact parity, ordinary HTML security/analytics, guest denial and real-owner contextual access. Advance only the nonsecret CMS source revision. Dedicated publisher tokens remain pending; no credential, database, AI-budget or published-content change belongs to this UI release.
+
+
 ## 2026-10-04 Production CMS setup/release approval — prepared installation
 
 - Joshua explicitly approved dedicated private CMS storage/publishing setup, required scoped service credentials, this candidate's commit/push, Worker + Pages production release and verification with the existing approved Help content. No database migration, AI allowance renewal or synthetic public article/resource is authorised.

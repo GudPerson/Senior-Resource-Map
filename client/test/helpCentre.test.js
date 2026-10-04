@@ -134,13 +134,13 @@ test('public Help Centre imports only its generated public corpus and preserves 
     const featureDirectory = new URL('../src/features/help/', import.meta.url);
     for (const file of readdirSync(featureDirectory).filter((name) => /\.[jt]sx?$/.test(name))) {
         const source = readFileSync(new URL(file, featureDirectory), 'utf8');
-        assert.doesNotMatch(source, /from\s+['"][^'"]*(?:server\/|content\/help|helpKnowledge)/, file);
+        assert.doesNotMatch(source, /from\s+['"][^'"]*(?:server\/|content\/help(?:\/|['"])|helpKnowledge)/, file);
         assert.doesNotMatch(source, /dangerouslySetInnerHTML|localStorage|sessionStorage/, file);
     }
     const page = readFileSync(new URL('../src/features/help/HelpCentrePage.jsx', import.meta.url), 'utf8');
     const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
     assert.match(page, /from '..\/..\/generated\/helpArticles\.json'/);
-    assert.match(app, /path="\/help-centre"/); assert.match(app, /path="\/help-centre\/:slug"/);
+    assert.match(app, /path="\/help-centre\/:slug\?"/);
     assert.match(app, /SUPPORT_UI_ENABLED && <Route path="\/help"/);
     assert.match(app, /path="\/inbox" element=\{<Navigate to="\/help\?tab=inbox" replace \/>/);
 });

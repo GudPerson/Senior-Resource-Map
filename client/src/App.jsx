@@ -38,7 +38,6 @@ const SharedMapPage = lazy(() => import('./pages/SharedMapPage.jsx'));
 const MembershipLinkPage = lazy(() => import('./pages/MembershipLinkPage.jsx'));
 const LegalPage = lazy(() => import('./pages/LegalPage.jsx'));
 const SupportHubPage = lazy(() => import('./pages/SupportHubPage.jsx'));
-const HelpContentPage = lazy(() => import('./features/help-content/HelpContentPage.jsx'));
 const HelpCentrePage = lazy(() => import('./features/help/HelpCentrePage.jsx'));
 const OrganizationOnboardingPage = lazy(() => import('./pages/OrganizationOnboardingPage.jsx'));
 const ROUTE_RELOAD_MARKER_KEY = 'carearound:route-recovery-reload';
@@ -201,8 +200,7 @@ function AppShell() {
                         <Route path="/" element={<Navigate to="/discover" replace />} />
                         <Route path="/list" element={<Navigate to="/discover" replace />} />
                         <Route path="/discover" element={<PublicDirectoryGate><DiscoverPage /></PublicDirectoryGate>} />
-                        <Route path="/help-centre" element={<HelpCentrePage />} />
-                        <Route path="/help-centre/:slug" element={<HelpCentrePage />} />
+                        <Route path="/help-centre/:slug?" element={<HelpCentrePage />} />
                         {SUPPORT_UI_ENABLED && <Route path="/help" element={<SupportHubPage />} />}
                         {SUPPORT_UI_ENABLED && <Route path="/inbox" element={<Navigate to="/help?tab=inbox" replace />} />}
                         <Route path="/membership/link" element={<MembershipLinkPage />} />
@@ -225,7 +223,7 @@ function AppShell() {
                             <Route path="calendar" element={<CareCalendarPage />} />
                             <Route path="resources" element={<ResourcesPage />} />
                             <Route path="governed-maps" element={GOVERNED_MAPS_UI_ENABLED ? <GovernedMapsPage /> : <GovernedPilotUnavailable capability="Governed Care Maps" />} />
-                            <Route path="help-content" element={<HelpContentPage />} />
+                            <Route path="help-content" element={<Navigate to="/help-centre?manage=1" replace />} />
                             <Route path="profile" element={<ProfilePage />} />
                             <Route path="admin" element={<ProtectedRoute requireAdmin><AdminPage /></ProtectedRoute>} />
                             <Route path="audit" element={<ProtectedRoute requireAuditAccess><AuditTrailPage /></ProtectedRoute>} />

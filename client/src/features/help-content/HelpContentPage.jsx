@@ -9,6 +9,7 @@ import HelpCatalogue from './HelpCatalogue.jsx';
 import HelpContentPublications from './HelpContentPublications.jsx';
 import ArticleEditor from './ArticleEditor.jsx';
 import HelpContentPreview, { useCmsMediaUrls } from './HelpContentPreview.jsx';
+import HelpContentContext from './HelpContentContext.jsx';
 import './helpContent.css';
 
 function useCmsDialog() {
@@ -23,17 +24,17 @@ function useCmsDialog() {
 }
 function revisionId(value) { return value.revisionId || value.id || value.key; }
 function revisionLabel(value) { return value.savedAt || value.updatedAt || value.createdAt || value.timestamp || value.version || 'Saved revision'; }
-function HelpContentSession({ api }) {
+function HelpContentSession({ api, context = false, initialEditing = false }) {
     const [workspace, setWorkspace] = useState(null), [saved, setSaved] = useState(null), [etag, setEtag] = useState(null);
     const [configured, setConfigured] = useState(false), [publishingAvailable, setPublishingAvailable] = useState(false), [baseDrift, setBaseDrift] = useState(false), [activeReleaseId, setActiveReleaseId] = useState(null);
     const [selectedId, setSelectedId] = useState(''), [query, setQuery] = useState(''), [showArchived, setShowArchived] = useState(false);
     const [busy, setBusy] = useState('Loading Help Content'), [error, setError] = useState(''), [message, setMessage] = useState('');
-    const [denied, setDenied] = useState(false), [conflict, setConflict] = useState(false), [uploadBusy, setUploadBusy] = useState(false);
+    const [denied, setDenied] = useState(false), [conflict, setConflict] = useState(false), [uploadBusy, setUploadBusy] = useState(false), [pendingBlock, setPendingBlock] = useState(false);
     const [tab, setTab] = useState('editor'), [revisions, setRevisions] = useState([]), [releases, setReleases] = useState([]);
     const live = useRef(null), generation = useRef(0), session = useRef(null), uploadLock = useRef(false);
     const dialog = useCmsDialog(), navigate = useNavigate();
     const article = workspace?.articles.find((value) => value.id === selectedId);
-    const media = useCmsMediaUrls(article, api);
+    const media = useCmsMediaUrls(article, api, fail);
     const dirty = cmsDirty(workspace, saved);
     live.current = workspace;
     function apply(data) {
@@ -49,7 +50,7 @@ function HelpContentSession({ api }) {
     }
     function fail(cause) {
         if (session.current?.signal.aborted) return;
-        if (cause.status === 401 || cause.status === 403) setDenied(true);
+        if (cause.status === 401 || cause.status === 403) { session.current?.abort(); generation.current += 1; setDenied(true); setWorkspace(null); live.current = null; setSaved(null); setRevisions([]); setReleases([]); setSelectedId(''); }
         if (Array.isArray(cause.conflicts) && cause.conflicts.length) {
             const titles = [...new Set(cause.conflicts.map((value) => live.current?.articles.find((article) => value.startsWith(`${article.id}.`))?.title || 'Topic or article order'))];
             setError(`The published library and this draft changed the same content: ${titles.join(', ')}. Your draft is kept. Review these changes before updating it to the current publication.`); return;
@@ -66,26 +67,32 @@ function HelpContentSession({ api }) {
         return () => { generation.current += 1; controller.abort(); };
     }, [api]);
     useEffect(() => {
-        if (!dirty) return undefined;
+        if (!dirty && !pendingBlock && !uploadBusy) return undefined;
         const protect = (event) => { event.preventDefault(); event.returnValue = ''; };
         window.addEventListener('beforeunload', protect);
         return () => window.removeEventListener('beforeunload', protect);
-    }, [dirty]);
+    }, [dirty, pendingBlock, uploadBusy]);
     useEffect(() => {
-        if (!dirty) return undefined;
+        if (!dirty && !pendingBlock && !uploadBusy) return undefined;
         const protectLink = async (event) => {
             if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             const link = event.target.closest?.('a[href]');
             if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
             const url = new URL(link.href, window.location.href);
-            if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
+            if (url.origin !== window.location.origin) return;
+            if (uploadLock.current) { event.preventDefault(); event.stopPropagation(); setError('Wait for your images to finish uploading before navigating.'); return; }
+            if (context && /^\/help-centre(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)?$/.test(url.pathname)) {
+                if (pendingBlock || uploadLock.current) { event.preventDefault(); event.stopPropagation(); setError(pendingBlock ? 'Finish or cancel your current text edit before navigating.' : 'Wait for your images to finish uploading before navigating.'); }
+                return;
+            }
+            if (url.pathname === window.location.pathname) return;
             event.preventDefault(); event.stopPropagation();
             const answer = await dialog.ask({ title: 'Leave unsaved changes?', description: 'Save this draft before leaving to keep your changes. Leaving now discards your unsaved text, order and attachments.', confirm: 'Leave without saving', danger: true });
             if (answer && !session.current.signal.aborted) navigate(`${url.pathname}${url.search}${url.hash}`);
         };
         document.addEventListener('click', protectLink, true);
         return () => document.removeEventListener('click', protectLink, true);
-    }, [dirty, navigate, dialog.ask]);
+    }, [dirty, pendingBlock, uploadBusy, context, navigate, dialog.ask]);
     async function run(label, operation) {
         if (busy || uploadLock.current) return;
         setBusy(label); setError(''); setMessage('');
@@ -98,6 +105,7 @@ function HelpContentSession({ api }) {
         setMessage('');
     }
     async function save() {
+        if (pendingBlock) return;
         const submitted = cloneCms(live.current);
         await run('Saving draft', async (signal) => {
             validateCmsWorkspace(submitted);
@@ -120,6 +128,7 @@ function HelpContentSession({ api }) {
         if (!value) return;
         const next = createCmsArticle(live.current, categoryId, value.title.trim());
         edit(next); setSelectedId(next.articles.at(-1).id); setTab('editor');
+        if (context) navigate(`/help-centre/${next.articles.at(-1).slug}`);
     }
     async function topicAction(id, action, direction) {
         const current = live.current, category = current.manifest.categories.find((value) => value.id === id);
@@ -163,6 +172,7 @@ function HelpContentSession({ api }) {
         if (!response) return;
         const next = { ...live.current, articles: live.current.articles.filter((value) => value.id !== article.id).map((value) => ({ ...value, relatedArticleIds: (value.relatedArticleIds || []).filter((id) => id !== article.id) })), manifest: { ...live.current.manifest, articleOrder: live.current.manifest.articleOrder.filter((id) => id !== article.id) } };
         edit(next); setSelectedId(next.manifest.articleOrder[0] || ''); generation.current += 1;
+        if (context) navigate(`/help-centre?category=${encodeURIComponent(article.category)}`);
     }
     async function removeStep(sectionId, stepId) {
         const section = article.sections.find((value) => value.id === sectionId), attached = section.media.filter((value) => value.afterStepId === stepId);
@@ -256,6 +266,31 @@ function HelpContentSession({ api }) {
     if (denied) return <main className="help-cms"><h1>Help Content</h1><p role="alert" className="cms-banner error">{error || 'Help Content is available only in the content owner’s account.'}</p><p className="cms-muted">Sign in with the authorised owner account and reopen Help Content.</p></main>;
     if (!workspace) return <main className="help-cms"><h1>Help Content</h1>{busy ? <p role="status">{busy}…</p> : <><p role="alert" className="cms-banner error">{error}</p><CmsButton onClick={reload}>Try again</CmsButton></>}</main>;
     const disabled = Boolean(busy || uploadBusy);
+
+    if (context) return <>
+        <HelpContentContext workspace={workspace} saved={saved} etag={etag} article={article} selectedId={selectedId} selectArticle={setSelectedId}
+            editArticle={(id, update) => edit((current) => updateCmsArticle(current, id, update))}
+            editTopic={(id, title) => edit((current) => ({ ...current, manifest: { ...current.manifest, categories: current.manifest.categories.map((value) => value.id === id ? { ...value, title: title.trim() } : value) } }))}
+            tab={tab} openTab={openTab} disabled={disabled} uploadBusy={uploadBusy} configured={configured} dirty={dirty}
+            canSave={cmsCanSave(workspace, saved, etag, { configured, busy: disabled || pendingBlock, conflict })} save={save} pendingChanged={setPendingBlock} initialEditing={initialEditing}
+            addTopic={addTopic} addArticle={addArticle} topicAction={topicAction} articleMove={(id, direction) => edit((current) => cmsMoveArticleWithinTopic(current, id, direction))}
+            articleStatus={articleStatus} removeArticle={removeArticle} removeStep={removeStep} onUpload={upload} mediaUrls={media.urls} mediaErrors={media.errors}
+            allowImageUpload={Boolean(article && saved.articles.some((value) => value.id === article.id))} query={query} onQuery={setQuery} showArchived={showArchived} onShowArchived={setShowArchived}
+            dialog={<CmsDialog definition={dialog.definition} onComplete={dialog.complete} />}
+            status={<>
+                {!configured && <p role="status" className="cms-banner">Draft storage is not configured yet. Saving, uploads and publication are unavailable.</p>}
+                {baseDrift && <p role="status" className="cms-banner error">The published library changed after this draft began. Review and update your saved draft before publication. <CmsButton disabled={disabled || pendingBlock || dirty || conflict || etag === null} onClick={rebaseDraft}>Update to published library</CmsButton></p>}
+                {error && <p role="alert" className="cms-banner error">{error}</p>}{message && <p role="status" className="cms-banner">{message}</p>}
+                {busy && <p role="status" className="cms-muted">{busy}…</p>}
+                {conflict && <CmsButton disabled={disabled || pendingBlock} onClick={reload}>Reload saved draft</CmsButton>}
+            </>}
+            history={<fieldset disabled={pendingBlock} style={{ border: 0, minWidth: 0, padding: 0 }}>{tab === 'history' && <section aria-label="Saved revisions"><div className="cms-toolbar"><h2>Saved history</h2><div className="cms-actions"><CmsButton disabled={disabled || !configured || conflict} onClick={() => restoreRevision({ revisionId: 'published', updatedAt: 'Current published library' })}>Start from published library</CmsButton><CmsButton disabled={disabled} onClick={() => openTab('history')}>Refresh history</CmsButton></div></div><p className="cms-muted" style={{ marginTop: 12 }}>Restore the entire saved library, including article text, topics, order and attachments.</p><ul className="cms-history-list">{revisions.map((value) => <li key={revisionId(value)}><div className="cms-actions"><div><strong>{String(revisionLabel(value))}</strong><p className="cms-muted">{value.articleCount !== undefined ? `${value.articleCount} articles` : 'Content revision'}</p></div><CmsButton disabled={disabled || !configured || conflict} onClick={() => restoreRevision(value)}>Restore revision</CmsButton></div></li>)}</ul>{!revisions.length && <p className="cms-muted" style={{ marginTop: 24 }}>No saved revisions yet.</p>}</section>}</fieldset>}
+            publication={<fieldset disabled={pendingBlock} style={{ border: 0, minWidth: 0, padding: 0 }}>{tab === 'publication' && <section aria-label="Publication"><div className="cms-toolbar"><div><h2>Publish saved content</h2><p className="cms-muted">Help Centre and Guide use the same approved library.</p></div><CmsButton primary disabled={disabled || !configured || !publishingAvailable || dirty || conflict || baseDrift || etag === null} onClick={publish}>Review & publish</CmsButton></div>
+            {(dirty || etag === null) && <p className="cms-banner">Save your draft before reviewing publication.</p>}{!publishingAvailable && <p className="cms-banner">Publishing is not available yet. Saved drafts remain separate from the live Help Centre.</p>}
+            <h3 style={{ marginTop: 24 }}>Publication history</h3><HelpContentPublications releases={releases} publishingAvailable={publishingAvailable} disabled={disabled} activeReleaseId={activeReleaseId} onRetry={retryRelease} onCheck={checkReleaseJob} />{!releases.length && <p className="cms-muted" style={{ marginTop: 12 }}>No CMS publications yet.</p>}<CmsButton style={{ marginTop: 14 }} disabled={disabled} onClick={() => openTab('publication')}>Refresh publication status</CmsButton>
+        </section>}</fieldset>}
+        />
+    </>;
     return <main className="help-cms">
         <header className="cms-header"><div><h1>Help Content</h1><p className="cms-muted">{workspace.articles.length} articles · {workspace.manifest.categories.length} topics · {dirty ? 'Unsaved changes' : etag === null ? 'No saved draft yet' : 'Draft saved'}{busy ? ` · ${busy}…` : ''}</p></div><div className="cms-actions"><CmsButton disabled={disabled} onClick={reload}>Reload saved draft</CmsButton><CmsButton primary disabled={!cmsCanSave(workspace, saved, etag, { configured, busy: disabled, conflict })} onClick={save}>{busy === 'Saving draft' ? 'Saving…' : 'Save draft'}</CmsButton></div></header>
         {!configured && <p role="status" className="cms-banner">Draft storage is not configured yet. You can explore the editor; saving, uploads and publication are unavailable.</p>}
@@ -278,9 +313,9 @@ function HelpContentSession({ api }) {
         <CmsDialog definition={dialog.definition} onComplete={dialog.complete} />
     </main>;
 }
-export default function HelpContentPage({ api: providedApi } = {}) {
+export default function HelpContentPage({ api: providedApi, context = false, initialEditing = false } = {}) {
     const { user, isLoading, isImpersonating } = useAuth();
     const api = useMemo(() => providedApi || createHelpContentApi(), [providedApi]);
     if (!cmsCanRequest(user, isImpersonating, isLoading)) return <main className="help-cms"><h1>Help Content</h1><p role="status" className="cms-banner">{isLoading ? 'Checking your account…' : isImpersonating || user?.isImpersonating ? 'Exit User View to open Help Content.' : 'Sign in with the content owner account to open Help Content.'}</p></main>;
-    return <HelpContentSession key={`${user.id}:${Boolean(isImpersonating || user.isImpersonating)}`} api={api} />;
+    return <HelpContentSession key={`${user.id}:${user.role}:${Boolean(isImpersonating || user.isImpersonating)}`} api={api} context={context} initialEditing={initialEditing} />;
 }
