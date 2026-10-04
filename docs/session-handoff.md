@@ -2,7 +2,9 @@
 
 ## 5 October 2026 — CMS ordering and publishing routing
 
-Owner ordering polish is live from fb6587; approved baseline publication recovered as 2026-10-04.help-cms.1791135472846 after a code-preserving Worker runtime flag update. Saved workspace promotion and release-lock clearance passed. Preserve the failed GitHub run37221246970 and original two asset retries. The tracked `global_fetch_strictly_public` setting prevents future jobs removing the live routing fix. After committing/pushing this bounded candidate, pin the private CMS to the new public source and prove an unchanged-content publication through the normal private job. Do not redeploy stale public content or bypass its live-content guard. See `docs/help-cms-owner-ordering-release-20261005.md`.
+Owner ordering polish is live from fb6587. Current unchanged approved content is recovered version2026-10-04.help-cms.1791137972246 from public9ba/private607. Its normal job retained the durable routing flag, date and all44binding descriptors but failed public verification; original cause is unproven. Exact private source reconstruction, fresh101/6delivery, endpoint three-readiness, workspace promotion and cleared lock passed separately. Preserve both original failed runs37221246970 and37224001007.
+
+The bounded first-observation wait and obsolete published-warning display fix pass53adapter/12render checks and client build. After committing/pushing this bounded candidate, preserve current deployed modules/settings while pinning CMS to the new public source, and require a fresh unchanged-content normal private job to pass all gates, paired delivery, receipt and state promotion. Do not bypass the ordinary live-content guard or promote recovery evidence into job success. See `docs/help-cms-owner-ordering-release-20261005.md`.
 
 ## 2026-10-05 Owner editing refinements and final publishing correction
 

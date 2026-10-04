@@ -93,6 +93,20 @@ test('publication list uses actual backend state records and offers exact-releas
     assert.doesNotMatch(render.publications([{ id: 'release-four', state: 'failed' }], false), /Retry same publication/);
 });
 
+test('published releases suppress obsolete recovery warnings while incomplete releases retain them', async () => {
+    const render = await renderers();
+    const message = 'Both Help and Guide versions have not been verified. Review recovery before retrying.';
+    const release = { id: 'recovered', state: 'published', readiness: { help: true, guide: true, client: true }, message };
+    const published = render.publications([release]);
+    assert.match(published, /Published and verified/);
+    assert.ok(!published.includes(message));
+    assert.equal(release.message, message, 'Rendering must preserve the recorded recovery evidence.');
+    for (const state of ['failed', 'partially-released', 'dispatch-unconfirmed']) {
+        assert.ok(render.publications([{ ...release, state }]).includes(message), `Keep the warning for ${state}.`);
+    }
+    assert.ok(!render.publications([{ ...release, state: undefined, status: 'published' }]).includes(message));
+});
+
 test('uncertain or running publication jobs require a server job check before retry', async () => {
     const render = await renderers();
     const html = render.publications([{ id: 'queued', state: 'queued' }, { id: 'dispatched', state: 'dispatched' }, { id: 'uncertain', state: 'dispatch-unconfirmed' }]);

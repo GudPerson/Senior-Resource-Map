@@ -9,7 +9,7 @@ import {
     digestValue, sha256Bytes, httpsOrigin, readReleaseConfiguration, assertPrivateAutomation,
     validateSnapshot, validateOwnerReview, assertContentOnlyPaths, validateBaseSource, validateSourceIdentities,
     deriveEditorialCorrections, collectApprovedMedia, readBoundedBytes, verifyPublicArtifacts, verifyOrdinaryHtmlDelivery,
-    pairedRelease, deploymentArguments, pagesDeployment, runnerReceipt, assertLatestHelpContentForAppRelease, validatedWranglerPath, validateRecoverySurfaces, priorReleaseState, postReceipt, postCheckpoint, uncommittedContentPaths, assertPrivateSeedUntracked,
+    pairedRelease, observeVerifiedPublicRelease, deploymentArguments, pagesDeployment, runnerReceipt, assertLatestHelpContentForAppRelease, validatedWranglerPath, validateRecoverySurfaces, priorReleaseState, postReceipt, postCheckpoint, uncommittedContentPaths, assertPrivateSeedUntracked,
 } from './help-cms-release.mjs';
 
 const revision = 'a'.repeat(40), buildRevision = 'b'.repeat(40);
@@ -443,11 +443,170 @@ function paired(overrides = {}) {
     return { deployWorker: async () => {}, deployPages: async () => {}, observeWorker: async () => workerId, observePages: async () => pagesId,
         verify: async () => ({ passed: true }), assertSource: async () => {}, recovery: { workerVersionId: oldWorkerId, pagesDeploymentId: jobId, workerSourceRevision: revision, pagesSourceRevision: revision, contentVersion: 'baseline.1', contentDigest: 'a'.repeat(64) }, ...overrides };
 }
+const publicConfig = { apiOrigin: 'https://api.example.test', appOrigin: 'https://app.example.test', releaseId };
+const publicTarget = { buildSourceRevision: buildRevision, version: 'cms.target', contentDigest: 'd'.repeat(64) };
+function publicObservationFixture({ identity = () => ({}), content = () => ({}) } = {}) {
+    let round = 0;
+    const requests = [], delays = [];
+    return { requests, delays, options: { delay: async ms => delays.push(ms), fetchImpl: async (url, options) => {
+        const path = new URL(url).pathname;
+        assert.equal(options.redirect, 'error'); assert.ok(options.signal instanceof AbortSignal);
+        assert.equal(options.headers.Authorization, undefined); assert.equal(options.headers.Cookie, undefined);
+        assert.ok(['/api/release', '/release.json', '/api/help/articles', '/api/guide/topics', '/help-content-status.json'].includes(path));
+        if (path === '/api/release') round += 1;
+        requests.push({ round, path });
+        if (path === '/api/release' || path === '/release.json') {
+            const value = await identity(round, path);
+            return value instanceof Response ? value : responseJson({ sourceClean: true, sourceRevision: buildRevision,
+                ...(path === '/api/release' ? { deploymentId: workerId } : {}), ...value });
+        }
+        const value = await content(round, path);
+        return value instanceof Response ? value : responseJson({ version: publicTarget.version, contentDigest: publicTarget.contentDigest, ...value });
+    } } };
+}
 test('paired release reports publication only after both deployments, public verification and final source check', async () => {
     const events = [];
     const result = await pairedRelease(paired({ deployWorker: async () => events.push('worker'), deployPages: async () => events.push('pages'), verify: async () => { events.push('verify'); return { passed: true }; } }));
     assert.deepEqual(events, ['worker', 'pages', 'verify']); assert.equal(result.state, 'published');
     assert.equal(result.workerVersionId, workerId); assert.equal(result.pagesDeploymentId, pagesId);
+});
+test('paired publication waits for stale Pages content to settle without repeating deployments', async () => {
+    const config = { apiOrigin: 'https://api.example.test', appOrigin: 'https://app.example.test', releaseId };
+    const target = { buildSourceRevision: buildRevision, version: 'cms.target', contentDigest: 'd'.repeat(64) };
+    const events = [], delays = [];
+    let contentRound = 0;
+    const result = await pairedRelease(paired({
+        deployWorker: async () => events.push('worker'), deployPages: async () => events.push('pages'),
+        verify: async () => {
+            const observed = await observeVerifiedPublicRelease(config, target, { delay: async ms => delays.push(ms), fetchImpl: async url => {
+                const path = new URL(url).pathname;
+                if (path === '/api/release') return responseJson({ sourceClean: true, sourceRevision: buildRevision, deploymentId: workerId });
+                if (path === '/release.json') return responseJson({ sourceClean: true, sourceRevision: buildRevision });
+                if (path === '/api/help/articles') contentRound += 1;
+                return responseJson(path === '/help-content-status.json' && contentRound === 1
+                    ? { version: 'cms.previous', contentDigest: 'a'.repeat(64) }
+                    : { version: target.version, contentDigest: target.contentDigest });
+            } });
+            return { passed: true, content: observed.content, publicObservations: observed.publicObservations };
+        },
+    }));
+    assert.equal(result.state, 'published');
+    assert.deepEqual(events, ['worker', 'pages']);
+    assert.equal(contentRound, 2);
+    assert.deepEqual(delays, [1500]);
+});
+test('public observation retries reread paired sources and all content together, retaining failed attempts', async () => {
+    const fixture = publicObservationFixture({
+        identity: (round, path) => round === 1 && path === '/release.json' ? { sourceRevision: revision } : {},
+        content: (round, path) => round === 2 && path === '/help-content-status.json' ? { version: 'cms.previous' } : {},
+    });
+    const result = await observeVerifiedPublicRelease(publicConfig, publicTarget, fixture.options);
+    assert.deepEqual(result.content, { version: publicTarget.version, contentDigest: publicTarget.contentDigest, targets: ['help', 'guide', 'client'] });
+    assert.deepEqual(result.publicObservations, [
+        { attempt: 1, passed: false, code: 'public-source-mismatch' },
+        { attempt: 2, passed: false, code: 'public-content-version-mismatch' },
+        { attempt: 3, passed: true, code: 'public-observation-verified' },
+    ]);
+    assert.deepEqual(fixture.delays, [1500, 1500]);
+    assert.deepEqual([1, 2, 3].map(round => fixture.requests.filter(record => record.round === round).length), [2, 5, 5]);
+});
+test('exact sources from one attempt cannot combine with exact content from another', async () => {
+    const fixture = publicObservationFixture({ identity: (round, path) => round === 2 && path === '/release.json' ? { sourceRevision: revision } : {},
+        content: (round, path) => round === 1 && path === '/help-content-status.json' ? { version: 'cms.previous' } : {} });
+    const result = await pairedRelease(paired({ verify: async () => {
+        const observed = await observeVerifiedPublicRelease(publicConfig, publicTarget, { ...fixture.options, attempts: 2 });
+        return { passed: true, ...observed };
+    } }));
+    assert.equal(result.state, 'partially-released'); assert.equal(result.failedStage, 'public-verification');
+    assert.deepEqual(result.publicObservations.map(record => record.code), ['public-content-version-mismatch', 'public-source-mismatch']);
+    assert.equal(fixture.requests.filter(record => record.round === 2).length, 2);
+});
+test('persistent source, version, digest and unclean-source mismatches exhaust the fixed bound without publication', async () => {
+    for (const [fixtureOptions, code] of [
+        [{ identity: (_, path) => path === '/release.json' ? { sourceRevision: revision } : {} }, 'public-source-mismatch'],
+        [{ identity: (_, path) => path === '/api/release' ? { sourceClean: false } : {} }, 'public-source-unavailable'],
+        [{ content: (_, path) => path === '/help-content-status.json' ? { version: 'cms.previous' } : {} }, 'public-content-version-mismatch'],
+        [{ content: (_, path) => path === '/api/guide/topics' ? { contentDigest: 'e'.repeat(64) } : {} }, 'public-content-digest-mismatch'],
+    ]) {
+        const fixture = publicObservationFixture(fixtureOptions);
+        const result = await pairedRelease(paired({ verify: async () => ({ passed: true,
+            ...await observeVerifiedPublicRelease(publicConfig, publicTarget, fixture.options) }) }));
+        assert.equal(result.state, 'partially-released', code); assert.equal(result.failureCode, code);
+        assert.equal(result.workerVersionId, workerId); assert.equal(result.pagesDeploymentId, pagesId);
+        assert.equal(fixture.requests.filter(record => record.path === '/api/release').length, 4);
+        assert.deepEqual(fixture.delays, [1500, 1500, 1500]);
+        assert.equal(result.publicObservations.length, 4); assert.ok(result.publicObservations.every(record => record.passed === false && record.code === code));
+    }
+});
+test('public probes retain HTTP, JSON MIME, valid status and response-size guards during retries', async () => {
+    for (const response of [
+        () => new Response('{}', { status: 503, headers: { 'Content-Type': 'application/json' } }),
+        () => new Response('{}', { status: 302, headers: { 'Content-Type': 'application/json', Location: 'https://foreign.example.test' } }),
+        () => new Response('{}', { headers: { 'Content-Type': 'text/html' } }),
+        () => new Response('{broken', { headers: { 'Content-Type': 'application/json' } }),
+        () => responseJson({ version: 'cms.target', contentDigest: 'invalid' }),
+        () => new Response('x'.repeat(5 * 1024 * 1024 + 1), { headers: { 'Content-Type': 'application/json' } }),
+    ]) {
+        const fixture = publicObservationFixture({ content: (_, path) => path === '/help-content-status.json' ? response() : {} });
+        await assert.rejects(observeVerifiedPublicRelease(publicConfig, publicTarget, { ...fixture.options, attempts: 1 }),
+            error => error.releaseFailureCode === 'public-content-unavailable' && error.publicObservations.length === 1);
+        assert.deepEqual(fixture.delays, []);
+    }
+});
+test('public retry limits and target identity reject invalid overrides before any HTTP request', async () => {
+    const fixture = publicObservationFixture();
+    for (const attempts of [0, -1, 5, 1.5, Infinity, '4']) {
+        await assert.rejects(observeVerifiedPublicRelease(publicConfig, publicTarget, { ...fixture.options, attempts }),
+            error => error.releaseFailureCode === 'public-configuration-invalid');
+    }
+    await assert.rejects(observeVerifiedPublicRelease(publicConfig, publicTarget, { ...fixture.options, delay: null }));
+    await assert.rejects(observeVerifiedPublicRelease(publicConfig, { ...publicTarget, buildSourceRevision: 'incomplete' }, fixture.options));
+    assert.deepEqual(fixture.requests, []); assert.deepEqual(fixture.delays, []);
+});
+test('private public-observation diagnostics never serialize thrown credential text, URLs or error properties', async () => {
+    const secret = 'fictional-secret-do-not-retain';
+    const cause = Object.assign(new Error('https://private.example.test/?token=' + secret), { releaseFailureCode: secret,
+        publicObservations: [{ attempt: 1, code: 'public-source-unavailable', url: secret, cause: secret }] });
+    const fixture = publicObservationFixture({ identity: () => { throw cause; } });
+    const result = await pairedRelease(paired({ verify: async () => ({ passed: true,
+        ...await observeVerifiedPublicRelease(publicConfig, publicTarget, { ...fixture.options, attempts: 2 }) }) }));
+    assert.equal(result.state, 'partially-released'); assert.equal(result.failureCode, 'public-source-unavailable');
+    assert.deepEqual(result.publicObservations, [1, 2].map(attempt => ({ attempt, passed: false, code: 'public-source-unavailable' })));
+    assert.equal(JSON.stringify(result).includes(secret), false); assert.equal(JSON.stringify(result).includes('private.example.test'), false);
+    const injected = await pairedRelease(paired({ verify: async () => { throw cause; } }));
+    assert.equal(injected.failureCode, 'public-verification-failed');
+    assert.deepEqual(injected.publicObservations, [{ attempt: 1, passed: false, code: 'public-source-unavailable' }]);
+    assert.equal(JSON.stringify(injected).includes(secret), false);
+    const receipt = runnerReceipt(expected(), publicTarget, result);
+    assert.equal(receipt.failureCode, undefined); assert.equal(receipt.publicObservations, undefined);
+});
+test('settled public observations do not bypass artifact, ordinary HTML, media or final source checks', async t => {
+    for (const failure of ['artifact', 'ordinary-html', 'media', 'source']) {
+        const fixture = publicObservationFixture({ content: (round, path) => round === 1 && path === '/help-content-status.json' ? { version: 'cms.previous' } : {} });
+        const { dist, files } = htmlArtifactFixture(t);
+        let sourceChecks = 0;
+        const result = await pairedRelease(paired({
+            assertSource: async () => { sourceChecks += 1; if (failure === 'source' && sourceChecks === 3) throw new Error('Public main changed'); },
+            verify: async () => {
+                const observed = await observeVerifiedPublicRelease(publicConfig, publicTarget, fixture.options);
+                const artifacts = await verifyPublicArtifacts({ dist, appOrigin: publicConfig.appOrigin, releaseId, probeId: jobId, attempts: 1,
+                    fetchImpl: async url => { const name = artifactNameAtUrl(url); return artifactResponse(name, name === 'other.json' && failure === 'artifact' ? 'different bytes' : files[name]); } });
+                const ordinary = await verifyOrdinaryHtmlDelivery({ appOrigin: publicConfig.appOrigin, artifactProof: artifacts, probeId: jobId,
+                    fetchImpl: async url => ordinaryResponse(url, failure === 'ordinary-html' ? '<html>Missing required analytics</html>' : undefined) });
+                return { passed: artifacts.passed && ordinary.passed && failure !== 'media', ...observed,
+                    artifactChecks: artifacts.records, ordinaryHtml: ordinary };
+            },
+        }));
+        assert.equal(result.state, 'partially-released', failure);
+        assert.deepEqual(result.attemptedTargets, ['worker', 'pages']);
+        assert.equal(result.publicObservations.at(-1).passed, true);
+        assert.equal(fixture.requests.filter(record => record.path === '/api/release').length, 2);
+        assert.deepEqual(fixture.delays, [1500]);
+        assert.equal(result.failedStage, failure === 'source' ? 'post-release-source-check' : 'public-verification');
+        assert.ok(result.verification); // Retain the real downstream evidence.
+        if (failure === 'artifact') assert.ok(result.verification.artifactChecks.some(record => !record.passed));
+        if (failure === 'ordinary-html') assert.equal(result.verification.ordinaryHtml.passed, false);
+    }
 });
 test('Pages failure retains actual Worker identity and recovery references', async () => {
     const result = await pairedRelease(paired({ deployPages: async () => { throw new Error('upload failed'); }, observePages: async () => { throw new Error('unknown Pages identity'); } }));

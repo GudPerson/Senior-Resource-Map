@@ -2,7 +2,9 @@
 
 ## Owner CMS ordering and publishing routing
 
-Numbered vertical owner topics, grip ordering and aligned row actions are deployed from fb6587. The unchanged approved library publication was separately recovered after a Worker custom-domain self-fetch readiness failure. Keep `global_fetch_strictly_public` in the production Worker configuration; original run37221246970 remains failed, and operational recovery has three-surface readiness/published pointer/workspace promotion/cleared lock proof. Permanent configuration candidate passes 1,146 server tests and Worker dry-run; a subsequent normal CMS job is still an explicit acceptance gate. See `docs/help-cms-owner-ordering-release-20261005.md`.
+Numbered vertical owner topics, grip ordering and aligned row actions are deployed from fb6587. Both unchanged approved-library publications were separately recovered; original runs37221246970 and37224001007 remain failed. Source9ba retains `global_fetch_strictly_public`; exact private build607 preserves all three flags/date/44binding descriptors. Its independent 101-file/six-HTML proof and receipt all-three-readiness/workspace promotion/lock clearance passed. The second original public-verification cause remains unproven.
+
+The new bounded post-upload observation and published-status display refinements pass 53adapter/12render cases and client build. Red regressions are retained privately. Exact source/content identities, downstream artifact/HTML/media checks, final source check and receipt schema remain unchanged; uploads never retry. A fresh normal job from the next frozen source remains the explicit acceptance gate. See `docs/help-cms-owner-ordering-release-20261005.md`.
 
 ## 2026-10-05 Help CMS owner ordering and publication lookup — release candidate
 

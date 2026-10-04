@@ -10,7 +10,7 @@ export default function HelpContentPublications({ releases = [], publishingAvail
         return <div className="cms-release" key={value.releaseId || value.id || index}>
             <strong>{value.version || value.contentVersion || 'Content publication'}</strong>
             <p className="cms-muted">{labels[state] || 'Pending'}{value.createdAt ? ` · ${value.createdAt}` : ''}</p>
-            {value.message && <p className="cms-muted">{value.message}</p>}
+            {state !== 'published' && value.message && <p className="cms-muted">{value.message}</p>}
             {publishingAvailable && needsCheck && <><p className="cms-muted">{finishingRecovery ? 'This release is verified. Check its job to finish recovery.' : 'Check the release job before retrying this publication.'}</p><CmsButton disabled={disabled} onClick={() => onCheck(value)}>Check release job</CmsButton></>}
             {publishingAvailable && canRetry && <CmsButton disabled={disabled} onClick={() => onRetry(value)}>Retry same publication</CmsButton>}
         </div>;

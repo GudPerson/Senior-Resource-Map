@@ -28,7 +28,21 @@ const MIMES = {
     '.txt': ['text/plain'], '.xml': ['application/xml', 'text/xml'], '.pdf': ['application/pdf'],
     '.webmanifest': ['application/manifest+json', 'application/json'], '.map': ['application/json', 'application/octet-stream'],
 };
-const check = (condition, message) => { if (!condition) throw new Error('Help release: ' + message); };
+const FAILURE_CODES = new Set(['release-check-failed', 'public-configuration-invalid', 'public-source-unavailable',
+    'public-source-mismatch', 'public-content-unavailable', 'public-content-version-mismatch', 'public-content-digest-mismatch',
+    'public-content-disagreement', 'public-verification-failed', 'public-artifact-verification-failed',
+    'ordinary-html-verification-failed', 'public-media-verification-failed']);
+const check = (condition, message, failureCode) => {
+    if (!condition) {
+        const error = new Error('Help release: ' + message);
+        if (FAILURE_CODES.has(failureCode)) error.releaseFailureCode = failureCode;
+        throw error;
+    }
+};
+const safeFailureCode = (error, fallback = 'release-check-failed') => FAILURE_CODES.has(error?.releaseFailureCode) ? error.releaseFailureCode : fallback;
+const safePublicObservations = records => Array.isArray(records) ? records.slice(0, 4).filter(record => Number.isSafeInteger(record?.attempt)
+    && record.attempt >= 1 && record.attempt <= 4 && (FAILURE_CODES.has(record.code) || record.code === 'public-observation-verified'))
+    .map(record => ({ attempt: record.attempt, passed: record.code === 'public-observation-verified', code: record.code })) : [];
 const isText = value => typeof value === 'string' && value.trim().length > 0 && value.length <= 16000;
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
 const jsonFile = file => JSON.parse(readFileSync(file, 'utf8'));
@@ -376,10 +390,10 @@ export function validateRecoverySurfaces(surfaces, { baseVersion, baseDigest, ta
 export async function observeContent(config, { fetchImpl = fetch, expectedVersion, expectedDigest } = {}) {
     const records = await observeContentSurfaces(config, { fetchImpl });
     for (const record of records) {
-        check(!expectedVersion || record.version === expectedVersion, 'published content version does not match the required version.');
-        check(!expectedDigest || record.contentDigest === expectedDigest, 'published content digest does not match the required digest.');
+        check(!expectedVersion || record.version === expectedVersion, 'published content version does not match the required version.', 'public-content-version-mismatch');
+        check(!expectedDigest || record.contentDigest === expectedDigest, 'published content digest does not match the required digest.', 'public-content-digest-mismatch');
     }
-    check(records.every(record => record.version === records[0].version && record.contentDigest === records[0].contentDigest), 'Help, Guide and Pages content versions disagree.');
+    check(records.every(record => record.version === records[0].version && record.contentDigest === records[0].contentDigest), 'Help, Guide and Pages content versions disagree.', 'public-content-disagreement');
     return { version: records[0].version, contentDigest: records[0].contentDigest, targets: records.map(record => record.target) };
 }
 export function priorReleaseState(status = {}) {
@@ -522,6 +536,34 @@ async function observeReleases(config, fetchImpl = fetch) {
         && UUID.test(worker.deploymentId || ''), 'current production recovery identities are unavailable.');
     return { workerVersionId: worker.deploymentId, workerSourceRevision: worker.sourceRevision, pagesSourceRevision: client.sourceRevision };
 }
+export async function observeVerifiedPublicRelease(config, compiled, { fetchImpl = fetch, attempts = 4, delay = ms => new Promise(done => setTimeout(done, ms)) } = {}) {
+    check(Number.isSafeInteger(attempts) && attempts >= 1 && attempts <= 4 && typeof delay === 'function',
+        'public observation retry limits are invalid.', 'public-configuration-invalid');
+    check(SHA.test(compiled?.buildSourceRevision || '') && isText(compiled?.version) && DIGEST.test(compiled?.contentDigest || ''),
+        'public observation target is incomplete.', 'public-configuration-invalid');
+    const publicObservations = [];
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        let failureCode = 'public-source-unavailable';
+        try {
+            const live = await observeReleases(config, fetchImpl);
+            check(live.workerSourceRevision === compiled.buildSourceRevision && live.pagesSourceRevision === compiled.buildSourceRevision,
+                'paired runtime source revisions disagree.', 'public-source-mismatch');
+            failureCode = 'public-content-unavailable';
+            const content = await observeContent(config, { fetchImpl, expectedVersion: compiled.version, expectedDigest: compiled.contentDigest });
+            publicObservations.push({ attempt, passed: true, code: 'public-observation-verified' });
+            return { content, publicObservations };
+        } catch (cause) {
+            publicObservations.push({ attempt, passed: false, code: safeFailureCode(cause, failureCode) });
+            if (attempt === attempts) {
+                const error = new Error('Help release: verified public observations did not settle.');
+                error.releaseFailureCode = publicObservations.at(-1).code;
+                error.publicObservations = publicObservations;
+                throw error;
+            }
+            await delay(1500);
+        }
+    }
+}
 export async function pagesDeployment(config, revision, fetchImpl = fetch) {
     check(/^[a-f0-9]{32}$/.test(config.cloudflareAccountId || '') && isText(config.cloudflareToken), 'Cloudflare release verification is not configured.');
     const pageSize = 25, maximumPages = 4, matches = [];
@@ -559,7 +601,7 @@ export function runnerReceipt(config, compiled, result) {
             artifactRetryFailures: (proof.artifactChecks || []).reduce((total, record) => total + record.failures.length, 0) } : null };
 }
 export async function pairedRelease({ deployWorker, deployPages, observeWorker, observePages, verify, assertSource, recovery, previous = {}, beforeDeploy = async () => {} }) {
-    const result = { ...priorReleaseState(previous), recovery };
+    const result = { ...priorReleaseState(previous), recovery, failureCode: null, publicObservations: [] };
     let stage = 'source-check';
     try {
         await assertSource();
@@ -571,12 +613,16 @@ export async function pairedRelease({ deployWorker, deployPages, observeWorker, 
         stage = 'pages-deploy'; result.attemptedTargets.push('pages'); result.pagesDeploymentId = null; await deployPages();
         stage = 'pages-observation'; result.pagesDeploymentId = await observePages();
         stage = 'public-verification'; result.verification = await verify();
-        check(result.verification?.passed === true, 'paired runtime/artifact verification did not pass.');
+        result.publicObservations = safePublicObservations(result.verification?.publicObservations);
+        if (result.verification?.passed !== true) result.failureCode = safeFailureCode({ releaseFailureCode: result.verification?.failureCode }, 'public-verification-failed');
+        check(result.verification?.passed === true, 'paired runtime/artifact verification did not pass.', 'public-verification-failed');
         stage = 'post-release-source-check'; await assertSource();
         result.state = 'published';
-    } catch {
+    } catch (error) {
         result.state = result.productionAttempted || result.attemptedTargets.length ? 'partially-released' : 'failed';
         result.failedStage = stage;
+        result.failureCode ||= safeFailureCode(error, stage === 'public-verification' ? 'public-verification-failed' : 'release-check-failed');
+        if (!result.publicObservations.length) result.publicObservations = safePublicObservations(error?.publicObservations);
         // A failed CLI may have uploaded successfully. Keep any observed IDs;
         // never claim that production stayed unchanged after an attempted deploy.
         if (result.attemptedTargets.includes('worker') && !result.workerVersionId) {
@@ -694,9 +740,7 @@ export async function runHelpContentRelease({ root = process.cwd(), env = proces
             }),
             observePages: async () => retryObservation(() => pagesDeployment(config, compiled.buildSourceRevision, fetchImpl)),
             verify: async () => {
-                const live = await observeReleases(config, fetchImpl);
-                check(live.workerSourceRevision === compiled.buildSourceRevision && live.pagesSourceRevision === compiled.buildSourceRevision, 'paired runtime source revisions disagree.');
-                const content = await observeContent(config, { fetchImpl, expectedVersion: compiled.version, expectedDigest: compiled.contentDigest });
+                const { content, publicObservations } = await observeVerifiedPublicRelease(config, compiled, { fetchImpl });
                 const artifacts = await verifyPublicArtifacts({ dist: join(root, 'client/dist'), appOrigin: config.appOrigin, releaseId: config.releaseId, probeId: config.jobId, fetchImpl });
                 const ordinaryHtml = await verifyOrdinaryHtmlDelivery({ appOrigin: config.appOrigin, artifactProof: artifacts, probeId: config.jobId, fetchImpl });
                 let mediaPassed = true;
@@ -709,11 +753,14 @@ export async function runHelpContentRelease({ root = process.cwd(), env = proces
                     } catch { mediaPassed = false; }
                 }
                 return { passed: artifacts.passed && ordinaryHtml.passed && mediaPassed, content, artifactCount: artifacts.checked, mediaCount: media.length, mediaPassed,
-                    artifactChecks: artifacts.records, ordinaryHtml };
+                    artifactChecks: artifacts.records, ordinaryHtml, publicObservations,
+                    failureCode: !artifacts.passed ? 'public-artifact-verification-failed' : !ordinaryHtml.passed ? 'ordinary-html-verification-failed'
+                        : !mediaPassed ? 'public-media-verification-failed' : null };
             },
         });
     } catch (error) {
         result.failedStage ||= error?.releaseStage || 'preflight-or-quality';
+        result.failureCode ||= safeFailureCode(error);
         result.state = result.productionAttempted || result.attemptedTargets.length ? 'partially-released' : 'failed';
     } finally {
         rmSync(privateDirectory, { recursive: true, force: true });
@@ -733,6 +780,7 @@ export async function runHelpContentRelease({ root = process.cwd(), env = proces
     }
     return { ...runnerReceipt(config, compiled || { version: publication.version }, result), releaseId: config.releaseId,
         receiptAccepted, receiptError, failedStage: result.failedStage, qualityGates, state: result.state, recoveryObservation: result.recovery || null,
+        failureCode: result.failureCode || null, publicObservations: safePublicObservations(result.publicObservations),
         artifactChecks: result.verification?.artifactChecks || [], ordinaryHtml: result.verification?.ordinaryHtml || null,
         productionAttempted: result.productionAttempted || result.attemptedTargets.length > 0 };
 }
