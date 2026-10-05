@@ -12,6 +12,12 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 export function cmsSectionMessage(section) {
     return [...(section.paragraphs || []), ...(section.steps || []).map((step, index) => `${index + 1}. ${step}`), ...(section.notes || []), ...(section.media || []).filter(m => m.type === 'video' && m.transcriptReviewed).map(m => m.transcript)].join('\n\n');
 }
+export function cmsHasSeparateAnswers(section) {
+    return Boolean(section.facts?.length && section.facts.every(fact => fact.answerKind !== 'procedure'));
+}
+export function cmsSeparateAnswerMessage(section, index) {
+    return cmsSectionMessage({ ...section, paragraphs: [section.paragraphs?.[index] || ''] });
+}
 export function cmsSeedWorkspace(seed) {
     const result = { schemaVersion: 1, baseContentVersion: seed.manifest?.version || seed.version, manifest: copy(seed.manifest), articles: copy(seed.articles) };
     result.manifest.articleOrder ||= result.articles.map(a => a.id);
@@ -138,11 +144,11 @@ export function prepareCmsPublication(workspace, { reviewNote, owner, date, vers
         a.relatedArticleIds = (a.relatedArticleIds || []).filter(id => activeIds.has(id));
         for (const s of a.sections) {
             if (!changed) continue;
-            // Legacy conceptual sections render one paragraph per fact. Preserve
-            // their individual meaning while synchronising the displayed edits.
-            const conceptual = s.facts.length && s.facts.every(f => f.answerKind !== 'procedure') && !s.steps.length;
-            if (conceptual && s.paragraphs.length !== s.facts.length) fail('Keep one paragraph per existing Guide answer in this section. Add a separate section for extra instructions.');
-            s.facts = s.facts.map((f, index) => ({ ...f, ...(f.answerKind === 'procedure' ? {} : { message: conceptual ? [s.paragraphs[index], ...s.notes, ...(s.media || []).filter(m => m.type === 'video' && m.transcriptReviewed).map(m => m.transcript)].join('\n\n') : cmsSectionMessage(s) }), reviewed: date, evidence: review.evidence[0] }));
+            // Keep each legacy answer's own paragraph when common numbered
+            // instructions are added to its section.
+            const separateAnswers = cmsHasSeparateAnswers(s);
+            if (separateAnswers && s.paragraphs.length !== s.facts.length) fail('Keep one paragraph per existing Guide answer in this section. Add a separate section for extra paragraphs.');
+            s.facts = s.facts.map((f, index) => ({ ...f, ...(f.answerKind === 'procedure' ? {} : { message: separateAnswers ? cmsSeparateAnswerMessage(s, index) : cmsSectionMessage(s) }), reviewed: date, evidence: review.evidence[0] }));
         }
     }
     return { schemaVersion: 1, baseContentVersion: workspace.baseContentVersion, version, manifest: result.manifest, articles: result.articles, review };

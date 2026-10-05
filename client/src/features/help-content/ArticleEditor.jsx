@@ -1,12 +1,12 @@
 import { useId, useRef } from 'react';
-import { CMS_LIMITS, reorderCmsItems } from '../../../../shared/helpContentCms.js';
+import { CMS_LIMITS, cmsHasSeparateAnswers, reorderCmsItems } from '../../../../shared/helpContentCms.js';
 import { CmsButton, CmsField, CmsOrderButtons } from './CmsControls.jsx';
 import { cmsAddStep, cmsMoveMedia, cmsMoveStep, cmsNewSection, cmsUpdateMedia } from './helpContentDraftModel.js';
 
 function TextList({ label, values, update, lockedLength = false }) {
     return <div><h3>{label}</h3>{values.map((value, index) => <CmsField key={index} label={`${label} ${index + 1}`} multiline value={value} onChange={(text) => update(values.map((item, i) => i === index ? text : item))} maxLength={16000} />)}
         <div className="cms-media-actions">{!lockedLength && <CmsButton disabled={values.length >= 60} onClick={() => update([...values, ''])}>Add {label === 'Notes' ? 'note' : 'paragraph'}</CmsButton>}{!lockedLength && values.length > 0 && <CmsButton danger onClick={() => update(values.slice(0, -1))}>Remove last {label === 'Notes' ? 'note' : 'paragraph'}</CmsButton>}</div>
-        {lockedLength && <p className="cms-muted">Each paragraph supplies one existing Guide answer. Add another section for extra instructions.</p>}
+        {lockedLength && <p className="cms-muted">Each paragraph supplies one existing Guide answer. Keep these paragraphs in place and add numbered instructions below when needed.</p>}
     </div>;
 }
 function AttachmentEditor({ item, section, index, siblings, update, mediaUrls }) {
@@ -48,11 +48,11 @@ export function AttachmentGroup({ article, section, afterStepId, update, onUploa
     </div>;
 }
 function SectionEditor({ article, section, index, update, onMove, onRemove, onRemoveStep, onUpload, mediaUrls, uploadBusy, allowImageUpload }) {
-    const conceptual = section.facts.length > 0 && !section.steps.length && section.facts.every((fact) => fact.answerKind !== 'procedure');
+    const separateAnswers = cmsHasSeparateAnswers(section);
     return <section className="cms-section" aria-label={`Edit section ${index + 1}`}>
         <div className="cms-step-head"><h2>Section {index + 1}</h2><CmsOrderButtons label={`section ${index + 1}`} first={index === 0} last={index === article.sections.length - 1} onMove={onMove} /></div>
         <CmsField label="Section title" value={section.title} onChange={(title) => update({ ...section, title })} maxLength={240} />
-        <TextList label="Introduction" values={section.paragraphs} update={(paragraphs) => update({ ...section, paragraphs })} lockedLength={conceptual} />
+        <TextList label="Introduction" values={section.paragraphs} update={(paragraphs) => update({ ...section, paragraphs })} lockedLength={separateAnswers} />
         <AttachmentGroup article={article} section={section} afterStepId={null} update={update} onUpload={onUpload} mediaUrls={mediaUrls} uploadBusy={uploadBusy} allowImageUpload={allowImageUpload} />
         <h3 style={{ marginTop: 24 }}>Numbered instructions</h3>
         {section.steps.map((text, i) => <div className="cms-step" key={section.stepIds[i]} data-step-id={section.stepIds[i]}>
@@ -61,7 +61,7 @@ function SectionEditor({ article, section, index, update, onMove, onRemove, onRe
             <AttachmentGroup article={article} section={section} afterStepId={section.stepIds[i]} update={update} onUpload={onUpload} mediaUrls={mediaUrls} uploadBusy={uploadBusy} allowImageUpload={allowImageUpload} />
             <CmsButton danger onClick={() => onRemoveStep(section.id, section.stepIds[i])}>Remove instruction</CmsButton>
         </div>)}
-        <div className="cms-media-actions"><CmsButton disabled={conceptual || section.steps.length >= CMS_LIMITS.steps} onClick={() => update(cmsAddStep(section))}>Add instruction</CmsButton></div>
+        <div className="cms-media-actions"><CmsButton disabled={section.steps.length >= CMS_LIMITS.steps} onClick={() => update(cmsAddStep(section))}>Add instruction</CmsButton></div>
         <TextList label="Notes" values={section.notes} update={(notes) => update({ ...section, notes })} />
         <CmsButton danger disabled={article.sections.length === 1 || section.facts.length > 0} onClick={onRemove}>Remove section</CmsButton>
         {section.facts.length > 0 && <p className="cms-muted" style={{ marginTop: 8 }}>This section supplies existing Guide answers. Its identity is retained when you edit.</p>}

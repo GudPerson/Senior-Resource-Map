@@ -132,3 +132,33 @@ test('first-save client contract accepts the complete seeded library including r
     assert.equal(cmsCanSave(initial, cloneCms(initial), 'saved-etag', { configured: true }), false);
     assert.equal(cmsCanSave(initial, cloneCms(initial), null, { configured: false }), false);
 });
+
+
+test('adding optional instructions preserves separate Guide answers and shared context', () => {
+    const source = { ...section, steps: [], stepIds: [], paragraphs: ['First answer only.', 'Second answer only.'], facts: [{ id: 'first', title: 'First question', answerKind: 'conceptual' }, { id: 'second', title: 'Second question', answerKind: 'boundary' }], media: [
+        { id: 'reviewed-video', type: 'video', afterStepId: null, caption: 'Shared walkthrough', url: 'https://youtu.be/AbcDef12345', transcript: 'Reviewed shared transcript.', transcriptReviewed: true },
+        { id: 'unreviewed-video', type: 'video', afterStepId: null, caption: 'Draft walkthrough', url: 'https://youtu.be/AbcDef12345', transcript: 'UNREVIEWED TRANSCRIPT', transcriptReviewed: false },
+    ] };
+    const before = cloneCms(source);
+    const first = cmsAddStep(source);
+    first.steps[0] = 'Open your account.';
+    const second = cmsAddStep(first);
+    second.steps[1] = 'Review the current options.';
+    assert.notEqual(second.stepIds[0], second.stepIds[1]);
+    const messages = cmsGuideMessages(second);
+    assert.equal(messages.length, 2);
+    for (let index = 0; index < messages.length; index++) {
+        assert.equal(messages[index].title, source.facts[index].title);
+        assert.match(messages[index].text, /1\. Open your account\./);
+        assert.match(messages[index].text, /2\. Review the current options\./);
+        assert.match(messages[index].text, /A failed save is not confirmation\./);
+        assert.match(messages[index].text, /Reviewed shared transcript\./);
+        assert.doesNotMatch(messages[index].text, /UNREVIEWED TRANSCRIPT/);
+        assert.ok(messages[index].text.includes(source.paragraphs[index]));
+        assert.ok(!messages[index].text.includes(source.paragraphs[1 - index]));
+    }
+    assert.deepEqual(source, before);
+    const removed = cmsRemoveStep(cmsRemoveStep(second, second.stepIds[1]), second.stepIds[0]);
+    assert.deepEqual(cmsGuideMessages(removed), cmsGuideMessages(source));
+    assert.deepEqual(removed.facts, source.facts);
+});

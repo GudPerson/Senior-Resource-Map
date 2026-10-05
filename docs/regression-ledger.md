@@ -1,5 +1,14 @@
 # Regression Ledger
 
+## 2026-10-05 Owner CMS: first instruction in explanatory sections
+
+- Reproduction: owner opens Help Centre → What CareAround helps you do → Edit this article. The first section has explanatory text and no numbered steps; Add instruction was incorrectly disabled in both editor surfaces.
+- Contract: Add instruction is available for an empty section unless an operation/text edit is pending or the 60-step limit is reached. Apply valid text before saving. Existing separate Guide answers keep their own paragraphs plus common ordered steps, notes and reviewed transcripts; paragraph mapping, fact identity/access, procedure minimums and stable attachment identities remain enforced.
+- Narrow source: shared answer-mapping helpers, two editor predicates and Guide preview. No compiler, schema, role, resource or model-budget redesign.
+- Local verification: four meaningful prepatch failures retained; focused 45/45 and full CMS 71/71, server 1,146/1,146, client 921/921 plus five environment, compiler 12/12, production build, map 104/104 and Worker dry-run pass. Exact normalized no-edit publication/all compiled output match before and after, with no excluded fields. Browser and production checks remain separate release evidence.
+- Release gate: preserve the latest private published library and saved workspace; use the normal private publisher and exact paired Worker/Pages proof. Do not upload the older public-baseline client build or publish synthetic acceptance instructions. See `docs/help-cms-first-instruction-fix-20261005.md`.
+
+
 ## Owner CMS ordering and publishing routing
 
 Numbered vertical owner topics, grip ordering and aligned row actions are deployed from fb6587. Both unchanged approved-library publications were separately recovered; original runs37221246970 and37224001007 remain failed. Source9ba retains `global_fetch_strictly_public`; exact private build607 preserves all three flags/date/44binding descriptors. Its independent 101-file/six-HTML proof and receipt all-three-readiness/workspace promotion/lock clearance passed. The second original public-verification cause remains unproven.

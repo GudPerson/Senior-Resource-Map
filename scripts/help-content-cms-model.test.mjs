@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { HELP_CMS_SEED } from '../server/src/generated/helpCmsSeed.js';
 import { cmsSeedWorkspace, validateCmsWorkspace, prepareCmsPublication, createCmsCategory, createCmsArticle, changeCmsArticleStatus, reorderCmsItems, validateCmsImage, safeCmsVideoUrl } from '../shared/helpContentCms.js';
 import { compileHelpContent } from './build-help-content.mjs';
+import { cmsAddStep, cmsGuideMessages, cmsRemoveStep } from '../client/src/features/help-content/helpContentDraftModel.js';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -15,7 +16,7 @@ function compile(t, publication) {
 }
 test('seed uses all current articles, stable step IDs and untouched Guide facts', t=>{
  const w=cmsSeedWorkspace(HELP_CMS_SEED);assert.equal(w.articles.length,48);validateCmsWorkspace(w,HELP_CMS_SEED);
- const compiled=compile(t,prepareCmsPublication(w,options)); const before=compileHelpContent(); assert.deepEqual(compiled.facts,before.facts);
+ const compiled=compile(t,prepareCmsPublication(w,options)); const before=compileHelpContent(); assert.deepEqual(compiled.facts,before.facts); assert.deepEqual(compiled.topics,before.topics);
 });
 test('topic and article additions/order persist without changing published identity',t=>{
  let w=createCmsCategory(cmsSeedWorkspace(HELP_CMS_SEED),'Another topic');let c=w.manifest.categories.at(-1);
@@ -88,4 +89,90 @@ test('archiving withdraws published content without releasing unfinished edits o
     assert.doesNotMatch(JSON.stringify(publication), /Private archived draft|Never published private archive text|Unfinished edited archived title/);
     assert.equal(publication.articles.find(a=>a.id==='HC-01').status,'retired');
     assert.equal(compile(t,publication).articles.some(a=>a.id==='HC-01'),false);
+});
+
+
+test('an empty HC-01 section can add instructions and survive save/reload/publication compilation', t => {
+ const source = cmsSeedWorkspace(HELP_CMS_SEED);
+ const article = source.articles.find(a => a.id === 'HC-01'), original = article.sections[0];
+ assert.equal(original.steps.length, 0);
+ let section = cmsAddStep(original);
+ section.steps[0] = 'Open Discover to begin browsing.';
+ const firstId = section.stepIds[0];
+ section = cmsAddStep(section);
+ section.steps[1] = 'Open a result to review its details.';
+ section.media = [{ id: 'step-video', type: 'video', afterStepId: firstId, url: 'https://youtu.be/AbcDef12345', caption: 'Browse walkthrough', transcript: 'Check the listing before planning a visit.', transcriptReviewed: true }];
+ article.sections[0] = section;
+ const saved = JSON.parse(JSON.stringify(validateCmsWorkspace(source, HELP_CMS_SEED)));
+ assert.equal(saved.articles.find(a => a.id === 'HC-01').sections[0].stepIds[0], firstId);
+ assert.equal(saved.articles.find(a => a.id === 'HC-01').sections[0].media[0].afterStepId, firstId);
+ validateCmsWorkspace(saved, HELP_CMS_SEED);
+ const published = prepareCmsPublication(saved, options), compiled = compile(t, published);
+ const actual = compiled.facts.find(f => f.id === original.facts[0].id);
+ assert.equal(actual.message, cmsGuideMessages(section)[0].text);
+ assert.match(actual.message, /1\. Open Discover to begin browsing\./);
+ assert.match(actual.message, /2\. Open a result to review its details\./);
+ assert.match(actual.message, /Check the listing before planning a visit\./);
+ assert.equal(actual.articleId, article.id);
+ const reading = compiled.publicData.articles.find(a => a.id === article.id).sections.find(s => s.id === section.id);
+ assert.deepEqual(reading.steps, section.steps);
+ assert.deepEqual(reading.stepIds, section.stepIds);
+ assert.equal(reading.media[0].afterStepId, firstId);
+ const stable = original.facts[0];
+ for (const key of ['id', 'title', 'answerKind', 'visibility', 'access', 'path', 'articleId', 'sectionId']) {
+     assert.deepEqual(published.articles.find(a => a.id === article.id).sections[0].facts[0][key], stable[key]);
+ }
+});
+
+test('common added instructions retain separate factual meanings in preview and publication', t => {
+ const base = JSON.parse(JSON.stringify(HELP_CMS_SEED));
+ const baseArticle = base.articles.find(a => a.id === 'HC-01'), original = baseArticle.sections[0];
+ const first = original.facts[0], second = baseArticle.sections[1].facts[0];
+ original.facts = [first, second];
+ baseArticle.sections = [original];
+ const workspace = cmsSeedWorkspace(base), article = workspace.articles.find(a => a.id === 'HC-01'), section = article.sections[0];
+ section.paragraphs = ['First answer alone.', 'Second answer alone.'];
+ section.steps = ['Open the relevant page.', 'Check its current details.']; section.stepIds = ['open-page', 'check-details'];
+ section.notes = ['One shared boundary.'];
+ section.media = [{ id: 'shared-video', type: 'video', afterStepId: 'check-details', url: 'https://youtu.be/AbcDef12345', caption: 'Shared walkthrough', transcript: 'One reviewed transcript.', transcriptReviewed: true }];
+ validateCmsWorkspace(workspace, base);
+ const publication = prepareCmsPublication(workspace, { ...options, seed: base });
+ const published = publication.articles.find(a => a.id === article.id).sections[0];
+ const compiled = compile(t, publication);
+ const preview = cmsGuideMessages(section);
+ assert.equal(preview.length, 2);
+ for (let i = 0; i < 2; i++) {
+     assert.equal(published.facts[i].message, preview[i].text);
+     assert.equal(compiled.facts.find(f => f.id === section.facts[i].id).message, preview[i].text);
+     assert.ok(published.facts[i].message.includes(section.paragraphs[i]));
+     assert.ok(!published.facts[i].message.includes(section.paragraphs[1 - i]));
+     assert.match(published.facts[i].message, /1\. Open the relevant page\./);
+     assert.match(published.facts[i].message, /2\. Check its current details\./);
+     assert.match(published.facts[i].message, /One shared boundary\./);
+     assert.match(published.facts[i].message, /One reviewed transcript\./);
+     assert.equal(published.facts[i].id, section.facts[i].id);
+     assert.equal(published.facts[i].title, section.facts[i].title);
+ }
+});
+
+test('blank instructions and mismatched separate-answer paragraphs remain rejected', () => {
+ const blank = cmsSeedWorkspace(HELP_CMS_SEED), article = blank.articles.find(a => a.id === 'HC-01');
+ article.sections[0] = cmsAddStep(article.sections[0]);
+ assert.throws(() => validateCmsWorkspace(blank, HELP_CMS_SEED), /Steps must contain valid text/);
+ const mismatch = cmsSeedWorkspace(HELP_CMS_SEED), changed = mismatch.articles.find(a => a.id === 'HC-01').sections[0];
+ changed.steps = ['An optional instruction.']; changed.stepIds = ['optional-instruction']; changed.paragraphs.push('An unmatched extra answer.');
+ assert.throws(() => prepareCmsPublication(mismatch, options), /Keep one paragraph per existing Guide answer/);
+});
+
+test('removing the last optional instruction restores original answers while procedures retain their minimum', t => {
+ const workspace = cmsSeedWorkspace(HELP_CMS_SEED), article = workspace.articles.find(a => a.id === 'HC-01'), original = article.sections[0];
+ const added = cmsAddStep(original); added.steps[0] = 'An optional instruction.';
+ article.sections[0] = cmsRemoveStep(added, added.stepIds[0]);
+ validateCmsWorkspace(workspace, HELP_CMS_SEED);
+ assert.deepEqual(article.sections[0], original);
+ const compiled = compile(t, prepareCmsPublication(workspace, options));
+ assert.deepEqual(compiled.facts, compileHelpContent().facts);
+ const map = workspace.articles.find(a => a.id === 'HC-09'), procedure = map.sections.find(s => s.facts.some(f => f.answerKind === 'procedure'));
+ for (const id of [...procedure.stepIds]) Object.assign(procedure, cmsRemoveStep(procedure, id));
+ assert.throws(() => validateCmsWorkspace(workspace, HELP_CMS_SEED), /existing procedure must retain numbered instructions/);
 });

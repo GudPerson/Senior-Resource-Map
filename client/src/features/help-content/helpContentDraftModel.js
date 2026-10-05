@@ -1,4 +1,4 @@
-import { cmsSectionMessage, safeCmsVideoUrl } from '../../../../shared/helpContentCms.js';
+import { cmsHasSeparateAnswers, cmsSectionMessage, cmsSeparateAnswerMessage, safeCmsVideoUrl } from '../../../../shared/helpContentCms.js';
 
 export const CMS_IMAGE_LIMIT = 12;
 export const CMS_VIDEO_LIMIT = 12;
@@ -111,11 +111,9 @@ export function cmsLoadEnvelope(data) {
     return data;
 }
 export function cmsGuideMessages(section) {
-    const conceptual = section.facts?.length && section.facts.every((fact) => fact.answerKind !== 'procedure') && !section.steps?.length;
-    if (!conceptual) return [{ title: section.title, text: cmsSectionMessage(section) }];
-    const transcripts = (section.media || []).filter((item) => item.type === 'video' && item.transcriptReviewed).map((item) => item.transcript);
+    if (!cmsHasSeparateAnswers(section)) return [{ title: section.title, text: cmsSectionMessage(section) }];
     return section.facts.map((fact, index) => ({ title: fact.title || section.title,
-        text: [section.paragraphs?.[index] || '', ...(section.notes || []), ...transcripts].join('\n\n') }));
+        text: cmsSeparateAnswerMessage(section, index) }));
 }
 
 export function cmsCanSave(workspace, saved, etag, { configured = false, busy = false, conflict = false } = {}) {

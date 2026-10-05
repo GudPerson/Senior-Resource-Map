@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { CMS_LIMITS, cmsReadingArticle } from '../../../../shared/helpContentCms.js';
+import { CMS_LIMITS, cmsHasSeparateAnswers, cmsReadingArticle } from '../../../../shared/helpContentCms.js';
 import { cmsAddStep, cmsNewSection } from './helpContentDraftModel.js';
 import { CmsButton, CmsField } from './CmsControls.jsx';
 import { AttachmentGroup } from './ArticleEditor.jsx';
@@ -97,12 +97,12 @@ export default function HelpContentContext({ workspace, etag, article, selectedI
                 </header>
                 <CmsSortableList items={current.sections} label="Article sections" getLabel={(_, index) => `section ${index + 1}`} enabled={editing} {...sortProps('sections')} itemAs="section" itemClassName="cms-context-section" itemProps={(section) => ({ id: section.id, 'aria-label': section.title })} onPlace={(active, target) => editArticle(current.id, (value) => ({ ...value, sections: placeCmsItem(value.sections, active, target) }))}>
                     {(section, sectionIndex, sectionHandle) => {
-                        const conceptual = section.facts.length > 0 && !section.steps.length && section.facts.every((fact) => fact.answerKind !== 'procedure');
+                        const separateAnswers = cmsHasSeparateAnswers(section);
                         return <>
                             {editing && <div className="cms-context-row-toolbar">{sectionHandle}<span className="cms-context-row-label">Section {sectionIndex + 1}</span><CmsRowMenu label={`Section ${sectionIndex + 1} options`} disabled={locked}><CmsButton danger disabled={current.sections.length === 1 || section.facts.length > 0} onClick={() => editArticle(current.id, (value) => ({ ...value, sections: value.sections.filter((s) => s.id !== section.id) }))}>Remove section</CmsButton></CmsRowMenu></div>}
                             {field(`${current.id}:${section.id}:title`, `Section ${sectionIndex + 1} title`, section.title, <h2>{section.title}</h2>, (title) => sectionChange(section.id, (s) => ({ ...s, title })), false, 240)}
-                            {section.paragraphs.map((value, index) => <div key={`paragraph-${index}`}>{editing && !conceptual && <div className="cms-context-row-toolbar"><span className="cms-context-row-label">Paragraph {index + 1}</span><CmsRowMenu label={`Paragraph ${index + 1} options`} disabled={locked}><CmsButton danger onClick={() => sectionChange(section.id, (s) => ({ ...s, paragraphs: s.paragraphs.filter((_, i) => i !== index) }))}>Remove paragraph {index + 1}</CmsButton></CmsRowMenu></div>}{listField(section, 'paragraphs', index, value)}</div>)}
-                            {editing && !conceptual && <CmsButton className="cms-context-small" disabled={locked || section.paragraphs.length >= 60} onClick={() => sectionChange(section.id, (s) => ({ ...s, paragraphs: [...s.paragraphs, ''] }))}>Add paragraph</CmsButton>}
+                            {section.paragraphs.map((value, index) => <div key={`paragraph-${index}`}>{editing && !separateAnswers && <div className="cms-context-row-toolbar"><span className="cms-context-row-label">Paragraph {index + 1}</span><CmsRowMenu label={`Paragraph ${index + 1} options`} disabled={locked}><CmsButton danger onClick={() => sectionChange(section.id, (s) => ({ ...s, paragraphs: s.paragraphs.filter((_, i) => i !== index) }))}>Remove paragraph {index + 1}</CmsButton></CmsRowMenu></div>}{listField(section, 'paragraphs', index, value)}</div>)}
+                            {editing && !separateAnswers && <CmsButton className="cms-context-small" disabled={locked || section.paragraphs.length >= 60} onClick={() => sectionChange(section.id, (s) => ({ ...s, paragraphs: [...s.paragraphs, ''] }))}>Add paragraph</CmsButton>}
                             {attachments(section, null)}
                             {section.steps.length > 0 && <CmsSortableList as="ol" itemAs="li" className={`cms-context-steps ${editing ? 'is-editing' : ''}`} itemClassName="cms-context-step" items={section.stepIds.map((id, index) => ({ id, text: section.steps[index] }))} label={`Instructions in section ${sectionIndex + 1}`} getLabel={(_, index) => `instruction ${index + 1} in section ${sectionIndex + 1}`} enabled={editing} {...sortProps(`steps:${section.id}`)} itemProps={(item) => ({ 'data-step-id': item.id })} onPlace={(active, target) => sectionChange(section.id, (s) => placeCmsStep(s, active, target))}>
                                 {(item, index, handle) => <>
@@ -110,7 +110,7 @@ export default function HelpContentContext({ workspace, etag, article, selectedI
                                     {listField(section, 'steps', index, item.text)}{attachments(section, item.id)}
                                 </>}
                             </CmsSortableList>}
-                            {editing && <CmsButton className="cms-context-small" disabled={locked || conceptual || section.steps.length >= CMS_LIMITS.steps} onClick={() => sectionChange(section.id, cmsAddStep)}>Add instruction</CmsButton>}
+                            {editing && <CmsButton className="cms-context-small" disabled={locked || section.steps.length >= CMS_LIMITS.steps} onClick={() => sectionChange(section.id, cmsAddStep)}>Add instruction</CmsButton>}
                             {section.notes.length > 0 && <div className="cms-context-notes">{section.notes.map((value, index) => <div key={`note-${index}`}>{editing && <div className="cms-context-row-toolbar"><span className="cms-context-row-label">Note {index + 1}</span><CmsRowMenu label={`Note ${index + 1} options`} disabled={locked}><CmsButton danger onClick={() => sectionChange(section.id, (s) => ({ ...s, notes: s.notes.filter((_, i) => i !== index) }))}>Remove note {index + 1}</CmsButton></CmsRowMenu></div>}{listField(section, 'notes', index, value)}</div>)}</div>}
                             {editing && <div className="cms-context-section-tools"><CmsButton className="cms-context-small" disabled={locked || section.notes.length >= 60} onClick={() => sectionChange(section.id, (s) => ({ ...s, notes: [...s.notes, ''] }))}>Add note</CmsButton></div>}
                         </>;
