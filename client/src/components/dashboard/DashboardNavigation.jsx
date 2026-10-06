@@ -41,7 +41,7 @@ function label(t, key, fallback, params) {
 
 export function getDashboardSectionLabel(pathname, t) {
     if (pathname === '/dashboard' || pathname === '/dashboard/') return label(t, 'overview', 'Overview');
-    if (pathname.startsWith('/dashboard/help-content')) return 'Help content';
+    if (pathname.startsWith('/dashboard/help-content')) return 'Help Centre';
     if (pathname.startsWith('/dashboard/profile')) return label(t, 'profileTitle', 'Profile');
     if (pathname.startsWith('/dashboard/admin')) return label(t, 'overviewAdminTitle', 'Admin');
     if (pathname.startsWith('/dashboard/audit')) return label(t, 'auditTrailTitle', 'Audit Trail');
@@ -103,7 +103,7 @@ export function DashboardSidebar({
                 </div>
             </div>
 
-            {canShowHelpContent && <SidebarLink to="/dashboard/help-content" icon={BookOpen} label="Help content" id="dash-help-content" onNavigate={onNavigate} />}
+            {canShowHelpContent && <SidebarLink to="/help-centre" icon={BookOpen} label="Help Centre" id="dash-help-content" onNavigate={onNavigate} />}
             <SidebarLink to="/discover" icon={Map} label={t('overviewDiscoverTitle')} id="dash-discover" onNavigate={onNavigate} />
             <SidebarLink to="/dashboard" icon={LayoutDashboard} label={t('overview')} id="dash-overview" onNavigate={onNavigate} />
             <SidebarLink

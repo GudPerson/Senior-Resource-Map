@@ -1,5 +1,13 @@
 # Regression Ledger
 
+## 2026-10-06 Owner sidebar: Help Centre reader-first shortcut
+
+- Reproduction: signed-in content owner opens My Directory or the dashboard. The first sidebar item still reads Help content and enters the owner draft through the legacy CMS redirect.
+- Contract: the existing capability-gated owner shortcut reads Help Centre and opens `/help-centre` without the management query. The owner chooses Manage help content or Edit this article explicitly. Both desktop and the mobile drawer share this link; capability denial and impersonation still hide it. Existing `/dashboard/help-content` bookmarks retain their redirect.
+- Blast radius: two navigation strings only. No content, role checks, editing, publishing, API, maps or data changes. The legacy dashboard section label is also renamed for consistency.
+- Validation: independent source review and eight focused fictional browser checks at 1,440/390 px pass; no saves, uploads, unexpected writes or runtime errors. Full quality passes CMS 71, server 1,146, client 921 plus five environment checks, compiler 12 and the production client build. Locked map checks pass 104. This is automated local evidence; live delivery is a separate gate.
+- Release gate: retain the latest private published Help content and saved workspace. The older public-baseline build is never uploaded. Use the approved normal private publisher with the unchanged library, then verify exact Worker/Pages provenance, custom-domain artifact parity and actual owner menu navigation before claiming delivery.
+
 ## 2026-10-05 Owner CMS: first instruction in explanatory sections
 
 - Reproduction: owner opens Help Centre → What CareAround helps you do → Edit this article. The first section has explanatory text and no numbered steps; Add instruction was incorrectly disabled in both editor surfaces.
