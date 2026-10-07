@@ -1,0 +1,342 @@
+{
+  "facts": [
+    {
+      "id": "calendar-personal-entry",
+      "kind": "changed",
+      "expectedDigest": "3f7db53237900c1ab5a32223cfda03c738713057e478a3b4b609bd94a6c5d1c6",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "directory-export-boundary",
+      "kind": "changed",
+      "expectedDigest": "75c2f5b6146f74d7afb62825d0ddc839aec62dd15ac684fe485ce48c5e2f2de5",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "embedded-map-notes",
+      "kind": "changed",
+      "expectedDigest": "289a2a0adaeca61f594f42193872c612c62502ca5fed2b3730f5bc988a9ac93f",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "help-detailed-map",
+      "kind": "changed",
+      "expectedDigest": "43765aea579e23c140612d659d310d62fe54c519c1625e4a2c05cb97e07c3aa5",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "help-maps",
+      "kind": "changed",
+      "expectedDigest": "718622a1adb4f60bff7922a431c1b4e1d73dee8474b4ebce5e7ba4100b6e71e7",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "help-overview",
+      "kind": "changed",
+      "expectedDigest": "241c19c40f73ba142971e63836476b62ff6d0704ab878a6a14457906b6dde92f",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "help-unsave",
+      "kind": "changed",
+      "expectedDigest": "ae911fd6e950f8f96270e39f2230595b5bd16346a2590657709eb070f2b3cd32",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "map-membership",
+      "kind": "changed",
+      "expectedDigest": "728c7e485a5724ef503c300406f9337530c1744b82b5db79d57a42d89b6efa79",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "map-note-privacy",
+      "kind": "changed",
+      "expectedDigest": "c1de9827b405644f0ef86668fe439be6348f3c490997e9e3a93860db2991dc90",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "map-studio",
+      "kind": "changed",
+      "expectedDigest": "b22ff94a3286e87ee35623e9aebeee58ac4e974fabacda64840a216bb77a2ceb",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "my-map-exports",
+      "kind": "changed",
+      "expectedDigest": "85cea8470c40a78e959f35941890e6bbf547b10b3f3580616977033e13bfce18",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "my-map-note-edit",
+      "kind": "changed",
+      "expectedDigest": "9ceab3d9b20083e89a4f82273f69368dcc28c6c7ebd0aa5155b85c784a20f48b",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "my-map-resource-removal",
+      "kind": "changed",
+      "expectedDigest": "98dbef3d40e2dc4e48c4dc84520e31a2bd9bc4f29e9780b085f8cc35592ee833",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "other-account-saved-privacy",
+      "kind": "changed",
+      "expectedDigest": "6f8c8c43fe80f1297fdefa24d7c4b1c397d5cc83b6dee0cd6212f45db437a4c1",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "plan-date-change",
+      "kind": "changed",
+      "expectedDigest": "83627777be5fdc6846edd5bf7f0b6bef70ab732942390b7ecb5ccdcc28b5e3e1",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "private-map-export-sharing",
+      "kind": "changed",
+      "expectedDigest": "542623123609bdf6300575de120ce2d6e61ed1498f74bbb592942560d5c27696",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "public-browsing",
+      "kind": "changed",
+      "expectedDigest": "47818226826bc30fe7ff9bc6921f6e307c4d8c29880515e2f9889202a1d4c336",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "resource-export-context",
+      "kind": "changed",
+      "expectedDigest": "fb7d8245a5e46a7ccb8dc7e04038469d6dbb2048de6890d003c8ff05bc001064",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "saved-resource-removal",
+      "kind": "changed",
+      "expectedDigest": "a37f230b63fd55f94df3daff628f347aea4b7d555a6707518b1f868dc890d7e1",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "saved-to-shared-map",
+      "kind": "changed",
+      "expectedDigest": "0c13aba9ce55ae660cf7ebe04accf3f2fe93281d374304bfff31bfe497b05c81",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "shared-map-copy",
+      "kind": "changed",
+      "expectedDigest": "514a1b016ceb78c4b6edcb1f50db9860d803e3bbd1e0ec39d0a6cb7808467f7c",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "shared-map-viewer-boundary",
+      "kind": "changed",
+      "expectedDigest": "2e9d62622cdfa1a8dc6244b6082d3af345e004cdb86a19fde86a3ba1a628d9a2",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "town-maps",
+      "kind": "changed",
+      "expectedDigest": "a133830d6b205e4f0ff0c269584c165755294a06d8afd1203b20229f6e0503ec",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "website-embeds",
+      "kind": "changed",
+      "expectedDigest": "ec7b96c10de1c69dcf6071ee5abfbfad98ef5a23029b4d0f2bf0acdbc91af18b",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    }
+  ],
+  "topics": [
+    {
+      "id": "detailed-map",
+      "kind": "changed",
+      "expectedDigest": "08b93581a769d240584d020b0e2a27bf6d5017ad34754b1c23ec168966badc9a",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "maps",
+      "kind": "changed",
+      "expectedDigest": "b122f0c93325d62db1931afc6493d391e5a3bd820eec16acc56e4224804dbb8d",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "overview",
+      "kind": "changed",
+      "expectedDigest": "0a8d0b47558d16235c323c6969e45d2e1fe70577f07a1a65ae3bc4f774893fdf",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    },
+    {
+      "id": "unsave",
+      "kind": "changed",
+      "expectedDigest": "94a9788174677d412fd2bcfcb165de518636f77b8b9d503b84a6a7185738d7e1",
+      "reviewedAt": "2026-10-07",
+      "reviewer": "Product owner",
+      "reason": "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.; shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved.",
+      "evidence": [
+        "Explicit product owner request on 7 October 2026: change My Map to Care Map and align labels throughout the app, especially the Guide.",
+        "shared/careMapTerminology.js; scripts/care-map-terminology.test.mjs; display text and retrieval aliases only, with identities, routing, permissions, source review and evidence preserved."
+      ]
+    }
+  ]
+}

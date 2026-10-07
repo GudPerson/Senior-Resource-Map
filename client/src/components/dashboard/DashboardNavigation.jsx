@@ -47,7 +47,7 @@ export function getDashboardSectionLabel(pathname, t) {
     if (pathname.startsWith('/dashboard/audit')) return label(t, 'auditTrailTitle', 'Audit Trail');
     if (pathname.startsWith('/dashboard/organization')) return label(t, 'organisationWorkspaceTitle', 'Organisation');
     if (pathname.startsWith('/my-directory/town-maps')) return label(t, 'townMapsTitle', 'High-Detail Town Maps');
-    if (pathname.startsWith('/my-directory/maps/')) return label(t, 'myMaps', 'My Maps');
+    if (pathname.startsWith('/my-directory/maps/')) return label(t, 'myMaps', 'Care Maps');
     if (pathname.startsWith('/my-directory')) return label(t, 'myDirectory', 'My Directory');
     if (pathname.startsWith('/dashboard/calendar')) return label(t, 'careCalendar', 'Care Calendar');
     if (pathname.startsWith('/dashboard/resources')) return label(t, 'overviewResourcesTitle', 'My Resources');

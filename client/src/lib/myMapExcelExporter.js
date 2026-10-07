@@ -51,7 +51,7 @@ export async function createMyMapExcelWorkbook({
     const rows = buildMyMapAssetWorkbookRows(ledger);
     const workbook = XLSX.utils.book_new();
     const summary = XLSX.utils.aoa_to_sheet([
-        ['CareAround SG My Map asset export'],
+        ['CareAround SG Care Map asset export'],
         ['Map', toSafeExcelText(ledger.mapName)],
         ['Assets', ledger.summary.assetCount],
         ['Personal places', ledger.summary.personalPlaceCount],

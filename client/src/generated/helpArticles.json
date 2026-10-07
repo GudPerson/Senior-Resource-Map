@@ -11,7 +11,7 @@
     },
     {
       "id": "my-maps",
-      "title": "My Maps and Personal places"
+      "title": "Care Maps and Personal places"
     },
     {
       "id": "map-design-and-exports",
@@ -62,7 +62,7 @@
           "id": "help-overview",
           "title": "What can I do with CareAround?",
           "paragraphs": [
-            "CareAround SG helps you find community Places and Programmes/services in Discover. Sign in to save resources to My Directory, create private My Maps and share a view-only snapshot, and use Care Calendar for supported saved schedules and personal plans. You can also report app problems and follow replies in Inbox. If you manage a Place, the Guide can help you draft and review a Programme/service before you choose Create. Check eligibility, fees, availability, and registration with the provider."
+            "CareAround SG helps you find community Places and Programmes/services in Discover. Sign in to save resources to My Directory, create private Care Maps and share a view-only snapshot, and use Care Calendar for supported saved schedules and personal plans. You can also report app problems and follow replies in Inbox. If you manage a Place, the Guide can help you draft and review a Programme/service before you choose Create. Check eligibility, fees, availability, and registration with the provider."
           ],
           "steps": [],
           "notes": []
@@ -106,7 +106,7 @@
             "Open Sign in and keep the Sign in tab selected.",
             "For email sign-in, enter your Email address and Password, then select Sign in. If Google is already linked to your account, use the Google sign-in option instead.",
             "Wait for the sign-in handoff to return you to the page you requested or to Dashboard. If the handoff offers Continue now, select it to continue.",
-            "Open My Directory from the dashboard navigation for your saved resources and My Maps. Use Discover to browse public listings."
+            "Open My Directory from the dashboard navigation for your saved resources and Care Maps. Use Discover to browse public listings."
           ],
           "notes": [
             "Discover and published Shared Maps can be browsed without signing in. Signing in does not give you permission to edit a public resource.",
@@ -136,7 +136,7 @@
           "id": "public-browsing",
           "title": "Browse without an account",
           "paragraphs": [
-            "You can browse public resources in Discover and open a published Shared Map without signing in. Sign in to save resources, create My Maps or copy someone else’s Shared Map into your own My Maps."
+            "You can browse public resources in Discover and open a published Shared Map without signing in. Sign in to save resources, create Care Maps or copy someone else’s Shared Map into your own Care Maps."
           ],
           "steps": [],
           "notes": []
@@ -377,7 +377,7 @@
           "steps": [
             "Open My Directory → Saved resources and find the item you want to remove.",
             "Select Remove on that saved-resource card.",
-            "Read the confirmation, including any warning about My Maps or the Programme/service’s Care Calendar schedule source.",
+            "Read the confirmation, including any warning about Care Maps or the Programme/service’s Care Calendar schedule source.",
             "If you still want to unsave it, select Remove from My Directory. Choose Cancel to keep it.",
             "Wait for the request to finish and check that the item is no longer in your saved list."
           ],
@@ -392,18 +392,18 @@
           "id": "remove-unused-saved-resources",
           "title": "Remove several saved resources not used in your maps",
           "paragraphs": [
-            "Bulk removal operates on your saved list and protects resources used in your My Maps. Sign in and wait for the app to check map use."
+            "Bulk removal operates on your saved list and protects resources used in your Care Maps. Sign in and wait for the app to check map use."
           ],
           "steps": [
             "Open My Directory → Saved resources.",
-            "Under My Map use, choose Not used in My Maps to review the unused items.",
+            "Under Care Map use, choose Not used in Care Maps to review the unused items.",
             "Select Select to remove, then tick the items you want to unsave. Select all shown selects the visible unused items; Clear selection removes the ticks.",
             "Select Remove followed by the selected count, then read the confirmation and its Care Calendar warning for any Programme/service.",
             "Confirm Remove only when you have reviewed the selection, or choose Cancel to leave your saved list unchanged.",
-            "Read the result and check your saved list. Any items now used in My Maps are kept rather than bulk removed."
+            "Read the result and check your saved list. Any items now used in Care Maps are kept rather than bulk removed."
           ],
           "notes": [
-            "Used in My Maps is a separate filter for inspecting resources your maps use. Those items cannot be selected for bulk removal.",
+            "Used in Care Maps is a separate filter for inspecting resources your maps use. Those items cannot be selected for bulk removal.",
             "If map use cannot be checked, bulk removal pauses. Use Retry and wait for the check to finish; do not work around the protection.",
             "Bulk removal does not delete public resources. Unsaving selected Programmes/services can remove their saved schedule sources from Care Calendar."
           ]
@@ -421,7 +421,7 @@
           "id": "help-unsave",
           "title": "Remove saved resources safely",
           "paragraphs": [
-            "In My Directory, filter saved resources by Used in My Maps or Not used in My Maps. Select unused resources and review the removal confirmation. Bulk removal protects resources used in your maps. Unsaving an Offering can remove its saved schedule source from Care Calendar; check that warning before confirming."
+            "In My Directory, filter saved resources by Used in Care Maps or Not used in Care Maps. Select unused resources and review the removal confirmation. Bulk removal protects resources used in your maps. Unsaving an Offering can remove its saved schedule source from Care Calendar; check that warning before confirming."
           ],
           "steps": [],
           "notes": []
@@ -430,7 +430,7 @@
           "id": "saved-resource-removal",
           "title": "Remove a saved resource from My Directory",
           "paragraphs": [
-            "If you mean removing a Place or Offering from your own saved list, open My Directory and choose its Unsave or Remove saved control. This changes your saved list; it does not delete the public listing or remove that resource from a My Map. Review any confirmation before bulk removal."
+            "If you mean removing a Place or Offering from your own saved list, open My Directory and choose its Unsave or Remove saved control. This changes your saved list; it does not delete the public listing or remove that resource from a Care Map. Review any confirmation before bulk removal."
           ],
           "steps": [],
           "notes": []
@@ -476,7 +476,7 @@
     {
       "id": "HC-06",
       "slug": "understand-saved-resources-my-maps-my-places-and-managed-resources",
-      "title": "Understand Saved Resources, My Maps, My Places and managed resources",
+      "title": "Understand Saved Resources, Care Maps, My Places and managed resources",
       "summary": "Choose the personal directory section you need and understand separate editing rights.",
       "category": "find-and-save",
       "audiences": [
@@ -514,7 +514,7 @@
           "id": "directory-export-boundary",
           "title": "Export all of My Directory",
           "paragraphs": [
-            "I cannot verify a one-click export of every saved resource in My Directory. Export Map Assets belongs to an individual My Map and exports that map’s resource workbook, not your whole saved list. If you need a particular map’s list, open that owned map in My Directory and use Export Map Assets. Review the file before sharing it, especially if your map contains private planning places."
+            "I cannot verify a one-click export of every saved resource in My Directory. Export Map Assets belongs to an individual Care Map and exports that map’s resource workbook, not your whole saved list. If you need a particular map’s list, open that owned map in My Directory and use Export Map Assets. Review the file before sharing it, especially if your map contains private planning places."
           ],
           "steps": [],
           "notes": []
@@ -534,8 +534,8 @@
     {
       "id": "HC-07",
       "slug": "create-a-my-map",
-      "title": "Create a My Map",
-      "summary": "Sign in and open My Directory → My Maps. You can choose saved resources or find more resources within the creation dialog.",
+      "title": "Create a Care Map",
+      "summary": "Sign in and open My Directory → Care Maps. You can choose saved resources or find more resources within the creation dialog.",
       "category": "my-maps",
       "audiences": [
         "guest",
@@ -554,14 +554,14 @@
           "id": "create-map",
           "title": "Create your map",
           "paragraphs": [
-            "Sign in and open My Directory → My Maps. You can choose saved resources or find more resources within the creation dialog."
+            "Sign in and open My Directory → Care Maps. You can choose saved resources or find more resources within the creation dialog."
           ],
           "steps": [
             "Choose Create map and enter a map name.",
             "Select the saved resources you want in this map. To search other available resources, use Search saved and all resources.",
             "For an available unsaved result, choose Save and add; review the selected resources.",
             "Choose Create map to finish.",
-            "Wait for the new map to open, then check its name and resource list. If creation reports an error, check My Maps before trying to create it again."
+            "Wait for the new map to open, then check its name and resource list. If creation reports an error, check Care Maps before trying to create it again."
           ],
           "notes": [
             "A map needs a name and at least one selected resource before Create map is available.",
@@ -571,9 +571,9 @@
         },
         {
           "id": "help-maps",
-          "title": "Create and manage My Maps",
+          "title": "Create and manage Care Maps",
           "paragraphs": [
-            "If your signed-in account can use My Directory, open it and choose My Maps to create or open a map. The Create/Manage Resources controls let you search for resources and add them to that map. Use the map menu for Map Studio. Changes to your private map do not silently update an already published Shared Map."
+            "If your signed-in account can use My Directory, open it and choose Care Maps to create or open a map. The Create/Manage Resources controls let you search for resources and add them to that map. Use the map menu for Map Studio. Changes to your private map do not silently update an already published Shared Map."
           ],
           "steps": [],
           "notes": []
@@ -603,10 +603,10 @@
           "id": "update-map-resources",
           "title": "Change this map’s collection",
           "paragraphs": [
-            "Saving a Place or Programme/service adds it to My Directory. You choose separately whether to add it to a particular My Map. Use the map’s resource selection to change this one map."
+            "Saving a Place or Programme/service adds it to My Directory. You choose separately whether to add it to a particular Care Map. Use the map’s resource selection to change this one map."
           ],
           "steps": [
-            "Open a My Map you own and choose Manage resources.",
+            "Open a Care Map you own and choose Manage resources.",
             "Select resources to include and untick resources to leave out. Use the combined search and Save and add for another available listing if needed.",
             "Review the selection and choose Update map.",
             "Wait for the selection dialog to close, then check this map’s resource list. If an error remains, review the current selection before retrying."
@@ -621,16 +621,16 @@
           "id": "map-membership",
           "title": "Saved resources and map membership",
           "paragraphs": [
-            "Saving a resource adds it to My Directory. You choose separately whether to add it to a particular My Map. If a saved Programme/service is missing from a map, open My Directory → My Maps, choose that map and use its resource controls to add the Programme/service. Removing it from a map does not automatically unsave it from My Directory."
+            "Saving a resource adds it to My Directory. You choose separately whether to add it to a particular Care Map. If a saved Programme/service is missing from a map, open My Directory → Care Maps, choose that map and use its resource controls to add the Programme/service. Removing it from a map does not automatically unsave it from My Directory."
           ],
           "steps": [],
           "notes": []
         },
         {
           "id": "my-map-resource-removal",
-          "title": "Remove a resource from one My Map",
+          "title": "Remove a resource from one Care Map",
           "paragraphs": [
-            "If you mean removing a resource from one of your My Maps, open that map and use its resource controls. This changes that map’s membership; it does not unsave the resource from My Directory or delete the public listing. If you mean hiding its pin in a Map Studio view instead, that is a presentation change and the resource card remains available, so check which result you want before editing."
+            "If you mean removing a resource from one of your Care Maps, open that map and use its resource controls. This changes that map’s membership; it does not unsave the resource from My Directory or delete the public listing. If you mean hiding its pin in a Map Studio view instead, that is a presentation change and the resource card remains available, so check which result you want before editing."
           ],
           "steps": [],
           "notes": []
@@ -663,7 +663,7 @@
             "Yes—you can add a missing location as a Personal place. You must be signed in and use a map you own."
           ],
           "steps": [
-            "Open My Directory → My Maps and open your map.",
+            "Open My Directory → Care Maps and open your map.",
             "Select + Personal place.",
             "Select Choose map location, then click or tap the spot on your map.",
             "Enter the place’s name and category.",
@@ -704,7 +704,7 @@
           "title": "Verify an addressed place or choose a genuine map-only point",
           "paragraphs": [
             "An addressed Personal place needs a verified Singapore address and six-digit postal code. Find location fills the returned address and coordinates; check that they describe the intended place.",
-            "Sign in to create or edit your own Personal places. Open My Directory → My Places to edit a place you own, or use the Personal place editor on a My Map you own. Guests can read these instructions but cannot save Personal places."
+            "Sign in to create or edit your own Personal places. Open My Directory → My Places to edit a place you own, or use the Personal place editor on a Care Map you own. Guests can read these instructions but cannot save Personal places."
           ],
           "steps": [
             "In the Personal place editor, enter the address or postal code in the location lookup.",
@@ -844,14 +844,14 @@
           "notes": [
             "The released Studio uses saving-status feedback. Discard abandons unsaved design changes. Do not assume closing a panel means a failed save succeeded.",
             "A saved Studio view does not update a published Shared Map. Use the sharing controls to publish or update the intended view separately.",
-            "New view needs a non-empty name before Create view is available. Duplicate makes another presentation of the same map; it does not duplicate the resource collection into a new My Map."
+            "New view needs a non-empty name before Create view is available. Duplicate makes another presentation of the same map; it does not duplicate the resource collection into a new Care Map."
           ]
         },
         {
           "id": "map-studio",
           "title": "Map Studio views",
           "paragraphs": [
-            "Map Studio saves a presentation of a My Map. Saving or changing a Studio view does not by itself refresh the published Shared Map or its embedded presentation. Select the saved view when explicitly publishing or updating the shared snapshot, then preview the embedded result."
+            "Map Studio saves a presentation of a Care Map. Saving or changing a Studio view does not by itself refresh the published Shared Map or its embedded presentation. Select the saved view when explicitly publishing or updating the shared snapshot, then preview the embedded result."
           ],
           "steps": [],
           "notes": []
@@ -884,7 +884,7 @@
             "Sign in and open a map you own. Export View creates a visual copy; it is separate from the Map Notes PDF and the resource workbook."
           ],
           "steps": [
-            "Open My Directory → My Maps and open your map.",
+            "Open My Directory → Care Maps and open your map.",
             "If you use Map Studio, select the view you want to export and wait for its saved-status confirmation.",
             "Select Export View in the map toolbar. On a phone, open the map menu to find Export View.",
             "Review the export preview, including the title, visible resources, private planning content and the map’s position and zoom.",
@@ -906,7 +906,7 @@
             "Use your owned map’s separate downloads when you need notes or a resource list rather than a picture of the map."
           ],
           "steps": [
-            "Sign in, open My Directory → My Maps and open the map you own.",
+            "Sign in, open My Directory → Care Maps and open the map you own.",
             "For the notes ledger, select Download Map Notes. For an Excel resource workbook, select Export Map Assets. On a phone, find these controls in the map menu.",
             "Wait for the PDF or Excel preparation to finish. If exporting the resource workbook, allow pending Map Studio changes to save first.",
             "Open the downloaded PDF or workbook and check its contents, including any Personal places, before sharing or printing it.",
@@ -921,9 +921,9 @@
         },
         {
           "id": "my-map-exports",
-          "title": "My Map downloads",
+          "title": "Care Map downloads",
           "paragraphs": [
-            "An owned My Map has separate downloads for different purposes: Download Map Notes creates a PDF ledger, and Export Map Assets creates a resource workbook. Use the map image or Export View when you need a visual map. A downloaded file is a snapshot; recheck important provider details before sharing it."
+            "An owned Care Map has separate downloads for different purposes: Download Map Notes creates a PDF ledger, and Export Map Assets creates a resource workbook. Use the map image or Export View when you need a visual map. A downloaded file is a snapshot; recheck important provider details before sharing it."
           ],
           "steps": [],
           "notes": []
@@ -984,7 +984,7 @@
           "id": "saved-to-shared-map",
           "title": "Saving versus publishing a resource on a Shared Map",
           "paragraphs": [
-            "Saving a Place or Programme/service adds it to your My Directory, not automatically to any My Map or Shared Map. Add that saved resource to the particular My Map you own. A published Shared Map is a separate snapshot: explicitly update the shared version and preview it before visitors can see the changed map. The Guide cannot add or publish it for you."
+            "Saving a Place or Programme/service adds it to your My Directory, not automatically to any Care Map or Shared Map. Add that saved resource to the particular Care Map you own. A published Shared Map is a separate snapshot: explicitly update the shared version and preview it before visitors can see the changed map. The Guide cannot add or publish it for you."
           ],
           "steps": [],
           "notes": []
@@ -993,7 +993,7 @@
           "id": "shared-map-viewer-boundary",
           "title": "Who opened a Shared Map",
           "paragraphs": [
-            "The Guide cannot show who opened a Shared Map or identify viewers from chat. The reviewed My Map sharing controls let you inspect and update the published snapshot and stop sharing; I cannot verify an owner-facing viewer list or view-count report there. Review the content and link before sharing, and use Help to describe any reporting need without including other people’s details."
+            "The Guide cannot show who opened a Shared Map or identify viewers from chat. The reviewed Care Map sharing controls let you inspect and update the published snapshot and stop sharing; I cannot verify an owner-facing viewer list or view-count report there. Review the content and link before sharing, and use Help to describe any reporting need without including other people’s details."
           ],
           "steps": [],
           "notes": []
@@ -1002,7 +1002,7 @@
           "id": "website-embeds",
           "title": "Embed a Shared Map on a website",
           "paragraphs": [
-            "From the Share controls of a published My Map, add an approved website, enable Website Embed, save the embed settings, and copy the embed code. The embedded presentation uses the published snapshot rather than unsaved map changes. Preview it and review guest-visible content before placing it on a website."
+            "From the Share controls of a published Care Map, add an approved website, enable Website Embed, save the embed settings, and copy the embed code. The embedded presentation uses the published snapshot rather than unsaved map changes. Preview it and review guest-visible content before placing it on a website."
           ],
           "steps": [],
           "notes": []
@@ -1041,10 +1041,10 @@
           "id": "private-map-note-steps",
           "title": "Write and check a private resource note",
           "paragraphs": [
-            "Add a resource note to a My Map you own. You must be signed in, and the map needs at least one resource to choose. New notes have Share this note turned off."
+            "Add a resource note to a Care Map you own. You must be signed in, and the map needs at least one resource to choose. New notes have Share this note turned off."
           ],
           "steps": [
-            "Open My Directory → My Maps and choose your own map.",
+            "Open My Directory → Care Maps and choose your own map.",
             "Select Map notes, then choose the resource you want to write about.",
             "Enter your note. If the existing note is shown as a preview, select Edit first. Use Add another note when you want a separate note for the same resource.",
             "Keep Share this note off for private planning information. Use Preview if you want to check how the text will read.",
@@ -1063,7 +1063,7 @@
             "Choose sharing separately for each resource note. Marking a note for sharing does not itself update an existing public link."
           ],
           "steps": [
-            "Open your own My Map → Map notes and choose the resource.",
+            "Open your own Care Map → Map notes and choose the resource.",
             "Review the note’s entire text and turn on Share this note only if it is intended for anyone who can open the shared link. Leave other notes switched off.",
             "Check that the note and its sharing choice save successfully. If an error appears, use Save notes when offered before continuing.",
             "Close the note editor and open Share. Choose Publish share link for a map you have not shared, or Update shared link for an existing published map.",
@@ -1077,18 +1077,18 @@
         },
         {
           "id": "my-map-note-edit",
-          "title": "Add a note to a My Map resource",
+          "title": "Add a note to a Care Map resource",
           "paragraphs": [
-            "Open My Directory → My Maps and choose a map you own. Open Map Notes, choose the resource, then enter your note and check that it saves. Each note has its own Share this note switch, which is off by default. Review and explicitly update a published Shared Map before relying on a shared note there. The website embed omits resource notes from its resource rows."
+            "Open My Directory → Care Maps and choose a map you own. Open Map Notes, choose the resource, then enter your note and check that it saves. Each note has its own Share this note switch, which is off by default. Review and explicitly update a published Shared Map before relying on a shared note there. The website embed omits resource notes from its resource rows."
           ],
           "steps": [],
           "notes": []
         },
         {
           "id": "map-note-privacy",
-          "title": "My Map note and annotation sharing",
+          "title": "Care Map note and annotation sharing",
           "paragraphs": [
-            "Resource notes on your My Map stay private unless you enable Share this note for each note. An explicitly published or updated Shared Map snapshot includes the notes marked for sharing. Print annotations have a separate share setting, and a selected Map Studio view can hide annotations in an embedded presentation. Preview the published or embedded view before sharing its link."
+            "Resource notes on your Care Map stay private unless you enable Share this note for each note. An explicitly published or updated Shared Map snapshot includes the notes marked for sharing. Print annotations have a separate share setting, and a selected Map Studio view can hide annotations in an embedded presentation. Preview the published or embedded view before sharing its link."
           ],
           "steps": [],
           "notes": []
@@ -1117,10 +1117,10 @@
           "id": "draw-annotation-steps",
           "title": "Draw and save an annotation on your own map",
           "paragraphs": [
-            "Use annotations to draw a line, box, circle or boundary on a My Map you own. Sign in and use a desktop with a mouse or another fine pointer; the current editor is not available for ordinary phone touch input."
+            "Use annotations to draw a line, box, circle or boundary on a Care Map you own. Sign in and use a desktop with a mouse or another fine pointer; the current editor is not available for ordinary phone touch input."
           ],
           "steps": [
-            "Open My Directory → My Maps and choose your own map.",
+            "Open My Directory → Care Maps and choose your own map.",
             "Choose Edit content → Annotations and wait for the annotation editor to be ready.",
             "Choose Draw line, Draw box, Draw circle or Draw boundary.",
             "For a line, click its start and end points. For a box, click opposite corners. For a circle, click its centre and outer edge. For a boundary, click at least three points, then select Done drawing or press Enter.",
@@ -1169,7 +1169,7 @@
           "id": "embedded-map-notes",
           "title": "Notes in an embedded Shared Map",
           "paragraphs": [
-            "The embedded Shared Map response omits My Map resource notes from its resource rows, including notes marked for sharing. Print annotations are a separate control: only annotations included in the published embed snapshot can appear as an overlay. Preview the actual embed before sharing it; the regular Shared Map page has different note controls."
+            "The embedded Shared Map response omits Care Map resource notes from its resource rows, including notes marked for sharing. Print annotations are a separate control: only annotations included in the published embed snapshot can appear as an overlay. Preview the actual embed before sharing it; the regular Shared Map page has different note controls."
           ],
           "steps": [],
           "notes": []
@@ -1216,7 +1216,7 @@
           "id": "help-detailed-map",
           "title": "Check Detailed map display",
           "paragraphs": [
-            "In Discover, open Map settings to choose Standard or Detailed. Detailed uses the overview map from zoom 14 up to, but not including, zoom 16; zoom 16 or above shows native detail with block numbers where the surface is available. A loading bar appears while Detailed prepares, and you can keep using the map. Discover and your editable My Map use 0.5 steps for the zoom buttons and keyboard; trackpad and pinch zoom stay smooth. My Map and its owner Print View keep native detail from zoom 15. Shared, embedded, and print map controls keep their existing behavior. If the view looks wrong, report the page and zoom level."
+            "In Discover, open Map settings to choose Standard or Detailed. Detailed uses the overview map from zoom 14 up to, but not including, zoom 16; zoom 16 or above shows native detail with block numbers where the surface is available. A loading bar appears while Detailed prepares, and you can keep using the map. Discover and your editable Care Map use 0.5 steps for the zoom buttons and keyboard; trackpad and pinch zoom stay smooth. Care Map and its owner Print View keep native detail from zoom 15. Shared, embedded, and print map controls keep their existing behavior. If the view looks wrong, report the page and zoom level."
           ],
           "steps": [],
           "notes": []
@@ -1283,10 +1283,10 @@
           "id": "map-assets-workbook-steps",
           "title": "Download and review the Excel workbook",
           "paragraphs": [
-            "Export Map Assets downloads an Excel workbook for one My Map you own. Sign in and open that map; this is not an export of your entire My Directory."
+            "Export Map Assets downloads an Excel workbook for one Care Map you own. Sign in and open that map; this is not an export of your entire My Directory."
           ],
           "steps": [
-            "Open My Directory → My Maps and choose the map you want to export.",
+            "Open My Directory → Care Maps and choose the map you want to export.",
             "Review the resources included by the selected Map Studio view before exporting. If you need a different collection, change the view’s resource selections first and let those changes save.",
             "Select Export Map Assets in the map controls. On a phone, open the map’s controls menu to find it.",
             "Wait while the workbook is prepared, then find the downloaded .xlsx file using your browser’s downloads.",
@@ -1303,16 +1303,16 @@
           "id": "resource-export-context",
           "title": "Which resource workbook was downloaded?",
           "paragraphs": [
-            "Which download do you mean? If it is Export Map Assets from an owned My Map, the downloaded resource workbook is a snapshot and does not refresh when listings or the map change. Generate a new download when you need the map’s current resource list, and review provider details and private planning places before sharing it. A workbook from another screen has a different scope; tell me that screen or download label so I can give the matching steps. The Guide cannot re-export or upload a file for you."
+            "Which download do you mean? If it is Export Map Assets from an owned Care Map, the downloaded resource workbook is a snapshot and does not refresh when listings or the map change. Generate a new download when you need the map’s current resource list, and review provider details and private planning places before sharing it. A workbook from another screen has a different scope; tell me that screen or download label so I can give the matching steps. The Guide cannot re-export or upload a file for you."
           ],
           "steps": [],
           "notes": []
         },
         {
           "id": "private-map-export-sharing",
-          "title": "Share a private My Map workbook",
+          "title": "Share a private Care Map workbook",
           "paragraphs": [
-            "For an owned My Map, Export Map Assets creates a workbook for that map, not your whole My Directory. Your owner map export can include private planning places, so review the workbook before sharing it with anyone. Sending the file is a separate choice from publishing a Shared Map snapshot, and the file will not track later map changes."
+            "For an owned Care Map, Export Map Assets creates a workbook for that map, not your whole My Directory. Your owner map export can include private planning places, so review the workbook before sharing it with anyone. Sending the file is a separate choice from publishing a Shared Map snapshot, and the file will not track later map changes."
           ],
           "steps": [],
           "notes": []
@@ -1351,7 +1351,7 @@
           ],
           "notes": [
             "You are viewing the version the owner last published. Later private edits appear only after the owner updates the shared link.",
-            "The shared page does not let you add to or edit the owner’s original My Map. Viewing it does not save its resources in your My Directory.",
+            "The shared page does not let you add to or edit the owner’s original Care Map. Viewing it does not save its resources in your My Directory.",
             "If the link no longer opens, ask the owner for a working published link. It may have been unpublished; signing in does not restore an unavailable snapshot."
           ]
         },
@@ -1359,27 +1359,27 @@
           "id": "copy-shared-map-steps",
           "title": "Make your own private copy when offered",
           "paragraphs": [
-            "Copy to My Maps creates a separate private map from the published snapshot. You must be signed in with access to My Maps, be a visitor rather than its owner and have this copy option available."
+            "Copy to Care Maps creates a separate private map from the published snapshot. You must be signed in with access to Care Maps, be a visitor rather than its owner and have this copy option available."
           ],
           "steps": [
             "Open the ordinary Shared Map link and review the snapshot you want to copy.",
             "If you are signed out, use Sign in and return to the shared page after signing in to your existing account.",
-            "Select Copy to My Maps when it is offered. On a phone, open the shared map controls menu to find it.",
-            "Wait for the copy to open as your own My Map. Check its resources and any copied shared notes.",
+            "Select Copy to Care Maps when it is offered. On a phone, open the shared map controls menu to find it.",
+            "Wait for the copy to open as your own Care Map. Check its resources and any copied shared notes.",
             "Edit your own copy using its map controls. Keep it private, or deliberately use Share when you later want to publish your version."
           ],
           "notes": [
             "Your copy does not change the owner’s original and does not automatically follow later updates to that original. It contains the public snapshot rather than the owner’s private map data.",
             "Copied shared resource notes start private in your new map. Review your own sharing choices before publishing your copy.",
             "Copying a map does not give you permission to edit the providers’ public resource listings.",
-            "Copy to My Maps is not offered for every shared-map type: governed shared maps do not support this workflow, and owners already have their original map. If the button is absent, use the view-only page or open the original map you already own. If copying reports an error, check your sign-in and retry only after the problem is resolved."
+            "Copy to Care Maps is not offered for every shared-map type: governed shared maps do not support this workflow, and owners already have their original map. If the button is absent, use the view-only page or open the original map you already own. If copying reports an error, check your sign-in and retry only after the problem is resolved."
           ]
         },
         {
           "id": "shared-map-copy",
           "title": "Copy a Shared Map",
           "paragraphs": [
-            "Only the owner can add a saved resource to the original private My Map. Sharing publishes a view-only snapshot; it does not let a visitor add a Place to your original. When Copy to My Maps is available, a signed-in visitor can make a separate private map from the snapshot and edit their copy; it does not change the original map."
+            "Only the owner can add a saved resource to the original private Care Map. Sharing publishes a view-only snapshot; it does not let a visitor add a Place to your original. When Copy to Care Maps is available, a signed-in visitor can make a separate private map from the snapshot and edit their copy; it does not change the original map."
           ],
           "steps": [],
           "notes": []
@@ -1389,7 +1389,7 @@
     {
       "id": "HC-20",
       "slug": "download-a-town-map-versus-exporting-your-own-my-map",
-      "title": "Download a town map versus exporting your own My Map",
+      "title": "Download a town map versus exporting your own Care Map",
       "summary": "Find town-map downloads and distinguish them from your own map exports.",
       "category": "map-design-and-exports",
       "audiences": [
@@ -1408,7 +1408,7 @@
           "id": "town-map-download-steps",
           "title": "Download a high-detail town map file",
           "paragraphs": [
-            "High-Detail Town Maps provides prepared town-map files in PNG and PDF formats. Sign in with access to My Directory; these downloads are separate from the contents of your own My Maps."
+            "High-Detail Town Maps provides prepared town-map files in PNG and PDF formats. Sign in with access to My Directory; these downloads are separate from the contents of your own Care Maps."
           ],
           "steps": [
             "Open High-Detail Town Maps in the dashboard navigation.",
@@ -1418,8 +1418,8 @@
             "Check your browser’s downloads and open the file to confirm that you chose the intended town and format."
           ],
           "notes": [
-            "These are prepared town-map files; they do not add your saved resources, Personal places or private map notes. Downloading one does not create or change a My Map.",
-            "For your own mapped resources and layout, open an owned My Map and use Export View or its map export controls. Export Map Assets produces a resource workbook rather than this town-map PNG/PDF.",
+            "These are prepared town-map files; they do not add your saved resources, Personal places or private map notes. Downloading one does not create or change a Care Map.",
+            "For your own mapped resources and layout, open an owned Care Map and use Export View or its map export controls. Export Map Assets produces a resource workbook rather than this town-map PNG/PDF.",
             "If search finds no maps, shorten the town name or use Clear search. If the catalogue cannot load, use Try again. If a download fails, check the connection and retry the required format; the preview alone is not confirmation that the full file downloaded."
           ]
         },
@@ -1427,7 +1427,7 @@
           "id": "town-maps",
           "title": "High-Detail Town Maps",
           "paragraphs": [
-            "High-Detail Town Maps are downloadable town-map files in My Directory. They are separate from printing or exporting one of your own My Maps."
+            "High-Detail Town Maps are downloadable town-map files in My Directory. They are separate from printing or exporting one of your own Care Maps."
           ],
           "steps": [],
           "notes": []
@@ -1613,10 +1613,10 @@
           "id": "dated-map-note-steps",
           "title": "Add a dated private map note to Care Calendar",
           "paragraphs": [
-            "Sign in and use a My Map you own. This workflow dates a saved note attached to a map resource; it is not a general appointment form or a provider booking."
+            "Sign in and use a Care Map you own. This workflow dates a saved note attached to a map resource; it is not a general appointment form or a provider booking."
           ],
           "steps": [
-            "Open My Directory → My Maps and open your map.",
+            "Open My Directory → Care Maps and open your map.",
             "Open Map Notes and select the resource you want the note to describe.",
             "Enter the note and wait for its save to finish. Keep Share this note off if the note should remain private.",
             "Select Add to calendar beneath the saved, non-empty note.",
@@ -1669,7 +1669,7 @@
           "id": "calendar-personal-entry",
           "title": "Add a personal date to Care Calendar",
           "paragraphs": [
-            "Care Calendar shows planned sessions from saved Programmes/services and dated notes from your own My Maps. To add a personal date linked to a map resource, open that resource’s Map Notes, save a note, choose Add to Calendar, then enter its title and date. I cannot verify a general appointment-entry button outside those supported sources. A calendar entry is personal planning, not a provider booking."
+            "Care Calendar shows planned sessions from saved Programmes/services and dated notes from your own Care Maps. To add a personal date linked to a map resource, open that resource’s Map Notes, save a note, choose Add to Calendar, then enter its title and date. I cannot verify a general appointment-entry button outside those supported sources. A calendar entry is personal planning, not a provider booking."
           ],
           "steps": [],
           "notes": []
@@ -1678,7 +1678,7 @@
           "id": "plan-date-change",
           "title": "Change the date of a personal plan",
           "paragraphs": [
-            "If your plan is a provider Programme/service session, its time follows that provider’s schedule. Remove the old session from My Plans and add a different current active session if one is offered; changing your plan does not change the provider’s schedule or registration. If you mean a dated My Map note, remove its calendar entry and use Add to Calendar on the saved note to choose another date."
+            "If your plan is a provider Programme/service session, its time follows that provider’s schedule. Remove the old session from My Plans and add a different current active session if one is offered; changing your plan does not change the provider’s schedule or registration. If you mean a dated Care Map note, remove its calendar entry and use Add to Calendar on the saved note to choose another date."
           ],
           "steps": [],
           "notes": []
@@ -2122,7 +2122,7 @@
           "id": "other-account-saved-privacy",
           "title": "Another person’s saved resources",
           "paragraphs": [
-            "The Guide reads only the signed-in account’s saved resources and cannot show a colleague’s saved list from your chat. A colleague may choose to share a selected My Map snapshot, but that is separate from their whole My Directory. Do not use another person’s sign-in details; open My Directory for your own saved resources."
+            "The Guide reads only the signed-in account’s saved resources and cannot show a colleague’s saved list from your chat. A colleague may choose to share a selected Care Map snapshot, but that is separate from their whole My Directory. Do not use another person’s sign-in details; open My Directory for your own saved resources."
           ],
           "steps": [],
           "notes": []
@@ -2204,7 +2204,7 @@
             "Wait for Saved or Already saved, then select Open My Directory to check your private list."
           ],
           "notes": [
-            "Saving does not register you with the provider, grant management rights, or add the resource to a My Map. Check dates, fees, availability and registration with the provider.",
+            "Saving does not register you with the provider, grant management rights, or add the resource to a Care Map. Check dates, fees, availability and registration with the provider.",
             "If no public match appears, try a shorter name, service or address, or use Continue in Discover. If saving reports an error, check My Directory before retrying the same resource save.",
             "Save this search is a separate action that keeps search criteria; it does not save every result."
           ]
@@ -3193,5 +3193,5 @@
       ]
     }
   ],
-  "contentDigest": "44e8b868a4f7680894b00eb6af4e1699a00605902a08172c20d5ffe2851a049d"
+  "contentDigest": "06f62367469c2ca99524efc1afeac369db1423e4a704d80916099b3baaf910e0"
 }

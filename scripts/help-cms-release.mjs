@@ -293,12 +293,22 @@ export async function collectApprovedMedia(publication, config, { fetchImpl = fe
     }
     return [...assets.values()];
 }
-export async function prepareContentCommit(root, publication, config, { media, basePublication, privateDirectory } = {}) {
+export function verifiedPreviousContentDigest({ compiler, root, compiled, previousContentDigest }) {
+    const normalizedDigest = digestValue(compiled);
+    if (previousContentDigest === undefined || previousContentDigest === normalizedDigest) return normalizedDigest;
+    check(DIGEST.test(previousContentDigest || ''), 'the previous content digest is invalid.');
+    const originalDigest = digestValue(compiler.compileHelpContent({ root, normalizeTerminology: false }));
+    check(previousContentDigest === originalDigest,
+        'the previous content digest does not match the exact immutable published snapshot.');
+    return originalDigest;
+}
+export async function prepareContentCommit(root, publication, config, { media, basePublication, privateDirectory, previousContentDigest } = {}) {
     assertPrivateSeedUntracked(root);
     const seed = sourceSeed(root);
     validateSourceIdentities(publication, seed);
     const compiler = await import(pathToFileURL(join(root, 'scripts/build-help-content.mjs')).href);
-    let baseContentDigest = digestValue(compiler.compileHelpContent({ root }));
+    let previousContentRoot = root;
+    let previousCompiled = compiler.compileHelpContent({ root });
     const previousPath = join(root, 'content/help/editorial-corrections.json');
     let previous = existsSync(previousPath) ? jsonFile(previousPath) : { facts: [], topics: [] };
     if (basePublication) {
@@ -308,11 +318,13 @@ export async function prepareContentCommit(root, publication, config, { media, b
         mkdirSync(join(baseRoot, 'content/help/articles'), { recursive: true, mode: 0o700 });
         writeFileSync(join(baseRoot, 'content/help/manifest.json'), JSON.stringify(basePublication.manifest), { mode: 0o600 });
         for (const article of basePublication.articles) writeFileSync(join(baseRoot, canonicalArticlePath(article)), JSON.stringify(article), { mode: 0o600 });
-        const previousCompiled = compiler.compileHelpContent({ root: baseRoot });
-        baseContentDigest = digestValue(previousCompiled);
+        previousContentRoot = baseRoot;
+        previousCompiled = compiler.compileHelpContent({ root: baseRoot });
         previous = deriveEditorialCorrections({ baseline: jsonFile(join(root, 'server/test/fixtures/helpMigrationBaseline.json')),
             compiled: previousCompiled, publication: basePublication, previous });
     }
+    const baseContentDigest = verifiedPreviousContentDigest({ compiler, root: previousContentRoot,
+        compiled: previousCompiled, previousContentDigest });
     for (const file of readdirSync(join(root, 'content/help/articles'))) {
         check(/^hc-\d{2,3}-[a-z0-9]+(?:-[a-z0-9]+)*\.json$/.test(file), 'the canonical article directory contains an unexpected path.');
         rmSync(join(root, 'content/help/articles', file));
@@ -708,7 +720,8 @@ export async function runHelpContentRelease({ root = process.cwd(), env = proces
         command('npm', ['ci', '--no-audit', '--no-fund'], { cwd: root });
         command('npm', ['install', '--prefix', join(privateDirectory, 'tools'), '--no-audit', '--no-fund',
             '--save-exact', 'wrangler@' + config.wranglerVersion], { cwd: privateDirectory });
-        compiled = await prepareContentCommit(root, publication, config, { media, basePublication: latest?.publication, privateDirectory });
+        compiled = await prepareContentCommit(root, publication, config, { media, basePublication: latest?.publication,
+            privateDirectory, previousContentDigest: recovery.contentDigest });
         const allowedContent = { baseVersion: publication.baseContentVersion, baseDigest: compiled.baseContentDigest,
             targetVersion: compiled.version, targetDigest: compiled.contentDigest };
         const firstReadiness = validateRecoverySurfaces(before, allowedContent);

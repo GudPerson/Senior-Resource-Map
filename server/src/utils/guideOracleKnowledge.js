@@ -21,7 +21,7 @@ export function guidePrivateResourceChangeIntent(question = '') {
     if (removingFromOneMap && !removingFromDirectory) return 'map';
     if (removingFromDirectory && !removingFromOneMap && !/\b(?:bulk|multiple|many|all)\b/.test(query)) return 'saved';
     const contexts = [
-        /\bmy\s+maps?\b/.test(query) ? 'map' : null,
+        /\b(?:my|care)\s+maps?\b/.test(query) ? 'map' : null,
         /\bmy\s+plans?\b/.test(query) ? 'plans' : null,
         /\bmy\s+directory\b|\bsaved\b|\bunsave\b/.test(query) ? 'saved' : null,
     ].filter(Boolean);
@@ -57,7 +57,7 @@ function guideProviderPlanPrivacyIntent(question = '') {
 
 export function guideUnverifiedWorkflowIntent(question = '') {
     const query = String(question).toLowerCase().replace(/[’']/g, '').trim();
-    if (/\bmy\s+maps?\b/.test(query)
+    if (/\b(?:my|care)\s+maps?\b/.test(query)
         && /\b(?:edit|change|update)\b/.test(query)
         && /\b(?:resources?|places?|programmes?|programs?|services?|offerings?)\b/.test(query)) return 'map-resource-edit';
     if (/\bmy\s+plans?\b/.test(query)
@@ -66,12 +66,12 @@ export function guideUnverifiedWorkflowIntent(question = '') {
     if (/\b(?:my directory|saved)\b/.test(query)
         && /\b(?:hide|unhide)\b/.test(query)
         && /\b(?:resources?|places?|programmes?|programs?|services?|offerings?)\b/.test(query)) return 'saved-resource-hide';
-    if (/\b(?:my maps?|map assets?|map notes?)\b/.test(query)
+    if (/\b(?:(?:my|care) maps?|map assets?|map notes?)\b/.test(query)
         && /\b(?:import|upload)\b/.test(query)
         && /\b(?:workbook|spreadsheet|excel|csv|xlsx)\b/.test(query)) return 'map-workbook';
     if (/\barchive\b/.test(query)
         && /\b(?:resources?|places?|programmes?|programs?|services?|offerings?|listings?|groups?)\b/.test(query)
-        && !/\b(?:my maps?|my directory|my plans?|personal places?|saved)\b/.test(query)
+        && !/\b(?:(?:my|care) maps?|my directory|my plans?|personal places?|saved)\b/.test(query)
         && !/\b(?:governance|coordination|org|region)\s+groups?\b/.test(query)) return 'resource-archive';
     return null;
 }
@@ -80,8 +80,8 @@ export function answerGuideUnverifiedWorkflow(question = '') {
     const intent = guideUnverifiedWorkflowIntent(question);
     if (intent === 'map-resource-edit') return {
         topicId: 'unverified-workflow',
-        message: 'Do you mean changing a resource’s place on your My Map, or editing the public Place or Offering listing? Those are separate controls. Open your My Map for map changes; public listing edits require access to that specific resource in Manage My Resources.',
-        actions: [{ label: 'Open My Maps', route: '/my-directory' }],
+        message: 'Do you mean changing a resource’s place on your Care Map, or editing the public Place or Offering listing? Those are separate controls. Open your Care Map for map changes; public listing edits require access to that specific resource in Manage My Resources.',
+        actions: [{ label: 'Open Care Maps', route: '/my-directory' }],
     };
     if (intent === 'plan-resource-edit') return {
         topicId: 'unverified-workflow',
@@ -95,8 +95,8 @@ export function answerGuideUnverifiedWorkflow(question = '') {
     };
     if (intent === 'map-workbook') return {
         topicId: 'unverified-workflow',
-        message: 'I cannot verify a workbook-upload workflow for My Maps. Asset Workbook Tools create or update directory resources in Admin Data Tools; they do not add a resource to one of your My Maps. Open My Maps to use its current resource controls, or ask about bulk directory import if that is what you mean.',
-        actions: [{ label: 'Open My Maps', route: '/my-directory' }],
+        message: 'I cannot verify a workbook-upload workflow for Care Maps. Asset Workbook Tools create or update directory resources in Admin Data Tools; they do not add a resource to one of your Care Maps. Open Care Maps to use its current resource controls, or ask about bulk directory import if that is what you mean.',
+        actions: [{ label: 'Open Care Maps', route: '/my-directory' }],
     };
     if (intent === 'resource-archive') return {
         topicId: 'unverified-workflow',
@@ -116,7 +116,7 @@ function eligibleGuideOracleFact(fact, query) {
     if (fact.id === 'saved-to-shared-map' && !/\bshared\s+maps?\b/.test(query)) return false;
     if (fact.id.startsWith('offering-template-') && /\b(?:workbook|spreadsheet|xlsx|csv|excel|boundary|metadata)\b/.test(query)) return false;
     if (fact.id === 'map-note-privacy' && !/\bmap\b|\bshare(?:d)?\s+link\b/i.test(query)) return false;
-    if (fact.id === 'my-map-note-edit' && !/\bmap\b|\bmy\s+maps\b/i.test(query)) return false;
+    if (fact.id === 'my-map-note-edit' && !/\bmap\b|\b(?:my|care)\s+maps\b/i.test(query)) return false;
     return true;
 }
 
@@ -267,7 +267,7 @@ export function answerGuideOracleFact(question = '') {
     const otherPersonMapAdditionQuestion = /\b(?:someone\s+else|another\s+user|other\s+people|friends?|visitors?|colleagues?)\b/i.test(question)
         && /\b(?:add|insert|contribute)\b/i.test(question)
         && /\b(?:places?|programmes?|programs?|services?|resources?)\b/i.test(question)
-        && /\bmy\s+(?:private\s+)?maps?\b/i.test(question);
+        && /\b(?:my\s+(?:private\s+)?(?:care\s+)?maps?|care\s+maps?)\b/i.test(question);
     const savedToSharedMapQuestion = /\b(?:sav(?:e|ed|ing)|bookmark|heart)\b/i.test(question)
         && /\b(?:places?|programmes?|programs?|services?|resources?)\b/i.test(question)
         && /\bshared\s+maps?\b/i.test(question)
@@ -293,10 +293,10 @@ export function answerGuideOracleFact(question = '') {
     const savedNotOnMapQuestion = /\b(?:saved|favo(?:u)?rit\w*)\b/i.test(question)
         && /\b(?:programmes?|programs?|services?|places?|resources?)\b/i.test(question)
         && /\b(?:not\s+showing|missing|not\s+on|doesn.t\s+appear)\b/i.test(question)
-        && /\bmy\s+maps?\b/i.test(question);
+        && /\b(?:my|care)\s+maps?\b/i.test(question);
     const savedToMyMapQuestion = /\b(?:save|saved|bookmark|heart)\b/i.test(question)
         && /\b(?:places?|programmes?|programs?|services?|resources?)\b/i.test(question)
-        && /\bmy\s+maps?\b/i.test(question)
+        && /\b(?:my|care)\s+maps?\b/i.test(question)
         && /\b(?:appear|show|add|automatic\w*)\b/i.test(question);
     const savedResourceMissingQuestion = /\b(?:saved|favo(?:u)?rit\w*)\b/i.test(question)
         && /\b(?:places?|programmes?|programs?|services?|offerings?|resources?|listings?)\b/i.test(question)
@@ -355,7 +355,7 @@ export function answerGuideOracleFact(question = '') {
         && /\b(?:programmes?|programs?|services?|offerings?|activities?)\b/i.test(question)
         && /\b(?:places?|centres?|centers?|hosts?)\b/i.test(question)
         && /\b(?:another|different|new|other|from\s+one|linked|host)\b/i.test(question)
-        && !/\b(?:my\s+maps?|my\s+plans?|care\s+calendar|saved)\b/i.test(question);
+        && !/\b(?:(?:my|care)\s+maps?|my\s+plans?|care\s+calendar|saved)\b/i.test(question);
     const offeringMultiHostQuestion = /\b(?:create|make|link|add|run)\b/i.test(question)
         && /\b(?:one|single|same|a)\s+(?:programmes?|programs?|services?|offerings?|activities?)\b/i.test(question)
         && /\b(?:several|multiple|two|more\s+than\s+one|different)\s+(?:places?|centres?|centers?|hosts?)\b/i.test(question);
@@ -399,7 +399,7 @@ export function answerGuideOracleFact(question = '') {
         && /\b(?:places?|programmes?|programs?|services?|offerings?|listings?|schedules?)\b/i.test(question)
         && !/\bdraft\b/i.test(question);
     const privateMapExportQuestion = /\b(?:private|personal)\b/i.test(question)
-        && /\bmy\s+maps?\b/i.test(question)
+        && /\b(?:my|care)\s+maps?\b/i.test(question)
         && /\b(?:export|download|excel|spreadsheet)\b/i.test(question)
         && /\b(?:shar(?:e|ed|ing)|send|email|give)\b/i.test(question);
     const volunteerPlaceCreationQuestion = /\bvolunteers?\b/i.test(question)

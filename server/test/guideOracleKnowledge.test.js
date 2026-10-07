@@ -182,7 +182,7 @@ test('Reviewed Oracle facts have stable sources and retrieve product distinction
     assert.match(answerGuideOracleFact('Can I download a list of resources on my map?').message,
         /Export Map Assets creates a resource workbook/is);
     assert.match(answerGuideOracleFact('Can visitors see my private notes in an embedded map?').message,
-        /omits My Map resource notes.*Print annotations are a separate control/is);
+        /omits Care Map resource notes.*Print annotations are a separate control/is);
     assert.equal(answerGuideOracleFact('Can visitors see my private notes on a Shared Map?').topicId, 'map-note-privacy');
     assert.match(answerGuideOracleFact('How do I search for support near me?').message,
         /Open Discover.*6-digit Singapore postal code.*Locate Me/is);
@@ -202,7 +202,7 @@ test('Reviewed Oracle facts have stable sources and retrieve product distinction
     assert.match(answerGuideOracleFact('How do I find wheelchair-accessible programmes nearby?').message,
         /keyword.*postal code.*cannot verify a dedicated wheelchair-accessibility filter.*confirm.*provider/is);
     assert.match(answerGuideOracleFact('Can I export my whole My Directory as Excel?').message,
-        /cannot verify a one-click export.*individual My Map.*not your whole saved list/is);
+        /cannot verify a one-click export.*individual Care Map.*not your whole saved list/is);
     assert.match(answerGuideOracleFact('Does saving a Place make my whole directory public?').message,
         /not a public list.*not your whole saved list/is);
     assert.equal(answerGuideOracleFact('Can my colleague see my saved resources?').topicId, 'saved-list-privacy');
@@ -213,7 +213,7 @@ test('Reviewed Oracle facts have stable sources and retrieve product distinction
     assert.match(answerGuideOracleFact('Can a volunteer create a Place for our organisation?').message,
         /Volunteer.*does not establish.*New Place.*account.*scope/is);
     assert.match(answerGuideOracleFact('Can I export my private map and share the Excel file?').message,
-        /owned My Map.*Export Map Assets.*private planning places.*review.*sharing/is);
+        /owned Care Map.*Export Map Assets.*private planning places.*review.*sharing/is);
     assert.equal(answerGuideOracleFact('Can I download a resource list from my map?').topicId, 'my-map-exports');
     assert.notEqual(answerGuideOracleFact('How do I change text size for accessibility?')?.topicId,
         'accessibility-search-boundary');
@@ -336,7 +336,7 @@ test('Everyday account and sharing questions keep distinct reviewed boundaries',
     for (const [question, topicId, expected, actionLabel] of [
         ['How do I remove a Programme from one map but keep it saved?', 'my-map-resource-removal', /does not unsave the resource/, 'Open My Directory'],
         ['How do I remove a Programme from My Directory?', 'saved-resource-removal', /saved list.*does not delete the public listing/s],
-        ['How do I remove a saved Place from My Directory but leave it on My Map?', 'saved-resource-removal', /does not.*remove that resource from a My Map/s],
+        ['How do I remove a saved Place from My Directory but leave it on My Map?', 'saved-resource-removal', /does not.*remove that resource from a Care Map/s],
         ['Can I delete a Programme from My Plans?', 'remove-plan', /does not delete the provider/],
         ['What is the difference between a Place and a Programme?', 'resource-types', /physical resource.*activity or support offering/s],
         ['Can I register for a Programme through CareAround?', 'provider-contact', /cannot message or register/],
@@ -353,8 +353,8 @@ test('Everyday account and sharing questions keep distinct reviewed boundaries',
         ['How do I correct a centre opening hour on its public listing?', 'place-contact-edit', /Location.*Guide cannot change/s],
         ['Can another provider edit a Place I added to my Resource Group?', 'group-other-provider-members', /does not transfer its ownership.*permission to edit/s],
         ['How do I delete my account and personal data?', 'account-deletion-help', /cannot delete your account.*request is not confirmation/s, 'Draft a support report'],
-        ['Can I add a personal appointment to Care Calendar?', 'calendar-personal-entry', /dated notes from your own My Maps.*general appointment-entry button/s],
-        ['How do I change the date of a personal plan?', 'plan-date-change', /follows that provider’s schedule.*dated My Map note/s],
+        ['Can I add a personal appointment to Care Calendar?', 'calendar-personal-entry', /dated notes from your own Care Maps.*general appointment-entry button/s],
+        ['How do I change the date of a personal plan?', 'plan-date-change', /follows that provider’s schedule.*dated Care Map note/s],
     ]) {
         const response = await router.request('/answer', { method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -404,7 +404,7 @@ test('Guide gives reviewed concept answers without model invention and lists rel
     assert.equal(calls, 0);
     const ai = await (await post('How do I create a map?')).json();
     assert.equal(ai.answerSource, 'ai');
-    assert.ok(ai.sources.some((source) => source.title === 'Create and manage My Maps'));
+    assert.ok(ai.sources.some((source) => source.title === 'Create and manage Care Maps'));
     assert.equal(calls, 1);
 });
 

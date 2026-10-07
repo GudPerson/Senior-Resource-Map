@@ -665,7 +665,7 @@ export default function MyDirectoryPage() {
                     />
                     <div className="mx-auto w-full max-w-[1680px] px-4 py-8 sm:px-6 lg:px-8 2xl:px-10">
                         <header className={`mb-6 border border-slate-200 bg-white shadow-sm ${isCompactDirectory ? 'rounded-[28px] px-4 py-5' : 'rounded-3xl px-5 py-6 sm:px-6'}`}>
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{sectionLabel}</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{t('careMap')}</p>
                             <h1 className={`mt-2 font-bold tracking-tight text-slate-900 ${isCompactDirectory ? 'text-[1.9rem]' : 'text-3xl'}`}>{t('myDirectory')}</h1>
                             <p className={`mt-2 max-w-2xl text-slate-500 ${isCompactDirectory ? 'text-[13px] leading-6' : 'text-sm'}`}>
                                 {activeSection === DIRECTORY_SECTIONS.maps

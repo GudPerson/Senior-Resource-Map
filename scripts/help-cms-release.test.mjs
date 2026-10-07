@@ -9,7 +9,7 @@ import {
     digestValue, sha256Bytes, httpsOrigin, readReleaseConfiguration, assertPrivateAutomation,
     validateSnapshot, validateOwnerReview, assertContentOnlyPaths, validateBaseSource, validateSourceIdentities,
     deriveEditorialCorrections, collectApprovedMedia, readBoundedBytes, verifyPublicArtifacts, verifyOrdinaryHtmlDelivery,
-    pairedRelease, observeVerifiedPublicRelease, deploymentArguments, pagesDeployment, runnerReceipt, assertLatestHelpContentForAppRelease, validatedWranglerPath, validateRecoverySurfaces, priorReleaseState, postReceipt, postCheckpoint, uncommittedContentPaths, assertPrivateSeedUntracked,
+    pairedRelease, observeVerifiedPublicRelease, deploymentArguments, pagesDeployment, runnerReceipt, assertLatestHelpContentForAppRelease, validatedWranglerPath, validateRecoverySurfaces, priorReleaseState, postReceipt, postCheckpoint, uncommittedContentPaths, assertPrivateSeedUntracked, verifiedPreviousContentDigest,
 } from './help-cms-release.mjs';
 
 const revision = 'a'.repeat(40), buildRevision = 'b'.repeat(40);
@@ -667,6 +667,9 @@ async function compiledCorpusPublication(t, mutate) {
     const frozenPath = join(root, 'server/test/fixtures/helpMigrationBaseline.json');
     const frozenBytes = readFileSync(frozenPath);
     const frozen = JSON.parse(frozenBytes.toString('utf8'));
+    const registryPath = join(root, 'content/help/editorial-corrections.json');
+    const registryBytes = readFileSync(registryPath);
+    const previousRegistry = JSON.parse(registryBytes.toString('utf8'));
     const workspace = cmsSeedWorkspace(seed);
     mutate(workspace);
     const publication = prepareCmsPublication(workspace, { seed, owner: review.owner, reviewNote: 'Reviewed fixture-only owner change.',
@@ -676,11 +679,47 @@ async function compiledCorpusPublication(t, mutate) {
     writeFileSync(join(contentRoot, 'content/help/manifest.json'), JSON.stringify(publication.manifest));
     for (const item of publication.articles) writeFileSync(join(contentRoot, 'content/help/articles', item.id.toLowerCase() + '-' + item.slug + '.json'), JSON.stringify(item));
     const built = compileHelpContent({ root: contentRoot });
-    const registry = deriveEditorialCorrections({ baseline: frozen, compiled: built, publication });
+    const registry = deriveEditorialCorrections({ baseline: frozen, compiled: built, publication, previous: previousRegistry });
     assert.equal(frozen.facts.length, 105); assert.equal(frozen.topics.length, 12);
     assert.deepEqual(readFileSync(frozenPath), frozenBytes);
-    return { registry, built, publication };
+    assert.deepEqual(readFileSync(registryPath), registryBytes);
+    return { registry, built, publication, contentRoot, previousRegistry };
 }
+test('application terminology release accepts only the normalized or exact original compilation of its immutable previous snapshot', async t => {
+    const { built, publication, contentRoot } = await compiledCorpusPublication(t, () => {});
+    const compiler = await import('./build-help-content.mjs');
+    const original = compiler.compileHelpContent({ root: contentRoot, normalizeTerminology: false });
+    const originalDigest = digestValue(original), normalizedDigest = digestValue(built);
+    assert.notEqual(originalDigest, normalizedDigest);
+    const options = { compiler, root: contentRoot, compiled: built };
+    assert.equal(verifiedPreviousContentDigest(options), normalizedDigest);
+    assert.equal(verifiedPreviousContentDigest({ ...options, previousContentDigest: normalizedDigest }), normalizedDigest);
+    assert.equal(verifiedPreviousContentDigest({ ...options, previousContentDigest: originalDigest }), originalDigest);
+    assert.deepEqual(built.articles.map(({ id, slug, visibility, articleRoute }) => ({ id, slug, visibility, articleRoute })),
+        original.articles.map(({ id, slug, visibility, articleRoute }) => ({ id, slug, visibility, articleRoute })));
+    assert.deepEqual(built.facts.map(({ id, route, articleId, sectionId, visibility }) => ({ id, route, articleId, sectionId, visibility })),
+        original.facts.map(({ id, route, articleId, sectionId, visibility }) => ({ id, route, articleId, sectionId, visibility })));
+    assert.throws(() => verifiedPreviousContentDigest({ ...options, previousContentDigest: 'f'.repeat(64) }), /exact immutable published snapshot/);
+    assert.throws(() => verifiedPreviousContentDigest({ ...options, previousContentDigest: 'invalid' }), /digest is invalid/);
+    assert.throws(() => validateRecoverySurfaces(['help', 'guide', 'client'].map(target => ({ target,
+        version: publication.version, contentDigest: 'f'.repeat(64) })), {
+        baseVersion: publication.version, baseDigest: originalDigest, targetVersion: 'next.cms.version', targetDigest: normalizedDigest,
+    }), /neither the approved base nor the exact recovery snapshot/);
+});
+test('an original digest from another publication cannot authorise a changed immutable snapshot', async t => {
+    const { built, publication, contentRoot } = await compiledCorpusPublication(t, () => {});
+    const compiler = await import('./build-help-content.mjs');
+    const originalDigest = digestValue(compiler.compileHelpContent({ root: contentRoot, normalizeTerminology: false }));
+    const entry = publication.articles.find(value => value.visibility === 'public' && value.sections.some(section => section.paragraphs?.length));
+    const file = join(contentRoot, 'content/help/articles', entry.id.toLowerCase() + '-' + entry.slug + '.json');
+    const changed = JSON.parse(readFileSync(file, 'utf8'));
+    changed.sections.find(section => section.paragraphs?.length).paragraphs[0] += ' Different fixture-only published wording.';
+    writeFileSync(file, JSON.stringify(changed));
+    const changedCompiled = compiler.compileHelpContent({ root: contentRoot });
+    assert.notEqual(digestValue(changedCompiled), digestValue(built));
+    assert.throws(() => verifiedPreviousContentDigest({ compiler, root: contentRoot, compiled: changedCompiled,
+        previousContentDigest: originalDigest }), /exact immutable published snapshot/);
+});
 test('the full 105-fact/12-topic corpus compiles a reviewed owner edit without changing the frozen baseline', async t => {
     const result = await compiledCorpusPublication(t, workspace => {
         const entry = workspace.articles.find(item => item.sections.some(section => section.facts.some(value => value.id === 'help-overview')));
@@ -689,7 +728,14 @@ test('the full 105-fact/12-topic corpus compiles a reviewed owner edit without c
     });
     assert.equal(result.registry.facts.find(entry => entry.id === 'help-overview').kind, 'changed');
     assert.equal(result.registry.topics.find(entry => entry.id === 'overview').kind, 'changed');
-    assert.equal(result.registry.facts.some(entry => entry.id === 'my-map-exports'), false);
+    assert.notEqual(result.registry.facts.find(entry => entry.id === 'help-overview').expectedDigest,
+        result.previousRegistry.facts.find(entry => entry.id === 'help-overview')?.expectedDigest);
+    for (const entry of result.previousRegistry.facts.filter(entry => entry.id !== 'help-overview')) {
+        assert.deepEqual(result.registry.facts.find(value => value.id === entry.id), entry);
+    }
+    for (const entry of result.previousRegistry.topics.filter(entry => entry.id !== 'overview')) {
+        assert.deepEqual(result.registry.topics.find(value => value.id === entry.id), entry);
+    }
 });
 test('the full corpus archives an article and retires its fact/topic evidence through one owner-reviewed compilation', async t => {
     const result = await compiledCorpusPublication(t, workspace => {

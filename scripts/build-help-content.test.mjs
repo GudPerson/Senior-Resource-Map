@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { compileHelpContent, generateHelpContent } from './build-help-content.mjs';
+import './care-map-terminology.test.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -158,7 +159,7 @@ test('published Personal place procedure has full verified steps and boundaries'
     const article = compiled.articles.find(entry => entry.id === procedure.articleId);
     const section = article.sections.find(entry => entry.id === procedure.sectionId);
     assert.match(section.paragraphs.join(' '), /signed in.*map you own/i);
-    const orderedClauses = [/My Directory.*My Maps/, /\+ Personal place/, /Choose map location.*click or tap/,
+    const orderedClauses = [/My Directory.*Care Maps/, /\+ Personal place/, /Choose map location.*click or tap/,
         /name and category/, /address or postal code.*Find location/, /Review.*Save/];
     assert.equal(section.steps.length, orderedClauses.length);
     section.steps.forEach((step, index) => assert.match(step, orderedClauses[index], 'Ordered step ' + (index + 1)));
@@ -179,7 +180,7 @@ test('Personal place location verification is complete when read independently o
     ].join('\n\n'));
     assert.match(procedure.message, /Sign in.*your own Personal places/);
     assert.match(procedure.message, /My Directory → My Places.*place you own/);
-    assert.match(procedure.message, /My Map you own/);
+    assert.match(procedure.message, /Care Map you own/);
     assert.match(procedure.message, /Guests.*cannot save Personal places/);
     assert.match(section.steps[1], /Find location.*review/);
     assert.match(section.steps[2], /change the address, postal code or coordinates.*verify.*again/);

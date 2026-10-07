@@ -63,7 +63,7 @@ export function answerGuidePlans({ question, actor, plans } = {}) {
     };
     const actions = [{ label: 'Open My Plans', route: MY_PLANS_ROUTE }];
     if (intent === 'navigation') return {
-        topicId: 'my-plans', message: 'Open Care Calendar and choose My Plans to see sessions you planned and dated My Map notes.', actions,
+        topicId: 'my-plans', message: 'Open Care Calendar and choose My Plans to see sessions you planned and dated Care Map notes.', actions,
     };
     if (!plans) return null;
     if (!plans.totalCount) return {
@@ -76,7 +76,7 @@ export function answerGuidePlans({ question, actor, plans } = {}) {
     const names = plans.sessions.map((item) => `${item.title} (${date(item.startsAt)}${item.status !== 'planned' ? `, ${item.status}` : ''}${item.needsReview ? ', check schedule update' : ''})`);
     return {
         topicId: 'my-plans',
-        message: `This account has ${plans.totalCount} personal plan${plans.totalCount === 1 ? '' : 's'} over the next 60 days: ${plans.sessionCount} planned session${plans.sessionCount === 1 ? '' : 's'} and ${plans.noteCount} dated My Map note${plans.noteCount === 1 ? '' : 's'}. ${names.length ? `Sessions: ${names.join('; ')}${plans.sessionCount > names.length ? '; and more' : ''}. ` : ''}Open My Plans for the full list and current schedule details. A plan is not a provider booking or registration.`,
+        message: `This account has ${plans.totalCount} personal plan${plans.totalCount === 1 ? '' : 's'} over the next 60 days: ${plans.sessionCount} planned session${plans.sessionCount === 1 ? '' : 's'} and ${plans.noteCount} dated Care Map note${plans.noteCount === 1 ? '' : 's'}. ${names.length ? `Sessions: ${names.join('; ')}${plans.sessionCount > names.length ? '; and more' : ''}. ` : ''}Open My Plans for the full list and current schedule details. A plan is not a provider booking or registration.`,
         actions,
     };
 }

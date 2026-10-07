@@ -169,7 +169,7 @@ async function loadOwnedMapNoteContext(db, userId, noteId) {
         .limit(1);
 
     if (!rows[0]) {
-        throw createHttpError(404, 'Private My Map note not found.');
+        throw createHttpError(404, 'Private Care Map note not found.');
     }
     return rows[0];
 }
@@ -177,7 +177,7 @@ async function loadOwnedMapNoteContext(db, userId, noteId) {
 function defaultNoteTitle(context) {
     const noteText = String(context?.noteText || '').replace(/\s+/g, ' ').trim();
     if (noteText) return noteText.slice(0, 120);
-    return `${context?.mapName || 'My Map'} note`;
+    return `${context?.mapName || 'Care Map'} note`;
 }
 
 export function serializePersonalItem(
@@ -377,7 +377,7 @@ export const getCalendarMapNote = async (c) => {
         });
     } catch (error) {
         console.error(error);
-        return sendCalendarError(c, error, 'Failed to load My Map note.');
+        return sendCalendarError(c, error, 'Failed to load Care Map note.');
     }
 };
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { HELP_CMS_SEED } from '../server/src/generated/helpCmsSeed.js';
 import { cmsSeedWorkspace, validateCmsWorkspace, prepareCmsPublication, createCmsCategory, createCmsArticle, changeCmsArticleStatus, reorderCmsItems, validateCmsImage, safeCmsVideoUrl } from '../shared/helpContentCms.js';
 import { compileHelpContent } from './build-help-content.mjs';
+import { normalizeCareMapTerminology } from '../shared/careMapTerminology.js';
 import { cmsAddStep, cmsGuideMessages, cmsRemoveStep } from '../client/src/features/help-content/helpContentDraftModel.js';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -109,7 +110,7 @@ test('an empty HC-01 section can add instructions and survive save/reload/public
  validateCmsWorkspace(saved, HELP_CMS_SEED);
  const published = prepareCmsPublication(saved, options), compiled = compile(t, published);
  const actual = compiled.facts.find(f => f.id === original.facts[0].id);
- assert.equal(actual.message, cmsGuideMessages(section)[0].text);
+ assert.equal(actual.message, normalizeCareMapTerminology({ message: cmsGuideMessages(section)[0].text }).message);
  assert.match(actual.message, /1\. Open Discover to begin browsing\./);
  assert.match(actual.message, /2\. Open a result to review its details\./);
  assert.match(actual.message, /Check the listing before planning a visit\./);

@@ -18,7 +18,7 @@ export function answerGuideQuestion({ question = '', topicId = '' } = {}, user =
         : scored[0]?.score ? scored[0].topic : null;
     if (!topic) return {
         version: GUIDE_KNOWLEDGE_VERSION, topicId: null,
-        message: 'I can help you find or save a resource, make a My Map, use Care Calendar, report an app problem, or prepare a Programme/service at a Place you manage. Which task did you mean? Keep private and medical details out of chat; confirm care, eligibility, fees, and availability with the provider.',
+        message: 'I can help you find or save a resource, make a Care Map, use Care Calendar, report an app problem, or prepare a Programme/service at a Place you manage. Which task did you mean? Keep private and medical details out of chat; confirm care, eligibility, fees, and availability with the provider.',
         actions: [{ label: 'Draft a report', route: '/help?tab=report' }],
     };
     const signedIn = Boolean(user?.id) && normalizeRole(user.role) !== 'guest';

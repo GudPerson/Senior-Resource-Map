@@ -17,21 +17,43 @@ const workspace = { manifest: { categories: [{ id: 'maps', title: 'My Maps' }, {
 let loaded;
 async function renderers() {
     if (loaded) return loaded;
-    const { outputFiles } = await build({ stdin: { contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import { MemoryRouter, Routes, Route } from 'react-router-dom'; import HelpContentContext from './HelpContentContext.jsx'; import ArticleEditor from './ArticleEditor.jsx'; import HelpCatalogue from './HelpCatalogue.jsx'; import HelpContentPreview, { GuideDraftContent } from './HelpContentPreview.jsx'; import { CmsField } from './CmsControls.jsx'; import HelpContentPublications from './HelpContentPublications.jsx'; export const editor=(article,allowImageUpload=true)=>renderToStaticMarkup(<ArticleEditor article={article} allowImageUpload={allowImageUpload} categories={[{id:'maps',title:'My Maps'}]} onChange={()=>{}} onRemoveStep={()=>{}} onUpload={()=>{}} />); export const context=(workspace,article,disabled=false)=>renderToStaticMarkup(<MemoryRouter initialEntries={['/help-centre/'+article.slug]}><Routes><Route path='/help-centre/:slug' element={<HelpContentContext workspace={workspace} article={article} selectedId={article.id} selectArticle={()=>{}} editArticle={()=>{}} editTopic={()=>{}} tab='editor' openTab={()=>{}} disabled={disabled} uploadBusy={false} allowImageUpload={true} configured={true} dirty={false} canSave={false} save={()=>{}} pendingChanged={()=>{}} mediaUrls={{}} mediaErrors={[]} query='' initialEditing={true} />} /></Routes></MemoryRouter>); export const catalogue=(workspace,showArchived=false)=>renderToStaticMarkup(<HelpCatalogue workspace={workspace} selectedId='HC-09' query='' onQuery={()=>{}} showArchived={showArchived} onShowArchived={()=>{}} onSelect={()=>{}} onAddTopic={()=>{}} onTopicAction={()=>{}} onAddArticle={()=>{}} onTopicPlace={()=>{}} onArticlePlace={()=>{}} />); export const preview=(article)=>renderToStaticMarkup(<MemoryRouter><HelpContentPreview article={article} mediaUrls={{['a'.repeat(64)]:'blob:owner-image',['b'.repeat(64)]:'blob:owner-intro'}} /></MemoryRouter>); export const guide=(article)=>renderToStaticMarkup(<GuideDraftContent article={article} />); export const publications=(releases,publishingAvailable=true,activeReleaseId=null)=>renderToStaticMarkup(<HelpContentPublications releases={releases} publishingAvailable={publishingAvailable} activeReleaseId={activeReleaseId} onRetry={()=>{}} onCheck={()=>{}} />); export const select=()=>renderToStaticMarkup(<CmsField label='Topic'><select value='maps' onChange={()=>{}}><option value='maps'>My Maps</option></select></CmsField>);`, resolveDir: new URL('../src/features/help-content', import.meta.url).pathname, loader: 'jsx' }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.css': 'empty' }, logLevel: 'silent' });
+    const { outputFiles } = await build({ stdin: { contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import { MemoryRouter, Routes, Route } from 'react-router-dom'; import HelpContentContext from './HelpContentContext.jsx'; import ArticleEditor from './ArticleEditor.jsx'; import HelpCatalogue from './HelpCatalogue.jsx'; import HelpContentPreview, { GuideDraftContent } from './HelpContentPreview.jsx'; import { CmsField } from './CmsControls.jsx'; import HelpContentPublications from './HelpContentPublications.jsx'; export const editor=(article,allowImageUpload=true)=>renderToStaticMarkup(<ArticleEditor article={article} allowImageUpload={allowImageUpload} categories={[{id:'maps',title:'My Maps'}]} onChange={()=>{}} onRemoveStep={()=>{}} onUpload={()=>{}} />); export const context=(workspace,article,disabled=false)=>renderToStaticMarkup(<MemoryRouter initialEntries={['/help-centre/'+article.slug]}><Routes><Route path='/help-centre/:slug' element={<HelpContentContext workspace={workspace} article={article} selectedId={article.id} selectArticle={()=>{}} editArticle={()=>{}} editTopic={()=>{}} tab='editor' openTab={()=>{}} disabled={disabled} uploadBusy={false} allowImageUpload={true} configured={true} dirty={false} canSave={false} save={()=>{}} pendingChanged={()=>{}} mediaUrls={{}} mediaErrors={[]} query='' initialEditing={true} />} /></Routes></MemoryRouter>); export const catalogue=(workspace,showArchived=false,query='')=>renderToStaticMarkup(<HelpCatalogue workspace={workspace} selectedId='HC-09' query={query} onQuery={()=>{}} showArchived={showArchived} onShowArchived={()=>{}} onSelect={()=>{}} onAddTopic={()=>{}} onTopicAction={()=>{}} onAddArticle={()=>{}} onTopicPlace={()=>{}} onArticlePlace={()=>{}} />); export const preview=(article)=>renderToStaticMarkup(<MemoryRouter><HelpContentPreview article={article} mediaUrls={{['a'.repeat(64)]:'blob:owner-image',['b'.repeat(64)]:'blob:owner-intro'}} /></MemoryRouter>); export const guide=(article)=>renderToStaticMarkup(<GuideDraftContent article={article} />); export const publications=(releases,publishingAvailable=true,activeReleaseId=null)=>renderToStaticMarkup(<HelpContentPublications releases={releases} publishingAvailable={publishingAvailable} activeReleaseId={activeReleaseId} onRetry={()=>{}} onCheck={()=>{}} />); export const select=()=>renderToStaticMarkup(<CmsField label='Topic'><select value='maps' onChange={()=>{}}><option value='maps'>My Maps</option></select></CmsField>);`, resolveDir: new URL('../src/features/help-content', import.meta.url).pathname, loader: 'jsx' }, bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.css': 'empty' }, logLevel: 'silent' });
     const module = { exports: {} }; new Function('require', 'module', 'exports', outputFiles[0].text)(createRequire(import.meta.url), module, module.exports); loaded = module.exports; return loaded;
 }
 
 test('catalogue shows approved and draft articles while archived items remain an explicit view', async () => {
     const render = await renderers();
     const normal = render.catalogue(workspace);
-    assert.match(normal, /My Maps/); assert.match(normal, /Add a Personal place/);
+    assert.match(normal, /Care Maps/); assert.match(normal, /Add a Personal place/);
     assert.doesNotMatch(normal, /Old topic|Old article/);
     assert.match(normal, /aria-current="true"/);
-    assert.match(normal, /aria-label="Reorder topic my maps"/);
+    assert.match(normal, /aria-label="Reorder topic care maps"/);
     assert.match(normal, /aria-label="Reorder article add a personal place"/);
     assert.doesNotMatch(normal, /class="cms-order"/);
     const archived = render.catalogue(workspace, true);
     assert.match(archived, /Old topic/); assert.match(archived, /Old article/); assert.match(archived, /Archived topic/);
+});
+
+test('owner reading and catalogue display Care Map while raw draft metadata and both search names stay intact', async () => {
+    const render = await renderers();
+    const value = structuredClone(article);
+    value.title = 'Create a My Map';
+    value.summary = 'My Map notes stay private.';
+    value.sections[0].title = 'My Map instructions';
+    value.sections[0].paragraphs = ['Open My Maps.'];
+    value.sections[0].steps = ['Choose My Map.', 'Save My Map.'];
+    value.sections[0].notes = ['My Map notes stay private.'];
+    value.sections[0].facts = [{ id: 'help-my-maps', title: 'My Maps', route: '/my-directory?section=my-maps', message: 'Open My Maps.' }];
+    const draft = { ...structuredClone(workspace), articles: [value] };
+    draft.manifest.articleOrder = [value.id];
+    const before = structuredClone(draft);
+    const html = render.context(draft, value);
+    for (const name of ['Create a Care Map', 'Care Map notes stay private.', 'Care Map instructions', 'Open Care Maps.', 'Choose Care Map.', 'Save Care Map.']) assert.ok(html.includes(name), name);
+    assert.match(html, /<option value="maps" selected="">Care Maps<\/option>/);
+    for (const query of ['My Map', 'Care Map']) assert.match(render.catalogue(draft, false, query), /Create a Care Map/);
+    assert.deepEqual(draft, before);
+    assert.equal(draft.articles[0].sections[0].facts[0].title, 'My Maps');
+    assert.equal(draft.manifest.categories[0].title, 'My Maps');
 });
 
 test('multi-section editor contains per-instruction attachment fields and no global media editor', async () => {

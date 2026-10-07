@@ -52,7 +52,7 @@ test('saved Guide questions use current reviewed facts and avoid stale account l
     assert.equal(staffMessages[1].topicId, 'group-edit');
     assert.match(staffMessages[1].message, /Groups.*Edit/);
     assert.equal(staffMessages[2].topicId, 'unverified-workflow');
-    assert.match(staffMessages[2].message, /cannot verify a workbook-upload workflow for My Maps/);
+    assert.match(staffMessages[2].message, /cannot verify a workbook-upload workflow for Care Maps/);
     assert.equal(staffMessages[3].topicId, 'account-refresh');
     assert.match(staffMessages[3].message, /Ask it again/);
     assert.equal(staffMessages[4].topicId, 'account-refresh');

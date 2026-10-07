@@ -14,9 +14,9 @@ test('Guide gives versioned verified guidance, not invented facts or guest-only 
     assert.match(detailedMap.message, /overview map from zoom 14 up to, but not including, zoom 16/);
     assert.match(detailedMap.message, /zoom 16 or above shows native detail with block numbers/);
     assert.match(detailedMap.message, /loading bar appears while Detailed prepares/);
-    assert.match(detailedMap.message, /editable My Map use 0\.5 steps/);
+    assert.match(detailedMap.message, /editable Care Map use 0\.5 steps/);
     assert.match(detailedMap.message, /trackpad and pinch zoom stay smooth/);
-    assert.match(detailedMap.message, /My Map and its owner Print View keep native detail from zoom 15/);
+    assert.match(detailedMap.message, /Care Map and its owner Print View keep native detail from zoom 15/);
     assert.match(detailedMap.message, /Shared, embedded, and print map controls keep their existing behavior/);
     assert.equal(answerGuideQuestion({ topicId: 'calendar' }, { id: 1, role: 'standard' }).actions[0].route, '/dashboard/calendar');
     assert.equal(answerGuideQuestion({ question: 'Which medicine should I take?' }).topicId, null);

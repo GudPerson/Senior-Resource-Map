@@ -41,7 +41,7 @@ for (const [caseNumber, item] of cases.entries()) {
         if (item.id === 'missing-private-place') {
             const canonical = GUIDE_ORACLE_FACTS.find(fact => fact.id === 'personal-place-map-create');
             assert.equal(answer.message, canonical.message, 'The complete ordered procedure must survive every wording variant.');
-            for (const pattern of [/signed in.*map you own/i, /My Directory.*My Maps/i, /name and category/i, /Review.*Save/i]) assert.match(answer.message, pattern);
+            for (const pattern of [/signed in.*map you own/i, /My Directory.*Care Maps/i, /name and category/i, /Review.*Save/i]) assert.match(answer.message, pattern);
         }
         if (item.answerSource) assert.equal(answer.answerSource, item.answerSource);
         if (item.noAccountRead) assert.equal(accountReads, 0, 'Another person’s facts must not load the current account as a substitute.');
@@ -199,7 +199,7 @@ test('combined map-note and annotation sharing uses complete canonical controls 
             /Preview the actual published or embedded view/, /website embed omits resource-note rows/]) assert.match(answer.message, clause);
         assert.deepEqual(answer.sources.map((source) => source.id), factIds);
         assert.deepEqual(answer.sources.map((source) => source.articleRoute), facts.map((fact) => fact.articleRoute));
-        assert.deepEqual(answer.actions, [{ label: 'Open My Maps', route: '/my-directory?section=my-maps' }]);
+        assert.deepEqual(answer.actions, [{ label: 'Open Care Maps', route: '/my-directory?section=my-maps' }]);
         assert.doesNotMatch(answer.message, /I (?:created|saved|updated|published)|successfully (?:created|saved|published)/i);
     }
     assert.equal(modelCalls, 0);

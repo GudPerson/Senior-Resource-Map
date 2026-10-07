@@ -1,3 +1,5 @@
+import { normalizeCareMapTerminology } from './careMapTerminology.js';
+
 // Shared authoring rules. Runtime permissions stay in the server, never in content.
 export const CMS_LIMITS = Object.freeze({ articles: 200, categories: 40, sections: 24, steps: 60, media: 24, imageBytes: 2 * 1024 * 1024, workspaceBytes: 4 * 1024 * 1024 });
 const slug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -30,8 +32,8 @@ export function cmsSeedWorkspace(seed) {
     return result;
 }
 export function cmsReadingArticle(article) {
-    return { ...copy(article), reviewedAt: article.review?.date, articleRoute: `/help-centre/${article.slug}`,
-        sections: article.sections.map(section => ({ ...copy(section), guideMessage: cmsSectionMessage(section) })) };
+    return normalizeCareMapTerminology({ ...copy(article), reviewedAt: article.review?.date, articleRoute: `/help-centre/${article.slug}`,
+        sections: article.sections.map(section => ({ ...copy(section), guideMessage: cmsSectionMessage(section) })) });
 }
 export function safeCmsVideoUrl(value) {
     try {

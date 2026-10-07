@@ -9,7 +9,14 @@ import { readFile } from 'node:fs/promises';
 // the historical approved sample or silently make it valid for live traffic.
 async function loadPilotPlan() {
     const historicalBytes = await readFile(new URL('../../docs/evidence/guide-oracle-prospective-pilot-20261001.json', import.meta.url));
-    const plan = { ...JSON.parse(historicalBytes), oracleVersion: GUIDE_ORACLE_VERSION, factCount: GUIDE_ORACLE_FACTS.length };
+    const historical = JSON.parse(historicalBytes);
+    const factEvidence = historical.factEvidence.map(({ id }) => {
+        const current = GUIDE_ORACLE_FACTS.find((fact) => fact.id === id);
+        assert.ok(current, 'The fictional collector plan keeps every historical fact identity.');
+        return { id: current.id, title: current.title, message: current.message, route: current.route,
+            evidence: current.evidence, reviewed: current.reviewed };
+    });
+    const plan = { ...historical, oracleVersion: GUIDE_ORACLE_VERSION, factCount: GUIDE_ORACLE_FACTS.length, factEvidence };
     return loadFrozenPilotPlan({ readPlan: async () => Buffer.from(JSON.stringify(plan)) });
 }
 

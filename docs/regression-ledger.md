@@ -1,5 +1,15 @@
 # Regression Ledger
 
+## 2026-10-07 Care Map terminology release candidate
+
+- Current behavior: the My Map feature is named Care Map (Care Maps for collections), and the heading above My Directory uses Care Map across saved resources, maps and personal places. English, Chinese, Malay and Tamil display dictionaries carry the equivalent feature name. Saved Resources retains its meaning as the saved-resource tab, search and count.
+- Scope: display text, shared Help/Guide output, preview labels and matching aliases. Existing URLs, database identities, map names, ownership, privacy, membership, selection, sharing, print/export and locale persistence are unchanged. The compiler preserves canonical authoring metadata and review evidence while rendering the new name; former My Map phrases remain supported for questions.
+- Known-good starting source: public origin/main 27cec45bcb12342e895d02aba1c0c075b0193458 with the latest private published Help library from 6 October. Primary dirty source is preserved in its original branch.
+- Acceptance: My Directory shows Care Map above its title, the map tab and usage controls use Care Maps, the four locales use the new feature name, Help/Guide answers and actions use Care Map, and both old and new question phrases retain the same supported workflow and privacy boundaries. No map, resource, schema, credential, access, AI allowance or production test data changes.
+- Local validation: full quality passes compiler 17, CMS 73, server 1,148, client 922 plus five environment checks and production build. Locked-map checks pass 104. Focused Guide checks pass 229, including eight old/new workflow pairs; Help Centre/Guide acceptance checks pass 91. Rendered owner UI checks pass 15. The exact live immutable library compiles to the expected display-only transformation (48 articles and 196 facts); original and normalized digest guards reject unrelated content. Independent source review preserves routing, privacy, review evidence and editable source objects. Initial missing dependency and stale label assertion failures are retained privately alongside the passing reruns.
+- Release gate: use the normal private publication with the unchanged latest saved library. Post-release require custom-domain byte/SHA-256/MIME parity, exact Worker/Pages provenance and shared Help/Guide/client content identity. Production verification is pending; candidate status is not production acceptance.
+
+
 ## 2026-10-06 Owner sidebar: Help Centre reader-first shortcut
 
 - Reproduction: signed-in content owner opens My Directory or the dashboard. The first sidebar item still reads Help content and enters the owner draft through the legacy CMS redirect.

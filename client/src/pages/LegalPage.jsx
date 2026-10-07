@@ -17,7 +17,7 @@ const PRIVACY_SECTIONS = [
         title: '2. Personal data we may collect',
         body: [
             'Depending on how you use the service, we may collect account details such as your name, username, email address, phone number, login method, role, and account status.',
-            'We may collect location-related details such as postal code, saved places, saved offerings, My Maps, Shared Maps, membership links, and resource interactions needed to provide the directory and map features.',
+            'We may collect location-related details such as postal code, saved places, saved offerings, Care Maps, Shared Maps, membership links, and resource interactions needed to provide the directory and map features.',
             'If you choose to provide them, we may collect optional profile details such as date of birth, CHAS card type, gender, property type, caregiver status, and volunteer interest. These details are used to personalise recommendations or check restricted offerings.',
             'For authorised staff and administrators, we may collect operational records such as resource edits, restricted notes and files, private file uploads, import/export activity, service-area boundaries, and user-management actions.',
             'We may also collect technical information such as device/browser details, request logs, security events, error logs, IP-related metadata, and usage information needed to operate, protect, and troubleshoot the service.',
@@ -26,7 +26,7 @@ const PRIVACY_SECTIONS = [
     {
         title: '3. How we use personal data',
         body: [
-            'We use personal data to create and secure accounts, keep users signed in, provide maps and directories, save resources, support My Maps and Shared Maps, link memberships, and show information that may be relevant to a user.',
+            'We use personal data to create and secure accounts, keep users signed in, provide maps and directories, save resources, support Care Maps and Shared Maps, link memberships, and show information that may be relevant to a user.',
             'We use authorised staff and administrator data to manage resources, approve or restrict access, support imports and exports, maintain service areas, troubleshoot issues, and protect the integrity of CareAround SG.',
             'We may use data to support translation, AI-assisted import or enrichment, media upload, restricted private files, and other operational features, but only where those features are part of the service workflow.',
             'We may use data for security, abuse prevention, audit, compliance, legal obligations, business continuity, and service improvement.',

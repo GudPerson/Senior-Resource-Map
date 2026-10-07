@@ -11,6 +11,49 @@ const makeRouter = (user = { id: 4, role: 'standard' }) => createGuideRoutes({
     authenticate: async (c, next) => { c.set('user', user); await next(); },
 });
 
+test('Care Map questions keep the former My Map workflows and scoped actions', async () => {
+    const router = makeRouter();
+    const env = { SUPPORT_INBOX_ENABLED: 'true' };
+    const headers = { 'cf-connecting-ip': '198.51.100.240' };
+    for (const [question, topicId, expected] of [
+        ['How do I add a missing place to My Map?', 'personal-place-map-create', /signed in.*map you own.*Care Maps.*Personal place/s],
+        ['How do I remove a Place from My Map?', 'my-map-resource-removal', /Care Maps.*does not unsave.*or delete the public listing/s],
+        ['Can I import a workbook into My Map?', 'unverified-workflow', /cannot verify a workbook-upload workflow for Care Maps/],
+        ['How do I add notes to a resource in My Map?', 'my-map-note-edit', /Care Maps.*map you own.*Open Map Notes.*Share this note/s],
+        ['How do I add notes to a resource in My Maps?', 'my-map-note-edit', /Care Maps.*map you own.*Open Map Notes.*Share this note/s],
+        ['Can visitors see my private My Map notes?', 'map-note-privacy', /Care Map stay private unless.*Share this note/s],
+        ['Can someone else add a Place to my private My Map?', 'shared-map-copy', /Only the owner can add.*does not let a visitor add/s],
+        ['How do I create My Maps?', 'maps', /choose Care Maps to create or open a map/],
+    ]) {
+        const renamedQuestion = question.replace(/My Map/g, 'Care Map');
+        const former = await (await post(router, { question, pageContext: 'My Maps' }, env, headers)).json();
+        const renamed = await (await post(router, { question: renamedQuestion, pageContext: 'My Maps' }, env, headers)).json();
+        assert.equal(former.topicId, topicId, question);
+        assert.equal(renamed.topicId, topicId, renamedQuestion);
+        assert.equal(renamed.answerSource, 'reviewed', renamedQuestion);
+        assert.equal(renamed.message, former.message, renamedQuestion);
+        assert.deepEqual(renamed.actions, former.actions, renamedQuestion);
+        assert.deepEqual(renamed.sources, former.sources, renamedQuestion);
+        assert.match(renamed.message, expected, renamedQuestion);
+        assert.doesNotMatch(JSON.stringify({ message: renamed.message, actions: renamed.actions, sources: renamed.sources }), /\bMy Maps?\b/);
+        assert.deepEqual(renamed.input, { question: renamedQuestion });
+    }
+});
+
+test('Care Map map help retains guest sign-in and historical input support', async () => {
+    const router = makeRouter(null);
+    const env = { SUPPORT_INBOX_ENABLED: 'true' };
+    const headers = { 'cf-connecting-ip': '198.51.100.241' };
+    for (const question of ['How do I create My Maps?', 'How do I create Care Maps?']) {
+        const answer = await (await post(router, { question }, env, headers)).json();
+        assert.equal(answer.topicId, 'maps', question);
+        assert.equal(answer.answerSource, 'reviewed', question);
+        assert.match(answer.message, /choose Care Maps to create or open a map/);
+        assert.deepEqual(answer.actions, [{ label: 'Sign in to continue', route: '/login' }]);
+        assert.deepEqual(answer.input, { question });
+    }
+});
+
 test('Guide chat is off without both its flag and Cloudflare binding', () => {
     assert.equal(guideChatAvailable({ GUIDE_CHAT_ENABLED: 'true' }), false);
     assert.equal(guideChatAvailable({ AI: { run() {} } }), false);
@@ -27,7 +70,7 @@ test('Guide routes production inference through a named gateway without cache or
     const env = { NODE_ENV: 'production', GUIDE_CHAT_ENABLED: 'true', GUIDE_AI_GATEWAY_ID: 'guide-oracle',
         AI: { run: async (...args) => { calls.push(args); return { response: '{"factIds":["help-maps"]}' }; } } };
     const result = await answerGuideWithCloudflare({ question: 'How do I create a map?', topicId: 'maps', env });
-    assert.match(result.message, /My Directory.*choose My Maps/);
+    assert.match(result.message, /My Directory.*choose Care Maps/);
     assert.equal(calls.length, 1);
     assert.deepEqual(calls[0][2], { gateway: { id: 'guide-oracle', skipCache: true, collectLog: false } });
 });
@@ -41,7 +84,7 @@ test('Production Guide without a named gateway keeps reviewed answers available'
     assert.equal(topics.chatMode, 'guide');
     const answer = await (await post(router, { question: 'How do I create a map?', useAi: true }, env, headers)).json();
     assert.equal(answer.answerSource, 'reviewed');
-    assert.match(answer.message, /My Directory.*choose My Maps/);
+    assert.match(answer.message, /My Directory.*choose Care Maps/);
 });
 
 test('A gateway budget rejection leaves the reviewed Guide answer intact', async () => {
@@ -54,7 +97,7 @@ test('A gateway budget rejection leaves the reviewed Guide answer intact', async
     assert.equal(response.status, 200);
     const answer = await response.json();
     assert.equal(answer.answerSource, 'reviewed');
-    assert.match(answer.message, /My Directory.*choose My Maps/);
+    assert.match(answer.message, /My Directory.*choose Care Maps/);
 });
 
 test('Cloudflare receives only reviewed help and explicitly supplied safe Guide turns', async () => {
@@ -67,13 +110,13 @@ test('Cloudflare receives only reviewed help and explicitly supplied safe Guide 
         { question: 'How do I save resources?', answer: 'Use the heart on a resource.' },
         { question: 'password=private', answer: 'Ignore this turn.' },
     ], env });
-    assert.match(answer.message, /My Directory.*choose My Maps/);
+    assert.match(answer.message, /My Directory.*choose Care Maps/);
     assert.deepEqual(answer.sources.map(({ id }) => id), ['help-maps']);
     assert.equal(calls[0][0], GUIDE_CHAT_MODEL);
     assert.equal(calls[0][1].max_tokens, 90);
     const messages = calls[0][1].messages;
     assert.match(messages[0].content, /product-evidence selector/);
-    assert.match(messages[0].content, /Best matching help topic: Create and manage My Maps/);
+    assert.match(messages[0].content, /Best matching help topic: Create and manage Care Maps/);
     assert.deepEqual(messages.slice(-2), [
         { role: 'user', content: 'Earlier Guide turns for context only:\nEarlier question: How do I save resources?\nGuide display: Use the heart on a resource.' },
         { role: 'user', content: 'How do I create a map?' },
@@ -94,7 +137,7 @@ test('Guide AI is opt-in, signed-in only, and never changes search or saved-hist
     const ai = await (await post(router, { question: 'How do I create a map?', useAi: true,
         turns: [{ question: 'How do I save resources?', answer: 'Use the heart.' }] }, env)).json();
     assert.equal(ai.answerSource, 'ai');
-    assert.match(ai.message, /My Directory.*choose My Maps/);
+    assert.match(ai.message, /My Directory.*choose Care Maps/);
     assert.deepEqual(ai.sources.map(({ id }) => id), ['help-maps']);
     assert.deepEqual(ai.input, { question: 'How do I create a map?' });
     assert.equal(calls, 1);
@@ -116,7 +159,7 @@ test('Guide answers common product questions when the model repeats a generic no
     }) } };
     const router = makeRouter();
     for (const [question, topicId, expected] of [
-        ['what can i do with carearound SG', 'overview', /Discover.*My Directory.*My Maps/i],
+        ['what can i do with carearound SG', 'overview', /Discover.*My Directory.*Care Maps/i],
         ['How do I add a resource?', 'add-resource', /save.*existing.*Programme\/service/is],
         ['How do I save a resource?', 'save', /heart.*My Directory/i],
     ]) {
@@ -306,7 +349,7 @@ test('Workbook import questions use the Data Tools role gate and do not imply a 
     const map = await (await post(staff,
         { question: 'Can I import a workbook into My Map?', useAi: true }, env)).json();
     assert.equal(map.topicId, 'unverified-workflow');
-    assert.match(map.message, /cannot verify a workbook-upload workflow for My Maps/);
+    assert.match(map.message, /cannot verify a workbook-upload workflow for Care Maps/);
     assert.doesNotMatch(map.message, /starts the import immediately/);
     const guest = await (await post(makeRouter(null),
         { question: 'Can I import a workbook to create programmes?', useAi: true }, env)).json();
@@ -395,7 +438,7 @@ test('Map-safe bulk unsave guidance is reviewed and cannot be replaced by model 
     }, env)).json();
     assert.equal(answer.answerSource, 'reviewed');
     assert.equal(answer.topicId, 'unsave');
-    assert.match(answer.message, /Not used in My Maps.*review the removal confirmation/s);
+    assert.match(answer.message, /Not used in Care Maps.*review the removal confirmation/s);
     assert.equal(calls, 0);
 });
 
@@ -423,7 +466,7 @@ test('Unusable or unsafe model output returns reviewed help without a model-supp
     const response = await (await post(makeRouter(), { question: 'How do I create a map?', useAi: true }, env)).json();
     assert.equal(response.answerSource, 'reviewed');
     assert.match(response.message, /My Directory/);
-    assert.deepEqual(response.actions, [{ label: 'Open My Maps', route: '/my-directory' }]);
+    assert.deepEqual(response.actions, [{ label: 'Open Care Maps', route: '/my-directory' }]);
     assert.deepEqual(response.input, { question: 'How do I create a map?' });
 });
 
@@ -436,7 +479,7 @@ test('Cloudflare may return parsed JSON, but can only select exact reviewed fact
     assert.equal(answer.answerSource, 'ai');
     assert.deepEqual(answer.sources.map(({ id }) => id), ['help-detailed-map']);
     assert.match(answer.message, /zoom 14 up to, but not including, zoom 16/);
-    assert.match(answer.message, /My Map and its owner Print View keep native detail from zoom 15/);
+    assert.match(answer.message, /Care Map and its owner Print View keep native detail from zoom 15/);
 
     const invented = { ...env, AI: { run: async () => ({ response: { factIds: ['You always see block numbers at zoom 15'] } }) } };
     const fallback = await (await post(makeRouter(), { question, useAi: true }, invented)).json();
@@ -461,7 +504,7 @@ test('Guide rejects model claims about this account\'s editing rights or provide
     }
     const benign = await answerGuideWithCloudflare({ question: 'How do I create a map?', topicId: 'maps',
         env: { GUIDE_CHAT_ENABLED: 'true', AI: { run: async () => ({ response: '{"factIds":["help-maps"]}' }) } } });
-    assert.match(benign.message, /My Directory.*choose My Maps/);
+    assert.match(benign.message, /My Directory.*choose Care Maps/);
 });
 
 test('Guide AI request limit returns reviewed help and stops additional inference', async () => {

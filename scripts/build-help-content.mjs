@@ -3,6 +3,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { validateCmsMedia } from '../shared/helpContentCms.js';
+import { normalizeCareMapTerminology } from '../shared/careMapTerminology.js';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const visibilities = new Set(['public', 'signed-in', 'resource-manager', 'organization', 'admin', 'support-review', 'audit']);
@@ -28,7 +29,7 @@ export function publicHelpArticle(article) {
             ...(section.media?.length ? { stepIds: section.stepIds, media: section.media } : {}) })) };
 }
 
-export function compileHelpContent({ root = projectRoot } = {}) {
+export function compileHelpContent({ root = projectRoot, normalizeTerminology = true } = {}) {
     const manifest = json(resolve(root, 'content/help/manifest.json'));
     if (!nonempty(manifest.version) || !Array.isArray(manifest.categories) || !Array.isArray(manifest.topics)
         || !Array.isArray(manifest.guideFactOrder)) fail('invalid manifest');
@@ -131,7 +132,8 @@ export function compileHelpContent({ root = projectRoot } = {}) {
     if (new Set(topics.map(topic => topic.id)).size !== topics.length) fail('duplicate topics');
     const publicArticles = articles.filter(article => article.visibility === 'public').map(publicHelpArticle);
     const publicCategories = [...categories.values()].filter(category => !category.archived && publicArticles.some(article => article.category === category.id));
-    return { version: manifest.version, articles, facts, topics, categories: [...categories.values()].filter(category => !category.archived), publicData: { version: manifest.version, categories: publicCategories, articles: publicArticles } };
+    const compiled = { version: manifest.version, articles, facts, topics, categories: [...categories.values()].filter(category => !category.archived), publicData: { version: manifest.version, categories: publicCategories, articles: publicArticles } };
+    return normalizeTerminology ? normalizeCareMapTerminology(compiled) : compiled;
 }
 
 export function generateHelpContent({ root = projectRoot, check = false } = {}) {

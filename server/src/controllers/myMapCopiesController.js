@@ -28,7 +28,7 @@ function createHttpError(status, message) {
 
 function assertMyMapCopyUser(user) {
     if (!user?.id || normalizeRole(user?.role) === 'guest') {
-        throw createHttpError(403, 'Only authenticated non-guest users can duplicate My Maps');
+        throw createHttpError(403, 'Only authenticated non-guest users can duplicate Care Maps');
     }
 }
 

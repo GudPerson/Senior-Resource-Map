@@ -92,7 +92,7 @@ test('task-specific map questions serve their exact canonical answer through rou
             assert.equal(answer.sources[0].articleRoute, fact(check.sourceId).articleRoute);
             if (check.topicId === 'map-membership') {
                 assert.match(answer.message, /^Saving a Place or Programme\/service adds it to My Directory\./);
-                assert.match(answer.message, /choose separately.*particular My Map/);
+                assert.match(answer.message, /choose separately.*particular Care Map/);
                 assert.match(answer.message, /Manage resources/);
                 assert.match(answer.message, /Update map/);
                 assert.doesNotMatch(answer.message, /If a saved Programme\/service is missing/);

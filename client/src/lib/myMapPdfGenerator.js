@@ -300,7 +300,7 @@ export async function downloadMyMapPdf({
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     doc.setProperties({
         title: ledger.mapName,
-        subject: 'CareAround SG My Map PDF ledger',
+        subject: 'CareAround SG Care Map PDF ledger',
     });
 
     writeSummary(doc, autoTable, ledger);

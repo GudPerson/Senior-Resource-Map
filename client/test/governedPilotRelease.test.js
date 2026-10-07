@@ -48,7 +48,7 @@ test('client routes and controls use capability-specific release gates', () => {
     assert.match(navigation, /const canShowGovernedMaps = GOVERNED_MAPS_UI_ENABLED/);
     assert.match(publicGate, /ORGANIZATION_ONBOARDING_UI_ENABLED && settings\?\.organizationOnboardingEnabled/);
     assert.match(publicGate, /GOVERNED_MAPS_UI_ENABLED && settings\?\.governedMapsEnabled/);
-    assert.match(publicGate, /Existing personal My Maps shared by service providers/);
+    assert.match(publicGate, /Existing personal Care Maps shared by service providers/);
     assert.match(adminPanel, /ORGANIZATION_ONBOARDING_UI_ENABLED && access\.settings\.organizationOnboardingEnabled/);
     assert.match(adminPanel, /RESOURCE_CLAIMS_UI_ENABLED && settings\?\.resourceClaimsEnabled === true/);
     assert.match(adminPanel, /resourceClaimsEnabled \? <ResourceClaimsPanel \/>/);

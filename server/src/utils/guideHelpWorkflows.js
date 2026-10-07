@@ -78,8 +78,8 @@ export function guideHelpWorkflowIntent(question = '', pageContext = '', turns =
     // Explicit public creation is resolved by the existing permission path.
     if (!personal && /\bpublic\b|\b(?:directory|discover)\s+listing\b|\b(?:publish|list)\b.{0,25}\b(?:everyone|public|directory)\b/.test(query)) return 'public-place-create';
     const earlier = Array.isArray(turns) ? turns.slice(-1).map((turn) => normalise(turn?.question)).join(' ') : '';
-    const map = pageContext === 'My Maps' || /\b(?:my|private|own|this)\s+maps?\b/.test(query)
-        || (!pageContext && /\bmy map\b/.test(earlier));
+    const map = pageContext === 'My Maps' || /\b(?:my|care|private|own|this)\s+maps?\b/.test(query)
+        || (!pageContext && /\b(?:my|care) map\b/.test(earlier));
     if (!personal && !missing && !map) return null;
     if (personal && !map) return null; // Preserve the separate My Places creation workflow.
     return map ? 'personal-place-map-create' : 'clarify-place-create';
@@ -119,7 +119,7 @@ function answerGuideMapNoteAnnotationSharing(facts) {
         message: [noteDefaults.paragraphs[0], annotationDefaults.notes[0],
             noteSharing.title + '\n\n' + selected[2].message,
             annotationSharing.title + '\n\n' + selected[3].message].join('\n\n'),
-        actions: [{ label: 'Open My Maps', route: '/my-directory?section=my-maps' }],
+        actions: [{ label: 'Open Care Maps', route: '/my-directory?section=my-maps' }],
         sources: selected.map(guideHelpFactSource) };
 }
 
@@ -165,7 +165,7 @@ export function answerGuideHelpWorkflow({ question = '', pageContext = '', turns
         actions: [cancellationNote || fact.route.startsWith('/help-centre/')
             ? { label: 'Read instructions', route: fact.articleRoute || fact.route }
             : fact.route === '/my-directory?section=my-maps'
-                ? { label: fact.actionLabel || 'Open My Maps', route: fact.route }
+                ? { label: fact.actionLabel || 'Open Care Maps', route: fact.route }
                 : guideOracleFactAction(fact)],
         sources };
 }

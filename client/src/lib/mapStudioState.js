@@ -462,7 +462,7 @@ export function setDefaultMapStudioView(document, viewId) {
 export function deleteMapStudioView(document, viewId) {
     const { document: normalizedDocument, view } = requireView(document, viewId);
     if (normalizedDocument.views.length === 1) {
-        throw new RangeError('A My Map must retain at least one Map Studio view.');
+        throw new RangeError('A Care Map must retain at least one Map Studio view.');
     }
     const views = normalizedDocument.views.filter((candidate) => candidate.id !== view.id);
     return {

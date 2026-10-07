@@ -348,7 +348,7 @@ export const getFavoriteMapUsage = async (c) => {
         return c.json({ items: [...usageByAssetKey.values()] });
     } catch (err) {
         console.error(err);
-        return c.json({ error: 'Failed to load My Map usage' }, 500);
+        return c.json({ error: 'Failed to load Care Map usage' }, 500);
     }
 };
 

@@ -11,7 +11,7 @@ export function guideWorkbookAccessIntent(question = '') {
     if (/^how\b/.test(query)
         || !/\b(?:workbook|spreadsheet|xlsx|csv|excel)\b/.test(query)
         || !(importIntent || templateDownloadIntent)
-        || /\b(?:personal places?|my maps?|map assets?|map notes?|my directory|saved resources?)\b/.test(query)
+        || /\b(?:personal places?|(?:my|care) maps?|map assets?|map notes?|my directory|saved resources?)\b/.test(query)
         || !/\b(?:can i|could i|am i|do i|may i|my account)\b/.test(query)) return null;
     return importIntent ? 'import' : 'download';
 }

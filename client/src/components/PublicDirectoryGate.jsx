@@ -32,12 +32,12 @@ export function PublicAccessNotice({ purpose = 'directory', settings }) {
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><LockKeyhole size={24} /></span>
                 <h1 className="mt-5 text-3xl font-black text-slate-950">{onboardingEnabled ? 'CareAround SG is in an organisation-led pilot' : 'CareAround SG public access is currently restricted'}</h1>
                 <p className="mt-3 text-base leading-7 text-slate-600">{!onboardingEnabled
-                    ? 'Public discovery, registration and sign-in are restricted. Existing My Maps shared with you remain accessible through their direct links and website embeds. Organisation onboarding is not open yet.'
+                    ? 'Public discovery, registration and sign-in are restricted. Existing Care Maps shared with you remain accessible through their direct links and website embeds. Organisation onboarding is not open yet.'
                     : purpose === 'sign-in'
                     ? 'General public registration and sign-in are closed during this pilot. Approved organisation users can continue through the organisation pathway.'
                     : governedMapsEnabled
-                    ? 'The full resource directory is available only to approved organisation users. Published personal My Maps and approved Governed Care Maps remain accessible through their direct links and website embeds.'
-                    : 'The full resource directory is available only to approved organisation users. Existing personal My Maps shared by service providers remain accessible through their direct links and website embeds.'}</p>
+                    ? 'The full resource directory is available only to approved organisation users. Published personal Care Maps and approved Governed Care Maps remain accessible through their direct links and website embeds.'
+                    : 'The full resource directory is available only to approved organisation users. Existing personal Care Maps shared by service providers remain accessible through their direct links and website embeds.'}</p>
                 <div className="mt-7 grid gap-3 sm:grid-cols-2">
                     <Link to="/partner-login" className="btn-primary justify-center"><Building2 size={17} /> {onboardingEnabled ? 'Organisation sign-in' : 'Administrator sign-in'}</Link>
                     {onboardingEnabled && <Link to="/organization/join" className="btn-secondary justify-center"><MapPinned size={17} /> Request staff access</Link>}

@@ -2,6 +2,7 @@ import { useId, useRef } from 'react';
 import { CMS_LIMITS, cmsHasSeparateAnswers, reorderCmsItems } from '../../../../shared/helpContentCms.js';
 import { CmsButton, CmsField, CmsOrderButtons } from './CmsControls.jsx';
 import { cmsAddStep, cmsMoveMedia, cmsMoveStep, cmsNewSection, cmsUpdateMedia } from './helpContentDraftModel.js';
+import { careMapDisplayText } from '../../../../shared/careMapTerminology.js';
 
 function TextList({ label, values, update, lockedLength = false }) {
     return <div><h3>{label}</h3>{values.map((value, index) => <CmsField key={index} label={`${label} ${index + 1}`} multiline value={value} onChange={(text) => update(values.map((item, i) => i === index ? text : item))} maxLength={16000} />)}
@@ -72,7 +73,7 @@ export default function ArticleEditor({ article, categories, onChange, onRemoveS
     return <div>
         <CmsField label="Article title" value={article.title} onChange={(title) => onChange({ ...article, title })} maxLength={240} />
         <CmsField label="Summary" value={article.summary} onChange={(summary) => onChange({ ...article, summary })} multiline maxLength={1000} />
-        <CmsField label="Topic"><select value={article.category} onChange={(event) => onChange({ ...article, category: event.target.value })}>{categories.filter((category) => !category.archived || category.id === article.category).map((category) => <option key={category.id} value={category.id}>{category.title}{category.archived ? ' (archived)' : ''}</option>)}</select></CmsField>
+        <CmsField label="Topic"><select value={article.category} onChange={(event) => onChange({ ...article, category: event.target.value })}>{categories.filter((category) => !category.archived || category.id === article.category).map((category) => <option key={category.id} value={category.id}>{careMapDisplayText(category.title)}{category.archived ? ' (archived)' : ''}</option>)}</select></CmsField>
         <p className="cms-muted">{article.visibility === 'public' ? 'Public article' : 'Account access required'} · /help-centre/{article.slug}</p>
         {article.sections.map((section, index) => <SectionEditor key={section.id} article={article} section={section} index={index} update={(value) => updateSection(section.id, value)} onMove={(direction) => onChange({ ...article, sections: reorderCmsItems(article.sections, section.id, direction) })} onRemove={() => onChange({ ...article, sections: article.sections.filter((value) => value.id !== section.id) })} onRemoveStep={onRemoveStep} onUpload={onUpload} mediaUrls={mediaUrls} uploadBusy={uploadBusy} allowImageUpload={allowImageUpload} />)}
         <CmsButton disabled={article.sections.length >= CMS_LIMITS.sections} onClick={() => onChange({ ...article, sections: [...article.sections, cmsNewSection(article)] })}>Add section</CmsButton>

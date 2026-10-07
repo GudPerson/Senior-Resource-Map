@@ -145,7 +145,7 @@ function createHttpError(status, message) {
 
 function assertDirectoryUser(user) {
     if (!user?.id || normalizeRole(user?.role) === 'guest') {
-        throw createHttpError(403, 'Only authenticated non-guest users can manage My Maps');
+        throw createHttpError(403, 'Only authenticated non-guest users can manage Care Maps');
     }
 }
 

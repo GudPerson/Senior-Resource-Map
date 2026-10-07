@@ -48,6 +48,7 @@ export default function HelpContentPreview({ article, mediaUrls = {}, errors = [
 }
 
 export function GuideDraftContent({ article }) {
+    article = cmsReadingArticle(article);
     return <><h2>{article.title || 'Untitled article'}</h2><p className="cms-muted" style={{ margin: '12px 0' }}>These are the written answers supplied to Guide after review and publication.</p>
         {article.sections.map((section) => <section key={section.id} style={{ marginTop: 24 }}><h3>{section.title}</h3>
             {cmsGuideMessages(section).map((message, index) => <div key={index} style={{ marginTop: 14 }}>{cmsGuideMessages(section).length > 1 && <h4 style={{ fontWeight: 600, fontSize: 13 }}>{message.title}</h4>}<div className="cms-guide-text" style={{ marginTop: 8 }}>{message.text}</div></div>)}

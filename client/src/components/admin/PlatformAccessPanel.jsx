@@ -66,8 +66,8 @@ export default function PlatformAccessPanel() {
                 ? (onboardingEnabled
                     ? (governedMapsEnabled
                         ? 'Guest discovery, general registration and general sign-in will close. Published personal and Governed Care Map share links and embeds remain available.'
-                        : 'Guest discovery, general registration and general sign-in will close. Published personal My Map share links and embeds remain available. Governed Care Maps remain unavailable until their release stage.')
-                    : 'Directory access, new registration and sign-in will be restricted to Super Admin recovery. Existing personal My Map share links and embeds remain available.')
+                        : 'Guest discovery, general registration and general sign-in will close. Published personal Care Map share links and embeds remain available. Governed Care Maps remain unavailable until their release stage.')
+                    : 'Directory access, new registration and sign-in will be restricted to Super Admin recovery. Existing personal Care Map share links and embeds remain available.')
                 : 'Public discovery, registration and general sign-in will become available again.',
             details: enable
                 ? [onboardingEnabled ? 'Approved organisation users continue through Organisation sign-in.' : 'Super Admins can sign in through the staff sign-in page with their existing email and password.', 'The change is audited and can be reversed from this panel.']
@@ -165,7 +165,7 @@ export default function PlatformAccessPanel() {
                             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-50 text-brand-700"><LockKeyhole size={22} /></span>
                             <div>
                                 <h2 className="text-xl font-black text-slate-950">Public access boundary</h2>
-                                <p className="text-sm text-slate-500">Control public discovery, registration and sign-in independently of shared My Maps.</p>
+                                <p className="text-sm text-slate-500">Control public discovery, registration and sign-in independently of shared Care Maps.</p>
                             </div>
                         </div>
                         <div className="mt-5 grid gap-3 sm:grid-cols-3">
