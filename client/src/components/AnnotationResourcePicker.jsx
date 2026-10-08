@@ -1,5 +1,6 @@
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ANNOTATION_RESOURCE_LINK_LIMIT, annotationResourceKey, buildAnnotationResourceCatalog,
+    ANNOTATION_RESOURCE_DEFAULT_GLOW_COLOR, getAnnotationResourceGlowColor,
     normalizeAnnotationResourceBehaviour, normalizeAnnotationResourceLinks } from '../lib/annotationResourceLinks.js';
 import './AnnotationResourceLinks.css';
 import { useLocale } from '../contexts/LocaleContext.jsx';
@@ -9,6 +10,7 @@ export default function AnnotationResourcePicker({ directory, annotation, onChan
     const { locale, t } = useLocale();
     const messages = getAnnotationMessages(locale);
     const id = useId(), button = useRef(null);
+    const resetPending = useRef(false);
     const [open, setOpen] = useState(false), [query, setQuery] = useState('');
     const catalog = useMemo(() => buildAnnotationResourceCatalog(directory), [directory]);
     const allowed = new Set(catalog.map((item) => item.key));
@@ -16,11 +18,14 @@ export default function AnnotationResourcePicker({ directory, annotation, onChan
     const selected = new Set(links.map(annotationResourceKey));
     const selectionLimit = Number.isSafeInteger(maxLinks) ? Math.max(0, Math.min(ANNOTATION_RESOURCE_LINK_LIMIT, maxLinks)) : ANNOTATION_RESOURCE_LINK_LIMIT;
     const behaviour = normalizeAnnotationResourceBehaviour(annotation?.resourceBehaviour);
+    const glowColour = getAnnotationResourceGlowColor(annotation);
+    const [glowBuffer, setGlowBuffer] = useState(glowColour);
+    useEffect(() => setGlowBuffer(glowColour), [annotation?.id, glowColour]);
     const matching = catalog.filter((item) => `${item.name} ${item.kind}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
     function update(nextLinks, nextBehaviour = behaviour) {
         const normalized = normalizeAnnotationResourceLinks(nextLinks);
         onChange?.(normalized.length ? { resourceLinks: normalized, resourceBehaviour: nextBehaviour }
-            : { resourceLinks: undefined, resourceBehaviour: undefined });
+            : { resourceLinks: undefined, resourceBehaviour: undefined, resourceGlowColor: undefined });
     }
     function toggle(item) {
         if (!selected.has(item.key) && selected.size >= selectionLimit) return;
@@ -55,6 +60,31 @@ export default function AnnotationResourcePicker({ directory, annotation, onChan
                     <option value="appear">{messages.appear}</option><option value="pulse">{messages.pulse}</option><option value="highlight">{messages.highlight}</option>
                 </select>
                 <p className="mt-1 text-xs text-slate-500">{messages[`${behaviour}Help`]}</p>
+                <p className="mt-1 text-xs text-slate-500">{messages.interactionHelp}</p>
+                {behaviour !== 'appear' ? <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <label className="flex min-h-11 items-center gap-2 text-xs font-semibold">
+                        {messages.glowColour}
+                        <input type="color" value={glowBuffer} aria-label={messages.glowColour}
+                            disabled={disabled} className="h-9 w-11 cursor-pointer rounded border border-slate-200 bg-white p-1"
+                            onFocus={() => { resetPending.current = false; }}
+                            onChange={(event) => setGlowBuffer(event.target.value)}
+                            onBlur={(event) => {
+                                if (resetPending.current) return;
+                                const color = event.currentTarget.value.toLowerCase();
+                                if (color !== glowColour) onChange?.({ resourceGlowColor: color });
+                            }} />
+                    </label>
+                    <button type="button" disabled={disabled || (!annotation.resourceGlowColor && glowBuffer === ANNOTATION_RESOURCE_DEFAULT_GLOW_COLOR)}
+                        className="btn-ghost min-h-11 text-xs"
+                        onPointerDown={() => { resetPending.current = true; }}
+                        onPointerCancel={() => { resetPending.current = false; }}
+                        onBlur={() => { resetPending.current = false; }}
+                        onClick={() => {
+                            resetPending.current = false;
+                            setGlowBuffer(ANNOTATION_RESOURCE_DEFAULT_GLOW_COLOR);
+                            onChange?.({ resourceGlowColor: undefined });
+                        }}>{messages.usePinOrange}</button>
+                </div> : null}
             </div> : null}
         </div> : null}
     </div>;

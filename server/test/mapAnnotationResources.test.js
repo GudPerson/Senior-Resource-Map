@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { myMapPrintAnnotationDocuments, myMaps } from '../src/db/schema.js';
 import { validatePrintAnnotationDocumentInput, replacePrintAnnotationDocument, getPrintAnnotationDocument,
     buildEmbeddedPrintAnnotationSnapshot, normalizeEmbeddedPrintAnnotationSnapshot } from '../src/controllers/printAnnotationsController.js';
-import { detachAnnotationResourceFromMap } from '../src/utils/mapAnnotationResources.js';
+import { detachAnnotationResourceFromMap, detachInvalidAnnotationResourceLinks } from '../src/utils/mapAnnotationResources.js';
 import { createPrivateMapMediaRepository } from '../src/utils/privateMapMedia.js';
 import { MapMediaBucket, png, whereValues } from './helpers/mapAnnotationFixtures.js';
 
@@ -64,6 +64,61 @@ test('linked annotations save only current map members and attached owner person
     await assert.rejects(getPrintAnnotationDocument(db, { ...owner, isImpersonating: true }, 3), { status: 403 });
 });
 
+test('optional appearance fields preserve legacy JSON and validate colour and border types strictly', () => {
+    const linked = shape({ resourceLinks: [{ type: 'hard', id: 12 }], resourceGlowColor: '#Ab12CD' });
+    assert.equal(body([linked]).annotations[0].resourceGlowColor, '#ab12cd');
+    assert.deepEqual(body([shape()]).annotations, [shape()]);
+    assert.equal(Object.hasOwn(body([shape({ resourceGlowColor: '#123456' })]).annotations[0], 'resourceGlowColor'), false);
+    assert.equal(Object.hasOwn(body([{ ...linked, resourceLinks: [] }]).annotations[0], 'resourceGlowColor'), false);
+    for (const resourceGlowColor of ['#abc', '#12345678', '#ZZ0000', 'red', ' #123456', 'url(private)', 123456, null]) {
+        assert.throws(() => body([{ ...linked, resourceGlowColor }]), /Print annotations is invalid/);
+    }
+    const image = shape({ type: 'image', image: { assetId: 'a'.repeat(64), width: 1, height: 1, alt: 'Private illustration' } });
+    assert.equal(body([{ ...image, imageBorder: true }]).annotations[0].imageBorder, true);
+    for (const imageBorder of [false, undefined]) assert.equal(Object.hasOwn(body([{ ...image, imageBorder }]).annotations[0], 'imageBorder'), false);
+    for (const imageBorder of ['true', 1, null]) assert.throws(() => body([{ ...image, imageBorder }]), /Print annotations is invalid/);
+    for (const imageBorder of [true, false]) assert.throws(() => body([shape({ imageBorder })]), /Image borders are only supported/);
+    assert.throws(() => body([{ ...image, image: { ...image.image, showBorder: true } }]), /Print annotations is invalid/);
+});
+
+test('owner save and reload retain custom glow and opt-in border without changing media identity or shape style', async () => {
+    const bucket = new MapMediaBucket();
+    const metadata = await createPrivateMapMediaRepository(bucket, 7).saveAsset(png(), 'image/png');
+    const image = { assetId: metadata.assetId, width: 1, height: 1, alt: 'Existing uploaded illustration' };
+    const annotation = shape({ type: 'image', image, imageBorder: true,
+        resourceLinks: [{ type: 'hard', id: 12 }], resourceGlowColor: '#Ab12CD', resourceBehaviour: 'pulse' });
+    const db = database();
+    const saved = await replacePrintAnnotationDocument(db, owner, 3, body([annotation]), { mediaBucket: bucket });
+    const reloaded = (await getPrintAnnotationDocument(db, owner, 3)).annotations[0];
+    assert.equal(reloaded.imageBorder, true);
+    assert.equal(reloaded.resourceGlowColor, '#ab12cd');
+    assert.deepEqual(reloaded.image, image);
+    assert.deepEqual(reloaded.style, annotation.style);
+    const changed = await replacePrintAnnotationDocument(db, owner, 3,
+        body([{ ...reloaded, imageBorder: false, resourceLinks: [] }], saved.revision), { mediaBucket: bucket });
+    assert.equal(Object.hasOwn(changed.annotations[0], 'imageBorder'), false);
+    assert.equal(Object.hasOwn(changed.annotations[0], 'resourceGlowColor'), false);
+    assert.deepEqual(changed.annotations[0].image, image);
+    assert.deepEqual(changed.annotations[0].style, annotation.style);
+});
+
+test('partial detach retains private glow while final detach removes it without restyling annotations', async () => {
+    const original = shape({ resourceLinks: [{ type: 'hard', id: 12 }, { type: 'soft', id: 12 }], resourceGlowColor: '#123456', resourceBehaviour: 'pulse' });
+    const before = structuredClone(original);
+    const partial = detachInvalidAnnotationResourceLinks([original], new Set(['soft:12']))[0];
+    assert.equal(partial.resourceGlowColor, '#123456');
+    assert.deepEqual(partial.resourceLinks, [{ type: 'soft', id: 12 }]);
+    assert.deepEqual(original, before);
+    assert.deepEqual(detachInvalidAnnotationResourceLinks([partial], new Set()), [shape()]);
+    assert.deepEqual(detachInvalidAnnotationResourceLinks([shape({ resourceGlowColor: '#123456' })], new Set()), [shape()]);
+    const db = database({ document: { annotations: [original], revision: 2 } });
+    await detachAnnotationResourceFromMap(db, 3, 'hard', 12);
+    assert.equal(db.state.document.annotations[0].resourceGlowColor, '#123456');
+    await detachAnnotationResourceFromMap(db, 3, 'soft', 12);
+    assert.deepEqual(db.state.document.annotations, [shape()]);
+    assert.equal(db.state.document.revision, 4);
+});
+
 test('stale read links detach without deleting shapes, and removal clears the final behaviour', async () => {
     const original = shape({ resourceLinks: [{ type: 'hard', id: 99 }, { type: 'personal_place', id: 14 }], resourceBehaviour: 'appear' });
     const db = database({ document: { annotations: [original], revision: 2 } });
@@ -102,12 +157,14 @@ test('private image metadata roundtrips only for the owner uploaded bytes and ca
 test('public and frozen sanitizers strip private bindings and every image but preserve opted-in old geometry', () => {
     const old = shape({ isShared: true });
     const legacyPublic = buildEmbeddedPrintAnnotationSnapshot([old]);
-    const linked = { ...old, resourceLinks: [{ type: 'personal_place', id: 987654321 }], resourceBehaviour: 'pulse' };
+    const linked = { ...old, resourceLinks: [{ type: 'personal_place', id: 987654321 }], resourceBehaviour: 'pulse', resourceGlowColor: '#123456' };
     const privateImage = shape({ id: 'image_private', type: 'image', isShared: true,
         image: { assetId: 'a'.repeat(64), width: 1, height: 1, alt: 'Private photo' } });
     assert.deepEqual(buildEmbeddedPrintAnnotationSnapshot([linked, privateImage]), legacyPublic);
     assert.deepEqual(normalizeEmbeddedPrintAnnotationSnapshot([linked, privateImage]), legacyPublic);
     assert.deepEqual(buildEmbeddedPrintAnnotationSnapshot([{ ...linked, resourceLinks: 'untrusted-private-metadata' }]), legacyPublic);
+    assert.deepEqual(buildEmbeddedPrintAnnotationSnapshot([{ ...linked, resourceGlowColor: 'untrusted-private-colour', imageBorder: true }]), legacyPublic);
+    assert.deepEqual(normalizeEmbeddedPrintAnnotationSnapshot([{ ...linked, resourceGlowColor: 'untrusted-private-colour', imageBorder: true }]), legacyPublic);
     assert.doesNotMatch(JSON.stringify(legacyPublic), /resourceLinks|resourceBehaviour|assetId|987654321|Private photo/);
     assert.deepEqual(buildEmbeddedPrintAnnotationSnapshot([{ ...linked, isShared: false }, privateImage]), []);
 });

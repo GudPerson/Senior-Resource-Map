@@ -1,3 +1,6 @@
+import { getAnnotationResourceGlowColor, normalizeAnnotationResourceGlowColor } from '../../../shared/annotationAppearance.js';
+export { ANNOTATION_RESOURCE_DEFAULT_GLOW_COLOR, getAnnotationResourceGlowColor, normalizeAnnotationResourceGlowColor } from '../../../shared/annotationAppearance.js';
+
 export const ANNOTATION_RESOURCE_LINK_LIMIT = 200;
 export const ANNOTATION_RESOURCE_TOTAL_LINK_LIMIT = 2000;
 export const ANNOTATION_RESOURCE_PULSE_MS = 1800;
@@ -120,13 +123,27 @@ export function buildAnnotationResourceEffects({ annotations, index, selection, 
     const visibleIds = new Set(annotations.filter((annotation) => (!allowed || allowed.has(annotation.id))
         && (index.byAnnotation.get(annotation.id)?.resourceBehaviour !== 'appear' || activeIds.has(annotation.id)))
         .map((annotation) => annotation.id));
-    return { activeIds, pulseIds, visibleIds, resourceKeys: resolved.resourceKeys };
+    const annotationGlowColors = new Map(), resourceGlowColors = new Map();
+    const activeResourceKeys = new Set(resolved.resourceKeys);
+    for (const [id, linked] of index.byAnnotation) {
+        if (!activeIds.has(id)) continue;
+        const color = getAnnotationResourceGlowColor(linked.annotation);
+        annotationGlowColors.set(id, color);
+        for (const link of linked.resourceLinks) {
+            const key = annotationResourceKey(link);
+            if (activeResourceKeys.has(key) && !resourceGlowColors.has(key)) resourceGlowColors.set(key, color);
+        }
+    }
+    return { activeIds, pulseIds, visibleIds, resourceKeys: resolved.resourceKeys, annotationGlowColors, resourceGlowColors };
 }
 
 export function annotationResourceCardState(group, interaction) {
     const links = resourceLinksForGroup(group), keys = links.map(annotationResourceKey);
+    const activeKeys = new Set(keys.filter(key => interaction?.activeResourceKeys?.has(key)));
+    const firstColor = [...(interaction?.resourceGlowColors || [])].find(([key]) => activeKeys.has(key))?.[1];
     return { links,
         canActivate: Boolean(interaction?.onActivateResources && keys.some((key) => interaction.taggedResourceKeys?.has(key))),
         active: keys.some((key) => interaction?.activeResourceKeys?.has(key)),
-        pulsing: keys.some((key) => interaction?.pulsingResourceKeys?.has(key)) };
+        pulsing: keys.some((key) => interaction?.pulsingResourceKeys?.has(key)),
+        glowColor: normalizeAnnotationResourceGlowColor(firstColor) };
 }

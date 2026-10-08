@@ -1781,6 +1781,8 @@ export default function MyMapDetailPage() {
                 editable={false}
                 browseInteractive={!suspendMapInteraction && !resourceRemovalMode && !pinVisibilityMode}
                 onActivate={annotationActivation.activateAnnotation}
+                onDeactivate={annotationActivation.clearAnnotation}
+                annotationGlowColors={annotationActivation.annotationEffects.annotationGlowColors}
                 activeIds={annotationActivation.annotationEffects.activeIds}
                 pulseIds={annotationActivation.annotationEffects.pulseIds}
                 activationVersion={annotationActivation.annotationEffects.activationVersion}
@@ -1788,7 +1790,7 @@ export default function MyMapDetailPage() {
             />
         );
     }, [
-        annotationActivation.activateAnnotation, annotationActivation.annotationEffects,
+        annotationActivation.activateAnnotation, annotationActivation.clearAnnotation, annotationActivation.annotationEffects,
         annotationActivation.visibleAnnotations, interactiveAnnotationEditorOpen, isPrintView,
         pinVisibilityMode, printAnnotations.annotations.length, privateAnnotationImages.sources,
         resourceRemovalMode, suspendMapInteraction,

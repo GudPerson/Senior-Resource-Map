@@ -1,21 +1,25 @@
 .annotation-resource-card-highlight {
-    outline: 3px solid #0f766e;
+    outline: 3px solid var(--annotation-resource-glow-color, #f97316);
     outline-offset: 3px;
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--annotation-resource-glow-color, #f97316) 25%, transparent),
+        0 0 18px color-mix(in srgb, var(--annotation-resource-glow-color, #f97316) 45%, transparent);
 }
 .annotation-resource-card-pulse {
     animation: annotation-resource-card-pulse 600ms ease-in-out 3;
 }
 .annotation-resource-card-pulse-repeat { animation-name: annotation-resource-card-pulse-repeat; }
 @keyframes annotation-resource-card-pulse {
-    50% { outline-color: #14b8a6; outline-offset: 6px; }
+    50% { outline-offset: 6px; box-shadow: 0 0 0 8px color-mix(in srgb, var(--annotation-resource-glow-color, #f97316) 35%, transparent),
+        0 0 24px color-mix(in srgb, var(--annotation-resource-glow-color, #f97316) 65%, transparent); }
 }
 @keyframes annotation-resource-card-pulse-repeat {
-    50% { outline-color: #14b8a6; outline-offset: 6px; }
+    50% { outline-offset: 6px; box-shadow: 0 0 0 8px color-mix(in srgb, var(--annotation-resource-glow-color, #f97316) 35%, transparent),
+        0 0 24px color-mix(in srgb, var(--annotation-resource-glow-color, #f97316) 65%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
     .annotation-resource-card-pulse { animation: none; }
 }
 @media print {
-    .annotation-resource-card-highlight { outline: none; }
+    .annotation-resource-card-highlight { outline: none; box-shadow: none; }
     .annotation-resource-card-pulse { animation: none; }
 }

@@ -34,6 +34,52 @@ const imageProjection = {
     unproject: ({ x, y }) => [-y / 10000, x / 10000],
 };
 
+test('image borders are opt-in top-level appearance and never change immutable media or existing strokes', () => {
+    const legacy = createPrintAnnotation({ type: 'image', points: [[1.3, 103.7], [1.4, 103.8]], image: IMAGE_METADATA });
+    assert.equal(Object.hasOwn(legacy, 'imageBorder'), false);
+    const bordered = normalizePrintAnnotation({ ...legacy, imageBorder: true, style: { ...legacy.style, color: '#123456', weight: 8, dashed: true } });
+    assert.equal(bordered.imageBorder, true);
+    assert.deepEqual(bordered.image, IMAGE_METADATA);
+    assert.deepEqual(bordered.style, { ...legacy.style, color: '#123456', weight: 8, dashed: true });
+    for (const value of [false, undefined, 'true', 1, null]) {
+        const normalized = normalizePrintAnnotation({ ...bordered, imageBorder: value });
+        assert.equal(Object.hasOwn(normalized, 'imageBorder'), false);
+        assert.deepEqual(normalized.image, IMAGE_METADATA);
+        assert.deepEqual(normalized.style, bordered.style);
+    }
+    const shape = createPrintAnnotation({ type: 'rectangle', points: legacy.points, style: bordered.style, imageBorder: true });
+    assert.equal(Object.hasOwn(shape, 'imageBorder'), false);
+    assert.deepEqual(shape.style, bordered.style);
+    assert.notEqual(getPrintAnnotationCaptureKey([legacy]), getPrintAnnotationCaptureKey([{ ...legacy, imageBorder: true }]));
+});
+
+test('private custom glow normalizes only with valid typed links and duplication preserves both appearance options', () => {
+    const image = createPrintAnnotation({ type: 'image', points: [[1.3, 103.7], [1.4, 103.8]], image: IMAGE_METADATA,
+        imageBorder: true, resourceLinks: [{ type: 'hard', id: 7 }], resourceBehaviour: 'appear', resourceGlowColor: '#Ab12CD' });
+    assert.equal(image.resourceGlowColor, '#ab12cd');
+    const copy = duplicatePrintAnnotation(image, { id: 'appearance_copy' });
+    assert.equal(copy.resourceGlowColor, image.resourceGlowColor);
+    assert.equal(copy.resourceBehaviour, 'appear', 'The colour is retained when switching through Appear.');
+    assert.equal(copy.imageBorder, true);
+    assert.deepEqual(copy.image, image.image);
+    assert.deepEqual(copy.style, image.style);
+    assert.deepEqual(normalizePrintAnnotations([copy])[0], copy);
+    for (const links of [[], [{ type: 'asset', id: 7 }], [{ type: 'hard', id: '7' }]]) {
+        const cleared = normalizePrintAnnotation({ ...image, resourceLinks: links });
+        assert.equal(Object.hasOwn(cleared, 'resourceGlowColor'), false);
+        assert.equal(Object.hasOwn(cleared, 'resourceBehaviour'), false);
+        assert.equal(cleared.imageBorder, true);
+        assert.deepEqual(cleared.image, IMAGE_METADATA);
+    }
+    for (const invalid of ['#abc', '#11223344', '#12zz00', 'red', ' #123456', 'url(private)', 123456]) {
+        const normalized = normalizePrintAnnotation({ ...image, resourceGlowColor: invalid });
+        assert.equal(Object.hasOwn(normalized, 'resourceGlowColor'), false);
+        assert.deepEqual(normalized.resourceLinks, image.resourceLinks);
+    }
+    const legacy = normalizePrintAnnotation({ ...image, resourceGlowColor: undefined });
+    assert.equal(Object.hasOwn(legacy, 'resourceGlowColor'), false);
+});
+
 test('private image annotations preserve schema compatibility and omit image bytes and URLs', () => {
     const image = createPrintAnnotation({ type: 'image', points: [[1.4, 103.8], [1.3, 103.7]],
         image: { ...IMAGE_METADATA, url: 'https://foreign.example/image.png', data: 'data:image/png;base64,private' },
@@ -639,7 +685,7 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(layerSource, /transform:rotate\(\$\{-rotationDegrees\}deg\)/);
     assert.match(toolbarSource, /max-h-\[calc\(100%-1\.5rem\)\]/);
     assert.match(toolbarSource, /Choose custom shape colour/);
-    assert.match(toolbarSource, /aria-label="Shape colour picker"/);
+    assert.match(toolbarSource, /aria-label=\{isImage \? messages\.imageBorderColour : 'Shape colour picker'\}/);
     assert.match(toolbarSource, /data-print-annotation-shape-color-picker="true"/);
     assert.match(toolbarSource, /\{activeStyle\.color\}/);
     assert.match(toolbarSource, /Text colour/);

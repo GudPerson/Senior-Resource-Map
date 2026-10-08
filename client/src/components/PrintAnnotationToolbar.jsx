@@ -226,13 +226,14 @@ export default function PrintAnnotationToolbar({
         : labelledTypes.includes(tool);
     const activeAnnotationType = selectedAnnotation?.type || tool;
     const isImage = activeAnnotationType === 'image';
-    const showStyleControls = !isImage && Boolean(selectedAnnotation || PRINT_ANNOTATION_DRAW_TOOLS.has(tool));
+    const showImageBorder = isImage && selectedAnnotation?.imageBorder === true;
+    const showStyleControls = showImageBorder || (!isImage && Boolean(selectedAnnotation || PRINT_ANNOTATION_DRAW_TOOLS.has(tool)));
     const showLineControls = [
         PRINT_ANNOTATION_TOOL_LINE,
         PRINT_ANNOTATION_TOOL_RECTANGLE,
         PRINT_ANNOTATION_TOOL_CIRCLE,
         PRINT_ANNOTATION_TOOL_POLYGON,
-    ].includes(activeAnnotationType);
+    ].includes(activeAnnotationType) || showImageBorder;
     const showFillControls = [
         PRINT_ANNOTATION_TOOL_RECTANGLE,
         PRINT_ANNOTATION_TOOL_CIRCLE,
@@ -307,6 +308,12 @@ export default function PrintAnnotationToolbar({
                             className="mt-1 w-full rounded-md border border-slate-200 px-2.5 py-2 text-sm text-slate-900 focus:border-brand-500 focus:ring-brand-100"
                         />
                     </label>
+                    <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs font-semibold text-slate-700">
+                        <input type="checkbox" checked={showImageBorder}
+                            onChange={(event) => onSelectedChange?.({ imageBorder: event.target.checked || undefined })}
+                            className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                        {messages.showImageBorder}
+                    </label>
                     <p className="text-xs leading-4 text-slate-600">{messages.imagePrivate}</p>
                 </div>
             ) : null}
@@ -342,7 +349,7 @@ export default function PrintAnnotationToolbar({
 
             {showStyleControls ? (
                 <div className="mt-3">
-                <span className="text-[10px] font-bold uppercase text-slate-500">Shape colour</span>
+                <span className="text-[10px] font-bold uppercase text-slate-500">{isImage ? messages.imageBorderColour : 'Shape colour'}</span>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {PRINT_ANNOTATION_COLORS.map((color) => (
                         <button
@@ -362,21 +369,21 @@ export default function PrintAnnotationToolbar({
                     ))}
                     <label
                         className="relative flex h-8 min-w-[126px] cursor-pointer items-center gap-2 overflow-hidden rounded-md border border-slate-200 bg-white px-2 text-xs font-bold text-slate-600 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
-                        title="Choose custom shape colour"
+                        title={isImage ? messages.imageBorderColour : 'Choose custom shape colour'}
                     >
                         <span
                             className="h-4 w-4 shrink-0 rounded border border-slate-300"
                             style={{ backgroundColor: activeStyle.color }}
                             aria-hidden="true"
                         />
-                        <span>Custom</span>
+                        <span>{isImage ? messages.imageBorderColour : 'Custom'}</span>
                         <span className="ml-auto font-mono text-[10px] text-slate-500">
                             {activeStyle.color}
                         </span>
                         <input
                             type="color"
                             value={activeStyle.color}
-                            aria-label="Shape colour picker"
+                            aria-label={isImage ? messages.imageBorderColour : 'Shape colour picker'}
                             data-print-annotation-shape-color-picker="true"
                             onChange={(event) => {
                                 const color = event.target.value.toUpperCase();
@@ -483,7 +490,7 @@ export default function PrintAnnotationToolbar({
                 <div className={`mt-3 grid gap-3 ${showLineControls && showFillControls ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 {showLineControls ? (
                     <label className="block">
-                    <span className="text-[10px] font-bold uppercase text-slate-500">Line</span>
+                    <span className="text-[10px] font-bold uppercase text-slate-500">{isImage ? messages.imageBorderWidth : 'Line'}</span>
                     <input
                         type="range"
                         min="1"
@@ -545,7 +552,7 @@ export default function PrintAnnotationToolbar({
                 </div>
             ) : null}
 
-            {showLineControls ? (
+            {showLineControls && !isImage ? (
                 <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600">
                 <input
                     type="checkbox"

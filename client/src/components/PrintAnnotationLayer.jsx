@@ -45,6 +45,41 @@ import {
 import '../styles/annotationAttention.css';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getAnnotationMessages } from '../lib/annotationMessages.js';
+import { bindAnnotationHoverElement } from '../lib/annotationResourceHover.js';
+import { ANNOTATION_RESOURCE_DEFAULT_GLOW_COLOR } from '../lib/annotationResourceLinks.js';
+
+function useAnnotationBrowseElement(layerRef, annotation, browse, onActivate, onDeactivate, elementKey = null) {
+    const binding = useRef(null);
+    const callbacks = useRef({ onActivate, onDeactivate });
+    callbacks.current = { onActivate, onDeactivate };
+    const { locale } = useLocale();
+    const label = annotation.image?.alt || annotation.text || getAnnotationMessages(locale).linkedAnnotation;
+    useEffect(() => {
+        if (!browse || !annotation.resourceLinks?.length) return undefined;
+        const layer = layerRef.current;
+        let element = null;
+        const sync = () => {
+            const next = layer?.getElement?.();
+            if (!next || next === element) return;
+            binding.current?.cleanup();
+            element = next;
+            binding.current = bindAnnotationHoverElement(element, {
+                label, onActivate: channel => callbacks.current.onActivate?.(annotation.id, channel),
+                onDeactivate: (channel, token) => callbacks.current.onDeactivate?.(annotation.id, channel, token),
+            });
+        };
+        sync();
+        layer?.on?.('add', sync);
+        layer?.on?.('load', sync);
+        return () => {
+            layer?.off?.('add', sync);
+            layer?.off?.('load', sync);
+            binding.current?.cleanup();
+            binding.current = null;
+        };
+    }, [annotation.id, annotation.resourceLinks?.length, browse, elementKey, label, layerRef]);
+    return event => binding.current?.activateTouch(event);
+}
 
 function escapeMarkup(value) {
     return String(value || '')
@@ -344,7 +379,11 @@ function ShapeTextMarker({
     layerIndex,
     markerRef,
     onSelect,
+    browse,
+    onActivate,
+    onDeactivate,
 }) {
+    const activateTouch = useAnnotationBrowseElement(markerRef, annotation, browse, onActivate, onDeactivate);
     const icon = useMemo(
         () => createShapeTextIcon(annotation),
         [annotation],
@@ -360,7 +399,8 @@ function ShapeTextMarker({
             eventHandlers={interactive ? {
                 click: (event) => {
                     stopAnnotationEvent(event);
-                    onSelect?.(annotation.id);
+                    if (browse) activateTouch(event);
+                    else onSelect?.(annotation.id);
                 },
             } : undefined}
         />
@@ -382,18 +422,23 @@ function AnnotationShape({
     tool,
     onSelect,
     onUpdate,
+    browse,
+    onActivate,
+    onDeactivate,
 }) {
     const map = useMap();
     const shapeRef = useRef(null);
     const shapeTextRef = useRef(null);
     const previewTransformRef = useRef(null);
+    const activateTouch = useAnnotationBrowseElement(shapeRef, annotation, browse, onActivate, onDeactivate);
     const eventHandlers = interactive ? {
         click: (event) => {
             stopAnnotationEvent(event);
-            onSelect?.(annotation.id);
+            if (browse) activateTouch(event);
+            else onSelect?.(annotation.id);
         },
     } : undefined;
-    const pathOptions = getPathOptions(annotation, selected || highlighted);
+    const pathOptions = getPathOptions(annotation, selected);
     const rotationDegrees = normalizePrintAnnotationRotation(annotation.rotationDegrees);
     const displayPoints = annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE
         ? buildPrintAnnotationRectanglePoints(annotation.points, rotationDegrees)
@@ -525,6 +570,9 @@ function AnnotationShape({
                     layerIndex={layerIndex}
                     markerRef={shapeTextRef}
                     onSelect={onSelect}
+                    browse={browse}
+                    onActivate={onActivate}
+                    onDeactivate={onDeactivate}
                 />
             ) : null}
             {selected && interactive && tool === PRINT_ANNOTATION_TOOL_SELECT ? (
@@ -557,11 +605,17 @@ function PinAnnotation({
     tool,
     onSelect,
     onUpdate,
+    browse,
+    onActivate,
+    onDeactivate,
 }) {
+    const markerRef = useRef(null);
+    const activateTouch = useAnnotationBrowseElement(markerRef, annotation, browse, onActivate, onDeactivate);
     return (
         <Marker
+            ref={markerRef}
             position={annotation.points[0]}
-            icon={createPinIcon(annotation, selected || highlighted)}
+            icon={createPinIcon(annotation, selected)}
             draggable={selected && interactive && [
                 PRINT_ANNOTATION_TOOL_SELECT,
                 PRINT_ANNOTATION_TOOL_MOVE,
@@ -571,7 +625,8 @@ function PinAnnotation({
             eventHandlers={interactive ? {
                 click: (event) => {
                     stopAnnotationEvent(event);
-                    onSelect?.(annotation.id);
+                    if (browse) activateTouch(event);
+                    else onSelect?.(annotation.id);
                 },
                 dragend: (event) => {
                     const latLng = event.target.getLatLng();
@@ -599,9 +654,10 @@ function PinAnnotation({
     );
 }
 
-function ImageAnnotation({ annotation, source, selected, highlighted, interactive, layerIndex, tool, onSelect, onUpdate }) {
+function ImageAnnotation({ annotation, source, selected, interactive, layerIndex, tool, onSelect, onUpdate, browse, onActivate, onDeactivate }) {
     const overlayRef = useRef(null);
     const previewRef = useRef(null);
+    const activateTouch = useAnnotationBrowseElement(overlayRef, annotation, browse, onActivate, onDeactivate, source?.url || 'placeholder');
     const { locale } = useLocale();
     const messages = getAnnotationMessages(locale);
     const ready = source?.status === 'ready' && source.url?.startsWith('blob:');
@@ -609,8 +665,10 @@ function ImageAnnotation({ annotation, source, selected, highlighted, interactiv
         const image = overlayRef.current?.getElement();
         if (!image) return;
         image.setAttribute('data-private-annotation-image', annotation.id);
-        image.style.outline = selected || highlighted ? `3px solid ${annotation.style.color}` : 'none';
-    }, [annotation.id, annotation.style.color, highlighted, selected]);
+        image.style.border = annotation.imageBorder === true ? `${annotation.style.weight}px ${annotation.style.dashed ? 'dashed' : 'solid'} ${annotation.style.color}` : 'none';
+        image.style.boxSizing = 'border-box';
+        image.style.outline = selected ? `3px solid ${annotation.style.color}` : 'none';
+    }, [annotation.id, annotation.imageBorder, annotation.style.color, annotation.style.dashed, annotation.style.weight, selected]);
     useEffect(setImageAttributes, [setImageAttributes, source?.url]);
     const preview = useCallback(points => {
         previewRef.current = points;
@@ -624,14 +682,14 @@ function ImageAnnotation({ annotation, source, selected, highlighted, interactiv
     const events = {
         load: setImageAttributes,
         add: setImageAttributes,
-        ...(interactive ? { click: event => { stopAnnotationEvent(event); onSelect?.(annotation.id); } } : {}),
+        ...(interactive ? { click: event => { stopAnnotationEvent(event); if (browse) activateTouch(event); else onSelect?.(annotation.id); } } : {}),
     };
     return (
         <>
             {ready ? <ImageOverlay ref={overlayRef} url={source.url} bounds={annotation.points}
                 alt={annotation.image.alt || annotation.text || messages.imagePrivate}
                 interactive={interactive} eventHandlers={events} /> : (
-                <Rectangle bounds={annotation.points} interactive={interactive} eventHandlers={events}
+                <Rectangle ref={overlayRef} bounds={annotation.points} interactive={interactive} eventHandlers={events}
                     pathOptions={{ color: annotation.style.color, fillOpacity: 0.08, dashArray: '6 4' }}>
                     <Tooltip permanent>{source?.status === 'error' ? messages.imageLoadFailed : messages.uploadingImage}</Tooltip>
                 </Rectangle>
@@ -867,17 +925,18 @@ function DraftShape({
     );
 }
 
-function AnnotationAttention({ paneName, active, pulse, activationVersion }) {
+function AnnotationAttention({ paneName, active, pulse, activationVersion, glowColor }) {
     const map = useMap();
     useEffect(() => {
         const pane = map.getPane(paneName);
         if (!pane) return undefined;
         const classes = ['carearound-annotation-active', 'carearound-annotation-pulse', 'carearound-annotation-pulse-repeat'];
+        pane.style.setProperty('--annotation-resource-glow-color', glowColor || ANNOTATION_RESOURCE_DEFAULT_GLOW_COLOR);
         pane.classList.toggle(classes[0], active);
         pane.classList.toggle(classes[1], pulse);
         pane.classList.toggle(classes[2], pulse && activationVersion % 2 === 0);
-        return () => pane.classList.remove(...classes);
-    }, [active, activationVersion, map, paneName, pulse]);
+        return () => { pane.classList.remove(...classes); pane.style.removeProperty('--annotation-resource-glow-color'); };
+    }, [active, activationVersion, glowColor, map, paneName, pulse]);
     return null;
 }
 
@@ -897,6 +956,8 @@ export default function PrintAnnotationLayer({
     onCancel,
     browseInteractive = false,
     onActivate,
+    onDeactivate,
+    annotationGlowColors = new Map(),
     activeIds = new Set(),
     pulseIds = new Set(),
     activationVersion = 0,
@@ -908,7 +969,7 @@ export default function PrintAnnotationLayer({
     );
     const browseEnabled = !editable && browseInteractive;
     const interactionEnabled = annotationInteractionEnabled || browseEnabled;
-    const selectAnnotation = browseEnabled ? onActivate : onSelect;
+    const selectAnnotation = onSelect;
 
     useEffect(() => {
         setDraftPreviewPoint(null);
@@ -928,10 +989,11 @@ export default function PrintAnnotationLayer({
                     return (
                         <Pane key={`${annotation.id}:${layerIndex}:${editable ? 'edit' : 'view'}`}
                             name={`print-annotation-${annotation.id}`} className={attentionClass} style={{ zIndex: 450 + layerIndex }}>
-                            <AnnotationAttention paneName={`print-annotation-${annotation.id}`} active={activeIds.has(annotation.id)} pulse={pulseIds.has(annotation.id)} activationVersion={activationVersion} />
+                            <AnnotationAttention paneName={`print-annotation-${annotation.id}`} active={activeIds.has(annotation.id)} pulse={pulseIds.has(annotation.id)} activationVersion={activationVersion} glowColor={annotationGlowColors.get(annotation.id)} />
                             <ImageAnnotation annotation={annotation} source={privateImageSources[annotation.image.assetId]}
                                 selected={selected} highlighted={highlighted} interactive={interactionEnabled}
                                 layerIndex={layerIndex} tool={tool} onSelect={selectAnnotation}
+                                browse={browseEnabled} onActivate={onActivate} onDeactivate={onDeactivate}
                                 onUpdate={editable ? handleUpdate : undefined} />
                         </Pane>
                     );
@@ -944,7 +1006,7 @@ export default function PrintAnnotationLayer({
                             style={{ zIndex: 450 + layerIndex }}
                             className={attentionClass}
                         >
-                            <AnnotationAttention paneName={`print-annotation-${annotation.id}`} active={activeIds.has(annotation.id)} pulse={pulseIds.has(annotation.id)} activationVersion={activationVersion} />
+                            <AnnotationAttention paneName={`print-annotation-${annotation.id}`} active={activeIds.has(annotation.id)} pulse={pulseIds.has(annotation.id)} activationVersion={activationVersion} glowColor={annotationGlowColors.get(annotation.id)} />
                             <PinAnnotation
                                 annotation={annotation}
                                 selected={selected}
@@ -954,6 +1016,7 @@ export default function PrintAnnotationLayer({
                                 tool={tool}
                                 onSelect={selectAnnotation}
                                 onUpdate={editable ? handleUpdate : undefined}
+                                browse={browseEnabled} onActivate={onActivate} onDeactivate={onDeactivate}
                             />
                         </Pane>
                     );
@@ -965,7 +1028,7 @@ export default function PrintAnnotationLayer({
                         style={{ zIndex: 450 + layerIndex }}
                         className={attentionClass}
                     >
-                        <AnnotationAttention paneName={`print-annotation-${annotation.id}`} active={activeIds.has(annotation.id)} pulse={pulseIds.has(annotation.id)} activationVersion={activationVersion} />
+                        <AnnotationAttention paneName={`print-annotation-${annotation.id}`} active={activeIds.has(annotation.id)} pulse={pulseIds.has(annotation.id)} activationVersion={activationVersion} glowColor={annotationGlowColors.get(annotation.id)} />
                         <AnnotationShape
                             annotation={annotation}
                             selected={selected}
@@ -975,6 +1038,7 @@ export default function PrintAnnotationLayer({
                             tool={tool}
                             onSelect={selectAnnotation}
                             onUpdate={editable ? handleUpdate : undefined}
+                            browse={browseEnabled} onActivate={onActivate} onDeactivate={onDeactivate}
                         />
                     </Pane>
                 );

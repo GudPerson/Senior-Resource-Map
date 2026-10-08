@@ -24,8 +24,8 @@ async function renderer() {
     loaded = module.exports; return loaded;
 }
 
-const interaction = (onActivateResources) => ({ onActivateResources, taggedResourceKeys: new Set(['soft:2']), activeResourceKeys: new Set(['soft:2']), pulsingResourceKeys: new Set(['soft:2']) });
-function event(nested = false, key = undefined) { return { target: { closest: () => nested ? {} : null }, key, prevented: false, preventDefault() { this.prevented = true; } }; }
+const interaction = (onActivateResources, onClearResources) => ({ onActivateResources, onClearResources, taggedResourceKeys: new Set(['soft:2']), activeResourceKeys: new Set(['soft:2']), pulsingResourceKeys: new Set(['soft:2']), resourceGlowColors: new Map([['soft:2','#f97316']]) });
+function event(nested = false, key = undefined, pointerType) { return { target: { closest: () => nested ? {} : null }, currentTarget: { contains: () => false }, pointerType, key, prevented: false, preventDefault() { this.prevented = true; } }; }
 
 test('owner annotation emphasis is separate from map selection and leaves shared rendering unchanged', async () => {
     const render = (await renderer()).render;
@@ -33,23 +33,41 @@ test('owner annotation emphasis is separate from map selection and leaves shared
     assert.doesNotMatch(base.html, /annotation-resource-card-highlight|data-annotation-resource-active/);
     assert.match(active.html, /annotation-resource-card-highlight annotation-resource-card-pulse/);
     assert.match(active.html, /data-annotation-resource-active="true"/);
+    assert.match(active.html, /--annotation-resource-glow-color:#f97316/);
     assert.match(active.html, /href="\/resource\/hard\/1"/);
     assert.match(active.html, /href="\/resource\/soft\/2"/);
     assert.equal((active.html.match(/data-directory-place-card="true"/g) || []).length, (base.html.match(/data-directory-place-card="true"/g) || []).length);
     assert.equal(render(presentation, 'shared', interaction(() => {})).html, render(presentation, 'shared', null).html);
 });
 
-test('actual card handlers preserve nested controls and keyboard behavior while notifying resource activation', async () => {
-    const focused = [], activated = [];
+test('hover and focus trigger linked effects independently of ordinary click and keyboard map selection', async () => {
+    const focused = [], activated = [], cleared = [];
     globalThis.__annotationMapFocus = (key) => focused.push(key);
     try {
-        const { nodes } = (await renderer()).render(presentation, 'owner', interaction((links) => activated.push(links)));
+        const { nodes } = (await renderer()).render(presentation, 'owner', interaction((links, channel) => { activated.push({links,channel}); return activated.length; }, (links,channel,token) => cleared.push({links,channel,token})));
         const card = nodes.find(({ props }) => props['data-directory-place-card'] === 'true').props;
         card.onClick(event(true)); card.onKeyDown(event(true, 'Enter')); card.onKeyDown(event(false, 'Escape'));
         assert.deepEqual(focused, []); assert.deepEqual(activated, []);
         card.onClick(event()); card.onKeyDown(event(false, 'Enter')); card.onKeyDown(event(false, ' '));
         assert.deepEqual(focused, ['place:1', 'place:1', 'place:1']);
-        assert.deepEqual(activated, Array.from({ length: 3 }, () => [{ type: 'hard', id: 1 }, { type: 'soft', id: 2 }]));
+        assert.deepEqual(activated, [], 'Clicks and Enter/Space retain ordinary selection without linked activation.');
+        card.onFocus(event()); card.onPointerEnter(event(false,undefined,'mouse')); card.onPointerLeave(event());
+        assert.deepEqual(activated.map(item=>item.channel), ['focus','pointer']);
+        assert.deepEqual(cleared.map(item=>[item.channel,item.token]), [['pointer',2]]);
+        card.onBlur(event());
+        assert.deepEqual(cleared.map(item=>[item.channel,item.token]), [['pointer',2],['focus',1]]);
+        assert.deepEqual(focused, ['place:1', 'place:1', 'place:1'], 'Hover/focus never call map focus.');
+        card.onPointerDown(event(false,undefined,'mouse')); card.onFocus(event()); card.onPointerUp(event());
+        assert.equal(activated.length,2,'Pointer-click focus cannot create a lingering focus activation.');
+        card.onPointerDown(event(false,undefined,'mouse')); card.onPointerLeave(event()); card.onFocus(event());
+        assert.equal(activated.at(-1).channel,'focus','Dragging outside cannot suppress a later keyboard focus.');
+        card.onBlur(event());
+        const beforeTouch=activated.length;
+        card.onPointerEnter(event(false,undefined,'touch')); card.onPointerDown(event(false,undefined,'touch')); card.onFocus(event());
+        card.onClick(event(true)); assert.equal(activated.length,beforeTouch,'Nested touch links retain their own action.');
+        card.onClick(event()); card.onPointerUp(event());
+        assert.equal(activated.at(-1).channel,'touch');
+        assert.deepEqual(activated.at(-1).links,[{type:'hard',id:1},{type:'soft',id:2}]);
     } finally { delete globalThis.__annotationMapFocus; }
 });
 
@@ -61,10 +79,22 @@ test('a linked list-only card activates its annotation without inventing a map f
         const { nodes } = (await renderer()).render(value, 'owner', interaction((links) => activated.push(links)));
         const card = nodes.find(({ props }) => props['data-directory-place-card'] === 'true').props;
         assert.equal(card.role, 'button'); assert.equal(card.tabIndex, 0);
-        card.onClick(event()); assert.deepEqual(focused, []); assert.deepEqual(activated, [[{ type: 'soft', id: 2 }]]);
+        const desktopClick=event();card.onClick(desktopClick); assert.deepEqual(focused, []); assert.deepEqual(activated, []);
+        assert.equal(desktopClick.prevented,false,'A list-only desktop click does not consume link navigation.');
+        card.onPointerEnter(event(false,undefined,'mouse')); assert.deepEqual(activated, [[{type:'soft',id:2}]]);
         const unlinked = (await renderer()).render(value, 'owner', null).nodes.find(({ props }) => props['data-directory-place-card'] === 'true').props;
         assert.equal(unlinked.role, undefined);
     } finally { delete globalThis.__annotationMapFocus; }
+});
+
+test('moving keyboard focus between a card and its nested links retains the same activation', async () => {
+    let activations=0, clears=0;
+    const {nodes}= (await renderer()).render(presentation,'owner',interaction(()=>++activations,()=>++clears));
+    const card=nodes.find(({props})=>props['data-directory-place-card']==='true').props;
+    const within={...event(),relatedTarget:{},currentTarget:{contains:()=>true}};
+    card.onFocus(event()); card.onBlur(within); card.onFocus(within);
+    assert.equal(activations,1); assert.equal(clears,0);
+    card.onBlur(event()); assert.equal(clears,1);
 });
 
 test('tagging control is accessible and does not edit an annotation simply by rendering', async () => {

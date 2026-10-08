@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ANNOTATION_RESOURCE_LINK_LIMIT, annotationResourceCardState, annotationResourceKey,
+import { ANNOTATION_RESOURCE_DEFAULT_GLOW_COLOR, ANNOTATION_RESOURCE_LINK_LIMIT, annotationResourceCardState, annotationResourceKey,
+    getAnnotationResourceGlowColor,
     getAnnotationResourceLinkBudget, buildAnnotationLinkIndex, buildAnnotationResourceCatalog, buildAnnotationResourceEffects,
     normalizeAnnotationResourceLinks, normalizeAnnotationResourceBehaviour,
     resolveAnnotationResourceActivation, resourceLinksForGroup, resourceLinksForPlaceKey } from '../src/lib/annotationResourceLinks.js';
@@ -12,6 +13,48 @@ const secondHost = { placeKey: 'place:2', rows: [{ rowKey: '101:place:2', resour
 const privatePlace = { placeKey: 'personal-place-1', rows: [{ resourceType: 'personal_place', resourceId: 1, personalPlaceId: 1, name: 'Fictional Home', status: 'available' }] };
 const directory = { id: 7, assets: [{ resourceType: 'hard', resourceId: 1 }, { resourceType: 'soft', resourceId: 2 }],
     personalPlaces: privatePlace.rows, places: [place, secondHost, privatePlace] };
+
+test('active glow colours use persisted annotation order across overlapping resources and host cards', () => {
+    const annotations = [
+        { id: 'z-first', resourceLinks: [soft, hard], resourceBehaviour: 'pulse', resourceGlowColor: '#12AbCD' },
+        { id: 'a-second', resourceLinks: [soft], resourceBehaviour: 'highlight', resourceGlowColor: '#AA00FF' },
+    ];
+    const before = structuredClone(annotations), index = buildAnnotationLinkIndex(annotations, buildAnnotationResourceCatalog(directory));
+    const effects = buildAnnotationResourceEffects({ annotations, index,
+        selection: { origin: 'resources', resourceLinks: [hard, soft] }, pulseActive: true });
+    assert.deepEqual([...effects.annotationGlowColors], [['z-first', '#12abcd'], ['a-second', '#aa00ff']]);
+    assert.deepEqual([...effects.resourceGlowColors], [['soft:2', '#12abcd'], ['hard:1', '#12abcd']]);
+    const interaction = { activeResourceKeys: new Set(effects.resourceKeys), resourceGlowColors: effects.resourceGlowColors };
+    assert.equal(annotationResourceCardState(place, interaction).glowColor, '#12abcd');
+    assert.equal(annotationResourceCardState({ ...place, rows: [...place.rows].reverse() }, interaction).glowColor, '#12abcd');
+    assert.equal(annotationResourceCardState(secondHost, interaction).glowColor, '#12abcd');
+    assert.equal(annotationResourceCardState(privatePlace, interaction).glowColor, ANNOTATION_RESOURCE_DEFAULT_GLOW_COLOR);
+    const reverse = buildAnnotationResourceEffects({ annotations, index, selection: { origin: 'annotation', annotationId: 'a-second' } });
+    assert.deepEqual([...reverse.resourceGlowColors], [['soft:2', '#aa00ff']]);
+    assert.deepEqual(annotations, before);
+});
+
+test('glow defaults to actual pin orange and cannot expose hidden, stale or inactive annotation colours', () => {
+    assert.equal(ANNOTATION_RESOURCE_DEFAULT_GLOW_COLOR, '#f97316');
+    assert.equal(getAnnotationResourceGlowColor(), '#f97316');
+    assert.equal(getAnnotationResourceGlowColor({ resourceGlowColor: 'url(https://example.invalid)' }), '#f97316');
+    const annotations = [
+        { id: 'hidden', resourceLinks: [soft], resourceGlowColor: '#123456' },
+        { id: 'stale', resourceLinks: [{ type: 'hard', id: 999 }], resourceGlowColor: '#abcdef' },
+        { id: 'visible', resourceLinks: [soft], resourceBehaviour: 'pulse' },
+    ];
+    const index = buildAnnotationLinkIndex(annotations, buildAnnotationResourceCatalog(directory), ['visible', 'stale']);
+    const options = { annotations, index, visibleAnnotationIds: ['visible', 'stale'],
+        selection: { origin: 'resources', resourceLinks: [soft] }, pulseActive: true, reducedMotion: true };
+    const effects = buildAnnotationResourceEffects(options);
+    assert.deepEqual([...effects.annotationGlowColors], [['visible', '#f97316']]);
+    assert.deepEqual([...effects.resourceGlowColors], [['soft:2', '#f97316']]);
+    assert.equal(effects.pulseIds.size, 0);
+    const cleared = buildAnnotationResourceEffects({ ...options, enabled: false });
+    assert.equal(cleared.annotationGlowColors.size, 0);
+    assert.equal(cleared.resourceGlowColors.size, 0);
+    assert.equal(annotationResourceCardState(place, { resourceGlowColors: new Map([['soft:2', '#123456']]) }).glowColor, '#f97316');
+});
 
 test('annotation references are typed, bounded and deduplicated without coercing invalid identities', () => {
     const input = [hard, soft, personal, { ...hard }, { type: 'asset', id: 1 }, { type: 'hard', id: '1' },

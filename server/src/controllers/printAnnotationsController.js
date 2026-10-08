@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { ANNOTATION_RESOURCE_GLOW_COLOR_PATTERN } from '../../../shared/annotationAppearance.js';
 
 import { getDb } from '../db/index.js';
 import {
@@ -59,6 +60,8 @@ const printAnnotationSchema = z.object({
     resourceLinks: z.array(z.object({ type: z.enum(['hard', 'soft', 'personal_place']), id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) }).strict())
         .max(PRINT_ANNOTATION_MAX_RESOURCE_LINKS).optional(),
     resourceBehaviour: z.enum(['appear', 'pulse', 'highlight']).optional(),
+    resourceGlowColor: z.string().regex(ANNOTATION_RESOURCE_GLOW_COLOR_PATTERN).transform(value => value.toLowerCase()).optional(),
+    imageBorder: z.boolean().optional(),
     image: z.object({ assetId: z.string().regex(/^[a-f0-9]{64}$/), width: z.number().int().min(1).max(MAP_MEDIA_MAX_SIDE),
         height: z.number().int().min(1).max(MAP_MEDIA_MAX_SIDE), alt: z.string().trim().max(240).default('') }).strict().optional(),
 }).superRefine((annotation, context) => {
@@ -116,10 +119,13 @@ const printAnnotationSchema = z.object({
             context.addIssue({ code: z.ZodIssueCode.custom, path: ['points'], message: 'Image bounds must be ordered southwest to northeast with a positive area' });
         }
     } else if (annotation.image) context.addIssue({ code: z.ZodIssueCode.custom, path: ['image'], message: 'Image metadata is only supported on image annotations' });
+    if (annotation.type !== 'image' && annotation.imageBorder !== undefined) context.addIssue({ code: z.ZodIssueCode.custom, path: ['imageBorder'], message: 'Image borders are only supported on image annotations' });
 }).transform((annotation) => {
-    const { resourceLinks, resourceBehaviour, ...rest } = annotation;
+    const { resourceLinks, resourceBehaviour, resourceGlowColor, imageBorder, ...rest } = annotation;
     return { ...rest, ...(annotation.type === 'image' ? { isShared: false } : {}),
-        ...(resourceLinks?.length ? { resourceLinks, resourceBehaviour: resourceBehaviour || 'highlight' } : {}) };
+        ...(annotation.type === 'image' && imageBorder === true ? { imageBorder: true } : {}),
+        ...(resourceLinks?.length ? { resourceLinks, resourceBehaviour: resourceBehaviour || 'highlight',
+            ...(resourceGlowColor ? { resourceGlowColor } : {}) } : {}) };
 });
 
 const replacePrintAnnotationsBodySchema = z.object({
@@ -165,8 +171,8 @@ function normalizePrintAnnotationSnapshot(annotations) {
     // Images and resource links are private owner data, even if a caller passes
     // untrusted new metadata into an existing publication or frozen snapshot.
     const publicAnnotations = (Array.isArray(annotations) ? annotations : []).filter((annotation) => annotation && typeof annotation === 'object' && annotation.type !== 'image')
-        .map(({ resourceLinks, resourceBehaviour, image, ...annotation }) => {
-            void resourceLinks; void resourceBehaviour; void image;
+        .map(({ resourceLinks, resourceBehaviour, resourceGlowColor, imageBorder, image, ...annotation }) => {
+            void resourceLinks; void resourceBehaviour; void resourceGlowColor; void imageBorder; void image;
             return annotation;
         });
     const parsed = replacePrintAnnotationsBodySchema.safeParse({

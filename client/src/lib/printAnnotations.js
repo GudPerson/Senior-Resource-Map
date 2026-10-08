@@ -1,4 +1,5 @@
 import { getAnnotationResourceLinkBudget, normalizeAnnotationResourceLinks, normalizeAnnotationResourceBehaviour } from './annotationResourceLinks.js';
+import { isAnnotationResourceGlowColor, normalizeAnnotationResourceGlowColor } from '../../../shared/annotationAppearance.js';
 
 export const PRINT_ANNOTATION_SCHEMA_VERSION = 1;
 export const PRINT_ANNOTATION_MAX_COUNT = 100;
@@ -302,7 +303,10 @@ export function normalizePrintAnnotation(annotation) {
         } : {}),
         ...(rotationDegrees ? { rotationDegrees } : {}),
         ...(image ? { image } : {}),
-        ...(resourceLinks.length ? { resourceLinks, resourceBehaviour: normalizeAnnotationResourceBehaviour(annotation?.resourceBehaviour) } : {}),
+        ...(image && annotation.imageBorder === true ? { imageBorder: true } : {}),
+        ...(resourceLinks.length ? { resourceLinks, resourceBehaviour: normalizeAnnotationResourceBehaviour(annotation?.resourceBehaviour),
+            ...(isAnnotationResourceGlowColor(annotation?.resourceGlowColor)
+                ? { resourceGlowColor: normalizeAnnotationResourceGlowColor(annotation.resourceGlowColor) } : {}) } : {}),
         text,
         style: normalizePrintAnnotationStyle(annotation?.style),
     };
@@ -338,8 +342,10 @@ export function createPrintAnnotation({
     text = '',
     style = DEFAULT_PRINT_ANNOTATION_STYLE,
     image,
+    imageBorder,
     resourceLinks,
     resourceBehaviour,
+    resourceGlowColor,
 }) {
     return normalizePrintAnnotation({
         id: createPrintAnnotationId(),
@@ -349,8 +355,10 @@ export function createPrintAnnotation({
         text,
         style,
         image,
+        imageBorder,
         resourceLinks,
         resourceBehaviour,
+        resourceGlowColor,
     });
 }
 

@@ -1,14 +1,18 @@
-.carearound-annotation-active { filter: drop-shadow(0 0 5px #0f766e); }
+.carearound-annotation-active { filter: drop-shadow(0 0 5px var(--annotation-resource-glow-color, #f97316)); }
 .carearound-annotation-pulse { animation: carearound-annotation-attention 600ms ease-in-out 3; }
 .carearound-annotation-pulse-repeat { animation-name: carearound-annotation-attention-repeat; }
 @keyframes carearound-annotation-attention {
-    0%, 100% { filter: drop-shadow(0 0 4px #0f766e); }
-    50% { filter: drop-shadow(0 0 12px #0f766e); }
+    0%, 100% { filter: drop-shadow(0 0 4px var(--annotation-resource-glow-color, #f97316)); }
+    50% { filter: drop-shadow(0 0 12px var(--annotation-resource-glow-color, #f97316)); }
 }
 @keyframes carearound-annotation-attention-repeat {
-    0%, 100% { filter: drop-shadow(0 0 4px #0f766e); }
-    50% { filter: drop-shadow(0 0 12px #0f766e); }
+    0%, 100% { filter: drop-shadow(0 0 4px var(--annotation-resource-glow-color, #f97316)); }
+    50% { filter: drop-shadow(0 0 12px var(--annotation-resource-glow-color, #f97316)); }
 }
 @media (prefers-reduced-motion: reduce) {
-    .carearound-annotation-pulse { animation: none; filter: drop-shadow(0 0 5px #0f766e); }
+    .carearound-annotation-pulse { animation: none; filter: drop-shadow(0 0 5px var(--annotation-resource-glow-color, #f97316)); }
+}
+@media print {
+    .carearound-annotation-active,
+    .carearound-annotation-pulse { animation: none; filter: none; }
 }

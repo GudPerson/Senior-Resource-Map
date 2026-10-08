@@ -20,12 +20,18 @@ export async function loadMapAnnotationResourceKeys(db, userId, mapId) {
 
 export function detachInvalidAnnotationResourceLinks(annotations, allowedKeys) {
     return annotations.map((annotation) => {
-        if (!Array.isArray(annotation.resourceLinks)) return annotation;
+        if (!Array.isArray(annotation.resourceLinks)) {
+            if (annotation.resourceGlowColor === undefined) return annotation;
+            const { resourceGlowColor, ...rest } = annotation;
+            void resourceGlowColor;
+            return rest;
+        }
         const resourceLinks = annotation.resourceLinks.filter((link) => allowedKeys.has(key(link)));
         if (resourceLinks.length === annotation.resourceLinks.length && resourceLinks.length) return annotation;
-        const { resourceLinks: unusedLinks, resourceBehaviour, ...rest } = annotation;
+        const { resourceLinks: unusedLinks, resourceBehaviour, resourceGlowColor, ...rest } = annotation;
         void unusedLinks;
-        return resourceLinks.length ? { ...rest, resourceLinks, ...(resourceBehaviour ? { resourceBehaviour } : {}) } : rest;
+        return resourceLinks.length ? { ...rest, resourceLinks, ...(resourceBehaviour ? { resourceBehaviour } : {}),
+            ...(resourceGlowColor ? { resourceGlowColor } : {}) } : rest;
     });
 }
 

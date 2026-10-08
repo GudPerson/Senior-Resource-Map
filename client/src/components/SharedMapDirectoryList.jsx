@@ -4,7 +4,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { AnnotationResourceInteractionContext, useAnnotationResourceCard } from './AnnotationResourceInteraction.jsx';
-import { resourceLinksForPlaceKey } from '../lib/annotationResourceLinks.js';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { appendMapReturnTo, buildCurrentAppPath, normalizeMapReturnPath } from '../lib/appNavigation.js';
@@ -2172,22 +2171,26 @@ function DirectoryPlaceGroupCard({
 
     function handleCardClick(event) {
         if (!canActivateCard || isInteractiveCardTarget(event.target)) return;
+        if (!canFocusCardOnMap) {
+            if (annotationCard.activateTouch(event)) event.preventDefault();
+            return;
+        }
         event.preventDefault();
         if (canFocusCardOnMap) onViewOnMap?.(group.placeKey);
-        else annotationCard.activate();
+        annotationCard.activateTouch(event);
     }
 
     function handleCardKeyDown(event) {
-        if (!canActivateCard || isInteractiveCardTarget(event.target)) return;
+        if (!canFocusCardOnMap || isInteractiveCardTarget(event.target)) return;
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
         if (canFocusCardOnMap) onViewOnMap?.(group.placeKey);
-        else annotationCard.activate();
     }
 
     const cardInteractionProps = interactive ? {
         onMouseEnter: () => onHoverPlaceStart?.(group.placeKey),
         onMouseLeave: () => onHoverPlaceEnd?.(group.placeKey),
+        ...annotationCard.hoverProps,
         ...annotationCard.attributes,
         ...(canActivateCard ? {
             onClick: handleCardClick,
@@ -2669,24 +2672,31 @@ function MobileMapFocusTrayPlaceCard({
     const previewRow = primaryManagedPlaceRow || getGroupBadgeRow(group);
     const locationLine = resolveV2CardLocationLine(group, t);
     const canFocusOnMap = Boolean(onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
+    const canActivateCard = canFocusOnMap || annotationCard.canActivate;
 
     function handleCardClick(event) {
-        if (!canFocusOnMap || isInteractiveCardTarget(event.target)) return;
+        if (!canActivateCard || isInteractiveCardTarget(event.target)) return;
+        if (!canFocusOnMap) {
+            if (annotationCard.activateTouch(event)) event.preventDefault();
+            return;
+        }
         event.preventDefault();
-        onViewOnMap?.(group.placeKey);
+        if (canFocusOnMap) onViewOnMap?.(group.placeKey);
+        annotationCard.activateTouch(event);
     }
 
     function handleCardKeyDown(event) {
         if (!canFocusOnMap || isInteractiveCardTarget(event.target)) return;
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
-        onViewOnMap?.(group.placeKey);
+        if (canFocusOnMap) onViewOnMap?.(group.placeKey);
     }
 
     if (cardVariant === 'complete-preview' && previewRow) {
         return (
             <CompactResourcePreviewCard
                 data-mobile-map-focus-tray-card="true"
+                {...annotationCard.hoverProps}
                 {...annotationCard.attributes}
                 group={group}
                 row={previewRow}
@@ -2706,9 +2716,9 @@ function MobileMapFocusTrayPlaceCard({
                 }${annotationCard.className ? ` ${annotationCard.className}` : ''}`}
                 onClick={handleCardClick}
                 onKeyDown={handleCardKeyDown}
-                role={canFocusOnMap ? 'button' : undefined}
-                tabIndex={canFocusOnMap ? 0 : undefined}
-                aria-label={canFocusOnMap ? `${t('viewOnMap')}: ${group.name}` : undefined}
+                role={canActivateCard ? 'button' : undefined}
+                tabIndex={canActivateCard ? 0 : undefined}
+                aria-label={canFocusOnMap ? `${t('viewOnMap')}: ${group.name}` : annotationCard.canActivate ? annotationCard.label : undefined}
                 detailAction={placeDetailPath && previewRow.status !== 'unavailable' ? (
                     <Link to={placeDetailPath} className={COMPACT_RESOURCE_DETAIL_ACTION_CLASSNAME}>
                         {t('embedMapOpenResource')} <ExternalLink size={12} />
@@ -2728,15 +2738,16 @@ function MobileMapFocusTrayPlaceCard({
     return (
         <article
             data-mobile-map-focus-tray-card="true"
+            {...annotationCard.hoverProps}
             {...annotationCard.attributes}
             className={`group flex snap-start items-start gap-2.5 rounded-[20px] border border-slate-200 bg-white p-3 shadow-sm ${
                 compactFullMap ? 'min-w-[min(18rem,78vw)] max-w-[19rem]' : 'min-w-[min(18rem,78vw)]'
             }${annotationCard.className ? ` ${annotationCard.className}` : ''}`}
             onClick={handleCardClick}
             onKeyDown={handleCardKeyDown}
-            role={canFocusOnMap ? 'button' : undefined}
-            tabIndex={canFocusOnMap ? 0 : undefined}
-            aria-label={canFocusOnMap ? `${t('viewOnMap')}: ${group.name}` : undefined}
+            role={canActivateCard ? 'button' : undefined}
+            tabIndex={canActivateCard ? 0 : undefined}
+            aria-label={canFocusOnMap ? `${t('viewOnMap')}: ${group.name}` : annotationCard.canActivate ? annotationCard.label : undefined}
         >
             <DirectoryPlaceBadge
                 group={group}
@@ -3486,7 +3497,6 @@ function SharedMapDirectoryListContent({
     interactiveSideResourceColumnCount = 1,
 }) {
     const { t } = useLocale();
-    const annotationInteraction = useContext(AnnotationResourceInteractionContext);
     const location = useLocation();
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
@@ -3618,8 +3628,7 @@ function SharedMapDirectoryListContent({
             holdMobileFocusTrayDuringMapReveal();
         }
         onViewOnMap?.(placeKey);
-        annotationInteraction?.onActivateResources?.(resourceLinksForPlaceKey(presentation, placeKey));
-    }, [annotationInteraction, isMobileMapPanelEnabled, onViewOnMap, presentation]);
+    }, [isMobileMapPanelEnabled, onViewOnMap]);
 
     const handleMobileMapViewSection = useCallback((placeKey) => {
         if (isMobileMapPanelEnabled) {
