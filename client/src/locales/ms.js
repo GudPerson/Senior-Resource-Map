@@ -252,6 +252,8 @@ export const msDictionary = {
     bannerImageAlt: 'Imej sepanduk',
     logoImageAlt: 'Logo',
     myDirectory: 'Direktori Saya',
+    guideCurrentPage: 'Anda berada di {{page}}',
+    guideHelpWithCareAround: 'Bantuan untuk CareAround',
     careMap: 'Peta Penjagaan',
     careCalendar: 'Kalendar Penjagaan',
     careCalendarOverviewDescription: 'Lihat jadual aktiviti disimpan, rancang sesi, dan jadikan nota Peta Penjagaan peribadi sebagai tindakan bertarikh.',

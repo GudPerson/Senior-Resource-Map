@@ -1,15 +1,30 @@
+import { translateUi } from '../../lib/i18n.js';
+
 // Page labels are intentionally coarse: never forward resource IDs, map names,
 // share tokens, query strings or private page contents to the Guide.
 export function guidePageLabel(pathname = '') {
     if (pathname === '/help-centre' || pathname.startsWith('/help-centre/')) return 'Help Centre';
     if (pathname.startsWith('/dashboard/resources')) return 'Manage resources';
     if (pathname.startsWith('/dashboard/calendar')) return 'Care Calendar';
-    if (pathname.startsWith('/my-directory/maps/')) return 'My Maps';
+    if (pathname.startsWith('/my-directory/maps/')) return 'Care Maps';
     if (pathname.startsWith('/my-directory')) return 'My Directory';
     if (pathname.startsWith('/resource/')) return 'Resource details';
     if (pathname.startsWith('/dashboard')) return 'Dashboard';
     if (pathname === '/discover') return 'Discover';
     return 'CareAround';
+}
+
+// Translate display copy without changing the coarse English server context.
+export function guidePageCaption(pageLabel = '', locale = 'en') {
+    const displayLabel = ['Care Maps', 'My Maps'].includes(pageLabel)
+        ? translateUi(locale, 'myMaps') : pageLabel;
+    return pageLabel ? translateUi(locale, 'guideCurrentPage', { page: displayLabel })
+        : translateUi(locale, 'guideHelpWithCareAround');
+}
+
+// Keep the established server family alias separate from current display copy.
+export function guideRequestPageContext(pageLabel = '') {
+    return pageLabel === 'Care Maps' ? 'My Maps' : pageLabel || 'CareAround';
 }
 
 export function isGuideSurfaceAllowed(pathname = '', search = '') {

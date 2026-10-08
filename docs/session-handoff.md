@@ -1,12 +1,14 @@
 # CareAround SG session handoff
 
-## 8 October 2026 — Care Map annotation features, verified release candidate
+## 8 October 2026 — Care Map features delivered; narrow Guide caption follow-up
 
 The user approved movable/resizable images and two-way resource tagging with Appear/Pulse/Highlight. Implementation is isolated on `codex/care-map-annotation-media-20261008` from public `55845136` in `output/care-map-labels-release-20261007`; preserve the unrelated dirty primary. Images/tags stay owner-private in this version, while existing explicitly shared shape geometry remains eligible. Directory default-tab behaviour from the previous release remains unchanged.
 
 Local tagging, native image placement/transform/save/reload/undo, caption reuse, actual PNG/PDF capture, missing-image Retry, four new-control languages and Guide instructions pass. Full source gates and independent review pass; exact evidence is recorded in `docs/evidence/care-map-annotation-media-local-20261008.json` and the implementation plan. Retain earlier pane-attention/cache-busted-blob failures and corrected harness probes. Local fictional browser checks do not claim physical-device or production media writes.
 
 The earlier explicit commit/push/deploy instruction remains authority for this exact compatible release. After final source is frozen, commit/push feature-only public main, capture exact unchanged authored CMS/owner ETag/no active publication, advance only the normal public source pin via a staged version preserving the truthful current Worker tag, then use the unchanged private workflow `3304207` for a new unchanged-library publication. Require accepted receipt, cleared lock, paired source/content, complete public artifact MIME/byte/hash proof and ordinary HTML checks. Credentials, bindings, database, AI budget, unrelated CMS drafts and public fixtures remain protected. Record the exact production receipt separately; this candidate entry does not claim deployment.
+
+The feature release from public `d2f5b4ba` is now delivered through private `6c358cef` / workflow `37748105820`: all four gates, both source identities, 102 complete live artifacts, six HTML cases, unchanged authored library and cleared lock pass. Private proof is in `/private/tmp/care-map-annotation-media-20261008/release/first-feature-release-seal.json`. Live interface review caught the Guide’s old page caption; the only follow-up changes the display family/caption while a tiny adapter preserves the existing internal request alias. Keep the corrected active-tab Directory eyebrow contract. A production Guide question was not submitted after automatic approval review blocked possible AI cost/history writes; use local actual Guide fixtures and read-only live captions. Record the final caption release separately after its gates pass.
 
 
 ## 5 October 2026 — CMS ordering and publishing routing
@@ -1421,3 +1423,5 @@ The prior ten built-browser checks remain historical evidence for unchanged Help
 One extra broad question, “What happens if I cancel creating a map?”, falls back to a generic clarification with AI off. Independent review classifies this as a noncritical intent-coverage limitation, with no false write, deletion, permission or completion claim. It is recorded separately for progressive improvement; frozen 60-case scores remain unchanged.
 
 Read-only release preflight confirms origin/main and both production release manifests still point to `b8345be4d2f7a097e81cb03eef64b473abd0cec9`; Worker and Pages recovery references are recorded. Cloudflare MCP authentication failed, but existing Wrangler read-only access succeeded. No new credentials or permissions were needed. Clean release integration/provenance, credentialed standard partner smoke (currently unverified), explicit release approval and post-release/custom-domain parity remain outstanding. The goal remains active; no commit, push, deployment, model allowance renewal or production mutation occurred.
+
+Guide caption follow-up local acceptance: client 956/956 plus five environment checks, production build plus 17 environment checks, static module graph and diff pass. Actual four-language Guide browser responses are 200 with zero errors/unexpected writes. See `docs/evidence/care-map-guide-caption-local-20261008.json`; the initial local context400 is retained.

@@ -252,6 +252,8 @@ export const taDictionary = {
     bannerImageAlt: 'பேனர் படம்',
     logoImageAlt: 'லோகோ',
     myDirectory: 'என் அடைவு',
+    guideCurrentPage: 'நீங்கள் {{page}} பகுதியில் உள்ளீர்கள்',
+    guideHelpWithCareAround: 'CareAround பயன்படுத்த உதவி',
     careMap: 'பராமரிப்பு வரைபடம்',
     careCalendar: 'பராமரிப்பு நாள்காட்டி',
     careCalendarOverviewDescription: 'சேமித்த செயல்பாட்டு அட்டவணைகளைப் பார்த்து, அமர்வைத் திட்டமிட்டு, தனிப்பட்ட பராமரிப்பு வரைபட குறிப்புகளை தேதியிட்ட செயல்களாக மாற்றுங்கள்.',

@@ -13,6 +13,7 @@ import { useGuideProgramme } from './useGuideProgramme.js';
 import { isProgrammeCreationRequest } from './guideProgrammeState.js';
 import { restoreSupportFocus } from './supportFocus.js';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { guidePageCaption, guideRequestPageContext } from './guideAssistantContext.js';
 
 export default function GuidePanel({ api, signedIn, canSaveHistory = false, canCreateProgramme = canSaveHistory,
     onDraftReport, compact = false, pageLabel = '', onActionStateChange }) {
@@ -88,7 +89,7 @@ export default function GuidePanel({ api, signedIn, canSaveHistory = false, canC
             && !['resource-search', 'resource-access', 'template-access', 'workbook-access', 'group-access', 'governance-group-access', 'lifecycle-access', 'composite-guidance', 'verified-boundary', 'unverified-workflow', 'account-refresh', 'managed-resources', 'saved-resources', 'personal-places', 'my-plans', 'audit-access', 'audit-activity', 'organization-access', 'own-region-scope'].includes(message.topicId)
             && !message.actionKind && typeof message.message === 'string')
             .slice(-4).map((message) => ({ question: message.input.question, answer: message.message.slice(0, 1600) })) : [];
-        const contextualInput = { ...input, pageContext: pageLabel || 'CareAround', locale };
+        const contextualInput = { ...input, pageContext: guideRequestPageContext(pageLabel), locale };
         help.run(() => api.answer(useAi ? { ...contextualInput, useAi: true, turns } : contextualInput),
             (answer) => addMessage({ question: label, ...answer }));
     }
@@ -101,7 +102,7 @@ export default function GuidePanel({ api, signedIn, canSaveHistory = false, canC
 
     return <section className={`flex min-h-0 min-w-0 flex-col bg-white ${compact ? 'h-full' : 'h-[75svh] min-h-[34rem] overflow-hidden rounded-2xl border border-slate-200'}`} aria-label="CareAround Guide conversation">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
-            <p className="min-w-0 truncate text-xs text-slate-500">{pageLabel ? `You’re on ${pageLabel}` : 'Help with CareAround'}</p>
+            <p className="min-w-0 truncate text-xs text-slate-500">{guidePageCaption(pageLabel, locale)}</p>
             <button type="button" className="flex min-h-[36px] shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50" disabled={locked || Boolean(action.draft)} onClick={newConversation} aria-label="Start new Guide conversation"><Plus size={15} aria-hidden="true" />New conversation</button>
         </div>
         <div ref={conversationViewport} className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-5 sm:px-5">

@@ -261,6 +261,8 @@ export const enDictionary = {
 
     // My Directory and My Maps
     myDirectory: 'My Directory',
+    guideCurrentPage: 'You’re on {{page}}',
+    guideHelpWithCareAround: 'Help with CareAround',
     careMap: 'Care Map',
     careCalendar: 'Care Calendar',
     careCalendarOverviewDescription: 'See saved activity schedules, plan a session, and turn private Care Map notes into dated actions.',

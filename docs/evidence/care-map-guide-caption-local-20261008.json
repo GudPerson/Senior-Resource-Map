@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-08",
+  "featureParentCommit": "d2f5b4ba40600edb707e541af8b7391017a2f06a",
+  "scope": "Translate the visible Guide Care Maps caption while preserving its legacy server request context",
+  "client": {
+    "passed": 956,
+    "failed": 0
+  },
+  "clientEnvironment": {
+    "passed": 5,
+    "failed": 0
+  },
+  "buildEnvironment": {
+    "passed": 17,
+    "failed": 0
+  },
+  "clientBuild": "passed",
+  "staticModules": 622,
+  "staticImportEdges": 1894,
+  "staticCycles": 0,
+  "focusedCaptionTests": 23,
+  "actualBrowserLocales": {
+    "passed": 4,
+    "failed": 0,
+    "allRouterStatus": 200,
+    "pageErrors": 0,
+    "unexpectedWrites": 0
+  },
+  "boundary": "Local fictional actual Guide router; production submission was blocked by automatic approval review for possible paid-model/history writes, so production caption checks remain read-only. No production resource/media writes or paid-model proof.",
+  "protected": "Server, CMS, canonical and generated Help source unchanged. Guide request alias, semantic routing, history, budget and privacy contract retained.",
+  "retainedFailure": "Initial local canonical Care Maps transport returned400; retained at guide-caption-correction/initial-server-context-400.json and corrected with a display/request adapter.",
+  "privateBrowserProof": {
+    "path": "/private/tmp/care-map-annotation-media-20261008/guide-caption-correction/report.json",
+    "sha256": "b2c724fd5f1eaed7d4552a27bb49622ea7b6ffe3934b4cac89917a8952d407af",
+    "bytes": 1993
+  }
+}

@@ -252,6 +252,8 @@ export const zhCnDictionary = {
     bannerImageAlt: '横幅图片',
     logoImageAlt: '标志',
     myDirectory: '我的目录',
+    guideCurrentPage: '您当前位于{{page}}',
+    guideHelpWithCareAround: 'CareAround 使用帮助',
     careMap: '关怀地图',
     careCalendar: '关怀日历',
     careCalendarOverviewDescription: '查看已保存活动的时间表、规划参与场次，并把私人地图笔记转为有日期的事项。',
