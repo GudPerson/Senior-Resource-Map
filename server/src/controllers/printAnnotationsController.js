@@ -9,6 +9,9 @@ import {
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizeRole } from '../utils/roles.js';
 import { validateRequestBody } from '../utils/inputValidation.js';
+import { detachInvalidAnnotationResourceLinks, loadMapAnnotationResourceKeys,
+    PRINT_ANNOTATION_MAX_RESOURCE_LINKS, PRINT_ANNOTATION_MAX_TOTAL_RESOURCE_LINKS } from '../utils/mapAnnotationResources.js';
+import { createPrivateMapMediaRepository, MAP_MEDIA_MAX_COUNT, MAP_MEDIA_MAX_PIXELS, MAP_MEDIA_MAX_SIDE } from '../utils/privateMapMedia.js';
 
 export const PRINT_ANNOTATION_SCHEMA_VERSION = 1;
 export const PRINT_ANNOTATION_MAX_COUNT = 100;
@@ -23,6 +26,7 @@ const annotationTypes = [
     'rectangle',
     'circle',
     'polygon',
+    'image',
 ];
 
 const coordinateSchema = z.tuple([
@@ -52,6 +56,11 @@ const printAnnotationSchema = z.object({
     rotationDegrees: z.number().finite().min(-180).max(180).optional(),
     text: z.string().trim().max(PRINT_ANNOTATION_MAX_TEXT_LENGTH).default(''),
     style: annotationStyleSchema,
+    resourceLinks: z.array(z.object({ type: z.enum(['hard', 'soft', 'personal_place']), id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) }).strict())
+        .max(PRINT_ANNOTATION_MAX_RESOURCE_LINKS).optional(),
+    resourceBehaviour: z.enum(['appear', 'pulse', 'highlight']).optional(),
+    image: z.object({ assetId: z.string().regex(/^[a-f0-9]{64}$/), width: z.number().int().min(1).max(MAP_MEDIA_MAX_SIDE),
+        height: z.number().int().min(1).max(MAP_MEDIA_MAX_SIDE), alt: z.string().trim().max(240).default('') }).strict().optional(),
 }).superRefine((annotation, context) => {
     const pointCount = annotation.points.length;
     const expected = {
@@ -60,6 +69,7 @@ const printAnnotationSchema = z.object({
         rectangle: [2, 2],
         circle: [2, 2],
         polygon: [3, PRINT_ANNOTATION_MAX_POINTS],
+        image: [2, 2],
     }[annotation.type];
 
     if (pointCount < expected[0] || pointCount > expected[1]) {
@@ -97,6 +107,19 @@ const printAnnotationSchema = z.object({
         });
     }
 
+    const linkKeys = annotation.resourceLinks?.map((link) => `${link.type}:${link.id}`) || [];
+    if (new Set(linkKeys).size !== linkKeys.length) context.addIssue({ code: z.ZodIssueCode.custom, path: ['resourceLinks'], message: 'Linked resources must be unique' });
+    if (annotation.type === 'image') {
+        if (!annotation.image || annotation.isShared === true) context.addIssue({ code: z.ZodIssueCode.custom, path: ['image'], message: 'Map images must remain private and reference an uploaded image' });
+        if (annotation.image && annotation.image.width * annotation.image.height > MAP_MEDIA_MAX_PIXELS) context.addIssue({ code: z.ZodIssueCode.custom, path: ['image'], message: 'Map images may contain at most 4 million pixels' });
+        if (annotation.points.length === 2 && (annotation.points[0][0] >= annotation.points[1][0] || annotation.points[0][1] >= annotation.points[1][1])) {
+            context.addIssue({ code: z.ZodIssueCode.custom, path: ['points'], message: 'Image bounds must be ordered southwest to northeast with a positive area' });
+        }
+    } else if (annotation.image) context.addIssue({ code: z.ZodIssueCode.custom, path: ['image'], message: 'Image metadata is only supported on image annotations' });
+}).transform((annotation) => {
+    const { resourceLinks, resourceBehaviour, ...rest } = annotation;
+    return { ...rest, ...(annotation.type === 'image' ? { isShared: false } : {}),
+        ...(resourceLinks?.length ? { resourceLinks, resourceBehaviour: resourceBehaviour || 'highlight' } : {}) };
 });
 
 const replacePrintAnnotationsBodySchema = z.object({
@@ -106,8 +129,10 @@ const replacePrintAnnotationsBodySchema = z.object({
 }).superRefine((document, context) => {
     const ids = new Set();
     let totalPoints = 0;
+    let totalLinks = 0;
     document.annotations.forEach((annotation, index) => {
         totalPoints += annotation.points.length + (annotation.controlPoints?.length || 0);
+        totalLinks += annotation.resourceLinks?.length || 0;
         if (ids.has(annotation.id)) {
             context.addIssue({
                 code: z.ZodIssueCode.custom,
@@ -124,6 +149,8 @@ const replacePrintAnnotationsBodySchema = z.object({
             message: `Annotations may contain at most ${PRINT_ANNOTATION_MAX_TOTAL_POINTS} total points`,
         });
     }
+    if (totalLinks > PRINT_ANNOTATION_MAX_TOTAL_RESOURCE_LINKS) context.addIssue({ code: z.ZodIssueCode.custom, path: ['annotations'], message: 'Annotations may link at most 2000 total resources' });
+    if (document.annotations.filter((annotation) => annotation.type === 'image').length > MAP_MEDIA_MAX_COUNT) context.addIssue({ code: z.ZodIssueCode.custom, path: ['annotations'], message: 'A map may contain at most 20 image annotations' });
 });
 
 export function validatePrintAnnotationDocumentInput(body) {
@@ -135,9 +162,16 @@ export function validatePrintAnnotationDocumentInput(body) {
 }
 
 function normalizePrintAnnotationSnapshot(annotations) {
+    // Images and resource links are private owner data, even if a caller passes
+    // untrusted new metadata into an existing publication or frozen snapshot.
+    const publicAnnotations = (Array.isArray(annotations) ? annotations : []).filter((annotation) => annotation && typeof annotation === 'object' && annotation.type !== 'image')
+        .map(({ resourceLinks, resourceBehaviour, image, ...annotation }) => {
+            void resourceLinks; void resourceBehaviour; void image;
+            return annotation;
+        });
     const parsed = replacePrintAnnotationsBodySchema.safeParse({
         schemaVersion: PRINT_ANNOTATION_SCHEMA_VERSION,
-        annotations: Array.isArray(annotations) ? annotations : [],
+        annotations: publicAnnotations,
     });
     return parsed.success ? parsed.data.annotations : [];
 }
@@ -166,7 +200,7 @@ function createHttpError(status, message) {
 }
 
 function assertPrintAnnotationUser(user) {
-    if (!user?.id || normalizeRole(user.role) === 'guest') {
+    if (!user?.id || normalizeRole(user.role) === 'guest' || user.isImpersonating) {
         throw createHttpError(403, 'Only authenticated non-guest users can manage print annotations');
     }
 }
@@ -208,12 +242,26 @@ export async function getPrintAnnotationDocument(db, user, mapId) {
     const document = await db.query.myMapPrintAnnotationDocuments.findFirst({
         where: eq(myMapPrintAnnotationDocuments.mapId, mapId),
     });
-    return formatDocument(mapId, document);
+    const result = formatDocument(mapId, document);
+    if (result.annotations.some((annotation) => annotation.resourceLinks?.length)) {
+        result.annotations = detachInvalidAnnotationResourceLinks(result.annotations, await loadMapAnnotationResourceKeys(db, user.id, mapId));
+    }
+    return result;
 }
 
-export async function replacePrintAnnotationDocument(db, user, mapId, body) {
+export async function replacePrintAnnotationDocument(db, user, mapId, body, { mediaBucket } = {}) {
     assertPrintAnnotationUser(user);
     await requireOwnedMap(db, user.id, mapId);
+    if (body.annotations.some((annotation) => annotation.resourceLinks?.length)) {
+        const allowedKeys = await loadMapAnnotationResourceKeys(db, user.id, mapId);
+        if (body.annotations.some((annotation) => annotation.resourceLinks?.some((link) => !allowedKeys.has(`${link.type}:${link.id}`)))) {
+            throw createHttpError(400, 'Linked resources must belong to this Care Map. Refresh the map and review its resource links.');
+        }
+    }
+    for (const annotation of body.annotations.filter((item) => item.type === 'image')) {
+        const { metadata } = await createPrivateMapMediaRepository(mediaBucket, user.id).getAsset(annotation.image.assetId);
+        if (metadata.width !== annotation.image.width || metadata.height !== annotation.image.height) throw createHttpError(400, 'Image dimensions do not match the uploaded map image.');
+    }
 
     const current = await db.query.myMapPrintAnnotationDocuments.findFirst({
         where: eq(myMapPrintAnnotationDocuments.mapId, mapId),
@@ -244,8 +292,9 @@ export async function replacePrintAnnotationDocument(db, user, mapId, body) {
                 revision: nextRevision,
                 updatedAt: timestamp,
             })
-            .where(eq(myMapPrintAnnotationDocuments.mapId, mapId))
+            .where(and(eq(myMapPrintAnnotationDocuments.mapId, mapId), eq(myMapPrintAnnotationDocuments.revision, currentRevision)))
             .returning();
+        if (!saved) throw createHttpError(409, 'Print annotations changed in another session. Reload and try again.');
     } else {
         [saved] = await db.insert(myMapPrintAnnotationDocuments)
             .values({
@@ -288,7 +337,7 @@ export const putMyMapPrintAnnotations = async (c) => {
             return c.json({ error: 'Map id is required' }, 400);
         }
         const body = validatePrintAnnotationDocumentInput(await c.req.json());
-        return c.json(await replacePrintAnnotationDocument(db, user, mapId, body));
+        return c.json(await replacePrintAnnotationDocument(db, user, mapId, body, { mediaBucket: c.env?.HELP_CMS_BUCKET }));
     } catch (err) {
         console.error('putMyMapPrintAnnotations Error:', err);
         return c.json({ error: err.message || 'Failed to save print annotations' }, err.status || 500);

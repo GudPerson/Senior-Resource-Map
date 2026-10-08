@@ -85,6 +85,7 @@ function isJsonContentType(contentType) {
 
 function isLargeBodyRoute(pathname) {
     return pathname === '/api/help/cms/' || pathname === '/api/help/cms' || pathname === '/api/help/cms/media'
+        || /^\/api\/my-maps\/[1-9]\d*\/annotation-media$/.test(pathname)
         || pathname.startsWith('/api/upload')
         || (pathname.startsWith('/api/private-resource-content/') && pathname.includes('/files'))
         || pathname === '/api/soft-assets/import/collateral/preview'

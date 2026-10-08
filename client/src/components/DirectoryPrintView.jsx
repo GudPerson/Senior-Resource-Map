@@ -3,6 +3,10 @@ import { GripHorizontal } from 'lucide-react';
 import DirectoryMap from './DirectoryMap.jsx';
 import DirectoryQrCode from './DirectoryQrCode.jsx';
 import PrintAnnotationLayer from './PrintAnnotationLayer.jsx';
+import usePrivateAnnotationImages from '../hooks/usePrivateAnnotationImages.js';
+import AnnotationImageUpload from './AnnotationImageUpload.jsx';
+import AnnotationResourcePicker from './AnnotationResourcePicker.jsx';
+import { getAnnotationResourceLinkBudget } from '../lib/annotationResourceLinks.js';
 import PrintAnnotationToolbar from './PrintAnnotationToolbar.jsx';
 import PrintMapLayersControl from './PrintMapLayersControl.jsx';
 import SharedMapDirectoryList from './SharedMapDirectoryList.jsx';
@@ -58,14 +62,15 @@ import { FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES } from '../lib/fixedTownS
 import {
     DEFAULT_PRINT_ANNOTATION_STYLE,
     PRINT_ANNOTATION_DRAW_TOOLS,
-    PRINT_ANNOTATION_MAX_COUNT,
     PRINT_ANNOTATION_TRANSFORM_TOOLS,
     PRINT_ANNOTATION_TOOL_CIRCLE,
+    PRINT_ANNOTATION_TOOL_IMAGE,
     PRINT_ANNOTATION_TOOL_PIN,
     PRINT_ANNOTATION_TOOL_POLYGON,
     PRINT_ANNOTATION_TOOL_RECTANGLE,
     PRINT_ANNOTATION_TOOL_SELECT,
     createPrintAnnotation,
+    canAddPrintAnnotation,
     duplicatePrintAnnotation,
     getPrintAnnotationMinimumPointCount,
     normalizePrintAnnotationStyle,
@@ -321,6 +326,9 @@ function PrintDirectoryMap({
     mobileControlPortalTarget = null,
     printAnnotations = [],
     visiblePrintAnnotations = [],
+    privateImageSources = {},
+    privateMapId = null,
+    annotationDirectory = null,
     mapLayersEnabled = false,
     resourceLayerGroups = [],
     annotationEditing = false,
@@ -343,6 +351,7 @@ function PrintDirectoryMap({
     const [selectedAnnotationId, setSelectedAnnotationId] = useState(null);
     const [annotationDraftPoints, setAnnotationDraftPoints] = useState([]);
     const [annotationDraftText, setAnnotationDraftText] = useState('');
+    const [annotationDraftImage, setAnnotationDraftImage] = useState(null);
     const [annotationDraftStyle, setAnnotationDraftStyle] = useState(DEFAULT_PRINT_ANNOTATION_STYLE);
     const hiddenResourceLayerKeys = normalizePrintMapHiddenLayerKeys(
         printMapState?.hiddenResourceLayerKeys,
@@ -362,10 +371,12 @@ function PrintDirectoryMap({
         setAnnotationTool(PRINT_ANNOTATION_TOOL_SELECT);
         setSelectedAnnotationId(null);
         setAnnotationDraftPoints([]);
+        setAnnotationDraftImage(null);
     }, [annotationEditing]);
 
     const cancelAnnotationTool = useCallback(() => {
         setAnnotationDraftPoints([]);
+        setAnnotationDraftImage(null);
         setAnnotationTool(PRINT_ANNOTATION_TOOL_SELECT);
     }, []);
     const undoLastAnnotationDraftPoint = useCallback(() => {
@@ -378,9 +389,11 @@ function PrintDirectoryMap({
             setSelectedAnnotationId(null);
         }
         setAnnotationDraftPoints([]);
+        if (tool !== PRINT_ANNOTATION_TOOL_IMAGE) setAnnotationDraftImage(null);
     }, []);
 
     const handleCreateAnnotation = useCallback((type, points) => {
+        if (!canAddPrintAnnotation(printAnnotations, type)) return;
         const annotation = createPrintAnnotation({
             type,
             points,
@@ -391,16 +404,20 @@ function PrintDirectoryMap({
                 PRINT_ANNOTATION_TOOL_POLYGON,
             ].includes(type) ? annotationDraftText : '',
             style: annotationDraftStyle,
+            ...(type === PRINT_ANNOTATION_TOOL_IMAGE ? { image: annotationDraftImage } : {}),
         });
         if (!annotation) return;
-        onPrintAnnotationsChange?.((current) => [...current, annotation]);
+        onPrintAnnotationsChange?.((current) => canAddPrintAnnotation(current, type) ? [...current, annotation] : current);
         setSelectedAnnotationId(annotation.id);
         setAnnotationTool(PRINT_ANNOTATION_TOOL_SELECT);
         setAnnotationDraftPoints([]);
+        setAnnotationDraftImage(null);
     }, [
         annotationDraftStyle,
         annotationDraftText,
+        annotationDraftImage,
         onPrintAnnotationsChange,
+        printAnnotations,
     ]);
 
     const handleUpdateAnnotation = useCallback((annotationId, patch) => {
@@ -441,11 +458,11 @@ function PrintDirectoryMap({
     }, [onPrintAnnotationsChange, selectedAnnotationId]);
 
     const handleDuplicateSelectedAnnotation = useCallback(() => {
-        if (!selectedAnnotation || printAnnotations.length >= PRINT_ANNOTATION_MAX_COUNT) return;
+        if (!selectedAnnotation || !canAddPrintAnnotation(printAnnotations, selectedAnnotation.type, selectedAnnotation.resourceLinks)) return;
         const duplicate = duplicatePrintAnnotation(selectedAnnotation);
         if (!duplicate) return;
         onPrintAnnotationsChange?.((current) => {
-            if (current.length >= PRINT_ANNOTATION_MAX_COUNT) return current;
+            if (!canAddPrintAnnotation(current, selectedAnnotation.type, selectedAnnotation.resourceLinks)) return current;
             const sourceIndex = current.findIndex(
                 (annotation) => annotation.id === selectedAnnotation.id,
             );
@@ -455,7 +472,7 @@ function PrintDirectoryMap({
             return next;
         });
         setSelectedAnnotationId(duplicate.id);
-    }, [onPrintAnnotationsChange, printAnnotations.length, selectedAnnotation]);
+    }, [onPrintAnnotationsChange, printAnnotations, selectedAnnotation]);
 
     const handleFinishDrawing = useCallback(() => {
         const minimumPointCount = getPrintAnnotationMinimumPointCount(annotationTool);
@@ -627,11 +644,13 @@ function PrintDirectoryMap({
                 mapOverlay={visiblePrintAnnotations.length || annotationEditing ? (
                     <PrintAnnotationLayer
                         annotations={visiblePrintAnnotations}
+                        privateImageSources={privateImageSources}
                         editable={annotationEditing}
                         tool={annotationTool}
                         selectedId={selectedAnnotationId}
                         draftPoints={annotationDraftPoints}
                         draftText={annotationDraftText}
+                        draftImage={annotationDraftImage}
                         draftStyle={annotationDraftStyle}
                         onSelect={(annotationId) => {
                             setSelectedAnnotationId(annotationId);
@@ -727,6 +746,15 @@ function PrintDirectoryMap({
                     draftStyle={annotationDraftStyle}
                     draftPointCount={annotationDraftPoints.length}
                     selectedAnnotation={selectedAnnotation}
+                    imageControls={<AnnotationImageUpload mapId={privateMapId} onUploaded={image => {
+                        setAnnotationDraftImage({ ...image, alt: '' });
+                        setAnnotationTool(PRINT_ANNOTATION_TOOL_IMAGE);
+                        setSelectedAnnotationId(null);
+                        setAnnotationDraftPoints([]);
+                    }} disabled={!canAddPrintAnnotation(printAnnotations, PRINT_ANNOTATION_TOOL_IMAGE)} />}
+                    resourceControls={selectedAnnotation ? <AnnotationResourcePicker directory={annotationDirectory}
+                        annotation={selectedAnnotation} maxLinks={getAnnotationResourceLinkBudget(printAnnotations, selectedAnnotation.id)}
+                        onChange={handleSelectedAnnotationChange} /> : null}
                     status={annotationStatus}
                     error={annotationError}
                     canUndo={canUndoPrintAnnotations}
@@ -744,7 +772,7 @@ function PrintDirectoryMap({
                     onMoveSelected={handleMoveSelectedAnnotation}
                     canDuplicateSelected={Boolean(
                         selectedAnnotation
-                        && printAnnotations.length < PRINT_ANNOTATION_MAX_COUNT
+                        && canAddPrintAnnotation(printAnnotations, selectedAnnotation.type, selectedAnnotation.resourceLinks)
                     )}
                     onDuplicateSelected={handleDuplicateSelectedAnnotation}
                     onDeleteSelected={handleDeleteSelectedAnnotation}
@@ -820,6 +848,8 @@ export default function DirectoryPrintView({
     fixedTownOverviewSurfacePending = false,
     onFixedTownSurfaceViewportChange,
     printAnnotations = [],
+    privateImageSources = null,
+    privateMapId = null,
     annotationEditing = false,
     annotationStatus = 'idle',
     annotationError = '',
@@ -918,6 +948,9 @@ export default function DirectoryPrintView({
             hiddenAnnotationIds: printMapState?.hiddenAnnotationIds,
         })
         : [];
+    const privateImages = usePrivateAnnotationImages({ mapId: privateMapId || directory?.id,
+        annotations: visiblePrintAnnotations, enabled: mode === 'owner' && privateImageSources === null });
+    const resolvedPrivateImageSources = mode === 'owner' ? privateImageSources || privateImages.sources : {};
     const showPrintLogos = labelDetail === PRINT_MAP_LABEL_DETAIL_LOGOS
         || labelDetail === PRINT_MAP_LABEL_DETAIL_FULL;
     const showStudioNumberIdentity = !studioMarkerMode || studioMarkerMode === 'print-badge';
@@ -1154,6 +1187,9 @@ export default function DirectoryPrintView({
                             : null}
                         printAnnotations={annotationsVisibleForLayout ? printAnnotations : []}
                         visiblePrintAnnotations={visiblePrintAnnotations}
+                        privateImageSources={resolvedPrivateImageSources}
+                        privateMapId={privateMapId || directory?.id}
+                        annotationDirectory={directory}
                         mapLayersEnabled={mapLayersEnabled
                             && annotationsEditableForLayout
                             && variant === 'screen'}

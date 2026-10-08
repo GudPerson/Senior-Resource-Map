@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Code2, Copy, ExternalLink, Globe2, Link2, LockKeyhole, Plus, Trash2, X } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { getAnnotationMessages } from '../lib/annotationMessages.js';
 import { handleModalKeyboardEvent } from '../lib/modalKeyboard.js';
 import { hasSharedMapUpdates } from '../lib/shareMapStatus.js';
 
@@ -68,7 +69,8 @@ export default function ShareMapModal({
     annotations = [],
     annotationsReady = true,
 }) {
-    const { t } = useLocale();
+    const { t, locale } = useLocale();
+    const annotationMessages = getAnnotationMessages(locale);
     const [copyFeedback, setCopyFeedback] = useState('');
     const [embedCopyFeedback, setEmbedCopyFeedback] = useState('');
     const [embedFeedback, setEmbedFeedback] = useState('');
@@ -104,10 +106,11 @@ export default function ShareMapModal({
     }, [isOpen, map?.id, persistedEmbedEnabled, JSON.stringify(persistedEmbedOrigins)]);
 
     const isShared = Boolean(map?.share?.isShared ?? map?.isShared);
-    const annotationCount = Array.isArray(annotations) ? annotations.length : 0;
-    const persistedSharedAnnotationCount = Array.isArray(annotations)
-        ? annotations.filter((annotation) => Boolean(annotation?.isShared)).length
-        : 0;
+    const shareableAnnotations = Array.isArray(annotations)
+        ? annotations.filter((annotation) => annotation?.type !== 'image') : [];
+    const annotationCount = shareableAnnotations.length;
+    const privateImageCount = Array.isArray(annotations) ? annotations.length - annotationCount : 0;
+    const persistedSharedAnnotationCount = shareableAnnotations.filter((annotation) => Boolean(annotation?.isShared)).length;
     const sharedAnnotationCount = includeAnnotationsSelection === true
         ? annotationCount
         : includeAnnotationsSelection === false
@@ -467,6 +470,10 @@ export default function ShareMapModal({
                                 </span>
                             </span>
                         </label>
+                    ) : null}
+
+                    {privateImageCount > 0 ? (
+                        <p className="text-xs leading-5 text-slate-600">{annotationMessages.imagePrivate}</p>
                     ) : null}
 
                     {error ? (

@@ -32,6 +32,7 @@ import { answerGuideAuditActivity, createGuideAuditActivityLoader, guideAuditAct
 import { answerGuideOrganizationAccess, guideOrganizationAccessIntent, loadGuideOrganizationAccess } from '../utils/guideOrganizationAccess.js';
 import { answerGuideGovernanceGroupCreation, guideGovernanceGroupCreationIntent } from '../utils/guideGovernanceGroups.js';
 import { answerGuideOwnRegionScope, createGuideOwnRegionScopeLoader, guideOwnRegionScopeIntent } from '../utils/guideOwnRegionScope.js';
+import { qualifyGuideAnnotationAnswer } from '../utils/guideAnnotationFeatures.js';
 
 // Internal requests reuse existing visibility/eligibility-aware public controllers.
 // No caller headers, identity, region, managed scope, or private profile are forwarded.
@@ -79,6 +80,7 @@ const questionSchema = z.object({ question: z.string().trim().min(1).max(600).op
     topicId: z.enum(GUIDE_TOPICS.map((topic) => topic.id)).optional(),
     pageContext: z.enum(['CareAround', 'Discover', 'My Directory', 'My Maps', 'Manage resources', 'Care Calendar', 'Resource details', 'Dashboard', 'Help Centre']).optional(),
     useAi: z.boolean().optional(),
+    locale: z.enum(['en', 'zh-CN', 'ms', 'ta']).optional(),
     turns: z.array(z.object({ question: z.string().max(600), answer: z.string().max(1600) }).strict()).max(4).optional() }).strict()
     .refine((value) => value.question || value.topicId);
 export const guideSearchSchema = z.object({ query: z.string().trim().min(2).max(120),
@@ -156,7 +158,7 @@ export function createGuideRoutes({
                 return;
             }
         }
-        c.res = c.json(addGuideHelpCitations(answer));
+        c.res = c.json(addGuideHelpCitations(qualifyGuideAnnotationAnswer(answer, { locale: c.get('guideLocale'), question: answer.input?.question })));
     });
     const aiLimiter = createRateLimiter({ name: 'guide-chat', limit: 10, windowMs: 60 * 60 * 1000,
         keyFn: (c) => `user:${c.get('user')?.id || c.req.header('cf-connecting-ip') || 'anonymous'}` });
@@ -164,6 +166,7 @@ export function createGuideRoutes({
         const body = await c.req.json().catch(() => null);
         const parsed = questionSchema.safeParse(body);
         if (!parsed.success) return c.json({ error: 'Enter a short app question or choose a help topic.' }, 400);
+        c.set('guideLocale', parsed.data.locale);
         const input = { ...(parsed.data.question ? { question: parsed.data.question } : {}),
             ...(parsed.data.topicId ? { topicId: parsed.data.topicId } : {}) };
         if (parsed.data.question && sanitizeSupportText(parsed.data.question) !== parsed.data.question) {
@@ -222,7 +225,7 @@ export function createGuideRoutes({
         const helpWorkflow = workflowIntent === 'public-place-create'
             ? answerGuideResourceAccessQuestion('Can I create a Place?', actor)
             : !parsed.data.topicId && answerGuideHelpWorkflow({ question: parsed.data.question,
-                pageContext: parsed.data.pageContext, turns: safeGuideChatTurns(parsed.data.turns) });
+                pageContext: parsed.data.pageContext, turns: safeGuideChatTurns(parsed.data.turns), locale: parsed.data.locale, actor });
         if (helpWorkflow) return c.json({ version: GUIDE_KNOWLEDGE_VERSION, ...helpWorkflow, input,
             answerSource: workflowIntent === 'public-place-create' ? 'account' : 'reviewed' });
         const navigation = !parsed.data.topicId && answerGuideNavigationQuestion(parsed.data.question,
@@ -397,6 +400,7 @@ export function createGuideRoutes({
             const grounded = await answerGuideWithCloudflare({ question: parsed.data.question,
                 topicId: reviewed.topicId,
                 pageContext: parsed.data.pageContext,
+                locale: parsed.data.locale, actor,
                 turns: safeGuideChatTurns(parsed.data.turns), env: c.env });
             if (grounded) return c.json({ ...reviewed, ...grounded, input,
                 answerSource: c.env.GUIDE_CHAT_SIMULATED === 'true' ? 'simulation' : 'ai' });

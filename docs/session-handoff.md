@@ -1,5 +1,14 @@
 # CareAround SG session handoff
 
+## 8 October 2026 — Care Map annotation features, verified release candidate
+
+The user approved movable/resizable images and two-way resource tagging with Appear/Pulse/Highlight. Implementation is isolated on `codex/care-map-annotation-media-20261008` from public `55845136` in `output/care-map-labels-release-20261007`; preserve the unrelated dirty primary. Images/tags stay owner-private in this version, while existing explicitly shared shape geometry remains eligible. Directory default-tab behaviour from the previous release remains unchanged.
+
+Local tagging, native image placement/transform/save/reload/undo, caption reuse, actual PNG/PDF capture, missing-image Retry, four new-control languages and Guide instructions pass. Full source gates and independent review pass; exact evidence is recorded in `docs/evidence/care-map-annotation-media-local-20261008.json` and the implementation plan. Retain earlier pane-attention/cache-busted-blob failures and corrected harness probes. Local fictional browser checks do not claim physical-device or production media writes.
+
+The earlier explicit commit/push/deploy instruction remains authority for this exact compatible release. After final source is frozen, commit/push feature-only public main, capture exact unchanged authored CMS/owner ETag/no active publication, advance only the normal public source pin via a staged version preserving the truthful current Worker tag, then use the unchanged private workflow `3304207` for a new unchanged-library publication. Require accepted receipt, cleared lock, paired source/content, complete public artifact MIME/byte/hash proof and ordinary HTML checks. Credentials, bindings, database, AI budget, unrelated CMS drafts and public fixtures remain protected. Record the exact production receipt separately; this candidate entry does not claim deployment.
+
+
 ## 5 October 2026 — CMS ordering and publishing routing
 
 Owner ordering polish is live from fb6587. Current unchanged approved content is recovered version2026-10-04.help-cms.1791137972246 from public9ba/private607. Its normal job retained the durable routing flag, date and all44binding descriptors but failed public verification; original cause is unproven. Exact private source reconstruction, fresh101/6delivery, endpoint three-readiness, workspace promotion and cleared lock passed separately. Preserve both original failed runs37221246970 and37224001007.

@@ -18,6 +18,7 @@ import { GUIDE_AI_MODEL, guideAiAvailable, runGuideAi } from './guideAiRuntime.j
 import { discoverGuideOracleFacts } from './guideSemanticRetrieval.js';
 import { publicGuideFacts } from './helpArticleAccess.js';
 import { answerGuideHelpWorkflow, guideHelpFactSource } from './guideHelpWorkflows.js';
+import { guideAnnotationGroundingFacts, qualifyGuideAnnotationAnswer } from './guideAnnotationFeatures.js';
 
 export const GUIDE_CHAT_MODEL = GUIDE_AI_MODEL;
 const MAX_TURNS = 4;
@@ -53,7 +54,7 @@ function reviewedContext(topicId) {
     return GUIDE_TOPICS.find((topic) => topic.id === topicId);
 }
 
-function readSelectedFacts(result, facts, conversational = false, question = '') {
+function readSelectedFacts(result, facts, conversational = false, question = '', locale) {
     const content = result?.response ?? result?.choices?.[0]?.message?.content;
     // A valid citation does not prove that model prose preserves its meaning.
     // AI selects evidence; every displayed body comes from the reviewed library.
@@ -81,23 +82,24 @@ function readSelectedFacts(result, facts, conversational = false, question = '')
     if (typeof answer !== 'string' || !answer.trim() || answer.length > MAX_ANSWER_LENGTH
         || sanitizeSupportText(answer) !== answer) return null;
     const actions = [...new Map(selected.map(guideOracleFactAction).map((action) => [action.route, action])).values()];
-    return { topicId: selected.length === 1 ? selected[0].id : 'reviewed-selection', message: answer, actions,
-        sources: selected.map(guideHelpFactSource) };
+    const qualified = qualifyGuideAnnotationAnswer({ topicId: selected.length === 1 ? selected[0].id : 'reviewed-selection', message: answer, actions,
+        sources: selected.map(guideHelpFactSource) }, { locale, question });
+    return qualified.message.length <= MAX_ANSWER_LENGTH ? qualified : null;
 }
 
-export async function answerGuideWithCloudflare({ question, topicId, pageContext = '', turns = [], env = {} } = {}) {
+export async function answerGuideWithCloudflare({ question, topicId, pageContext = '', turns = [], env = {}, locale, actor = null } = {}) {
     if (!guideChatAvailable(env) || typeof question !== 'string' || !question.trim()
         || sanitizeSupportText(question) !== question
         || /\b(?:medicine|medication|diagnos\w*|treatment|symptom|dosage|emergency)\b/i.test(question)) return null;
-    const workflow = answerGuideHelpWorkflow({ question, pageContext, turns: safeGuideChatTurns(turns) });
+    const workflow = answerGuideHelpWorkflow({ question, pageContext, turns: safeGuideChatTurns(turns), locale, actor });
     if (workflow) return workflow;
     const semantic = env.GUIDE_SEMANTIC_RETRIEVAL_ENABLED === 'true';
     const conversational = (env.ORACLE_PREVIEW_LLM_ENABLED === 'true'
         || env.GUIDE_LLM_PILOT_ENABLED === 'true')
         && env.GUIDE_CONVERSATIONAL_ANSWERS_ENABLED === 'true';
     const safeTurns = safeGuideChatTurns(turns);
-    const facts = publicGuideFacts(semantic ? await discoverGuideOracleFacts({ question, pageContext,
-        previousQuestions: safeTurns.map((turn) => turn.question), env }) : retrieveGuideOracleFacts(question, topicId));
+    const facts = publicGuideFacts(guideAnnotationGroundingFacts(semantic ? await discoverGuideOracleFacts({ question, pageContext,
+        previousQuestions: safeTurns.map((turn) => turn.question), env }) : retrieveGuideOracleFacts(question, topicId), { question, pageContext, locale }));
     if (!facts.length) return null;
     const matched = reviewedContext(topicId);
     const context = facts.map((fact) => `${fact.id} — ${fact.title}: ${fact.message}`).join('\n');
@@ -113,7 +115,7 @@ ${pageContext ? `Current app section: ${pageContext}. This is navigation context
     messages.push({ role: 'user', content: question.trim() });
     try {
         const result = await runGuideAi(env, { messages, max_tokens: conversational ? 550 : 90, temperature: 0, stream: false });
-        return readSelectedFacts(result, facts, conversational, question);
+        return readSelectedFacts(result, facts, conversational, question, locale);
     } catch {
         return null;
     }

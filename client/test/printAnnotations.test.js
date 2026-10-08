@@ -8,20 +8,104 @@ import {
     buildPrintAnnotationRectanglePoints,
     buildRoundedPrintAnnotationPolygon,
     createPrintAnnotation,
+    canAddPrintAnnotation,
+    createImageAnnotationBounds,
     DEFAULT_PRINT_ANNOTATION_STYLE,
     duplicatePrintAnnotation,
     getAnnotationLocalDraftKey,
     getPrintAnnotationPointBoundsCenter,
     getPrintAnnotationCaptureKey,
+    getPrintAnnotationImageCorners,
     isPrintAnnotationRotationSupported,
     movePrintAnnotationRectangleControlPoint,
     movePrintAnnotationControlPoint,
     normalizePrintAnnotation,
     normalizePrintAnnotations,
+    normalizePrintAnnotationImage,
+    resizePrintAnnotationImageBounds,
     PRINT_ANNOTATION_MAX_CONTROL_POINTS,
     rotatePrintAnnotationPoints,
     translatePrintAnnotationPoints,
 } from '../src/lib/printAnnotations.js';
+
+const IMAGE_METADATA = { assetId: 'a'.repeat(64), width: 1000, height: 500, alt: 'Meeting point' };
+const imageProjection = {
+    project: ([lat, lng]) => ({ x: lng * 10000, y: -lat * 10000 }),
+    unproject: ({ x, y }) => [-y / 10000, x / 10000],
+};
+
+test('private image annotations preserve schema compatibility and omit image bytes and URLs', () => {
+    const image = createPrintAnnotation({ type: 'image', points: [[1.4, 103.8], [1.3, 103.7]],
+        image: { ...IMAGE_METADATA, url: 'https://foreign.example/image.png', data: 'data:image/png;base64,private' },
+        resourceLinks: [{ type: 'hard', id: 7 }, { type: 'hard', id: 7 }, { type: 'asset', id: 99 }],
+        resourceBehaviour: 'pulse', isShared: true });
+    assert.deepEqual(image.points, [[1.3, 103.7], [1.4, 103.8]]);
+    assert.deepEqual(image.image, IMAGE_METADATA);
+    assert.equal(image.isShared, false);
+    assert.deepEqual(image.resourceLinks, [{ type: 'hard', id: 7 }]);
+    assert.equal(image.resourceBehaviour, 'pulse');
+    assert.doesNotMatch(JSON.stringify(image), /foreign\.example|data:image|blob:/);
+    assert.equal(normalizePrintAnnotationImage({ ...IMAGE_METADATA, assetId: 'A'.repeat(64) }), null);
+    assert.equal(normalizePrintAnnotationImage({ ...IMAGE_METADATA, width: 2049 }), null);
+    assert.equal(normalizePrintAnnotationImage({ ...IMAGE_METADATA, width: 2048, height: 2048 }), null);
+    assert.equal(createPrintAnnotation({ type: 'image', points: [[1.3, 103.7]], image: IMAGE_METADATA }), null);
+    assert.equal(createPrintAnnotation({ type: 'image', points: [[1.3, 103.7], [1.3, 103.8]], image: IMAGE_METADATA }), null);
+});
+
+test('image duplication and whole-annotation moves retain private media and typed resource links', () => {
+    const source = createPrintAnnotation({ type: 'image', points: [[1.3, 103.7], [1.4, 103.8]], image: IMAGE_METADATA,
+        resourceLinks: [{ type: 'personal_place', id: 19 }], resourceBehaviour: 'appear' });
+    const copy = duplicatePrintAnnotation(source, { id: 'image_copy' });
+    assert.equal(copy.id, 'image_copy');
+    assert.deepEqual(copy.image, source.image);
+    assert.deepEqual(copy.resourceLinks, source.resourceLinks);
+    assert.equal(copy.resourceBehaviour, 'appear');
+    assert.equal(copy.isShared, false);
+    const moved = normalizePrintAnnotation({ ...source, points: translatePrintAnnotationPoints(source.points, [1.35, 103.75], [1.36, 103.76]) });
+    assert.deepEqual(moved.image, source.image);
+    assert.ok(Math.abs(moved.points[0][0] - 1.31) < 1e-10);
+    assert.ok(Math.abs(moved.points[1][1] - 103.81) < 1e-10);
+    assert.notEqual(getPrintAnnotationCaptureKey([source]), getPrintAnnotationCaptureKey([moved]));
+    assert.notEqual(getPrintAnnotationCaptureKey([source]), getPrintAnnotationCaptureKey([{ ...source, image: { ...source.image, alt: 'Entrance' } }]));
+    assert.equal(isPrintAnnotationRotationSupported('image'), false);
+});
+
+test('image placement and all four resize corners preserve pixel aspect ratio with the opposite corner fixed', () => {
+    const initial = createImageAnnotationBounds([1.35, 103.75], IMAGE_METADATA, { ...imageProjection, pixelWidth: 200 });
+    const corners = getPrintAnnotationImageCorners(initial);
+    const pixels = corners.map(imageProjection.project);
+    assert.ok(Math.abs(pixels[2].x - pixels[0].x - 200) < 1e-8);
+    assert.ok(Math.abs(pixels[0].y - pixels[2].y - 100) < 1e-8);
+    corners.forEach((point, index) => {
+        const opposite = corners[(index + 2) % 4];
+        const resized = resizePrintAnnotationImageBounds(initial, index, [point[0] + (index === 0 || index === 3 ? -0.02 : 0.02), point[1] + (index < 2 ? -0.03 : 0.03)], IMAGE_METADATA, imageProjection);
+        const nextCorners = getPrintAnnotationImageCorners(resized);
+        assert.deepEqual(nextCorners[(index + 2) % 4], opposite);
+        const sw = imageProjection.project(resized[0]); const ne = imageProjection.project(resized[1]);
+        assert.ok(Math.abs((ne.x - sw.x) / (sw.y - ne.y) - 2) < 1e-8);
+        assert.ok(ne.x > sw.x && sw.y > ne.y);
+    });
+});
+
+test('private resource metadata preserves old shared shapes and disappears when the last link is removed', () => {
+    const shape = normalizePrintAnnotation({ id: 'existing_shared_shape', type: 'rectangle', points: [[1.3, 103.7], [1.4, 103.8]], isShared: true,
+        resourceLinks: [{ type: 'soft', id: 4 }], resourceBehaviour: 'highlight' });
+    assert.equal(shape.isShared, true);
+    const unlinked = normalizePrintAnnotation({ ...shape, resourceLinks: [] });
+    assert.equal(unlinked.isShared, true);
+    assert.equal(Object.hasOwn(unlinked, 'resourceLinks'), false);
+    assert.equal(Object.hasOwn(unlinked, 'resourceBehaviour'), false);
+    assert.deepEqual(unlinked.points, shape.points);
+});
+
+test('image creation and duplication stop at twenty objects while old shape capacity stays at one hundred', () => {
+    const images = Array.from({ length: 20 }, (_, index) => ({ id: `image_${index}`, type: 'image' }));
+    assert.equal(canAddPrintAnnotation(images.slice(0, 19), 'image'), true);
+    assert.equal(canAddPrintAnnotation(images, 'image'), false);
+    assert.equal(canAddPrintAnnotation(images, 'rectangle'), true);
+    assert.equal(canAddPrintAnnotation([...images, ...Array.from({ length: 80 }, () => ({ type: 'rectangle' }))], 'rectangle'), false);
+    assert.equal(canAddPrintAnnotation(Array.from({ length: 100 }, () => ({ type: 'pin' })), 'image'), false);
+});
 
 const printAnnotationsHookSource = fs.readFileSync(
     new URL('../src/hooks/usePrintAnnotations.js', import.meta.url),
@@ -467,7 +551,8 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(ownerSource, /restoreLocalDraft: true/);
     assert.match(ownerSource, /autosave: isPrintView \|\| interactiveAnnotationEditorOpen/);
     assert.match(ownerSource, /useInteractiveMapAnnotationEditor/);
-    assert.match(ownerSource, /mapSurfaceOverlay=\{interactiveAnnotationEditor\.surfaceOverlay\}/);
+    assert.match(ownerSource, /ownerAnnotationSurfaceOverlay = interactiveAnnotationEditor\.surfaceOverlay/);
+    assert.match(ownerSource, /mapSurfaceOverlay=\{ownerAnnotationSurfaceOverlay\}/);
     assert.match(ownerSource, /ownerInteractiveAnnotationOverlay/);
     assert.match(ownerSource, /editable=\{false\}/);
     assert.match(ownerSource, /mapOverlay=\{ownerInteractiveAnnotationOverlay\}/);
@@ -516,7 +601,10 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
     assert.match(transformSource, /iconSize: \[44, 44\]/);
     assert.match(layerSource, /PRINT_ANNOTATION_TRANSFORM_TOOLS\.has\(tool\)/);
     assert.match(layerSource, /PRINT_ANNOTATION_DRAW_TOOLS\.has\(tool\)/);
-    assert.equal((layerSource.match(/interactive=\{annotationInteractionEnabled\}/g) || []).length, 2);
+    assert.equal((layerSource.match(/interactive=\{interactionEnabled\}/g) || []).length, 3);
+    assert.match(layerSource, /browseEnabled = !editable && browseInteractive/);
+    assert.match(layerSource, /selected = editable && annotation\.id === selectedId/);
+    assert.match(layerSource, /onUpdate=\{editable \? handleUpdate : undefined\}/);
     assert.match(layerSource, /dashArray: style\.dashed \? '9 7' : null/);
     assert.doesNotMatch(layerSource, /dashArray: '7 6'/);
     assert.match(toolbarSource, /Undo last point/);
@@ -588,4 +676,14 @@ test('annotation autosaves are serialized to preserve revision order', () => {
     assert.match(hookSource, /restoreLocalDraft \? readLocalDraft\(storageKey\) : null/);
     assert.match(hookSource, /status !== 'unsaved' \|\| !enabled \|\| !autosave/);
     assert.doesNotMatch(hookSource, /refineRoadBoundary|snapDistanceMeters/);
+});
+
+test('duplicating a tagged annotation cannot exceed the document resource-link budget', () => {
+    const links = Array.from({length:200}, (_,i)=>({type:'soft',id:i+1}));
+    const full = Array.from({length:10}, (_,i)=>({id:`a-${i}`,type:'rectangle',resourceLinks:links}));
+    assert.equal(canAddPrintAnnotation(full,'rectangle',links),false);
+    assert.equal(canAddPrintAnnotation(full,'rectangle'),true);
+    assert.equal(canAddPrintAnnotation(full.slice(0,9),'rectangle',links),true);
+    assert.equal(canAddPrintAnnotation([...full.slice(0,9),{id:'partial',resourceLinks:links.slice(0,199)}],'rectangle',[links[0]]),true);
+    assert.equal(canAddPrintAnnotation([...full.slice(0,9),{id:'partial',resourceLinks:links.slice(0,199)}],'rectangle',links.slice(0,2)),false);
 });

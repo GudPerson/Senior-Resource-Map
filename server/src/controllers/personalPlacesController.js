@@ -19,6 +19,7 @@ import {
 } from '../utils/inputValidation.js';
 import { normalizeRole } from '../utils/roles.js';
 import { resolvePersonalPlaceLocation } from '../utils/personalPlaceLocation.js';
+import { detachAnnotationResourceFromMap } from '../utils/mapAnnotationResources.js';
 
 const PERSONAL_PLACE_SHORT_DESCRIPTION_MAX_LENGTH = 240;
 const PERSONAL_PLACE_LOGO_URL_MAX_LENGTH = 2000;
@@ -473,6 +474,7 @@ export async function deletePersonalPlace(db, user, personalPlaceId) {
             eq(userPersonalPlaces.userId, user.id)
         ));
     for (const mapId of mapIds) {
+        await detachAnnotationResourceFromMap(db, mapId, 'personal_place', personalPlaceId);
         await db.update(myMaps).set({ updatedAt: new Date() }).where(eq(myMaps.id, mapId));
     }
     return { success: true, personalPlaceId, removedFromMapIds: mapIds };
@@ -540,6 +542,7 @@ export async function detachPersonalPlaceFromMap(db, user, mapId, personalPlaceI
                 eq(myMapPersonalPlaces.mapId, mapId)
             ));
     }
+    await detachAnnotationResourceFromMap(db, mapId, 'personal_place', personalPlaceId);
     await db.update(myMaps).set({ updatedAt: new Date() }).where(eq(myMaps.id, mapId));
     return { success: true, mapId, personalPlaceId };
 }

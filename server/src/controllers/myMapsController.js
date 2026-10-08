@@ -22,6 +22,7 @@ import {
 } from './personalPlacesController.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { resolvePersonalPlaceLocation } from '../utils/personalPlaceLocation.js';
+import { detachAnnotationResourceFromMap } from '../utils/mapAnnotationResources.js';
 import {
     buildEmbeddedResourceContactSnapshot,
     stripEmbeddedResourceContactsFromDirectory,
@@ -1118,6 +1119,7 @@ export async function removeAssetFromMyMap(db, user, mapId, resourceType, resour
             )
         );
 
+    await detachAnnotationResourceFromMap(db, mapId, resourceType, resourceId);
     await touchMap(db, mapId);
 
     return {

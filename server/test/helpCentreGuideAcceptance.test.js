@@ -5,6 +5,7 @@ import { createGuideRoutes } from '../src/routes/guide.js';
 import { answerGuideWithCloudflare } from '../src/utils/guideChat.js';
 import { GUIDE_ORACLE_FACTS, HELP_ARTICLES } from '../src/generated/helpKnowledge.js';
 import { addGuideHelpCitations, answerGuideHelpWorkflow, guideHelpWorkflowIntent } from '../src/utils/guideHelpWorkflows.js';
+import { guideAnnotationFeatureFact } from '../src/utils/guideAnnotationFeatures.js';
 import { sanitizeSupportContext } from '../src/utils/supportDomain.js';
 
 // Frozen offline acceptance v1: five wording/context cases for each of the
@@ -47,6 +48,12 @@ for (const [caseNumber, item] of cases.entries()) {
         if (item.noAccountRead) assert.equal(accountReads, 0, 'Another person’s facts must not load the current account as a substitute.');
         assert.equal(modelCalls, 0, 'These fixed offline routes must not infer a procedure or spend a model call.');
         for (const source of answer.sources || []) {
+            const privacy = guideAnnotationFeatureFact('privacy');
+            if (source.id === privacy.id) {
+                assert.deepEqual(source, { id: privacy.id, title: privacy.title, route: privacy.route, reviewed: privacy.reviewed });
+                assert.match(answer.message, /Images and annotation resource links are owner-private/);
+                continue;
+            }
             assert.match(source.articleRoute, /^\/help-centre\/[a-z0-9-]+#[a-z0-9-]+$/);
             assert.ok(source.articleId && source.sectionId, 'Every product citation points to its reviewed section.');
         }
@@ -192,13 +199,13 @@ test('combined map-note and annotation sharing uses complete canonical controls 
         const answer = await response.json();
         assert.equal(answer.topicId, 'map-note-annotation-sharing');
         assert.equal(answer.answerSource, 'reviewed');
-        assert.equal(answer.message, expected, 'The served prose is composed from current approved sections, not a second authored answer.');
+        assert.equal(answer.message, guideAnnotationFeatureFact('privacy').message + '\n\n' + expected, 'The approved shape instructions remain exact after the source-backed private-image qualification.');
         for (const clause of [/New notes have Share this note turned off/, /New annotations are private unless/,
             /Share this note/, /Share this annotation/, /Include annotations/, /selects all saved annotations or none/,
             /Publish share link/, /Update shared link/, /do not automatically refresh/,
             /Preview the actual published or embedded view/, /website embed omits resource-note rows/]) assert.match(answer.message, clause);
-        assert.deepEqual(answer.sources.map((source) => source.id), factIds);
-        assert.deepEqual(answer.sources.map((source) => source.articleRoute), facts.map((fact) => fact.articleRoute));
+        assert.deepEqual(answer.sources.map((source) => source.id), [...factIds, guideAnnotationFeatureFact('privacy').id]);
+        assert.deepEqual(answer.sources.map((source) => source.articleRoute), [...facts.map((fact) => fact.articleRoute), undefined]);
         assert.deepEqual(answer.actions, [{ label: 'Open Care Maps', route: '/my-directory?section=my-maps' }]);
         assert.doesNotMatch(answer.message, /I (?:created|saved|updated|published)|successfully (?:created|saved|published)/i);
     }

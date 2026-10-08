@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { AnnotationResourceInteractionContext, useAnnotationResourceCard } from './AnnotationResourceInteraction.jsx';
+import { resourceLinksForPlaceKey } from '../lib/annotationResourceLinks.js';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { appendMapReturnTo, buildCurrentAppPath, normalizeMapReturnPath } from '../lib/appNavigation.js';
@@ -2100,6 +2102,7 @@ function DirectoryPlaceGroupCard({
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
 }) {
     const { t } = useLocale();
+    const annotationCard = useAnnotationResourceCard(group, interactive && mode === 'owner');
     const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
     const visibleRows = getVisibleGroupRows(group);
     const normalizedPrintLabelDetail = normalizePrintMapLabelDetail(printLabelDetail);
@@ -2165,29 +2168,33 @@ function DirectoryPlaceGroupCard({
     const showPrimaryInteractiveShortDescription = (interactiveShortDescriptionEditing || showInteractiveDescriptions)
         && !(showInteractiveResourceRows && visibleRows.includes(primaryShortDescriptionRow));
     const canFocusCardOnMap = Boolean(interactive && onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
+    const canActivateCard = canFocusCardOnMap || annotationCard.canActivate;
 
     function handleCardClick(event) {
-        if (!canFocusCardOnMap || isInteractiveCardTarget(event.target)) return;
+        if (!canActivateCard || isInteractiveCardTarget(event.target)) return;
         event.preventDefault();
-        onViewOnMap?.(group.placeKey);
+        if (canFocusCardOnMap) onViewOnMap?.(group.placeKey);
+        else annotationCard.activate();
     }
 
     function handleCardKeyDown(event) {
-        if (!canFocusCardOnMap || isInteractiveCardTarget(event.target)) return;
+        if (!canActivateCard || isInteractiveCardTarget(event.target)) return;
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
-        onViewOnMap?.(group.placeKey);
+        if (canFocusCardOnMap) onViewOnMap?.(group.placeKey);
+        else annotationCard.activate();
     }
 
     const cardInteractionProps = interactive ? {
         onMouseEnter: () => onHoverPlaceStart?.(group.placeKey),
         onMouseLeave: () => onHoverPlaceEnd?.(group.placeKey),
-        ...(canFocusCardOnMap ? {
+        ...annotationCard.attributes,
+        ...(canActivateCard ? {
             onClick: handleCardClick,
             onKeyDown: handleCardKeyDown,
             role: 'button',
             tabIndex: 0,
-            'aria-label': `${t('viewOnMap')}: ${group.name}`,
+            'aria-label': canFocusCardOnMap ? `${t('viewOnMap')}: ${group.name}` : annotationCard.label,
         } : {}),
     } : {};
 
@@ -2490,7 +2497,7 @@ function DirectoryPlaceGroupCard({
                 {...cardInteractionProps}
                 className={`group relative overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                     highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
-                } scroll-mt-[62svh] lg:scroll-mt-6`}
+                } scroll-mt-[62svh] lg:scroll-mt-6${annotationCard.className ? ` ${annotationCard.className}` : ''}`}
             >
                 {groupedCardContent}
             </section>
@@ -2621,7 +2628,7 @@ function DirectoryPlaceGroupCard({
                 {...cardInteractionProps}
                 className={`group relative block overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 cursor-pointer hover:shadow-md ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                     highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
-                } scroll-mt-[62svh] lg:scroll-mt-6`}
+                } scroll-mt-[62svh] lg:scroll-mt-6${annotationCard.className ? ` ${annotationCard.className}` : ''}`}
             >
                 {cardContent}
             </Link>
@@ -2635,7 +2642,7 @@ function DirectoryPlaceGroupCard({
             {...cardInteractionProps}
             className={`group relative overflow-visible border border-slate-200 bg-white shadow-sm transition-all duration-300 ${compactInteractive ? 'rounded-[20px] p-3' : 'rounded-[24px] p-4'} ${
                 highlighted ? 'selected-card-pulse ring-4 ring-brand-500/10 scale-[1.03] z-10 shadow-xl' : ''
-            } scroll-mt-[62svh] lg:scroll-mt-6`}
+            } scroll-mt-[62svh] lg:scroll-mt-6${annotationCard.className ? ` ${annotationCard.className}` : ''}`}
         >
             {cardContent}
         </section>
@@ -2655,6 +2662,7 @@ function MobileMapFocusTrayPlaceCard({
     labelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
 }) {
     const { t } = useLocale();
+    const annotationCard = useAnnotationResourceCard(group, mode === 'owner');
     const placeDetailPath = useDirectoryDetailPath(getGroupDetailPath(group));
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
     const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(group);
@@ -2679,6 +2687,7 @@ function MobileMapFocusTrayPlaceCard({
         return (
             <CompactResourcePreviewCard
                 data-mobile-map-focus-tray-card="true"
+                {...annotationCard.attributes}
                 group={group}
                 row={previewRow}
                 labelDetail={labelDetail}
@@ -2694,7 +2703,7 @@ function MobileMapFocusTrayPlaceCard({
                         : compactFullMap
                             ? 'min-w-[min(18rem,78vw)] max-w-[19rem]'
                             : 'min-w-[min(18rem,78vw)]'
-                }`}
+                }${annotationCard.className ? ` ${annotationCard.className}` : ''}`}
                 onClick={handleCardClick}
                 onKeyDown={handleCardKeyDown}
                 role={canFocusOnMap ? 'button' : undefined}
@@ -2719,9 +2728,10 @@ function MobileMapFocusTrayPlaceCard({
     return (
         <article
             data-mobile-map-focus-tray-card="true"
+            {...annotationCard.attributes}
             className={`group flex snap-start items-start gap-2.5 rounded-[20px] border border-slate-200 bg-white p-3 shadow-sm ${
                 compactFullMap ? 'min-w-[min(18rem,78vw)] max-w-[19rem]' : 'min-w-[min(18rem,78vw)]'
-            }`}
+            }${annotationCard.className ? ` ${annotationCard.className}` : ''}`}
             onClick={handleCardClick}
             onKeyDown={handleCardKeyDown}
             role={canFocusOnMap ? 'button' : undefined}
@@ -3424,7 +3434,7 @@ function DirectoryUnmappedSection({
     );
 }
 
-export default function SharedMapDirectoryList({
+function SharedMapDirectoryListContent({
     directory = null,
     presentation,
     mode = 'shared',
@@ -3476,6 +3486,7 @@ export default function SharedMapDirectoryList({
     interactiveSideResourceColumnCount = 1,
 }) {
     const { t } = useLocale();
+    const annotationInteraction = useContext(AnnotationResourceInteractionContext);
     const location = useLocation();
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
@@ -3607,7 +3618,8 @@ export default function SharedMapDirectoryList({
             holdMobileFocusTrayDuringMapReveal();
         }
         onViewOnMap?.(placeKey);
-    }, [isMobileMapPanelEnabled, onViewOnMap]);
+        annotationInteraction?.onActivateResources?.(resourceLinksForPlaceKey(presentation, placeKey));
+    }, [annotationInteraction, isMobileMapPanelEnabled, onViewOnMap, presentation]);
 
     const handleMobileMapViewSection = useCallback((placeKey) => {
         if (isMobileMapPanelEnabled) {
@@ -4591,4 +4603,12 @@ export default function SharedMapDirectoryList({
             </div>
         </DirectoryReturnPathContext.Provider>
     );
+}
+
+export default function SharedMapDirectoryList(props) {
+    const interaction = props.mode === 'owner' && props.layout !== 'print'
+        ? props.annotationResourceInteraction || null : null;
+    return <AnnotationResourceInteractionContext.Provider value={interaction}>
+        <SharedMapDirectoryListContent {...props} />
+    </AnnotationResourceInteractionContext.Provider>;
 }

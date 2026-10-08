@@ -1,0 +1,21 @@
+.annotation-resource-card-highlight {
+    outline: 3px solid #0f766e;
+    outline-offset: 3px;
+}
+.annotation-resource-card-pulse {
+    animation: annotation-resource-card-pulse 600ms ease-in-out 3;
+}
+.annotation-resource-card-pulse-repeat { animation-name: annotation-resource-card-pulse-repeat; }
+@keyframes annotation-resource-card-pulse {
+    50% { outline-color: #14b8a6; outline-offset: 6px; }
+}
+@keyframes annotation-resource-card-pulse-repeat {
+    50% { outline-color: #14b8a6; outline-offset: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .annotation-resource-card-pulse { animation: none; }
+}
+@media print {
+    .annotation-resource-card-highlight { outline: none; }
+    .annotation-resource-card-pulse { animation: none; }
+}

@@ -8,6 +8,7 @@ import {
 } from 'react';
 import {
     Circle,
+    ImageOverlay,
     Marker,
     Pane,
     Polygon,
@@ -23,6 +24,7 @@ import {
     PRINT_ANNOTATION_DRAW_TOOLS,
     PRINT_ANNOTATION_TRANSFORM_TOOLS,
     PRINT_ANNOTATION_TOOL_CIRCLE,
+    PRINT_ANNOTATION_TOOL_IMAGE,
     PRINT_ANNOTATION_TOOL_LINE,
     PRINT_ANNOTATION_TOOL_MOVE,
     PRINT_ANNOTATION_TOOL_PIN,
@@ -36,7 +38,13 @@ import {
     movePrintAnnotationControlPoint,
     movePrintAnnotationRectangleControlPoint,
     normalizePrintAnnotationRotation,
+    createImageAnnotationBounds,
+    getPrintAnnotationImageCorners,
+    resizePrintAnnotationImageBounds,
 } from '../lib/printAnnotations.js';
+import '../styles/annotationAttention.css';
+import { useLocale } from '../contexts/LocaleContext.jsx';
+import { getAnnotationMessages } from '../lib/annotationMessages.js';
 
 function escapeMarkup(value) {
     return String(value || '')
@@ -177,12 +185,17 @@ function getEditableAnnotationPoints(annotation) {
 }
 
 function getVisibleAnnotationControlPoints(annotation, points) {
+    if (annotation.type === PRINT_ANNOTATION_TOOL_IMAGE) return getPrintAnnotationImageCorners(points);
     if (annotation.type !== PRINT_ANNOTATION_TOOL_RECTANGLE) return points;
     const corners = buildPrintAnnotationRectanglePoints(points, annotation.rotationDegrees);
     return corners.length === 4 ? [corners[0], corners[2]] : points;
 }
 
-function moveAnnotationControlPoint(annotation, points, pointIndex, point) {
+function moveAnnotationControlPoint(annotation, points, pointIndex, point, map) {
+    if (annotation.type === PRINT_ANNOTATION_TOOL_IMAGE) {
+        return resizePrintAnnotationImageBounds(points, pointIndex, point, annotation.image,
+            { project: value => map.project(value), unproject: value => map.unproject(value) });
+    }
     if (annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE) {
         return movePrintAnnotationRectangleControlPoint(
             points,
@@ -200,6 +213,7 @@ function AnnotationVertexHandles({
     onPreview,
     onUpdate,
 }) {
+    const map = useMap();
     const editablePoints = getEditableAnnotationPoints(annotation);
     const latestEditablePointsRef = useRef(editablePoints);
     const dragBasePointsRef = useRef(null);
@@ -256,6 +270,7 @@ function AnnotationVertexHandles({
             basePoints,
             index,
             [latLng.lat, latLng.lng],
+            map,
         );
         if (previewFrameRef.current) {
             window.cancelAnimationFrame(previewFrameRef.current);
@@ -275,7 +290,7 @@ function AnnotationVertexHandles({
                 controlPoints: nextPoints,
             }
             : { points: nextPoints });
-    }, [annotation, editablePoints, onPreview, onUpdate, syncControlMarkers]);
+    }, [annotation, editablePoints, map, onPreview, onUpdate, syncControlMarkers]);
 
     return visiblePoints.map((point, index) => (
         <Marker
@@ -304,6 +319,7 @@ function AnnotationVertexHandles({
                         basePoints,
                         index,
                         [latLng.lat, latLng.lng],
+                        map,
                     ));
                 },
                 dragend: (event) => finishDrag(index, event),
@@ -360,6 +376,7 @@ function setShapeTextRotation(marker, rotationDegrees) {
 function AnnotationShape({
     annotation,
     selected,
+    highlighted = false,
     interactive,
     layerIndex,
     tool,
@@ -376,7 +393,7 @@ function AnnotationShape({
             onSelect?.(annotation.id);
         },
     } : undefined;
-    const pathOptions = getPathOptions(annotation, selected);
+    const pathOptions = getPathOptions(annotation, selected || highlighted);
     const rotationDegrees = normalizePrintAnnotationRotation(annotation.rotationDegrees);
     const displayPoints = annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE
         ? buildPrintAnnotationRectanglePoints(annotation.points, rotationDegrees)
@@ -534,6 +551,7 @@ function AnnotationShape({
 function PinAnnotation({
     annotation,
     selected,
+    highlighted = false,
     interactive,
     layerIndex,
     tool,
@@ -543,7 +561,7 @@ function PinAnnotation({
     return (
         <Marker
             position={annotation.points[0]}
-            icon={createPinIcon(annotation, selected)}
+            icon={createPinIcon(annotation, selected || highlighted)}
             draggable={selected && interactive && [
                 PRINT_ANNOTATION_TOOL_SELECT,
                 PRINT_ANNOTATION_TOOL_MOVE,
@@ -581,11 +599,59 @@ function PinAnnotation({
     );
 }
 
+function ImageAnnotation({ annotation, source, selected, highlighted, interactive, layerIndex, tool, onSelect, onUpdate }) {
+    const overlayRef = useRef(null);
+    const previewRef = useRef(null);
+    const { locale } = useLocale();
+    const messages = getAnnotationMessages(locale);
+    const ready = source?.status === 'ready' && source.url?.startsWith('blob:');
+    const setImageAttributes = useCallback(() => {
+        const image = overlayRef.current?.getElement();
+        if (!image) return;
+        image.setAttribute('data-private-annotation-image', annotation.id);
+        image.style.outline = selected || highlighted ? `3px solid ${annotation.style.color}` : 'none';
+    }, [annotation.id, annotation.style.color, highlighted, selected]);
+    useEffect(setImageAttributes, [setImageAttributes, source?.url]);
+    const preview = useCallback(points => {
+        previewRef.current = points;
+        overlayRef.current?.setBounds(points);
+    }, []);
+    useLayoutEffect(() => {
+        if (!previewRef.current) return;
+        if (areAnnotationPointsEqual(annotation.points, previewRef.current)) previewRef.current = null;
+        else overlayRef.current?.setBounds(previewRef.current);
+    }, [annotation.points]);
+    const events = {
+        load: setImageAttributes,
+        add: setImageAttributes,
+        ...(interactive ? { click: event => { stopAnnotationEvent(event); onSelect?.(annotation.id); } } : {}),
+    };
+    return (
+        <>
+            {ready ? <ImageOverlay ref={overlayRef} url={source.url} bounds={annotation.points}
+                alt={annotation.image.alt || annotation.text || messages.imagePrivate}
+                interactive={interactive} eventHandlers={events} /> : (
+                <Rectangle bounds={annotation.points} interactive={interactive} eventHandlers={events}
+                    pathOptions={{ color: annotation.style.color, fillOpacity: 0.08, dashArray: '6 4' }}>
+                    <Tooltip permanent>{source?.status === 'error' ? messages.imageLoadFailed : messages.uploadingImage}</Tooltip>
+                </Rectangle>
+            )}
+            {ready && selected && interactive && tool === PRINT_ANNOTATION_TOOL_SELECT ? (
+                <AnnotationVertexHandles annotation={annotation} layerIndex={layerIndex} onPreview={preview} onUpdate={onUpdate} />
+            ) : null}
+            {ready && selected && interactive && tool === PRINT_ANNOTATION_TOOL_MOVE ? (
+                <PrintAnnotationTransformHandle annotation={annotation} layerIndex={layerIndex} tool={tool} onPreview={preview} onUpdate={onUpdate} />
+            ) : null}
+        </>
+    );
+}
+
 function DrawInteractionController({
     enabled,
     tool,
     draftPoints,
     draftText,
+    draftImage,
     onDraftPointsChange,
     onPreviewPointChange,
     onCreate,
@@ -596,6 +662,7 @@ function DrawInteractionController({
         tool,
         draftPoints,
         draftText,
+        draftImage,
         onDraftPointsChange,
         onPreviewPointChange,
         onCreate,
@@ -605,6 +672,7 @@ function DrawInteractionController({
         tool,
         draftPoints,
         draftText,
+        draftImage,
         onDraftPointsChange,
         onPreviewPointChange,
         onCreate,
@@ -624,6 +692,12 @@ function DrawInteractionController({
         const handleClick = (event) => {
             const current = interactionRef.current;
             const point = [Number(event.latlng.lat), Number(event.latlng.lng)];
+            if (current.tool === PRINT_ANNOTATION_TOOL_IMAGE) {
+                const bounds = createImageAnnotationBounds(point, current.draftImage,
+                    { project: value => map.project(value), unproject: value => map.unproject(value) });
+                if (bounds) current.onCreate?.(current.tool, bounds);
+                return;
+            }
             if (current.tool === PRINT_ANNOTATION_TOOL_PIN) {
                 if (!String(current.draftText || '').trim()) return;
                 current.onCreate?.(current.tool, [point]);
@@ -793,6 +867,20 @@ function DraftShape({
     );
 }
 
+function AnnotationAttention({ paneName, active, pulse, activationVersion }) {
+    const map = useMap();
+    useEffect(() => {
+        const pane = map.getPane(paneName);
+        if (!pane) return undefined;
+        const classes = ['carearound-annotation-active', 'carearound-annotation-pulse', 'carearound-annotation-pulse-repeat'];
+        pane.classList.toggle(classes[0], active);
+        pane.classList.toggle(classes[1], pulse);
+        pane.classList.toggle(classes[2], pulse && activationVersion % 2 === 0);
+        return () => pane.classList.remove(...classes);
+    }, [active, activationVersion, map, paneName, pulse]);
+    return null;
+}
+
 export default function PrintAnnotationLayer({
     annotations = [],
     editable = false,
@@ -800,17 +888,27 @@ export default function PrintAnnotationLayer({
     selectedId = null,
     draftPoints = [],
     draftText = '',
+    draftImage = null,
     draftStyle,
     onSelect,
     onUpdate,
     onDraftPointsChange,
     onCreate,
     onCancel,
+    browseInteractive = false,
+    onActivate,
+    activeIds = new Set(),
+    pulseIds = new Set(),
+    activationVersion = 0,
+    privateImageSources = {},
 }) {
     const [draftPreviewPoint, setDraftPreviewPoint] = useState(null);
     const annotationInteractionEnabled = editable && (
         tool === PRINT_ANNOTATION_TOOL_SELECT || PRINT_ANNOTATION_TRANSFORM_TOOLS.has(tool)
     );
+    const browseEnabled = !editable && browseInteractive;
+    const interactionEnabled = annotationInteractionEnabled || browseEnabled;
+    const selectAnnotation = browseEnabled ? onActivate : onSelect;
 
     useEffect(() => {
         setDraftPreviewPoint(null);
@@ -824,21 +922,38 @@ export default function PrintAnnotationLayer({
         <>
             {annotations.map((annotation, layerIndex) => {
                 const selected = editable && annotation.id === selectedId;
+                const highlighted = activeIds.has(annotation.id) || pulseIds.has(annotation.id);
+                const attentionClass = `${activeIds.has(annotation.id) ? 'carearound-annotation-active' : ''} ${pulseIds.has(annotation.id) ? `carearound-annotation-pulse${activationVersion % 2 === 0 ? ' carearound-annotation-pulse-repeat' : ''}` : ''}`;
+                if (annotation.type === PRINT_ANNOTATION_TOOL_IMAGE) {
+                    return (
+                        <Pane key={`${annotation.id}:${layerIndex}:${editable ? 'edit' : 'view'}`}
+                            name={`print-annotation-${annotation.id}`} className={attentionClass} style={{ zIndex: 450 + layerIndex }}>
+                            <AnnotationAttention paneName={`print-annotation-${annotation.id}`} active={activeIds.has(annotation.id)} pulse={pulseIds.has(annotation.id)} activationVersion={activationVersion} />
+                            <ImageAnnotation annotation={annotation} source={privateImageSources[annotation.image.assetId]}
+                                selected={selected} highlighted={highlighted} interactive={interactionEnabled}
+                                layerIndex={layerIndex} tool={tool} onSelect={selectAnnotation}
+                                onUpdate={editable ? handleUpdate : undefined} />
+                        </Pane>
+                    );
+                }
                 if (annotation.type === PRINT_ANNOTATION_TOOL_PIN) {
                     return (
                         <Pane
                             key={`${annotation.id}:${layerIndex}:${editable ? 'edit' : 'view'}`}
                             name={`print-annotation-${annotation.id}`}
                             style={{ zIndex: 450 + layerIndex }}
+                            className={attentionClass}
                         >
+                            <AnnotationAttention paneName={`print-annotation-${annotation.id}`} active={activeIds.has(annotation.id)} pulse={pulseIds.has(annotation.id)} activationVersion={activationVersion} />
                             <PinAnnotation
                                 annotation={annotation}
                                 selected={selected}
-                                interactive={annotationInteractionEnabled}
+                                highlighted={highlighted}
+                                interactive={interactionEnabled}
                                 layerIndex={layerIndex}
                                 tool={tool}
-                                onSelect={onSelect}
-                                onUpdate={handleUpdate}
+                                onSelect={selectAnnotation}
+                                onUpdate={editable ? handleUpdate : undefined}
                             />
                         </Pane>
                     );
@@ -848,15 +963,18 @@ export default function PrintAnnotationLayer({
                         key={`${annotation.id}:${layerIndex}:${editable ? 'edit' : 'view'}`}
                         name={`print-annotation-${annotation.id}`}
                         style={{ zIndex: 450 + layerIndex }}
+                        className={attentionClass}
                     >
+                        <AnnotationAttention paneName={`print-annotation-${annotation.id}`} active={activeIds.has(annotation.id)} pulse={pulseIds.has(annotation.id)} activationVersion={activationVersion} />
                         <AnnotationShape
                             annotation={annotation}
                             selected={selected}
-                            interactive={annotationInteractionEnabled}
+                            highlighted={highlighted}
+                            interactive={interactionEnabled}
                             layerIndex={layerIndex}
                             tool={tool}
-                            onSelect={onSelect}
-                            onUpdate={handleUpdate}
+                            onSelect={selectAnnotation}
+                            onUpdate={editable ? handleUpdate : undefined}
                         />
                     </Pane>
                 );
@@ -876,6 +994,7 @@ export default function PrintAnnotationLayer({
                         tool={tool}
                         draftPoints={draftPoints}
                         draftText={draftText}
+                        draftImage={draftImage}
                         onDraftPointsChange={onDraftPointsChange}
                         onPreviewPointChange={setDraftPreviewPoint}
                         onCreate={onCreate}

@@ -1,6 +1,7 @@
 import { GUIDE_ORACLE_FACTS, HELP_ARTICLES } from '../generated/helpKnowledge.js';
 import { publicGuideFacts } from './helpArticleAccess.js';
 import { guideOracleFactAction } from './guideOracleKnowledge.js';
+import { answerGuideAnnotationFeatures, qualifyGuideAnnotationAnswer } from './guideAnnotationFeatures.js';
 
 const normalise = (value) => String(value || '').toLowerCase().replace(/[’']/g, '').replace(/\s+/g, ' ').trim();
 
@@ -123,7 +124,9 @@ function answerGuideMapNoteAnnotationSharing(facts) {
         sources: selected.map(guideHelpFactSource) };
 }
 
-export function answerGuideHelpWorkflow({ question = '', pageContext = '', turns = [], facts = GUIDE_ORACLE_FACTS } = {}) {
+export function answerGuideHelpWorkflow({ question = '', pageContext = '', turns = [], facts = GUIDE_ORACLE_FACTS, locale, actor = null } = {}) {
+    const annotationAnswer = answerGuideAnnotationFeatures({ question, pageContext, locale, actor });
+    if (annotationAnswer) return annotationAnswer;
     const intent = guideHelpWorkflowIntent(question, pageContext, turns);
     if (!intent || intent === 'public-place-create') return null;
     if (intent === 'clarify-place-create') return {
@@ -133,7 +136,7 @@ export function answerGuideHelpWorkflow({ question = '', pageContext = '', turns
     };
     if (intent === 'map-note-annotation-sharing') {
         const answer = answerGuideMapNoteAnnotationSharing(facts);
-        if (answer) return answer;
+        if (answer) return qualifyGuideAnnotationAnswer(answer, { locale, question });
     }
     const factId = intent === 'map-membership' ? 'map-resource-update-procedure' : intent;
     const fact = publicGuideFacts(facts).find((item) => item.id === factId);
@@ -161,13 +164,13 @@ export function answerGuideHelpWorkflow({ question = '', pageContext = '', turns
             sources.push(guideHelpFactSource(personalPlaces));
         }
     }
-    return { topicId: intent, answerKind: cancellationNote ? 'reviewed' : fact.answerKind || 'reviewed', message,
+    return qualifyGuideAnnotationAnswer({ topicId: intent, answerKind: cancellationNote ? 'reviewed' : fact.answerKind || 'reviewed', message,
         actions: [cancellationNote || fact.route.startsWith('/help-centre/')
             ? { label: 'Read instructions', route: fact.articleRoute || fact.route }
             : fact.route === '/my-directory?section=my-maps'
                 ? { label: fact.actionLabel || 'Open Care Maps', route: fact.route }
                 : guideOracleFactAction(fact)],
-        sources };
+        sources }, { locale, question });
 }
 
 export function guideAnswerHelpFacts(answer, facts = GUIDE_ORACLE_FACTS) {

@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-08",
+  "baseSourceRevision": "55845136efb6c77f47636bbbc525c0767d536912",
+  "branch": "codex/care-map-annotation-media-20261008",
+  "scope": "Private Care Map annotation resource links, movable/resizable images, four locales and Guide instructions",
+  "boundary": "Local source checks and fictional intercepted Chromium only. No production resources, media, database, paid model or physical device acceptance. Production delivery recorded separately.",
+  "checks": {
+    "server": {
+      "passed": 1170,
+      "failed": 0
+    },
+    "cms": {
+      "passed": 73,
+      "failed": 0
+    },
+    "client": {
+      "passed": 953,
+      "failed": 0
+    },
+    "clientEnvironment": {
+      "passed": 5,
+      "failed": 0
+    },
+    "mapLockdown": {
+      "passed": 110,
+      "failed": 0
+    },
+    "productionEnvironment": {
+      "passed": 17,
+      "failed": 0
+    },
+    "static": "passed",
+    "productionClientBuild": "passed",
+    "diffCheck": "passed",
+    "browserTagCases": {
+      "passed": 15,
+      "failed": 0,
+      "pageErrors": 0,
+      "unexpectedWrites": 0
+    },
+    "browserGuideLocales": {
+      "passed": 4,
+      "failed": 0,
+      "pageErrors": 0,
+      "unexpectedWrites": 0
+    },
+    "browserImages": "native upload, place, centre move, aspect resize, undo/redo, delete/undo, blob cleanup, save/reload, caption without refetch passed",
+    "browserExport": "actual PNG and PDF downloads with private decoded image passed; missing-media blocks export and Retry recovers"
+  },
+  "protectedContent": "Authored CMS, canonical Help content and generated Help library have zero source diff; previous approved public baseline digest unchanged.",
+  "retainedFailures": [
+    "Leaflet pane attention class did not update; fixed with effect and verified in browser.",
+    "Blob image cache-busting broke export; fixed with private-blob-only cacheBust false and verified by actual downloads.",
+    "Earlier local harness selector/timing probes retained in private packet."
+  ],
+  "privateProofDirectory": "/private/tmp/care-map-annotation-media-20261008",
+  "privateArtifacts": {
+    "tags-report.json": {
+      "sha256": "239876251fe502f4ee8667d182359efdfbae86a0744a9598123e73b4fa8757b5",
+      "bytes": 26611
+    },
+    "guide-browser-report.json": {
+      "sha256": "df370621267ddba1781435a660d7020f71633a0e5963fa2958fda013a81b477d",
+      "bytes": 1136
+    },
+    "image-geometry-proof.json": {
+      "sha256": "4fbfc229cb6e941f06bb0a4ebcd71db03e5405e2b56e65111447dfb90d02a6c5",
+      "bytes": 31561
+    },
+    "image-export-proof.json": {
+      "sha256": "a534000eaa22947502d761f674ee71eabc5e6450c418335e80b5e948337fea01",
+      "bytes": 145
+    },
+    "image-media-recovery-proof.json": {
+      "sha256": "e27280e7bff2662d17952242939883deeb58f6ec79ef0c24f08868e759ae8a79",
+      "bytes": 873
+    },
+    "image-client-acceptance-seal.json": {
+      "sha256": "2a651f84c0c80c8a77c2fe2d865879b98475539526e89a888166a71020d3c8c4",
+      "bytes": 1695
+    }
+  }
+}

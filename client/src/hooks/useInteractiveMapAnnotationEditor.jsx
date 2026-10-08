@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import PrintAnnotationLayer from '../components/PrintAnnotationLayer.jsx';
 import PrintAnnotationToolbar from '../components/PrintAnnotationToolbar.jsx';
+import AnnotationImageUpload from '../components/AnnotationImageUpload.jsx';
+import AnnotationResourcePicker from '../components/AnnotationResourcePicker.jsx';
+import { getAnnotationResourceLinkBudget } from '../lib/annotationResourceLinks.js';
 import {
     DEFAULT_PRINT_ANNOTATION_STYLE,
     PRINT_ANNOTATION_DRAW_TOOLS,
-    PRINT_ANNOTATION_MAX_COUNT,
     PRINT_ANNOTATION_TRANSFORM_TOOLS,
     PRINT_ANNOTATION_TOOL_PIN,
     PRINT_ANNOTATION_TOOL_POLYGON,
@@ -13,12 +15,16 @@ import {
     PRINT_ANNOTATION_TOOL_CIRCLE,
     PRINT_ANNOTATION_TOOL_SELECT,
     createPrintAnnotation,
+    canAddPrintAnnotation,
     duplicatePrintAnnotation,
     getPrintAnnotationMinimumPointCount,
     normalizePrintAnnotationStyle,
 } from '../lib/printAnnotations.js';
 
 export default function useInteractiveMapAnnotationEditor({
+    mapId = null,
+    directory = null,
+    privateImageSources = {},
     enabled = false,
     annotations = [],
     status = 'idle',
@@ -36,6 +42,7 @@ export default function useInteractiveMapAnnotationEditor({
     const [draftPoints, setDraftPoints] = useState([]);
     const [draftText, setDraftText] = useState('');
     const [draftStyle, setDraftStyle] = useState(DEFAULT_PRINT_ANNOTATION_STYLE);
+    const [draftImage, setDraftImage] = useState(null);
     const selectedIndex = annotations.findIndex((annotation) => annotation.id === selectedId);
     const selectedAnnotation = useMemo(() => (
         annotations.find((annotation) => annotation.id === selectedId) || null
@@ -46,10 +53,19 @@ export default function useInteractiveMapAnnotationEditor({
         setTool(PRINT_ANNOTATION_TOOL_SELECT);
         setSelectedId(null);
         setDraftPoints([]);
+        setDraftImage(null);
     }, [enabled]);
+
+    useEffect(() => {
+        setSelectedId(null);
+        setDraftImage(null);
+        setDraftPoints([]);
+        setTool(PRINT_ANNOTATION_TOOL_SELECT);
+    }, [mapId]);
 
     const cancelDraft = useCallback(() => {
         setDraftPoints([]);
+        setDraftImage(null);
         setTool(PRINT_ANNOTATION_TOOL_SELECT);
     }, []);
 
@@ -57,9 +73,11 @@ export default function useInteractiveMapAnnotationEditor({
         setTool(nextTool);
         if (PRINT_ANNOTATION_DRAW_TOOLS.has(nextTool)) setSelectedId(null);
         setDraftPoints([]);
+        if (nextTool !== 'image') setDraftImage(null);
     }, []);
 
     const handleCreate = useCallback((type, points) => {
+        if (!canAddPrintAnnotation(annotations, type)) return;
         const annotation = createPrintAnnotation({
             type,
             points,
@@ -70,15 +88,17 @@ export default function useInteractiveMapAnnotationEditor({
                 PRINT_ANNOTATION_TOOL_POLYGON,
             ].includes(type) ? draftText : '',
             style: draftStyle,
+            ...(type === 'image' && draftImage ? { image: draftImage } : {}),
         });
         if (!annotation) return;
         replaceAnnotations?.((current) => (
-            current.length >= PRINT_ANNOTATION_MAX_COUNT ? current : [...current, annotation]
+            canAddPrintAnnotation(current, type) ? [...current, annotation] : current
         ));
         setSelectedId(annotation.id);
         setTool(PRINT_ANNOTATION_TOOL_SELECT);
         setDraftPoints([]);
-    }, [draftStyle, draftText, replaceAnnotations]);
+        if (type === 'image') setDraftImage(null);
+    }, [annotations, draftImage, draftStyle, draftText, replaceAnnotations]);
 
     const handleUpdate = useCallback((annotationId, patch) => {
         replaceAnnotations?.((current) => current.map((annotation) => (
@@ -116,11 +136,11 @@ export default function useInteractiveMapAnnotationEditor({
     }, [replaceAnnotations, selectedId]);
 
     const handleDuplicate = useCallback(() => {
-        if (!selectedAnnotation || annotations.length >= PRINT_ANNOTATION_MAX_COUNT) return;
+        if (!selectedAnnotation || !canAddPrintAnnotation(annotations, selectedAnnotation.type, selectedAnnotation.resourceLinks)) return;
         const duplicate = duplicatePrintAnnotation(selectedAnnotation);
         if (!duplicate) return;
         replaceAnnotations?.((current) => {
-            if (current.length >= PRINT_ANNOTATION_MAX_COUNT) return current;
+            if (!canAddPrintAnnotation(current, selectedAnnotation.type, selectedAnnotation.resourceLinks)) return current;
             const sourceIndex = current.findIndex((annotation) => annotation.id === selectedAnnotation.id);
             if (sourceIndex < 0) return current;
             const next = [...current];
@@ -128,7 +148,7 @@ export default function useInteractiveMapAnnotationEditor({
             return next;
         });
         setSelectedId(duplicate.id);
-    }, [annotations.length, replaceAnnotations, selectedAnnotation]);
+    }, [annotations, replaceAnnotations, selectedAnnotation]);
 
     const handleFinish = useCallback(() => {
         const minimumPointCount = getPrintAnnotationMinimumPointCount(tool);
@@ -166,6 +186,8 @@ export default function useInteractiveMapAnnotationEditor({
             draftPoints={draftPoints}
             draftText={draftText}
             draftStyle={draftStyle}
+            draftImage={draftImage}
+            privateImageSources={privateImageSources}
             onSelect={(annotationId) => {
                 setSelectedId(annotationId);
                 if (!PRINT_ANNOTATION_TRANSFORM_TOOLS.has(tool)) {
@@ -193,7 +215,27 @@ export default function useInteractiveMapAnnotationEditor({
             canRedo={canRedo}
             canMoveSelectedBackward={selectedIndex > 0}
             canMoveSelectedForward={selectedIndex >= 0 && selectedIndex < annotations.length - 1}
-            canDuplicateSelected={Boolean(selectedAnnotation && annotations.length < PRINT_ANNOTATION_MAX_COUNT)}
+            canDuplicateSelected={Boolean(selectedAnnotation && canAddPrintAnnotation(annotations, selectedAnnotation.type, selectedAnnotation.resourceLinks))}
+            imageControls={mapId ? (
+                <AnnotationImageUpload
+                    mapId={mapId}
+                    disabled={!canAddPrintAnnotation(annotations, 'image')}
+                    onUploaded={(image) => {
+                        setDraftImage(image);
+                        setSelectedId(null);
+                        setDraftPoints([]);
+                        setTool('image');
+                    }}
+                />
+            ) : null}
+            resourceControls={directory && selectedAnnotation ? (
+                <AnnotationResourcePicker
+                    directory={directory}
+                    annotation={selectedAnnotation}
+                    maxLinks={getAnnotationResourceLinkBudget(annotations, selectedAnnotation.id)}
+                    onChange={handleSelectedChange}
+                />
+            ) : null}
             onToolChange={handleToolChange}
             onDraftTextChange={setDraftText}
             onDraftStyleChange={setDraftStyle}

@@ -12,9 +12,11 @@ import GuideProgrammeDraft from './GuideProgrammeDraft.jsx';
 import { useGuideProgramme } from './useGuideProgramme.js';
 import { isProgrammeCreationRequest } from './guideProgrammeState.js';
 import { restoreSupportFocus } from './supportFocus.js';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 
 export default function GuidePanel({ api, signedIn, canSaveHistory = false, canCreateProgramme = canSaveHistory,
     onDraftReport, compact = false, pageLabel = '', onActionStateChange }) {
+    const { locale } = useLocale();
     const accountAcceptancePreview = import.meta.env.VITE_GUIDE_ACCOUNT_ACCEPTANCE_PREVIEW === 'true';
     const fieldId = useId();
     const [topics, setTopics] = useState([]);
@@ -86,7 +88,7 @@ export default function GuidePanel({ api, signedIn, canSaveHistory = false, canC
             && !['resource-search', 'resource-access', 'template-access', 'workbook-access', 'group-access', 'governance-group-access', 'lifecycle-access', 'composite-guidance', 'verified-boundary', 'unverified-workflow', 'account-refresh', 'managed-resources', 'saved-resources', 'personal-places', 'my-plans', 'audit-access', 'audit-activity', 'organization-access', 'own-region-scope'].includes(message.topicId)
             && !message.actionKind && typeof message.message === 'string')
             .slice(-4).map((message) => ({ question: message.input.question, answer: message.message.slice(0, 1600) })) : [];
-        const contextualInput = { ...input, pageContext: pageLabel || 'CareAround' };
+        const contextualInput = { ...input, pageContext: pageLabel || 'CareAround', locale };
         help.run(() => api.answer(useAi ? { ...contextualInput, useAi: true, turns } : contextualInput),
             (answer) => addMessage({ question: label, ...answer }));
     }

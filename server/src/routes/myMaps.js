@@ -32,6 +32,7 @@ import {
     putMyMapStudio,
 } from '../controllers/mapStudioController.js';
 import { postMyMapPersonalPlacesImport } from '../controllers/personalPlaceImportController.js';
+import { postMapAnnotationMedia, getMapAnnotationMedia } from '../controllers/mapAnnotationMediaController.js';
 
 const router = new Hono();
 
@@ -49,6 +50,8 @@ router.get('/:id/studio', authenticateToken, getMyMapStudio);
 router.put('/:id/studio', authenticateToken, putMyMapStudio);
 router.get('/:id/print-annotations', authenticateToken, getMyMapPrintAnnotations);
 router.put('/:id/print-annotations', authenticateToken, putMyMapPrintAnnotations);
+router.post('/:id/annotation-media', authenticateToken, postMapAnnotationMedia);
+router.get('/:id/annotation-media/:assetId', authenticateToken, getMapAnnotationMedia);
 router.post('/:id/personal-places', authenticateToken, postMyMapPersonalPlace);
 router.post('/:id/personal-places/import', authenticateToken, postMyMapPersonalPlacesImport);
 router.patch('/:id/personal-places/:placeId', authenticateToken, patchMyMapPersonalPlace);

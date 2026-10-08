@@ -20,6 +20,8 @@ export default function MapDirectoryExportPanel({
     fixedTownOverviewSurfaceAvailable = false,
     fixedTownOverviewSurfacePending = false,
     printAnnotations = [],
+    privateImageSources = {},
+    privateMapId = null,
 }) {
     return (
         <DirectoryPrintView
@@ -45,6 +47,8 @@ export default function MapDirectoryExportPanel({
             fixedTownOverviewSurfaceAvailable={fixedTownOverviewSurfaceAvailable}
             fixedTownOverviewSurfacePending={fixedTownOverviewSurfacePending}
             printAnnotations={printAnnotations}
+            privateImageSources={privateImageSources}
+            privateMapId={privateMapId}
         />
     );
 }

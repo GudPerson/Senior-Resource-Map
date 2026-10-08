@@ -1,0 +1,91 @@
+const messages = {
+    en: {
+        tagResources: 'Tag Resources', searchResources: 'Search map resources', noResources: 'No resources in this map.',
+        resourceScope: 'A linked resource includes its cards at every location in this map.', behaviour: 'Behaviour',
+        resourceLimitReached: 'The resource tag limit has been reached. Remove tags before adding more.',
+        appear: 'Appear', pulse: 'Pulse', highlight: 'Highlight',
+        appearHelp: 'Show this annotation when a linked resource is selected.',
+        pulseHelp: 'Pulse briefly, then keep a steady highlight. Reduced motion uses only the highlight.',
+        highlightHelp: 'Highlight linked items until the selection is cleared.',
+        clearSelection: 'Clear linked selection', addImage: 'Add image', uploadingImage: 'Preparing and uploading image…',
+        imageLimits: 'PNG, JPEG or WebP. Photos are resized to fit. Up to 20 images and 20 MB across your maps.',
+        imagePlacement: 'Click the map to place your image.',
+        imageSelectedHelp: 'Choose Move annotation and drag its centre handle to move the image. Drag a corner to resize without changing its proportions.',
+        imageAlt: 'Image description', imageAltPlaceholder: 'Describe what the image shows',
+        imagePrivate: 'Images are private and are not included in shared links in this version.',
+        imageUploadFailed: 'The image could not be uploaded. Try again.',
+        imageInvalid: 'Choose a PNG, JPEG or WebP photo up to 20 MB and try again.', imageQuotaExceeded: 'Your account has reached its image limit. Use an image you already uploaded.', imageUnavailable: 'Image storage is unavailable. Try again later.', imageConflict: 'Another image upload is in progress. Try again.', imageAccessDenied: 'Sign in to your own account to add images.',
+        imageLoadFailed: 'A map image could not load. Reload before exporting.',
+        showLinkedAnnotation: 'Show linked annotation', linkedAnnotation: 'Linked annotation selected', noMatchingResources: 'No matching resources.',
+    },
+    'zh-CN': {
+        tagResources: '关联资源', searchResources: '搜索地图资源', noResources: '此地图中没有资源。',
+        resourceScope: '关联的资源包括它在此地图所有地点的卡片。', behaviour: '效果',
+        resourceLimitReached: '已达到资源关联上限。请移除关联后再添加。',
+        appear: '显示', pulse: '闪动', highlight: '突出显示',
+        appearHelp: '选择关联资源时显示此标注。',
+        pulseHelp: '短暂闪动后保持突出显示。减少动态效果时只突出显示。',
+        highlightHelp: '保持突出显示关联项目，直到清除选择。',
+        clearSelection: '清除关联选择', addImage: '添加图片', uploadingImage: '正在处理并上传图片…',
+        imageLimits: '支持 PNG、JPEG 或 WebP。照片会调整大小。所有地图合计最多 20 张图片、20 MB。',
+        imagePlacement: '点击地图放置图片。',
+        imageSelectedHelp: '选择 Move annotation（移动标注），然后拖动中心控制点来移动图片。拖动角点以按比例调整大小。',
+        imageAlt: '图片说明', imageAltPlaceholder: '描述图片内容',
+        imagePrivate: '图片为私人内容，此版本不会将它们加入共享链接。',
+        imageUploadFailed: '无法上传图片。请重试。',
+        imageInvalid: '请选择不超过 20 MB 的 PNG、JPEG 或 WebP 照片后重试。', imageQuotaExceeded: '你的账户已达到图片限额。请使用已上传的图片。', imageUnavailable: '图片存储暂时不可用。请稍后重试。', imageConflict: '另一张图片正在上传。请重试。', imageAccessDenied: '请登录你自己的账户来添加图片。', imageLoadFailed: '地图图片无法加载。请重新加载后再导出。',
+        showLinkedAnnotation: '显示关联标注', linkedAnnotation: '已选择关联标注', noMatchingResources: '没有匹配的资源。',
+    },
+    ms: {
+        tagResources: 'Pautkan Sumber', searchResources: 'Cari sumber peta', noResources: 'Tiada sumber dalam peta ini.',
+        resourceScope: 'Sumber yang dipautkan merangkumi kadnya di setiap lokasi dalam peta ini.', behaviour: 'Kesan',
+        resourceLimitReached: 'Had pautan sumber telah dicapai. Buang pautan sebelum menambah lagi.',
+        appear: 'Muncul', pulse: 'Berdenyut', highlight: 'Serlahkan',
+        appearHelp: 'Tunjukkan anotasi ini apabila sumber yang dipautkan dipilih.',
+        pulseHelp: 'Berdenyut seketika, kemudian kekalkan serlahan. Gerakan dikurangkan menggunakan serlahan sahaja.',
+        highlightHelp: 'Serlahkan item yang dipautkan sehingga pilihan dibersihkan.',
+        clearSelection: 'Bersihkan pilihan pautan', addImage: 'Tambah imej', uploadingImage: 'Menyediakan dan memuat naik imej…',
+        imageLimits: 'PNG, JPEG atau WebP. Foto diubah saiz supaya muat. Maksimum 20 imej dan 20 MB untuk semua peta anda.',
+        imagePlacement: 'Klik peta untuk meletakkan imej anda.',
+        imageSelectedHelp: 'Pilih Move annotation (Alihkan anotasi) dan seret pemegang tengah untuk mengalihkan imej. Seret penjuru untuk mengubah saiz dengan mengekalkan nisbahnya.',
+        imageAlt: 'Penerangan imej', imageAltPlaceholder: 'Terangkan kandungan imej',
+        imagePrivate: 'Imej adalah peribadi dan tidak disertakan dalam pautan kongsi dalam versi ini.',
+        imageUploadFailed: 'Imej tidak dapat dimuat naik. Cuba lagi.',
+        imageInvalid: 'Pilih foto PNG, JPEG atau WebP sehingga 20 MB dan cuba lagi.', imageQuotaExceeded: 'Akaun anda telah mencapai had imej. Gunakan imej yang sudah dimuat naik.', imageUnavailable: 'Storan imej tidak tersedia. Cuba lagi kemudian.', imageConflict: 'Imej lain sedang dimuat naik. Cuba lagi.', imageAccessDenied: 'Log masuk ke akaun anda sendiri untuk menambah imej.', imageLoadFailed: 'Imej peta tidak dapat dimuatkan. Muat semula sebelum mengeksport.',
+        showLinkedAnnotation: 'Tunjukkan anotasi dipautkan', linkedAnnotation: 'Anotasi dipautkan dipilih', noMatchingResources: 'Tiada sumber yang sepadan.',
+    },
+    ta: {
+        tagResources: 'வளங்களை இணைக்கவும்', searchResources: 'வரைபட வளங்களைத் தேடவும்', noResources: 'இந்த வரைபடத்தில் வளங்கள் இல்லை.',
+        resourceScope: 'இணைக்கப்பட்ட வளத்தின் அட்டைகள் இந்த வரைபடத்தின் எல்லா இடங்களிலும் சேர்க்கப்படும்.', behaviour: 'விளைவு',
+        resourceLimitReached: 'வள இணைப்புகளின் வரம்பை அடைந்துவிட்டது. மேலும் சேர்க்க இணைப்புகளை நீக்கவும்.',
+        appear: 'தோன்றும்', pulse: 'துடிக்கும்', highlight: 'முன்னிலைப்படுத்தும்',
+        appearHelp: 'இணைக்கப்பட்ட வளத்தைத் தேர்ந்தெடுக்கும்போது இந்தக் குறிப்பைக் காட்டவும்.',
+        pulseHelp: 'சிறிது நேரம் துடித்த பின் முன்னிலைப்படுத்தவும். இயக்கம் குறைக்கப்பட்டால் முன்னிலைப்படுத்தல் மட்டும் இருக்கும்.',
+        highlightHelp: 'தேர்வை நீக்கும் வரை இணைக்கப்பட்ட உருப்படிகளை முன்னிலைப்படுத்தவும்.',
+        clearSelection: 'இணைக்கப்பட்ட தேர்வை நீக்கவும்', addImage: 'படத்தைச் சேர்க்கவும்', uploadingImage: 'படம் தயாரிக்கப்பட்டுப் பதிவேற்றப்படுகிறது…',
+        imageLimits: 'PNG, JPEG அல்லது WebP. படங்களின் அளவு பொருந்துமாறு மாற்றப்படும். எல்லா வரைபடங்களிலும் மொத்தம் 20 படங்கள் மற்றும் 20 MB வரை.',
+        imagePlacement: 'படத்தை வைக்க வரைபடத்தில் கிளிக் செய்யவும்.',
+        imageSelectedHelp: 'Move annotation (குறிப்பை நகர்த்தவும்) என்பதைத் தேர்ந்தெடுத்து, படத்தை நகர்த்த மையப் பிடியை இழுக்கவும். விகிதத்தை மாற்றாமல் அளவை மாற்ற மூலையை இழுக்கவும்.',
+        imageAlt: 'பட விளக்கம்', imageAltPlaceholder: 'படத்தில் உள்ளதை விவரிக்கவும்',
+        imagePrivate: 'படங்கள் தனிப்பட்டவை. இந்தப் பதிப்பில் பகிர்வு இணைப்புகளில் சேர்க்கப்படாது.',
+        imageUploadFailed: 'படத்தைப் பதிவேற்ற முடியவில்லை. மீண்டும் முயலவும்.',
+        imageInvalid: '20 MB வரையிலான PNG, JPEG அல்லது WebP படத்தைத் தேர்ந்தெடுத்து மீண்டும் முயலவும்.', imageQuotaExceeded: 'உங்கள் கணக்கு படங்களின் வரம்பை அடைந்துவிட்டது. ஏற்கனவே பதிவேற்றிய படத்தைப் பயன்படுத்தவும்.', imageUnavailable: 'படச் சேமிப்பகம் கிடைக்கவில்லை. பிறகு மீண்டும் முயலவும்.', imageConflict: 'வேறொரு படம் பதிவேற்றப்படுகிறது. மீண்டும் முயலவும்.', imageAccessDenied: 'படங்களைச் சேர்க்க உங்கள் சொந்தக் கணக்கில் உள்நுழையவும்.', imageLoadFailed: 'வரைபடப் படத்தை ஏற்ற முடியவில்லை. ஏற்றுமதிக்கு முன் மீண்டும் ஏற்றவும்.',
+        showLinkedAnnotation: 'இணைக்கப்பட்ட குறிப்பைக் காட்டவும்', linkedAnnotation: 'இணைக்கப்பட்ட குறிப்பு தேர்ந்தெடுக்கப்பட்டது', noMatchingResources: 'பொருத்தமான வளங்கள் இல்லை.',
+    },
+};
+
+export function getAnnotationMessages(locale = 'en') {
+    return messages[locale] || messages.en;
+}
+
+export function getAnnotationUploadError(error, locale = 'en') {
+    const messages = getAnnotationMessages(locale);
+    const key = {
+        map_media_invalid: 'imageInvalid',
+        map_media_quota_exceeded: 'imageQuotaExceeded',
+        map_media_unavailable: 'imageUnavailable',
+        map_media_conflict: 'imageConflict',
+        map_media_access_denied: 'imageAccessDenied',
+    }[error?.code];
+    return messages[key] || messages.imageUploadFailed;
+}

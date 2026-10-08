@@ -780,7 +780,7 @@ test('map image export rejects blank map captures and saves large PNGs as blobs'
     assert.match(exportButtonSource, /isMapCaptureVisiblyBlank/);
     assert.match(exportButtonSource, /MAP_CAPTURE_BLANK_MAX_AVERAGE_DISTANCE/);
     assert.match(exportButtonSource, /querySelector\('\[data-print-export-map-frame="true"\]'\)/);
-    assert.match(exportButtonSource, /cacheBust: Boolean\(mapFrameNode\)/);
+    assert.match(exportButtonSource, /getAnnotationImageCaptureOptions\(mapFrameNode \? imageReadiness\.count : 0,[\s\S]*TRANSPARENT_IMAGE_PLACEHOLDER, Boolean\(mapFrameNode\)\)/);
     assert.match(exportButtonSource, /Image export failed because the map image was still blank/);
     assert.match(exportButtonSource, /async function savePngDataUrl/);
     assert.match(exportButtonSource, /const blob = await response\.blob\(\)/);

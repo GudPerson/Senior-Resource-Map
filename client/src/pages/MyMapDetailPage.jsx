@@ -105,6 +105,9 @@ import { useDirectoryDistanceAnchor } from '../hooks/useDirectoryDistanceAnchor.
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { usePrintAnnotations } from '../hooks/usePrintAnnotations.js';
 import useInteractiveMapAnnotationEditor from '../hooks/useInteractiveMapAnnotationEditor.jsx';
+import useAnnotationResourceActivation from '../hooks/useAnnotationResourceActivation.js';
+import usePrivateAnnotationImages from '../hooks/usePrivateAnnotationImages.js';
+import { getAnnotationMessages } from '../lib/annotationMessages.js';
 import {
     PRINT_MAP_ANNOTATION_LAYER_HIDE,
     PRINT_MAP_ANNOTATION_LAYER_SHOW,
@@ -1574,7 +1577,8 @@ export default function MyMapDetailPage() {
     const { mapId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
-    const { t } = useLocale();
+    const { t, locale } = useLocale();
+    const annotationMessages = getAnnotationMessages(locale);
     const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const { mapStyle } = useMapStyle();
     const {
@@ -1740,25 +1744,59 @@ export default function MyMapDetailPage() {
         autosave: isPrintView || interactiveAnnotationEditorOpen,
     });
     const printAnnotationsReady = ['saved', 'unsaved', 'saving'].includes(printAnnotations.status);
-    const ownerReadOnlyAnnotationOverlay = useMemo(() => {
-        if (isPrintView || interactiveAnnotationEditorOpen || !printAnnotations.annotations.length) return null;
-        const annotations = mapStudioInteractiveModel
+    const visibleOwnerAnnotations = useMemo(() => (
+        mapStudioInteractiveModel
             ? filterPrintMapAnnotations(printAnnotations.annotations, {
                 annotationLayer: mapStudioInteractiveModel.annotationLayer.visible
                     ? PRINT_MAP_ANNOTATION_LAYER_SHOW
                     : PRINT_MAP_ANNOTATION_LAYER_HIDE,
                 hiddenAnnotationIds: mapStudioInteractiveModel.annotationLayer.hiddenAnnotationIds,
             })
-            : printAnnotations.annotations;
+            : printAnnotations.annotations
+    ), [mapStudioInteractiveModel, printAnnotations.annotations]);
+    const annotationActivation = useAnnotationResourceActivation({
+        mapId,
+        viewId: mapStudioRuntimeSnapshot?.activeViewId || '',
+        directory,
+        annotations: printAnnotations.annotations,
+        visibleAnnotationIds: visibleOwnerAnnotations.map((annotation) => annotation.id),
+        enabled: Boolean(user?.id) && !isPrintView && !interactiveAnnotationEditorOpen
+            && !suspendMapInteraction && !resourceRemovalMode && !pinVisibilityMode,
+    });
+    const privateAnnotationImages = usePrivateAnnotationImages({
+        mapId,
+        ownerKey: user?.id,
+        annotations: interactiveAnnotationEditorOpen || isPrintView
+            ? printAnnotations.annotations
+            : annotationActivation.visibleAnnotations,
+        enabled: Boolean(mapId && user?.id && printAnnotationsReady),
+    });
+    const ownerReadOnlyAnnotationOverlay = useMemo(() => {
+        if (isPrintView || interactiveAnnotationEditorOpen || !printAnnotations.annotations.length) return null;
+        const annotations = annotationActivation.visibleAnnotations;
         if (!annotations.length) return null;
         return (
             <PrintAnnotationLayer
                 annotations={annotations}
                 editable={false}
+                browseInteractive={!suspendMapInteraction && !resourceRemovalMode && !pinVisibilityMode}
+                onActivate={annotationActivation.activateAnnotation}
+                activeIds={annotationActivation.annotationEffects.activeIds}
+                pulseIds={annotationActivation.annotationEffects.pulseIds}
+                activationVersion={annotationActivation.annotationEffects.activationVersion}
+                privateImageSources={privateAnnotationImages.sources}
             />
         );
-    }, [interactiveAnnotationEditorOpen, isPrintView, mapStudioInteractiveModel, printAnnotations.annotations]);
+    }, [
+        annotationActivation.activateAnnotation, annotationActivation.annotationEffects,
+        annotationActivation.visibleAnnotations, interactiveAnnotationEditorOpen, isPrintView,
+        pinVisibilityMode, printAnnotations.annotations.length, privateAnnotationImages.sources,
+        resourceRemovalMode, suspendMapInteraction,
+    ]);
     const interactiveAnnotationEditor = useInteractiveMapAnnotationEditor({
+        mapId,
+        directory,
+        privateImageSources: privateAnnotationImages.sources,
         enabled: interactiveAnnotationEditorOpen && !isPrintView,
         annotations: printAnnotations.annotations,
         status: printAnnotations.status,
@@ -1773,6 +1811,43 @@ export default function MyMapDetailPage() {
     });
     const ownerInteractiveAnnotationOverlay = interactiveAnnotationEditor.mapOverlay
         || ownerReadOnlyAnnotationOverlay;
+    const hasAnnotationAttention = annotationActivation.annotationEffects.activeIds.size > 0;
+    const ownerAnnotationSurfaceOverlay = interactiveAnnotationEditor.surfaceOverlay
+        || hasAnnotationAttention || privateAnnotationImages.error ? (
+            <>
+                {interactiveAnnotationEditor.surfaceOverlay}
+                {hasAnnotationAttention || privateAnnotationImages.error ? (
+                    <div
+                        className="absolute bottom-14 right-3 z-[1100] max-w-[min(288px,calc(100%-1.5rem))] space-y-2 rounded-md border border-slate-200 bg-white/95 p-2 shadow-sm"
+                        onPointerDown={(event) => event.stopPropagation()}
+                    >
+                        {hasAnnotationAttention ? (
+                            <button
+                                type="button"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    annotationActivation.clearActivation();
+                                }}
+                                className="min-h-11 rounded-md px-3 py-2 text-xs font-bold text-brand-800 hover:bg-brand-50"
+                            >
+                                {annotationMessages.clearSelection}
+                            </button>
+                        ) : null}
+                        {privateAnnotationImages.error ? (
+                            <div className="space-y-1">
+                                <p role="alert" className="text-xs font-semibold text-red-700">
+                                    {annotationMessages.imageLoadFailed}
+                                </p>
+                                <button type="button" onClick={privateAnnotationImages.retry}
+                                    className="min-h-11 rounded-md px-3 py-2 text-xs font-bold text-brand-800 hover:bg-brand-50">
+                                    {t('retry')}
+                                </button>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+            </>
+        ) : null;
     const isFullMapPrintLayout = printMapState.layoutPreset === PRINT_MAP_LAYOUT_FULL;
     const anchorState = useDirectoryDistanceAnchor({
         storageKey: mapId ? `my-map:no-default:${mapId}` : 'my-map:no-default',
@@ -2856,6 +2931,7 @@ export default function MyMapDetailPage() {
         }
         if (!preserveTownMapFocusSurface) {
             setTownMapFocusSurfaceId('');
+            annotationActivation.clearActivation();
         }
         setFocusedPlaceKey(null);
         setFocusedPlaceKeys([]);
@@ -2863,7 +2939,7 @@ export default function MyMapDetailPage() {
         setHoveredPlaceKey(null);
         setHoveredClusterPlaceKeys([]);
         setSelectedClusterPlaceKeys([]);
-    }, []);
+    }, [annotationActivation.clearActivation]);
 
     const handleMapFocusHandled = useCallback((handledPlaceKey) => {
         setFocusedPlaceKey((current) => (current === handledPlaceKey ? null : current));
@@ -2946,10 +3022,16 @@ export default function MyMapDetailPage() {
                 directory.assets,
                 assets,
             );
+            if (toRemove.length && !await printAnnotations.flushPendingChanges()) {
+                setAddError(t('failedUpdateMapResources'));
+                return;
+            }
             await Promise.allSettled([
                 ...toAdd.map((asset) => api.addMyMapAsset(directory.id, asset)),
                 ...toRemove.map((asset) => api.removeMyMapAsset(directory.id, asset.resourceType, asset.resourceId))
             ]);
+
+            if (toRemove.length) printAnnotations.reload();
 
             const refreshedDirectory = await loadMap();
             if (!refreshedDirectory) {
@@ -3253,11 +3335,17 @@ export default function MyMapDetailPage() {
         }
         setActionError('');
         try {
+            if (!await printAnnotations.flushPendingChanges()) {
+                if (personalPlace) setPersonalPlaceActionStatus(null);
+                setActionError(t('failedRemoveMapResource'));
+                return false;
+            }
             if (personalPlace) {
                 await api.deleteMyMapPersonalPlace(directory.id, row.personalPlaceId || row.resourceId);
             } else {
                 await api.removeMyMapAsset(directory.id, row.resourceType, row.resourceId);
             }
+            printAnnotations.reload();
             if (personalPlace) {
                 setPersonalPlaceActionStatus({
                     phase: 'pending',
@@ -3302,10 +3390,12 @@ export default function MyMapDetailPage() {
         setShareError('');
         try {
             if (typeof options?.includeAnnotations === 'boolean') {
-                printAnnotations.replaceAnnotations((current) => current.map((annotation) => ({
-                    ...annotation,
-                    isShared: options.includeAnnotations,
-                })), { recordHistory: false });
+                printAnnotations.replaceAnnotations((current) => current.map((annotation) => (
+                    annotation.type === 'image' ? annotation : {
+                        ...annotation,
+                        isShared: options.includeAnnotations,
+                    }
+                )), { recordHistory: false });
             }
             const annotationsReadyForShare = await printAnnotations.flushPendingChanges();
             if (!annotationsReadyForShare) {
@@ -3893,6 +3983,9 @@ export default function MyMapDetailPage() {
                                 </span>
                             )}>
                                 <MapImageExportButton
+                                    privateMapId={mapId}
+                                    privateImageSources={privateAnnotationImages.sources}
+                                    onRetryPrivateImages={privateAnnotationImages.retry}
                                     directory={directory}
                                     activeAnchor={activeAnchor}
                                     shareUrl={printQrDirectoryUrl}
@@ -3954,6 +4047,8 @@ export default function MyMapDetailPage() {
 
                 <div className="w-full h-full overflow-auto">
                     <DirectoryPrintView
+                        privateMapId={mapId}
+                        privateImageSources={privateAnnotationImages.sources}
                         directory={directory}
                         mode="owner"
                         generatedAt={new Date()}
@@ -4111,6 +4206,7 @@ export default function MyMapDetailPage() {
                         ? handleEditResourceShortDescription
                         : null}
                     onUpdateResourceNotes={handleUpdateResourceNotes}
+                    annotationResourceInteraction={annotationActivation.resourceCardInteraction}
                     onMapClick={personalPlacePickerActive ? handlePersonalPlaceMapClick : null}
                     onHoverPlaceStart={handleMapHoverStart}
                     onHoverPlaceEnd={handleMapHoverEnd}
@@ -4120,7 +4216,7 @@ export default function MyMapDetailPage() {
                     onFocusHandled={handleMapFocusHandled}
                     onResetView={clearMapSelection}
                     mapOverlay={ownerInteractiveAnnotationOverlay}
-                    mapSurfaceOverlay={interactiveAnnotationEditor.surfaceOverlay}
+                    mapSurfaceOverlay={ownerAnnotationSurfaceOverlay}
                     toolbar={useDesktopOwnerLayout ? (
                         <OwnerHeader
                             directory={directory}
@@ -4404,7 +4500,7 @@ export default function MyMapDetailPage() {
                                     onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                     mapModeControl={mapModeControl}
                                     mapOverlay={ownerInteractiveAnnotationOverlay}
-                                    surfaceOverlay={interactiveAnnotationEditor.surfaceOverlay}
+                                    surfaceOverlay={ownerAnnotationSurfaceOverlay}
                                     surfaceStatus={personalPlaceMapSurfaceStatus}
                                 />
                             ) : null}
@@ -4416,6 +4512,7 @@ export default function MyMapDetailPage() {
                     ) : (
                         <>
                             <SharedMapDirectoryList
+                                annotationResourceInteraction={annotationActivation.resourceCardInteraction}
                                 directory={directory}
                                 presentation={ownerPresentation}
                                 mode="owner"
@@ -4500,7 +4597,7 @@ export default function MyMapDetailPage() {
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                         mapModeControl={mapModeControl}
                                         mapOverlay={ownerInteractiveAnnotationOverlay}
-                                        surfaceOverlay={interactiveAnnotationEditor.surfaceOverlay}
+                                        surfaceOverlay={ownerAnnotationSurfaceOverlay}
                                         surfaceStatus={personalPlaceMapSurfaceStatus}
                                     />
                                 )}
@@ -4551,7 +4648,7 @@ export default function MyMapDetailPage() {
                                         onFixedTownSurfaceViewportChange={setTownMapViewportBounds}
                                         mapModeControl={mapModeControl}
                                         mapOverlay={ownerInteractiveAnnotationOverlay}
-                                        surfaceOverlay={interactiveAnnotationEditor.surfaceOverlay}
+                                        surfaceOverlay={ownerAnnotationSurfaceOverlay}
                                         surfaceStatus={personalPlaceMapSurfaceStatus}
                                     />
                                 )}

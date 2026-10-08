@@ -1,5 +1,8 @@
+import { getAnnotationResourceLinkBudget, normalizeAnnotationResourceLinks, normalizeAnnotationResourceBehaviour } from './annotationResourceLinks.js';
+
 export const PRINT_ANNOTATION_SCHEMA_VERSION = 1;
 export const PRINT_ANNOTATION_MAX_COUNT = 100;
+export const PRINT_ANNOTATION_MAX_IMAGES = 20;
 export const PRINT_ANNOTATION_MAX_POINTS = 500;
 export const PRINT_ANNOTATION_MAX_CONTROL_POINTS = 200;
 export const PRINT_ANNOTATION_MAX_TOTAL_POINTS = 2000;
@@ -10,6 +13,7 @@ export const PRINT_ANNOTATION_TOOL_LINE = 'line';
 export const PRINT_ANNOTATION_TOOL_RECTANGLE = 'rectangle';
 export const PRINT_ANNOTATION_TOOL_CIRCLE = 'circle';
 export const PRINT_ANNOTATION_TOOL_POLYGON = 'polygon';
+export const PRINT_ANNOTATION_TOOL_IMAGE = 'image';
 export const PRINT_ANNOTATION_TOOL_MOVE = 'move';
 export const PRINT_ANNOTATION_TOOL_ROTATE = 'rotate';
 
@@ -19,7 +23,15 @@ export const PRINT_ANNOTATION_DRAW_TOOLS = new Set([
     PRINT_ANNOTATION_TOOL_RECTANGLE,
     PRINT_ANNOTATION_TOOL_CIRCLE,
     PRINT_ANNOTATION_TOOL_POLYGON,
+    PRINT_ANNOTATION_TOOL_IMAGE,
 ]);
+
+export function canAddPrintAnnotation(annotations, type, resourceLinks = []) {
+    return annotations.length < PRINT_ANNOTATION_MAX_COUNT
+        && normalizeAnnotationResourceLinks(resourceLinks).length <= getAnnotationResourceLinkBudget(annotations, null)
+        && (type !== PRINT_ANNOTATION_TOOL_IMAGE
+            || annotations.filter(annotation => annotation.type === PRINT_ANNOTATION_TOOL_IMAGE).length < PRINT_ANNOTATION_MAX_IMAGES);
+}
 
 export const PRINT_ANNOTATION_TRANSFORM_TOOLS = new Set([
     PRINT_ANNOTATION_TOOL_MOVE,
@@ -105,6 +117,81 @@ export function normalizePrintAnnotationRotation(value) {
     return Math.round(wrapped * 1000) / 1000;
 }
 
+export function normalizePrintAnnotationImage(value) {
+    if (!value || !/^[a-f0-9]{64}$/.test(value.assetId || '')
+        || !Number.isInteger(value.width) || !Number.isInteger(value.height)
+        || value.width < 1 || value.height < 1 || value.width > 2048 || value.height > 2048
+        || value.width * value.height > 4_000_000) return null;
+    return { assetId: value.assetId, width: value.width, height: value.height,
+        alt: String(value.alt || '').trim().slice(0, 240) };
+}
+
+export function normalizePrintAnnotationImageBounds(points) {
+    if (!Array.isArray(points) || points.length !== 2) return null;
+    const normalized = points.map(normalizePrintAnnotationPoint);
+    if (normalized.some(point => !point)) return null;
+    const south = Math.min(...normalized.map(point => point[0]));
+    const north = Math.max(...normalized.map(point => point[0]));
+    const west = Math.min(...normalized.map(point => point[1]));
+    const east = Math.max(...normalized.map(point => point[1]));
+    return north - south > 1e-10 && east - west > 1e-10 ? [[south, west], [north, east]] : null;
+}
+
+function imageProjection(options = {}) {
+    if (options.project && options.unproject) return options;
+    const size = 256 * (2 ** (options.zoom || 15));
+    return {
+        project: ([lat, lng]) => {
+            const sine = Math.sin(Math.max(-85, Math.min(85, lat)) * Math.PI / 180);
+            return { x: size * (lng + 180) / 360, y: size * (0.5 - Math.log((1 + sine) / (1 - sine)) / (4 * Math.PI)) };
+        },
+        unproject: ({ x, y }) => [180 / Math.PI * Math.atan(Math.sinh(Math.PI * (1 - 2 * y / size))), x / size * 360 - 180],
+    };
+}
+
+function imageUnproject(projection, pixel) {
+    const value = projection.unproject(pixel);
+    return Array.isArray(value) ? value : [value.lat, value.lng];
+}
+
+export function createImageAnnotationBounds(center, image, options = {}) {
+    const point = normalizePrintAnnotationPoint(center);
+    if (!point || !normalizePrintAnnotationImage(image)) return null;
+    const projection = imageProjection(options);
+    const origin = projection.project(point);
+    const width = clamp(options.pixelWidth, 40, 600, 200);
+    const height = width * image.height / image.width;
+    return normalizePrintAnnotationImageBounds([
+        imageUnproject(projection, { x: origin.x - width / 2, y: origin.y + height / 2 }),
+        imageUnproject(projection, { x: origin.x + width / 2, y: origin.y - height / 2 }),
+    ]);
+}
+
+export function getPrintAnnotationImageCorners(points) {
+    const bounds = normalizePrintAnnotationImageBounds(points);
+    if (!bounds) return [];
+    const [[south, west], [north, east]] = bounds;
+    return [[south, west], [north, west], [north, east], [south, east]];
+}
+
+export function resizePrintAnnotationImageBounds(points, cornerIndex, target, image, options = {}) {
+    const corners = getPrintAnnotationImageCorners(points);
+    const next = normalizePrintAnnotationPoint(target);
+    if (corners.length !== 4 || !next || !normalizePrintAnnotationImage(image)
+        || !Number.isInteger(cornerIndex) || cornerIndex < 0 || cornerIndex > 3) return points;
+    const projection = imageProjection(options);
+    const anchor = projection.project(corners[(cornerIndex + 2) % 4]);
+    const cursor = projection.project(next);
+    const xSign = cornerIndex < 2 ? -1 : 1;
+    const ySign = cornerIndex === 0 || cornerIndex === 3 ? 1 : -1;
+    const ratio = image.width / image.height;
+    const width = Math.max(4, (cursor.x - anchor.x) * xSign, (cursor.y - anchor.y) * ySign * ratio);
+    return normalizePrintAnnotationImageBounds([
+        imageUnproject(projection, anchor),
+        imageUnproject(projection, { x: anchor.x + xSign * width, y: anchor.y + ySign * width / ratio }),
+    ]) || points;
+}
+
 function normalizePointList(points, maximum) {
     return (points || [])
         .map(normalizePrintAnnotationPoint)
@@ -171,8 +258,14 @@ export function normalizePrintAnnotation(annotation) {
         rectangle: 2,
         circle: 2,
         polygon: 3,
+        image: 2,
     }[type];
     if (points.length < requiredPoints) return null;
+    const image = type === PRINT_ANNOTATION_TOOL_IMAGE
+        ? normalizePrintAnnotationImage(annotation?.image) : null;
+    const imageBounds = type === PRINT_ANNOTATION_TOOL_IMAGE ? normalizePrintAnnotationImageBounds(points) : null;
+    if (type === PRINT_ANNOTATION_TOOL_IMAGE && (!image || !imageBounds)) return null;
+    const resourceLinks = normalizeAnnotationResourceLinks(annotation?.resourceLinks);
 
     const id = String(annotation?.id || '').trim();
     if (!/^[a-z0-9_-]{1,80}$/i.test(id)) return null;
@@ -194,8 +287,8 @@ export function normalizePrintAnnotation(annotation) {
     return {
         id,
         type,
-        isShared: Boolean(annotation?.isShared),
-        points: type === PRINT_ANNOTATION_TOOL_PIN
+        isShared: type === PRINT_ANNOTATION_TOOL_IMAGE ? false : Boolean(annotation?.isShared),
+        points: type === PRINT_ANNOTATION_TOOL_IMAGE ? imageBounds : type === PRINT_ANNOTATION_TOOL_PIN
             ? points.slice(0, 1)
             : [
                 PRINT_ANNOTATION_TOOL_LINE,
@@ -208,6 +301,8 @@ export function normalizePrintAnnotation(annotation) {
             controlPoints: polygonPoints.slice(0, PRINT_ANNOTATION_MAX_CONTROL_POINTS),
         } : {}),
         ...(rotationDegrees ? { rotationDegrees } : {}),
+        ...(image ? { image } : {}),
+        ...(resourceLinks.length ? { resourceLinks, resourceBehaviour: normalizeAnnotationResourceBehaviour(annotation?.resourceBehaviour) } : {}),
         text,
         style: normalizePrintAnnotationStyle(annotation?.style),
     };
@@ -242,6 +337,9 @@ export function createPrintAnnotation({
     points,
     text = '',
     style = DEFAULT_PRINT_ANNOTATION_STYLE,
+    image,
+    resourceLinks,
+    resourceBehaviour,
 }) {
     return normalizePrintAnnotation({
         id: createPrintAnnotationId(),
@@ -250,6 +348,9 @@ export function createPrintAnnotation({
         ...(type === PRINT_ANNOTATION_TOOL_POLYGON ? { controlPoints: points } : {}),
         text,
         style,
+        image,
+        resourceLinks,
+        resourceBehaviour,
     });
 }
 
@@ -298,6 +399,7 @@ export function getPrintAnnotationMinimumPointCount(tool) {
         rectangle: 2,
         circle: 2,
         polygon: 3,
+        image: 1,
     }[tool] || 0;
 }
 

@@ -20,9 +20,14 @@ import {
     buildPrintMapCaptureKey,
     getPrintMapExportConfig,
     normalizePrintMapQuality,
+    normalizePrintMapAnnotationLayer,
     shouldExportPrintMapAsSeparatePages,
 } from '../lib/printMapState.js';
 import { getPrintAnnotationCaptureKey } from '../lib/printAnnotations.js';
+import { filterPrintMapAnnotations } from '../lib/printMapLayers.js';
+import { assertAnnotationImageElementsReady, getAnnotationImageCaptureOptions, getPrivateAnnotationImageReadiness } from '../lib/annotationMedia.js';
+import { getAnnotationMessages } from '../lib/annotationMessages.js';
+import usePrivateAnnotationImages from '../hooks/usePrivateAnnotationImages.js';
 
 const TRANSPARENT_IMAGE_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 const MAP_CAPTURE_RETRY_DELAY_MS = 750;
@@ -217,10 +222,14 @@ export default function MapImageExportButton({
     fixedTownOverviewSurfaceAvailable = false,
     fixedTownOverviewSurfacePending = false,
     printAnnotations = [],
+    privateMapId = null,
+    privateImageSources = null,
+    onRetryPrivateImages,
     deferPreparation = false,
     disabled = false,
 }) {
-    const { t } = useLocale();
+    const { t, locale } = useLocale();
+    const imageLoadFailedMessage = getAnnotationMessages(locale).imageLoadFailed;
     const exportRef = useRef(null);
     const exportReadyRef = useRef(false);
     const mapErrorRef = useRef(null);
@@ -237,6 +246,16 @@ export default function MapImageExportButton({
     const [preparedPrintAnnotations, setPreparedPrintAnnotations] = useState(
         () => printAnnotations,
     );
+    const visibleImageAnnotations = filterPrintMapAnnotations(preparedPrintAnnotations, {
+        annotationLayer: normalizePrintMapAnnotationLayer(printMapState?.annotationLayer),
+        hiddenAnnotationIds: printMapState?.hiddenAnnotationIds,
+    });
+    const loadedImages = usePrivateAnnotationImages({ mapId: privateMapId || directory?.id,
+        annotations: visibleImageAnnotations, enabled: privateImageSources === null });
+    const resolvedPrivateImageSources = privateImageSources || loadedImages.sources;
+    const imageReadiness = getPrivateAnnotationImageReadiness(visibleImageAnnotations, resolvedPrivateImageSources);
+    const privateImageCaptureKey = JSON.stringify(visibleImageAnnotations.filter(item => item.type === 'image')
+        .map(item => [item.image.assetId, resolvedPrivateImageSources[item.image.assetId]?.url, resolvedPrivateImageSources[item.image.assetId]?.status]));
     const exportRoot = typeof document !== 'undefined' ? document.body : null;
     const exportWidth = PRINT_MAP_CANVAS_WIDTH_PX;
     const printMapCaptureKey = printMapState ? buildPrintMapCaptureKey(printMapState) : '';
@@ -258,11 +277,13 @@ export default function MapImageExportButton({
         activeAnchor?.postalCode,
         printMapCaptureKey,
         preparedPrintAnnotationCaptureKey,
+        privateImageCaptureKey,
         shareUrl,
     ].map((value) => String(value ?? '')).join('|');
     const annotationPreparationPending = printAnnotationCaptureKey
         !== preparedPrintAnnotationCaptureKey;
     const mapDownloadReady = mapDownloadStatus === 'ready'
+        && imageReadiness.status === 'ready'
         && !annotationPreparationPending
         && verifiedPreparationKey === exportPreparationKey;
 
@@ -335,6 +356,8 @@ export default function MapImageExportButton({
         setMapDownloadProgress(68);
 
         try {
+            if (imageReadiness.status === 'error') throw new Error(imageReadiness.error);
+            if (imageReadiness.status !== 'ready') return;
             for (let attempt = 0; attempt < MAP_READINESS_PROBE_MAX_ATTEMPTS; attempt += 1) {
                 if (readinessGeneration !== readinessGenerationRef.current) return;
 
@@ -352,10 +375,10 @@ export default function MapImageExportButton({
                 }
 
                 const { width, height } = getExportNodeDimensions(mapFrameNode);
+                await assertAnnotationImageElementsReady(mapFrameNode, imageReadiness.count);
                 const probeScale = Math.min(1, MAP_READINESS_PROBE_CANVAS_WIDTH / width);
                 const dataUrl = await toPng(mapFrameNode, {
-                    cacheBust: true,
-                    imagePlaceholder: TRANSPARENT_IMAGE_PLACEHOLDER,
+                    ...getAnnotationImageCaptureOptions(imageReadiness.count, TRANSPARENT_IMAGE_PLACEHOLDER),
                     pixelRatio: 1,
                     backgroundColor: '#ffffff',
                     width,
@@ -395,10 +418,11 @@ export default function MapImageExportButton({
             setVerifiedPreparationKey('');
             setMapDownloadStatus('error');
             setMapDownloadProgress(0);
+            if (imageReadiness.count) setError(imageLoadFailedMessage);
             const waiters = readyWaitersRef.current.splice(0);
             waiters.forEach(({ reject }) => reject(captureError));
         }
-    }, [exportAsSeparatePages, exportPreparationKey]);
+    }, [exportAsSeparatePages, exportPreparationKey, imageLoadFailedMessage, imageReadiness.count, imageReadiness.error, imageReadiness.status]);
 
     const handleMapReadyForCapture = useCallback(() => {
         void verifyMapDownloadReadiness();
@@ -498,9 +522,13 @@ export default function MapImageExportButton({
     async function capturePageToPng({ node, captureState, mapFrameNode }) {
         const { width, height } = getExportNodeDimensions(node);
         const exportConfig = getPrintMapExportConfig(captureState, { width, height });
+        if (mapFrameNode) {
+            if (imageReadiness.status !== 'ready') throw new Error(imageReadiness.error || 'Your Care Map images are still loading.');
+            await assertAnnotationImageElementsReady(mapFrameNode, imageReadiness.count);
+        }
         const dataUrl = await toPng(node, {
-            cacheBust: Boolean(mapFrameNode),
-            imagePlaceholder: TRANSPARENT_IMAGE_PLACEHOLDER,
+            ...getAnnotationImageCaptureOptions(mapFrameNode ? imageReadiness.count : 0,
+                TRANSPARENT_IMAGE_PLACEHOLDER, Boolean(mapFrameNode)),
             pixelRatio: exportConfig.pixelRatio,
             backgroundColor: '#ffffff',
             width,
@@ -598,6 +626,10 @@ export default function MapImageExportButton({
     }
 
     function retryMapDownloadPreparation() {
+        if (imageReadiness.status === 'error') {
+            if (privateImageSources === null) loadedImages.retry();
+            else onRetryPrivateImages?.();
+        }
         resetExportReadiness();
         setPreparationAttempt((current) => current + 1);
     }
@@ -743,6 +775,8 @@ export default function MapImageExportButton({
                             fixedTownOverviewSurfaceAvailable={fixedTownOverviewSurfaceAvailable}
                             fixedTownOverviewSurfacePending={fixedTownOverviewSurfacePending}
                             printAnnotations={preparedPrintAnnotations}
+                            privateMapId={privateMapId || directory?.id}
+                            privateImageSources={resolvedPrivateImageSources}
                         />
                     </div>
                 </div>

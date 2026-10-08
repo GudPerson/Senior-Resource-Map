@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useLocale } from '../contexts/LocaleContext.jsx';
+import { getAnnotationMessages } from '../lib/annotationMessages.js';
 
 import {
     ArrowDown,
@@ -158,6 +160,8 @@ export default function PrintAnnotationToolbar({
     canMoveSelectedBackward = false,
     canMoveSelectedForward = false,
     canDuplicateSelected = false,
+    imageControls = null,
+    resourceControls = null,
     onToolChange,
     onDraftTextChange,
     onDraftStyleChange,
@@ -172,8 +176,15 @@ export default function PrintAnnotationToolbar({
     onRedo,
     onClose,
 }) {
+    const { locale } = useLocale();
+    const messages = getAnnotationMessages(locale);
     const [textBuffer, setTextBuffer] = useState(selectedAnnotation?.text ?? draftText);
     const [styleBuffer, setStyleBuffer] = useState(selectedAnnotation?.style ?? draftStyle);
+    const [imageAltBuffer, setImageAltBuffer] = useState(selectedAnnotation?.image?.alt || '');
+
+    useEffect(() => {
+        setImageAltBuffer(selectedAnnotation?.image?.alt || '');
+    }, [selectedAnnotation?.id, selectedAnnotation?.image?.alt]);
 
     useEffect(() => {
         setTextBuffer(selectedAnnotation?.text ?? draftText);
@@ -214,7 +225,8 @@ export default function PrintAnnotationToolbar({
         ? labelledTypes.includes(selectedAnnotation.type)
         : labelledTypes.includes(tool);
     const activeAnnotationType = selectedAnnotation?.type || tool;
-    const showStyleControls = Boolean(selectedAnnotation || PRINT_ANNOTATION_DRAW_TOOLS.has(tool));
+    const isImage = activeAnnotationType === 'image';
+    const showStyleControls = !isImage && Boolean(selectedAnnotation || PRINT_ANNOTATION_DRAW_TOOLS.has(tool));
     const showLineControls = [
         PRINT_ANNOTATION_TOOL_LINE,
         PRINT_ANNOTATION_TOOL_RECTANGLE,
@@ -228,7 +240,9 @@ export default function PrintAnnotationToolbar({
     ].includes(activeAnnotationType);
     const isPinLabel = selectedAnnotation?.type === PRINT_ANNOTATION_TOOL_PIN
         || (!selectedAnnotation && tool === PRINT_ANNOTATION_TOOL_PIN);
-    const helperText = PRINT_ANNOTATION_TRANSFORM_TOOLS.has(tool)
+    const helperText = isImage
+        ? selectedAnnotation ? messages.imageSelectedHelp : messages.imagePlacement
+        : PRINT_ANNOTATION_TRANSFORM_TOOLS.has(tool)
         ? getToolHelp(tool, draftPointCount, selectedAnnotation)
         : (selectedAnnotation
             ? selectedAnnotation.type === PRINT_ANNOTATION_TOOL_PIN
@@ -238,7 +252,7 @@ export default function PrintAnnotationToolbar({
 
     return (
         <div
-            className="absolute left-3 top-3 z-[1100] max-h-[calc(100%-1.5rem)] w-[320px] overflow-y-auto overscroll-contain rounded-lg border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur"
+            className="absolute left-3 top-3 z-[1100] max-h-[calc(100%-1.5rem)] w-[320px] max-w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur"
             data-print-annotation-toolbar="true"
         >
             <div className="flex items-center justify-between gap-2">
@@ -264,6 +278,8 @@ export default function PrintAnnotationToolbar({
                 ))}
             </div>
 
+            {imageControls}
+
             {helperText ? (
                 <p
                     className="mt-3 rounded-md border border-brand-100 bg-brand-50 px-2.5 py-2 text-xs font-semibold leading-4 text-brand-800"
@@ -271,6 +287,28 @@ export default function PrintAnnotationToolbar({
                 >
                     {helperText}
                 </p>
+            ) : null}
+
+            {selectedAnnotation ? resourceControls : null}
+
+            {selectedAnnotation?.type === 'image' ? (
+                <div className="mt-3 space-y-2">
+                    <label className="block text-xs font-semibold text-slate-700">
+                        {messages.imageAlt}
+                        <textarea
+                            rows={2}
+                            maxLength={240}
+                            value={imageAltBuffer}
+                            placeholder={messages.imageAltPlaceholder}
+                            onChange={(event) => setImageAltBuffer(event.target.value)}
+                            onBlur={() => onSelectedChange?.({
+                                image: { ...selectedAnnotation.image, alt: imageAltBuffer },
+                            })}
+                            className="mt-1 w-full rounded-md border border-slate-200 px-2.5 py-2 text-sm text-slate-900 focus:border-brand-500 focus:ring-brand-100"
+                        />
+                    </label>
+                    <p className="text-xs leading-4 text-slate-600">{messages.imagePrivate}</p>
+                </div>
             ) : null}
 
             {showTextField ? (
@@ -519,7 +557,7 @@ export default function PrintAnnotationToolbar({
                 </label>
             ) : null}
 
-            {selectedAnnotation ? (
+            {selectedAnnotation && selectedAnnotation.type !== 'image' ? (
                 <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-md border border-brand-100 bg-brand-50 px-2.5 py-2 text-xs text-brand-900">
                     <input
                         type="checkbox"

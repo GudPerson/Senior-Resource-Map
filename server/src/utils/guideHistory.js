@@ -13,6 +13,8 @@ import { answerGuideCompositeQuestion } from './guideCompositeQuestions.js';
 import { answerGuideVerifiedBoundaryQuestion } from './guideVerifiedBoundary.js';
 import { guideOwnRegionScopeIntent } from './guideOwnRegionScope.js';
 import { guideAuditActivityIntent } from './guideAuditActivity.js';
+import { answerGuideAnnotationFeatures, qualifyGuideAnnotationAnswer } from './guideAnnotationFeatures.js';
+import { answerGuideHelpWorkflow, guideHelpWorkflowIntent } from './guideHelpWorkflows.js';
 
 export const guideHistoryInputSchema = z.object({
     question: z.string().trim().min(1).max(600)
@@ -67,11 +69,14 @@ export function restoreGuideHistory(row, user) {
                     actions: [],
                 } : question ? {
                     version: GUIDE_KNOWLEDGE_VERSION,
-                    ...(answerGuideUnverifiedWorkflow(question) || answerGuideOracleFact(question)
+                    ...(answerGuideAnnotationFeatures({ question, actor: user })
+                        || (guideHelpWorkflowIntent(question) === 'map-note-annotation-sharing'
+                            ? answerGuideHelpWorkflow({ question, actor: user }) : null)
+                        || answerGuideUnverifiedWorkflow(question) || answerGuideOracleFact(question)
                         || answerGuideQuestion(input, user)),
                     answerSource: 'reviewed',
                 } : answerGuideQuestion(input || {}, user);
-            return { ...answer, id: `${row.id}:${index}`, question: input ? input.question || titleFor(input) : 'Earlier help topic', input };
+            return { ...qualifyGuideAnnotationAnswer(answer, { question }), id: `${row.id}:${index}`, question: input ? input.question || titleFor(input) : 'Earlier help topic', input };
         }) };
 }
 

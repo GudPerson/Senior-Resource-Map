@@ -19,6 +19,7 @@ import {
     updateMyMapPersonalPlaceShortDescriptor,
     updateMyMapAssetNotes,
     updateMyMapAssetShortDescriptor,
+    removeAssetFromMyMap,
     unpublishMyMap,
 } from '../src/controllers/myMapsController.js';
 import {
@@ -290,6 +291,9 @@ function createFakeDb({
             myMapShareSnapshots: {
                 findFirst: async () => state.shareSnapshots[0] || null,
             },
+            myMapPrintAnnotationDocuments: {
+                findFirst: async ({ where } = {}) => state.printAnnotationDocuments.find((document) => document.mapId === getWhereParamValues(where)[0]) || null,
+            },
             myMapPersonalPlaceLinks: {
                 findFirst: async ({ where } = {}) => {
                     const values = getWhereParamValues(where);
@@ -551,6 +555,15 @@ function createFakeDb({
             throw new Error('Unexpected table insert');
         },
         update(table) {
+            if (table === myMapPrintAnnotationDocuments) {
+                return { set(values) { return { where: async (where) => {
+                    const [mapId, revision] = getWhereParamValues(where);
+                    const document = state.printAnnotationDocuments.find((item) => item.mapId === mapId && item.revision === revision);
+                    if (!document) return [];
+                    Object.assign(document, values);
+                    return [document];
+                } }; } };
+            }
             if (table === myMaps) {
                 return {
                     set(values) {
@@ -855,6 +868,8 @@ test('duplicateMyMap creates a private owner copy with independent map child row
                 type: 'pin',
                 points: [[1.381, 103.741]],
                 text: 'Meet here',
+                resourceLinks: [{ type: 'hard', id: 29 }, { type: 'personal_place', id: 5 }],
+                resourceBehaviour: 'highlight',
                 style: {
                     color: '#0F766E',
                     fillColor: '#14B8A6',
@@ -864,6 +879,14 @@ test('duplicateMyMap creates a private owner copy with independent map child row
                     textColor: '#0F172A',
                     fontSize: 14,
                 },
+            }, {
+                id: 'annotation_image_1',
+                type: 'image',
+                points: [[1.38, 103.74], [1.382, 103.742]],
+                image: { assetId: 'a'.repeat(64), width: 100, height: 80, alt: 'Private meeting plan' },
+                isShared: false,
+                resourceLinks: [{ type: 'personal_place', id: 5 }],
+                resourceBehaviour: 'appear',
             }],
             revision: 4,
             createdAt: new Date('2026-03-14T10:34:00.000Z'),
@@ -953,6 +976,14 @@ test('duplicateMyMap creates a private owner copy with independent map child row
     }]);
     assert.equal(db.state.personalPlaces.length, 1);
     assert.deepEqual(copiedAnnotationDocument.annotations[0].points, [[1.381, 103.741]]);
+    assert.deepEqual(copiedAnnotationDocument.annotations[0].resourceLinks, [
+        { type: 'hard', id: 29 }, { type: 'personal_place', id: 5 },
+    ]);
+    assert.equal(copiedAnnotationDocument.annotations[1].image.assetId, 'a'.repeat(64));
+    assert.deepEqual(copiedAnnotationDocument.annotations[1].resourceLinks, [{ type: 'personal_place', id: 5 }]);
+    assert.equal(copiedAnnotationDocument.annotations[1].resourceBehaviour, 'appear');
+    copiedAnnotationDocument.annotations[1].image.alt = 'Edited private copy';
+    assert.equal(db.state.printAnnotationDocuments.find((document) => document.mapId === 3).annotations[1].image.alt, 'Private meeting plan');
     assert.equal(copiedAnnotationDocument.revision, 1);
     assert.equal(copiedStudioRow.revision, 1);
     assert.equal(copiedStudioRow.document.views[0].name, 'Partner overview');
@@ -1378,6 +1409,19 @@ test('deleting a library place removes all map links but not the maps', async ()
             createPersonalPlaceLink({ id: 4, mapId: 3 }),
             createPersonalPlaceLink({ id: 6, mapId: 4 }),
         ],
+        printAnnotationDocuments: [3, 4].map((mapId) => ({
+            mapId,
+            schemaVersion: 1,
+            annotations: [{
+                id: `private_shape_${mapId}`,
+                type: 'pin',
+                points: [[1.381, 103.741]],
+                text: 'Keep this annotation after removal',
+                resourceLinks: [{ type: 'personal_place', id: 5 }],
+                resourceBehaviour: 'pulse',
+            }],
+            revision: 2,
+        })),
     });
 
     const result = await deletePersonalPlace(db, DEFAULT_USER, 5);
@@ -1386,6 +1430,13 @@ test('deleting a library place removes all map links but not the maps', async ()
     assert.equal(db.state.personalPlaces.length, 0);
     assert.equal(db.state.personalPlaceLinks.length, 0);
     assert.equal(db.state.maps.length, 2);
+    for (const document of db.state.printAnnotationDocuments) {
+        assert.equal(document.revision, 3);
+        assert.equal(document.annotations[0].text, 'Keep this annotation after removal');
+        assert.deepEqual(document.annotations[0].points, [[1.381, 103.741]]);
+        assert.equal(Object.hasOwn(document.annotations[0], 'resourceLinks'), false);
+        assert.equal(Object.hasOwn(document.annotations[0], 'resourceBehaviour'), false);
+    }
 });
 
 test('updateMyMapAssetNotes stores multiple simple notes with per-note sharing', async () => {
@@ -1707,8 +1758,10 @@ test('publishMyMap freezes only annotations explicitly marked for sharing', asyn
             schemaVersion: 1,
             revision: 2,
             annotations: [
-                sharedAnnotation,
+                { ...sharedAnnotation, resourceLinks: [{ type: 'personal_place', id: 987654321 }], resourceBehaviour: 'pulse' },
                 { ...sharedAnnotation, id: 'annotation_private', isShared: false, text: 'Private note' },
+                { ...sharedAnnotation, id: 'private_image', type: 'image', points: [[1.3, 103.7], [1.31, 103.71]],
+                    image: { assetId: 'a'.repeat(64), width: 1, height: 1, alt: 'Private image' } },
             ],
         }],
     });
@@ -1719,6 +1772,27 @@ test('publishMyMap freezes only annotations explicitly marked for sharing', asyn
     assert.equal(annotations.length, 1);
     assert.equal(annotations[0].id, 'annotation_shared');
     assert.equal(Object.hasOwn(annotations[0], 'isShared'), false);
+    const { isShared, ...original } = sharedAnnotation;
+    void isShared;
+    assert.deepEqual(annotations, [original]);
+    assert.doesNotMatch(JSON.stringify(db.state.shareSnapshots[0].snapshot), /resourceLinks|resourceBehaviour|987654321|private_image|Private image/);
+});
+
+test('map-resource removal detaches annotation bindings while retaining image references and published snapshot', async () => {
+    const annotation = { id: 'owner_image', type: 'image', points: [[1.3, 103.7], [1.31, 103.71]],
+        image: { assetId: 'a'.repeat(64), width: 1, height: 1, alt: 'Private map photo' },
+        resourceLinks: [{ type: 'hard', id: 29 }], resourceBehaviour: 'highlight' };
+    const frozen = { frozen: 'previous-public-directory' };
+    const db = createFakeDb({ maps: [createMap()], mapAssets: [createMapAsset()],
+        shareSnapshots: [{ mapId: 3, snapshot: frozen }],
+        printAnnotationDocuments: [{ mapId: 3, revision: 1, annotations: [annotation] }] });
+    await removeAssetFromMyMap(db, DEFAULT_USER, 3, 'hard', 29);
+    const retained = db.state.printAnnotationDocuments[0];
+    assert.equal(retained.revision, 2);
+    assert.deepEqual(retained.annotations[0].image, annotation.image);
+    assert.equal(Object.hasOwn(retained.annotations[0], 'resourceLinks'), false);
+    assert.equal(Object.hasOwn(retained.annotations[0], 'resourceBehaviour'), false);
+    assert.deepEqual(db.state.shareSnapshots[0].snapshot, frozen);
 });
 
 test('publishMyMap snapshots only notes marked for sharing', async () => {
