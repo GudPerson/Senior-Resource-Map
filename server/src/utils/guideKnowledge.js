@@ -1,5 +1,6 @@
 import { normalizeRole } from './roles.js';
 import { answerGuideResourceAccessQuestion } from './guideAccess.js';
+import { guideDirectoryActionRoute } from './guideDirectoryRoutes.js';
 
 import { HELP_CONTENT_VERSION, GUIDE_TOPICS } from '../generated/helpKnowledge.js';
 
@@ -25,7 +26,7 @@ export function answerGuideQuestion({ question = '', topicId = '' } = {}, user =
     return {
         version: GUIDE_KNOWLEDGE_VERSION, topicId: topic.id, message: topic.message,
         actions: [{ label: topic.signedIn && !signedIn ? 'Sign in to continue' : topic.label,
-            route: topic.signedIn && !signedIn ? '/login' : topic.route }],
+            route: topic.signedIn && !signedIn ? '/login' : guideDirectoryActionRoute(topic.route, 'help-' + topic.id) }],
     };
 }
 

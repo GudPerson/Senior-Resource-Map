@@ -74,7 +74,7 @@ export default function GuideResourceSearch({ api, canSaveHistory, canSaveResour
             </form>
             {search.error && <p role="alert" ref={searchError} tabIndex={-1} className="text-sm text-red-700">{search.error}</p>}
             {save.error && <p role="alert" className="text-sm text-red-700">{save.error}</p>}
-            {savedResource && <p ref={savedStatus} role="status" className="rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm text-brand-900">{savedResource.alreadySaved ? 'Already saved' : 'Saved'}: {savedResource.name}. <Link className="font-semibold underline underline-offset-2" to="/my-directory">Open My Directory</Link></p>}
+            {savedResource && <p ref={savedStatus} role="status" className="rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm text-brand-900">{savedResource.alreadySaved ? 'Already saved' : 'Saved'}: {savedResource.name}. <Link className="font-semibold underline underline-offset-2" to="/my-directory?section=saved-assets">Open My Directory</Link></p>}
             {reviewResource && <div ref={reviewCard} tabIndex={-1} className="space-y-3 rounded-xl border border-brand-200 bg-brand-50 p-4" aria-label="Review resource save">
                 <p className="text-sm font-semibold text-slate-900">Save {reviewResource.name} to My Directory?</p>
                 <p className="text-xs text-slate-600">{reviewResource.type === 'hard' ? 'Place' : 'Programme/service'}{reviewResource.address ? ` · ${reviewResource.address}` : ''}. Saving keeps it in your private list; it does not register you or add it to a Care Map.</p>

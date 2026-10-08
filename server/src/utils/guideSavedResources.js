@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { getFavorites } from '../controllers/favoritesController.js';
 import { normalizeRole } from './roles.js';
+import { GUIDE_SAVED_DIRECTORY_ROUTE } from './guideDirectoryRoutes.js';
 import { guideSavedIdentityPrivacyFact, guideSavedMembershipRelationFact, guideProviderIdentityCheckFact,
     guideMembershipNavigationFact, guideProviderUsageLookup } from './guideProductRelations.js';
 
@@ -70,10 +71,10 @@ export function answerGuideSavedResources({ question, actor, saved } = {}) {
         topicId: 'saved-resources',
         message: 'Exit User View to check resources saved to your own account.', actions: [],
     };
-    const actions = [{ label: 'Open My Directory', route: '/my-directory' }];
+    const actions = [{ label: 'Open My Directory', route: GUIDE_SAVED_DIRECTORY_ROUTE }];
     if (intent === 'navigation') return {
         topicId: 'saved-resources',
-        message: 'Open My Directory to see resources you saved. Manage My Resources is a separate dashboard page for resources assigned to you to manage.',
+        message: 'Open My Directory → Saved Resources to see resources you saved. Manage My Resources is a separate dashboard page for resources assigned to you to manage.',
         actions,
     };
     if (!saved) return null;
@@ -85,7 +86,7 @@ export function answerGuideSavedResources({ question, actor, saved } = {}) {
     const names = saved.names.map((item) => `${item.name}${item.unavailable ? ' (no longer available)' : ''}`);
     return {
         topicId: 'saved-resources',
-        message: `This account has ${saved.totalCount} saved resource${saved.totalCount === 1 ? '' : 's'} in My Directory: ${saved.placeCount} Place${saved.placeCount === 1 ? '' : 's'} and ${saved.offeringCount} ${saved.offeringCount === 1 ? 'Programme/service' : 'Programmes/services'}.\nMost recently saved: ${names.join('; ')}${saved.totalCount > names.length ? '; and more' : ''}.\nOpen My Directory for the full current list. These are resources you saved, not necessarily resources you manage.`,
+        message: `This account has ${saved.totalCount} saved resource${saved.totalCount === 1 ? '' : 's'} in My Directory: ${saved.placeCount} Place${saved.placeCount === 1 ? '' : 's'} and ${saved.offeringCount} ${saved.offeringCount === 1 ? 'Programme/service' : 'Programmes/services'}.\nMost recently saved: ${names.join('; ')}${saved.totalCount > names.length ? '; and more' : ''}.\nOpen My Directory → Saved Resources for the full current list. These are resources you saved, not necessarily resources you manage.`,
         actions,
     };
 }

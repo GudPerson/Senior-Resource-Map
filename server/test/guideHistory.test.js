@@ -27,7 +27,7 @@ test('Guide history requires real account ownership and reviewed minimal inputs'
         inputs: [{ question: 'Find Havelock' }, { topicId: 'unsave' }, { topicId: 'retired-topic' }] }, member);
     assert.equal(restored.messages[0].resources, undefined);
     assert.match(restored.messages[0].message, /Run these keywords again/);
-    assert.equal(restored.messages[1].actions[0].route, '/my-directory');
+    assert.equal(restored.messages[1].actions[0].route, '/my-directory?section=saved-assets');
     assert.match(restored.messages[1].message, /Care Calendar/);
     assert.equal(restored.messages[2].input, null);
     assert.match(restored.messages[2].message, /Which task did you mean/);

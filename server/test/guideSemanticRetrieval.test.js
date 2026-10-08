@@ -43,7 +43,7 @@ test('Injected discovery locates unfamiliar wording, then complete prose supplie
     assert.equal(answer.message, fact('saved-versus-managed').message);
     assert.equal(answer.topicId, 'saved-versus-managed');
     assert.deepEqual(answer.sources.map(({ id }) => id), ['saved-versus-managed']);
-    assert.deepEqual(answer.actions.map(({ route }) => route), ['/my-directory']);
+    assert.deepEqual(answer.actions.map(({ route }) => route), ['/my-directory?section=saved-assets']);
     const catalogPrompt = calls[0][1].messages[0].content;
     assert.match(catalogPrompt, /reviewed fact catalog/);
     assert.match(catalogPrompt, /saved-versus-managed — Saved resources and managed resources/);

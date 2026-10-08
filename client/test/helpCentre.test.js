@@ -106,23 +106,26 @@ test('Guide message actions render safe reading links and exact signed-in Direct
     const actions = [
         { label: 'Open My Maps', route: '/my-directory?section=my-maps' },
         { label: 'Open My Places', route: '/my-directory?section=my-places' },
+        { label: 'Open Saved Resources', route: '/my-directory?section=saved-assets' },
         { label: 'Read instructions', route: helpArticleRoute(personalPlace.slug, 'create-personal-place') },
         { label: 'Browse help', route: '/help-centre' },
         { label: 'Open Discover', route: '/discover' },
     ];
     const signedIn = renderer.actions(actions, true);
-    assert.equal((signedIn.match(/<a /g) || []).length, 5);
+    assert.equal((signedIn.match(/<a /g) || []).length, 6);
     for (const action of actions) {
         assert.ok(signedIn.includes(`href="${action.route}"`), action.route);
         assert.ok(signedIn.includes(action.label), action.label);
     }
     const guest = renderer.actions(actions, false);
     assert.equal((guest.match(/<a /g) || []).length, 3);
-    assert.doesNotMatch(guest, /Open My Maps|Open My Places|my-directory/);
+    assert.doesNotMatch(guest, /Open My Maps|Open My Places|Open Saved Resources|my-directory/);
     assert.match(guest, /Read instructions/);
     assert.match(guest, /Browse help/);
     const rejected = ['https://evil.example/help-centre/article', '//evil.example', '/my-directory?section=my-maps&next=admin',
         '/my-directory?section=my-places#private', '/my-directory?section=other', '/my-directory?section=my%2dmaps',
+        '/my-directory?section=saved-assets&next=admin', '/my-directory?section=saved-assets#private',
+        '/my-directory?section=saved%2dassets', '/my-directory?section=saved-assets&section=my-maps',
         '/help-centre?token=private', '/help-centre/article?token=private', '/help-centre/article%2fnext',
         '/help-centre/article#section/other', '/dashboard/admin?tab=users', '/help?tab=report'];
     for (const route of rejected) assert.equal(renderer.actions([{ label: 'Unsafe', route }], true), '', route);

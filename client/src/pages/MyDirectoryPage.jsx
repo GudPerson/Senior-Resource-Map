@@ -106,7 +106,7 @@ function formatSectionLabel(section, t) {
 function parseDirectorySection(value) {
     return Object.values(DIRECTORY_SECTIONS).includes(value)
         ? value
-        : DIRECTORY_SECTIONS.saved;
+        : DIRECTORY_SECTIONS.maps;
 }
 
 function SavedAssetsLoadingState() {
@@ -198,8 +198,8 @@ function DirectoryTabs({ activeSection, onSelect }) {
     return (
         <div className="mt-6 inline-flex max-w-full flex-wrap rounded-2xl bg-slate-100 p-1.5 shadow-inner">
             {[
-                { value: DIRECTORY_SECTIONS.saved, label: t('savedResources'), icon: Bookmark },
                 { value: DIRECTORY_SECTIONS.maps, label: t('myMaps'), icon: MapIcon },
+                { value: DIRECTORY_SECTIONS.saved, label: t('savedResources'), icon: Bookmark },
                 { value: DIRECTORY_SECTIONS.places, label: 'My Places', icon: MapPinned },
             ].map((tab) => {
                 const active = activeSection === tab.value;
@@ -533,7 +533,7 @@ export default function MyDirectoryPage() {
     function switchSection(section) {
         cancelSavedSelection();
         const next = new URLSearchParams(searchParams);
-        if (section === DIRECTORY_SECTIONS.saved) {
+        if (section === DIRECTORY_SECTIONS.maps) {
             next.delete('section');
         } else {
             next.set('section', section);
@@ -665,7 +665,7 @@ export default function MyDirectoryPage() {
                     />
                     <div className="mx-auto w-full max-w-[1680px] px-4 py-8 sm:px-6 lg:px-8 2xl:px-10">
                         <header className={`mb-6 border border-slate-200 bg-white shadow-sm ${isCompactDirectory ? 'rounded-[28px] px-4 py-5' : 'rounded-3xl px-5 py-6 sm:px-6'}`}>
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{t('careMap')}</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{sectionLabel}</p>
                             <h1 className={`mt-2 font-bold tracking-tight text-slate-900 ${isCompactDirectory ? 'text-[1.9rem]' : 'text-3xl'}`}>{t('myDirectory')}</h1>
                             <p className={`mt-2 max-w-2xl text-slate-500 ${isCompactDirectory ? 'text-[13px] leading-6' : 'text-sm'}`}>
                                 {activeSection === DIRECTORY_SECTIONS.maps

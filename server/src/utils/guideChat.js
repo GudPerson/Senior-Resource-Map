@@ -80,7 +80,7 @@ function readSelectedFacts(result, facts, conversational = false, question = '')
     const answer = selected.map((fact) => fact.message).join('\n\n');
     if (typeof answer !== 'string' || !answer.trim() || answer.length > MAX_ANSWER_LENGTH
         || sanitizeSupportText(answer) !== answer) return null;
-    const actions = [...new Map(selected.map((fact) => [fact.route, guideOracleFactAction(fact)])).values()];
+    const actions = [...new Map(selected.map(guideOracleFactAction).map((action) => [action.route, action])).values()];
     return { topicId: selected.length === 1 ? selected[0].id : 'reviewed-selection', message: answer, actions,
         sources: selected.map(guideHelpFactSource) };
 }

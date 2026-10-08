@@ -203,6 +203,9 @@ test('Guide answers mixed privacy, permissions and live-data questions without p
         assert.match(result.message, expected, question);
         assert.doesNotMatch(result.message, wrong, question);
         assert.ok(result.sources?.length && result.sources.every((item) => item.id && item.route && item.reviewed), question);
+        if (/private saved resources|saved resource has vacancies/.test(question)) {
+            assert.deepEqual(result.actions, [{ label: 'Open My Directory', route: '/my-directory?section=saved-assets' }]);
+        }
     }
 });
 
@@ -589,6 +592,10 @@ test('Guide recognizes My Directory navigation and current page without asking A
     assert.deepEqual(here.actions, [{ label: 'Open My Directory', route: '/my-directory' }]);
     const elsewhere = await (await post(router, { question: 'Where is My Directory?', pageContext: 'Discover', useAi: true })).json();
     assert.match(elsewhere.message, /Open My Directory from the dashboard/);
+    assert.deepEqual(elsewhere.actions, [{ label: 'Open My Directory', route: '/my-directory' }]);
+    const saved = await (await post(router, { question: 'Where do I see my saved resources?', useAi: true })).json();
+    assert.match(saved.message, /My Directory → Saved Resources/);
+    assert.deepEqual(saved.actions, [{ label: 'Open My Directory', route: '/my-directory?section=saved-assets' }]);
     assert.equal((await post(router, { question: 'Where is My Directory?', pageContext: '/private/id' })).status, 400);
 });
 
@@ -632,6 +639,8 @@ test('Guide reads saved resources only for the signed-in account and never sends
     assert.equal(response.answerSource, 'account');
     assert.match(response.message, /Saved Centre.*Closed Programme \(no longer available\)/s);
     assert.match(response.message, /saved, not necessarily resources you manage/);
+    assert.match(response.message, /My Directory → Saved Resources/);
+    assert.deepEqual(response.actions, [{ label: 'Open My Directory', route: '/my-directory?section=saved-assets' }]);
     assert.equal(loads, 1);
     for (const [user, expected] of [
         [null, /Sign in/],
@@ -641,6 +650,7 @@ test('Guide reads saved resources only for the signed-in account and never sends
             { question: 'What resources have I saved?', useAi: true })).json();
         assert.match(denied.message, expected);
         assert.doesNotMatch(JSON.stringify(denied), /Saved Centre/);
+        assert.equal(denied.actions.some(({ route }) => route === '/my-directory?section=saved-assets'), false);
     }
     assert.equal(loads, 1);
 });

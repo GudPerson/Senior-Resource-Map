@@ -1,6 +1,7 @@
 import { HELP_CONTENT_VERSION, GUIDE_EXTRA_FACTS as extraFacts, GUIDE_ORACLE_FACTS } from '../generated/helpKnowledge.js';
 import { createGuideFactIndex, guideFactContextMatches } from './guideFactRetrieval.js';
 import { guideReviewedRelationFact, guideHiddenSavedResourceFact, guideProviderUsageLookup } from './guideProductRelations.js';
+import { GUIDE_SAVED_DIRECTORY_ROUTE, guideDirectoryActionRoute } from './guideDirectoryRoutes.js';
 
 // Reviewed user-facing facts. The Obsidian map is a discovery aid, not a live
 // authority: each addition here must be checked against the current app and
@@ -91,7 +92,7 @@ export function answerGuideUnverifiedWorkflow(question = '') {
     if (intent === 'saved-resource-hide') return {
         topicId: 'unverified-workflow',
         message: 'Do you mean removing a resource from your saved list in My Directory, or hiding the public listing from the app? Unsave affects your list only. Hide from app is a separate permission-checked control in Manage My Resources.',
-        actions: [{ label: 'Open My Directory', route: '/my-directory' }],
+        actions: [{ label: 'Open My Directory', route: GUIDE_SAVED_DIRECTORY_ROUTE }],
     };
     if (intent === 'map-workbook') return {
         topicId: 'unverified-workflow',
@@ -166,7 +167,10 @@ const factDestinationLabels = {
     '/help?tab=inbox': 'Open Updates',
     '/help?tab=report': 'Draft a support report',
 };
-export const guideOracleFactAction = (fact) => ({ label: fact.actionLabel || factDestinationLabels[fact.route] || `Open ${fact.title}`, route: fact.route });
+export const guideOracleFactAction = (fact) => ({
+    label: fact.actionLabel || factDestinationLabels[fact.route] || `Open ${fact.title}`,
+    route: guideDirectoryActionRoute(fact.route, fact.id),
+});
 const factAction = guideOracleFactAction;
 
 export function answerGuideOracleFact(question = '') {

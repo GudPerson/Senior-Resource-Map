@@ -1,5 +1,6 @@
 import { answerGuideGroupAccessQuestion, answerGuideResourceAccessQuestion, answerGuideWorkbookAccessQuestion } from './guideAccess.js';
 import { GUIDE_ORACLE_FACTS } from './guideOracleKnowledge.js';
+import { GUIDE_SAVED_DIRECTORY_ROUTE } from './guideDirectoryRoutes.js';
 
 const relatedSources = (...ids) => GUIDE_ORACLE_FACTS.filter((fact) => ids.includes(fact.id))
     .map(({ id, title, route, reviewed }) => ({ id, title, route, reviewed }));
@@ -91,7 +92,7 @@ export function answerGuideCompositeQuestion(question, actor) {
         sources: relatedSources('audit-trail'), actions: [{ label: 'Open Audit Trail', route: '/dashboard/audit' }] };
     if (intent === 'saved-shared-privacy') return { ...common,
         message: 'Your saved resources in My Directory are scoped to your account. Publishing a Shared Map makes only its selected snapshot available through that link; it does not expose your whole saved list to a colleague. Review the published map before sharing its link.',
-        sources: relatedSources('saved-list-privacy'), actions: [{ label: 'Open My Directory', route: '/my-directory' }] };
+        sources: relatedSources('saved-list-privacy'), actions: [{ label: 'Open My Directory', route: GUIDE_SAVED_DIRECTORY_ROUTE }] };
     if (intent === 'region-template-scope') return { ...common,
         message: 'A Region Admin title does not let someone edit every Place in a Region. Editing a Place requires permission for that exact Place. Region Admin can open Offering Templates, but editing or generating a particular template and each host Place still depends on current ownership and scope. Ask about this account’s managed Places and templates for separate scoped lists.',
         sources: relatedSources('regional-admin-place-edit-boundary', 'offering-template-overview'), actions: groupRoute };
@@ -110,7 +111,7 @@ export function answerGuideCompositeQuestion(question, actor) {
         actions: [{ label: 'Open My Plans', route: '/dashboard/calendar?section=plans' }] };
     if (intent === 'saved-live-availability') return { ...common,
         message: 'The Guide cannot determine which of your saved resources has a vacancy today from My Directory. A displayed availability count may not be live or guarantee a seat. Open the current Programme/service details and contact its provider to confirm places, eligibility and registration.',
-        sources: relatedSources('provider-availability'), actions: [{ label: 'Open My Directory', route: '/my-directory' }] };
+        sources: relatedSources('provider-availability'), actions: [{ label: 'Open My Directory', route: GUIDE_SAVED_DIRECTORY_ROUTE }] };
     if (intent === 'private-place-group') return { ...common,
         message: 'A private My Place is a planning location in My Directory, not a public directory Place. It cannot be selected as a member of a public Resource Group, and it is excluded from a published Shared Map. Your owner map exports can include personal places, so review a download before sharing it. To share a location publicly, ask an authorised resource manager about creating a public Place and review its visibility before publishing.',
         sources: relatedSources('personal-place-sharing', 'group-edit'),

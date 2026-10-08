@@ -493,7 +493,7 @@ export default function CareCalendarPage() {
                                 <p className="mt-1 text-sm leading-relaxed text-slate-500">
                                     {t('careCalendarSavedNoScheduleCount', { count: calendar.savedWithoutSchedule.length })}
                                 </p>
-                                <Link to="/my-directory" className="btn-secondary mt-4 w-full justify-center">
+                                <Link to="/my-directory?section=saved-assets" className="btn-secondary mt-4 w-full justify-center">
                                     <FolderOpen size={16} /> {t('careCalendarViewDirectory')}
                                 </Link>
                             </div>
