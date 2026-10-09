@@ -38,8 +38,9 @@ const coordinateSchema = z.tuple([
 const annotationStyleSchema = z.object({
     color: z.string().regex(/^#[0-9a-f]{6}$/i).default('#0F766E'),
     fillColor: z.string().regex(/^#[0-9a-f]{6}$/i).default('#14B8A6'),
-    fillOpacity: z.number().finite().min(0).max(0.6).default(0.14),
-    weight: z.number().int().min(1).max(12).default(3),
+    fillOpacity: z.number().finite().min(0).max(1).default(0.14),
+    weight: z.number().finite().min(0).max(12).default(3),
+    strokeOpacity: z.number().finite().min(0).max(1).optional(),
     dashed: z.boolean().default(false),
     textColor: z.string().regex(/^#[0-9a-f]{6}$/i).default('#0F172A'),
     fontSize: z.number().int().min(10).max(32).default(14),
@@ -49,6 +50,7 @@ const printAnnotationSchema = z.object({
     id: z.string().trim().min(1).max(80).regex(/^[a-z0-9_-]+$/i),
     type: z.enum(annotationTypes),
     isShared: z.boolean().optional(),
+    boundarySource: z.literal('kml').optional(),
     points: z.array(coordinateSchema).min(1).max(PRINT_ANNOTATION_MAX_POINTS),
     controlPoints: z.array(coordinateSchema)
         .min(3)
@@ -65,6 +67,19 @@ const printAnnotationSchema = z.object({
     image: z.object({ assetId: z.string().regex(/^[a-f0-9]{64}$/), width: z.number().int().min(1).max(MAP_MEDIA_MAX_SIDE),
         height: z.number().int().min(1).max(MAP_MEDIA_MAX_SIDE), alt: z.string().trim().max(240).default('') }).strict().optional(),
 }).superRefine((annotation, context) => {
+    if (annotation.boundarySource !== undefined) {
+        if (annotation.type !== 'polygon' || annotation.isShared === true) context.addIssue({
+            code: z.ZodIssueCode.custom, path: ['boundarySource'], message: 'Imported boundaries must be private polygons',
+        });
+        if (!annotation.controlPoints || annotation.points.length !== annotation.controlPoints.length
+            || annotation.points.some((point, index) => point[0] !== annotation.controlPoints[index][0]
+                || point[1] !== annotation.controlPoints[index][1])) context.addIssue({
+            code: z.ZodIssueCode.custom, path: ['controlPoints'], message: 'Imported boundary corners must be retained exactly',
+        });
+    } else if (!Number.isInteger(annotation.style.weight) || annotation.style.weight < 1
+        || annotation.style.fillOpacity > 0.6 || annotation.style.strokeOpacity !== undefined) context.addIssue({
+        code: z.ZodIssueCode.custom, path: ['style'], message: 'Drawing styles require an integer width and fill opacity at most 0.6',
+    });
     const pointCount = annotation.points.length;
     const expected = {
         pin: [1, 1],
@@ -122,7 +137,7 @@ const printAnnotationSchema = z.object({
     if (annotation.type !== 'image' && annotation.imageBorder !== undefined) context.addIssue({ code: z.ZodIssueCode.custom, path: ['imageBorder'], message: 'Image borders are only supported on image annotations' });
 }).transform((annotation) => {
     const { resourceLinks, resourceBehaviour, resourceGlowColor, imageBorder, ...rest } = annotation;
-    return { ...rest, ...(annotation.type === 'image' ? { isShared: false } : {}),
+    return { ...rest, ...(annotation.type === 'image' || annotation.boundarySource ? { isShared: false } : {}),
         ...(annotation.type === 'image' && imageBorder === true ? { imageBorder: true } : {}),
         ...(resourceLinks?.length ? { resourceLinks, resourceBehaviour: resourceBehaviour || 'highlight',
             ...(resourceGlowColor ? { resourceGlowColor } : {}) } : {}) };
@@ -170,7 +185,7 @@ export function validatePrintAnnotationDocumentInput(body) {
 function normalizePrintAnnotationSnapshot(annotations) {
     // Images and resource links are private owner data, even if a caller passes
     // untrusted new metadata into an existing publication or frozen snapshot.
-    const publicAnnotations = (Array.isArray(annotations) ? annotations : []).filter((annotation) => annotation && typeof annotation === 'object' && annotation.type !== 'image')
+    const publicAnnotations = (Array.isArray(annotations) ? annotations : []).filter((annotation) => annotation && typeof annotation === 'object' && annotation.type !== 'image' && annotation.boundarySource === undefined)
         .map(({ resourceLinks, resourceBehaviour, resourceGlowColor, imageBorder, image, ...annotation }) => {
             void resourceLinks; void resourceBehaviour; void resourceGlowColor; void imageBorder; void image;
             return annotation;

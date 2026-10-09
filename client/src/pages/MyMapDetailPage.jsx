@@ -3393,7 +3393,7 @@ export default function MyMapDetailPage() {
         try {
             if (typeof options?.includeAnnotations === 'boolean') {
                 printAnnotations.replaceAnnotations((current) => current.map((annotation) => (
-                    annotation.type === 'image' ? annotation : {
+                    annotation.type === 'image' || annotation.boundarySource ? annotation : {
                         ...annotation,
                         isShared: options.includeAnnotations,
                     }

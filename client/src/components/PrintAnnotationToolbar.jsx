@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getAnnotationMessages } from '../lib/annotationMessages.js';
+import { getKmlBoundaryMessages } from '../lib/kmlBoundaryMessages.js';
 
 import {
     ArrowDown,
@@ -161,6 +162,7 @@ export default function PrintAnnotationToolbar({
     canMoveSelectedForward = false,
     canDuplicateSelected = false,
     imageControls = null,
+    importControls = null,
     resourceControls = null,
     onToolChange,
     onDraftTextChange,
@@ -178,6 +180,7 @@ export default function PrintAnnotationToolbar({
 }) {
     const { locale } = useLocale();
     const messages = getAnnotationMessages(locale);
+    const boundaryMessages = getKmlBoundaryMessages(locale);
     const [textBuffer, setTextBuffer] = useState(selectedAnnotation?.text ?? draftText);
     const [styleBuffer, setStyleBuffer] = useState(selectedAnnotation?.style ?? draftStyle);
     const [imageAltBuffer, setImageAltBuffer] = useState(selectedAnnotation?.image?.alt || '');
@@ -226,6 +229,7 @@ export default function PrintAnnotationToolbar({
         : labelledTypes.includes(tool);
     const activeAnnotationType = selectedAnnotation?.type || tool;
     const isImage = activeAnnotationType === 'image';
+    const isBoundary = selectedAnnotation?.boundarySource === 'kml';
     const showImageBorder = isImage && selectedAnnotation?.imageBorder === true;
     const showStyleControls = showImageBorder || (!isImage && Boolean(selectedAnnotation || PRINT_ANNOTATION_DRAW_TOOLS.has(tool)));
     const showLineControls = [
@@ -280,6 +284,7 @@ export default function PrintAnnotationToolbar({
             </div>
 
             {imageControls}
+            {importControls}
 
             {helperText ? (
                 <p
@@ -487,14 +492,16 @@ export default function PrintAnnotationToolbar({
             ) : null}
 
             {showLineControls || showFillControls ? (
+                <>
                 <div className={`mt-3 grid gap-3 ${showLineControls && showFillControls ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 {showLineControls ? (
                     <label className="block">
-                    <span className="text-[10px] font-bold uppercase text-slate-500">{isImage ? messages.imageBorderWidth : 'Line'}</span>
+                    <span className="text-[10px] font-bold uppercase text-slate-500">{isImage ? messages.imageBorderWidth : isBoundary ? boundaryMessages.width : 'Line'}</span>
                     <input
                         type="range"
-                        min="1"
+                        min={isBoundary ? '0' : '1'}
                         max="12"
+                        step={isBoundary ? '0.1' : '1'}
                         value={activeStyle.weight}
                         onChange={(event) => {
                             const weight = Number(event.target.value);
@@ -520,11 +527,11 @@ export default function PrintAnnotationToolbar({
                 ) : null}
                 {showFillControls ? (
                     <label className="block">
-                    <span className="text-[10px] font-bold uppercase text-slate-500">Fill</span>
+                    <span className="text-[10px] font-bold uppercase text-slate-500">{isBoundary ? boundaryMessages.fillOpacity : 'Fill'}</span>
                     <input
                         type="range"
                         min="0"
-                        max="0.6"
+                        max={isBoundary ? '1' : '0.6'}
                         step="0.05"
                         value={activeStyle.fillOpacity}
                         onChange={(event) => {
@@ -550,6 +557,16 @@ export default function PrintAnnotationToolbar({
                     </label>
                 ) : null}
                 </div>
+                {isBoundary ? <label className="mt-3 block text-xs font-semibold text-slate-600">
+                    {boundaryMessages.strokeOpacity} · {Math.round(activeStyle.strokeOpacity * 100)}%
+                    <input type="range" min="0" max="1" step="0.01" value={activeStyle.strokeOpacity}
+                        aria-label={boundaryMessages.strokeOpacity}
+                        onChange={event => setStyleBuffer(current => ({ ...current, strokeOpacity: Number(event.target.value) }))}
+                        onPointerUp={event => updateStyle({ strokeOpacity: Number(event.currentTarget.value) })}
+                        onKeyUp={event => updateStyle({ strokeOpacity: Number(event.currentTarget.value) })}
+                        className="mt-1 w-full accent-brand-600" />
+                </label> : null}
+                </>
             ) : null}
 
             {showLineControls && !isImage ? (
@@ -564,7 +581,7 @@ export default function PrintAnnotationToolbar({
                 </label>
             ) : null}
 
-            {selectedAnnotation && selectedAnnotation.type !== 'image' ? (
+            {selectedAnnotation && selectedAnnotation.type !== 'image' && !isBoundary ? (
                 <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-md border border-brand-100 bg-brand-50 px-2.5 py-2 text-xs text-brand-900">
                     <input
                         type="checkbox"
@@ -580,6 +597,7 @@ export default function PrintAnnotationToolbar({
                     </span>
                 </label>
             ) : null}
+            {isBoundary ? <p className="mt-3 text-xs leading-4 text-slate-600">{boundaryMessages.private}</p> : null}
 
             <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
                 <IconButton label="Undo" disabled={!canUndo} onClick={onUndo}>

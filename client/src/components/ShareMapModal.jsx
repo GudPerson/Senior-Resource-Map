@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 're
 import { Code2, Copy, ExternalLink, Globe2, Link2, LockKeyhole, Plus, Trash2, X } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getAnnotationMessages } from '../lib/annotationMessages.js';
+import { getKmlBoundaryMessages } from '../lib/kmlBoundaryMessages.js';
 import { handleModalKeyboardEvent } from '../lib/modalKeyboard.js';
 import { hasSharedMapUpdates } from '../lib/shareMapStatus.js';
 
@@ -107,9 +108,10 @@ export default function ShareMapModal({
 
     const isShared = Boolean(map?.share?.isShared ?? map?.isShared);
     const shareableAnnotations = Array.isArray(annotations)
-        ? annotations.filter((annotation) => annotation?.type !== 'image') : [];
+        ? annotations.filter((annotation) => annotation?.type !== 'image' && !annotation?.boundarySource) : [];
     const annotationCount = shareableAnnotations.length;
-    const privateImageCount = Array.isArray(annotations) ? annotations.length - annotationCount : 0;
+    const privateImageCount = Array.isArray(annotations) ? annotations.filter(annotation => annotation?.type === 'image').length : 0;
+    const privateBoundaryCount = Array.isArray(annotations) ? annotations.filter(annotation => annotation?.boundarySource).length : 0;
     const persistedSharedAnnotationCount = shareableAnnotations.filter((annotation) => Boolean(annotation?.isShared)).length;
     const sharedAnnotationCount = includeAnnotationsSelection === true
         ? annotationCount
@@ -475,6 +477,7 @@ export default function ShareMapModal({
                     {privateImageCount > 0 ? (
                         <p className="text-xs leading-5 text-slate-600">{annotationMessages.imagePrivate}</p>
                     ) : null}
+                    {privateBoundaryCount > 0 ? <p className="text-xs leading-5 text-slate-600">{getKmlBoundaryMessages(locale).private}</p> : null}
 
                     {error ? (
                         <p className="text-sm font-medium text-red-600">{error}</p>

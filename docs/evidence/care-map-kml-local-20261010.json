@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-10",
+  "startingPublicSource": "cb70ea15de4cb49170a96eef27b0ccb16c4e51f9",
+  "scope": "private Care Map KML boundaries",
+  "browser": {
+    "passed": true,
+    "cases": 16,
+    "errors": 0,
+    "unexpectedRequests": 0,
+    "fixtureWrites": 4,
+    "proofBoundary": "Isolated actual components with fictional annotation persistence, one existing fictional export place and synthetic tiles; no production map/resource/media writes or physical-device proof.",
+    "reportSha256": "68d37f8ce6fbefc9f28aaa87edf15b0a00f07e9d0b962e04bdfbf24b45913a49"
+  },
+  "samples": {
+    "WCJWTC": {
+      "areas": 7,
+      "corners": 297,
+      "skippedPins": 0
+    },
+    "ChuaChuKangBukitGombak": {
+      "areas": 5,
+      "corners": 517,
+      "skippedPins": 5
+    },
+    "coordinatesPreserved": true
+  },
+  "exports": {
+    "pngDimensions": [
+      5920,
+      4740
+    ],
+    "pngSha256": "073115883833065adb3b8e5321e1b5b14ed302235db8dca0f563960605518595",
+    "pngVisuallyReviewed": true,
+    "pdfHeader": "%PDF-1.3",
+    "pdfPageObjects": 2,
+    "pdfSha256": "c99d876d7322664ecea32106a43e182538972c8c30c195188355cb5b66d9b2a9",
+    "savedHiddenBoundaryExcluded": true
+  },
+  "quality": {
+    "passed": true,
+    "compilerTests": 17,
+    "cmsTests": 73,
+    "serverTests": 1182,
+    "clientTests": 974,
+    "environmentTests": 5,
+    "clientBuild": true,
+    "staticChecks": true,
+    "logSha256": "b5ad4c08d81347f51ff774347a3a133af657e340dca37c6e09f902b06342163e"
+  },
+  "mapLockdown": {
+    "passed": true,
+    "tests": 112,
+    "fixedSurfaceClientBuild": true,
+    "logSha256": "62afa045c082f29cf0cacbd9d364deb264af9e96cbf249c6b893b89ff85d48f3"
+  },
+  "production": {
+    "pending": true
+  },
+  "retainedFailures": "Earlier syntax/assertion/fixture/selector failures and corrected checks are separate private records."
+}

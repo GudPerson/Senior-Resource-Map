@@ -4,6 +4,8 @@ import PrintAnnotationLayer from '../components/PrintAnnotationLayer.jsx';
 import PrintAnnotationToolbar from '../components/PrintAnnotationToolbar.jsx';
 import AnnotationImageUpload from '../components/AnnotationImageUpload.jsx';
 import AnnotationResourcePicker from '../components/AnnotationResourcePicker.jsx';
+import KmlBoundaryImport from '../components/KmlBoundaryImport.jsx';
+import { appendKmlBoundaries } from '../lib/kmlBoundaries.js';
 import { getAnnotationResourceLinkBudget } from '../lib/annotationResourceLinks.js';
 import {
     DEFAULT_PRINT_ANNOTATION_STYLE,
@@ -110,7 +112,7 @@ export default function useInteractiveMapAnnotationEditor({
                         style: normalizePrintAnnotationStyle({
                             ...annotation.style,
                             ...patch.style,
-                        }),
+                        }, { boundary: annotation.boundarySource === 'kml' }),
                     } : {}),
                 }
                 : annotation
@@ -216,6 +218,20 @@ export default function useInteractiveMapAnnotationEditor({
             canMoveSelectedBackward={selectedIndex > 0}
             canMoveSelectedForward={selectedIndex >= 0 && selectedIndex < annotations.length - 1}
             canDuplicateSelected={Boolean(selectedAnnotation && canAddPrintAnnotation(annotations, selectedAnnotation.type, selectedAnnotation.resourceLinks))}
+            importControls={mapId ? (
+                <KmlBoundaryImport mapId={mapId} annotations={annotations}
+                    disabled={['idle', 'loading', 'error'].includes(status)}
+                    onImport={(boundaries) => {
+                        let importedId = null;
+                        replaceAnnotations?.((current) => {
+                            const next = appendKmlBoundaries(current, boundaries);
+                            importedId = next[current.length]?.id;
+                            return next;
+                        });
+                        setSelectedId(importedId);
+                        cancelDraft();
+                    }} />
+            ) : null}
             imageControls={mapId ? (
                 <AnnotationImageUpload
                     mapId={mapId}

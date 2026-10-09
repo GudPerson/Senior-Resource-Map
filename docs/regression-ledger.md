@@ -1,5 +1,18 @@
 # Regression Ledger
 
+## 10 October 2026 — Private Care Map KML boundary import — release candidate
+
+User approved boundaries-only preview/selection importing Google My Maps `.kml` exports. Isolated branch `codex/care-map-kml-boundaries-20261010` starts from accepted public `cb70ea15`; the dirty primary and latest authored Help library are protected. Read `docs/plans/care-map-kml-boundaries-20261010.md` for the scope and evidence.
+
+Owner desktop: Edit content → Annotate → Import boundaries. Preview named areas, select, optionally adjust outline/fill/width/opacity, confirm once, wait for Saved. Simple closed outer-ring polygons retain exact corners and fractional/zero outline widths. Existing drawn boundaries remain rounded. One complete batch is one Undo step and uses existing revisioned autosave. Unsupported pins/lines/holes/multiple geometries/altitude/KMZ are explained and skipped/refused. No external styles, links, HTML descriptions or media are fetched. Existing saved-view controls hide areas; imported boundaries stay private and are excluded from shared/embed snapshots and bulk sharing. Visible saved areas appear in owner downloads. Four-language controls and runtime Guide instructions preserve existing request/history schemas and administrative import routes. No schema migration, resource creation or AI allowance change.
+
+The two supplied files yield 7 + 5 areas with all 814 corners unchanged; five point pins are skipped. Final isolated browser acceptance passes 16/16, including actual production PNG/PDF downloads with a synthetic basemap/fictional existing resource and hidden-boundary exclusion. No production map writes or physical-device UAT is claimed. Earlier failed attempts remain separate. Source quality/build/map gates and protected release acceptance must be recorded before claiming production.
+
+Final source gates pass: compiler 17, CMS 73, server 1,182, client 974, environment 5, static checks and production build. Locked-map gate passes 112/112 and fixed-surface build. Graft refresh and scoped diff review pass. See `docs/evidence/care-map-kml-local-20261010.json`. Generic credentialed smoke, physical-device UAT and production delivery are separate; no blanket smoke claim is made.
+
+Release: freeze scoped source, commit/push, then use the unchanged normal private Worker-first/Pages-second publisher with a fresh unchanged-library owner baseline. Preserve all 44 binding descriptors, runtime/modules and truthful source-pin tag. Require four gates, exact job/snapshot/run/receipt, promoted workspace/cleared lock, current paired source/content and complete fresh custom-domain MIME/byte/SHA parity plus six ordinary HTML cases. Production identities remain pending until independently verified.
+
+
 ## 8 October 2026 — Care Map hover, glow colour and image borders — local candidate
 
 - Scope/reference: `codex/care-map-hover-appearance-20261008` in `output/care-map-labels-release-20261007`, based on accepted public `7e58813713a853aaf04af3ed8c1b1f66af482c94`. Preserve the unrelated dirty primary. Prior accepted paired build `dc113ea54785ea429d4ee0a79225b02d277d1f86` / normal run `37752110569` remains the production reference until the new release is verified.

@@ -25,6 +25,40 @@ function fixture(actor = user) {
     } };
 }
 
+test('actual Guide gives the four-language KML preview workflow without model or account reads', async () => {
+    const h = fixture();
+    const control = { en: 'Import boundaries', 'zh-CN': '导入边界', ms: 'Import sempadan', ta: 'எல்லைகளை இறக்குமதி செய்' };
+    const open = { en: 'Open Care Maps', 'zh-CN': '打开关怀地图', ms: 'Buka Peta Penjagaan', ta: 'பராமரிப்பு வரைபடங்களைத் திறக்கவும்' };
+    for (const [locale, caption] of Object.entries(control)) {
+        const question = 'How do I import KML boundaries from Google My Maps?';
+        const { status, answer } = await h.ask({ question, pageContext: 'My Maps', locale });
+        assert.equal(status, 200); assert.equal(answer.topicId, 'map-private-kml-boundaries');
+        assert.ok(answer.message.includes(caption)); assert.ok(answer.message.includes('200'));
+        assert.ok(answer.message.includes('KMZ')); assert.ok(answer.message.includes('PNG/PDF'));
+        assert.ok(answer.message.length <= 1600); assert.deepEqual(answer.input, { question });
+        assert.deepEqual(answer.actions, [{ label: open[locale], route: '/my-directory?section=my-maps' }]);
+        assert.doesNotMatch(JSON.stringify(answer), /client\/src|server\/src|boundarySource|resourceLinks/);
+        assert.ok(answer.sources.some(source => source.id === 'map-private-kml-boundaries'));
+    }
+    const { answer } = await h.ask({ question: 'Can KML boundaries be shared publicly?' });
+    assert.match(answer.message, /excluded from shared links and website embeds/);
+    assert.match(answer.message, /Cancel leaves your map unchanged.*Undo removes the complete import/);
+    assert.match(answer.message, /Exact source corners/);
+    assert.deepEqual(h.calls, { model: 0, private: 0 });
+});
+
+test('boundary instructions grant no private map access and stay scoped to map imports', async () => {
+    for (const actor of [null, { id: 55, role: 'guest' }, { ...user, isImpersonating: true }]) {
+        const h = fixture(actor), { answer } = await h.ask({ question: 'Import KML boundaries into my Care Map' });
+        assert.equal(answer.actions[0].route, '/login'); assert.deepEqual(h.calls, { model: 0, private: 0 });
+    }
+    assert.equal(guideAnnotationFeatureIntent('Import boundaries into my Care Map'), 'boundaries');
+    assert.equal(guideAnnotationFeatureIntent('Import boundaries into a spreadsheet'), null);
+    assert.equal(guideAnnotationFeatureIntent('Import KML subregion boundaries in Admin'), null);
+    assert.equal(guideAnnotationFeatureIntent('Import KML into a spreadsheet'), null);
+    assert.equal(guideAnnotationFeatureIntent('Show my colleagues KML files', 'Care Maps'), null);
+});
+
 test('actual Guide route gives current private image and tagging procedures without model or account reads', async () => {
     const h = fixture();
     for (const [question, expectedId, clauses] of [

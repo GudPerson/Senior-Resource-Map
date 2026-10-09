@@ -66,7 +66,7 @@ function clamp(value, minimum, maximum, fallback) {
     return Math.min(maximum, Math.max(minimum, numeric));
 }
 
-export function normalizePrintAnnotationStyle(style = {}) {
+export function normalizePrintAnnotationStyle(style = {}, { boundary = false } = {}) {
     const color = /^#[0-9a-f]{6}$/i.test(String(style.color || ''))
         ? String(style.color).toUpperCase()
         : DEFAULT_PRINT_ANNOTATION_STYLE.color;
@@ -79,15 +79,16 @@ export function normalizePrintAnnotationStyle(style = {}) {
         fillOpacity: clamp(
             style.fillOpacity,
             0,
-            0.6,
+            boundary ? 1 : 0.6,
             DEFAULT_PRINT_ANNOTATION_STYLE.fillOpacity,
         ),
-        weight: Math.round(clamp(
+        weight: (boundary ? Number : Math.round)(clamp(
             style.weight,
-            1,
+            boundary ? 0 : 1,
             12,
             DEFAULT_PRINT_ANNOTATION_STYLE.weight,
         )),
+        ...(boundary ? { strokeOpacity: clamp(style.strokeOpacity, 0, 1, 1) } : {}),
         dashed: Boolean(style.dashed),
         textColor: /^#[0-9a-f]{6}$/i.test(String(style.textColor || ''))
             ? String(style.textColor).toUpperCase()
@@ -267,6 +268,7 @@ export function normalizePrintAnnotation(annotation) {
     const imageBounds = type === PRINT_ANNOTATION_TOOL_IMAGE ? normalizePrintAnnotationImageBounds(points) : null;
     if (type === PRINT_ANNOTATION_TOOL_IMAGE && (!image || !imageBounds)) return null;
     const resourceLinks = normalizeAnnotationResourceLinks(annotation?.resourceLinks);
+    const boundary = type === PRINT_ANNOTATION_TOOL_POLYGON && annotation?.boundarySource === 'kml';
 
     const id = String(annotation?.id || '').trim();
     if (!/^[a-z0-9_-]{1,80}$/i.test(id)) return null;
@@ -288,7 +290,8 @@ export function normalizePrintAnnotation(annotation) {
     return {
         id,
         type,
-        isShared: type === PRINT_ANNOTATION_TOOL_IMAGE ? false : Boolean(annotation?.isShared),
+        isShared: type === PRINT_ANNOTATION_TOOL_IMAGE || boundary ? false : Boolean(annotation?.isShared),
+        ...(boundary ? { boundarySource: 'kml' } : {}),
         points: type === PRINT_ANNOTATION_TOOL_IMAGE ? imageBounds : type === PRINT_ANNOTATION_TOOL_PIN
             ? points.slice(0, 1)
             : [
@@ -308,8 +311,12 @@ export function normalizePrintAnnotation(annotation) {
             ...(isAnnotationResourceGlowColor(annotation?.resourceGlowColor)
                 ? { resourceGlowColor: normalizeAnnotationResourceGlowColor(annotation.resourceGlowColor) } : {}) } : {}),
         text,
-        style: normalizePrintAnnotationStyle(annotation?.style),
+        style: normalizePrintAnnotationStyle(annotation?.style, { boundary }),
     };
+}
+
+export function buildPrintAnnotationPolygonPoints(annotation, points = annotation.controlPoints || annotation.points) {
+    return annotation.boundarySource === 'kml' ? points : buildRoundedPrintAnnotationPolygon(points);
 }
 
 export function normalizePrintAnnotations(annotations = []) {

@@ -430,7 +430,7 @@ function PrintDirectoryMap({
                         style: normalizePrintAnnotationStyle({
                             ...annotation.style,
                             ...patch.style,
-                        }),
+                        }, { boundary: annotation.boundarySource === 'kml' }),
                     } : {}),
                 }
                 : annotation

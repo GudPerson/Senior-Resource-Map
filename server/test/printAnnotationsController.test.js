@@ -95,6 +95,43 @@ function createBoundaryPoints(count) {
     ]);
 }
 
+test('private KML boundaries preserve source appearance, revision conflicts and owner-only persistence', async () => {
+    const db = createFakeDb();
+    const boundary = createPolygon({ boundarySource: 'kml', isShared: false,
+        style: { ...createPolygon().style, weight: 0.001, fillOpacity: 1, strokeOpacity: 0.4 } });
+    const body = validatePrintAnnotationDocumentInput({ schemaVersion: 1, revision: 0, annotations: [boundary] });
+    const saved = await replacePrintAnnotationDocument(db, OWNER, MAP_ID, body);
+    assert.equal(saved.revision, 1); assert.deepEqual(saved.annotations, [boundary]);
+    assert.deepEqual((await getPrintAnnotationDocument(db, OWNER, MAP_ID)).annotations, [boundary]);
+    assert.equal(db.state.mapUpdatedAt, null);
+    await assert.rejects(replacePrintAnnotationDocument(db, OWNER, MAP_ID, body), error => error.status === 409);
+    await assert.rejects(replacePrintAnnotationDocument(createFakeDb({ ownsMap: false }), OWNER, MAP_ID, body), error => error.status === 404);
+});
+
+test('import discriminator cannot grant sharing, change non-polygon styles or lose corners', () => {
+    const boundary = createPolygon({ boundarySource: 'kml', isShared: false,
+        style: { ...createPolygon().style, weight: 1.2, fillOpacity: 0.8, strokeOpacity: 0.4 } });
+    const validate = annotation => validatePrintAnnotationDocumentInput({ schemaVersion: 1, annotations: [annotation] });
+    assert.deepEqual(validate(boundary).annotations, [boundary]);
+    for (const tampered of [
+        { ...boundary, isShared: true }, { ...boundary, boundarySource: 'other' },
+        { ...boundary, type: 'line', points: boundary.points.slice(0, 2), controlPoints: undefined },
+        { ...boundary, controlPoints: undefined }, { ...boundary, controlPoints: boundary.controlPoints.map(([lat, lng]) => [lat + 0.01, lng]) },
+        { ...boundary, boundarySource: undefined },
+    ]) assert.throws(() => validate(tampered), /Print annotations is invalid/);
+    assert.throws(() => validate({ ...createPolygon(), style: { ...createPolygon().style, weight: 1.2 } }), /Print annotations is invalid/);
+});
+
+test('public snapshots exclude all import metadata while preserving explicitly shared drawings', () => {
+    const publicDrawing = createPolygon({ id: 'public', isShared: true });
+    const imported = createPolygon({ id: 'private_kml', boundarySource: 'kml', isShared: true,
+        style: { ...createPolygon().style, weight: 0.001, fillOpacity: 1, strokeOpacity: 0.4 } });
+    const snapshot = buildEmbeddedPrintAnnotationSnapshot([publicDrawing, imported]);
+    assert.equal(snapshot.length, 1); assert.equal(snapshot[0].id, 'public');
+    assert.deepEqual(normalizeEmbeddedPrintAnnotationSnapshot([snapshot[0], imported]), snapshot);
+    assert.deepEqual(normalizeEmbeddedPrintAnnotationSnapshot([imported]), []);
+});
+
 test('print annotation validation accepts sparse polygon control anchors', () => {
     const input = {
         schemaVersion: 1,

@@ -35,6 +35,7 @@ import {
     buildPrintAnnotationDraftPreviewPoints,
     buildPrintAnnotationRectanglePoints,
     buildRoundedPrintAnnotationPolygon,
+    buildPrintAnnotationPolygonPoints,
     movePrintAnnotationControlPoint,
     movePrintAnnotationRectangleControlPoint,
     normalizePrintAnnotationRotation,
@@ -195,10 +196,11 @@ function getPathOptions(annotation, selected = false) {
         color: style.color,
         fillColor: style.fillColor,
         fillOpacity: style.fillOpacity,
+        ...(annotation.boundarySource === 'kml' ? { opacity: style.strokeOpacity } : {}),
         weight: style.weight + (selected ? 1 : 0),
         dashArray: style.dashed ? '9 7' : null,
         lineCap: 'round',
-        lineJoin: 'round',
+        lineJoin: annotation.boundarySource === 'kml' ? 'miter' : 'round',
     };
 }
 
@@ -443,13 +445,13 @@ function AnnotationShape({
     const displayPoints = annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE
         ? buildPrintAnnotationRectanglePoints(annotation.points, rotationDegrees)
         : annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
-            ? buildRoundedPrintAnnotationPolygon(annotation.controlPoints || annotation.points)
+            ? buildPrintAnnotationPolygonPoints(annotation)
             : annotation.points;
     const applyTransformPreview = useCallback((nextPoints, nextRotationDegrees) => {
         const nextDisplayPoints = annotation.type === PRINT_ANNOTATION_TOOL_RECTANGLE
             ? buildPrintAnnotationRectanglePoints(nextPoints, nextRotationDegrees)
             : annotation.type === PRINT_ANNOTATION_TOOL_POLYGON
-                ? buildRoundedPrintAnnotationPolygon(nextPoints)
+                ? buildPrintAnnotationPolygonPoints(annotation, nextPoints)
                 : nextPoints;
         if (annotation.type === PRINT_ANNOTATION_TOOL_LINE) {
             shapeRef.current?.setLatLngs(nextPoints);
@@ -467,7 +469,7 @@ function AnnotationShape({
             nextDisplayPoints,
         ));
         setShapeTextRotation(shapeTextRef.current, nextRotationDegrees);
-    }, [annotation.type, map]);
+    }, [annotation.type, annotation.boundarySource, map]);
     const handleVertexPreview = useCallback((nextPoints) => {
         previewTransformRef.current = { points: nextPoints, rotationDegrees };
         applyTransformPreview(nextPoints, rotationDegrees);
