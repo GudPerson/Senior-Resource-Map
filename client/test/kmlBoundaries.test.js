@@ -57,10 +57,29 @@ test('count and combined corner budgets reject the entire import without changin
     assert.equal(getKmlImportCapacity(existing, [area]), 'count');
     assert.throws(() => appendKmlBoundaries(existing, [area]), code('count'));
     assert.equal(JSON.stringify(existing), before);
-    const dense = [{ points: Array(1998).fill([1, 103]) }];
+    const dense = [{ points: Array(19998).fill([1, 103]) }];
     assert.throws(() => appendKmlBoundaries(dense, [area]), code('budget'));
     assert.equal(getKmlImportCapacity([], []), 'selection');
-    assert.equal(getKmlImportCapacity([{ points: Array(1992).fill([1, 103]) }], [area]), null);
+    assert.equal(getKmlImportCapacity([{ points: Array(19992).fill([1, 103]) }], [area]), null);
+});
+test('50 detailed boundaries retain all 20,000 stored points through import and reload; overflow is atomic', () => {
+    const corners = Array.from({ length: 200 }, (_, index) => {
+        const angle = index * Math.PI * 2 / 200;
+        return [1.3 + Math.sin(angle) * 0.001, 103.7 + Math.cos(angle) * 0.001];
+    });
+    const boundaries = Array.from({ length: 50 }, (_, index) => ({ ...area, name: `Detailed area ${index}`, points: corners }));
+    const imported = appendKmlBoundaries([], boundaries);
+    assert.equal(imported.reduce((sum, item) => sum + item.points.length + item.controlPoints.length, 0), 20000);
+    assert.deepEqual(normalizePrintAnnotations(JSON.parse(JSON.stringify(imported))), imported);
+    for (const item of imported) {
+        assert.deepEqual(item.points, corners);
+        assert.deepEqual(item.controlPoints, corners);
+        assert.equal(item.isShared, false);
+    }
+    const before = JSON.stringify(imported);
+    assert.equal(getKmlImportCapacity(imported, [area]), 'budget');
+    assert.throws(() => appendKmlBoundaries(imported, [area]), code('budget'));
+    assert.equal(JSON.stringify(imported), before);
 });
 test('preview preserves corner count and geographic proportions without mutating source coordinates', () => {
     const before = JSON.stringify(area);

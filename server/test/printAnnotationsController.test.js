@@ -11,6 +11,8 @@ import {
     validatePrintAnnotationDocumentInput,
 } from '../src/controllers/printAnnotationsController.js';
 import { myMapPrintAnnotationDocuments, myMaps } from '../src/db/schema.js';
+import { appendKmlBoundaries } from '../../client/src/lib/kmlBoundaries.js';
+import { normalizePrintAnnotations } from '../../client/src/lib/printAnnotations.js';
 
 const OWNER = { id: 7, role: 'standard' };
 const MAP_ID = 3;
@@ -270,15 +272,37 @@ test('print annotation validation rejects freehand data and duplicate or oversiz
     assert.throws(
         () => validatePrintAnnotationDocumentInput({
             schemaVersion: 1,
-            annotations: Array.from({ length: 5 }, (_, index) => createPolygon({
+            annotations: Array.from({ length: 40 }, (_, index) => createPolygon({
                 id: `large_boundary_${index}`,
                 points: Array.from({ length: 500 }, (unused, pointIndex) => (
                     [1.3 + pointIndex * 0.000001, 103.7 + pointIndex * 0.000001]
                 )),
             })),
         }),
-        /at most 2000 total points/,
+        /at most 20000 total points/,
     );
+});
+
+test('20,000 stored points round-trip through the owner API and client; one extra point is refused', async () => {
+    const corners = Array.from({ length: 200 }, (_, index) => {
+        const angle = index * Math.PI * 2 / 200;
+        return [1.3 + Math.sin(angle) * 0.001, 103.7 + Math.cos(angle) * 0.001];
+    });
+    const annotations = appendKmlBoundaries([], Array.from({ length: 50 }, (_, index) => ({
+        name: `Detailed boundary ${index}`, points: corners, style: createPolygon().style,
+    })));
+    const input = validatePrintAnnotationDocumentInput({ schemaVersion: 1, revision: 0, annotations });
+    const db = createFakeDb();
+    await replacePrintAnnotationDocument(db, OWNER, MAP_ID, input);
+    const reopened = await getPrintAnnotationDocument(db, OWNER, MAP_ID);
+    assert.deepEqual(normalizePrintAnnotations(reopened.annotations), annotations);
+    assert.equal(reopened.annotations.reduce((sum, item) => sum + item.points.length + item.controlPoints.length, 0), 20000);
+    const extraPoint = createPolygon({ id: 'over_budget_pin', type: 'pin', points: [[1.3, 103.7]], controlPoints: undefined });
+    assert.throws(() => validatePrintAnnotationDocumentInput({
+        schemaVersion: 1, revision: reopened.revision, annotations: [...annotations, extraPoint],
+    }), /at most 20000 total points/);
+    assert.deepEqual((await getPrintAnnotationDocument(db, OWNER, MAP_ID)).annotations, annotations);
+    assert.deepEqual(buildEmbeddedPrintAnnotationSnapshot(annotations), []);
 });
 
 test('owners can fetch and revision-save private print annotation documents', async () => {

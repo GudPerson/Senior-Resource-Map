@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-10-09T18:51:13.687704+00:00",
+  "scope": "Care Map client/server total stored annotation points raised together from 2000 to 20000",
+  "referencePublicSource": "c8bd4e239cabc5852bc3721f477633fa11b96b6a",
+  "sourceChecks": {
+    "focused": 23,
+    "compiler": 17,
+    "cms": 73,
+    "server": 1183,
+    "client": 975,
+    "environment": 5,
+    "staticChecks": true,
+    "productionClientBuild": true,
+    "lockedMap": 112,
+    "fixedSurfaceBuild": true
+  },
+  "controlledBrowser": {
+    "capacityCasesPassed": 5,
+    "focusedLegibleExportCasesPassed": 1,
+    "acceptedBrowseProfiles": 4,
+    "maxStoredPoints": 20000,
+    "polygonCount": 50,
+    "exactCornersPerPolygon": 200,
+    "actualValidatorUsed": true,
+    "fictionalPersistence": true,
+    "syntheticTiles": true,
+    "pngDimensions": [
+      5920,
+      4740
+    ]
+  },
+  "performanceBoundary": "Controlled browser profiles do not reproduce or disprove physical mobile/tablet sluggishness. No production performance change was implemented.",
+  "retainedLimitations": [
+    "Initial toolbar-hit measurements are invalid performance evidence.",
+    "Selected-edit profiling timed out and is retained as failed.",
+    "Initial export long labels obscured small polygons; focused short-label export passed visual inspection.",
+    "No production map/resource/media writes or physical-device UAT are claimed."
+  ],
+  "otherLimitsPreserved": {
+    "annotations": 100,
+    "cornersPerImportedPolygon": 200,
+    "kmlBytes": 2097152,
+    "images": 20,
+    "resourceBindings": 2000
+  },
+  "evidenceRoot": "/private/tmp/care-map-points-20261010",
+  "artifacts": [
+    {
+      "path": "quality.log",
+      "bytes": 520248,
+      "sha256": "9b15dc70147a8bb1466d56f56cfededa3803897feaaf2e1f922ab4469e798ab6"
+    },
+    {
+      "path": "map-lockdown.log",
+      "bytes": 38138,
+      "sha256": "a299f03eaa261a8b7e43082dd3b83a7fbada565703bc788b5349df71c00af6fd"
+    },
+    {
+      "path": "browser/capacity-acceptance.json",
+      "bytes": 4441,
+      "sha256": "d1b377dcccf2c3affbeb10bd52c6cd8318c78bcdd9cc1cbada65e64dcd9dd89c"
+    },
+    {
+      "path": "browser/capacity-report.json",
+      "bytes": 2023,
+      "sha256": "dc288250474ad9723a63070a3ffe2fbbfb62321ce35224162f237ea262516931"
+    },
+    {
+      "path": "browser/export-report.json",
+      "bytes": 408,
+      "sha256": "87b5b356357d9bcf4579d6d6c18e07a87eaf408daebe5e42bf1b1d08a94c617d"
+    },
+    {
+      "path": "browser/capacity-export.png",
+      "bytes": 1213765,
+      "sha256": "d4932f23e995455b02f401f7dff57b95f67b73c7dcd0e861f6386fa16008736e"
+    },
+    {
+      "path": "browser/capacity-export.pdf",
+      "bytes": 1200644,
+      "sha256": "528451b26c68476073733d7babcd91a1ac0c2bfd0e1f943fc65455c9ab660ca2"
+    },
+    {
+      "path": "browser/profile-selection-failed.json",
+      "bytes": 997,
+      "sha256": "b175b36620fd1aabecb89db677ce453b0f9247c58df1fa64d9638054944538e4"
+    }
+  ],
+  "productionAccepted": false
+}

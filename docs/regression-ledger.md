@@ -1,5 +1,13 @@
 # Regression Ledger
 
+## 10 October 2026 — Care Map annotation capacity 20,000 — release candidate
+
+- Scope: approved total stored-point budget increases from 2,000 to 20,000 in client normalisation/import preflight and the matching owner API validator. The known-good starting release is public `c8bd4e23`, private `8efa6d33`, accepted normal publisher run `37964310677`.
+- Protect: 100 annotations, 200 corners per imported polygon, 2 MB KML files, exact coordinates/styles, whole-batch import refusal, revisions, owner-only access, private boundaries, sharing/embed exclusions, existing rounded drawings, images/bindings/hover, fixed map surfaces and export behaviour. No schema, credentials, authored Help content or unrelated renderer changes.
+- Accept: import 50 simple polygons with 200 corners each (20,000 stored points), save, Undo/Redo and reopen with every corner intact. Export all visible polygons using owner PNG/PDF. Reject one extra stored point on the server and a further boundary in the importer without changing the saved document. Previously valid maps must remain valid.
+- Verification: focused client/server checks pass 23/23; controlled actual-component browser acceptance passes five capacity cases, including full-capacity export. Four corrected mobile/tablet browse profiles are exploratory synthetic measurements, not physical-device performance proof. Earlier invalid/failed profile attempts remain separate. Final source gates pass: compiler 17, CMS 73, server 1,183, client 975, environment 5, static checks and production client build. Locked-map checks pass 112/112 with the fixed-surface build. A separate legible full-capacity PNG/PDF export passes visual inspection. See `docs/evidence/care-map-point-limit-local-20261010.json`. Accepted production evidence remains a separate release gate.
+- See `docs/plans/care-map-mobile-tablet-performance-20261010.md`. Performance exploration is read-only; no performance optimisation is claimed as deployed.
+
 ## 10 October 2026 — Private Care Map KML boundary import — release candidate
 
 User approved boundaries-only preview/selection importing Google My Maps `.kml` exports. Isolated branch `codex/care-map-kml-boundaries-20261010` starts from accepted public `cb70ea15`; the dirty primary and latest authored Help library are protected. Read `docs/plans/care-map-kml-boundaries-20261010.md` for the scope and evidence.

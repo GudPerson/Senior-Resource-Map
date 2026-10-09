@@ -1,5 +1,13 @@
 # CareAround SG session handoff
 
+## 10 October 2026 — Care Map 20,000 stored-point budget — release candidate
+
+Approved scope: raise the total annotation budget to 20,000 in client and server together. Keep other import/document limits, geometry, privacy, revisions and exports intact. Work is isolated on `codex/care-map-point-limit-20261010` from accepted public `c8bd4e23`; unrelated primary work is preserved. Twenty-three focused checks and five full-capacity browser cases pass, including save/reopen/Undo/Redo and actual owner PNG/PDF with synthetic tiles and fictional persistence.
+
+The user also asked to explore smoother mobile/tablet performance. Four corrected 4× CPU/screen-emulated browse profiles pass; production desktop map 355 has 12 boundaries/1,628 stored points and eight Detailed image chunks (111.9 MiB estimated RGBA bitmap footprint). These observations do not diagnose physical devices or prove a production speed improvement. Earlier invalid toolbar measurements and a selection-profile timeout are retained. See `docs/plans/care-map-mobile-tablet-performance-20261010.md` for a scoped device-first follow-up. No rendering or map-surface change is included.
+
+Final source gates pass: compiler 17, CMS 73, server 1,183, client 975, environment 5, static checks, production client build and locked-map 112/112 with the fixed-surface build. The focused legible PNG/PDF export passes visual inspection. Evidence: `docs/evidence/care-map-point-limit-local-20261010.json`. Next release gates: scoped review, commit/push, then unchanged normal private publisher with a fresh owner baseline. Require exact approved snapshot/receipt, all four publisher gates, paired Worker/Pages provenance, authored-library preservation and fresh complete custom-domain parity. Production remains at the previous budget until the new release is independently accepted.
+
 ## 10 October 2026 — Private Care Map KML boundary import — release candidate
 
 User approved boundaries-only preview/selection importing Google My Maps `.kml` exports. Isolated branch `codex/care-map-kml-boundaries-20261010` starts from accepted public `cb70ea15`; the dirty primary and latest authored Help library are protected. Read `docs/plans/care-map-kml-boundaries-20261010.md` for the scope and evidence.
