@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-10",
+  "scope": "Private owner Care Map mobile fullscreen exit gestures",
+  "baseline": "f76a4fa5d644b7b83a02784e31133e12fa9b28fa",
+  "before": {
+    "nativeOwnerTouchCases": 2,
+    "failed": 2,
+    "errors": 0,
+    "unexpectedRequests": 0,
+    "movedDistance": 0.0031880914375339016,
+    "settledDistance": 0
+  },
+  "handlerRegression": {
+    "before": {
+      "passed": 3,
+      "failed": 4
+    },
+    "afterFocused": {
+      "passed": 41,
+      "failed": 0
+    }
+  },
+  "after": {
+    "phone": {
+      "cases": 7,
+      "passed": true,
+      "errors": 0,
+      "unexpectedRequests": 0,
+      "movedDistance": 0.0031880914375339016,
+      "settledDistance": 0.0031880914375339016
+    },
+    "tablet": {
+      "cases": 7,
+      "passed": true,
+      "errors": 0,
+      "unexpectedRequests": 0,
+      "movedDistance": 0.0031880914375339016,
+      "settledDistance": 0.0031880914375339016
+    }
+  },
+  "boundary": "Actual owner page, Leaflet and gesture handlers with fictional API responses, synthetic tiles and native Chromium touch. Screen emulation is not physical Android device UAT. No production map writes or performance-speed claim.",
+  "finalGates": {
+    "quality": true,
+    "compilerTests": 17,
+    "cmsTests": 73,
+    "serverTests": 1183,
+    "clientTests": 982,
+    "environmentTests": 5,
+    "lockedMapTests": 112,
+    "productionBuild": true,
+    "lockedSurfaceBuild": true,
+    "genericCredentialedSmoke": "not claimed; separate from the focused native-touch regression loop",
+    "physicalDeviceUat": "pending"
+  }
+}

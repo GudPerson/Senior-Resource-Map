@@ -1,5 +1,15 @@
 # CareAround SG session handoff
 
+## 10 October 2026 — Private mobile fullscreen pan fix — release candidate
+
+Android Chrome panning near the bottom of the fullscreen owner Care Map activated its overlay's exit gesture. That accidental exit also displayed the retained inline map's earlier camera, reproducing both reported symptoms. Ordinary centre panning on the actual owner page retained its camera, so no unproven camera or rendering change is included.
+
+The narrow owner-only guard excludes Leaflet-origin touches, rejects multi-finger/changed-touch exit gestures and treats cancellation separately from completion. Explicit return, deliberate outside-map bottom-edge swipe and existing Shared Map behavior remain. Seven handler regressions were red before the fix; focused coverage now passes 41/41. Seven native-touch scenarios pass on each of phone/tablet viewport tests using the actual owner page, fictional APIs and synthetic tiles. This does not claim physical Android UAT, production map writes or faster rendering.
+
+Final source gates pass: compiler 17, CMS 73, server 1,183, client 982, environment 5, static checks, production client build and locked-map 112/112 with its fixed-surface build. Scoped diff review passes; temporary fixtures are removed. Generic credentialed smoke is not claimed. Production release evidence remains separate from physical-device UAT.
+
+Work is isolated on `codex/mobile-fullscreen-pan-20261010` in `output/care-map-labels-release-20261007` from accepted `f76a4fa5`. Preserve the dirty primary. See the current regression entry and `docs/evidence/care-map-mobile-fullscreen-local-20261010.json`. Complete final quality/map/build checks and scoped review, then carry the existing commit/push/deploy authority through the unchanged normal publisher. Verify unchanged authored content, all four gates, exact snapshot/job/run/receipt, paired Worker/Pages provenance, workspace promotion/cleared lock and full fresh public artifact parity. Physical Android Chrome reproduction is the decisive follow-up after production acceptance.
+
 ## 10 October 2026 — Care Map 20,000 stored-point budget — release candidate
 
 Approved scope: raise the total annotation budget to 20,000 in client and server together. Keep other import/document limits, geometry, privacy, revisions and exports intact. Work is isolated on `codex/care-map-point-limit-20261010` from accepted public `c8bd4e23`; unrelated primary work is preserved. Twenty-three focused checks and five full-capacity browser cases pass, including save/reopen/Undo/Redo and actual owner PNG/PDF with synthetic tiles and fictional persistence.

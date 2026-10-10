@@ -3768,13 +3768,15 @@ function SharedMapDirectoryListContent({
 
     function handleMobileFullMapTouchStart(event) {
         const touch = event.touches?.[0];
-        if (!touch || typeof window === 'undefined') {
+        const privateMapGesture = mode === 'owner';
+        if (!touch || typeof window === 'undefined'
+            || (privateMapGesture && (event.touches.length !== 1 || event.target?.closest?.('.leaflet-container')))) {
             mobileFullMapSwipeRef.current = null;
             return;
         }
         const startsNearBottom = touch.clientY >= window.innerHeight - MOBILE_FULL_MAP_BOTTOM_EDGE_PX;
         mobileFullMapSwipeRef.current = startsNearBottom
-            ? { startY: touch.clientY, deltaY: 0 }
+            ? { startY: touch.clientY, deltaY: 0, touchIdentifier: touch.identifier }
             : null;
     }
 
@@ -3782,6 +3784,10 @@ function SharedMapDirectoryListContent({
         const swipeState = mobileFullMapSwipeRef.current;
         const touch = event.touches?.[0];
         if (!swipeState || !touch) return;
+        if (mode === 'owner' && (event.touches.length !== 1 || touch.identifier !== swipeState.touchIdentifier)) {
+            mobileFullMapSwipeRef.current = null;
+            return;
+        }
         swipeState.deltaY = touch.clientY - swipeState.startY;
     }
 
@@ -3790,6 +3796,14 @@ function SharedMapDirectoryListContent({
         mobileFullMapSwipeRef.current = null;
         if (!swipeState || swipeState.deltaY > -MOBILE_FULL_MAP_EXIT_SWIPE_PX) return;
         closeMobileFullMap();
+    }
+
+    function handleMobileFullMapTouchCancel() {
+        if (mode === 'owner') {
+            mobileFullMapSwipeRef.current = null;
+            return;
+        }
+        handleMobileFullMapTouchEnd();
     }
 
     useEffect(() => {
@@ -4097,7 +4111,7 @@ function SharedMapDirectoryListContent({
                             onTouchStart={handleMobileFullMapTouchStart}
                             onTouchMove={handleMobileFullMapTouchMove}
                             onTouchEnd={handleMobileFullMapTouchEnd}
-                            onTouchCancel={handleMobileFullMapTouchEnd}
+                            onTouchCancel={handleMobileFullMapTouchCancel}
                         >
                             <div className="relative min-h-0 flex-1 disable-font-scaling">
                                 {mobileFullMapElement ? React.cloneElement(mobileFullMapElement, {
