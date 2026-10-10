@@ -25,7 +25,7 @@ test('invalid, open, duplicate, crossing, zero-area and altitude rings are refus
     assert.throws(() => parseKmlRing(ring.replace(',0', ',10')), code('altitude'));
 });
 test('dense boundaries fail before normalization can truncate any corner', () => {
-    const huge = Array.from({ length: 201 }, (_, i) => [1.3 + i / 1000, 103.7]);
+    const huge = Array.from({ length: 1001 }, (_, i) => [1.3 + i / 10000, 103.7]);
     assert.throws(() => appendKmlBoundaries([], [{ ...area, points: huge }]), code('vertices'));
     assert.throws(() => parseKmlRing([...huge, huge[0]].map(([lat, lng]) => `${lng},${lat}`).join(' ')), code('vertices'));
 });

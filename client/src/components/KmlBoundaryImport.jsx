@@ -82,8 +82,8 @@ export default function KmlBoundaryImport({ mapId, annotations, disabled = false
                         {result ? <>
                             {!result.boundaries.length ? <p role="status">{m.noAreas}</p> : <>
                                 <svg viewBox="0 0 600 300" role="img" aria-label={m.preview} className="w-full rounded-lg bg-slate-100">
-                                    {preview.map(item => <polygon key={item.key} points={item.svgPoints} fill={item.style.fillColor} fillOpacity={selected.has(item.key) ? item.style.fillOpacity : 0.03}
-                                        stroke={item.style.color} strokeOpacity={selected.has(item.key) ? item.style.strokeOpacity : 0.15} strokeWidth={item.style.weight} vectorEffect="non-scaling-stroke"><title>{item.name}</title></polygon>)}
+                                    {preview.flatMap(item => item.svgPaths.map((path, index) => <path key={`${item.key}:${index}`} d={path} fillRule="evenodd" fill={item.style.fillColor} fillOpacity={selected.has(item.key) ? item.style.fillOpacity : 0.03}
+                                        stroke={item.style.color} strokeOpacity={selected.has(item.key) ? item.style.strokeOpacity : 0.15} strokeWidth={item.style.weight} vectorEffect="non-scaling-stroke"><title>{item.name}</title></path>))}
                                 </svg>
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <h3 className="font-bold text-slate-900">{m.select} · {areas.length} {m.selected}</h3>
@@ -95,7 +95,7 @@ export default function KmlBoundaryImport({ mapId, annotations, disabled = false
                                         <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-brand-700" checked={selected.has(item.key)} onChange={event => setSelected(current => {
                                             const next = new Set(current); if (event.target.checked) next.add(item.key); else next.delete(item.key); return next;
                                         })} />
-                                        <span className="min-w-0"><span className="block break-words font-semibold text-slate-900">{item.name}</span><span className="block break-words text-xs text-slate-500">{item.folder} · {item.points.length} {m.corners}</span></span>
+                                        <span className="min-w-0"><span className="block break-words font-semibold text-slate-900">{item.name}</span><span className="block break-words text-xs text-slate-500">{item.folder} · {item.boundaryParts ? `${item.boundaryParts.length} ${m.parts} · ${item.boundaryParts.reduce((sum, rings) => sum + rings.length - 1, 0)} ${m.holes} · ` : ''}{item.points.length} {m.corners}</span></span>
                                     </label>
                                     <details><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-brand-800">{m.styles}</summary>
                                         <div className="grid grid-cols-2 gap-3 pt-2 sm:grid-cols-3">

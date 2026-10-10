@@ -110,6 +110,22 @@ test('private KML boundaries preserve source appearance, revision conflicts and 
     await assert.rejects(replacePrintAnnotationDocument(createFakeDb({ ownsMap: false }), OWNER, MAP_ID, body), error => error.status === 404);
 });
 
+test('multipart parts and holes round-trip through owner persistence with revision and privacy protection', async () => {
+    const parts = [[900, 10], [800]];
+    const boundary = appendKmlBoundaries([], [{ name: 'Multipart source',
+        points: parts.flatMap(rings => rings.flatMap(count => createBoundaryPoints(count))),
+        boundaryParts: parts, style: {} }])[0];
+    const db = createFakeDb();
+    const body = validatePrintAnnotationDocumentInput({ schemaVersion: 1, revision: 0, annotations: [boundary] });
+    const saved = await replacePrintAnnotationDocument(db, OWNER, MAP_ID, body);
+    assert.deepEqual(saved.annotations, [boundary]);
+    assert.deepEqual((await getPrintAnnotationDocument(db, OWNER, MAP_ID)).annotations, [boundary]);
+    assert.deepEqual(JSON.parse(JSON.stringify(db.state.document.annotations)), [boundary]);
+    await assert.rejects(replacePrintAnnotationDocument(db, OWNER, MAP_ID, body), error => error.status === 409);
+    await assert.rejects(getPrintAnnotationDocument(createFakeDb({ ownsMap: false }), OWNER, MAP_ID), error => error.status === 404);
+    assert.deepEqual(buildEmbeddedPrintAnnotationSnapshot(saved.annotations), []);
+});
+
 test('import discriminator cannot grant sharing, change non-polygon styles or lose corners', () => {
     const boundary = createPolygon({ boundarySource: 'kml', isShared: false,
         style: { ...createPolygon().style, weight: 1.2, fillOpacity: 0.8, strokeOpacity: 0.4 } });

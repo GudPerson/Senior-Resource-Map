@@ -1,0 +1,111 @@
+{
+  "date": "2026-10-10",
+  "baseline": "839f2f6d079c255f49007fc8101424cf7bf1311b",
+  "scope": "exact KML multipart/holes, 1000 corners per polygon part including holes, 20000 stored points",
+  "focused": {
+    "passed": 72,
+    "failed": 0
+  },
+  "browser": {
+    "passed": 11,
+    "cases": [
+      {
+        "name": "Sample 1: native parser matches every source polygon ring exactly",
+        "passed": true
+      },
+      {
+        "name": "Sample 2: native parser matches every source polygon ring exactly",
+        "passed": true
+      },
+      {
+        "name": "Sample 3: native parser matches every source polygon ring exactly",
+        "passed": true
+      },
+      {
+        "name": "Invalid holes, mixed geometries, oversized parts and external entities fail without fetching",
+        "passed": true
+      },
+      {
+        "name": "Native preview contains all seven groups including multipart counts and holes; cancellation saves nothing",
+        "passed": true
+      },
+      {
+        "name": "Confirmed import saves all 3266 corners, 16 multipart parts and six holes atomically and privately",
+        "passed": true
+      },
+      {
+        "name": "Undo/redo and reload preserve all rings and coordinates",
+        "passed": true
+      },
+      {
+        "name": "Actual Leaflet display preserves 22 polygon rings plus six hole subpaths; saved visibility is grouped",
+        "passed": true
+      },
+      {
+        "name": "Four translated import dialogs remain within a mobile width",
+        "passed": true
+      },
+      {
+        "name": "Production owner PNG and PDF exporter includes the complete private boundaries and respects grouped visibility",
+        "passed": true
+      },
+      {
+        "name": "Actual SVG fill leaves holes open and overlapping multipart areas filled for either source winding",
+        "passed": true
+      }
+    ],
+    "samples": [
+      {
+        "file": "/Users/sweetbuns/Downloads/TPTC 2026 Map (Website).kml",
+        "boundaries": 7,
+        "skipped": 8,
+        "corners": 3266,
+        "parts": 22,
+        "holes": 6
+      },
+      {
+        "file": "/Users/sweetbuns/Downloads/WCJWTC Town Map.kml",
+        "boundaries": 7,
+        "skipped": 0,
+        "corners": 297,
+        "parts": 7,
+        "holes": 0
+      },
+      {
+        "file": "/Users/sweetbuns/Downloads/Chua Chu Kang GRC and Bukit Gombak SMC Town Map.kml",
+        "boundaries": 5,
+        "skipped": 5,
+        "corners": 517,
+        "parts": 5,
+        "holes": 0
+      }
+    ],
+    "leaflet": {
+      "corners": 3266,
+      "rings": 28,
+      "smoothFactor": 0,
+      "fillRule": "nonzero"
+    },
+    "pageErrors": 0,
+    "unexpectedRequests": 0,
+    "proofBoundary": "fictional owner persistence, synthetic basemap; native browser and production component/export paths; no production map writes or physical-device claim"
+  },
+  "quality": {
+    "compiler": 17,
+    "cms": 73,
+    "server": 1189,
+    "client": 1003,
+    "environment": 5,
+    "static": "passed",
+    "productionBuild": "passed"
+  },
+  "privateEvidence": "/private/tmp/care-map-kml-multipart-20261010/",
+  "production": "pending independent normal publisher acceptance",
+  "failedAttemptsRetained": true,
+  "lockedMap": {
+    "passed": 112,
+    "failed": 0,
+    "fixedSurfaceBuild": "passed"
+  },
+  "review": "scoped diff reviewed; unchanged ordinary drawing limits, private snapshots, pin/camera/fullscreen contracts; fixtures removed; graft refreshed"
+}

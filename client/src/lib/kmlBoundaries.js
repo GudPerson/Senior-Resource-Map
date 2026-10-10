@@ -1,8 +1,9 @@
 import {
     createPrintAnnotationId, normalizePrintAnnotation,
-    PRINT_ANNOTATION_MAX_COUNT, PRINT_ANNOTATION_MAX_CONTROL_POINTS,
+    PRINT_ANNOTATION_MAX_COUNT,
     PRINT_ANNOTATION_MAX_TOTAL_POINTS,
 } from './printAnnotations.js';
+import { KML_MAX_POLYGON_CORNERS, normalizeKmlBoundaryParts, splitKmlBoundaryParts } from '../../../shared/kmlBoundaryGeometry.js';
 
 export const KML_MAX_BYTES = 2 * 1024 * 1024;
 export const KML_MAX_PLACEMARKS = 200;
@@ -36,7 +37,7 @@ function intersects(a, b, c, d) {
 
 export function parseKmlRing(value) {
     const tuples = String(value).trim().split(/\s+/);
-    if (tuples.length > PRINT_ANNOTATION_MAX_CONTROL_POINTS + 1) fail('vertices');
+    if (tuples.length > KML_MAX_POLYGON_CORNERS + 1) fail('vertices');
     const number = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
     const points = tuples.map(tuple => {
         const parts = tuple.split(',');
@@ -79,6 +80,62 @@ function readStyle(element, base) {
         ...(fillFlag === '0' ? { fillOpacity: 0 } : {}) };
 }
 
+function ringContains(ring, point, includeBoundary = true) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const a = ring[j], b = ring[i];
+        if (cross(a, b, point) === 0 && between(a, b, point)) return includeBoundary;
+        if ((a[0] > point[0]) !== (b[0] > point[0])
+            && point[1] < (b[1] - a[1]) * (point[0] - a[0]) / (b[0] - a[0]) + a[1]) inside = !inside;
+    }
+    return inside;
+}
+
+function ringsCross(left, right) {
+    for (let i = 0; i < left.length; i++) for (let j = 0; j < right.length; j++) {
+        const a = left[i], b = left[(i + 1) % left.length], c = right[j], d = right[(j + 1) % right.length];
+        const x = cross(a, b, c), y = cross(a, b, d), z = cross(c, d, a), w = cross(c, d, b);
+        if ((x > 0 && y < 0 || x < 0 && y > 0) && (z > 0 && w < 0 || z < 0 && w > 0)) return true;
+    }
+    return false;
+}
+
+function readPolygon(polygon) {
+    const outer = children(polygon, 'outerBoundaryIs');
+    if (outer.length !== 1) fail('ring');
+    const rings = [outer[0], ...children(polygon, 'innerBoundaryIs')].map(boundary => {
+        const linearRings = children(boundary, 'LinearRing');
+        if (linearRings.length !== 1 || children(linearRings[0], 'coordinates').length !== 1) fail('ring');
+        return parseKmlRing(text(linearRings[0], 'coordinates'));
+    });
+    if (rings.reduce((sum, ring) => sum + ring.length, 0) > KML_MAX_POLYGON_CORNERS) fail('vertices');
+    for (let i = 1; i < rings.length; i++) {
+        if (ringsCross(rings[0], rings[i]) || rings[i].some(point => !ringContains(rings[0], point))) fail('holes');
+        for (let j = 1; j < i; j++) {
+            const left = rings[j], right = rings[i];
+            if (ringsCross(left, right)
+                || right.some(point => ringContains(left, point, false))
+                || left.some(point => ringContains(right, point, false))
+                || right.every(point => ringContains(left, point))
+                || left.every(point => ringContains(right, point))) fail('holes');
+        }
+    }
+    return rings;
+}
+
+function readGeometry(element, depth = 0) {
+    if (depth > 8) fail('geometry');
+    const geometries = Array.from(element.children || []).filter(item =>
+        ['Polygon', 'MultiGeometry', 'Point', 'LineString', 'LinearRing', 'Model', 'Track', 'MultiTrack'].includes(item.localName));
+    if (!geometries.length || (element.localName === 'Placemark' && geometries.length !== 1)) fail('geometry');
+    return geometries.flatMap(geometry => {
+        if (geometry.namespaceURI !== KML_NAMESPACE) fail('geometry');
+        if (geometry.localName === 'Polygon') return [readPolygon(geometry)];
+        if (geometry.localName === 'MultiGeometry') return readGeometry(geometry, depth + 1);
+        fail('geometry');
+    });
+}
+
 export function parseKmlBoundaries(xml, { Parser = globalThis.DOMParser } = {}) {
     if (typeof xml !== 'string' || new TextEncoder().encode(xml).length > KML_MAX_BYTES) fail('size');
     if (/<!\s*(?:DOCTYPE|ENTITY)\b/i.test(xml)) fail('xml');
@@ -116,19 +173,16 @@ export function parseKmlBoundaries(xml, { Parser = globalThis.DOMParser } = {}) 
         const name = text(placemark, 'name').replace(/\s+/g, ' ');
         const item = { key: `kml_${index}`, name };
         try {
-            const polygons = children(placemark, 'Polygon');
-            if (polygons.length !== 1 || children(placemark, 'MultiGeometry').length) fail('geometry');
-            const polygon = polygons[0];
-            if (children(polygon, 'innerBoundaryIs').length) fail('holes');
             if (!name || name.length > 240) fail('name');
-            const outer = children(polygon, 'outerBoundaryIs');
-            const rings = outer.length === 1 ? children(outer[0], 'LinearRing') : [];
-            if (rings.length !== 1 || children(rings[0], 'coordinates').length !== 1) fail('ring');
-            const points = parseKmlRing(text(rings[0], 'coordinates'));
+            const parts = readGeometry(placemark);
+            const points = parts.flat(2);
+            const boundaryParts = parts.map(rings => rings.map(ring => ring.length));
+            if (!normalizeKmlBoundaryParts(boundaryParts, points.length)) fail('budget');
             const style = readStyle(child(placemark, 'Style'), resolveStyle(text(placemark, 'styleUrl')));
             let folder = placemark.parentElement;
             while (folder && folder.localName !== 'Folder') folder = folder.parentElement;
-            boundaries.push({ ...item, folder: text(folder, 'name').slice(0, 160), points, style });
+            boundaries.push({ ...item, folder: text(folder, 'name').slice(0, 160), points, style,
+                ...(parts.length > 1 || parts[0].length > 1 ? { boundaryParts } : {}) });
         } catch (error) {
             if (!(error instanceof KmlBoundaryError)) throw error;
             skipped.push({ ...item, reason: error.code });
@@ -146,12 +200,13 @@ export function getKmlImportCapacity(existing = [], boundaries = []) {
 }
 
 export function appendKmlBoundaries(existing, boundaries) {
-    if (boundaries.some(item => item.points.length > PRINT_ANNOTATION_MAX_CONTROL_POINTS)) fail('vertices');
+    if (boundaries.some(item => !normalizeKmlBoundaryParts(item.boundaryParts, item.points.length))) fail('vertices');
     const capacity = getKmlImportCapacity(existing, boundaries);
     if (capacity) fail(capacity);
     const imported = boundaries.map(boundary => normalizePrintAnnotation({
         id: createPrintAnnotationId(), type: 'polygon', boundarySource: 'kml', isShared: false,
         points: boundary.points, controlPoints: boundary.points, text: boundary.name, style: boundary.style,
+        ...(boundary.boundaryParts ? { boundaryParts: boundary.boundaryParts } : {}),
     }));
     if (imported.some((item, index) => !item || item.points.length !== boundaries[index].points.length
         || item.controlPoints.length !== boundaries[index].points.length)) fail('vertices');
@@ -167,5 +222,7 @@ export function buildKmlBoundaryPreview(boundaries) {
     const scale = Math.min(560 / Math.max((maxLng - minLng) * longitudeScale, 1e-8), 260 / Math.max(maxLat - minLat, 1e-8));
     const xOffset = (600 - (maxLng - minLng) * longitudeScale * scale) / 2;
     const yOffset = (300 - (maxLat - minLat) * scale) / 2;
-    return boundaries.map(boundary => ({ ...boundary, svgPoints: boundary.points.map(([lat, lng]) => `${xOffset + (lng - minLng) * longitudeScale * scale},${yOffset + (maxLat - lat) * scale}`).join(' ') }));
+    const project = ([lat, lng]) => `${xOffset + (lng - minLng) * longitudeScale * scale},${yOffset + (maxLat - lat) * scale}`;
+    return boundaries.map(boundary => ({ ...boundary, svgPoints: boundary.points.map(project).join(' '),
+        svgPaths: splitKmlBoundaryParts(boundary.points, boundary.boundaryParts).map(rings => rings.map(ring => `M${ring.map(project).join(' L')}Z`).join(' ')) }));
 }

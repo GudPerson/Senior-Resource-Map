@@ -33,7 +33,7 @@ test('actual Guide gives the four-language KML preview workflow without model or
         const question = 'How do I import KML boundaries from Google My Maps?';
         const { status, answer } = await h.ask({ question, pageContext: 'My Maps', locale });
         assert.equal(status, 200); assert.equal(answer.topicId, 'map-private-kml-boundaries');
-        assert.ok(answer.message.includes(caption)); assert.ok(answer.message.includes('200'));
+        assert.ok(answer.message.includes(caption)); assert.ok(answer.message.includes('1,000') && answer.message.includes('20,000'));
         assert.ok(answer.message.includes('KMZ')); assert.ok(answer.message.includes('PNG/PDF'));
         assert.ok(answer.message.length <= 1600); assert.deepEqual(answer.input, { question });
         assert.deepEqual(answer.actions, [{ label: open[locale], route: '/my-directory?section=my-maps' }]);

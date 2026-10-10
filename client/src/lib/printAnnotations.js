@@ -1,5 +1,6 @@
 import { getAnnotationResourceLinkBudget, normalizeAnnotationResourceLinks, normalizeAnnotationResourceBehaviour } from './annotationResourceLinks.js';
 import { isAnnotationResourceGlowColor, normalizeAnnotationResourceGlowColor } from '../../../shared/annotationAppearance.js';
+import { KML_MAX_GEOMETRY_POINTS, normalizeKmlBoundaryParts, splitKmlBoundaryParts, orientKmlBoundaryDisplayParts } from '../../../shared/kmlBoundaryGeometry.js';
 
 export const PRINT_ANNOTATION_SCHEMA_VERSION = 1;
 export const PRINT_ANNOTATION_MAX_COUNT = 100;
@@ -253,7 +254,10 @@ export function buildRoundedPrintAnnotationPolygon(
 export function normalizePrintAnnotation(annotation) {
     const type = String(annotation?.type || '');
     if (!PRINT_ANNOTATION_DRAW_TOOLS.has(type)) return null;
-    const points = normalizePointList(annotation?.points, PRINT_ANNOTATION_MAX_POINTS);
+    const boundary = type === PRINT_ANNOTATION_TOOL_POLYGON && annotation?.boundarySource === 'kml';
+    const maximum = boundary ? KML_MAX_GEOMETRY_POINTS : PRINT_ANNOTATION_MAX_POINTS;
+    const points = normalizePointList(annotation?.points, maximum);
+    if (boundary && (!Array.isArray(annotation.points) || points.length !== annotation.points.length)) return null;
     const requiredPoints = {
         pin: 1,
         line: 2,
@@ -268,15 +272,18 @@ export function normalizePrintAnnotation(annotation) {
     const imageBounds = type === PRINT_ANNOTATION_TOOL_IMAGE ? normalizePrintAnnotationImageBounds(points) : null;
     if (type === PRINT_ANNOTATION_TOOL_IMAGE && (!image || !imageBounds)) return null;
     const resourceLinks = normalizeAnnotationResourceLinks(annotation?.resourceLinks);
-    const boundary = type === PRINT_ANNOTATION_TOOL_POLYGON && annotation?.boundarySource === 'kml';
 
     const id = String(annotation?.id || '').trim();
     if (!/^[a-z0-9_-]{1,80}$/i.test(id)) return null;
     const text = String(annotation?.text || '').trim().slice(0, 240);
     if (type === PRINT_ANNOTATION_TOOL_PIN && !text) return null;
     const controlPoints = type === PRINT_ANNOTATION_TOOL_POLYGON
-        ? normalizePointList(annotation?.controlPoints, PRINT_ANNOTATION_MAX_CONTROL_POINTS)
+        ? normalizePointList(annotation?.controlPoints, boundary ? KML_MAX_GEOMETRY_POINTS : PRINT_ANNOTATION_MAX_CONTROL_POINTS)
         : [];
+    const boundaryParts = boundary ? normalizeKmlBoundaryParts(annotation.boundaryParts, points.length) : null;
+    if (boundary && (!boundaryParts || controlPoints.length !== points.length
+        || controlPoints.length !== annotation.controlPoints?.length
+        || points.some((point, index) => point[0] !== controlPoints[index]?.[0] || point[1] !== controlPoints[index]?.[1]))) return null;
     const polygonPoints = type === PRINT_ANNOTATION_TOOL_POLYGON && controlPoints.length >= 3
         ? controlPoints
         : points;
@@ -292,6 +299,7 @@ export function normalizePrintAnnotation(annotation) {
         type,
         isShared: type === PRINT_ANNOTATION_TOOL_IMAGE || boundary ? false : Boolean(annotation?.isShared),
         ...(boundary ? { boundarySource: 'kml' } : {}),
+        ...(boundary && annotation.boundaryParts !== undefined ? { boundaryParts } : {}),
         points: type === PRINT_ANNOTATION_TOOL_IMAGE ? imageBounds : type === PRINT_ANNOTATION_TOOL_PIN
             ? points.slice(0, 1)
             : [
@@ -302,7 +310,7 @@ export function normalizePrintAnnotation(annotation) {
                 ? points.slice(0, 2)
                 : polygonPoints,
         ...(type === PRINT_ANNOTATION_TOOL_POLYGON ? {
-            controlPoints: polygonPoints.slice(0, PRINT_ANNOTATION_MAX_CONTROL_POINTS),
+            controlPoints: boundary ? polygonPoints : polygonPoints.slice(0, PRINT_ANNOTATION_MAX_CONTROL_POINTS),
         } : {}),
         ...(rotationDegrees ? { rotationDegrees } : {}),
         ...(image ? { image } : {}),
@@ -316,7 +324,14 @@ export function normalizePrintAnnotation(annotation) {
 }
 
 export function buildPrintAnnotationPolygonPoints(annotation, points = annotation.controlPoints || annotation.points) {
-    return annotation.boundarySource === 'kml' ? points : buildRoundedPrintAnnotationPolygon(points);
+    if (annotation.boundarySource === 'kml') {
+        return annotation.boundaryParts ? orientKmlBoundaryDisplayParts(splitKmlBoundaryParts(points, annotation.boundaryParts)) : points;
+    }
+    return buildRoundedPrintAnnotationPolygon(points);
+}
+
+export function getPrintAnnotationGeometryPointLimit(annotation) {
+    return annotation.boundarySource === 'kml' ? KML_MAX_GEOMETRY_POINTS : PRINT_ANNOTATION_MAX_POINTS;
 }
 
 export function normalizePrintAnnotations(annotations = []) {
@@ -387,6 +402,7 @@ export function duplicatePrintAnnotation(
         sourcePoints,
         sourcePoints[0],
         [sourcePoints[0][0] + latDelta, sourcePoints[0][1] + lngDelta],
+        getPrintAnnotationGeometryPointLimit(source),
     );
     return normalizePrintAnnotation({
         ...source,
@@ -459,10 +475,10 @@ export function buildPrintAnnotationDraftPreviewPoints(type, points, previewPoin
     return [...currentPoints, normalizedPreviewPoint];
 }
 
-export function movePrintAnnotationControlPoint(type, points, pointIndex, point) {
-    const maximum = type === PRINT_ANNOTATION_TOOL_POLYGON
+export function movePrintAnnotationControlPoint(type, points, pointIndex, point, pointLimit) {
+    const maximum = pointLimit ?? (type === PRINT_ANNOTATION_TOOL_POLYGON
         ? PRINT_ANNOTATION_MAX_CONTROL_POINTS
-        : PRINT_ANNOTATION_MAX_POINTS;
+        : PRINT_ANNOTATION_MAX_POINTS);
     const currentPoints = normalizePointList(points, maximum);
     const nextPoint = normalizePrintAnnotationPoint(point);
     if (!nextPoint || pointIndex < 0 || pointIndex >= currentPoints.length) {
@@ -487,8 +503,8 @@ export function movePrintAnnotationControlPoint(type, points, pointIndex, point)
     return nextPoints;
 }
 
-export function getPrintAnnotationPointBoundsCenter(points = []) {
-    const currentPoints = normalizePointList(points, PRINT_ANNOTATION_MAX_POINTS);
+export function getPrintAnnotationPointBoundsCenter(points = [], maximum = PRINT_ANNOTATION_MAX_POINTS) {
+    const currentPoints = normalizePointList(points, maximum);
     if (!currentPoints.length) return null;
     const latitudes = currentPoints.map(([lat]) => lat);
     const longitudes = currentPoints.map(([, lng]) => lng);
@@ -498,8 +514,8 @@ export function getPrintAnnotationPointBoundsCenter(points = []) {
     ];
 }
 
-export function translatePrintAnnotationPoints(points, fromPoint, toPoint) {
-    const currentPoints = normalizePointList(points, PRINT_ANNOTATION_MAX_POINTS);
+export function translatePrintAnnotationPoints(points, fromPoint, toPoint, maximum = PRINT_ANNOTATION_MAX_POINTS) {
+    const currentPoints = normalizePointList(points, maximum);
     const from = normalizePrintAnnotationPoint(fromPoint);
     const to = normalizePrintAnnotationPoint(toPoint);
     if (!currentPoints.length || !from || !to) return currentPoints;
@@ -511,8 +527,8 @@ export function translatePrintAnnotationPoints(points, fromPoint, toPoint) {
     return translated.every(Boolean) ? translated : currentPoints;
 }
 
-export function rotatePrintAnnotationPoints(points, centerPoint, angleDegrees) {
-    const currentPoints = normalizePointList(points, PRINT_ANNOTATION_MAX_POINTS);
+export function rotatePrintAnnotationPoints(points, centerPoint, angleDegrees, maximum = PRINT_ANNOTATION_MAX_POINTS) {
+    const currentPoints = normalizePointList(points, maximum);
     const center = normalizePrintAnnotationPoint(centerPoint);
     const angle = Number(angleDegrees);
     if (!currentPoints.length || !center || !Number.isFinite(angle)) return currentPoints;

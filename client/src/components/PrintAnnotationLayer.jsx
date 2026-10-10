@@ -42,6 +42,7 @@ import {
     createImageAnnotationBounds,
     getPrintAnnotationImageCorners,
     resizePrintAnnotationImageBounds,
+    getPrintAnnotationGeometryPointLimit,
 } from '../lib/printAnnotations.js';
 import '../styles/annotationAttention.css';
 import { useLocale } from '../contexts/LocaleContext.jsx';
@@ -196,7 +197,7 @@ function getPathOptions(annotation, selected = false) {
         color: style.color,
         fillColor: style.fillColor,
         fillOpacity: style.fillOpacity,
-        ...(annotation.boundarySource === 'kml' ? { opacity: style.strokeOpacity } : {}),
+        ...(annotation.boundarySource === 'kml' ? { opacity: style.strokeOpacity, fillRule: 'nonzero', smoothFactor: 0 } : {}),
         weight: style.weight + (selected ? 1 : 0),
         dashArray: style.dashed ? '9 7' : null,
         lineCap: 'round',
@@ -241,7 +242,8 @@ function moveAnnotationControlPoint(annotation, points, pointIndex, point, map) 
             annotation.rotationDegrees,
         );
     }
-    return movePrintAnnotationControlPoint(annotation.type, points, pointIndex, point);
+    return movePrintAnnotationControlPoint(annotation.type, points, pointIndex, point,
+        annotation.boundarySource === 'kml' ? getPrintAnnotationGeometryPointLimit(annotation) : undefined);
 }
 
 function AnnotationVertexHandles({
@@ -370,7 +372,8 @@ function getShapeTextPosition(annotationType, points, displayPoints) {
     if (annotationType === PRINT_ANNOTATION_TOOL_CIRCLE) {
         return points[0];
     }
-    const bounds = L.latLngBounds(displayPoints.map(([lat, lng]) => [lat, lng]));
+    const flatPoints = Array.isArray(displayPoints[0]?.[0]) ? points : displayPoints;
+    const bounds = L.latLngBounds(flatPoints.map(([lat, lng]) => [lat, lng]));
     return bounds.getCenter();
 }
 
@@ -469,7 +472,7 @@ function AnnotationShape({
             nextDisplayPoints,
         ));
         setShapeTextRotation(shapeTextRef.current, nextRotationDegrees);
-    }, [annotation.type, annotation.boundarySource, map]);
+    }, [annotation.type, annotation.boundarySource, annotation.boundaryParts, map]);
     const handleVertexPreview = useCallback((nextPoints) => {
         previewTransformRef.current = { points: nextPoints, rotationDegrees };
         applyTransformPreview(nextPoints, rotationDegrees);
@@ -544,6 +547,7 @@ function AnnotationShape({
             <Polygon
                 ref={shapeRef}
                 positions={displayPoints}
+                {...(annotation.boundarySource === 'kml' ? { smoothFactor: 0 } : {})}
                 pathOptions={pathOptions}
                 eventHandlers={eventHandlers}
                 interactive={interactive}

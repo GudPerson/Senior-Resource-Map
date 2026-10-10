@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { ANNOTATION_RESOURCE_GLOW_COLOR_PATTERN } from '../../../shared/annotationAppearance.js';
+import { KML_MAX_GEOMETRY_POINTS, normalizeKmlBoundaryParts } from '../../../shared/kmlBoundaryGeometry.js';
 
 import { getDb } from '../db/index.js';
 import {
@@ -51,11 +52,12 @@ const printAnnotationSchema = z.object({
     type: z.enum(annotationTypes),
     isShared: z.boolean().optional(),
     boundarySource: z.literal('kml').optional(),
-    points: z.array(coordinateSchema).min(1).max(PRINT_ANNOTATION_MAX_POINTS),
+    points: z.array(coordinateSchema).min(1).max(KML_MAX_GEOMETRY_POINTS),
     controlPoints: z.array(coordinateSchema)
         .min(3)
-        .max(PRINT_ANNOTATION_MAX_CONTROL_POINTS)
+        .max(KML_MAX_GEOMETRY_POINTS)
         .optional(),
+    boundaryParts: z.array(z.array(z.number().int().min(3)).min(1)).min(1).optional(),
     rotationDegrees: z.number().finite().min(-180).max(180).optional(),
     text: z.string().trim().max(PRINT_ANNOTATION_MAX_TEXT_LENGTH).default(''),
     style: annotationStyleSchema,
@@ -76,6 +78,9 @@ const printAnnotationSchema = z.object({
                 || point[1] !== annotation.controlPoints[index][1])) context.addIssue({
             code: z.ZodIssueCode.custom, path: ['controlPoints'], message: 'Imported boundary corners must be retained exactly',
         });
+        if (!normalizeKmlBoundaryParts(annotation.boundaryParts, annotation.points.length)) context.addIssue({
+            code: z.ZodIssueCode.custom, path: ['boundaryParts'], message: 'Imported polygon parts must retain every ring and contain at most 1,000 corners each',
+        });
     } else if (!Number.isInteger(annotation.style.weight) || annotation.style.weight < 1
         || annotation.style.fillOpacity > 0.6 || annotation.style.strokeOpacity !== undefined) context.addIssue({
         code: z.ZodIssueCode.custom, path: ['style'], message: 'Drawing styles require an integer width and fill opacity at most 0.6',
@@ -86,7 +91,7 @@ const printAnnotationSchema = z.object({
         line: [2, 2],
         rectangle: [2, 2],
         circle: [2, 2],
-        polygon: [3, PRINT_ANNOTATION_MAX_POINTS],
+        polygon: [3, annotation.boundarySource === 'kml' ? KML_MAX_GEOMETRY_POINTS : PRINT_ANNOTATION_MAX_POINTS],
         image: [2, 2],
     }[annotation.type];
 
@@ -113,6 +118,9 @@ const printAnnotationSchema = z.object({
             message: 'Control points are only supported for polygon annotations',
         });
     }
+    if (!annotation.boundarySource && (annotation.controlPoints?.length > PRINT_ANNOTATION_MAX_CONTROL_POINTS || annotation.boundaryParts !== undefined)) context.addIssue({
+        code: z.ZodIssueCode.custom, path: ['controlPoints'], message: 'Drawings retain their original control-point limits and cannot contain imported ring metadata',
+    });
 
     if (
         annotation.rotationDegrees !== undefined

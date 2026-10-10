@@ -24,6 +24,7 @@ import {
     normalizePrintAnnotationRotation,
     rotatePrintAnnotationPoints,
     translatePrintAnnotationPoints,
+    getPrintAnnotationGeometryPointLimit,
 } from '../lib/printAnnotations.js';
 
 function createTransformIcon(tool, color) {
@@ -110,7 +111,7 @@ function getTransformCenter(annotation, points) {
     if (annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE) {
         return points[0] || null;
     }
-    return getPrintAnnotationPointBoundsCenter(points);
+    return getPrintAnnotationPointBoundsCenter(points, getPrintAnnotationGeometryPointLimit(annotation));
 }
 
 function getRotationAngle(center, point) {
@@ -200,7 +201,7 @@ export default function PrintAnnotationTransformHandle({
         const target = [latLng.lat, latLng.lng];
         if (tool === PRINT_ANNOTATION_TOOL_MOVE) {
             return {
-                points: translatePrintAnnotationPoints(drag.points, drag.center, target),
+                points: translatePrintAnnotationPoints(drag.points, drag.center, target, getPrintAnnotationGeometryPointLimit(annotation)),
                 rotationDegrees: drag.rotationDegrees,
             };
         }
@@ -212,13 +213,13 @@ export default function PrintAnnotationTransformHandle({
         ].includes(annotation.type);
         return {
             points: rotatesStoredGeometry
-                ? rotatePrintAnnotationPoints(drag.points, drag.center, angleDelta)
+                ? rotatePrintAnnotationPoints(drag.points, drag.center, angleDelta, getPrintAnnotationGeometryPointLimit(annotation))
                 : drag.points,
             rotationDegrees: storesRotation(annotation.type)
                 ? normalizePrintAnnotationRotation(drag.rotationDegrees + angleDelta)
                 : drag.rotationDegrees,
         };
-    }, [annotation.type, tool]);
+    }, [annotation.type, annotation.boundarySource, tool]);
 
     const queuePreview = useCallback((nextTransform, event) => {
         latestEditablePointsRef.current = nextTransform.points;
