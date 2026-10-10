@@ -1,0 +1,867 @@
+{
+  "scope": "Explicit owner Care Map gestures only",
+  "failedProductionReference": "f73b2248041ef2f1fdf526eaf39df9fa544513be",
+  "productionAcceptance": "pending",
+  "boundary": "Fictional coordinates and synthetic imagery; real DirectoryMap; no physical-device or production-write claim",
+  "sourceGates": {
+    "quality": "passed",
+    "mapLockdown": "passed"
+  },
+  "profiles": [
+    {
+      "profile": "desktop",
+      "passed": true,
+      "cases": [
+        {
+          "name": "North-up native surface is ready",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "native",
+            "native": "true",
+            "overview": "true",
+            "images": 1,
+            "bearing": 0,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 45",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 45,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 90",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 90,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 135",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 135,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 180",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "native",
+            "native": "true",
+            "overview": "true",
+            "images": 1,
+            "bearing": 180,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 225",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 225,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 270",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 270,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 315",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 315,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 0",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "native",
+            "native": "true",
+            "overview": "true",
+            "images": 1,
+            "bearing": 0,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Resize keeps a covered background and exact pin",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 45,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Gray surface also stays covered on rotation",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 45,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Non-owner rotation opt-out retains native north-up",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "native",
+            "native": "true",
+            "overview": "true",
+            "images": 1,
+            "bearing": 0,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        }
+      ],
+      "errors": [],
+      "writes": [],
+      "liveTiles": []
+    },
+    {
+      "profile": "phone",
+      "passed": true,
+      "cases": [
+        {
+          "name": "North-up native surface is ready",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "native",
+            "native": "true",
+            "overview": "true",
+            "images": 1,
+            "bearing": 0,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 45",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 45,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 90",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 90,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 135",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 135,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 180",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "native",
+            "native": "true",
+            "overview": "true",
+            "images": 1,
+            "bearing": 180,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 225",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 225,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 270",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 270,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 315",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 315,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 0",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "native",
+            "native": "true",
+            "overview": "true",
+            "images": 1,
+            "bearing": 0,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Resize keeps a covered background and exact pin",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 45,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Gray surface also stays covered on rotation",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 45,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Non-owner rotation opt-out retains native north-up",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "native",
+            "native": "true",
+            "overview": "true",
+            "images": 1,
+            "bearing": 0,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        }
+      ],
+      "errors": [],
+      "writes": [],
+      "liveTiles": []
+    },
+    {
+      "profile": "tablet",
+      "passed": true,
+      "cases": [
+        {
+          "name": "North-up native surface is ready",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "native",
+            "native": "true",
+            "overview": "true",
+            "images": 1,
+            "bearing": 0,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 45",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 45,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 90",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 90,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 135",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 135,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 180",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "native",
+            "native": "true",
+            "overview": "true",
+            "images": 1,
+            "bearing": 180,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 225",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 225,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 270",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 270,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 315",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 315,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Background remains covered at 0",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "native",
+            "native": "true",
+            "overview": "true",
+            "images": 1,
+            "bearing": 0,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Resize keeps a covered background and exact pin",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 45,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Gray surface also stays covered on rotation",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "overview",
+            "native": "false",
+            "overview": "true",
+            "images": 1,
+            "bearing": 45,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        },
+        {
+          "name": "Non-owner rotation opt-out retains native north-up",
+          "passed": true,
+          "snapshot": {
+            "mode": "town",
+            "tier": "native",
+            "native": "true",
+            "overview": "true",
+            "images": 1,
+            "bearing": 0,
+            "zoom": 15.3,
+            "center": [
+              1.2999884956026677,
+              103.84999435474623
+            ],
+            "pin": [
+              [
+                1.3,
+                103.85
+              ]
+            ]
+          }
+        }
+      ],
+      "errors": [],
+      "writes": [],
+      "liveTiles": []
+    }
+  ]
+}

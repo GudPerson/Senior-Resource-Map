@@ -1,5 +1,15 @@
 # Regression Ledger
 
+## 10 October 2026 — Gesture viewport Detailed coverage recovery
+
+The delivered gesture page recovery `f73b2248` opens and handles live desktop inputs, but signed-in acceptance found a second edge: at zoom 15.3, rotating a wide map expands its geographic viewport beyond the local native surface. Zoom-only tier selection left a blank background because the native surface no longer covered the viewport and regular tiles are capped below Detailed zoom.
+
+The narrow DirectoryMap correction applies only to explicit owner gesture opt-in. It selects the existing wider overview atlas when native coverage is false and overview coverage is true, returning to native once it covers the view. The camera, bearing, pin anchors, annotation geometry, memory budgets and standard tile gate stay intact. Non-opted-in/shared/embed/print maps retain the existing tier policy.
+
+Reproduce with a native surface that covers the north-up viewport and a wider overview surface: at zoom 15.3 rotate through every 45-degree angle, resize, repeat in Gray, then reset North. A decoded background must remain visible without moving the camera or pin coordinates, issuing map writes, or requesting regular map tiles. Native coverage must recover on North; non-owner opt-out must retain native north-up.
+
+Verification: 36 controlled actual-DirectoryMap cases pass across desktop/phone/tablet layouts (12 each), with synthetic imagery and fictional coordinates; no errors, writes or live tile requests. The valid pre-fix reproduction and an earlier incorrect image-fixture run remain retained. Full quality passes compiler17/CMS73/server1190/client1003/environment5/static/build; map112 and fixed-surface build pass. See `docs/evidence/care-map-gesture-coverage-20261010.json`. Physical Android PWA/tablet smoothness and final protected production acceptance remain separate gates. Require signed-in live zoom-15.3 rotation, Default/Gray background proof, owner page boot and all protected release provenance gates before closeout.
+
 ## 10 October 2026 — Care Map gesture page initialization recovery
 
 The first delivered gesture source `09dadcf3` failed the live owner-page acceptance gate: `useCareMapGestures` evaluated `isPrintView` before its `const` initialization. Native component checks and the production build did not exercise the whole page's first render. The correction moves the same hook after that flag is initialized; gesture, data, camera, geometry and print contracts stay unchanged.

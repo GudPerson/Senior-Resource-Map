@@ -2875,12 +2875,21 @@ export default function DirectoryMap({
         zoom: fixedTownSurfaceZoom,
         preserveContainmentStep: fixedTownSurfaceContainOnResize,
     });
-    const fixedTownSurfaceTier = resolveFixedTownSurfaceTier({
+    const zoomFixedTownSurfaceTier = resolveFixedTownSurfaceTier({
         zoom: fixedTownSurfaceDisplayZoom,
         nativeMinZoom: resolvedNativeFixedTownSurfaceMinZoom,
         overviewMinZoom: resolvedOverviewFixedTownSurfaceMinZoom,
         overviewConfigured: fixedTownOverviewConfigured,
     });
+    // A rotated viewport can exceed the local native surface while still
+    // fitting the wider atlas. Keep its geographic background without moving
+    // the camera or enabling live tiles above their fallback zoom limit.
+    const fixedTownSurfaceTier = careMapRotationEnabled
+        && zoomFixedTownSurfaceTier === 'native'
+        && fixedTownNativeViewportCovered === false
+        && fixedTownOverviewViewportCovered === true
+        ? 'overview'
+        : zoomFixedTownSurfaceTier;
     const usingFixedTownOverview = fixedTownSurfaceTier === 'overview';
     const activeFixedTownSurfaceManifest = usingFixedTownOverview
         ? fixedTownOverviewSurfaceManifest
