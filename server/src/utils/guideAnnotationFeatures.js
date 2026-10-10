@@ -2,9 +2,11 @@ import { normalizeRole } from './roles.js';
 
 const route = '/my-directory?section=my-maps';
 const reviewed = '2026-10-08';
-const ids = { image: 'map-private-image-annotations', tags: 'map-annotation-resource-links', privacy: 'map-annotation-private-sharing-boundary', boundaries: 'map-private-kml-boundaries' };
+const ids = { image: 'map-private-image-annotations', tags: 'map-annotation-resource-links', privacy: 'map-annotation-private-sharing-boundary', boundaries: 'map-private-kml-boundaries', gestures: 'map-viewing-gestures' };
 const copy = {
     en: {
+        gesturesTitle: "Zoom and rotate your Care Map",
+        gestures: "On a Care Map you own, pinch with two fingers to zoom and twist them to rotate. With a mouse, use the wheel to zoom and hold the right button while dragging to rotate. On a trackpad, pinch to zoom or hold Shift while scrolling with two fingers to rotate. You can also use Rotate left, Rotate right and Reset to north. Rotation works in Full map too. The viewing angle is temporary and does not change saved coordinates. Annotation editing and personal-place placement return the map to north-up. PNG/PDF exports, shared maps and website embeds remain north-up.",
         boundariesTitle: 'Import KML boundaries into a Care Map',
         boundaries: 'Open a Care Map you own on a desktop with a fine pointer. Choose Edit content → Annotate → Import boundaries → Choose KML file. Select a .kml file up to 2 MB. Preview the named areas and select the boundaries to add; expand Adjust appearance to change outline and fill colours, outline width and opacity. Choose Add selected boundaries, then wait for Saved. Cancel leaves your map unchanged; Undo removes the complete import in one step. Exact source corners are retained. Use Edit layout → Annotations to show or hide individual boundaries. Multipart polygons and holes are supported, with up to 1,000 corners per polygon part including its holes, within the 20,000 stored-point map limit. No corners are simplified. Pins, resources, mixed geometry, non-zero altitude, descriptions and external links are excluded; KMZ is not supported yet. Imports remain private and are excluded from shared links and website embeds. Visible saved boundaries can appear in owner PNG/PDF downloads. Importing someone’s drawing does not verify it as an official or current boundary.',
         imageTitle: 'Add a private image to your Care Map', tagsTitle: 'Link an annotation to map resources', privacyTitle: 'Image and resource-link privacy', open: 'Open Care Maps', signIn: 'Sign in to continue',
@@ -13,6 +15,8 @@ const copy = {
         privacy: 'Images and annotation resource links are owner-private and are excluded from shared links and website embeds. Share this annotation and Include annotations apply only to shareable drawing shapes; their existing explicit publishing rules still apply. Owner PNG/PDF downloads can include private images, so review a download before sending it. Downloads are static: temporary selection and pulse effects are not saved or exported.',
     },
     'zh-CN': {
+        gesturesTitle: "缩放和旋转关怀地图",
+        gestures: "在自己拥有的关怀地图中，双指捏合可缩放，双指扭转可旋转。使用鼠标时，滚轮可缩放，按住右键拖动可旋转。使用触控板时，捏合可缩放，按住 Shift 并双指滚动可旋转。也可使用向左旋转、向右旋转及恢复北向上。全屏地图同样支持旋转。浏览角度是临时的，不会改变保存的坐标。编辑标注或放置个人地点时，地图恢复北向上。PNG/PDF 导出、共享地图和网站嵌入保持北向上。",
         boundariesTitle: '将 KML 边界导入关怀地图',
         boundaries: '在配有精细指针的桌面设备上打开自己的关怀地图。选择编辑内容 → 添加标注 → 导入边界 → 选择 KML 文件。选择最大 2 MB 的 .kml 文件。预览具名区域并勾选所需边界；展开调整外观来更改边线和填充颜色、边线宽度及不透明度。选择添加所选边界并等待 Saved。取消不会更改地图；Undo 可一次撤销整个导入。原始角点会完整保留。使用编辑布局 → 标注显示或隐藏各个边界。支持多部分多边形和内部空洞，每部分连同空洞最多 1,000 个角点；地图总上限为 20,000 个存储点。不会简化角点。不会导入图钉、资源、混合几何、非零高度、说明或外部链接；暂不支持 KMZ。导入内容保持私密，不会加入共享链接或网站嵌入。可见且已保存的边界可加入所有者的 PNG/PDF 下载。导入他人的绘图不代表已核实其为官方或最新边界。',
         imageTitle: '在关怀地图中添加私人图片', tagsTitle: '将标注关联到地图资源', privacyTitle: '图片和资源关联的隐私', open: '打开关怀地图', signIn: '登录以继续',
@@ -21,6 +25,8 @@ const copy = {
         privacy: '图片和标注的资源关联仅供地图所有者使用，不会加入共享链接或网站嵌入。Share this annotation 和 Include annotations 仅适用于可共享的绘图形状，仍须按现有规则明确发布。所有者的 PNG/PDF 下载可能包含私人图片，发送前请检查文件。下载为静态内容，不会保存或导出临时选择和闪动效果。',
     },
     ms: {
+        gesturesTitle: "Zum dan putar Peta Penjagaan",
+        gestures: "Pada Peta Penjagaan milik anda, cubit dengan dua jari untuk zum dan putar kedua-duanya untuk memutar peta. Dengan tetikus, gunakan roda untuk zum dan tahan butang kanan sambil menyeret untuk memutar. Pada pad jejak, cubit untuk zum atau tahan Shift sambil menatal dengan dua jari untuk memutar. Anda juga boleh menggunakan Putar ke kiri, Putar ke kanan dan Kembali ke utara. Putaran juga berfungsi dalam Peta penuh. Sudut paparan adalah sementara dan tidak mengubah koordinat tersimpan. Penyuntingan anotasi dan peletakan tempat peribadi mengembalikan peta ke utara. Eksport PNG/PDF, peta kongsi dan benaman laman web kekal menghadap utara.",
         boundariesTitle: 'Import sempadan KML ke Peta Penjagaan',
         boundaries: 'Buka Peta Penjagaan milik anda pada desktop dengan penuding halus. Pilih Edit kandungan → Anotasi → Import sempadan → Pilih fail KML. Pilih fail .kml sehingga 2 MB. Pratonton kawasan bernama dan pilih sempadan untuk ditambah; buka Laraskan rupa untuk menukar warna garisan dan isian, lebar garisan serta kelegapan. Pilih Tambah sempadan dipilih, kemudian tunggu Saved. Batal tidak mengubah peta; Undo membuang seluruh import dalam satu langkah. Penjuru asal dikekalkan tepat. Gunakan Edit susun atur → Anotasi untuk menunjukkan atau menyembunyikan sempadan. Poligon berbilang bahagian dan lubang disokong: sehingga 1,000 penjuru setiap bahagian termasuk lubangnya, dalam had 20,000 titik tersimpan bagi peta. Tiada penjuru dipermudah. Pin, sumber, geometri bercampur, altitud bukan sifar, penerangan dan pautan luar dikecualikan; KMZ belum disokong. Import kekal peribadi dan tidak disertakan dalam pautan kongsi atau benaman. Sempadan kelihatan yang disimpan boleh muncul dalam muat turun PNG/PDF pemilik. Import lukisan orang lain tidak mengesahkannya sebagai sempadan rasmi atau terkini.',
         imageTitle: 'Tambah imej peribadi pada Peta Penjagaan', tagsTitle: 'Pautkan anotasi kepada sumber peta', privacyTitle: 'Privasi imej dan pautan sumber', open: 'Buka Peta Penjagaan', signIn: 'Log masuk untuk meneruskan',
@@ -29,6 +35,8 @@ const copy = {
         privacy: 'Imej dan pautan sumber anotasi adalah peribadi kepada pemilik dan tidak disertakan dalam pautan kongsi atau benaman laman web. Share this annotation dan Include annotations hanya untuk bentuk lukisan yang boleh dikongsi; peraturan penerbitan sedia ada masih terpakai. Muat turun PNG/PDF pemilik boleh mengandungi imej peribadi; semak sebelum menghantarnya. Muat turun adalah statik: pilihan sementara dan denyutan tidak disimpan atau dieksport.',
     },
     ta: {
+        gesturesTitle: "பராமரிப்பு வரைபடத்தின் அளவை மாற்றவும் சுழற்றவும்",
+        gestures: "உங்களுக்குச் சொந்தமான பராமரிப்பு வரைபடத்தில் இரு விரல்களால் அளவை மாற்றவும், விரல்களைத் திருப்பிச் சுழற்றவும். சுட்டியில் உருளை மூலம் அளவை மாற்றவும்; வலது பொத்தானை அழுத்தி இழுத்துச் சுழற்றவும். தொடுபலகையில் இரு விரல்களால் அளவை மாற்றவும் அல்லது Shift அழுத்தி இரு விரல்களால் உருட்டிச் சுழற்றவும். இடப்புறம் சுழற்று, வலப்புறம் சுழற்று, வடக்கு நோக்கித் திருப்பு பொத்தான்களையும் பயன்படுத்தலாம். முழு வரைபடத்திலும் சுழற்சி இயங்கும். பார்வைக் கோணம் தற்காலிகமானது; சேமித்த ஆயத்தொலைவுகளை மாற்றாது. குறிப்புகளைத் திருத்தும்போதும் தனிப்பட்ட இடத்தை வைக்கும்போதும் வரைபடம் வடக்கு நோக்கித் திரும்பும். PNG/PDF ஏற்றுமதி, பகிர்ந்த வரைபடங்கள், இணையப் பதிப்புகள் வடக்கு நோக்கியே இருக்கும்.",
         boundariesTitle: 'பராமரிப்பு வரைபடத்தில் KML எல்லைகளை இறக்குமதி செய்',
         boundaries: 'துல்லியச் சுட்டியுள்ள கணினியில் உங்களுடைய பராமரிப்பு வரைபடத்தைத் திறக்கவும். உள்ளடக்கத்தைத் திருத்து → குறிப்பிடு → எல்லைகளை இறக்குமதி செய் → KML கோப்பைத் தேர்ந்தெடு. 2 MB வரையிலான .kml கோப்பைத் தேர்ந்தெடுக்கவும். பெயருள்ள பகுதிகளை முன்னோட்டமிட்டு எல்லைகளைத் தேர்ந்தெடுக்கவும்; தோற்றத்தை மாற்று மூலம் கோடு மற்றும் நிரப்பு நிறங்கள், கோட்டு அகலம், ஒளிபுகாமை ஆகியவற்றை மாற்றவும். தேர்ந்த எல்லைகளைச் சேர் என்பதைத் தேர்ந்து Saved வரை காத்திருக்கவும். ரத்து வரைபடத்தை மாற்றாது; Undo முழு இறக்குமதியையும் ஒரே படியில் நீக்கும். அசல் மூலைகள் அப்படியே இருக்கும். அமைப்பைத் திருத்து → குறிப்புகள் மூலம் எல்லைகளை காட்டலாம் அல்லது மறைக்கலாம். பல பகுதிகளுள்ள பலகோணங்களும் உள் வெற்றிடங்களும் ஆதரிக்கப்படும். வெற்றிடங்களுடன் ஒவ்வொரு பகுதிக்கும் 1,000 மூலைகள் வரை; வரைபடத்தில் மொத்தம் 20,000 சேமித்த புள்ளிகள் வரை. மூலைகள் எளிமைப்படுத்தப்படாது. ஊசிகள், வளங்கள், கலப்பு வடிவங்கள், பூஜ்ஜியமற்ற உயரம், விளக்கங்கள், வெளி இணைப்புகள் சேராது; KMZ இன்னும் ஆதரிக்கப்படாது. இறக்குமதிகள் தனிப்பட்டவை; பகிர்வு இணைப்புகள் அல்லது இணைய உட்பொதிவுகளில் சேராது. சேமித்த தெரியும் எல்லைகள் உரிமையாளரின் PNG/PDF பதிவிறக்கங்களில் வரலாம். மற்றவரின் வரைபடத்தை இறக்குமதி செய்வது அது அதிகாரப்பூர்வமான அல்லது தற்போதைய எல்லை என்பதை உறுதிப்படுத்தாது.',
         imageTitle: 'பராமரிப்பு வரைபடத்தில் தனிப்பட்ட படத்தைச் சேர்க்கவும்', tagsTitle: 'குறிப்பை வரைபட வளங்களுடன் இணைக்கவும்', privacyTitle: 'படங்கள் மற்றும் வள இணைப்புகளின் தனியுரிமை', open: 'பராமரிப்பு வரைபடங்களைத் திறக்கவும்', signIn: 'தொடர உள்நுழையவும்',
@@ -65,6 +73,8 @@ export function guideAnnotationFeatureIntent(question = '', pageContext = '') {
         || /\b(?:pulse|highlight|appear)\b/.test(q) && /\b(?:effects?|behaviours?|behaviors?|linked\s+(?:cards?|resources?))\b/.test(q);
     if (tag) return 'tags';
     if (image) return 'image';
+    if (map && /\b(?:pinch|zoom (?:in|out)|rotate|rotation|trackpad|mouse wheel|two.finger|zum|putar|pad jejak)\b|\u7f29\u653e|\u65cb\u8f6c|\u89e6\u63a7\u677f|\u0b9a\u0bc1\u0bb4\u0bb1\u0bcd|\u0ba4\u0bca\u0b9f\u0bc1\u0baa\u0bb2\u0b95\u0bc8/.test(q)) return 'gestures';
+
     // Keep the reviewed joint notes/drawings workflow on its established route.
     const sharing = /\b(?:share|shared|sharing|public|publish|privacy|embed)\b|共享|分享|隐私|பகிர|தனியுரிமை|\b(?:kongsi|privasi)\b/.test(q);
     if (annotation && sharing && !/\bnotes?\b/.test(q)) return 'privacy';
@@ -73,8 +83,9 @@ export function guideAnnotationFeatureIntent(question = '', pageContext = '') {
 
 export function guideAnnotationFeatureFact(kind = 'privacy', locale, question = '') {
     const text = copy[selectedLocale(locale, question)];
-    return { id: ids[kind], title: text[`${kind}Title`], message: text[kind], route, reviewed: kind === 'boundaries' ? '2026-10-10' : reviewed, visibility: 'public',
-        evidence: kind === 'boundaries' ? 'client/src/components/KmlBoundaryImport.jsx; client/src/lib/kmlBoundaries.js; server/src/controllers/printAnnotationsController.js'
+    return { id: ids[kind], title: text[`${kind}Title`], message: text[kind], route, reviewed: ['boundaries', 'gestures'].includes(kind) ? '2026-10-10' : reviewed, visibility: 'public',
+        evidence: kind === 'gestures' ? 'client/src/components/CareMapGestureControl.jsx; client/src/hooks/useCareMapGestures.js'
+            : kind === 'boundaries' ? 'client/src/components/KmlBoundaryImport.jsx; client/src/lib/kmlBoundaries.js; server/src/controllers/printAnnotationsController.js'
             : kind === 'image'
             ? 'client/src/components/AnnotationImageUpload.jsx; client/src/components/PrintAnnotationLayer.jsx; server/src/utils/privateMapMedia.js'
             : kind === 'tags'
@@ -88,9 +99,9 @@ export function answerGuideAnnotationFeatures({ question = '', pageContext = '',
     if (!kind) return null;
     const fact = guideAnnotationFeatureFact(kind, locale, question), privacy = guideAnnotationFeatureFact('privacy', locale, question);
     const text = copy[selectedLocale(locale, question)], signedIn = Boolean(actor?.id) && normalizeRole(actor.role) !== 'guest' && !actor.isImpersonating;
-    return { topicId: fact.id, answerKind: 'procedure', message: ['privacy', 'boundaries'].includes(kind) ? fact.message : `${fact.message}\n\n${privacy.message}`,
+    return { topicId: fact.id, answerKind: 'procedure', message: ['privacy', 'boundaries', 'gestures'].includes(kind) ? fact.message : `${fact.message}\n\n${privacy.message}`,
         actions: [{ label: signedIn ? text.open : text.signIn, route: signedIn ? route : '/login' }],
-        sources: (['privacy', 'boundaries'].includes(kind) ? [fact] : [fact, privacy]).map(sourceFor) };
+        sources: (['privacy', 'boundaries', 'gestures'].includes(kind) ? [fact] : [fact, privacy]).map(sourceFor) };
 }
 
 function concernsAnnotations(answer) {

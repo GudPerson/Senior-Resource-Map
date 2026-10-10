@@ -4017,6 +4017,9 @@ function SharedMapDirectoryListContent({
                                     onClusterSelect: handleMobileMapClusterSelect,
                                     // The retained map follows the visible camera without feeding
                                     // its pixel-rounded position back into an active fullscreen pan.
+                                    careMapGestures: mobileMapElement.props?.careMapGestures
+                                        ? { ...mobileMapElement.props.careMapGestures, active: !(mode === 'owner' && mobileFullMapOpen) }
+                                        : null,
                                     onMapViewStateChange: mode === 'owner' && mobileFullMapOpen
                                         ? null
                                         : mobileMapElement.props?.onMapViewStateChange,

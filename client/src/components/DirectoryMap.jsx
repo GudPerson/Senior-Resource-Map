@@ -8,6 +8,8 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 import OneMapBadge from './OneMapBadge.jsx';
+import CareMapGestureControl from './CareMapGestureControl.jsx';
+import { isCareMapGestureActive } from '../lib/careMapGestureState.js';
 import MapSettingsControl from './MapSettingsControl.jsx';
 import DirectoryMapZoomLevelControl from './DirectoryMapZoomLevelControl.jsx';
 import DirectoryMapMobileControlDock from './DirectoryMapMobileControlDock.jsx';
@@ -2203,6 +2205,8 @@ function DirectoryMapFixedTownResizeContainmentSync({
 
         const keepExpandedViewportInsideSurface = () => {
             frame = null;
+            // A rotated viewport must not be pulled back by north-up containment.
+            if (map._rotate && (map.getBearing() !== 0 || isCareMapGestureActive(map))) return;
             const currentZoom = Number(map.getZoom());
             const normalizedMinZoom = Number(minZoom);
             if (shouldDeferFixedTownContainmentToLowerTier({
@@ -2456,10 +2460,13 @@ function DirectoryMapFixedTownMinZoomSnapSync({
     return null;
 }
 
-function DirectoryMapViewStateSync({ value = null, onChange = null, onSettled = null }) {
+function DirectoryMapViewStateSync({ value = null, onChange = null, onSettled = null, gestureCamera = false }) {
     const map = useMap();
+    const cameraValueRef = useRef(value);
+    cameraValueRef.current = value;
 
     useEffect(() => {
+        if (gestureCamera && isCareMapGestureActive(map)) return undefined;
         const lat = Number(value?.center?.[0]);
         const lng = Number(value?.center?.[1]);
         const zoom = Number(value?.zoom);
@@ -2474,21 +2481,29 @@ function DirectoryMapViewStateSync({ value = null, onChange = null, onSettled = 
         if (!alreadyApplied) map.setView([lat, lng], zoom, { animate: false });
         const settledTimeout = window.setTimeout(() => onSettled?.(), 250);
         return () => window.clearTimeout(settledTimeout);
-    }, [map, onSettled, value?.center?.[0], value?.center?.[1], value?.zoom]);
+    }, [gestureCamera, map, onSettled, value?.center?.[0], value?.center?.[1], value?.zoom]);
 
     useEffect(() => {
         if (!onChange) return undefined;
         const emit = () => {
+            if (gestureCamera && isCareMapGestureActive(map)) return;
             const center = map.getCenter();
-            onChange({ center: [center.lat, center.lng], zoom: Number(map.getZoom()) });
+            const zoom = Number(map.getZoom());
+            const controlled = cameraValueRef.current;
+            if (gestureCamera && Array.isArray(controlled?.center) && Number.isFinite(Number(controlled.zoom))) {
+                const expected = map.project(controlled.center, zoom);
+                if (Math.abs(zoom - Number(controlled.zoom)) <= 0.001
+                    && map.project(center, zoom).distanceTo(expected) <= 1.6) return;
+            }
+            onChange({ center: [center.lat, center.lng], zoom });
         };
         const frame = window.requestAnimationFrame(emit);
-        map.on('moveend zoomend', emit);
+        map.on('moveend zoomend gestureend', emit);
         return () => {
             window.cancelAnimationFrame(frame);
-            map.off('moveend zoomend', emit);
+            map.off('moveend zoomend gestureend', emit);
         };
-    }, [map, onChange]);
+    }, [gestureCamera, map, onChange]);
 
     return null;
 }
@@ -2768,6 +2783,7 @@ export default function DirectoryMap({
     mapHeightPx = null,
     mapViewState = null,
     onMapViewStateChange = null,
+    careMapGestures = null,
     captureReadyKey = '',
     mobileControlPortalTarget = null,
     onMapClick = null,
@@ -2776,6 +2792,7 @@ export default function DirectoryMap({
     surfaceStatus = null,
 }) {
     const { mapStyle } = useMapStyle();
+    const careMapRotationEnabled = Boolean(careMapGestures && !onMapReadyForCapture);
     const hasReportedReadyRef = useRef(false);
     const mapSettledRef = useRef(false);
     const tileLoadedRef = useRef(false);
@@ -3680,7 +3697,14 @@ export default function DirectoryMap({
                 minZoom={resolvedMapMinZoom}
                 zoomDelta={resolvedZoomControlStep}
                 zoomSnap={0.1}
-                scrollWheelZoom={false}
+                rotate={careMapRotationEnabled}
+                bearing={careMapRotationEnabled ? careMapGestures.bearing : 0}
+                touchRotate={careMapRotationEnabled && interactive && !careMapGestures.paused}
+                dragRotate={careMapRotationEnabled && interactive && !careMapGestures.paused}
+                shiftKeyRotate={careMapRotationEnabled && interactive && !careMapGestures.paused}
+                rotateControl={false}
+                scrollWheelZoom={careMapRotationEnabled && interactive}
+                {...(careMapRotationEnabled ? { bounceAtZoomLimits: false } : {})}
                 dragging={interactive}
                 touchZoom={interactive}
                 doubleClickZoom={interactive}
@@ -3694,6 +3718,7 @@ export default function DirectoryMap({
                 <DirectoryMapInstanceSync onMapReady={(map) => {
                     mapInstanceRef.current = map;
                 }} />
+                {careMapRotationEnabled && <CareMapGestureControl configuration={careMapGestures} interactive={interactive} />}
                 <DirectoryMapFrameResizeSync
                     enabled={observeFrameResize}
                     frameRef={mapFrameRef}
@@ -3809,6 +3834,7 @@ export default function DirectoryMap({
                     deferDeepFocusUntilDirect={shouldDeferTownDeepFocus}
                 />
                 <DirectoryMapViewStateSync
+                    gestureCamera={careMapRotationEnabled}
                     value={mapViewState}
                     onChange={onMapViewStateChange}
                     onSettled={onMapReadyForCapture ? handleCaptureMapSettled : null}

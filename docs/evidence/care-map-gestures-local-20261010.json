@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-10",
+  "baseSource": "eb2b470a55107391d016c77073c3e48731dbffb1",
+  "scope": "Owner Care Map browsing only; temporary bearing.",
+  "browserChecks": [
+    {
+      "name": "native-release.json",
+      "passedCases": 26,
+      "failures": [],
+      "errors": [],
+      "sha256": "245ce9a2cedc0215e483ff849f4cbd0b20ea5f19e2df207bad38dd4fd6b3a477"
+    },
+    {
+      "name": "desktop-release.json",
+      "passedCases": 13,
+      "failures": [],
+      "errors": [],
+      "sha256": "c6475ed9d75bb942020a9d558148df870f5fa6676b9773e009c0a472a64e2e13"
+    },
+    {
+      "name": "zoom-final.json",
+      "passedCases": 6,
+      "failures": [],
+      "errors": [],
+      "sha256": "958b062975afb5a70ffebc21306204d0db9b8338ee1abe2f59c1d2676fba2031"
+    },
+    {
+      "name": "controls.json",
+      "passedCases": 4,
+      "failures": [],
+      "errors": [],
+      "sha256": "b7455f1ed18e94d18b00a0203983b2fc35b5bc1f0e0b75be18be0ceac62d7ba7"
+    }
+  ],
+  "quality": {
+    "compiler": 17,
+    "cms": 73,
+    "server": 1190,
+    "client": 1003,
+    "environment": 5,
+    "lockedMaps": 112,
+    "productionBuild": "passed"
+  },
+  "limits": [
+    "Native Chromium input with fictional resources and synthetic images is separate from physical Android PWA/tablet UAT.",
+    "A tiny TPTC source hole remains subpixel at some zooms, as in the north-up baseline.",
+    "Full 20000 stored-point geometry stays exact; no universal 60fps claim is made."
+  ],
+  "retainedFailures": [
+    "Overbroad Guide zoom recognition, corrected without changing Detailed help.",
+    "Tablet fullscreen camera roundoff, corrected and rerun.",
+    "Initial local dependency prebundling caused a React fixture error; retained separately."
+  ],
+  "release": "Pending protected normal publisher and independent production checks.",
+  "ownerExportChecks": {
+    "passedCases": 11,
+    "actualComponents": true,
+    "persistence": "fictional only",
+    "basemaps": "synthetic",
+    "pngPdf": "passed"
+  }
+}

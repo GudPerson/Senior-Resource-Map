@@ -216,3 +216,22 @@ test('question-only hover histories restore current controls without adding pers
     assert.deepEqual(inputs, before); assert.deepEqual(restored.messages.map(message => message.input), inputs);
     assert.doesNotMatch(JSON.stringify(restored), /resourceGlowColor|imageBorder|activeIds|pulseIds|assetId/);
 });
+
+
+test('owner map gesture help stays in scope, uses four languages and reads no private data', async () => {
+    const h = fixture();
+    for (const locale of ['en', 'zh-CN', 'ms', 'ta']) {
+        const { status, answer } = await h.ask({ question: 'How do I pinch zoom and rotate my Care Map?', locale });
+        assert.equal(status, 200); assert.equal(answer.topicId, 'map-viewing-gestures');
+        assert.ok(answer.message.includes('Shift')); assert.ok(answer.message.includes('PNG/PDF'));
+        assert.ok(answer.message.length <= 1600);
+        assert.equal(answer.actions[0].route, '/my-directory?section=my-maps');
+        assert.equal(answer.sources.length, 1);
+    }
+    assert.equal(guideAnnotationFeatureIntent('How do I rotate a public resource photo?'), null);
+    assert.equal(guideAnnotationFeatureIntent('How do I zoom a spreadsheet?'), null);
+    assert.deepEqual(h.calls, { model: 0, private: 0 });
+    const { answer } = await h.ask({ question: 'How do I rotate my Care Map on a trackpad?' });
+    assert.match(answer.message, /right button.*trackpad.*Shift.*Reset to north/);
+    assert.match(answer.message, /temporary.*saved coordinates.*north-up.*shared maps.*embeds.*north-up/);
+});

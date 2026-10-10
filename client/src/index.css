@@ -1209,3 +1209,17 @@
     display: none !important;
   }
 }
+
+/* Owner Care Map only: keep rotation controls clear of the existing right rail. */
+.carearound-map-control-rail .care-map-gesture-control {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  margin: 0;
+}
+.carearound-map-control-rail .leaflet-top.leaflet-left:has(.care-map-gesture-control) {
+  left: 0;
+}
+.carearound-map-control-rail .leaflet-top.leaflet-left:has(.care-map-gesture-control) .leaflet-control-zoom {
+  float: right;
+}

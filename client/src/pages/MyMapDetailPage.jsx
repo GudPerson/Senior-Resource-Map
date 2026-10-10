@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 
 import CreateMapModal from '../components/CreateMapModal.jsx';
+import { useCareMapGestures } from '../hooks/useCareMapGestures.js';
 import { useConfirmDialog } from '../components/ConfirmDialog.jsx';
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
 import DirectoryMap from '../components/DirectoryMap.jsx';
@@ -1687,6 +1688,10 @@ export default function MyMapDetailPage() {
     const [printAnnotationEditorOpen, setPrintAnnotationEditorOpen] = useState(false);
     const [printShortDescriptionMode, setPrintShortDescriptionMode] = useState(false);
     const [interactiveAnnotationEditorOpen, setInteractiveAnnotationEditorOpen] = useState(false);
+    const careMapGestures = useCareMapGestures({
+        scopeKey: `${mapId}:${mapStudioRuntimeSnapshot?.activeViewId || ""}`,
+        paused: interactiveAnnotationEditorOpen || personalPlacePickerActive || isPrintView,
+    });
     const [interactiveShortDescriptionMode, setInteractiveShortDescriptionMode] = useState(false);
     const [pinVisibilityMode, setPinVisibilityMode] = useState(false);
     const [resourceRemovalMode, setResourceRemovalMode] = useState(false);
@@ -3865,6 +3870,7 @@ export default function MyMapDetailPage() {
     } : null;
     const studioMapHeight = mapStudioInteractiveModel?.layout?.mapHeight || 'standard';
     const classicMapStudioMapProps = {
+        careMapGestures,
         layoutSignature: `classic-map:${mapStudioLayoutSignature}`,
         mapStyleOverride: mapStudioInteractiveModel?.directoryMap?.mapStyleOverride ?? null,
         onMapStyleOverrideChange: mapStudioInteractiveModel
@@ -4182,6 +4188,7 @@ export default function MyMapDetailPage() {
         return (
             <>
                 <MyMapV2PreviewScaffold
+                    careMapGestures={careMapGestures}
                     directory={mapStudioFilteredDirectory}
                     query={query}
                     onQueryChange={setQuery}

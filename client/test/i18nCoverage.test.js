@@ -42,6 +42,11 @@ test('embedded resource availability uses the compact Programmes / Services labe
 
 test('recent user-facing UI labels do not fall back to English in supported translated locales', () => {
     const recentUiKeys = [
+        'careMapRotationControls',
+        'careMapRotateLeft',
+        'careMapRotateRight',
+        'careMapResetNorth',
+        'careMapGesturesHint',
         'authHandoffTitle',
         'authHandoffSubtitle',
         'phoneLoginRegisterButton',

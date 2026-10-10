@@ -80,6 +80,7 @@ export default function MyMapV2PreviewScaffold({
     preserveMobileMapFrameInFlow = false,
     mapSurfaceStatus = null,
     mapStudioRuntime = null,
+    careMapGestures = null,
 }) {
     const resourceCount = Number(directory?.summary?.resourceCount || 0);
     const mapHeight = mapStudioRuntime?.layout?.mapHeight || 'standard';
@@ -165,6 +166,7 @@ export default function MyMapV2PreviewScaffold({
             mapStyleDescription={mapStudioRuntime?.mapStyleDescription}
             mapViewState={directoryMapRuntime?.mapViewState ?? null}
             onMapViewStateChange={mapStudioRuntime?.onMapViewStateChange ?? null}
+            careMapGestures={careMapGestures}
             mapOverlay={mapOverlay}
             surfaceOverlay={mapSurfaceOverlay}
             surfaceStatus={mapSurfaceStatus}
