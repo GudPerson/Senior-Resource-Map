@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-10",
+  "baseSource": "837545803b178fcfec5c8a424bcada3719f69adf",
+  "scope": "Care Map geographic marker placement and one-time owner mobile fullscreen selection focus",
+  "proofBoundary": "Fictional data in local Chromium native touch emulation; no production writes or physical Android PWA proof.",
+  "browserReports": [
+    {
+      "report": "edge-numbered-accurate",
+      "cases": 8,
+      "passed": true,
+      "pageErrors": 0,
+      "unexpectedWrites": 0
+    },
+    {
+      "report": "edge-category-accurate",
+      "cases": 8,
+      "passed": true,
+      "pageErrors": 0,
+      "unexpectedWrites": 0
+    },
+    {
+      "report": "overlapping-numbered-phone-complete",
+      "cases": 8,
+      "passed": true,
+      "pageErrors": 0,
+      "unexpectedWrites": 0
+    },
+    {
+      "report": "overlapping-category-tablet-complete",
+      "cases": 8,
+      "passed": true,
+      "pageErrors": 0,
+      "unexpectedWrites": 0
+    },
+    {
+      "report": "selected-resource-pan-after",
+      "cases": 8,
+      "passed": true,
+      "pageErrors": 0,
+      "unexpectedWrites": 0
+    },
+    {
+      "report": "selected-resource-tablet-complete",
+      "cases": 10,
+      "passed": true,
+      "pageErrors": 0,
+      "unexpectedWrites": 0
+    },
+    {
+      "report": "continuity-phone-final",
+      "cases": 13,
+      "passed": true,
+      "pageErrors": 0,
+      "unexpectedWrites": 0
+    },
+    {
+      "report": "continuity-tablet",
+      "cases": 13,
+      "passed": true,
+      "pageErrors": 0,
+      "unexpectedWrites": 0
+    }
+  ],
+  "totalBrowserCases": 76,
+  "selectedFocusBeforePixels": 0.8477598950266838,
+  "selectedFocusAfterPixels": 249.84775989502668,
+  "retainedFailures": [
+    "edge-numbered-before: pin shifts near the edge",
+    "overlapping-numbered-legacy: displacement remains in the former layout",
+    "selected-resource-pan: repeated focus aborts panning",
+    "overlapping-category-tablet: original short pans did not move a pin outside the wide canvas; corrected-distance replay passes",
+    "selected-resource-tablet-final: nonexistent one-pin recenter control; same-resource selection replay passes",
+    "old source assertions and fictional postal groups used distinct coordinates; precise-location expectations and coincident fixtures corrected"
+  ],
+  "tests": "Focused 118 pass; final quality and map gates are separate log evidence",
+  "production": "Pending guarded publication",
+  "gates": {
+    "focused": 118,
+    "compiler": 17,
+    "cms": 73,
+    "server": 1183,
+    "client": 997,
+    "environment": 5,
+    "lockedMap": 112,
+    "productionClientBuild": true,
+    "fixedSurfaceBuild": true,
+    "scopedReview": true,
+    "temporaryFixturesRemoved": true
+  }
+}

@@ -593,6 +593,7 @@ function PrintDirectoryMap({
                     : (useV2Format ? 'none' : 'auto')}
                 clusterMarkerMode={useV2Format ? 'none' : 'bubble'}
                 spreadCoincidentPins={!useV2Format}
+                allowPinDisplacement={!interactive}
                 placeNumberByKey={mapPresentation.placeNumberByKey}
                 numberedPinShapesByCategory={printMapState?.numberedPinShapesByCategory}
                 numberedPinStylesByCategory={printMapState?.numberedPinStylesByCategory}

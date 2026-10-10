@@ -73,8 +73,8 @@ const directory = {
             categoryColor: '#0f766e',
             categoryIconUrl: '/icons/aac.svg',
             postalCode: '200200',
-            lat: '1.321',
-            lng: '103.841',
+            lat: '1.320',
+            lng: '103.840',
         }),
         {
             placeKey: 'fallback-soft-90',

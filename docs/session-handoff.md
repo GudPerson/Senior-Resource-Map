@@ -1,5 +1,13 @@
 # CareAround SG session handoff
 
+## 10 October 2026 — Pin accuracy release candidate
+
+- User approved accuracy over decorative pin displacement. Accepted baseline `83754580`; narrow candidate preserves data, annotations, Hide pin/card ordering, permissions, explicit recenter and the previous fullscreen exit/camera ownership fixes.
+- Reproduce: in Numbered or Category mode, pan a resource anchor across the canvas edge. It must leave freely without a margin shift. Distinct coordinates must stay distinct, including shared postal codes and Hide pin rebuilds. Truly identical coordinates retain composite members/numbers. Nearby pins may overlap.
+- Additional snap-back reproduction: select a resource, open Full map and pan. Previously repeated focus reduces a 250px drag to less than one pixel. Owner fullscreen now acknowledges one focus per selection, preserves its tray and browsed camera through reopen, and renews focus for an explicit new selection. Shared focus semantics remain protected.
+- Live DirectoryMap defaults to no automatic edge/collision/coincident displacement or generated print offsets; static print layout opts in explicitly. V2 shared/embed and numbered grouping retain exact coordinates. Discover and legacy postal grouping, map basemap controls and saved geographic data remain unchanged. See `docs/care-map-pin-accuracy-audit-20261010.md`.
+- Local browser reports and failed-before evidence are recorded in `docs/evidence/care-map-pin-accuracy-local-20261010.json`. Focused 118 and 76 fictional browser cases pass. Final quality passes compiler17/CMS73/server1183/client997/environment5/static/build; locked maps112 and fixed-surface build pass. Scoped review passes and temporary fixtures are removed. Emulation is not physical Android PWA UAT. Production acceptance remains a separate guarded release gate.
+
 
 ## 10 October 2026 — Android PWA camera snap-back follow-up — release candidate
 

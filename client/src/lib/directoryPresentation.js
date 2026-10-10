@@ -435,7 +435,7 @@ function sortNestedPlaces(places = []) {
         .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-function buildGroupedMappedGroups(mappedGroups = []) {
+function buildGroupedMappedGroups(mappedGroups = [], { preservePinCoordinates = false } = {}) {
     const { groups } = groupItemsByPostalCode(mappedGroups, {
         getItemKey: (group) => group.placeKey,
         resolvePostalCode: (group) => resolvePostalGroupCode({
@@ -444,7 +444,25 @@ function buildGroupedMappedGroups(mappedGroups = []) {
         }),
     });
 
-    return groups.map((postalGroup) => {
+    const pinGroups = groups.flatMap((postalGroup) => {
+        if (!preservePinCoordinates || !postalGroup.isPostalGroup) return [postalGroup];
+
+        const membersByCoordinate = new Map();
+        postalGroup.members.forEach((member) => {
+            const key = getNumberedPinCoordinateKey(member);
+            membersByCoordinate.set(key, [...(membersByCoordinate.get(key) || []), member]);
+        });
+        if (membersByCoordinate.size === 1) return [postalGroup];
+
+        return [...membersByCoordinate.entries()].map(([coordinateKey, members]) => ({
+            ...postalGroup,
+            members,
+            isPostalGroup: members.length > 1,
+            postalGroupKey: `${postalGroup.postalGroupKey}:coordinates:${coordinateKey}`,
+        }));
+    });
+
+    return pinGroups.map((postalGroup) => {
         if (!postalGroup.isPostalGroup) {
             return {
                 ...postalGroup.members[0],
@@ -458,7 +476,9 @@ function buildGroupedMappedGroups(mappedGroups = []) {
         }
 
         const members = sortNestedPlaces(postalGroup.members);
-        const anchor = computePostalGroupAnchor(members);
+        const anchor = preservePinCoordinates
+            ? { lat: parseCoordinate(members[0]?.lat), lng: parseCoordinate(members[0]?.lng) }
+            : computePostalGroupAnchor(members);
         const firstMember = members[0] || null;
         const combinedCuratedCount = members.reduce((total, member) => total + (member.curatedCount || 0), 0);
         const combinedOpenProgrammeServiceCount = members.reduce((total, member) => (
@@ -585,8 +605,6 @@ function buildGroupedPins(groups = [], options = {}) {
         });
 }
 
-const NUMBERED_PIN_COORDINATE_GROUPING_TOLERANCE = 0.0003;
-
 function normalizeNumberedPinNumber(value) {
     const number = Number(value);
     return Number.isFinite(number) && number > 0 ? number : null;
@@ -605,27 +623,17 @@ function getNumberedPinCoordinateKey(group = {}) {
     const lat = Number.parseFloat(group.lat);
     const lng = Number.parseFloat(group.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return '';
-    return `${lat.toFixed(4)}:${lng.toFixed(4)}`;
+    return `${lat}:${lng}`;
 }
 
 function shouldShareNumberedPinCoordinate(left = {}, right = {}) {
-    const leftPostal = String(left.postalCode || '').trim();
-    const rightPostal = String(right.postalCode || '').trim();
-    if (leftPostal && rightPostal && leftPostal === rightPostal) return true;
-
-    const leftLat = Number.parseFloat(left.lat);
-    const leftLng = Number.parseFloat(left.lng);
-    const rightLat = Number.parseFloat(right.lat);
-    const rightLng = Number.parseFloat(right.lng);
-    if (![leftLat, leftLng, rightLat, rightLng].every(Number.isFinite)) return false;
-
-    return Math.abs(leftLat - rightLat) <= NUMBERED_PIN_COORDINATE_GROUPING_TOLERANCE
-        && Math.abs(leftLng - rightLng) <= NUMBERED_PIN_COORDINATE_GROUPING_TOLERANCE;
+    const leftKey = getNumberedPinCoordinateKey(left);
+    return Boolean(leftKey && leftKey === getNumberedPinCoordinateKey(right));
 }
 
 /**
  * Build the owner-only numbered-pin presentation used by interactive Map Studio
- * and Export View. Resources that resolve to one postal/coordinate location stay
+ * and Export View. Resources that resolve to exactly one coordinate location stay
  * grouped at one map anchor while retaining one visible, addressable number lobe
  * per resource card.
  */
@@ -780,7 +788,7 @@ export function buildPinVisibilityPresentation(
         number: placeNumberByKey[group.placeKey] || null,
     }));
     const hardCategoryEntriesByPostal = buildHardCategoryEntriesByPostal(numberedMappedGroups);
-    const pinGroups = buildGroupedMappedGroups(numberedMappedGroups);
+    const pinGroups = buildGroupedMappedGroups(numberedMappedGroups, { preservePinCoordinates: true });
     const pins = buildGroupedPins(pinGroups, {
         hardRowsOnly: true,
         hardCategoryEntriesByPostal,
@@ -1044,7 +1052,7 @@ function buildV2DirectoryPresentation({
         accumulator[group.placeKey] = group;
         return accumulator;
     }, {});
-    const pinGroups = buildGroupedMappedGroups(orderedMappedGroups);
+    const pinGroups = buildGroupedMappedGroups(orderedMappedGroups, { preservePinCoordinates: true });
     const pins = buildGroupedPins(pinGroups, {
         hardRowsOnly: true,
         hardCategoryEntriesByPostal,

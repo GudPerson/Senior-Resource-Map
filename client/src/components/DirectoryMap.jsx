@@ -2711,6 +2711,7 @@ export default function DirectoryMap({
     pinCategoryIconMode = 'auto',
     clusterMarkerMode = 'bubble',
     spreadCoincidentPins = true,
+    allowPinDisplacement = false,
     showPins = true,
     renderPins = null,
     placeNumberByKey = null,
@@ -2781,14 +2782,16 @@ export default function DirectoryMap({
     const readyTimeoutRef = useRef(null);
     const captureErrorRef = useRef(null);
     const mapFrameRef = useRef(null);
-    const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive, spreadCoincidentPins), [interactive, pins, spreadCoincidentPins]);
+    // Live map markers retain their geographic anchors, including offscreen pins.
+    // Displacement is reserved for explicitly requested static print layouts.
+    const displayPins = useMemo(() => spreadPinsForDisplay(pins, interactive, allowPinDisplacement && spreadCoincidentPins), [allowPinDisplacement, interactive, pins, spreadCoincidentPins]);
     const markerPins = useMemo(
         () => (Array.isArray(renderPins) ? renderPins : pins),
         [pins, renderPins],
     );
     const displayMarkerPins = useMemo(
-        () => spreadPinsForDisplay(markerPins, interactive, spreadCoincidentPins),
-        [interactive, markerPins, spreadCoincidentPins],
+        () => spreadPinsForDisplay(markerPins, interactive, allowPinDisplacement && spreadCoincidentPins),
+        [allowPinDisplacement, interactive, markerPins, spreadCoincidentPins],
     );
     const shouldCluster = showPins && clusterMarkerMode !== 'none' && displayMarkerPins.length > 1;
     const clusterGroupRef = useRef(null);
@@ -3408,8 +3411,8 @@ export default function DirectoryMap({
                                     emphasis: isMatched ? 'primary' : 'default',
                                     placeKey: pin.placeKey,
                                     items: pin.printBadgeItems || null,
-                                    offsetX: pin.printOffsetX || 0,
-                                    offsetY: pin.printOffsetY || 0,
+                                    offsetX: allowPinDisplacement ? (pin.printOffsetX || 0) : 0,
+                                    offsetY: allowPinDisplacement ? (pin.printOffsetY || 0) : 0,
                                     scale: printBadgeScale,
                                     shape: getCategoryPinShape(numberedPinShapesByCategory, pin.categoryKey),
                                     numberedPinShapesByCategory,
@@ -3521,8 +3524,8 @@ export default function DirectoryMap({
                         emphasis: isMatched ? 'primary' : 'default',
                         placeKey: pin.placeKey,
                         items: pin.printBadgeItems || null,
-                        offsetX: pin.printOffsetX || 0,
-                        offsetY: pin.printOffsetY || 0,
+                        offsetX: allowPinDisplacement ? (pin.printOffsetX || 0) : 0,
+                        offsetY: allowPinDisplacement ? (pin.printOffsetY || 0) : 0,
                         scale: printBadgeScale,
                         shape: getCategoryPinShape(numberedPinShapesByCategory, pin.categoryKey),
                         numberedPinShapesByCategory,
@@ -3846,7 +3849,7 @@ export default function DirectoryMap({
                     onCompactChange={setCompactCategoryBubbles}
                 />
                 <DirectoryPrintBadgeCollisionSync
-                    enabled={markerMode === 'print-badge' || markerMode === 'category-bubble'}
+                    enabled={allowPinDisplacement && (markerMode === 'print-badge' || markerMode === 'category-bubble')}
                     fixedPlaceKeys={collisionFixedPlaceKeys}
                     preserveSolvedOffsets={markerMode === 'category-bubble'}
                     refreshKey={printBadgeLayoutRefreshKey}

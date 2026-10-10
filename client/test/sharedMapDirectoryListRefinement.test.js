@@ -275,7 +275,7 @@ test('mobile map focus tray shows selected cards without changing list order', (
     assert.match(sharedMapDirectorySource, /const mobileFullMapFocusRequest = useMemo/);
     assert.match(sharedMapDirectorySource, /mobileFocusTraySelection\.type === 'group' \|\| mobileFocusTraySelection\.type === 'pin-group'/);
     assert.match(sharedMapDirectorySource, /focusedPlaceKeys: memberKeys/);
-    assert.match(sharedMapDirectorySource, /const handleMobileMapViewSection = useCallback\(\(placeKey\) => \{\s*if \(isMobileMapPanelEnabled\) \{\s*setMobileFocusTrayPlaceKey\(placeKey \? String\(placeKey\) : null\);\s*holdMobileFocusTrayDuringMapReveal\(\);/);
+    assert.match(sharedMapDirectorySource, /const handleMobileMapViewSection = useCallback\(\(placeKey\) => \{\s*if \(isMobileMapPanelEnabled\) \{\s*setMobileFocusTrayPlaceKey\(placeKey \? String\(placeKey\) : null\);\s*setMobileFullMapHandledFocusKey\(null\);\s*holdMobileFocusTrayDuringMapReveal\(\);/);
     assert.match(sharedMapDirectorySource, /setMobileFocusTrayPlaceKey\(placeKey \? String\(placeKey\) : null\)/);
     assert.match(sharedMapDirectorySource, /setMobileFocusTrayPlaceKey\(selectionPlaceKey \? String\(selectionPlaceKey\) : null\)/);
     assert.match(sharedMapDirectorySource, /if \(!selectionPlaceKey\) \{\s*setFlashPlaceKey\(null\);\s*if \(isMobileMapPanelEnabled && canClearMobileFocusTrayFromScroll\(\)\) \{\s*setMobileFocusTrayPlaceKey\(null\);/);

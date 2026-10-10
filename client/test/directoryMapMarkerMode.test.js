@@ -157,7 +157,7 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /const printBadgeLayoutRefreshKey = useMemo\(\(\) => \{/);
     assert.match(directoryMapSource, /activePlaceKeySet/);
     assert.match(directoryMapSource, /printBadgeItems/);
-    assert.match(directoryMapSource, /<DirectoryPrintBadgeCollisionSync[\s\S]*enabled=\{markerMode === 'print-badge' \|\| markerMode === 'category-bubble'\}[\s\S]*refreshKey=\{printBadgeLayoutRefreshKey\}/);
+    assert.match(directoryMapSource, /<DirectoryPrintBadgeCollisionSync[\s\S]*enabled=\{allowPinDisplacement && \(markerMode === 'print-badge' \|\| markerMode === 'category-bubble'\)\}[\s\S]*refreshKey=\{printBadgeLayoutRefreshKey\}/);
     assert.match(directoryMapSource, /function DirectoryPrintBadgeCollisionSync\(\{[\s\S]*fixedPlaceKeys = \[\],[\s\S]*refreshKey = '',[\s\S]*preserveSolvedOffsets = false,[\s\S]*\}\)/);
     assert.match(directoryMapSource, /const mapTransitionUntilRef = useRef\(0\)/);
     assert.match(directoryMapSource, /\}, \[enabled, fixedPlaceKeys, map, preserveSolvedOffsets, refreshKey\]\)/);
@@ -199,10 +199,10 @@ test('directory map supports print badge markers without moving marker coordinat
     assert.match(directoryMapSource, /isSelected[\s\S]*drop-shadow\(0 0 4px rgba\(249,115,22,0\.38\)\)/);
     assert.match(directoryMapSource, /stroke-width="\$\{getCategoryPinRingStrokeWidth\(item\.ringWeight\)\}"/);
     assert.match(directoryMapSource, /y="\$\{getCategoryPinShapeTextY\(item\.shape\)\}"/);
-    assert.match(directoryMapSource, /offsetX: pin\.printOffsetX \|\| 0/);
-    assert.match(directoryMapSource, /offsetY: pin\.printOffsetY \|\| 0/);
+    assert.match(directoryMapSource, /offsetX: allowPinDisplacement \? \(pin\.printOffsetX \|\| 0\) : 0/);
+    assert.match(directoryMapSource, /offsetY: allowPinDisplacement \? \(pin\.printOffsetY \|\| 0\) : 0/);
     assert.match(directoryMapSource, /spreadCoincidentPins = true/);
-    assert.match(directoryMapSource, /spreadPinsForDisplay\(pins, interactive, spreadCoincidentPins\)/);
+    assert.match(directoryMapSource, /spreadPinsForDisplay\(pins, interactive, allowPinDisplacement && spreadCoincidentPins\)/);
     assert.match(directoryMapSource, /position=\{\[pin\.displayLat, pin\.displayLng\]\}/);
     assert.doesNotMatch(directoryMapSource, /pinBadgeMode === 'print-number'/);
     assert.doesNotMatch(discoverUtilsSource, /badgePlacement/);
@@ -284,7 +284,7 @@ test('directory map can render interactive category bubble markers with visible 
     assert.match(directoryMapSource, /fixed \? initialOffsetX/);
     assert.match(directoryMapSource, /fixed \? initialOffsetY/);
     assert.match(directoryMapSource, /if \(state\.fixed\) return/);
-    assert.match(directoryMapSource, /<DirectoryPrintBadgeCollisionSync[\s\S]*enabled=\{markerMode === 'print-badge' \|\| markerMode === 'category-bubble'\}[\s\S]*refreshKey=\{printBadgeLayoutRefreshKey\}/);
+    assert.match(directoryMapSource, /<DirectoryPrintBadgeCollisionSync[\s\S]*enabled=\{allowPinDisplacement && \(markerMode === 'print-badge' \|\| markerMode === 'category-bubble'\)\}[\s\S]*refreshKey=\{printBadgeLayoutRefreshKey\}/);
     assert.match(appCssSource, /\.leaflet-marker-icon\.directory-category-bubble-leaflet-icon[\s\S]*pointer-events: none !important/);
     assert.match(appCssSource, /\.leaflet-marker-icon\.directory-category-bubble-leaflet-icon \.directory-category-bubble-marker__lobe[\s\S]*pointer-events: auto !important/);
     assert.match(appCssSource, /\.directory-category-bubble-marker__content[\s\S]*z-index: 1/);

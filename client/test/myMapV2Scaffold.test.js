@@ -186,9 +186,8 @@ test('owner print builds one composite badge pin per mapped V2 coordinate group'
     assert.match(directoryPresentationSource, /function buildOwnerNumberedPinPresentation/);
     assert.match(directoryPresentationSource, /presentation\?\.displayGroups\?\.length/);
     assert.match(directoryPresentationSource, /const mappedBadgeGroups = displayGroups\.filter/);
-    assert.match(directoryPresentationSource, /lat\.toFixed\(4\)/);
-    assert.match(directoryPresentationSource, /lng\.toFixed\(4\)/);
-    assert.match(directoryPresentationSource, /NUMBERED_PIN_COORDINATE_GROUPING_TOLERANCE/);
+    assert.match(directoryPresentationSource, /return `\$\{lat\}:\$\{lng\}`/);
+    assert.doesNotMatch(directoryPresentationSource, /NUMBERED_PIN_COORDINATE_GROUPING_TOLERANCE/);
     assert.match(directoryPresentationSource, /function shouldShareNumberedPinCoordinate/);
     assert.match(directoryPresentationSource, /const existingCoordinateEntry = \[\.\.\.groupsByCoordinate\.entries\(\)\]\.find/);
     assert.match(directoryPresentationSource, /const pins = \[\.\.\.groupsByCoordinate\.entries\(\)\]\.map/);

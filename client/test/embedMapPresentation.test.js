@@ -127,13 +127,13 @@ test('embedded map presentation filters pins by category and text query', () => 
     assert.equal(findEmbedPreviewGroup(presentation, 'mapped-1')?.rows[0]?.resourceId, 1);
 });
 
-test('embedded map resolves a shared category pin to every public resource at that postal location', () => {
+test('embedded map resolves a shared category pin to every public resource at identical coordinates', () => {
     const directory = createDirectory();
     directory.places[1] = {
         ...directory.places[1],
         address: '1 Example Street Singapore 600001',
-        lat: 1.3302,
-        lng: 103.7402,
+        lat: 1.33,
+        lng: 103.74,
     };
     const presentation = buildEmbeddedMapPresentation(directory);
     const sharedPin = presentation.pins.find((pin) => pin.isPostalGroup);
@@ -154,6 +154,22 @@ test('embedded map resolves a shared category pin to every public resource at th
         findEmbedPreviewGroups(presentation, 'mapped-1').map((group) => group.placeKey),
         ['mapped-1'],
     );
+});
+
+test('embedded resources with one postal code retain distinct geographic anchors', () => {
+    const directory = createDirectory();
+    directory.places[1] = {
+        ...directory.places[1],
+        address: '1 Example Street Singapore 600001',
+        lat: 1.3302,
+        lng: 103.7402,
+    };
+    const presentation = buildEmbeddedMapPresentation(directory);
+    assert.deepEqual(presentation.pins.map(pin => [pin.lat, pin.lng]).sort(), [
+        [1.33, 103.74], [1.3302, 103.7402],
+    ]);
+    assert.deepEqual(findEmbedPreviewGroups(presentation, 'mapped-1').map(group => group.placeKey), ['mapped-1']);
+    assert.deepEqual(findEmbedPreviewGroups(presentation, 'mapped-2').map(group => group.placeKey), ['mapped-2']);
 });
 
 test('selecting a Group category reveals its mapped member resources', () => {

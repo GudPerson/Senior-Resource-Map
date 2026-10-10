@@ -3513,6 +3513,7 @@ function SharedMapDirectoryListContent({
     const [mobileMapListFocused, setMobileMapListFocused] = useState(false);
     const [mobileFullMapOpen, setMobileFullMapOpen] = useState(false);
     const [mobileFocusTrayPlaceKey, setMobileFocusTrayPlaceKey] = useState(null);
+    const [mobileFullMapHandledFocusKey, setMobileFullMapHandledFocusKey] = useState(null);
     const hiddenPinPlaceKeySet = useMemo(() => new Set(
         (Array.isArray(hiddenPinPlaceKeys) ? hiddenPinPlaceKeys : [])
             .map((value) => String(value || '').trim())
@@ -3591,6 +3592,11 @@ function SharedMapDirectoryListContent({
             return { focusedPlaceKey: null, focusedPlaceKeys: [] };
         }
 
+        // Keep the resource tray selected without continually refocusing its pin.
+        if (mode === 'owner' && mobileFullMapHandledFocusKey === mobileFocusTrayPlaceKey) {
+            return { focusedPlaceKey: null, focusedPlaceKeys: [] };
+        }
+
         if (mobileFocusTraySelection.type === 'group' || mobileFocusTraySelection.type === 'pin-group') {
             const memberKeys = (mobileFocusTraySelection.members || [])
                 .map((group) => group?.placeKey)
@@ -3608,7 +3614,7 @@ function SharedMapDirectoryListContent({
         return selectedKey
             ? { focusedPlaceKey: `${selectedKey}:zoom`, focusedPlaceKeys: [] }
             : { focusedPlaceKey: null, focusedPlaceKeys: [] };
-    }, [mobileFocusTraySelection, mobileFullMapOpen]);
+    }, [mobileFocusTraySelection, mobileFocusTrayPlaceKey, mobileFullMapHandledFocusKey, mobileFullMapOpen, mode]);
 
     useMobileViewportScaleLock(isMobileMapPanelEnabled);
     useMobileMapOverscrollLock(isMobileMapPanelEnabled);
@@ -3625,6 +3631,7 @@ function SharedMapDirectoryListContent({
         if (isMobileMapPanelEnabled) {
             setMobileMapListFocused(false);
             setMobileFocusTrayPlaceKey(placeKey ? String(placeKey) : null);
+            setMobileFullMapHandledFocusKey(null);
             holdMobileFocusTrayDuringMapReveal();
         }
         onViewOnMap?.(placeKey);
@@ -3633,6 +3640,7 @@ function SharedMapDirectoryListContent({
     const handleMobileMapViewSection = useCallback((placeKey) => {
         if (isMobileMapPanelEnabled) {
             setMobileFocusTrayPlaceKey(placeKey ? String(placeKey) : null);
+            setMobileFullMapHandledFocusKey(null);
             holdMobileFocusTrayDuringMapReveal();
         }
         renderMobileMap?.().props?.onViewSection?.(placeKey);
@@ -4123,6 +4131,10 @@ function SharedMapDirectoryListContent({
                                     onClusterChange: setClusterMapping,
                                     onViewSection: handleMobileMapViewSection,
                                     onClusterSelect: handleMobileMapClusterSelect,
+                                    onFocusHandled: mode === 'owner' ? (handledPlaceKey) => {
+                                        setMobileFullMapHandledFocusKey(mobileFocusTrayPlaceKey);
+                                        mobileFullMapElement.props?.onFocusHandled?.(handledPlaceKey);
+                                    } : mobileFullMapElement.props?.onFocusHandled,
                                     focusedPlaceKey: mobileFullMapFocusRequest.focusedPlaceKey || mobileFullMapElement.props?.focusedPlaceKey,
                                     focusedPlaceKeys: mobileFullMapFocusRequest.focusedPlaceKeys.length
                                         ? mobileFullMapFocusRequest.focusedPlaceKeys
