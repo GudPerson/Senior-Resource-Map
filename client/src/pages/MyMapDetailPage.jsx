@@ -1688,10 +1688,6 @@ export default function MyMapDetailPage() {
     const [printAnnotationEditorOpen, setPrintAnnotationEditorOpen] = useState(false);
     const [printShortDescriptionMode, setPrintShortDescriptionMode] = useState(false);
     const [interactiveAnnotationEditorOpen, setInteractiveAnnotationEditorOpen] = useState(false);
-    const careMapGestures = useCareMapGestures({
-        scopeKey: `${mapId}:${mapStudioRuntimeSnapshot?.activeViewId || ""}`,
-        paused: interactiveAnnotationEditorOpen || personalPlacePickerActive || isPrintView,
-    });
     const [interactiveShortDescriptionMode, setInteractiveShortDescriptionMode] = useState(false);
     const [pinVisibilityMode, setPinVisibilityMode] = useState(false);
     const [resourceRemovalMode, setResourceRemovalMode] = useState(false);
@@ -1734,6 +1730,10 @@ export default function MyMapDetailPage() {
         <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
     ) : null;
     const isPrintView = searchParams.get('view') === 'print';
+    const careMapGestures = useCareMapGestures({
+        scopeKey: `${mapId}:${mapStudioRuntimeSnapshot?.activeViewId || ''}`,
+        paused: interactiveAnnotationEditorOpen || personalPlacePickerActive || isPrintView,
+    });
     const printStudioViewId = searchParams.get('studioView') || '';
     const previousPrintViewRef = useRef(isPrintView);
     const myMapUiMode = getMyMapUiMode(searchParams);

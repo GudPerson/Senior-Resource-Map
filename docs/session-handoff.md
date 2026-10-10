@@ -1,5 +1,13 @@
 # CareAround SG session handoff
 
+## 10 October 2026 — Care Map gesture page initialization recovery
+
+The first delivered gesture source `09dadcf3` failed the live owner-page acceptance gate: `useCareMapGestures` evaluated `isPrintView` before its `const` initialization. Native component checks and the production build did not exercise the whole page's first render. The correction moves the same hook after that flag is initialized; gesture, data, camera, geometry and print contracts stay unchanged.
+
+Reproduce by opening an owned Care Map in default V2, `?ui=stable`, and Print View, before any cached directory exists. The page must render, browsing must show working Rotate/North controls, and Print View must omit them. These complete-page cases are required alongside component checks for future owner-page changes. Phone and tablet fullscreen gesture replay must retain the camera and avoid unexpected persistence writes.
+
+Recovery validation: 46 actual-page local cases pass (13 phone, 13 tablet, 10 desktop route/control cases and 10 phone route/control cases), with no errors or unexpected requests. Full quality passes compiler17/CMS73/server1190/client1003/environment5/static/build; map112 plus fixed-surface build pass. Earlier fixture-reload and North-probe failures are retained. Evidence: docs/evidence/care-map-gestures-page-load-20261010.json. Physical Android PWA/tablet acceptance remains pending. The first delivered release is not accepted as stable; require a new exact protected release and successful signed-in live route checks before closeout.
+
 ## 10 October 2026 - Care Map pinch, rotation, mouse and trackpad - validated release candidate
 
 Owner Care Map browsing now opts into the accepted gestures: two-finger pinch/twist, mouse wheel zoom, right-button drag rotation, trackpad pinch and Shift-scroll rotation on either axis. A localized left/North/right control provides keyboard access. Viewing angle belongs to the route/view session and follows normal/fullscreen transitions without entering the saved camera or changing source coordinates. The retained inline map cannot publish camera/bearing while fullscreen is active. Active gestures own the camera; settled publication suppresses accumulated pixel roundoff. North-up containment does not override a rotated/live gesture viewport. Editing and personal-place placement return north-up; shared/embed/static capture/Print View remain opted out.

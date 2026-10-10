@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-10",
+  "baseline": "09dadcf37600310a3a4bd13f0cc083fe11e4be20",
+  "incident": {
+    "observed": "Signed-in production Care Map route failed at first render.",
+    "error": "ReferenceError: Cannot access '_e' before initialization",
+    "rootCause": "useCareMapGestures read isPrintView before its const initialization.",
+    "scope": "Owner MyMapDetailPage initialization only; no persisted map or source geometry changes.",
+    "firstRelease": "1791634927546-e5432d38-6ae9-4cb5-8b3f-318f3ee1b4e1",
+    "productionAcceptance": false
+  },
+  "fix": "Invoke the gesture hook after isPrintView is initialized.",
+  "fullPageCases": [
+    {
+      "name": "gestures-page-hotfix-phone-recheck",
+      "passed": true,
+      "caseCount": 13,
+      "errors": [],
+      "unexpected": []
+    },
+    {
+      "name": "gestures-page-hotfix-tablet-recheck",
+      "passed": true,
+      "caseCount": 13,
+      "errors": [],
+      "unexpected": []
+    },
+    {
+      "name": "gestures-full-page-hotfix-desktop-recheck",
+      "passed": true,
+      "caseCount": 10,
+      "errors": [],
+      "unexpected": []
+    },
+    {
+      "name": "gestures-full-page-hotfix-phone-recheck",
+      "passed": true,
+      "caseCount": 10,
+      "errors": [],
+      "unexpected": []
+    }
+  ],
+  "quality": {
+    "compiler": 17,
+    "cms": 73,
+    "server": 1190,
+    "client": 1003,
+    "environment": 5,
+    "mapLockdown": 112,
+    "static": true,
+    "productionBuild": true,
+    "fixedSurfaceBuild": true
+  },
+  "retainedFailedChecks": [
+    "gestures-page-hotfix-phone.json and gestures-page-hotfix-tablet.json: fixture reload while concurrent checks ran.",
+    "gestures-full-page-hotfix.json: North correctly clears its transform; original probe expected literal rotate(0rad)."
+  ],
+  "proofBoundary": "Actual owner page mounted with fictional APIs and synthetic imagery; no production writes or physical Android/tablet proof. Production verification remains required after corrected delivery.",
+  "paths": {
+    "browser": "/private/tmp/care-map-pwa-snapback-20261010/browser",
+    "quality": "/private/tmp/care-map-gestures-hotfix-quality.log",
+    "mapLockdown": "/private/tmp/care-map-gestures-hotfix-map-lockdown.log"
+  }
+}
