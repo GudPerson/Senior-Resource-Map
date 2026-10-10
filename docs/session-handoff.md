@@ -1,5 +1,14 @@
 # CareAround SG session handoff
 
+
+## 10 October 2026 — Android PWA camera snap-back follow-up — release candidate
+
+The user still saw camera resets in the installed Android PWA after `8d85ff54` fixed accidental fullscreen exit. This follow-up reproduces the independent camera feedback cycle on the actual owner page and a reduced two-map fixture at text scale 0.9/zoom 16.1, including with Detailed disabled. Background/fullscreen pixel rounding feeds both maps into one owner camera, interrupting later drags.
+
+The five-line owner-only clone override silences inline camera reporting while fullscreen is visible, keeping controlled camera input and restoring reporting on exit. It does not change DirectoryMap, PWA caching, Shared Map, desktop, saved geometry or view persistence. Four mounted callback checks include one prepatch failure; focused coverage passes 45/45. Thirteen native-touch cases pass on each phone/tablet, including actual repeated camera movement, retention, pinch/cancel, viewport height and inline/fullscreen continuity. The original replay's camera-setting count drops from 568 to 12. Physical installed-Android proof remains pending. Unsupported standalone-media emulation and a corrected inline-pan threshold are recorded honestly in the local evidence packet.
+
+Work is isolated on `codex/android-pwa-pan-20261010` in the maintained clean release checkout from accepted `8d85ff54`. Temporary fixtures are removed and the unrelated primary is preserved. Final quality/static/production-build gates pass: compiler 17, CMS 73, server 1,183, client 986 and environment 5. Locked maps pass 112/112 plus the fixed-surface build; scoped review passes. Use existing commit/push/deploy authority through the unchanged normal private publisher. Preserve the authored library and require exact snapshot/job/run/receipt, all four publisher gates, paired Worker/Pages provenance, cleared lock/promoted workspace and fresh complete public MIME/byte/SHA parity. Follow delivery with a physical PWA retest after loading the new build.
+
 ## 10 October 2026 — Private mobile fullscreen pan fix — release candidate
 
 Android Chrome panning near the bottom of the fullscreen owner Care Map activated its overlay's exit gesture. That accidental exit also displayed the retained inline map's earlier camera, reproducing both reported symptoms. Ordinary centre panning on the actual owner page retained its camera, so no unproven camera or rendering change is included.

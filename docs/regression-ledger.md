@@ -1,5 +1,14 @@
 # Regression Ledger
 
+
+## 10 October 2026 — Owner mobile fullscreen camera feedback
+
+- Report: installed Android PWA still snaps back after the earlier fullscreen-exit fix at `8d85ff54`. The remaining failure keeps fullscreen open.
+- Reproduction: actual owner page with fictional APIs, root text size 14.4px and zoom 16.1; open Full map, pan once, then pan repeatedly. The reduced two-map fixture also fails. Later 80px/140px drags move only a few pixels. Disabling Detailed does not fix it. Both retained inline and visible fullscreen maps report pixel-rounded centres into one controlled camera; 568 camera-setting calls occur in the original replay.
+- Narrow contract: while owner fullscreen is open, only its visible map reports camera changes. The inline map retains the controlled camera and follows it; reporting resumes on return. Preserve Shared Map callbacks, view selection, transient exploration, resource interactions, exports, saved data and the prior exit-gesture guard.
+- Acceptance: repeated drag distance and retained camera, pinch/cancel, viewport-height changes, inline return/reopen camera continuity and deliberate exit all pass. Four mounted-camera callback cases include one prepatch failure. Focused camera/gesture/list suite passes 45/45; 13 actual-page native-touch cases pass on each phone and tablet, with no page errors or unexpected writes. Same replay now has 12 camera-setting calls. These are fictional local emulations, not physical Android PWA UAT. Standalone media emulation was unsupported; an earlier incorrect degree threshold after pinch is retained separately.
+- Final source gates pass: compiler 17, CMS 73, server 1,183, client 986, environment 5, static checks, production client build and locked-map 112/112 plus its fixed-surface build. Scoped review passes and temporary fixtures are removed. Evidence: `docs/evidence/care-map-pwa-camera-local-20261010.json`. Protected normal publication remains a separate gate. Freeze only the narrow source/test/docs; preserve the dirty primary. After delivery, confirm on the user's installed app with the current build.
+
 ## 10 October 2026 — Private Care Map mobile fullscreen pan recovery
 
 - Baseline and scope: accepted public `f76a4fa5` preserves the 20,000 stored-point budget. Android Chrome user reports an upward pan closing fullscreen and the map returning to its earlier camera. The isolated `codex/mobile-fullscreen-pan-20261010` fix touches only owner fullscreen gesture handling in `SharedMapDirectoryList`; the retained inline map, camera synchronization, fixed surfaces, annotations, exports, Shared Map, embeds, APIs and saved data remain protected.

@@ -1,0 +1,197 @@
+{
+  "date": "2026-10-10",
+  "baseSourceRevision": "8d85ff54d89b1df311c27503d2fc26045e6f1fdf",
+  "scope": "Owner mobile fullscreen camera reporting only",
+  "rootCause": "The retained inline and visible fullscreen map reported different pixel-rounded centres into the same controlled camera, continually resetting later native drags.",
+  "reproduction": {
+    "route": "Fictional actual owner map 91261010",
+    "rootFontSize": "14.4px",
+    "zoom": 16.1,
+    "beforeOwnerRepeatedPan": "scaled-16-1.json",
+    "beforeMinimalRepeatedPan": "minimal-scaled.json",
+    "withoutDetailed": "probe-standard.json",
+    "cameraSetViewCallsBefore": 568,
+    "cameraSetViewCallsAfter": 12,
+    "unitBefore": {
+      "tests": 4,
+      "passed": 3,
+      "failed": 1
+    },
+    "privateEvidenceRoot": "/private/tmp/care-map-pwa-snapback-20261010"
+  },
+  "verification": {
+    "nativeTouch": [
+      {
+        "name": "final-phone-continuity",
+        "passed": true,
+        "caseCount": 13,
+        "errors": [],
+        "unexpectedRequests": [],
+        "environment": {
+          "viewport": [
+            390,
+            844
+          ],
+          "rootFontSize": "14.4px",
+          "standalone": false
+        },
+        "cases": [
+          {
+            "name": "Fullscreen pan remains at the requested camera after the gesture",
+            "passed": true
+          },
+          {
+            "name": "Repeated fullscreen pan 1 moves and retains its camera",
+            "passed": true
+          },
+          {
+            "name": "Repeated fullscreen pan 2 moves and retains its camera",
+            "passed": true
+          },
+          {
+            "name": "Repeated fullscreen pan 3 moves and retains its camera",
+            "passed": true
+          },
+          {
+            "name": "Upward pan near the bottom of the map keeps fullscreen open",
+            "passed": true
+          },
+          {
+            "name": "Repeated pans in both axes retain fullscreen",
+            "passed": true
+          },
+          {
+            "name": "A cancelled map gesture retains fullscreen",
+            "passed": true
+          },
+          {
+            "name": "Two-finger zoom retains fullscreen",
+            "passed": true
+          },
+          {
+            "name": "Viewport height changes retain the visible fullscreen camera",
+            "passed": true
+          },
+          {
+            "name": "The visible return button closes fullscreen and restores page scrolling",
+            "passed": true
+          },
+          {
+            "name": "Returning to the inline map restores panning",
+            "passed": true
+          },
+          {
+            "name": "Reopening fullscreen follows the latest inline camera",
+            "passed": true
+          },
+          {
+            "name": "A deliberate bottom-edge swipe outside the map still closes fullscreen",
+            "passed": true
+          }
+        ]
+      },
+      {
+        "name": "final-tablet-continuity",
+        "passed": true,
+        "caseCount": 13,
+        "errors": [],
+        "unexpectedRequests": [],
+        "environment": {
+          "viewport": [
+            768,
+            1024
+          ],
+          "rootFontSize": "14.4px",
+          "standalone": false
+        },
+        "cases": [
+          {
+            "name": "Fullscreen pan remains at the requested camera after the gesture",
+            "passed": true
+          },
+          {
+            "name": "Repeated fullscreen pan 1 moves and retains its camera",
+            "passed": true
+          },
+          {
+            "name": "Repeated fullscreen pan 2 moves and retains its camera",
+            "passed": true
+          },
+          {
+            "name": "Repeated fullscreen pan 3 moves and retains its camera",
+            "passed": true
+          },
+          {
+            "name": "Upward pan near the bottom of the map keeps fullscreen open",
+            "passed": true
+          },
+          {
+            "name": "Repeated pans in both axes retain fullscreen",
+            "passed": true
+          },
+          {
+            "name": "A cancelled map gesture retains fullscreen",
+            "passed": true
+          },
+          {
+            "name": "Two-finger zoom retains fullscreen",
+            "passed": true
+          },
+          {
+            "name": "Viewport height changes retain the visible fullscreen camera",
+            "passed": true
+          },
+          {
+            "name": "The visible return button closes fullscreen and restores page scrolling",
+            "passed": true
+          },
+          {
+            "name": "Returning to the inline map restores panning",
+            "passed": true
+          },
+          {
+            "name": "Reopening fullscreen follows the latest inline camera",
+            "passed": true
+          },
+          {
+            "name": "A deliberate bottom-edge swipe outside the map still closes fullscreen",
+            "passed": true
+          }
+        ]
+      }
+    ],
+    "focusedUnitLog": "browser/unit-after.log",
+    "quality": {
+      "passed": true,
+      "compiler": 17,
+      "cms": 73,
+      "server": 1183,
+      "client": 986,
+      "environment": 5,
+      "staticChecks": true,
+      "productionClientBuild": true
+    },
+    "mapLockdown": {
+      "passed": true,
+      "tests": 112,
+      "fixedSurfaceBuild": true
+    },
+    "focusedUnits": {
+      "passed": true,
+      "tests": 45
+    },
+    "scopedReview": {
+      "passed": true,
+      "sourceChange": "Five lines in the owner inline map clone; fullscreen inherits its original callback, Shared Map preserves both callbacks.",
+      "temporaryFixturesRemoved": true,
+      "primaryTrackedDiffSha256": "8904e045b0c1900797f895d44695f2f0e6bf069cbee2381074a6ebb99206e110"
+    }
+  },
+  "retainedLimitations": [
+    "Physical Android installed-PWA confirmation remains pending.",
+    "CDP standalone media emulation returned false; this is not installed-app proof.",
+    "Earlier degree-based inline-pan acceptance failed after pinch; the corrected pixel-distance probe is retained separately.",
+    "No production map writes, saved-view changes or service-worker changes."
+  ],
+  "production": "pending"
+}
