@@ -235,3 +235,29 @@ test('owner map gesture help stays in scope, uses four languages and reads no pr
     assert.match(answer.message, /right button.*trackpad.*Shift.*Reset to north/);
     assert.match(answer.message, /temporary.*saved coordinates.*north-up.*Export View.*PNG\/PDF downloads keep.*Back restores.*Shared maps.*embeds.*north-up/);
 });
+
+
+test('GeoJSON and map-scoped JSON questions give the translated preview workflow without changing the authored library', async () => {
+    const h = fixture();
+    const before = JSON.stringify(GUIDE_ORACLE_FACTS);
+    for (const locale of ['en', 'zh-CN', 'ms', 'ta']) {
+        for (const question of ['How do I import GeoJSON boundaries into my Care Map?', 'Can my Care Map import JSON files?']) {
+            const { status, answer } = await h.ask({ question, locale });
+            assert.equal(status, 200);
+            assert.equal(answer.topicId, 'map-private-kml-boundaries');
+            assert.match(answer.message, /GeoJSON/);
+            assert.match(answer.message, /\.geojson/);
+            assert.match(answer.message, /\.json/);
+            assert.match(answer.message, /1,000/);
+            assert.match(answer.message, /20,000/);
+            assert.match(answer.message, /PNG\/PDF/);
+            assert.ok(answer.message.length <= 1600);
+            assert.doesNotMatch(JSON.stringify(answer), /client\/src|server\/src|boundarySource/);
+        }
+    }
+    assert.equal(guideAnnotationFeatureIntent('Import GeoJSON subregions in Admin'), null);
+    assert.equal(guideAnnotationFeatureIntent('Import JSON into Excel', 'Care Maps'), null);
+    assert.equal(guideAnnotationFeatureIntent('What is JSON?'), null);
+    assert.equal(JSON.stringify(GUIDE_ORACLE_FACTS), before);
+    assert.deepEqual(h.calls, { model: 0, private: 0 });
+});

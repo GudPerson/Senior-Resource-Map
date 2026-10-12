@@ -47,8 +47,18 @@ export function parseKmlRing(value) {
         if (altitude !== 0) fail('altitude');
         return [lat, lng];
     });
-    if (points.length < 4 || points[0][0] !== points.at(-1)[0] || points[0][1] !== points.at(-1)[1]) fail('ring');
-    points.pop(); // Leaflet closes the outer ring; retain each original corner once.
+    return validateBoundaryRing(points);
+}
+
+export function validateBoundaryRing(closedPoints) {
+    if (!Array.isArray(closedPoints)) fail('ring');
+    if (closedPoints.length > KML_MAX_POLYGON_CORNERS + 1) fail('vertices');
+    if (closedPoints.some(point => !Array.isArray(point) || point.length !== 2
+        || !point.every(Number.isFinite) || Math.abs(point[0]) > 90 || Math.abs(point[1]) > 180)) fail('coordinates');
+    if (closedPoints.length < 4 || closedPoints[0][0] !== closedPoints.at(-1)[0]
+        || closedPoints[0][1] !== closedPoints.at(-1)[1]) fail('ring');
+    // Renderers close rings; preserve each original corner once without changing the input.
+    const points = closedPoints.slice(0, -1);
     if (new Set(points.map(point => point.join(','))).size !== points.length) fail('ring');
     const origin = points[0];
     const area = points.reduce((sum, a, index) => sum + cross(origin, a, points[(index + 1) % points.length]), 0);
@@ -108,6 +118,11 @@ function readPolygon(polygon) {
         if (linearRings.length !== 1 || children(linearRings[0], 'coordinates').length !== 1) fail('ring');
         return parseKmlRing(text(linearRings[0], 'coordinates'));
     });
+    return validateBoundaryPolygonRings(rings);
+}
+
+export function validateBoundaryPolygonRings(rings) {
+    if (!Array.isArray(rings) || !rings.length) fail('ring');
     if (rings.reduce((sum, ring) => sum + ring.length, 0) > KML_MAX_POLYGON_CORNERS) fail('vertices');
     for (let i = 1; i < rings.length; i++) {
         if (ringsCross(rings[0], rings[i]) || rings[i].some(point => !ringContains(rings[0], point))) fail('holes');
@@ -216,8 +231,9 @@ export function appendKmlBoundaries(existing, boundaries) {
 export function buildKmlBoundaryPreview(boundaries) {
     const all = boundaries.flatMap(item => item.points);
     if (!all.length) return [];
-    const lats = all.map(point => point[0]), lngs = all.map(point => point[1]);
-    const minLat = Math.min(...lats), maxLat = Math.max(...lats), minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+    // Selection can be smaller than the file; avoid spreading a large preview into function arguments.
+    const [minLat, maxLat, minLng, maxLng] = all.reduce(([a, b, c, d], [lat, lng]) =>
+        [Math.min(a, lat), Math.max(b, lat), Math.min(c, lng), Math.max(d, lng)], [Infinity, -Infinity, Infinity, -Infinity]);
     const longitudeScale = Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
     const scale = Math.min(560 / Math.max((maxLng - minLng) * longitudeScale, 1e-8), 260 / Math.max(maxLat - minLat, 1e-8));
     const xOffset = (600 - (maxLng - minLng) * longitudeScale * scale) / 2;

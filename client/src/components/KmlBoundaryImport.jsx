@@ -4,6 +4,7 @@ import { FileUp, X } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getKmlBoundaryMessages } from '../lib/kmlBoundaryMessages.js';
 import { KML_MAX_BYTES, KmlBoundaryError, parseKmlBoundaries, getKmlImportCapacity, buildKmlBoundaryPreview } from '../lib/kmlBoundaries.js';
+import { parseGeoJsonBoundaries } from '../lib/geoJsonBoundaries.js';
 
 export default function KmlBoundaryImport({ mapId, annotations, disabled = false, onImport }) {
     const { locale } = useLocale();
@@ -35,11 +36,11 @@ export default function KmlBoundaryImport({ mapId, annotations, disabled = false
         const token = ++requestRef.current;
         setResult(null); setSelected(new Set()); setError(''); setFileName(file.name); setReading(true);
         try {
-            if (!/\.kml$/i.test(file.name)) throw new KmlBoundaryError('file');
+            if (!/\.(kml|geojson|json)$/i.test(file.name)) throw new KmlBoundaryError('file');
             if (file.size > KML_MAX_BYTES) throw new KmlBoundaryError('size');
-            const xml = await file.text();
+            const content = await file.text();
             if (requestRef.current !== token) return;
-            const parsed = parseKmlBoundaries(xml);
+            const parsed = /\.kml$/i.test(file.name) ? parseKmlBoundaries(content) : parseGeoJsonBoundaries(content, { unnamed: m.unnamed });
             setResult(parsed); setSelected(new Set(parsed.boundaries.map(item => item.key)));
         } catch (failure) {
             if (requestRef.current === token) setError(failure instanceof KmlBoundaryError ? failure.code : 'read');
@@ -73,7 +74,7 @@ export default function KmlBoundaryImport({ mapId, annotations, disabled = false
                         <Dialog.Close aria-label={m.cancel} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-slate-100"><X size={20} /></Dialog.Close>
                     </div>
                     <div className="min-h-0 space-y-4 overflow-y-auto p-4">
-                        <input ref={fileRef} type="file" accept=".kml,application/vnd.google-earth.kml+xml" aria-label={m.choose} className="sr-only" tabIndex={-1} onChange={readFile} />
+                        <input ref={fileRef} type="file" accept=".kml,.geojson,.json,application/vnd.google-earth.kml+xml,application/geo+json,application/json" aria-label={m.choose} className="sr-only" tabIndex={-1} onChange={readFile} />
                         <button type="button" onClick={() => fileRef.current?.click()} disabled={reading} className="min-h-11 rounded-lg border border-brand-200 px-4 py-2 font-semibold text-brand-800 disabled:opacity-50">{m.choose}</button>
                         <p className="text-xs text-slate-600">{m.limits}</p>
                         {fileName ? <p className="break-words text-sm font-semibold text-slate-800">{fileName}</p> : null}

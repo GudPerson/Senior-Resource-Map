@@ -445,3 +445,21 @@ test('shared map generation snapshots annotations without changing cascade or ro
     assert.match(sharedControllerSource, /map\.printAnnotationDocument\?\.annotations/);
     assert.doesNotMatch(sharedControllerSource, /refineBoundaryToRoad|openstreetmap-overpass/);
 });
+
+
+test('GeoJSON multipart boundaries persist privately with exact coordinates and existing revision ownership', async () => {
+    const boundary = appendKmlBoundaries([], [{ name: 'GeoJSON private boundary',
+        points: [[1.3, 103.7], [1.3, 103.8], [1.4, 103.8], [1.4, 103.7],
+            [1.32, 103.72], [1.32, 103.74], [1.34, 103.74], [1.34, 103.72],
+            [1.3, 103.9], [1.3, 104], [1.4, 104], [1.4, 103.9]], boundaryParts: [[4, 4], [4]], style: {} }])[0];
+    const db = createFakeDb();
+    const body = validatePrintAnnotationDocumentInput({ schemaVersion: 1, revision: 0, annotations: [boundary] });
+    const saved = await replacePrintAnnotationDocument(db, OWNER, MAP_ID, body);
+    assert.equal(saved.revision, 1);
+    assert.deepEqual(saved.annotations, [boundary]);
+    assert.deepEqual((await getPrintAnnotationDocument(db, OWNER, MAP_ID)).annotations, [boundary]);
+    assert.deepEqual(JSON.parse(JSON.stringify(db.state.document.annotations)), [boundary]);
+    await assert.rejects(replacePrintAnnotationDocument(db, OWNER, MAP_ID, body), error => error.status === 409);
+    await assert.rejects(replacePrintAnnotationDocument(createFakeDb({ ownsMap: false }), OWNER, MAP_ID, body), error => error.status === 404);
+    assert.deepEqual(buildEmbeddedPrintAnnotationSnapshot(saved.annotations), []);
+});
