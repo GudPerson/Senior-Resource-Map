@@ -75,3 +75,12 @@ test('import entry is available only when the owner page supplies its callback',
     assert.doesNotMatch(renderer.chooser(false), /Import spreadsheet/);
     assert.match(renderer.chooser(true), /Choose map location/);
 });
+
+test('unresolved rows show processing with a spinner instead of a file error or retry button', async () => {
+    const pending = parsePersonalPlaceImportGrid([['Name', 'Postal Code'], ['503', '680503']]);
+    const html = (await renderers()).rows(reviewPersonalPlaceImportRows(pending), []);
+    assert.match(html, /Processing location/);
+    assert.match(html, /role="status"/);
+    assert.match(html, /animate-spin/);
+    assert.doesNotMatch(html, /role="alert"|Retry location|correct the file|border-red-200/);
+});

@@ -6,7 +6,7 @@ import { myMaps } from '../db/schema.js';
 import { buildResourceWriteLockQuery, executeAtomicBatch } from '../utils/atomicWrites.js';
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { cleanOneLineText, cleanText } from '../utils/inputValidation.js';
-import { resolvePersonalPlaceLocation } from '../utils/personalPlaceLocation.js';
+import { resolvePersonalPlaceImportLocation } from '../utils/personalPlaceImportLookup.js';
 import { assertPersonalPlacesUser } from './personalPlacesController.js';
 
 export const PERSONAL_PLACE_IMPORT_BATCH_LIMIT = 25;
@@ -165,10 +165,14 @@ export async function importMyMapPersonalPlaces(db, user, mapId, body, options =
     });
     if (!ownedMap) throw importError(404, 'Map not found');
 
-    const resolveLocation = options.resolveLocation || resolvePersonalPlaceLocation;
+    const lookupOptions = options.locationLookupOptions || {};
+    const resolveLocation = options.resolveLocation || ((body) => resolvePersonalPlaceImportLocation(body.postalCode, lookupOptions));
+    const wait = lookupOptions.wait || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
     const locations = new Map();
     for (const postalCode of new Set(rows.map((row) => row.postalCode))) {
         try {
+            // Pace the pre-save checks too; do not restart a burst after the preview succeeds.
+            if (!options.resolveLocation && locations.size) await wait(600, lookupOptions.signal);
             const verified = await resolveLocation({ postalCode, locationMode: 'addressed' });
             if (verified.postalCode !== postalCode || !verified.address
                 || !Number.isFinite(verified.lat) || Math.abs(verified.lat) > 90

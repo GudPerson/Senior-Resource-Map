@@ -154,22 +154,40 @@ export function applyPersonalPlaceImportLookup(row, outcome) {
     };
 }
 
-export async function lookupPersonalPlaceImportLocations(rows, lookup, onResult, shouldContinue = () => true) {
+export async function lookupPersonalPlaceImportLocations(rows, lookup, onResult, shouldContinue = () => true, options = {}) {
     const postals = [...new Set(rows.filter((row) => !row.parseErrors.length && !row.excluded && !row.result).map((row) => row.postalCode))];
+    const wait = options.wait || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+    const spacingMs = Math.max(0, Number(options.spacingMs) || 0);
+    const concurrency = spacingMs ? 1 : Math.max(1, Math.min(3, Number(options.concurrency) || 3));
+    const attempts = Math.max(1, Math.min(3, Number(options.retryAttempts) || 1));
     let cursor = 0;
     async function worker() {
+        let started = false;
         while (cursor < postals.length && shouldContinue()) {
+            if (started && spacingMs) await wait(spacingMs);
+            if (!shouldContinue()) return;
             const postalCode = postals[cursor++];
+            started = true;
             let outcome;
-            try {
-                outcome = { location: validatePersonalPlaceImportLookup(postalCode, await lookup(postalCode)) };
-            } catch (error) {
-                outcome = { error: error.message || 'Location lookup failed. Retry this row.' };
+            for (let attempt = 1; attempt <= attempts && shouldContinue(); attempt += 1) {
+                try {
+                    outcome = { location: validatePersonalPlaceImportLookup(postalCode, await lookup(postalCode)) };
+                    break;
+                } catch (error) {
+                    const retryable = error.name !== 'AbortError' && error.code !== 'postal_lookup_unavailable'
+                        && (!error.status || error.status === 429 || error.status >= 500);
+                    if (attempt < attempts && retryable && shouldContinue()) {
+                        await wait(1000 * attempt);
+                        continue;
+                    }
+                    outcome = { error: error.message || 'The location service is temporarily unavailable. Try again later.' };
+                    break;
+                }
             }
-            if (shouldContinue()) onResult(postalCode, outcome);
+            if (shouldContinue() && outcome) onResult(postalCode, outcome);
         }
     }
-    await Promise.all(Array.from({ length: Math.min(3, postals.length) }, worker));
+    await Promise.all(Array.from({ length: Math.min(concurrency, postals.length) }, worker));
 }
 
 export function personalPlaceImportPayload(row) {
@@ -239,7 +257,7 @@ export function reviewPersonalPlaceImportRows(rows, { categories = [], personalP
             if (row.categoryId !== null && !activeIds.has(Number(row.categoryId))) problems.push('Choose an active category or Personal place.');
         }
         if (problems.length) return { ...row, reviewStatus: 'invalid', reviewMessage: problems.join(' ') };
-        if (row.lookupStatus !== 'ready') return { ...row, reviewStatus: 'pending', reviewMessage: 'Looking up this postal code…' };
+        if (row.lookupStatus !== 'ready') return { ...row, reviewStatus: 'pending', reviewMessage: 'Processing location…' };
         const sameLocation = personalPlaces.filter((place) => identityKey(place) === identityKey(row, true));
         const exact = sameLocation.filter((place) => contentKey(place) === contentKey(row, true));
         const previous = earlier.find((place) => identityKey(place, true) === identityKey(row, true));

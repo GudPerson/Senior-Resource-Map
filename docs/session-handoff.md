@@ -1,5 +1,13 @@
 # CareAround SG session handoff
 
+## 12 October 2026 — Personal-place import retry fix — reviewed integration
+
+Side-conversation scope covers misleading immediate lookup failures and failed pre-save verification. Isolated worktree `output/personal-place-lookup-retries-20261012`, branch `codex/personal-place-lookup-retries-20261012`, base `fe0e83f8322c5d3037c627b6261f65288020766b`; preserve the primary and the parent release checkout. The import preview uses an owner-scoped read-only server endpoint with paced bounded retries and Processing feedback. Final server verification uses the same resolver before the existing atomic transaction; no automatic replay of mutating requests, privacy relaxation, approximate coordinates or schema change.
+
+Validation passes server 1,203; client 1,009 plus environment 5; locked maps 112; static/module graph and production client build; five fictional browser cases. Cold-checkout setup and browser-fixture failures are retained in local proof logs. No physical-device or live bulk-save proof. Full behavior, repro and evidence paths: `docs/personal-place-import-retries-20261012.md` and the newest regression-ledger entry.
+
+The current user explicitly authorized integration, commit, push and both deployments. Reviewed runtime/test files are integrated onto accepted `b29abb7b` in the maintained release checkout on `codex/personal-place-import-retry-release-20261012`; original candidate and unrelated dirty work are preserved. Fresh quality, locked-map and five fictional browser checks pass; see the integration section in `docs/personal-place-import-retries-20261012.md`. Finish the existing protected paired publication and independent artifact/control-plane/content checks, then record actual deployment details in the output handoff. Do not disturb the user's open import or create live places for a test.
+
 ## 12 October 2026 — Fullscreen header seam recovery
 
 The preceding `fe0e83f8` header correction kept the menu exposed but inherited the parent `space-y-4` top margin. The fullscreen overlay started 14.4px below the title row at text scale0.9 (16px at1 and22.4px at1.4), exposing the retained inline map. The old acceptance check required the canvas below the header but did not assert continuity of the overlay background.

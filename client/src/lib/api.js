@@ -624,6 +624,13 @@ export const api = {
     updateMyMapAssetNotes: (id, resourceType, resourceId, body, options = {}) => request('PATCH', `/my-maps/${id}/assets/${resourceType}/${resourceId}/notes`, body, options),
     removeMyMapAsset: (id, resourceType, resourceId) => request('DELETE', `/my-maps/${id}/assets/${resourceType}/${resourceId}`),
     createMyMapPersonalPlace: (id, body) => request('POST', `/my-maps/${id}/personal-places`, body),
+    lookupMyMapPersonalPlaceImportLocation: async (id, postalCode, options = {}) => {
+        const result = await request('GET', `/my-maps/${id}/personal-places/lookup?postalCode=${encodeURIComponent(postalCode)}`, undefined, options);
+        if (!result?.location) {
+            throw Object.assign(new Error('The location service is temporarily unavailable. Try again later.'), { status: 503, code: 'postal_lookup_unavailable' });
+        }
+        return result.location;
+    },
     importMyMapPersonalPlaces: (id, body) => request('POST', `/my-maps/${id}/personal-places/import`, body),
     updateMyMapPersonalPlace: (id, placeId, body) => request('PATCH', `/my-maps/${id}/personal-places/${placeId}`, body),
     updateMyMapPersonalPlaceShortDescriptor: (id, placeId, body) => request('PATCH', `/my-maps/${id}/personal-places/${placeId}/short-description`, body),

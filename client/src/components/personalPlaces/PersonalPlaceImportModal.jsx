@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Download, FileSpreadsheet, LoaderCircle, RotateCcw, X } from 'lucide-react';
 
 import { api } from '../../lib/api.js';
-import { searchOneMap } from '../../lib/geo.js';
 import { handleModalKeyboardEvent } from '../../lib/modalKeyboard.js';
 import {
     PERSONAL_PLACE_IMPORT_BATCH_SIZE, PERSONAL_PLACE_IMPORT_TEMPLATE,
@@ -49,7 +48,10 @@ export function PersonalPlaceImportRows({ rows, categories = [], disabled = fals
                                 </label>
                             </div>
                         ) : null}
-                        <p className={`mt-3 break-words text-sm ${row.reviewStatus === 'invalid' ? 'font-semibold text-red-700' : row.reviewStatus === 'completed' ? 'font-semibold text-brand-700' : 'text-slate-600'}`} role={row.reviewStatus === 'invalid' ? 'alert' : undefined}>{row.reviewMessage}</p>
+                        <p className={`mt-3 flex items-center gap-2 break-words text-sm ${row.reviewStatus === 'invalid' ? 'font-semibold text-red-700' : row.reviewStatus === 'completed' ? 'font-semibold text-brand-700' : 'text-slate-600'}`} role={row.reviewStatus === 'invalid' ? 'alert' : row.reviewStatus === 'pending' ? 'status' : undefined}>
+                            {row.reviewStatus === 'pending' ? <LoaderCircle size={15} className="flex-shrink-0 animate-spin" aria-hidden="true" /> : null}
+                            {row.reviewMessage}
+                        </p>
                         {row.lookupStatus === 'failed' && !row.excluded && !row.result ? (
                             <button type="button" onClick={() => onRetry?.(row.postalCode)} disabled={disabled || lookupBusy} aria-label={`Retry location for row ${row.rowNumber}`} className="btn-ghost mt-2 min-h-11 px-3 disabled:opacity-50"><RotateCcw size={15} /> Retry location</button>
                         ) : null}
@@ -78,6 +80,7 @@ export default function PersonalPlaceImportModal({ open, mapId, identityKey, cat
     const fileRef = useRef(null);
     const rowsRef = useRef([]);
     const sessionRef = useRef(0);
+    const lookupAbortRef = useRef(null);
     const onImportedRef = useRef(onImported);
     onImportedRef.current = onImported;
 
@@ -89,6 +92,7 @@ export default function PersonalPlaceImportModal({ open, mapId, identityKey, cat
 
     useEffect(() => {
         sessionRef.current += 1;
+        lookupAbortRef.current?.abort();
         if (open) {
             changeRows([]);
             fileRef.current = null;
@@ -97,7 +101,7 @@ export default function PersonalPlaceImportModal({ open, mapId, identityKey, cat
             setRefreshPending(false); setHasSubmitted(false); setError(''); setNotice('');
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
-        return () => { sessionRef.current += 1; };
+        return () => { sessionRef.current += 1; lookupAbortRef.current?.abort(); };
     }, [open, mapId, identityKey, changeRows]);
 
     useEffect(() => {
@@ -127,15 +131,21 @@ export default function PersonalPlaceImportModal({ open, mapId, identityKey, cat
     const canSave = ready.length > 0 && invalidCount === 0 && pendingCount === 0 && !lookupBusy && !parseBusy && !locked && !refreshPending;
 
     async function lookUp(nextRows, token) {
+        lookupAbortRef.current?.abort();
+        const controller = new AbortController();
+        lookupAbortRef.current = controller;
         setLookupBusy(true);
-        await lookupPersonalPlaceImportLocations(nextRows, searchOneMap, (postalCode, outcome) => {
+        await lookupPersonalPlaceImportLocations(nextRows, (postalCode) => api.lookupMyMapPersonalPlaceImportLocation(mapId, postalCode, {
+            signal: controller.signal, networkAttemptsPerBase: 1,
+        }), (postalCode, outcome) => {
             changeRows((current) => current.map((row) => row.postalCode === postalCode ? applyPersonalPlaceImportLookup(row, outcome) : row));
-        }, () => sessionRef.current === token);
+        }, () => sessionRef.current === token && !controller.signal.aborted, { concurrency: 1, spacingMs: 600, retryAttempts: 2 });
         if (sessionRef.current === token) setLookupBusy(false);
     }
 
     async function readFile(file, sheetName) {
         const token = ++sessionRef.current;
+        lookupAbortRef.current?.abort();
         setError(''); setNotice(''); setParseBusy(true); setLookupBusy(false);
         changeRows([]);
         setFileName(file?.name || '');
@@ -259,11 +269,11 @@ export default function PersonalPlaceImportModal({ open, mapId, identityKey, cat
                         <button type="button" onClick={downloadTemplate} disabled={locked} className="btn-ghost min-h-11 justify-center border border-slate-200 bg-white px-3"><Download size={15} /> Download template</button>
                     </div>
                     {sheetNames.length > 1 ? <label className="mt-4 block space-y-2"><span className="block text-sm font-bold text-slate-800">Choose a worksheet</span><select value={selectedSheetName} disabled={locked || parseBusy || hasSubmitted} aria-label="Choose worksheet" onChange={(event) => { if (event.target.value) readFile(fileRef.current, event.target.value); }} className="input-field min-h-11 w-full"><option value="">Select a data sheet</option>{sheetNames.map((name) => <option key={name} value={name}>{name}</option>)}</select></label> : null}
-                    {parseBusy || lookupBusy ? <p role="status" className="mt-4 flex items-center gap-2 text-sm font-semibold text-brand-700"><LoaderCircle size={17} className="animate-spin" aria-hidden="true" />{parseBusy ? 'Reading spreadsheet…' : 'Looking up postal codes…'}</p> : null}
+                    {parseBusy || lookupBusy ? <p role="status" className="mt-4 flex items-center gap-2 text-sm font-semibold text-brand-700"><LoaderCircle size={17} className="animate-spin" aria-hidden="true" />{parseBusy ? 'Reading spreadsheet…' : `Processing locations… ${rows.length - pendingCount} of ${rows.length} processed`}</p> : null}
                     {error ? <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p> : null}
                     {notice ? <p role="status" className="mt-4 text-sm font-semibold text-brand-700">{notice}</p> : null}
                     {rows.length ? <>
-                        <div className="mb-3 mt-5 space-y-2"><p className="break-words text-sm font-bold text-slate-900">{fileName}{selectedSheetName ? ` · ${selectedSheetName}` : ''}</p><p className="text-sm text-slate-600" aria-live="polite">{ready.length} ready · {skippedCount} skipped · {invalidCount} need attention · {completedCount} confirmed{pendingCount ? ` · ${pendingCount} looking up` : ''}</p>{ready.length ? <p className="text-xs text-slate-500">{createCount} new · {reuseCount} to reuse · {alreadyCount} already on this map</p> : null}<p className="text-xs leading-5 text-slate-500">{hasSubmitted ? 'Completed rows are kept out of retries. Existing places are reused without changing their details.' : 'Nothing is saved until you confirm. Correct the file or skip rows that need attention.'}</p></div>
+                        <div className="mb-3 mt-5 space-y-2"><p className="break-words text-sm font-bold text-slate-900">{fileName}{selectedSheetName ? ` · ${selectedSheetName}` : ''}</p><p className="text-sm text-slate-600" aria-live="polite">{ready.length} ready · {skippedCount} skipped · {invalidCount} need attention · {completedCount} confirmed{pendingCount ? ` · ${pendingCount} looking up` : ''}</p>{ready.length ? <p className="text-xs text-slate-500">{createCount} new · {reuseCount} to reuse · {alreadyCount} already on this map</p> : null}<p className="text-xs leading-5 text-slate-500">{hasSubmitted ? 'Completed rows are kept out of retries. Existing places are reused without changing their details.' : invalidCount ? 'Nothing is saved until you confirm. Correct the file or skip rows that need attention.' : 'Nothing is saved until you confirm. Review each address before adding your places.'}</p></div>
                         <PersonalPlaceImportRows rows={reviewed} categories={categories} disabled={locked || refreshPending} lookupBusy={lookupBusy} onChange={(id, patch) => changeRows((current) => current.map((row) => row.id === id && !row.result ? { ...row, ...patch } : row))} onRetry={retryLookup} />
                     </> : null}
                 </div>
@@ -271,7 +281,7 @@ export default function PersonalPlaceImportModal({ open, mapId, identityKey, cat
                     <button type="button" disabled={locked} onClick={onClose} className="btn-ghost min-h-11 px-4 disabled:opacity-40">{hasSubmitted ? 'Close' : 'Cancel'}</button>
                     {refreshPending ? <button type="button" disabled={locked} onClick={handleRefresh} className="btn-primary min-h-11 px-4 disabled:opacity-50"><RotateCcw size={16} />{refreshBusy ? 'Refreshing…' : 'Refresh saved results'}</button>
                         : allDone ? <button type="button" onClick={onClose} className="btn-primary min-h-11 px-5">Done</button>
-                            : <button type="button" disabled={!canSave || typeof onImported !== 'function'} onClick={handleImport} className="btn-primary min-h-11 px-4 disabled:opacity-50">{saving ? 'Adding and checking…' : `Add ${ready.length} ${ready.length === 1 ? 'place' : 'places'} to this map`}</button>}
+                            : <button type="button" disabled={!canSave || typeof onImported !== 'function'} onClick={handleImport} className="btn-primary min-h-11 px-4 disabled:opacity-50">{saving || parseBusy || lookupBusy ? <><LoaderCircle size={16} className="animate-spin" aria-hidden="true" />{saving ? 'Processing import…' : parseBusy ? 'Reading spreadsheet…' : 'Processing locations…'}</> : `Add ${ready.length} ${ready.length === 1 ? 'place' : 'places'} to this map`}</button>}
                 </footer>
             </section>
         </div>
