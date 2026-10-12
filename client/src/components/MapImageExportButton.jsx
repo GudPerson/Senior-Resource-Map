@@ -212,6 +212,7 @@ export default function MapImageExportButton({
     shareUrl = '',
     className = '',
     printMapState = null,
+    mapBearing = 0,
     fixedTownSurfaceManifest = null,
     fixedTownAssetBaseUrl = '',
     fixedTownSurfaceAvailable = false,
@@ -276,6 +277,7 @@ export default function MapImageExportButton({
         activeAnchor?.lng,
         activeAnchor?.postalCode,
         printMapCaptureKey,
+        mapBearing,
         preparedPrintAnnotationCaptureKey,
         privateImageCaptureKey,
         shareUrl,
@@ -765,6 +767,7 @@ export default function MapImageExportButton({
                             onMapCaptureError={handleMapCaptureError}
                             onMapViewportSnapshot={handleMapViewportSnapshot}
                             printMapState={printMapState}
+                            mapBearing={mapBearing}
                             fixedTownSurfaceManifest={fixedTownSurfaceManifest}
                             fixedTownAssetBaseUrl={fixedTownAssetBaseUrl}
                             fixedTownSurfaceAvailable={fixedTownSurfaceAvailable}

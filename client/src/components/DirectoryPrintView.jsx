@@ -281,6 +281,7 @@ function PrintResourcePageHeader({ directory, generatedAt, resourceCount }) {
 }
 
 function PrintDirectoryMap({
+    careMapGestures = null,
     presentation,
     mapPresentation = presentation,
     directory,
@@ -568,6 +569,7 @@ function PrintDirectoryMap({
 
             <div className={printMapState && interactive ? 'relative mb-4' : ''}>
             <DirectoryMap
+                careMapGestures={careMapGestures}
                 activeAnchor={presentation.activeAnchor}
                 pins={mapPresentation.pins}
                 renderPins={visibleResourcePins}
@@ -823,6 +825,7 @@ const PREVIEW_CONTAINER_WIDTH = PRINT_MAP_CANVAS_WIDTH_PX;
 const PRINT_V2_FIT_PADDING_BOTTOM_RIGHT = [44, 24];
 
 export default function DirectoryPrintView({
+    careMapGestures = null,
     directory,
     generatedAt = new Date(),
     mode = 'shared',
@@ -1142,6 +1145,7 @@ export default function DirectoryPrintView({
                 desktopMapWrapperClassName="mx-auto w-full"
                 renderDesktopMap={() => (
                     <PrintDirectoryMap
+                        careMapGestures={useV2OwnerPrint ? careMapGestures : null}
                         presentation={presentation}
                         mapPresentation={ownerPrintMapPresentation}
                         directory={printDirectory}

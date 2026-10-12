@@ -2792,7 +2792,8 @@ export default function DirectoryMap({
     surfaceStatus = null,
 }) {
     const { mapStyle } = useMapStyle();
-    const careMapRotationEnabled = Boolean(careMapGestures && !onMapReadyForCapture);
+    const careMapRotationEnabled = Boolean(careMapGestures
+        && (!onMapReadyForCapture || careMapGestures.capture === true));
     const hasReportedReadyRef = useRef(false);
     const mapSettledRef = useRef(false);
     const tileLoadedRef = useRef(false);

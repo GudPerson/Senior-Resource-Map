@@ -1,0 +1,165 @@
+{
+  "date": "2026-10-12",
+  "baseSource": "ef133d1207de61f101c75889e0008c49a64957d3",
+  "scope": [
+    "Owner Export View gestures and inherited temporary bearing",
+    "Rotated PNG/PDF capture",
+    "Owner mobile fullscreen menu/title visibility"
+  ],
+  "browser": {
+    "cases": [
+      {
+        "name": "Owner browsing rotates",
+        "passed": true
+      },
+      {
+        "name": "Export View inherits the browsing angle",
+        "passed": true,
+        "snapshot": {
+          "bearing": "rotate(0.785398rad)",
+          "zoom": 16,
+          "center": "1.3,103.85"
+        }
+      },
+      {
+        "name": "Export controls rotate independently",
+        "passed": true,
+        "snapshot": {
+          "bearing": "rotate(1.5708rad)",
+          "zoom": 16,
+          "center": "1.3,103.85"
+        }
+      },
+      {
+        "name": "Rotated map download is ready",
+        "passed": true
+      },
+      {
+        "name": "Actual rotated PNG downloaded",
+        "passed": true
+      },
+      {
+        "name": "Actual rotated PDF downloaded",
+        "passed": true
+      },
+      {
+        "name": "Export mouse wheel zoom preserves rotation",
+        "passed": true
+      },
+      {
+        "name": "Export trackpad pinch zoom is independent of rotation",
+        "passed": true
+      },
+      {
+        "name": "Export North restores only its angle",
+        "passed": true
+      },
+      {
+        "name": "Back restores original browsing angle and camera",
+        "passed": true,
+        "snapshot": {
+          "bearing": "rotate(0.785398rad)",
+          "zoom": 16,
+          "center": "1.3,103.85"
+        }
+      },
+      {
+        "name": "phone fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "headerTop": 56,
+          "headerBottom": 100,
+          "mapTop": 133,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "phone menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "phone fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "phone closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "tablet fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "headerTop": 64,
+          "headerBottom": 112,
+          "mapTop": 145,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "tablet menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "tablet fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "tablet closing fullscreen restores header and body",
+        "passed": true
+      }
+    ],
+    "errors": [],
+    "writes": [],
+    "boundary": "Actual owner page, fictional API data, synthetic imagery and emulated layouts/touch. No production writes or physical-device claim.",
+    "passed": true
+  },
+  "pixels": {
+    "passed": true,
+    "cases": [
+      {
+        "file": "north.png",
+        "redPixelCount": 6526,
+        "redShapeAngle": 0.0
+      },
+      {
+        "file": "rotated.png",
+        "redPixelCount": 6066,
+        "redShapeAngle": 90.0
+      },
+      {
+        "file": "rotated.pdf",
+        "redPixelCount": 1200,
+        "redShapeAngle": 89.84091563872032
+      }
+    ],
+    "scope": "Actual PNG/PDF pixel geometry of a fictional rectangular annotation against a neutral basemap."
+  },
+  "sourceGates": {
+    "fullQuality": "passed",
+    "lockedMaps": "112 passed and fixed-surface build passed",
+    "focusedExportGuide": "70 passed",
+    "focusedMobile": "65 passed"
+  },
+  "productionAcceptance": "pending",
+  "physicalAndroidPwa": "not claimed",
+  "failedChecksRetained": [
+    "Initial actual Export View missing controls",
+    "Initial fullscreen header overlap at 980 CSS pixels",
+    "Incorrect red basemap pixel fixture",
+    "Early phone replay overlapped fixture HMR; definitive replay uses stable dedicated fixture",
+    "PDF pixel sampling was too sparse until rendered at 3x"
+  ],
+  "replay": "node tests/browser/care-map-view-controls.mjs --out=/private/tmp/care-map-view-controls-proof"
+}

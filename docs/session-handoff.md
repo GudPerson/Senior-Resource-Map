@@ -1,5 +1,17 @@
 # CareAround SG session handoff
 
+## 12 October 2026 — Export View gesture parity and mobile fullscreen header
+
+Scope corrects the reported gaps from accepted source `ef133d12`: owner Export View now inherits the browsing angle and offers pinch/twist, mouse-wheel/right-drag and trackpad pinch/Shift-scroll controls. Export has a separate temporary angle; Back retains the original browsing angle/camera, and reopening reseeds from browsing. Annotation editing/personal-place placement returns Export north-up. Nonzero owner capture bearing is an explicit static-renderer opt-in with controls/input disabled; North retains the existing capture path. The angle enters capture readiness invalidation, but never saved Studio designs, annotations, shared maps or embeds. Actual PNG/PDF downloads retain it. No schema, media, resource, privacy, point-limit or map-data change.
+
+Owner mobile fullscreen reserves the measured height of the existing menu/name row below the app navbar. That same row stays fixed above the canvas; no cloned menus or title. An isolated layout hook restores its body attribute/observer on closing, route change or breakpoint change. Shared/anonymous fullscreen keeps its existing inset. Editing/menu dialogs remain above the row. Camera ownership and owner gesture dismissal protections remain intact.
+
+Reproduce: rotate an owned Care Map, open Export View, zoom/rotate again, download map PNG/PDF, reset North, then Back/reopen. Files must match the preview angle; Back must restore browsing. On 390px phone/768px tablet, expand Full map, pan, open/close the menu, and return: header must remain exposed, pan must settle, and body/header styles must restore. Replay: `node tests/browser/care-map-view-controls.mjs --out=/private/tmp/care-map-view-controls-proof`.
+
+Local verification: 20 actual-page cases pass with fictional APIs/synthetic imagery, zero errors/writes; actual downloaded PNG/PDF rectangular-annotation pixel orientation is 90 degrees while North PNG is 0. Focused export/Guide70 and mobile65 pass; full source quality passes compiler17/CMS73/server1190/client1003/environment5/static/build; locked-map112 and fixed-surface build pass. Guide procedures cover all four languages. Earlier failed/invalid fixture and probe runs are retained privately. Evidence: `docs/evidence/care-map-export-fullscreen-local-20261012.json`. Real Android PWA/tablet acceptance and independent protected paired-release acceptance remain separate; no physical smoothness claim.
+
+Release gate: scoped clean source/CI, unchanged latest authored Help library and fresh owner state, normal private publisher with four gates, exact job/snapshot/receipt, all 44 bindings/runtime preserved, promoted workspace/cleared lock, paired Worker/Pages provenance and full custom-domain MIME/bytes/SHA parity. Do not perform write-capable colour QA on production maps.
+
 ## 10 October 2026 — Gesture viewport Detailed coverage recovery
 
 The delivered gesture page recovery `f73b2248` opens and handles live desktop inputs, but signed-in acceptance found a second edge: at zoom 15.3, rotating a wide map expands its geographic viewport beyond the local native surface. Zoom-only tier selection left a blank background because the native surface no longer covered the viewport and regular tiles are capped below Detailed zoom.

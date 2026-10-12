@@ -233,5 +233,5 @@ test('owner map gesture help stays in scope, uses four languages and reads no pr
     assert.deepEqual(h.calls, { model: 0, private: 0 });
     const { answer } = await h.ask({ question: 'How do I rotate my Care Map on a trackpad?' });
     assert.match(answer.message, /right button.*trackpad.*Shift.*Reset to north/);
-    assert.match(answer.message, /temporary.*saved coordinates.*north-up.*shared maps.*embeds.*north-up/);
+    assert.match(answer.message, /temporary.*saved coordinates.*north-up.*Export View.*PNG\/PDF downloads keep.*Back restores.*Shared maps.*embeds.*north-up/);
 });

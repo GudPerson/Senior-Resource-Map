@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { AnnotationResourceInteractionContext, useAnnotationResourceCard } from './AnnotationResourceInteraction.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
+import { useOwnerFullscreenMapHeader } from '../hooks/useOwnerFullscreenMapHeader.js';
 import { formatAvailabilityLabel, normalizeAvailabilityCount, normalizeAvailabilityUnit } from '../lib/availability.js';
 import { appendMapReturnTo, buildCurrentAppPath, normalizeMapReturnPath } from '../lib/appNavigation.js';
 import { OFFERING_ACCESS } from '../lib/eligibility.js';
@@ -3525,6 +3526,9 @@ function SharedMapDirectoryListContent({
         : layout;
     const interactive = layout !== 'print';
     const isMobileMapPanelEnabled = interactive && resolvedLayout === 'mobile';
+    const ownerFullscreenMapTop = useOwnerFullscreenMapHeader(
+        mode === 'owner' && isMobileMapPanelEnabled && mobileFullMapOpen,
+    );
     const useAdaptiveDesktopUnmapped = interactive && resolvedLayout === 'desktop';
     const mappedGroups = presentation?.mappedGroups || [];
     const displayGroups = presentation?.displayGroups || mappedGroups;
@@ -4123,6 +4127,8 @@ function SharedMapDirectoryListContent({
                     />
                     {mobileFullMapOpen ? (
                         <div
+                            data-mobile-full-map="true"
+                            style={ownerFullscreenMapTop === null ? undefined : { top: `${ownerFullscreenMapTop}px` }}
                             className="fixed inset-x-0 bottom-0 top-[56px] z-[1150] flex flex-col gap-3 bg-[#f6f8fb] px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 sm:top-[64px]"
                             onTouchStart={handleMobileFullMapTouchStart}
                             onTouchMove={handleMobileFullMapTouchMove}

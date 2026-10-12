@@ -10,6 +10,7 @@ export default function MapDirectoryExportPanel({
     onMapCaptureError,
     onMapViewportSnapshot,
     printMapState = null,
+    mapBearing = 0,
     fixedTownSurfaceManifest = null,
     fixedTownAssetBaseUrl = '',
     fixedTownSurfaceAvailable = false,
@@ -25,6 +26,9 @@ export default function MapDirectoryExportPanel({
 }) {
     return (
         <DirectoryPrintView
+            careMapGestures={mapBearing
+                ? { bearing: mapBearing, active: false, capture: true }
+                : null}
             directory={directory}
             generatedAt={generatedAt}
             mode="owner"

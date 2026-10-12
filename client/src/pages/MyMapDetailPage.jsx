@@ -616,7 +616,7 @@ function MyMapMobileControls({
 
     return (
         <>
-            <div className={headerClassName}>
+            <div className={headerClassName} data-owner-map-mobile-header="true">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                     <button
                         type="button"
@@ -1732,9 +1732,13 @@ export default function MyMapDetailPage() {
     const isPrintView = searchParams.get('view') === 'print';
     const careMapGestures = useCareMapGestures({
         scopeKey: `${mapId}:${mapStudioRuntimeSnapshot?.activeViewId || ''}`,
-        paused: interactiveAnnotationEditorOpen || personalPlacePickerActive || isPrintView,
+        paused: interactiveAnnotationEditorOpen || (personalPlacePickerActive && !isPrintView),
     });
     const printStudioViewId = searchParams.get('studioView') || '';
+    const exportCareMapGestures = useCareMapGestures({
+        scopeKey: `export:${mapId}:${mapStudioRuntimeSnapshot?.activeViewId || activePrintStudioView?.id || printStudioViewId}`,
+        paused: printAnnotationEditorOpen || (personalPlacePickerActive && isPrintView),
+    });
     const previousPrintViewRef = useRef(isPrintView);
     const myMapUiMode = getMyMapUiMode(searchParams);
     const isV2View = myMapUiMode === MY_MAP_UI_MODE_V2 && !isPrintView;
@@ -3653,6 +3657,7 @@ export default function MyMapDetailPage() {
         pendingPrintStudioViewRef.current = studioSnapshot;
         setActivePrintStudioView(studioSnapshot);
         setPrintStudioLoadError('');
+        exportCareMapGestures.onBearingChange(careMapGestures.bearing);
         setPrintMapState(studioSnapshot
             ? buildMapStudioPrintState(
                 studioSnapshot.design,
@@ -3991,6 +3996,7 @@ export default function MyMapDetailPage() {
                                 </span>
                             )}>
                                 <MapImageExportButton
+                                    mapBearing={exportCareMapGestures.bearing}
                                     privateMapId={mapId}
                                     privateImageSources={privateAnnotationImages.sources}
                                     onRetryPrivateImages={privateAnnotationImages.retry}
@@ -4055,6 +4061,7 @@ export default function MyMapDetailPage() {
 
                 <div className="w-full h-full overflow-auto">
                     <DirectoryPrintView
+                        careMapGestures={exportCareMapGestures}
                         privateMapId={mapId}
                         privateImageSources={privateAnnotationImages.sources}
                         directory={directory}

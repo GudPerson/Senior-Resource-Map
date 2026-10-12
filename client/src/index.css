@@ -1223,3 +1223,20 @@
 .carearound-map-control-rail .leaflet-top.leaflet-left:has(.care-map-gesture-control) .leaflet-control-zoom {
   float: right;
 }
+
+/* Keep the existing owner menu/title above the expanded mobile map. */
+body[data-owner-fullscreen-map-header="true"] [data-owner-map-mobile-header="true"] {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  margin-left: 0;
+  margin-right: 0;
+  z-index: 1160;
+}
+
+@media (min-width: 640px) {
+  body[data-owner-fullscreen-map-header="true"] [data-owner-map-mobile-header="true"] {
+    top: 64px;
+  }
+}
