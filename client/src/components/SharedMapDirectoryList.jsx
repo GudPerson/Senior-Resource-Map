@@ -4128,7 +4128,12 @@ function SharedMapDirectoryListContent({
                     {mobileFullMapOpen ? (
                         <div
                             data-mobile-full-map="true"
-                            style={ownerFullscreenMapTop === null ? undefined : { top: `${ownerFullscreenMapTop}px` }}
+                            style={ownerFullscreenMapTop === null ? undefined : {
+                                top: `${ownerFullscreenMapTop}px`,
+                                // Fixed overlays must not inherit the page's space-y margins.
+                                marginTop: 0,
+                                marginBottom: 0,
+                            }}
                             className="fixed inset-x-0 bottom-0 top-[56px] z-[1150] flex flex-col gap-3 bg-[#f6f8fb] px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 sm:top-[64px]"
                             onTouchStart={handleMobileFullMapTouchStart}
                             onTouchMove={handleMobileFullMapTouchMove}

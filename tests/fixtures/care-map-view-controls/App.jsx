@@ -9,6 +9,8 @@ import { LocaleProvider } from '../../../client/src/contexts/LocaleContext.jsx';
 import MyMapDetailPage from '../../../client/src/pages/MyMapDetailPage.jsx';
 import '../../../client/src/index.css';
 import 'leaflet/dist/leaflet.css';
+const requestedFontScale = Number(new URLSearchParams(location.search).get('fontScale') || 1);
+document.documentElement.style.setProperty('--font-scale', [0.9, 1, 1.4].includes(requestedFontScale) ? requestedFontScale : 1);
 const nav = <nav data-fixture-navbar style={{
   position: "sticky",
   top: 0,

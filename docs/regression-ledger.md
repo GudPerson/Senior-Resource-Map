@@ -1,5 +1,15 @@
 # Regression Ledger
 
+## 12 October 2026 — Fullscreen header seam recovery
+
+The preceding `fe0e83f8` header correction kept the menu exposed but inherited the parent `space-y-4` top margin. The fullscreen overlay started 14.4px below the title row at text scale0.9 (16px at1 and22.4px at1.4), exposing the retained inline map. The old acceptance check required the canvas below the header but did not assert continuity of the overlay background.
+
+Narrow correction: owner fullscreen explicitly clears its top/bottom margins alongside the measured top inset. Normal list spacing, shared fullscreen, camera/rotation/zoom handlers, pins, annotations, saved designs and Export captures retain their existing contracts. Menu/title and overlay now meet without exposing the inline map.
+
+Reproduce on an owned Care Map at phone/tablet widths and text scales0.9/1/1.4: open Full map, inspect directly below the title row, pan, open the menu and close. Require an overlay-to-header gap within1px and an overlay hit immediately below the header, visible menu/title, settled native pan and cleanup on close. Replay: `node tests/browser/care-map-view-controls.mjs --fullscreen-only --out=/private/tmp/care-map-fullscreen-seam-proof`.
+
+Verification: live pre-fix measurement14.3945px matches computed inherited margin14.4px. Actual-page fictional-data replay failed all six seam cases before correction and passed36 mobile cases afterward, with0px gap at every text size, zero errors/writes. Full replay including actual Export PNG/PDF passes46; client build, locked-map112 and server1190 pass. Physical device confirmation and independent protected publication/live seam acceptance remain separate. Evidence: `docs/evidence/care-map-fullscreen-seam-local-20261012.json`. Primary dirty work is preserved; release through clean scoped source and the normal publisher preserving the current authored library.
+
 ## 12 October 2026 — Export View gesture parity and mobile fullscreen header
 
 Scope corrects the reported gaps from accepted source `ef133d12`: owner Export View now inherits the browsing angle and offers pinch/twist, mouse-wheel/right-drag and trackpad pinch/Shift-scroll controls. Export has a separate temporary angle; Back retains the original browsing angle/camera, and reopening reseeds from browsing. Annotation editing/personal-place placement returns Export north-up. Nonzero owner capture bearing is an explicit static-renderer opt-in with controls/input disabled; North retains the existing capture path. The angle enters capture readiness invalidation, but never saved Studio designs, annotations, shared maps or embeds. Actual PNG/PDF downloads retain it. No schema, media, resource, privacy, point-limit or map-data change.

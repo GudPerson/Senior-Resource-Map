@@ -174,7 +174,7 @@ async function install(page) {
 }
 try {
   browser = await chromium.launch();
-  {
+  if (!process.argv.includes('--fullscreen-only')) {
     const page = await browser.newPage({
       viewport: {
         width: 1440,
@@ -312,20 +312,16 @@ try {
     });
     await page.close();
   }
-  for (const [profile, viewport] of [['phone', {
-    width: 390,
-    height: 844
-  }], ['tablet', {
-    width: 768,
-    height: 1024
-  }]]) {
+  const mobileProfiles = [['phone', { width: 390, height: 844 }], ['tablet', { width: 768, height: 1024 }]];
+  for (const [profile, viewport, fontScale] of mobileProfiles.flatMap(([name, size]) =>
+    [0.9, 1, 1.4].map(scale => [scale === 1 ? name : `${name}-text-${scale}`, size, scale]))) {
     const page = await browser.newPage({
       viewport,
       isMobile: true,
       hasTouch: true
     });
     await install(page);
-    await page.goto('http://127.0.0.1:4192/');
+    await page.goto(`http://127.0.0.1:4192/?fontScale=${fontScale}`);
     await page.getByRole('button', {
       name: 'Open map controls',
       exact: true
@@ -343,7 +339,12 @@ try {
         m = [...document.querySelectorAll('.leaflet-container')].at(-1).getBoundingClientRect(),
         n = document.querySelector('[data-fixture-navbar]').getBoundingClientRect();
       const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+      const overlay = document.querySelector('[data-mobile-full-map]');
+      const overlayRect = overlay.getBoundingClientRect();
+      const seamHit = document.elementFromPoint(40, h.bottom + 2);
       return {
+        overlayGap: overlayRect.top - h.bottom,
+        fullscreenCoversSeam: overlay.contains(seamHit),
         headerTop: h.top,
         headerBottom: h.bottom,
         mapTop: m.top,
@@ -357,6 +358,12 @@ try {
       passed: layout.headerTop >= layout.navBottom && layout.mapTop >= layout.headerBottom && layout.menuExposed && layout.titlePresent,
       layout
     });
+    report.cases.push({
+      name: profile + ' fullscreen begins at the title row without exposing the inline map',
+      passed: Math.abs(layout.overlayGap) <= 1 && layout.fullscreenCoversSeam,
+      layout
+    });
+    await page.screenshot({path: path.join(out, profile + '-fullscreen.png')});
     const cdp = await page.context().newCDPSession(page);
     const mapRect = await page.locator('[data-mobile-full-map] .leaflet-container').boundingBox();
     const touch = {

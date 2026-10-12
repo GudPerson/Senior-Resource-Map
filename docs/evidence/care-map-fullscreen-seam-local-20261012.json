@@ -1,0 +1,909 @@
+{
+  "baselineSource": "fe0e83f8322c5d3037c627b6261f65288020766b",
+  "scope": "Owner fullscreen spacing only",
+  "liveBefore": {
+    "fontScale": "0.9",
+    "gap": 14.39453125,
+    "headerBottom": 95.595703125,
+    "hitAtSeam": "leaflet-interactive",
+    "overlayBackground": "rgb(246, 248, 251)",
+    "overlayParents": [
+      {
+        "class": "space-y-4 ",
+        "transform": "none",
+        "zoom": "1"
+      },
+      {
+        "class": "mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6 lg:px-8 xl:px-10 2xl:px-14",
+        "transform": "none",
+        "zoom": "1"
+      }
+    ],
+    "overlayStyle": "top: 95.5996px;",
+    "overlayTop": 109.990234375
+  },
+  "before": {
+    "cases": [
+      {
+        "name": "phone-text-0.9 fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 14.390625,
+          "fullscreenCoversSeam": false,
+          "headerTop": 56,
+          "headerBottom": 95.59375,
+          "mapTop": 125.375,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone-text-0.9 fullscreen begins at the title row without exposing the inline map",
+        "passed": false,
+        "layout": {
+          "overlayGap": 14.390625,
+          "fullscreenCoversSeam": false,
+          "headerTop": 56,
+          "headerBottom": 95.59375,
+          "mapTop": 125.375,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone-text-0.9 fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "phone-text-0.9 menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "phone-text-0.9 fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "phone-text-0.9 closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "phone fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 16,
+          "fullscreenCoversSeam": false,
+          "headerTop": 56,
+          "headerBottom": 100,
+          "mapTop": 133,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone fullscreen begins at the title row without exposing the inline map",
+        "passed": false,
+        "layout": {
+          "overlayGap": 16,
+          "fullscreenCoversSeam": false,
+          "headerTop": 56,
+          "headerBottom": 100,
+          "mapTop": 133,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "phone menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "phone fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "phone closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "phone-text-1.4 fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 22.390625,
+          "fullscreenCoversSeam": false,
+          "headerTop": 56,
+          "headerBottom": 117.59375,
+          "mapTop": 163.375,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone-text-1.4 fullscreen begins at the title row without exposing the inline map",
+        "passed": false,
+        "layout": {
+          "overlayGap": 22.390625,
+          "fullscreenCoversSeam": false,
+          "headerTop": 56,
+          "headerBottom": 117.59375,
+          "mapTop": 163.375,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone-text-1.4 fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "phone-text-1.4 menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "phone-text-1.4 fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "phone-text-1.4 closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-0.9 fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 14.390625,
+          "fullscreenCoversSeam": false,
+          "headerTop": 64,
+          "headerBottom": 107.1875,
+          "mapTop": 136.96875,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet-text-0.9 fullscreen begins at the title row without exposing the inline map",
+        "passed": false,
+        "layout": {
+          "overlayGap": 14.390625,
+          "fullscreenCoversSeam": false,
+          "headerTop": 64,
+          "headerBottom": 107.1875,
+          "mapTop": 136.96875,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet-text-0.9 fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-0.9 menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-0.9 fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-0.9 closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "tablet fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 16,
+          "fullscreenCoversSeam": false,
+          "headerTop": 64,
+          "headerBottom": 112,
+          "mapTop": 145,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet fullscreen begins at the title row without exposing the inline map",
+        "passed": false,
+        "layout": {
+          "overlayGap": 16,
+          "fullscreenCoversSeam": false,
+          "headerTop": 64,
+          "headerBottom": 112,
+          "mapTop": 145,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "tablet menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "tablet fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "tablet closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-1.4 fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 22.390625,
+          "fullscreenCoversSeam": false,
+          "headerTop": 64,
+          "headerBottom": 131.1875,
+          "mapTop": 176.96875,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet-text-1.4 fullscreen begins at the title row without exposing the inline map",
+        "passed": false,
+        "layout": {
+          "overlayGap": 22.390625,
+          "fullscreenCoversSeam": false,
+          "headerTop": 64,
+          "headerBottom": 131.1875,
+          "mapTop": 176.96875,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet-text-1.4 fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-1.4 menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-1.4 fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-1.4 closing fullscreen restores header and body",
+        "passed": true
+      }
+    ],
+    "errors": [],
+    "writes": [],
+    "boundary": "Actual owner page, fictional API data, synthetic imagery and emulated layouts/touch. No production writes or physical-device claim.",
+    "passed": false
+  },
+  "after": {
+    "cases": [
+      {
+        "name": "phone-text-0.9 fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 56,
+          "headerBottom": 95.59375,
+          "mapTop": 110.984375,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone-text-0.9 fullscreen begins at the title row without exposing the inline map",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 56,
+          "headerBottom": 95.59375,
+          "mapTop": 110.984375,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone-text-0.9 fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "phone-text-0.9 menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "phone-text-0.9 fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "phone-text-0.9 closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "phone fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 56,
+          "headerBottom": 100,
+          "mapTop": 117,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone fullscreen begins at the title row without exposing the inline map",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 56,
+          "headerBottom": 100,
+          "mapTop": 117,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "phone menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "phone fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "phone closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "phone-text-1.4 fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 56,
+          "headerBottom": 117.59375,
+          "mapTop": 140.984375,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone-text-1.4 fullscreen begins at the title row without exposing the inline map",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 56,
+          "headerBottom": 117.59375,
+          "mapTop": 140.984375,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone-text-1.4 fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "phone-text-1.4 menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "phone-text-1.4 fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "phone-text-1.4 closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-0.9 fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 64,
+          "headerBottom": 107.1875,
+          "mapTop": 122.578125,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet-text-0.9 fullscreen begins at the title row without exposing the inline map",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 64,
+          "headerBottom": 107.1875,
+          "mapTop": 122.578125,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet-text-0.9 fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-0.9 menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-0.9 fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-0.9 closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "tablet fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 64,
+          "headerBottom": 112,
+          "mapTop": 129,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet fullscreen begins at the title row without exposing the inline map",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 64,
+          "headerBottom": 112,
+          "mapTop": 129,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "tablet menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "tablet fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "tablet closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-1.4 fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 64,
+          "headerBottom": 131.1875,
+          "mapTop": 154.578125,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet-text-1.4 fullscreen begins at the title row without exposing the inline map",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 64,
+          "headerBottom": 131.1875,
+          "mapTop": 154.578125,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet-text-1.4 fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-1.4 menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-1.4 fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-1.4 closing fullscreen restores header and body",
+        "passed": true
+      }
+    ],
+    "errors": [],
+    "writes": [],
+    "boundary": "Actual owner page, fictional API data, synthetic imagery and emulated layouts/touch. No production writes or physical-device claim.",
+    "passed": true
+  },
+  "fullReplay": {
+    "cases": [
+      {
+        "name": "Owner browsing rotates",
+        "passed": true
+      },
+      {
+        "name": "Export View inherits the browsing angle",
+        "passed": true,
+        "snapshot": {
+          "bearing": "rotate(0.785398rad)",
+          "zoom": 16,
+          "center": "1.3,103.85"
+        }
+      },
+      {
+        "name": "Export controls rotate independently",
+        "passed": true,
+        "snapshot": {
+          "bearing": "rotate(1.5708rad)",
+          "zoom": 16,
+          "center": "1.3,103.85"
+        }
+      },
+      {
+        "name": "Rotated map download is ready",
+        "passed": true
+      },
+      {
+        "name": "Actual rotated PNG downloaded",
+        "passed": true
+      },
+      {
+        "name": "Actual rotated PDF downloaded",
+        "passed": true
+      },
+      {
+        "name": "Export mouse wheel zoom preserves rotation",
+        "passed": true
+      },
+      {
+        "name": "Export trackpad pinch zoom is independent of rotation",
+        "passed": true
+      },
+      {
+        "name": "Export North restores only its angle",
+        "passed": true
+      },
+      {
+        "name": "Back restores original browsing angle and camera",
+        "passed": true,
+        "snapshot": {
+          "bearing": "rotate(0.785398rad)",
+          "zoom": 16,
+          "center": "1.3,103.85"
+        }
+      },
+      {
+        "name": "phone-text-0.9 fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 56,
+          "headerBottom": 95.59375,
+          "mapTop": 110.984375,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone-text-0.9 fullscreen begins at the title row without exposing the inline map",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 56,
+          "headerBottom": 95.59375,
+          "mapTop": 110.984375,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone-text-0.9 fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "phone-text-0.9 menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "phone-text-0.9 fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "phone-text-0.9 closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "phone fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 56,
+          "headerBottom": 100,
+          "mapTop": 117,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone fullscreen begins at the title row without exposing the inline map",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 56,
+          "headerBottom": 100,
+          "mapTop": 117,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "phone menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "phone fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "phone closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "phone-text-1.4 fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 56,
+          "headerBottom": 117.59375,
+          "mapTop": 140.984375,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone-text-1.4 fullscreen begins at the title row without exposing the inline map",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 56,
+          "headerBottom": 117.59375,
+          "mapTop": 140.984375,
+          "navBottom": 56,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "phone-text-1.4 fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "phone-text-1.4 menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "phone-text-1.4 fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "phone-text-1.4 closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-0.9 fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 64,
+          "headerBottom": 107.1875,
+          "mapTop": 122.578125,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet-text-0.9 fullscreen begins at the title row without exposing the inline map",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 64,
+          "headerBottom": 107.1875,
+          "mapTop": 122.578125,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet-text-0.9 fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-0.9 menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-0.9 fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-0.9 closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "tablet fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 64,
+          "headerBottom": 112,
+          "mapTop": 129,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet fullscreen begins at the title row without exposing the inline map",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 64,
+          "headerBottom": 112,
+          "mapTop": 129,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "tablet menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "tablet fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "tablet closing fullscreen restores header and body",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-1.4 fullscreen leaves the menu and map title above the canvas",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 64,
+          "headerBottom": 131.1875,
+          "mapTop": 154.578125,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet-text-1.4 fullscreen begins at the title row without exposing the inline map",
+        "passed": true,
+        "layout": {
+          "overlayGap": 0,
+          "fullscreenCoversSeam": true,
+          "headerTop": 64,
+          "headerBottom": 131.1875,
+          "mapTop": 154.578125,
+          "navBottom": 64,
+          "menuExposed": true,
+          "titlePresent": true
+        }
+      },
+      {
+        "name": "tablet-text-1.4 fullscreen native pan remains settled",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-1.4 menu remains accessible after panning",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-1.4 fullscreen menu opens and is usable",
+        "passed": true
+      },
+      {
+        "name": "tablet-text-1.4 closing fullscreen restores header and body",
+        "passed": true
+      }
+    ],
+    "errors": [],
+    "writes": [],
+    "boundary": "Actual owner page, fictional API data, synthetic imagery and emulated layouts/touch. No production writes or physical-device claim.",
+    "passed": true
+  },
+  "sourceGates": {
+    "clientBuild": true,
+    "mapLockdown": {
+      "passed": true,
+      "count": 112
+    },
+    "server": {
+      "passed": true,
+      "count": 1190
+    }
+  },
+  "physicalDeviceVerified": false,
+  "productionAcceptance": "Pending scoped release; record separately."
+}
