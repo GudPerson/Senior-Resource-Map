@@ -339,6 +339,13 @@ export async function getEmbeddedMapConfig(db, token) {
     return { allowedOrigins };
 }
 
+// Image downloads must use the same current visibility and approved public
+// content policy as the Shared Map response, never the owner's live gallery.
+export async function getSharedMapNoteImageDirectory(db, token, viewerUser) {
+    const directory = await getSharedMapDirectory(db, token, viewerUser);
+    return applyCurrentPublicContentPolicy(db, directory, 'sharedMaps');
+}
+
 export async function getEmbeddedMapDirectory(db, token) {
     await requireEmbeddedMap(db, token);
     const directory = await getSharedMapDirectory(db, token, { role: 'guest' }, {

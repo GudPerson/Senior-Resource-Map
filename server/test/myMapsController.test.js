@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createMapNoteImageRepository } from '../src/utils/mapNoteImages.js';
+import { createPrivateMapMediaRepository } from '../src/utils/privateMapMedia.js';
+import { MapMediaBucket, png } from './helpers/mapAnnotationFixtures.js';
 
 import { createMapStudioDocument } from '../../client/src/lib/mapStudioState.js';
 
@@ -676,10 +679,13 @@ function createFakeDb({
         delete(table) {
             if (table === myMaps) {
                 return {
-                    where: async () => {
-                        state.maps = [];
-                        state.mapAssets = [];
-                        state.personalPlaceLinks = [];
+                    where: async (where) => {
+                        const [mapId] = getWhereParamValues(where);
+                        const removedAssets = new Set(state.mapAssets.filter(asset => asset.mapId === mapId).map(asset => asset.id));
+                        state.maps = state.maps.filter(map => map.id !== mapId);
+                        state.mapAssets = state.mapAssets.filter(asset => asset.mapId !== mapId);
+                        state.mapAssetNotes = state.mapAssetNotes.filter(note => !removedAssets.has(note.mapAssetId));
+                        state.personalPlaceLinks = state.personalPlaceLinks.filter(link => link.mapId !== mapId);
                     },
                 };
             }
@@ -1984,4 +1990,49 @@ test('deleteMyMapRecord removes map links but preserves reusable personal places
     assert.equal(db.state.mapAssets.length, 0);
     assert.equal(db.state.personalPlaceLinks.length, 0);
     assert.equal(db.state.personalPlaces.length, 1);
+});
+
+test('Map Notes images require a current reviewed revision and freeze only explicitly selected images', async () => {
+    const bucket = new MapMediaBucket();
+    const media = createPrivateMapMediaRepository(bucket, DEFAULT_USER.id);
+    const first = await media.saveAsset(png(), 'image/png');
+    const second = await media.saveAsset(png({ variant: 1 }), 'image/png');
+    const repo = createMapNoteImageRepository(bucket, DEFAULT_USER.id);
+    await repo.replace(3, 'asset:9', { revision: 0, images: [{ assetId: first.assetId, isShared: false }, { assetId: second.assetId, isShared: true }] });
+    const db = createFakeDb({ maps: [createMap()], mapAssets: [createMapAsset()], hardAsset: createHardAsset() });
+    const before = JSON.stringify(db.state.maps);
+    for (const revision of [undefined, 0]) await assert.rejects(publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT,
+        { noteImages: repo, noteImagesRevision: revision }), { status: 409 });
+    assert.equal(JSON.stringify(db.state.maps), before); assert.equal(db.state.shareSnapshots.length, 0);
+    await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT, { noteImages: repo, noteImagesRevision: 1 });
+    const frozen = db.state.shareSnapshots[0].snapshot;
+    assert.deepEqual(frozen.assets[0].notes.images, [{ ...second, isShared: true }]);
+    assert.equal(JSON.stringify(frozen).includes(first.assetId), false);
+    await repo.replace(3, 'asset:9', { revision: 1, images: [] });
+    assert.equal(frozen.assets[0].notes.images.length, 1, 'image selection does not live-update a published snapshot');
+    await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT, { noteImages: repo, noteImagesRevision: 2 });
+    assert.equal(db.state.shareSnapshots[0].snapshot.assets[0].notes?.images, undefined);
+});
+
+test('owner duplication carries both resource and personal-place galleries with new membership ids', async () => {
+    const bucket = new MapMediaBucket(), repo = createMapNoteImageRepository(bucket, DEFAULT_USER.id);
+    const photo = await createPrivateMapMediaRepository(bucket, DEFAULT_USER.id).saveAsset(png(), 'image/png');
+    await repo.replace(3, 'asset:9', { revision: 0, images: [{ assetId: photo.assetId, isShared: true }] });
+    await repo.replace(3, 'personal:4', { revision: 1, images: [{ assetId: photo.assetId, isShared: false }] });
+    const db = createFakeDb({ maps: [createMap()], mapAssets: [createMapAsset()], personalPlaces: [createPersonalPlace()],
+        personalPlaceCategories: [createPersonalPlaceCategoryFixture()], personalPlaceLinks: [createPersonalPlaceLink()] });
+    const copied = await duplicateMyMap(db, DEFAULT_USER, 3, { noteImages: repo });
+    const document = (await repo.read(copied.id)).document;
+    assert.equal(document.entries.length, 2);
+    assert.equal(document.entries.every(entry => entry.images.every(image => !image.isShared)), true);
+    assert.ok(document.entries.some(entry => entry.membershipKey === `asset:${db.state.mapAssets.find(asset => asset.mapId === copied.id).id}`));
+    assert.ok(document.entries.some(entry => entry.membershipKey === `personal:${db.state.personalPlaceLinks.find(link => link.mapId === copied.id).id}`));
+});
+
+test('failed image-copy persistence rolls back the new private map while preserving its source', async () => {
+    const db = createFakeDb({ maps: [createMap()], mapAssets: [createMapAsset()] });
+    const noteImages = { read: async () => ({ document: { entries: [{ membershipKey: 'asset:9', images: [] }] } }),
+        copy: async () => { throw Object.assign(new Error('image copy unavailable'), { status: 503 }); } };
+    await assert.rejects(duplicateMyMap(db, DEFAULT_USER, 3, { noteImages }), /image copy unavailable/);
+    assert.equal(db.state.maps.length, 1); assert.equal(db.state.maps[0].id, 3);
 });

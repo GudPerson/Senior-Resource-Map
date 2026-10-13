@@ -867,6 +867,7 @@ export const taDictionary = {
     closeMapNotes: 'வரைபட குறிப்புகளை மூடு',
     backToMapNotesList: 'வரைபட குறிப்புகளுக்கு திரும்பு',
     mapNotesSummary: '{{resources}} வளங்கள் · {{notes}} குறிப்புகள் · {{shared}} பகிரப்பட்டது',
+    mapNotesSummaryImagePart: '{{count}} படங்கள்',
     mapNotesSummaryResourcePart: '{{count}} வளங்கள்',
     mapNotesSummaryNotePart: '{{count}} குறிப்புகள்',
     mapNotesSummarySharedPart: '{{count}} பகிரப்பட்டது',

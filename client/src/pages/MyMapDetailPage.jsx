@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { applyMapNoteImagesToDirectory } from '../lib/mapNoteImages.js';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
 import {
@@ -1113,7 +1114,9 @@ function PersonalPlaceModal({
 function applyResourceNotesToDirectory(directory, resourceType, resourceId, notes) {
     if (!directory) return directory;
     const matchesResource = (item) => item?.resourceType === resourceType && Number(item?.resourceId) === Number(resourceId);
-    const patchItem = (item) => (matchesResource(item) ? { ...item, notes } : item);
+    const patchItem = (item) => (matchesResource(item) ? { ...item, notes: {
+        ...notes, ...(item.notes?.images ? { images: item.notes.images } : {}),
+    } } : item);
 
     return {
         ...directory,
@@ -1742,9 +1745,7 @@ export default function MyMapDetailPage() {
     const previousPrintViewRef = useRef(isPrintView);
     const myMapUiMode = getMyMapUiMode(searchParams);
     const isV2View = myMapUiMode === MY_MAP_UI_MODE_V2 && !isPrintView;
-    const canEditPrintAnnotations = useMediaQuery(
-        '(hover: hover) and (pointer: fine)',
-    );
+    const canEditPrintAnnotations = Boolean(mapId && user?.id && user?.role !== 'guest');
     const printAnnotations = usePrintAnnotations({
         mapId,
         userId: user?.id,
@@ -3413,9 +3414,10 @@ export default function MyMapDetailPage() {
                 setShareError(t('failedPublishShare'));
                 return false;
             }
-            await api.publishMyMapShare(directory.id, shareStudioSnapshot?.documentRevision > 0
-                ? { studioViewId: shareStudioSnapshot.activeViewId }
-                : {});
+            await api.publishMyMapShare(directory.id, {
+                ...(shareStudioSnapshot?.documentRevision > 0 ? { studioViewId: shareStudioSnapshot.activeViewId } : {}),
+                ...(options.noteImagesRevision !== undefined ? { noteImagesRevision: options.noteImagesRevision } : {}),
+            });
             await loadMap();
             return true;
         } catch (err) {
@@ -3438,6 +3440,11 @@ export default function MyMapDetailPage() {
         };
         setDirectory((current) => applyResourceNotesToDirectory(current, row.resourceType, row.resourceId, nextNotes));
         return updated;
+    }
+
+    function handleUpdateResourceImages(row, images, metadata) {
+        setDirectory(current => ({ ...applyMapNoteImagesToDirectory(current, row, images),
+            noteImagesRevision: metadata.revision, noteImagesUpdatedAt: metadata.updatedAt }));
     }
 
     function handleEditResourceShortDescription(row) {
@@ -4222,6 +4229,7 @@ export default function MyMapDetailPage() {
                         ? handleEditResourceShortDescription
                         : null}
                     onUpdateResourceNotes={handleUpdateResourceNotes}
+                    onUpdateResourceImages={handleUpdateResourceImages}
                     annotationResourceInteraction={annotationActivation.resourceCardInteraction}
                     onMapClick={personalPlacePickerActive ? handlePersonalPlaceMapClick : null}
                     onHoverPlaceStart={handleMapHoverStart}
@@ -4544,6 +4552,7 @@ export default function MyMapDetailPage() {
                                     ? handleEditResourceShortDescription
                                     : null}
                                 onUpdateResourceNotes={handleUpdateResourceNotes}
+                                onUpdateResourceImages={handleUpdateResourceImages}
                                 highlightPlaceKey={activePlaceKey}
                                 highlightPlaceKeys={activePlaceKeys}
                                 selectionPlaceKey={highlightPlaceKey || selectedClusterPlaceKeys[0] || null}

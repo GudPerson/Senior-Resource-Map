@@ -34,6 +34,7 @@ import {
 import { postMyMapPersonalPlacesImport } from '../controllers/personalPlaceImportController.js';
 import { getMyMapPersonalPlaceImportLocation } from '../controllers/personalPlaceImportLookupController.js';
 import { postMapAnnotationMedia, getMapAnnotationMedia } from '../controllers/mapAnnotationMediaController.js';
+import { getMapNoteImages, putMapNoteImages } from '../controllers/mapNoteImagesController.js';
 
 const router = new Hono();
 
@@ -53,6 +54,8 @@ router.get('/:id/print-annotations', authenticateToken, getMyMapPrintAnnotations
 router.put('/:id/print-annotations', authenticateToken, putMyMapPrintAnnotations);
 router.post('/:id/annotation-media', authenticateToken, postMapAnnotationMedia);
 router.get('/:id/annotation-media/:assetId', authenticateToken, getMapAnnotationMedia);
+router.get('/:id/note-images/:resourceType/:resourceId', authenticateToken, getMapNoteImages);
+router.put('/:id/note-images/:resourceType/:resourceId', authenticateToken, putMapNoteImages);
 router.post('/:id/personal-places', authenticateToken, postMyMapPersonalPlace);
 router.post('/:id/personal-places/import', authenticateToken, postMyMapPersonalPlacesImport);
 router.get('/:id/personal-places/lookup', authenticateToken, getMyMapPersonalPlaceImportLocation);

@@ -1,0 +1,25 @@
+const messages = {
+    en: { review: 'Selected images for this shared link: {count}. Only these selected note images are published.', previous: 'Previous images', next: 'Next images', title: 'Images', help: 'PNG, JPEG or WebP. Photos are resized to fit. Your map images share the existing 20-image / 20 MB account limit.',
+        add: 'Add image to notes', uploading: 'Uploading image…', saving: 'Saving image selection…', loading: 'Loading images…', download: 'Download image', remove: 'Remove image',
+        share: 'Share this image', private: 'Private', shared: 'Selected for sharing', sharingHelp: 'Images stay private until selected and the shared link is published or updated. Changing this selection does not update an existing shared link.',
+        personalHelp: 'Personal place images stay private.', sharedHelp: 'These images were selected by the map owner. Download them here; saving a copy of this map does not copy the image files.',
+        loadFailed: 'Images could not be loaded. Try again.', saveFailed: 'The image selection could not be saved. Reload images before trying again.',
+        conflict: 'Images changed in another session. Reload images before trying again.', retry: 'Reload images', photo: 'Map note image', options: 'Annotation options', collapse: 'Hide annotation options' },
+    'zh-CN': { review: '此分享链接已选中 {count} 张图片。仅发布选定的备注图片。', previous: '上一组图片', next: '下一组图片', title: '图片', help: '支持 PNG、JPEG 或 WebP，照片会调整大小。地图图片共用现有的账户限额：20 张图片或 20 MB。',
+        add: '为备注添加图片', uploading: '正在上传图片…', saving: '正在保存图片选择…', loading: '正在加载图片…', download: '下载图片', remove: '移除图片',
+        share: '分享此图片', private: '私人', shared: '已选为分享', sharingHelp: '图片默认保持私人，只有选中并发布或更新分享链接后才会显示。更改选择不会自动更新现有分享链接。',
+        personalHelp: '个人地点的图片保持私人。', sharedHelp: '这些图片由地图所有者选定。请在此下载；保存此地图的副本不会复制图片文件。',
+        loadFailed: '无法加载图片，请重试。', saveFailed: '无法保存图片选择，请先重新加载图片再重试。', conflict: '图片已在另一会话中更改，请先重新加载再重试。', retry: '重新加载图片', photo: '地图备注图片', options: '标注选项', collapse: '隐藏标注选项' },
+    ms: { review: '{count} imej dipilih untuk pautan kongsi ini. Hanya imej nota yang dipilih diterbitkan.', previous: 'Imej sebelumnya', next: 'Imej seterusnya', title: 'Imej', help: 'PNG, JPEG atau WebP. Foto dikecilkan supaya muat. Imej peta berkongsi had akaun sedia ada: 20 imej / 20 MB.',
+        add: 'Tambah imej pada nota', uploading: 'Memuat naik imej…', saving: 'Menyimpan pilihan imej…', loading: 'Memuatkan imej…', download: 'Muat turun imej', remove: 'Alih keluar imej',
+        share: 'Kongsi imej ini', private: 'Peribadi', shared: 'Dipilih untuk perkongsian', sharingHelp: 'Imej kekal peribadi sehingga dipilih dan pautan kongsi diterbitkan atau dikemas kini. Mengubah pilihan ini tidak mengemas kini pautan kongsi sedia ada.',
+        personalHelp: 'Imej tempat peribadi kekal peribadi.', sharedHelp: 'Imej ini dipilih oleh pemilik peta. Muat turun di sini; menyimpan salinan peta tidak menyalin fail imej.',
+        loadFailed: 'Imej tidak dapat dimuatkan. Cuba lagi.', saveFailed: 'Pilihan imej tidak dapat disimpan. Muat semula imej sebelum mencuba lagi.', conflict: 'Imej telah berubah dalam sesi lain. Muat semula imej sebelum mencuba lagi.', retry: 'Muat semula imej', photo: 'Imej nota peta', options: 'Pilihan anotasi', collapse: 'Sembunyikan pilihan anotasi' },
+    ta: { review: 'இந்தப் பகிர்வு இணைப்பிற்கு {count} படங்கள் தேர்ந்தெடுக்கப்பட்டுள்ளன. தேர்ந்தெடுத்த குறிப்புப் படங்கள் மட்டுமே வெளியிடப்படும்.', previous: 'முந்தைய படங்கள்', next: 'அடுத்த படங்கள்', title: 'படங்கள்', help: 'PNG, JPEG அல்லது WebP. படங்கள் பொருந்துமாறு அளவு மாற்றப்படும். வரைபடப் படங்கள் கணக்கின் தற்போதைய 20 படங்கள் / 20 MB வரம்பைப் பகிர்கின்றன.',
+        add: 'குறிப்பில் படம் சேர்', uploading: 'படம் பதிவேற்றப்படுகிறது…', saving: 'படத் தேர்வு சேமிக்கப்படுகிறது…', loading: 'படங்கள் ஏற்றப்படுகின்றன…', download: 'படத்தைப் பதிவிறக்கு', remove: 'படத்தை அகற்று',
+        share: 'இந்தப் படத்தைப் பகிர்', private: 'தனிப்பட்டது', shared: 'பகிரத் தேர்ந்தெடுக்கப்பட்டது', sharingHelp: 'தேர்ந்தெடுத்து பகிர்வு இணைப்பை வெளியிடும் அல்லது புதுப்பிக்கும் வரை படங்கள் தனிப்பட்டவையாக இருக்கும். தேர்வை மாற்றுவது தற்போதைய பகிர்வு இணைப்பைப் புதுப்பிக்காது.',
+        personalHelp: 'தனிப்பட்ட இடங்களின் படங்கள் தனிப்பட்டவையாக இருக்கும்.', sharedHelp: 'இந்தப் படங்களை வரைபட உரிமையாளர் தேர்ந்தெடுத்துள்ளார். இங்கே பதிவிறக்கவும்; வரைபட நகலைச் சேமிப்பது படக் கோப்புகளை நகலெடுக்காது.',
+        loadFailed: 'படங்களை ஏற்ற முடியவில்லை. மீண்டும் முயலவும்.', saveFailed: 'படத் தேர்வைச் சேமிக்க முடியவில்லை. மீண்டும் முயல்வதற்கு முன் படங்களை மீண்டும் ஏற்றவும்.', conflict: 'படங்கள் மற்றொரு அமர்வில் மாற்றப்பட்டுள்ளன. மீண்டும் ஏற்றி முயலவும்.', retry: 'படங்களை மீண்டும் ஏற்று', photo: 'வரைபடக் குறிப்புப் படம்', options: 'குறியீட்டு விருப்பங்கள்', collapse: 'குறியீட்டு விருப்பங்களை மறை' },
+};
+
+export const getMapNoteImageMessages = locale => messages[locale] || messages.en;

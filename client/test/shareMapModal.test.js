@@ -33,7 +33,7 @@ test('share map modal exposes an explicit bulk annotation opt-in without bypassi
     assert.match(shareMapModalSource, /shareableAnnotations\.filter\(\(annotation\) => Boolean\(annotation\?\.isShared\)\)\.length/);
     assert.match(shareMapModalSource, /includeAnnotationsRef\.current\.indeterminate = includesSomeAnnotations/);
     assert.match(shareMapModalSource, /setIncludeAnnotationsSelection\(event\.target\.checked\)/);
-    assert.match(shareMapModalSource, /onPublish\?\.\(\{ includeAnnotations: includeAnnotationsSelection \}\)/);
+    assert.match(shareMapModalSource, /onPublish\?\.\(\{ includeAnnotations: includeAnnotationsSelection,\s*noteImagesRevision: map\?\.noteImagesRevision \}\)/);
     assert.match(shareMapModalSource, /t\('includeAnnotationsInShare'\)/);
     assert.match(shareMapModalSource, /disabled=\{!annotationCount \|\| !annotationsReady \|\| submitting\}/);
 });
@@ -60,7 +60,7 @@ test('share map modal explains and refreshes the frozen embed preview after publ
     );
     assert.match(
         shareMapModalSource,
-        /const published = await onPublish\?\.\(\{ includeAnnotations: includeAnnotationsSelection \}\);/,
+        /const published = await onPublish\?\.\(\{ includeAnnotations: includeAnnotationsSelection,\s*noteImagesRevision: map\?\.noteImagesRevision \}\);/,
     );
     assert.match(
         shareMapModalSource,

@@ -17,7 +17,9 @@ export function hasSharedMapUpdates(map) {
     if (!isShared) return false;
 
     const sharedAt = parseTimestamp(readShareUpdatedAt(map));
-    const updatedAt = parseTimestamp(readMapUpdatedAt(map));
+    const mapUpdatedAt = parseTimestamp(readMapUpdatedAt(map));
+    const imagesUpdatedAt = parseTimestamp(map?.noteImagesUpdatedAt);
+    const updatedAt = mapUpdatedAt === null ? imagesUpdatedAt : imagesUpdatedAt === null ? mapUpdatedAt : Math.max(mapUpdatedAt, imagesUpdatedAt);
     if (sharedAt === null || updatedAt === null) return false;
 
     return updatedAt > sharedAt;

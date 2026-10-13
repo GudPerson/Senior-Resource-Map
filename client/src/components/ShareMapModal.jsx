@@ -3,6 +3,8 @@ import { Code2, Copy, ExternalLink, Globe2, Link2, LockKeyhole, Plus, Trash2, X 
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getAnnotationMessages } from '../lib/annotationMessages.js';
 import { getKmlBoundaryMessages } from '../lib/kmlBoundaryMessages.js';
+import { getMapNoteImageMessages } from '../lib/mapNoteImageMessages.js';
+import { getDirectoryMapNoteImages } from '../../../shared/mapNoteImages.js';
 import { handleModalKeyboardEvent } from '../lib/modalKeyboard.js';
 import { hasSharedMapUpdates } from '../lib/shareMapStatus.js';
 
@@ -72,6 +74,8 @@ export default function ShareMapModal({
 }) {
     const { t, locale } = useLocale();
     const annotationMessages = getAnnotationMessages(locale);
+    const noteImageMessages = getMapNoteImageMessages(locale);
+    const selectedImageCount = new Set(getDirectoryMapNoteImages(map).filter(image => image.isShared).map(image => image.assetId)).size;
     const [copyFeedback, setCopyFeedback] = useState('');
     const [embedCopyFeedback, setEmbedCopyFeedback] = useState('');
     const [embedFeedback, setEmbedFeedback] = useState('');
@@ -154,7 +158,8 @@ export default function ShareMapModal({
     }
 
     async function handlePublishClick() {
-        const published = await onPublish?.({ includeAnnotations: includeAnnotationsSelection });
+        const published = await onPublish?.({ includeAnnotations: includeAnnotationsSelection,
+            noteImagesRevision: map?.noteImagesRevision });
         if (!published) return;
         setIncludeAnnotationsSelection(null);
         setEmbedPreviewRevision((current) => current + 1);
@@ -261,6 +266,9 @@ export default function ShareMapModal({
                             </div>
                         </div>
                     </div>
+
+                    {selectedImageCount ? <p className="rounded-xl border border-brand-100 bg-brand-50 px-3 py-2 text-sm text-brand-900"
+                        data-shared-note-image-review="true">{noteImageMessages.review.replace('{count}', selectedImageCount)}</p> : null}
 
                     {isShared ? (
                         <div>

@@ -581,7 +581,7 @@ test('owner Print View wires desktop-only editing, private persistence, and expo
 
     assert.match(
         ownerSource,
-        /const canEditPrintAnnotations = useMediaQuery\(\s*'\(hover: hover\) and \(pointer: fine\)'/,
+        /const canEditPrintAnnotations = Boolean\(mapId && user\?\.id && user\?\.role !== 'guest'\)/,
     );
     assert.doesNotMatch(
         ownerSource,

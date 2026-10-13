@@ -23,6 +23,7 @@ import {
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { resolvePersonalPlaceLocation } from '../utils/personalPlaceLocation.js';
 import { detachAnnotationResourceFromMap } from '../utils/mapAnnotationResources.js';
+import { attachMapNoteImages, createMapNoteImageRepository } from '../utils/mapNoteImages.js';
 import {
     buildEmbeddedResourceContactSnapshot,
     stripEmbeddedResourceContactsFromDirectory,
@@ -126,6 +127,7 @@ const updateMyMapPersonalPlaceShortDescriptorBodySchema = z.object({
 
 const shareMyMapBodySchema = z.object({
     includeHandoffNotes: z.boolean().optional(),
+    noteImagesRevision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
     studioViewId: z.string()
         .trim()
         .min(1)
@@ -639,7 +641,7 @@ export async function createMyMap(db, user, body, resolutionContext = null) {
     };
 }
 
-export async function getMyMapDetail(db, user, mapId, resolutionContext = null) {
+export async function getMyMapDetail(db, user, mapId, resolutionContext = null, options = {}) {
     assertDirectoryUser(user);
     const map = await requireOwnedMap(db, user.id, mapId, true);
     const finalResolutionContext = resolutionContext || await createSavedAssetResolutionContext(db, user);
@@ -655,6 +657,17 @@ export async function getMyMapDetail(db, user, mapId, resolutionContext = null) 
         await persistSnapshotUpdates(db, snapshotUpdates);
     }
 
+    if (options.noteImages) {
+        try {
+            const { document } = await options.noteImages.read(mapId);
+            return { ...attachMapNoteImages(directory, map, document), noteImagesRevision: document.revision,
+                noteImagesUpdatedAt: document.updatedAt || null };
+        } catch {
+            // A storage outage must not prevent the existing map/text notes
+            // from opening. The separate gallery exposes its own Retry.
+            return { ...directory, noteImagesStatus: 'unavailable' };
+        }
+    }
     return directory;
 }
 
@@ -759,6 +772,17 @@ export async function updateMyMapEmbedSettings(db, user, mapId, body) {
 export async function publishMyMap(db, user, mapId, resolutionContext = null, options = {}) {
     assertDirectoryUser(user);
     const map = await requireOwnedMap(db, user.id, mapId, true, true);
+    // Read before publication writes. Failed image storage cannot silently
+    // publish a snapshot which loses an owner's selected shared images.
+    const noteImageDocument = options.noteImages ? (await options.noteImages.read(mapId)).document : null;
+    const hasSelectedNoteImages = noteImageDocument?.entries.some(entry => entry.membershipKey.startsWith('asset:')
+        && entry.images.some(image => image.isShared));
+    if (hasSelectedNoteImages && options.noteImagesRevision === undefined) {
+        throw createHttpError(409, 'Refresh this map to review the selected shared images before publishing.');
+    }
+    if (noteImageDocument && options.noteImagesRevision !== undefined && options.noteImagesRevision !== noteImageDocument.revision) {
+        throw createHttpError(409, 'Map note images changed in another session. Reload the map, review the shared images and try again.');
+    }
     let embeddedPresentation = buildEmbeddedMapPresentationSnapshot(null);
     let selectedStudioView = null;
     if (options.studioViewId) {
@@ -818,7 +842,9 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
             )
         );
     const embeddedResourceContacts = buildEmbeddedResourceContactSnapshot(sharedSnapshot);
-    const publicSharedSnapshot = stripEmbeddedResourceContactsFromDirectory(sharedSnapshot);
+    const publicSharedSnapshot = stripEmbeddedResourceContactsFromDirectory(
+        attachMapNoteImages(sharedSnapshot, map, noteImageDocument, { shared: true }),
+    );
     const embeddedResourceKeys = selectedStudioView
         ? buildEmbeddedMapResourceAllowlist(publicSharedSnapshot, selectedStudioView.design)
         : null;
@@ -1212,7 +1238,9 @@ export const getMyMap = async (c) => {
         if (!mapId) {
             return c.json({ error: 'Map id is required' }, 400);
         }
-        const map = await getMyMapDetail(db, user, mapId);
+        const map = await getMyMapDetail(db, user, mapId, null, {
+            noteImages: c.env?.HELP_CMS_BUCKET ? createMapNoteImageRepository(c.env.HELP_CMS_BUCKET, user.id) : null,
+        });
         return c.json(map);
     } catch (err) {
         console.error('getMyMap Error:', err);
@@ -1287,6 +1315,8 @@ export const postMyMapShare = async (c) => {
         const map = await publishMyMap(db, user, mapId, null, {
             includeHandoffNotes: Boolean(body.includeHandoffNotes),
             studioViewId: body.studioViewId,
+            noteImagesRevision: body.noteImagesRevision,
+            noteImages: c.env?.HELP_CMS_BUCKET ? createMapNoteImageRepository(c.env.HELP_CMS_BUCKET, user.id) : null,
         });
         return c.json(map);
     } catch (err) {

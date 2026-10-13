@@ -1,5 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { Hono } from 'hono';
+import { createMapNoteImageHandlers } from '../src/controllers/mapNoteImagesController.js';
+import { createPrivateMapMediaRepository } from '../src/utils/privateMapMedia.js';
+import { MapMediaBucket, png } from './helpers/mapAnnotationFixtures.js';
 
 import {
     copySharedMapToMyMaps,
@@ -795,4 +799,25 @@ test('copySharedMapToMyMaps rejects the original owner', async () => {
             return true;
         }
     );
+});
+
+test('shared image route uses actual frozen visibility policy, revocation and embed note exclusion', async () => {
+    const bucket = new MapMediaBucket();
+    const photo = await createPrivateMapMediaRepository(bucket, OWNER_USER.id).saveAsset(png(), 'image/png');
+    const snapshot = createSnapshotDirectory();
+    snapshot.assets[0].notes = { items: [], images: [{ ...photo, isShared: true }] };
+    snapshot.places[0].rows[0].notes = { items: [], images: [{ ...photo, isShared: true }] };
+    const db = createFakeDb({ maps: [createSharedMap({ embedEnabled: true, embedAllowedOrigins: ['https://example.test'] })],
+        hardAsset: createHardAsset(), shareSnapshots: [{ mapId: 3, shareToken: 'shared-token', snapshot }] });
+    const app = new Hono();
+    const handlers = createMapNoteImageHandlers({ dbForContext: () => db, bucketForContext: () => bucket });
+    app.get('/api/shared-maps/:token/note-images/:assetId', handlers.sharedRead);
+    const url = `/api/shared-maps/shared-token/note-images/${photo.assetId}`;
+    assert.equal((await app.request(url)).status, 200);
+    const embed = await getEmbeddedMapDirectory(db, 'shared-token');
+    assert.equal(JSON.stringify(embed).includes(photo.assetId), false);
+    db.state.hardAsset.isHidden = true;
+    assert.equal((await app.request(url)).status, 404);
+    db.state.hardAsset.isHidden = false; db.state.maps[0].isShared = false;
+    assert.equal((await app.request(url)).status, 404);
 });

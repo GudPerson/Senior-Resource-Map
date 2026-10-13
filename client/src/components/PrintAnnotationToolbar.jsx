@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getAnnotationMessages } from '../lib/annotationMessages.js';
 import { getKmlBoundaryMessages } from '../lib/kmlBoundaryMessages.js';
+import { getMapNoteImageMessages } from '../lib/mapNoteImageMessages.js';
 
 import {
     ArrowDown,
@@ -137,7 +138,7 @@ function IconButton({
             aria-pressed={active}
             disabled={disabled}
             onClick={onClick}
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition-colors ${
+            className={`flex h-11 w-11 lg:h-9 lg:w-9 shrink-0 items-center justify-center rounded-md border transition-colors ${
                 active
                     ? 'border-brand-600 bg-brand-600 text-white'
                     : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-700'
@@ -181,6 +182,8 @@ export default function PrintAnnotationToolbar({
     const { locale } = useLocale();
     const messages = getAnnotationMessages(locale);
     const boundaryMessages = getKmlBoundaryMessages(locale);
+    const mobileMessages = getMapNoteImageMessages(locale);
+    const [detailsOpen, setDetailsOpen] = useState(false);
     const [textBuffer, setTextBuffer] = useState(selectedAnnotation?.text ?? draftText);
     const [styleBuffer, setStyleBuffer] = useState(selectedAnnotation?.style ?? draftStyle);
     const [imageAltBuffer, setImageAltBuffer] = useState(selectedAnnotation?.image?.alt || '');
@@ -257,20 +260,24 @@ export default function PrintAnnotationToolbar({
 
     return (
         <div
-            className="absolute left-3 top-3 z-[1100] max-h-[calc(100%-1.5rem)] w-[320px] max-w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain rounded-lg border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur"
+            className={`absolute left-3 right-3 bottom-3 lg:right-auto lg:bottom-auto lg:top-3 z-[1100] ${detailsOpen ? 'max-h-[calc(100%-1.5rem)]' : 'max-h-[65%]'} lg:max-h-[calc(100%-1.5rem)] lg:w-[320px] max-w-[calc(100%-1.5rem)] flex flex-col overflow-hidden overscroll-contain rounded-lg border border-slate-200 bg-white/95 p-2 lg:p-3 shadow-xl backdrop-blur`}
             data-print-annotation-toolbar="true"
         >
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex shrink-0 items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <CircleDot size={17} className="text-brand-700" aria-hidden="true" />
                     <span className="text-sm font-bold text-slate-900">Annotations</span>
                 </div>
+                <button type="button" className="ml-auto min-h-11 rounded-md px-2 text-xs font-bold text-brand-800 lg:hidden"
+                    aria-expanded={detailsOpen} onClick={() => setDetailsOpen(value => !value)}>
+                    {detailsOpen ? mobileMessages.collapse : mobileMessages.options}
+                </button>
                 <IconButton label="Close annotations" onClick={onClose}>
                     <X size={16} />
                 </IconButton>
             </div>
 
-            <div className="mt-3 grid grid-cols-4 gap-1">
+            <div className="mt-1 flex shrink-0 gap-1 overflow-x-auto pb-1 lg:mt-3 lg:grid lg:grid-cols-4 lg:overflow-visible lg:pb-0">
                 {TOOL_OPTIONS.map(({ value, label, Icon }) => (
                     <IconButton
                         key={value}
@@ -283,18 +290,22 @@ export default function PrintAnnotationToolbar({
                 ))}
             </div>
 
-            {imageControls}
-            {importControls}
+            <div className="min-h-0 overflow-y-auto overscroll-contain">
+            <div className={detailsOpen ? '' : 'hidden lg:block'}>
+                {imageControls}
+                {importControls}
+            </div>
 
             {helperText ? (
                 <p
-                    className="mt-3 rounded-md border border-brand-100 bg-brand-50 px-2.5 py-2 text-xs font-semibold leading-4 text-brand-800"
+                    className={`${detailsOpen ? '' : 'hidden lg:block'} mt-3 rounded-md border border-brand-100 bg-brand-50 px-2.5 py-2 text-xs font-semibold leading-4 text-brand-800`}
                     data-print-annotation-helper="true"
                 >
                     {helperText}
                 </p>
             ) : null}
 
+            <div className={detailsOpen ? '' : 'hidden lg:block'}>
             {selectedAnnotation ? resourceControls : null}
 
             {selectedAnnotation?.type === 'image' ? (
@@ -598,8 +609,11 @@ export default function PrintAnnotationToolbar({
                 </label>
             ) : null}
             {isBoundary ? <p className="mt-3 text-xs leading-4 text-slate-600">{boundaryMessages.private}</p> : null}
+            </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
+            </div>
+
+            <div className="mt-1 flex shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto border-t border-slate-100 pt-1 lg:mt-3 lg:flex-wrap lg:overflow-visible lg:pt-3">
                 <IconButton label="Undo" disabled={!canUndo} onClick={onUndo}>
                     <Undo2 size={16} />
                 </IconButton>
@@ -657,7 +671,7 @@ export default function PrintAnnotationToolbar({
                 >
                     <Trash2 size={16} />
                 </IconButton>
-                <div className="ml-auto min-w-0 text-right text-[11px] font-semibold">
+                <div className="ml-auto min-w-0 shrink-0 text-right text-[11px] font-semibold">
                     {status === 'saving' ? <span className="text-brand-700">Saving...</span> : null}
                     {status === 'unsaved' ? <span className="text-amber-700">Pending</span> : null}
                     {status === 'saved' ? <span className="text-emerald-700">Saved</span> : null}

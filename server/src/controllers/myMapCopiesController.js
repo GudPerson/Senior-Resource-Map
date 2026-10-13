@@ -13,6 +13,7 @@ import {
 import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizeMyMapCategoryOrder } from '../utils/myMapCategoryOrder.js';
 import { normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
+import { createMapNoteImageRepository } from '../utils/mapNoteImages.js';
 import {
     MAP_STUDIO_SCHEMA_VERSION,
     buildMapStudioStoredDocument,
@@ -192,9 +193,10 @@ function getOwnedPersonalPlaceLinks(map, userId) {
     return [...uniqueLinks.values()];
 }
 
-export async function duplicateMyMap(db, user, mapId) {
+export async function duplicateMyMap(db, user, mapId, options = {}) {
     assertMyMapCopyUser(user);
     const sourceMap = await loadOwnedMapForDuplicate(db, user.id, mapId);
+    const noteImageDocument = options.noteImages ? (await options.noteImages.read(mapId)).document : null;
     const sourceStudioDocument = sourceMap.studioDocument
         ? buildMapStudioStoredDocument(
             formatMapStudioDocument(mapId, sourceMap.studioDocument).document,
@@ -251,15 +253,16 @@ export async function duplicateMyMap(db, user, mapId) {
     }
 
     const personalPlaceLinks = getOwnedPersonalPlaceLinks(sourceMap, user.id);
+    let insertedPersonalPlaceLinks = [];
     if (personalPlaceLinks.length > 0) {
-        await db.insert(myMapPersonalPlaceLinks).values(
+        insertedPersonalPlaceLinks = await db.insert(myMapPersonalPlaceLinks).values(
             personalPlaceLinks.map((link) => ({
                 mapId: createdMap.id,
                 personalPlaceId: link.personalPlaceId,
                 shortDescriptors: link.shortDescriptors,
                 addedAt: timestamp,
             })),
-        );
+        ).returning();
     }
 
     const sourceAnnotations = sourceMap.printAnnotationDocument;
@@ -285,6 +288,27 @@ export async function duplicateMyMap(db, user, mapId) {
         });
     }
 
+    if (noteImageDocument?.entries.length) {
+        const membershipMapping = new Map();
+        const targets = new Map(insertedAssets.map(asset => [`${asset.resourceType}:${asset.resourceId}`, asset.id]));
+        for (const asset of sourceAssets) {
+            const targetId = targets.get(`${asset.resourceType}:${asset.resourceId}`);
+            if (targetId) membershipMapping.set(`asset:${asset.id}`, `asset:${targetId}`);
+        }
+        const personalTargets = new Map(insertedPersonalPlaceLinks.map(link => [link.personalPlaceId, link.id]));
+        for (const link of sourceMap.personalPlaceLinks || []) {
+            const targetId = personalTargets.get(link.personalPlaceId);
+            if (targetId) membershipMapping.set(`personal:${link.id}`, `personal:${targetId}`);
+        }
+        try { await options.noteImages.copy(noteImageDocument, createdMap.id, membershipMapping); }
+        catch (error) {
+            // The new copy is private. Roll it back instead of returning a
+            // successful copy which silently lost its image attachments.
+            try { await db.delete(myMaps).where(and(eq(myMaps.id, createdMap.id), eq(myMaps.userId, user.id))); }
+            catch { throw createHttpError(503, 'The map copy could not be confirmed. Check My Directory before trying again.'); }
+            throw error;
+        }
+    }
     return formatMyMapCopySummary(createdMap, insertedAssets.length, personalPlaceLinks.length);
 }
 
@@ -297,7 +321,9 @@ export const postMyMapDuplicate = async (c) => {
         if (!mapId) {
             return c.json({ error: 'Map id is required' }, 400);
         }
-        const map = await duplicateMyMap(db, user, mapId);
+        const map = await duplicateMyMap(db, user, mapId, {
+            noteImages: c.env?.HELP_CMS_BUCKET ? createMapNoteImageRepository(c.env.HELP_CMS_BUCKET, user.id) : null,
+        });
         return c.json(map, 201);
     } catch (err) {
         console.error('postMyMapDuplicate Error:', err);

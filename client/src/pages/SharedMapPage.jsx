@@ -797,6 +797,7 @@ export default function SharedMapPage({ mapKind = 'personal' }) {
                         </div>
 
                         <SharedMapDirectoryList
+                            directory={translatedDirectory}
                             presentation={sharedPresentation}
                             mode="shared"
                             layout="desktop"
@@ -868,6 +869,7 @@ export default function SharedMapPage({ mapKind = 'personal' }) {
                     </>
                 ) : (
                     <SharedMapDirectoryList
+                        directory={translatedDirectory}
                         presentation={sharedPresentation}
                         mode="shared"
                         layout="responsive"

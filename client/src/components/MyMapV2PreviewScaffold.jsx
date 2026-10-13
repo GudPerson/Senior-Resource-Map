@@ -34,6 +34,7 @@ export default function MyMapV2PreviewScaffold({
     onEditPersonalPlace,
     onEditResourceShortDescription,
     onUpdateResourceNotes,
+    onUpdateResourceImages,
     annotationResourceInteraction = null,
     onHoverPlaceStart,
     onHoverPlaceEnd,
@@ -224,6 +225,7 @@ export default function MyMapV2PreviewScaffold({
                         onEditPersonalPlace={onEditPersonalPlace}
                         onEditResourceShortDescription={onEditResourceShortDescription}
                         onUpdateResourceNotes={onUpdateResourceNotes}
+                onUpdateResourceImages={onUpdateResourceImages}
                         annotationResourceInteraction={annotationResourceInteraction}
                         highlightPlaceKey={activePlaceKey}
                         highlightPlaceKeys={activePlaceKeys}

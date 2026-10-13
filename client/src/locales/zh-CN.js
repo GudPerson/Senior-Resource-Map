@@ -867,6 +867,7 @@ export const zhCnDictionary = {
     closeMapNotes: '关闭地图备注',
     backToMapNotesList: '返回地图备注',
     mapNotesSummary: '{{resources}} 个资源 · {{notes}} 条备注 · {{shared}} 条共享',
+    mapNotesSummaryImagePart: '{{count}} 张图片',
     mapNotesSummaryResourcePart: '{{count}} 个资源',
     mapNotesSummaryNotePart: '{{count}} 条备注',
     mapNotesSummarySharedPart: '{{count}} 条共享',

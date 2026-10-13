@@ -1,4 +1,5 @@
 import { MAP_NOTE_MAX_LENGTH } from './mapNotesAutosave.js';
+import { normalizeMapNoteImages } from '../../../shared/mapNoteImages.js';
 
 export function getRowAssetKey(row) {
     return row?.assetKey || `${row?.resourceType}-${row?.resourceId}`;
@@ -134,7 +135,7 @@ export function applySharedNoteTranslationsToDirectory(directory, translationPay
 }
 
 export function hasAnyOwnerNote(row) {
-    return normalizeNoteItems(row?.notes).length > 0;
+    return normalizeNoteItems(row?.notes).length > 0 || normalizeMapNoteImages(row?.notes?.images).length > 0;
 }
 
 function withMapNoteMeta(row, contextLabel, source = 'mapped') {
@@ -183,11 +184,13 @@ export function buildMapNoteResourceRows(presentation, options = {}) {
 export function getMapNoteResourceSummary(rows = []) {
     return rows.reduce((summary, row) => {
         const notes = normalizeNoteItems(row?.notes);
+        const imageCount = (summary.imageCount || 0) + normalizeMapNoteImages(row?.notes?.images).length;
         return {
             resourceCount: summary.resourceCount + 1,
-            notedResourceCount: summary.notedResourceCount + (notes.length ? 1 : 0),
+            notedResourceCount: summary.notedResourceCount + (hasAnyOwnerNote(row) ? 1 : 0),
             noteCount: summary.noteCount + notes.length,
             sharedNoteCount: summary.sharedNoteCount + notes.filter((note) => note.isShared).length,
+            ...(imageCount ? { imageCount } : {}),
         };
     }, {
         resourceCount: 0,
@@ -207,6 +210,8 @@ export function buildMapNoteSummaryParts(summary = {}, options = {}) {
     if (mode !== 'shared') {
         parts.push({ key: 'shared', count: Number(summary.sharedNoteCount || 0) });
     }
+
+    if (summary.imageCount) parts.push({ key: 'images', count: summary.imageCount });
 
     return parts;
 }

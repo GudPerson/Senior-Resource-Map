@@ -867,6 +867,7 @@ export const msDictionary = {
     closeMapNotes: 'Tutup nota peta',
     backToMapNotesList: 'Kembali ke nota peta',
     mapNotesSummary: '{{resources}} sumber · {{notes}} nota · {{shared}} dikongsi',
+    mapNotesSummaryImagePart: '{{count}} imej',
     mapNotesSummaryResourcePart: '{{count}} sumber',
     mapNotesSummaryNotePart: '{{count}} nota',
     mapNotesSummarySharedPart: '{{count}} dikongsi',

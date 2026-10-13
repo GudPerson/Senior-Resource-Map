@@ -882,6 +882,7 @@ export const enDictionary = {
     closeMapNotes: 'Close map notes',
     backToMapNotesList: 'Back to map notes',
     mapNotesSummary: '{{resources}} resources · {{notes}} notes · {{shared}} shared',
+    mapNotesSummaryImagePart: '{{count}} images',
     mapNotesSummaryResourcePart: '{{count}} resources',
     mapNotesSummaryNotePart: '{{count}} notes',
     mapNotesSummarySharedPart: '{{count}} shared',

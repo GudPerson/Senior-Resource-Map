@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 
 import { authenticateToken, optionalAuth } from '../middleware/auth.js';
+import { getSharedMapNoteImage } from '../controllers/mapNoteImagesController.js';
 import {
     getEmbeddedMap,
     getEmbeddedMapConfigRoute,
@@ -12,6 +13,7 @@ import {
 const router = new Hono();
 
 router.get('/:token/note-translations', optionalAuth, getSharedMapNoteTranslations);
+router.get('/:token/note-images/:assetId', optionalAuth, getSharedMapNoteImage);
 router.get('/:token/embed-config', getEmbeddedMapConfigRoute);
 router.get('/:token/embed', getEmbeddedMap);
 router.get('/:token', optionalAuth, getSharedMap);

@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
+import MapNoteImages from './MapNoteImages.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { AnnotationResourceInteractionContext, useAnnotationResourceCard } from './AnnotationResourceInteraction.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
@@ -258,6 +259,7 @@ function formatMapNotesSummary(summary, mode, t) {
         resources: 'mapNotesSummaryResourcePart',
         notes: 'mapNotesSummaryNotePart',
         shared: 'mapNotesSummarySharedPart',
+        images: 'mapNotesSummaryImagePart',
     };
 
     return buildMapNoteSummaryParts(summary, { mode })
@@ -339,7 +341,7 @@ function MapNoteIconButton({ row, onOpenResourceNotes, compact = false }) {
 function MapNotesEntryButton({ rows, mode, onOpen }) {
     const { t } = useLocale();
     const summary = getMapNoteResourceSummary(rows);
-    const canOpen = rows.length > 0 && (mode === 'owner' || summary.noteCount > 0);
+    const canOpen = rows.length > 0 && (mode === 'owner' || summary.noteCount > 0 || summary.imageCount > 0);
 
     if (!canOpen) return null;
 
@@ -869,6 +871,9 @@ function MapNotesOverlay({
     onBackToList,
     onClose,
     onUpdateResourceNotes,
+    mapId = null,
+    shareToken = '',
+    onUpdateResourceImages,
 }) {
     const { t } = useLocale();
     const visibleRows = mode === 'shared'
@@ -965,7 +970,8 @@ function MapNotesOverlay({
 
                 <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
                     {selectedRow ? (
-                        readonly ? (
+                        <>
+                        {readonly ? (
                             <ResourceNotesReadOnly row={selectedRow} />
                         ) : (
                             <ResourceNotesEditor
@@ -973,7 +979,10 @@ function MapNotesOverlay({
                                 onUpdateResourceNotes={onUpdateResourceNotes}
                                 onRegisterFlush={registerEditorFlush}
                             />
-                        )
+                        )}
+                        <MapNoteImages mapId={mapId} row={selectedRow} readonly={readonly}
+                            shareToken={shareToken} onImagesChange={onUpdateResourceImages} />
+                        </>
                     ) : (
                         <div className="space-y-3">
                             <p className="text-sm font-semibold leading-6 text-slate-500">
@@ -3463,6 +3472,7 @@ function SharedMapDirectoryListContent({
     onEditResourceShortDescription,
     onUpdateResourceNotes,
     highlightPlaceKey = null,
+    onUpdateResourceImages,
     highlightPlaceKeys = [],
     canSaveResources = true,
     className = '',
@@ -4116,6 +4126,9 @@ function SharedMapDirectoryListContent({
                         ) : null}
                     </div>
                     <MapNotesOverlay
+                        mapId={directory?.id}
+                        shareToken={directory?.share?.shareToken || ''}
+                        onUpdateResourceImages={onUpdateResourceImages}
                         open={notesPanel.open}
                         rows={noteResourceRows}
                         selectedKey={notesPanel.selectedKey}
@@ -4273,6 +4286,9 @@ function SharedMapDirectoryListContent({
                         />
                     ) : null}
                     <MapNotesOverlay
+                        mapId={directory?.id}
+                        shareToken={directory?.share?.shareToken || ''}
+                        onUpdateResourceImages={onUpdateResourceImages}
                         open={notesPanel.open}
                         rows={noteResourceRows}
                         selectedKey={notesPanel.selectedKey}
@@ -4356,6 +4372,9 @@ function SharedMapDirectoryListContent({
                         />
                     ) : null}
                     <MapNotesOverlay
+                        mapId={directory?.id}
+                        shareToken={directory?.share?.shareToken || ''}
+                        onUpdateResourceImages={onUpdateResourceImages}
                         open={notesPanel.open}
                         rows={noteResourceRows}
                         selectedKey={notesPanel.selectedKey}
@@ -4449,6 +4468,9 @@ function SharedMapDirectoryListContent({
                         ) : null}
                     </section>
                     <MapNotesOverlay
+                        mapId={directory?.id}
+                        shareToken={directory?.share?.shareToken || ''}
+                        onUpdateResourceImages={onUpdateResourceImages}
                         open={notesPanel.open}
                         rows={noteResourceRows}
                         selectedKey={notesPanel.selectedKey}
@@ -4645,6 +4667,9 @@ function SharedMapDirectoryListContent({
                     />
                 ) : null}
                 <MapNotesOverlay
+                    mapId={directory?.id}
+                    shareToken={directory?.share?.shareToken || ''}
+                    onUpdateResourceImages={onUpdateResourceImages}
                     open={notesPanel.open}
                     rows={noteResourceRows}
                     selectedKey={notesPanel.selectedKey}
