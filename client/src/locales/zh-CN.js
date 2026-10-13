@@ -898,6 +898,8 @@ export const zhCnDictionary = {
     addResourceNotes: '备注',
     resourceNotesCount: '{{count}} 条备注',
     mapNotesPrivacyHelp: '可在这里写任何备注。只有需要在下次发布或更新分享链接时包含的备注，才开启“分享此备注”。请避免填写 NRIC、医疗记录或敏感个案详情。',
+    personalPlaceMapNotesPrivacyHelp: "个人地点备注仅供你在此关怀地图中查看。",
+    personalPlaceMapNotesUnavailable: "无法加载个人地点备注。请重新打开地图后再试。",
     mapNotePlaceholder: '添加提醒、说明或讨论要点。',
     mapNoteMarkdownBold: '粗体',
     mapNoteMarkdownItalic: '斜体',

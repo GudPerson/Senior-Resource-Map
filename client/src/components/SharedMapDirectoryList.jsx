@@ -573,6 +573,7 @@ function ResourceNotesEditor({
     }, [flushDraftChanges]);
 
     if (!row || !onUpdateResourceNotes) return null;
+    if (row.notes?.unavailable) return <p role="alert" className="text-sm font-semibold text-red-600">{t('personalPlaceMapNotesUnavailable')}</p>;
 
     function markDraftChanged({ immediate = false } = {}) {
         draftChangedRef.current = true;
@@ -686,7 +687,7 @@ function ResourceNotesEditor({
     return (
         <div className="space-y-3">
             <p className="rounded-2xl border border-brand-100 bg-brand-50 px-3 py-2 text-xs font-semibold leading-5 text-brand-800">
-                {t('mapNotesPrivacyHelp')}
+                {t(row.resourceType === 'personal_place' ? 'personalPlaceMapNotesPrivacyHelp' : 'mapNotesPrivacyHelp')}
             </p>
             {error ? <p className="text-sm font-semibold text-red-600">{error}</p> : null}
 
@@ -772,7 +773,7 @@ function ResourceNotesEditor({
                                     <Trash2 size={16} />
                                 </button>
                             </div>
-                            <label className="mt-2 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full px-1 text-sm font-bold text-slate-600">
+                            {row.resourceType !== 'personal_place' ? <label className="mt-2 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full px-1 text-sm font-bold text-slate-600">
                                 <input
                                     type="checkbox"
                                     checked={note.isShared}
@@ -780,8 +781,8 @@ function ResourceNotesEditor({
                                     className="h-5 w-5 rounded border-slate-300 accent-brand-600"
                                 />
                                 {t('shareThisNote')}
-                            </label>
-                            {note.id && note.text.trim() ? (
+                            </label> : null}
+                            {row.resourceType !== 'personal_place' && note.id && note.text.trim() ? (
                                 <Link
                                     to={`/dashboard/calendar?noteId=${note.id}`}
                                     onClick={() => {
@@ -891,19 +892,24 @@ function MapNotesOverlay({
     }, []);
 
     function saveEditorBeforeExit() {
-        if (readonly || !flushEditorRef.current) return;
-        void flushEditorRef.current({ keepalive: true });
+        if (readonly || !flushEditorRef.current) return true;
+        if (selectedRow?.resourceType === 'personal_place') return flushEditorRef.current();
+        return flushEditorRef.current({ keepalive: true });
     }
 
-    const handleClose = useCallback(() => {
-        saveEditorBeforeExit();
+    const handleClose = useCallback(async () => {
+        if (selectedRow?.resourceType === 'personal_place') {
+            if (await saveEditorBeforeExit() === false) return;
+        } else void saveEditorBeforeExit();
         onClose();
-    }, [onClose, readonly]);
+    }, [onClose, readonly, selectedRow?.resourceType]);
 
-    const handleBackToList = useCallback(() => {
-        saveEditorBeforeExit();
+    const handleBackToList = useCallback(async () => {
+        if (selectedRow?.resourceType === 'personal_place') {
+            if (await saveEditorBeforeExit() === false) return;
+        } else void saveEditorBeforeExit();
         onBackToList();
-    }, [onBackToList, readonly]);
+    }, [onBackToList, readonly, selectedRow?.resourceType]);
 
     useEffect(() => {
         if (!open || typeof window === 'undefined') return undefined;

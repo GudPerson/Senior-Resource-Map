@@ -720,7 +720,7 @@ test('map notes editor keeps typing local until the owner exits the note flow', 
     assert.match(apiSource, /\.\.\.\(keepalive \? \{ keepalive: true \} : \{\}\)/);
 });
 
-test('map notes Back and Close respond before the deferred save finishes', () => {
+test('saved-resource notes Back and Close retain the deferred save behavior', () => {
     const overlaySource = sourceBetween(
         sharedMapDirectorySource,
         'function MapNotesOverlay',
@@ -728,7 +728,7 @@ test('map notes Back and Close respond before the deferred save finishes', () =>
     );
 
     assert.match(overlaySource, /function saveEditorBeforeExit\(\)/);
-    assert.match(overlaySource, /void flushEditorRef\.current\(\{ keepalive: true \}\)/);
+    assert.match(overlaySource, /return flushEditorRef\.current\(\{ keepalive: true \}\)/);
     assert.match(overlaySource, /saveEditorBeforeExit\(\);\s+onClose\(\);/);
     assert.match(overlaySource, /saveEditorBeforeExit\(\);\s+onBackToList\(\);/);
     assert.doesNotMatch(overlaySource, /if \(await flushEditorBeforeExit\(\)\)/);

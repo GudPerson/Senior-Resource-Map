@@ -898,6 +898,8 @@ export const msDictionary = {
     addResourceNotes: 'Nota',
     resourceNotesCount: '{{count}} nota',
     mapNotesPrivacyHelp: 'Tulis apa-apa nota di sini. Hidupkan "Kongsi nota ini" hanya untuk nota yang patut disertakan kali berikutnya anda menerbitkan atau mengemas kini pautan kongsi. Elakkan NRIC, rekod perubatan, atau butiran kes sensitif.',
+    personalPlaceMapNotesPrivacyHelp: "Nota tempat peribadi kekal peribadi untuk anda dalam Peta Penjagaan ini.",
+    personalPlaceMapNotesUnavailable: "Nota tempat peribadi tidak dapat dimuatkan. Buka semula peta dan cuba lagi.",
     mapNotePlaceholder: 'Tambah peringatan, arahan, atau perkara perbincangan.',
     mapNoteMarkdownBold: 'Tebal',
     mapNoteMarkdownItalic: 'Condong',

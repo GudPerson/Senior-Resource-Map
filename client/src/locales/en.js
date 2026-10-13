@@ -895,6 +895,8 @@ export const enDictionary = {
     addResourceNotes: 'Notes',
     resourceNotesCount: '{{count}} notes',
     mapNotesPrivacyHelp: 'Write any note here. Turn on “Share this note” only for notes that should be included the next time you publish or update the shared link. Avoid NRIC, medical records, or sensitive case details.',
+    personalPlaceMapNotesPrivacyHelp: "Personal place notes stay private to you and this Care Map.",
+    personalPlaceMapNotesUnavailable: "Personal place notes could not be loaded. Reopen the map and try again.",
     mapNotePlaceholder: 'Add a reminder, instruction, or talking point.',
     mapNoteMarkdownBold: 'Bold',
     mapNoteMarkdownItalic: 'Italic',

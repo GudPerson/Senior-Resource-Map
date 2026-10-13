@@ -35,6 +35,7 @@ import { postMyMapPersonalPlacesImport } from '../controllers/personalPlaceImpor
 import { getMyMapPersonalPlaceImportLocation } from '../controllers/personalPlaceImportLookupController.js';
 import { postMapAnnotationMedia, getMapAnnotationMedia } from '../controllers/mapAnnotationMediaController.js';
 import { getMapNoteImages, putMapNoteImages } from '../controllers/mapNoteImagesController.js';
+import { patchPersonalPlaceMapNotes } from '../controllers/personalPlaceMapNotesController.js';
 
 const router = new Hono();
 
@@ -61,6 +62,7 @@ router.post('/:id/personal-places/import', authenticateToken, postMyMapPersonalP
 router.get('/:id/personal-places/lookup', authenticateToken, getMyMapPersonalPlaceImportLocation);
 router.patch('/:id/personal-places/:placeId', authenticateToken, patchMyMapPersonalPlace);
 router.patch('/:id/personal-places/:placeId/short-description', authenticateToken, patchMyMapPersonalPlaceShortDescriptor);
+router.patch('/:id/personal-places/:placeId/notes', authenticateToken, patchPersonalPlaceMapNotes);
 router.delete('/:id/personal-places/:placeId', authenticateToken, deleteMyMapPersonalPlaceRoute);
 router.post('/:id/assets', authenticateToken, postMyMapAsset);
 router.patch('/:id/assets/:resourceType/:resourceId/short-description', authenticateToken, patchMyMapAssetShortDescriptor);

@@ -14,6 +14,7 @@ import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { normalizeMyMapCategoryOrder } from '../utils/myMapCategoryOrder.js';
 import { normalizeMyMapAssetSnapshot } from '../utils/myMapDirectory.js';
 import { createMapNoteImageRepository } from '../utils/mapNoteImages.js';
+import { createPersonalPlaceMapNotesRepository } from '../utils/personalPlaceMapNotes.js';
 import {
     MAP_STUDIO_SCHEMA_VERSION,
     buildMapStudioStoredDocument,
@@ -197,6 +198,8 @@ export async function duplicateMyMap(db, user, mapId, options = {}) {
     assertMyMapCopyUser(user);
     const sourceMap = await loadOwnedMapForDuplicate(db, user.id, mapId);
     const noteImageDocument = options.noteImages ? (await options.noteImages.read(mapId)).document : null;
+    const personalNoteDocument = options.personalPlaceNotes && sourceMap.personalPlaceLinks?.length
+        ? (await options.personalPlaceNotes.read(mapId)).document : null;
     const sourceStudioDocument = sourceMap.studioDocument
         ? buildMapStudioStoredDocument(
             formatMapStudioDocument(mapId, sourceMap.studioDocument).document,
@@ -309,6 +312,17 @@ export async function duplicateMyMap(db, user, mapId, options = {}) {
             throw error;
         }
     }
+    if (personalNoteDocument?.entries.length) {
+        const targets = new Map(insertedPersonalPlaceLinks.map(link => [link.personalPlaceId, link.id]));
+        const mapping = new Map((sourceMap.personalPlaceLinks || []).filter(link => targets.has(link.personalPlaceId))
+            .map(link => [link.id, targets.get(link.personalPlaceId)]));
+        try { await options.personalPlaceNotes.copy(personalNoteDocument, createdMap.id, mapping); }
+        catch (error) {
+            try { await db.delete(myMaps).where(and(eq(myMaps.id, createdMap.id), eq(myMaps.userId, user.id))); }
+            catch { throw createHttpError(503, 'The map copy could not be confirmed. Check My Directory before trying again.'); }
+            throw error;
+        }
+    }
     return formatMyMapCopySummary(createdMap, insertedAssets.length, personalPlaceLinks.length);
 }
 
@@ -323,6 +337,7 @@ export const postMyMapDuplicate = async (c) => {
         }
         const map = await duplicateMyMap(db, user, mapId, {
             noteImages: c.env?.HELP_CMS_BUCKET ? createMapNoteImageRepository(c.env.HELP_CMS_BUCKET, user.id) : null,
+            personalPlaceNotes: c.env?.HELP_CMS_BUCKET ? createPersonalPlaceMapNotesRepository(c.env.HELP_CMS_BUCKET, user.id) : null,
         });
         return c.json(map, 201);
     } catch (err) {

@@ -24,6 +24,7 @@ import { ensureBoundarySchema } from '../utils/boundarySchema.js';
 import { resolvePersonalPlaceLocation } from '../utils/personalPlaceLocation.js';
 import { detachAnnotationResourceFromMap } from '../utils/mapAnnotationResources.js';
 import { attachMapNoteImages, createMapNoteImageRepository } from '../utils/mapNoteImages.js';
+import { attachPersonalPlaceMapNotes, createPersonalPlaceMapNotesRepository } from '../utils/personalPlaceMapNotes.js';
 import {
     buildEmbeddedResourceContactSnapshot,
     stripEmbeddedResourceContactsFromDirectory,
@@ -657,18 +658,27 @@ export async function getMyMapDetail(db, user, mapId, resolutionContext = null, 
         await persistSnapshotUpdates(db, snapshotUpdates);
     }
 
+    let withPersonalNotes = directory;
+    if (options.personalPlaceNotes && map.personalPlaceLinks?.length) {
+        try {
+            const { document } = await options.personalPlaceNotes.read(mapId);
+            withPersonalNotes = attachPersonalPlaceMapNotes(directory, map, document);
+        } catch {
+            withPersonalNotes = attachPersonalPlaceMapNotes(directory, map, null, { unavailable: true });
+        }
+    }
     if (options.noteImages) {
         try {
             const { document } = await options.noteImages.read(mapId);
-            return { ...attachMapNoteImages(directory, map, document), noteImagesRevision: document.revision,
+            return { ...attachMapNoteImages(withPersonalNotes, map, document), noteImagesRevision: document.revision,
                 noteImagesUpdatedAt: document.updatedAt || null };
         } catch {
             // A storage outage must not prevent the existing map/text notes
             // from opening. The separate gallery exposes its own Retry.
-            return { ...directory, noteImagesStatus: 'unavailable' };
+            return { ...withPersonalNotes, noteImagesStatus: 'unavailable' };
         }
     }
-    return directory;
+    return withPersonalNotes;
 }
 
 export async function renameMyMap(db, user, mapId, body) {
@@ -1240,6 +1250,7 @@ export const getMyMap = async (c) => {
         }
         const map = await getMyMapDetail(db, user, mapId, null, {
             noteImages: c.env?.HELP_CMS_BUCKET ? createMapNoteImageRepository(c.env.HELP_CMS_BUCKET, user.id) : null,
+            personalPlaceNotes: c.env?.HELP_CMS_BUCKET ? createPersonalPlaceMapNotesRepository(c.env.HELP_CMS_BUCKET, user.id) : null,
         });
         return c.json(map);
     } catch (err) {

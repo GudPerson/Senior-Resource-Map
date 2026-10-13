@@ -1121,6 +1121,7 @@ function applyResourceNotesToDirectory(directory, resourceType, resourceId, note
     return {
         ...directory,
         assets: (directory.assets || []).map(patchItem),
+        personalPlaces: (directory.personalPlaces || []).map(patchItem),
         places: (directory.places || []).map((place) => ({
             ...place,
             rows: (place.rows || []).map(patchItem),
@@ -3430,10 +3431,14 @@ export default function MyMapDetailPage() {
     }
 
     async function handleUpdateResourceNotes(row, notes, options = {}) {
-        if (row?.resourceType === 'personal_place') return null;
-        if (!directory || !row?.resourceType || !row?.resourceId) return null;
+        if (!directory || !row?.resourceType || !row?.resourceId || row.notes?.unavailable) throw new Error(t('failedSaveMapNotes'));
         setActionError('');
-        const updated = await api.updateMyMapAssetNotes(directory.id, row.resourceType, row.resourceId, notes, options);
+        const updated = row.resourceType === 'personal_place'
+            ? await api.updateMyMapPersonalPlaceNotes(directory.id, row.resourceId, { ...notes, revision: row.notes?.revision || 0 }, options)
+            : await api.updateMyMapAssetNotes(directory.id, row.resourceType, row.resourceId, notes, options);
+        if (row.resourceType === 'personal_place' && (!Number.isSafeInteger(updated?.notes?.revision) || !Array.isArray(updated.notes.items))) {
+            throw new Error(t('failedSaveMapNotes'));
+        }
         const nextNotes = updated?.notes || {
             items: notes.notes || [],
             notesUpdatedAt: new Date().toISOString(),

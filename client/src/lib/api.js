@@ -622,6 +622,7 @@ export const api = {
     addMyMapAsset: (id, body) => request('POST', `/my-maps/${id}/assets`, body),
     updateMyMapAssetShortDescriptor: (id, resourceType, resourceId, body) => request('PATCH', `/my-maps/${id}/assets/${resourceType}/${resourceId}/short-description`, body),
     updateMyMapAssetNotes: (id, resourceType, resourceId, body, options = {}) => request('PATCH', `/my-maps/${id}/assets/${resourceType}/${resourceId}/notes`, body, options),
+    updateMyMapPersonalPlaceNotes: (id, placeId, body, options = {}) => request('PATCH', `/my-maps/${id}/personal-places/${placeId}/notes`, body, options),
     getMapNoteImages: (id, type, resourceId) => request('GET', `/my-maps/${id}/note-images/${type}/${resourceId}`),
     updateMapNoteImages: (id, type, resourceId, body) => request('PUT', `/my-maps/${id}/note-images/${type}/${resourceId}`, body),
     removeMyMapAsset: (id, resourceType, resourceId) => request('DELETE', `/my-maps/${id}/assets/${resourceType}/${resourceId}`),

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createMapNoteImageRepository } from '../src/utils/mapNoteImages.js';
 import { createPrivateMapMediaRepository } from '../src/utils/privateMapMedia.js';
 import { MapMediaBucket, png } from './helpers/mapAnnotationFixtures.js';
+import { createPersonalPlaceMapNotesRepository } from '../src/utils/personalPlaceMapNotes.js';
 
 import { createMapStudioDocument } from '../../client/src/lib/mapStudioState.js';
 
@@ -759,6 +760,47 @@ function createFakeDb({
         },
     };
 }
+
+test('personal-place notes load with images, remain private on publish and survive owner duplication', async () => {
+    const db = createFakeDb({ maps: [createMap()], personalPlaces: [createPersonalPlace()],
+        personalPlaceCategories: [createPersonalPlaceCategoryFixture()], personalPlaceLinks: [createPersonalPlaceLink()] });
+    const bucket = new MapMediaBucket(), personalPlaceNotes = createPersonalPlaceMapNotesRepository(bucket, 7),
+        noteImages = createMapNoteImageRepository(bucket, 7);
+    await personalPlaceNotes.replace(3, 4, { revision: 0, notes: [{ text: 'Private personal-place note', isShared: false }] });
+    const photo = await createPrivateMapMediaRepository(bucket, 7).saveAsset(png(), 'image/png');
+    await noteImages.replace(3, 'personal:4', { revision: 0, images: [{ assetId: photo.assetId, isShared: false }] });
+    const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT, { personalPlaceNotes, noteImages });
+    assert.equal(detail.places[0].rows[0].notes.items[0].text, 'Private personal-place note');
+    assert.equal(detail.personalPlaces[0].notes.revision, 1);
+    assert.equal(detail.places[0].rows[0].notes.images[0].assetId, photo.assetId);
+    await publishMyMap(db, DEFAULT_USER, 3, {}, DEFAULT_CONTEXT, { noteImages });
+    assert.equal(JSON.stringify(db.state.shareSnapshots).includes('Private personal-place note'), false);
+    const copied = await duplicateMyMap(db, DEFAULT_USER, 3, { personalPlaceNotes, noteImages });
+    const copyDetail = await getMyMapDetail(db, DEFAULT_USER, copied.id, DEFAULT_CONTEXT, { personalPlaceNotes, noteImages });
+    assert.equal(copyDetail.places[0].rows[0].notes.items[0].text, 'Private personal-place note');
+    assert.equal(copyDetail.places[0].rows[0].notes.images[0].assetId, photo.assetId);
+});
+test('personal-note storage failure leaves image galleries available and disables false empty-note saves', async () => {
+    const db = createFakeDb({ maps: [createMap()], personalPlaces: [createPersonalPlace()], personalPlaceLinks: [createPersonalPlaceLink()] });
+    const bucket = new MapMediaBucket(), noteImages = createMapNoteImageRepository(bucket, 7);
+    const photo = await createPrivateMapMediaRepository(bucket, 7).saveAsset(png(), 'image/png');
+    await noteImages.replace(3, 'personal:4', { revision: 0, images: [{ assetId: photo.assetId, isShared: false }] });
+    const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT, {
+        noteImages, personalPlaceNotes: { read: async () => { throw new Error('Storage down'); } },
+    });
+    assert.equal(detail.places[0].rows[0].notes.unavailable, true);
+    assert.equal(detail.places[0].rows[0].notes.images[0].assetId, photo.assetId);
+});
+test('failed personal-note duplication rolls back only the new private map', async () => {
+    const db = createFakeDb({ maps: [createMap()], personalPlaces: [createPersonalPlace()], personalPlaceLinks: [createPersonalPlaceLink()] });
+    const personalPlaceNotes = createPersonalPlaceMapNotesRepository(new MapMediaBucket(), 7);
+    await personalPlaceNotes.replace(3, 4, { revision: 0, notes: [{ text: 'Source stays safe' }] });
+    await assert.rejects(duplicateMyMap(db, DEFAULT_USER, 3, { personalPlaceNotes: {
+        read: personalPlaceNotes.read, copy: async () => { throw new Error('Copy storage down'); },
+    } }), /Copy storage down/);
+    assert.deepEqual(db.state.maps.map(map => map.id), [3]);
+    assert.equal((await personalPlaceNotes.read(3)).document.entries[0].items[0].text, 'Source stays safe');
+});
 
 test('listMyMaps returns user maps with asset counts', async () => {
     const db = createFakeDb({
