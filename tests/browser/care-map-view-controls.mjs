@@ -193,14 +193,16 @@ try {
     });
     await page.goto('http://127.0.0.1:4192/');
     await page.getByRole('button', {
-      name: 'Rotate right',
+      name: 'Reset to north',
       exact: true
     }).waitFor();
     await settle();
-    await page.getByRole('button', {
-      name: 'Rotate right',
-      exact: true
-    }).click();
+    const rotateWithTrackpad = () => page.locator('.leaflet-container:visible').first().dispatchEvent('wheel', {
+      deltaY: 9, deltaMode: 1, shiftKey: true, bubbles: true, cancelable: true
+    });
+    report.cases.push({ name: 'Owner removes both 45-degree buttons',
+      passed: await page.getByRole('button', { name: /^Rotate (left|right)$/ }).count() === 0 });
+    await rotateWithTrackpad();
     await settle();
     const owner = await read();
     report.cases.push({
@@ -218,10 +220,10 @@ try {
       passed: inherited.bearing.includes('0.785398'),
       snapshot: inherited
     });
-    await page.getByRole('button', {
-      name: 'Rotate right',
-      exact: true
-    }).click();
+    report.cases.push({ name: 'Export removes both 45-degree buttons and retains one North control',
+      passed: await page.getByRole('button', { name: /^Rotate (left|right)$/ }).count() === 0
+        && await page.getByRole('button', { name: 'Reset to north', exact: true }).count() === 1 });
+    await rotateWithTrackpad();
     await settle();
     const rotated = await read();
     report.cases.push({
@@ -326,11 +328,28 @@ try {
       name: 'Open map controls',
       exact: true
     }).waitFor();
+    async function checkNorthStack(scope, toggleLabel, name) {
+      const north = scope.getByRole('button', { name: 'Reset to north', exact: true });
+      const toggle = scope.getByRole('button', { name: toggleLabel, exact: true });
+      const n = await north.boundingBox(), b = await toggle.boundingBox();
+      const exposed = await north.evaluate(button => {
+        const box = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        return button === hit || button.contains(hit);
+      });
+      report.cases.push({ name: profile + ' ' + name, passed: n && b && exposed
+          && n.y + n.height <= b.y && Math.abs(n.x + n.width / 2 - b.x - b.width / 2) <= 1
+          && n.width >= 44 && n.height >= 44, north: n, toggle: b });
+    }
+    await checkNorthStack(page, 'Full map', 'North sits above expand and is reachable');
+    report.cases.push({ name: profile + ' removes 45-degree controls',
+      passed: await page.getByRole('button', { name: /^Rotate (left|right)$/ }).count() === 0 });
     await page.getByRole('button', {
       name: 'Full map',
       exact: true
     }).click();
     await page.waitForTimeout(600);
+    await checkNorthStack(page.locator('[data-mobile-full-map]'), 'Back to list', 'North sits above return in fullscreen');
     const layout = await page.evaluate(() => {
       const menu = document.querySelector('button[aria-label="Open map controls"]');
       const header = menu.parentElement.parentElement;
@@ -399,6 +418,28 @@ try {
       name: profile + ' fullscreen native pan remains settled',
       passed: panned !== start && panned === (await camera())
     });
+    const fullMap = page.locator('[data-mobile-full-map]');
+    const middle = { x: mapRect.x + mapRect.width / 2, y: mapRect.y + mapRect.height / 2 };
+    const fingers = angle => [
+      { id: 1, x: middle.x - 45 * Math.cos(angle), y: middle.y - 45 * Math.sin(angle) },
+      { id: 2, x: middle.x + 45 * Math.cos(angle), y: middle.y + 45 * Math.sin(angle) }
+    ];
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: fingers(0) });
+    for (let n = 1; n <= 6; n++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: fingers(Math.PI * n / 24) });
+      await page.waitForTimeout(24);
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(300);
+    const fullBearing = () => fullMap.locator('.leaflet-rotate-pane').evaluate(pane => pane.style.transform);
+    report.cases.push({ name: profile + ' two-finger rotation remains available', passed: (await fullBearing()).includes('rotate(') });
+    const readFull = () => fullMap.locator('[data-map-controlled-zoom]').getAttribute('data-map-controlled-zoom');
+    const zoomBeforeNorth = await readFull(), centerBeforeNorth = await camera();
+    await fullMap.getByRole('button', { name: 'Reset to north', exact: true }).tap();
+    await page.waitForTimeout(300);
+    report.cases.push({ name: profile + ' North leaves the fullscreen camera and panel intact',
+      passed: await fullMap.count() === 1 && await camera() === centerBeforeNorth && await readFull() === zoomBeforeNorth
+        && await fullBearing() === '' });
     const exposed = await page.evaluate(() => {
       const b = document.querySelector('button[aria-label="Open map controls"]');
       const r = b.getBoundingClientRect(),

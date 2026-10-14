@@ -83,6 +83,7 @@ import ResourceRowIcon from './ResourceRowIcon.jsx';
 import CompactResourcePreviewCard, {
     COMPACT_RESOURCE_DETAIL_ACTION_CLASSNAME,
 } from './CompactResourcePreviewCard.jsx';
+import CareMapNorthButton from './CareMapNorthButton.jsx';
 import CategoryPinShapeBadge from './CategoryPinShapeBadge.jsx';
 import MyMapResourceTable from './MyMapResourceTable.jsx';
 import { getCategoryPinShape } from '../lib/categoryPinShapes.js';
@@ -4079,7 +4080,7 @@ function SharedMapDirectoryListContent({
                                     // The retained map follows the visible camera without feeding
                                     // its pixel-rounded position back into an active fullscreen pan.
                                     careMapGestures: mobileMapElement.props?.careMapGestures
-                                        ? { ...mobileMapElement.props.careMapGestures, active: !(mode === 'owner' && mobileFullMapOpen) }
+                                        ? { ...mobileMapElement.props.careMapGestures, active: !(mode === 'owner' && mobileFullMapOpen), showNorthControl: false }
                                         : null,
                                     onMapViewStateChange: mode === 'owner' && mobileFullMapOpen
                                         ? null
@@ -4092,15 +4093,18 @@ function SharedMapDirectoryListContent({
                                         ? mobileMapLayoutSignature
                                         : `${mobileMapLayoutSignature}:${mobileMapListFocused ? 'list-focus' : 'default'}`,
                                 })}
-                                <button
-                                    type="button"
-                                    onClick={openMobileFullMap}
-                                    className="absolute right-3 bottom-3 z-[1001] inline-flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 sm:right-4 sm:bottom-4"
-                                    aria-label={t('openFullMap')}
-                                    title={t('openFullMap')}
-                                >
-                                    <Maximize2 size={15} strokeWidth={2.4} aria-hidden="true" />
-                                </button>
+                                <div className="absolute right-3 bottom-3 z-[1001] flex flex-col items-center gap-2 sm:right-4 sm:bottom-4" data-mobile-map-actions="true">
+                                    {!mobileFullMapOpen && mode === 'owner' ? <CareMapNorthButton configuration={mobileMapElement.props?.careMapGestures} /> : null}
+                                    <button
+                                        type="button"
+                                        onClick={openMobileFullMap}
+                                        className={`inline-flex items-center justify-center border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 ${mode === 'owner' ? 'h-[44px] w-[44px] rounded-xl' : 'h-[30px] w-[30px] rounded-lg'}`}
+                                        aria-label={t('openFullMap')}
+                                        title={t('openFullMap')}
+                                    >
+                                        <Maximize2 size={15} strokeWidth={2.4} aria-hidden="true" />
+                                    </button>
+                                </div>
                             </div>
                             {showMapLegend ? (
                                 <MapLegend mobile />
@@ -4206,6 +4210,9 @@ function SharedMapDirectoryListContent({
                                     onClusterChange: setClusterMapping,
                                     onViewSection: handleMobileMapViewSection,
                                     onClusterSelect: handleMobileMapClusterSelect,
+                                    careMapGestures: mobileFullMapElement.props?.careMapGestures
+                                        ? { ...mobileFullMapElement.props.careMapGestures, showNorthControl: false }
+                                        : null,
                                     onFocusHandled: mode === 'owner' ? (handledPlaceKey) => {
                                         setMobileFullMapHandledFocusKey(mobileFocusTrayPlaceKey);
                                         mobileFullMapElement.props?.onFocusHandled?.(handledPlaceKey);
@@ -4218,15 +4225,18 @@ function SharedMapDirectoryListContent({
                                     className: mobileFullMapElement.props?.className,
                                     layoutSignature: `${mobileFullMapElement.props?.layoutSignature || 'mobile-map-normal'}:full`,
                                 }) : null}
-                                <button
-                                    type="button"
-                                    onClick={closeMobileFullMap}
-                                    className="absolute right-3 bottom-3 z-[1001] inline-flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                                    aria-label={t('returnToMapList')}
-                                    title={t('returnToMapList')}
-                                >
-                                    <Minimize2 size={15} strokeWidth={2.4} aria-hidden="true" />
-                                </button>
+                                <div className="absolute right-3 bottom-3 z-[1001] flex flex-col items-center gap-2" data-mobile-map-actions="true">
+                                    {mode === 'owner' ? <CareMapNorthButton configuration={mobileFullMapElement?.props?.careMapGestures} /> : null}
+                                    <button
+                                        type="button"
+                                        onClick={closeMobileFullMap}
+                                        className={`inline-flex items-center justify-center border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 ${mode === 'owner' ? 'h-[44px] w-[44px] rounded-xl' : 'h-[30px] w-[30px] rounded-lg'}`}
+                                        aria-label={t('returnToMapList')}
+                                        title={t('returnToMapList')}
+                                    >
+                                        <Minimize2 size={15} strokeWidth={2.4} aria-hidden="true" />
+                                    </button>
+                                </div>
                             </div>
                             <MobileMapFocusTray
                                 selection={mobileFocusTraySelection}

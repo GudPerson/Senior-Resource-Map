@@ -1,5 +1,17 @@
 # Regression Ledger
 
+## 14 October 2026 — North control column and removal of 45-degree buttons — local candidate
+
+The user explicitly authorized commit, push and protected paired client/server deployment on 15 October 2026. Production completion remains gated on independent provenance, publication and complete artifact parity evidence recorded in the output handoff.
+
+Known-good base: accepted public application `087ef4191570572acbad73818b2df512af4a66a9`; user confirmed the preceding Map Notes features work perfectly. Candidate branch `codex/care-map-north-control-20261014` uses the maintained release checkout and preserves unrelated dirty work.
+
+Owner mobile maps put Reset to north directly above Full map / Back to list in one lower-right column with fixed44px targets. Both 45-degree buttons are removed across owner browsing and Export View. Desktop/Export retain one native North control at lower right. Touch/mouse/trackpad rotation and zoom, session bearing, camera ownership, source geometry, saved views, notes/images, sharing, captures and header seam keep their contracts. Mobile's native duplicate is disabled by a transient visual configuration flag; the North touch target cannot initiate the fullscreen exit gesture. Shared/guest toggles retain their previous30px size and have no North button. Runtime Guide instructions cover all four locales; authored Help is unchanged.
+
+Reproduce on phone/tablet at text scales0.9/1/1.4: require one reachable North immediately above expand/return, no45° buttons, stable pan, two-finger twist and touch North resetting angle without moving centre/zoom or closing fullscreen. Verify header/menu/seam and cleanup, mouse/trackpad zoom/rotation, separate Export angle and actual PNG/PDF downloads. Latest notes shortcuts/search/five recent pins must remain intact.
+
+Validation: final actual-page replay78 and notes replay18 pass with zero errors/unexpected writes. Quality passes compiler17/CMS73/server1,235/client1,030/environment5/static/build and locked-map112/build. Intermediate source assertion and four small-text touch-size failures remain recorded separately. Fictional APIs/synthetic imagery/emulation are distinct from physical Android/PWA and production acceptance. See `docs/care-map-north-control-20261014.md` and primary `output/care-map-north-control-20261014/`. Release requires the normal protected paired workflow and independent provenance/parity checks.
+
 ## 14 October 2026 — Map Notes preview shortcut, search and five recent pins — local candidate
 
 Based on accepted public source `5459d7f377c7c05ebc50d328fd86ec9170995323`, isolated on `codex/care-map-note-navigation-20261014` in the maintained release checkout. Every owned selected-pin preview now exposes a labelled 44px Map notes action, including personal places and saved resources without notes. The action opens the exact typed row displayed, without triggering card focus. Normal and fullscreen previews share this behavior.

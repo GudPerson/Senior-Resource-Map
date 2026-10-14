@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Navigation, RotateCcw, RotateCw } from 'lucide-react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { alignCareMapGeographicLayers, refreshCareMapSvgProjection } from '../lib/careMapRotation.js';
 import { isCareMapGestureActive, normalizeCareMapBearing } from '../lib/careMapGestureState.js';
+import CareMapNorthButton from './CareMapNorthButton.jsx';
 
 export default function CareMapGestureControl({ configuration, interactive = true }) {
     const map = useMap();
@@ -16,6 +16,7 @@ export default function CareMapGestureControl({ configuration, interactive = tru
     const active = configuration?.active !== false;
     const paused = Boolean(configuration?.paused);
     const bearing = normalizeCareMapBearing(configuration?.bearing);
+    const showNorthControl = configuration?.showNorthControl !== false;
 
     useEffect(() => {
         if (!map._rotate) return undefined;
@@ -66,8 +67,8 @@ export default function CareMapGestureControl({ configuration, interactive = tru
     }, [active, map]);
 
     useEffect(() => {
-        if (!active || !map._rotate) return undefined;
-        const control = L.control({ position: 'topleft' });
+        if (!active || !showNorthControl || !map._rotate) return undefined;
+        const control = L.control({ position: 'bottomright' });
         control.onAdd = () => {
             const container = L.DomUtil.create('div', 'care-map-gesture-control');
             L.DomEvent.disableClickPropagation(container); L.DomEvent.disableScrollPropagation(container);
@@ -75,29 +76,17 @@ export default function CareMapGestureControl({ configuration, interactive = tru
         };
         control.addTo(map);
         return () => { setTarget(null); control.remove(); };
-    }, [active, map]);
+    }, [active, map, showNorthControl]);
 
-    if (!target) return null;
-    const rotate = delta => {
-        map.setBearing(normalizeCareMapBearing(map.getBearing() + delta));
+    if (!target || !showNorthControl) return null;
+    const resetNorth = () => {
+        map.setBearing(0);
         configurationRef.current?.onBearingChange?.(map.getBearing());
     };
-    const className = 'inline-flex h-11 w-11 items-center justify-center bg-white text-slate-700 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 disabled:text-slate-300';
     return createPortal(
         <div role="group" aria-label={t('careMapRotationControls')} title={t('careMapGesturesHint')}
-            className="flex overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" data-care-map-gestures="true">
-            <button type="button" className={className} disabled={paused || !interactive}
-                onClick={() => rotate(-45)} aria-label={t('careMapRotateLeft')} title={t('careMapRotateLeft')}>
-                <RotateCcw size={19} aria-hidden="true" />
-            </button>
-            <button type="button" className={className} disabled={!interactive} onClick={() => rotate(-map.getBearing())}
-                aria-label={t('careMapResetNorth')} title={t('careMapResetNorth')}>
-                <Navigation size={20} style={{ transform: `rotate(${-bearing}deg)` }} aria-hidden="true" />
-            </button>
-            <button type="button" className={className} disabled={paused || !interactive}
-                onClick={() => rotate(45)} aria-label={t('careMapRotateRight')} title={t('careMapRotateRight')}>
-                <RotateCw size={19} aria-hidden="true" />
-            </button>
+            data-care-map-gestures="true">
+            <CareMapNorthButton configuration={configuration} interactive={interactive} onReset={resetNorth} />
         </div>, target,
     );
 }

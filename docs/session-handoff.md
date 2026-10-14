@@ -1,5 +1,15 @@
 # CareAround SG session handoff
 
+## 14 October 2026 — North control cleanup — local candidate
+
+On 15 October 2026 the user explicitly approved commit, push and deployment of both client and server through the protected workflow. Record completed production acceptance and release identities in the output handoff after independent verification.
+
+The user confirmed the released notes navigation works perfectly, then requested removal of the45° buttons and North above expand/return. Candidate `codex/care-map-north-control-20261014` is based on accepted public `087ef4191570572acbad73818b2df512af4a66a9` in the maintained release checkout. The dirty primary and original lookup-retry candidate are preserved.
+
+Owner mobile has one lower-right North/expand-or-return column with fixed44px targets; desktop/Export retain one lower-right native North control. The optional native-control flag affects only presentation. Gesture engine, camera/projection, source coordinates, saved Studio views, notes/images/sharing, exports and header seam retain their contracts. Guest Shared Map toggle geometry remains unchanged; captures/embeds remain opted out. Guide procedures cover all four locales without changing authored Help.
+
+Final actual-page replay78 and latest notes navigation18 pass with fictional/intercepted APIs and no errors/writes. Quality and locked-map gates pass; physical Android/PWA UAT and protected production acceptance remain separate. Earlier source/size failures remain in the evidence bundle. No commit, push or deployment is claimed for this candidate. See `docs/care-map-north-control-20261014.md` and primary `output/care-map-north-control-20261014/`.
+
 ## 14 October 2026 — Map Notes navigation — local candidate
 
 The requested preview Map notes shortcut, resource search and last five selected pins are implemented on `codex/care-map-note-navigation-20261014`, based on accepted public `5459d7f377c7c05ebc50d328fd86ec9170995323`. Changes use the current maintained release checkout under `output/care-map-labels-release-20261007`; the dirty primary and lookup-retry candidate are untouched.
