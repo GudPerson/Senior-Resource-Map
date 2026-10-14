@@ -2,6 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answerGuideAnnotationFeatures, guideAnnotationFeatureFact, guideAnnotationFeatureIntent, guideAnnotationGroundingFacts } from '../src/utils/guideAnnotationFeatures.js';
 
+test('Map Notes search and preview shortcuts have reviewed localized instructions without exposing other owners', () => {
+    const answer = answerGuideAnnotationFeatures({ question: 'How do I find recent pins or search my Care Map notes?', actor: { id: 7, role: 'standard' } });
+    assert.equal(answer.topicId, 'map-notes-resource-navigation');
+    assert.match(answer.message, /last five pins/);
+    assert.match(answer.message, /resource preview card/);
+    assert.match(answer.message, /personal-place notes and images stay private/);
+    assert.equal(guideAnnotationFeatureIntent('Search someone elses Care Map notes'), null);
+    for (const locale of ['en', 'zh-CN', 'ms', 'ta']) {
+        const fact = guideAnnotationFeatureFact('noteNavigation', locale);
+        assert.ok(fact.title); assert.ok(fact.message.length > 100);
+        assert.equal(fact.reviewed, '2026-10-14');
+    }
+});
+
 test('Map Notes image procedures are distinct from private spatial image annotations', () => {
     const answer = answerGuideAnnotationFeatures({ question: 'How can I add, download and share images in my Care Map notes?', actor: { id: 7, role: 'standard' } });
     assert.equal(answer.topicId, 'map-note-image-attachments'); assert.equal(answer.sources.length, 1);

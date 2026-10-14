@@ -1,5 +1,20 @@
 # Regression Ledger
 
+## 14 October 2026 — Map Notes preview shortcut, search and five recent pins — local candidate
+
+Based on accepted public source `5459d7f377c7c05ebc50d328fd86ec9170995323`, isolated on `codex/care-map-note-navigation-20261014` in the maintained release checkout. Every owned selected-pin preview now exposes a labelled 44px Map notes action, including personal places and saved resources without notes. The action opens the exact typed row displayed, without triggering card focus. Normal and fullscreen previews share this behavior.
+
+The notes list searches resource names, addresses, postal codes, categories and map context. Back retains the query; Close clears it. Five recent unique pin selections are kept newest-first during the current map visit, scoped to account/map/route in component memory. Multi-resource pins expose individual resource choices. Current allowed rows resolve every identity, so removed resources cannot return through history. Leaving/reloading resets the history. Shared search uses only existing visible note rows and receives no owner history. All five layout branches are wired; UI and runtime Guide cover all four locales.
+
+Text save/flush/retry, image storage/download/explicit sharing, calendar privacy, pin coordinates, gestures, fullscreen/header, annotations and geometry remain unchanged. No server history, schema, binding, secret or authored Help-library change. Reproduce with 90+ resources: select seven pins, require the latest five, choose each resource on a multi-resource pin, search name/postcode/category, open and Back, clear/empty search, close/reload, and use empty personal/saved-resource previews in normal/Full map.
+
+Local quality passes server 1,235, client 1,030, environment 5, CMS 73, compiler 17, 646 modules / 1,959 edges without cycles and the production client build. Locked-map 112 plus its build passes. Eighteen actual-owner-page navigation cases pass across phone/tablet/desktop, with zero page errors or writes. The seven personal-place save/image/retry cases also pass. Forty-three native annotation/resource-image/shared-search checks pass with no page errors or unexpected writes. Browser checks use fictional data/intercepted APIs and are not physical Android PWA or production acceptance. Intermediate JSX/fixture/Guide failures and their corrected attempts are retained.
+
+The dirty primary and original retry candidate retain their binary-diff hashes. Scope, reproduction and release gates: `docs/care-map-note-navigation-20261014.md`. Evidence: `output/care-map-note-navigation-20261014/`. This entry records a local candidate; commit/push and protected paired deployment are separate release actions.
+
+
+The user explicitly authorized this feature’s commit, push and protected paired client/server deployment on 14 October 2026. Preserve the authored Help snapshot and bindings; independently accept exact-source CI, Worker provenance and complete custom-domain parity before recording production completion.
+
 ## 13 October 2026 — Personal-place Map Notes text persistence — validated regression fix
 
 The owner editor accepted personal-place text, but `handleUpdateResourceNotes` returned immediately for `personal_place`. The saved-resource endpoint only accepts hard/soft resources, and personal-place map memberships had no text-note storage. Images correctly used their separate private gallery. A fictional native-page reproduction failed twice with zero note-save requests on close; this was a pre-existing unsupported save path exposed by the expanded notes UI, not erased SQL notes.

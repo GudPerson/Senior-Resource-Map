@@ -1,5 +1,6 @@
 import { normalizeRole } from './roles.js';
 import { mapNoteImageGuideFact, mapNoteImageQuestion } from './guideMapNoteImages.js';
+import { mapNotesNavigationGuideFact } from './guideMapNotesNavigation.js';
 
 const route = '/my-directory?section=my-maps';
 const reviewed = '2026-10-08';
@@ -65,6 +66,8 @@ export function guideAnnotationFeatureIntent(question = '', pageContext = '') {
     if (/\b(?:show|list|read|count)\b.{0,50}\b(?:colleagues?|someone elses?|other\s+(?:person|user|account))\b/.test(q)) return null;
     if (/\b(?:kml|kmz|geojson|json)\b/.test(q) && /\b(?:admin|subregions?|region groups?|postal mapping|spreadsheet|workbook|excel)\b/.test(q)
         && !/\b(?:care|my)\s+maps?\b/.test(q)) return null;
+    if (map && /\b(?:notes?|nota)\b|备注|குறிப்புகள்/.test(q)
+        && /\b(?:search|find|shortcut|recent|preview|cari|pintasan|terkini)\b|搜索|查找|快捷|最近|预览|தேடு|சமீபத்திய|முன்னோட்ட/.test(q) && !/\b(?:someone elses?|other (?:user|account)|colleagues?)\b/.test(q)) return 'noteNavigation';
     if (/\b(?:kml|kmz|geojson|json)\b|\bimport.{0,25}boundar|(?:导入|匯入).{0,10}边界|\bimport\s+sempadan\b|எல்லைகளை இறக்குமதி/.test(q)) return 'boundaries';
     const image = /\b(?:images?|photos?|pictures?)\b|图片|照片|படத்தை|படங்கள்|\bimej\b/.test(q);
     const hoverLinks = /\b(?:hover(?:ing)?|focus|touch|tap|fokus|sentuh|penuding)\b|悬停|键盘焦点|触屏|சுட்டி|விசைப்பலகை|தொடுதிரை/.test(q)
@@ -85,6 +88,7 @@ export function guideAnnotationFeatureIntent(question = '', pageContext = '') {
 }
 
 export function guideAnnotationFeatureFact(kind = 'privacy', locale, question = '') {
+    if (kind === 'noteNavigation') return mapNotesNavigationGuideFact(selectedLocale(locale, question));
     if (kind === 'noteImages' || kind === 'editing') return mapNoteImageGuideFact(kind, selectedLocale(locale, question));
     const text = copy[selectedLocale(locale, question)];
     return { id: ids[kind], title: text[`${kind}Title`], message: text[kind], route, reviewed: kind === 'boundaries' ? '2026-10-12' : kind === 'gestures' ? '2026-10-10' : reviewed, visibility: 'public',
@@ -103,9 +107,9 @@ export function answerGuideAnnotationFeatures({ question = '', pageContext = '',
     if (!kind) return null;
     const fact = guideAnnotationFeatureFact(kind, locale, question), privacy = guideAnnotationFeatureFact('privacy', locale, question);
     const text = copy[selectedLocale(locale, question)], signedIn = Boolean(actor?.id) && normalizeRole(actor.role) !== 'guest' && !actor.isImpersonating;
-    return { topicId: fact.id, answerKind: 'procedure', message: ['privacy', 'boundaries', 'gestures', 'noteImages', 'editing'].includes(kind) ? fact.message : `${fact.message}\n\n${privacy.message}`,
+    return { topicId: fact.id, answerKind: 'procedure', message: ['privacy', 'boundaries', 'gestures', 'noteImages', 'editing', 'noteNavigation'].includes(kind) ? fact.message : `${fact.message}\n\n${privacy.message}`,
         actions: [{ label: signedIn ? text.open : text.signIn, route: signedIn ? route : '/login' }],
-        sources: (['privacy', 'boundaries', 'gestures', 'noteImages', 'editing'].includes(kind) ? [fact] : [fact, privacy]).map(sourceFor) };
+        sources: (['privacy', 'boundaries', 'gestures', 'noteImages', 'editing', 'noteNavigation'].includes(kind) ? [fact] : [fact, privacy]).map(sourceFor) };
 }
 
 function concernsAnnotations(answer) {
@@ -121,7 +125,7 @@ export function qualifyGuideAnnotationAnswer(answer, { locale, question = '' } =
 
 export function guideAnnotationGroundingFacts(facts = [], { question = '', pageContext = '', locale } = {}) {
     const kind = guideAnnotationFeatureIntent(question, pageContext);
-    if (kind === 'noteImages' || kind === 'editing') {
+    if (kind === 'noteImages' || kind === 'editing' || kind === 'noteNavigation') {
         const fact = guideAnnotationFeatureFact(kind, locale, question);
         return facts.some(item => item.id === fact.id) ? facts : [...facts, fact];
     }

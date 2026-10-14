@@ -237,6 +237,14 @@ try {
         await publicPage.getByRole('link', { name: 'Download image', exact: true }).waitFor();
         check(`${name}: shared viewer sees one downloadable image and no upload/share controls`, await publicPage.getByRole('link', { name: 'Download image', exact: true }).count() === 1 && await publicPage.getByRole('button', { name: 'Add image to notes', exact: true }).count() === 0);
         await publicPage.screenshot({ path: path.join(out, `${name}-shared-image.png`) });
+        await publicPage.getByRole('button', { name: 'Back to map notes', exact: true }).click();
+        const sharedList = publicPage.getByRole('dialog');
+        check(`${name}: shared notes search has only the published resource and no owner recent pins`,
+            await sharedList.getByRole('region', { name: 'All resources' }).getByRole('button').count() === 1
+            && await sharedList.locator('[data-map-notes-recent-pin]').count() === 0);
+        await sharedList.getByRole('searchbox', { name: 'Search resources' }).fill('Unpublished private resource');
+        check(`${name}: shared notes search cannot find private resources`,
+            await sharedList.getByText('No resources match your search.').count() === 1);
         f.revoke(); check(`${name}: link revocation denies new image reads`, (await f.app.request(`/api/shared-maps/fictional-shared/note-images/${firstImage.assetId}`)).status === 404);
         await context.close();
     }

@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
 import MapNoteImages from './MapNoteImages.jsx';
+import MapNotesResourceList from './MapNotesResourceList.jsx';
+import { rememberMapNotePin } from '../lib/mapNotesNavigation.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { AnnotationResourceInteractionContext, useAnnotationResourceCard } from './AnnotationResourceInteraction.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
@@ -312,11 +314,11 @@ function PrintResourceNumberBadge({
     );
 }
 
-function MapNoteIconButton({ row, onOpenResourceNotes, compact = false }) {
+function MapNoteIconButton({ row, onOpenResourceNotes, compact = false, allowEmpty = false }) {
     const { t } = useLocale();
     const noteCount = normalizeNoteItems(row?.notes).length;
 
-    if (!noteCount || !onOpenResourceNotes) return null;
+    if (!row || !onOpenResourceNotes || (!noteCount && !allowEmpty)) return null;
 
     return (
         <button
@@ -327,13 +329,13 @@ function MapNoteIconButton({ row, onOpenResourceNotes, compact = false }) {
                 onOpenResourceNotes(row);
             }}
             className={`inline-flex flex-shrink-0 items-center justify-center rounded-full border border-brand-100 bg-brand-50 text-brand-700 shadow-sm transition hover:border-brand-200 hover:bg-brand-100 focus:outline-none focus:ring-2 focus:ring-brand-200 ${
-                compact ? 'h-8 min-w-8 px-2' : 'h-9 min-w-9 px-2.5'
+                allowEmpty ? 'min-h-11 min-w-11 px-2.5' : compact ? 'h-8 min-w-8 px-2' : 'h-9 min-w-9 px-2.5'
             }`}
             aria-label={t('viewResourceNotesFor', { name: row?.name || t('resource') })}
             title={t('viewResourceNotesFor', { name: row?.name || t('resource') })}
         >
             <StickyNote size={compact ? 13 : 14} strokeWidth={2.25} />
-            <span className="ml-1 text-[11px] font-black leading-none">{noteCount}</span>
+            <span className={allowEmpty ? 'ml-1 text-xs font-bold' : 'ml-1 text-[11px] font-black leading-none'}>{allowEmpty ? t('mapNotes') : noteCount}</span>
         </button>
     );
 }
@@ -875,6 +877,7 @@ function MapNotesOverlay({
     mapId = null,
     shareToken = '',
     onUpdateResourceImages,
+    recentPins = [],
 }) {
     const { t } = useLocale();
     const visibleRows = mode === 'shared'
@@ -886,6 +889,11 @@ function MapNotesOverlay({
     const summary = getMapNoteResourceSummary(visibleRows);
     const readonly = mode !== 'owner';
     const flushEditorRef = useRef(null);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        if (!open) setSearchQuery('');
+    }, [open, mapId, shareToken]);
 
     const registerEditorFlush = useCallback((flush) => {
         flushEditorRef.current = typeof flush === 'function' ? flush : null;
@@ -921,6 +929,37 @@ function MapNotesOverlay({
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleClose, open]);
+
+    function renderResourceRow(row, prefix) {
+        return (
+            <button
+                type="button"
+                key={`${prefix}-${getRowAssetKey(row)}`}
+                onClick={() => onSelectResource(row)}
+                className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-brand-200 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            >
+                <ResourceRowIcon
+                    resourceType={row.resourceType}
+                    bucket={row.bucket}
+                    subCategory={row.subCategory}
+                    categoryIconKey={row.categoryIconKey}
+                    categoryColor={row.categoryColor}
+                />
+                <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-black leading-tight text-slate-900">{row.name}</span>
+                    <span className="mt-1 block truncate text-xs font-semibold leading-5 text-slate-500">
+                        {row.mapNoteContext || (row.mapNoteSource === 'unmapped' ? t('unmappedResources') : '')}
+                    </span>
+                </span>
+                <span className="flex flex-shrink-0 items-center gap-1.5">
+                    {buildMapNoteRowBadgeParts(row, { mode }).map((part) => (
+                        <NoteCountPill key={part.key} count={part.count} tone={part.tone} />
+                    ))}
+                    <ChevronRight size={18} className="text-slate-400" />
+                </span>
+            </button>
+        );
+    }
 
     if (!open) return null;
 
@@ -994,34 +1033,8 @@ function MapNotesOverlay({
                             <p className="text-sm font-semibold leading-6 text-slate-500">
                                 {readonly ? t('mapNotesSharedListHelp') : t('mapNotesResourceListHelp')}
                             </p>
-                            {visibleRows.map((row) => (
-                                <button
-                                    type="button"
-                                    key={getRowAssetKey(row)}
-                                    onClick={() => onSelectResource(row)}
-                                    className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-brand-200 hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                                >
-                                    <ResourceRowIcon
-                                        resourceType={row.resourceType}
-                                        bucket={row.bucket}
-                                        subCategory={row.subCategory}
-                                        categoryIconKey={row.categoryIconKey}
-                                        categoryColor={row.categoryColor}
-                                    />
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block truncate text-sm font-black leading-tight text-slate-900">{row.name}</span>
-                                        <span className="mt-1 block truncate text-xs font-semibold leading-5 text-slate-500">
-                                            {row.mapNoteContext || (row.mapNoteSource === 'unmapped' ? t('unmappedResources') : '')}
-                                        </span>
-                                    </span>
-                                    <span className="flex flex-shrink-0 items-center gap-1.5">
-                                        {buildMapNoteRowBadgeParts(row, { mode }).map((part) => (
-                                            <NoteCountPill key={part.key} count={part.count} tone={part.tone} />
-                                        ))}
-                                        <ChevronRight size={18} className="text-slate-400" />
-                                    </span>
-                                </button>
-                            ))}
+                            <MapNotesResourceList rows={visibleRows} recentPins={recentPins}
+                                query={searchQuery} onQueryChange={setSearchQuery} renderRow={renderResourceRow} />
                         </div>
                     )}
                 </div>
@@ -2686,6 +2699,9 @@ function MobileMapFocusTrayPlaceCard({
     const primaryNoteRow = getPrimaryPlaceNoteRow(group);
     const primaryManagedPlaceRow = getPrimaryManagedPlaceRow(group);
     const previewRow = primaryManagedPlaceRow || getGroupBadgeRow(group);
+    const shortcutNoteRow = mode === 'owner'
+        ? previewRow || getNoteRowsForGroup(group)[0] || null
+        : primaryNoteRow;
     const locationLine = resolveV2CardLocationLine(group, t);
     const canFocusOnMap = Boolean(onViewOnMap && (group?.hasCoordinates !== false || group?.mapFocusPlaceKeys?.length));
     const canActivateCard = canFocusOnMap || annotationCard.canActivate;
@@ -2742,8 +2758,9 @@ function MobileMapFocusTrayPlaceCard({
                 ) : null}
                 trailingAction={(
                     <MapNoteIconButton
-                        row={primaryNoteRow}
+                        row={shortcutNoteRow}
                         onOpenResourceNotes={onOpenResourceNotes}
+                        allowEmpty={mode === 'owner'}
                         compact
                     />
                 )}
@@ -2801,8 +2818,9 @@ function MobileMapFocusTrayPlaceCard({
                         />
                     </div>
                     <MapNoteIconButton
-                        row={primaryNoteRow}
+                        row={shortcutNoteRow}
                         onOpenResourceNotes={onOpenResourceNotes}
+                        allowEmpty={mode === 'owner'}
                         compact
                     />
                 </div>
@@ -3515,6 +3533,9 @@ function SharedMapDirectoryListContent({
 }) {
     const { t } = useLocale();
     const location = useLocation();
+    const { user } = useAuth();
+    const recentScope = `${user?.id || 'guest'}:${mode}:${directory?.id || ''}:${location.pathname}`;
+    const [recentPinState, setRecentPinState] = useState({ scope: recentScope, keys: [] });
     const sectionRefs = useRef({});
     const desktopMapWrapperRef = useRef(null);
     const mobileMapFrameRef = useRef(null);
@@ -3567,6 +3588,26 @@ function SharedMapDirectoryListContent({
         unmappedContextLabel: t('unmappedResources'),
     }), [mappedGroups, presentation, t, unmappedRows]);
     const [notesPanel, setNotesPanel] = useState({ open: false, selectedKey: null });
+    useEffect(() => {
+        setRecentPinState(current => {
+            const keys = current.scope === recentScope ? current.keys : [];
+            const next = mode === 'owner' && interactive
+                ? rememberMapNotePin(keys, selectionPlaceKey) : keys;
+            return current.scope === recentScope && next === current.keys
+                ? current : { scope: recentScope, keys: next };
+        });
+    }, [recentScope, mode, interactive, selectionPlaceKey, selectionScrollRequest]);
+    const recentNotePins = useMemo(() => {
+        if (mode !== 'owner' || recentPinState.scope !== recentScope) return [];
+        return recentPinState.keys.flatMap(key => {
+            const selected = resolveMobileFocusTraySelection(
+                presentation?.noteMappedGroups || mappedGroups, key, presentation?.pins || [],
+            );
+            if (!selected || selected.group?.hasCoordinates === false) return [];
+            const groups = selected.type === 'place' ? [selected.group] : selected.members;
+            return [{ key, name: selected.group.name, rows: groups.flatMap(getNoteRowsForGroup) }];
+        });
+    }, [mode, recentPinState, recentScope, presentation, mappedGroups]);
     const detailReturnPath = useMemo(() => (
         interactive ? normalizeMapReturnPath(buildCurrentAppPath(location)) : ''
     ), [interactive, location.hash, location.pathname, location.search]);
@@ -4137,6 +4178,7 @@ function SharedMapDirectoryListContent({
                         onUpdateResourceImages={onUpdateResourceImages}
                         open={notesPanel.open}
                         rows={noteResourceRows}
+                        recentPins={recentNotePins}
                         selectedKey={notesPanel.selectedKey}
                         mode={mode}
                         onSelectResource={selectResourceNotes}
@@ -4297,6 +4339,7 @@ function SharedMapDirectoryListContent({
                         onUpdateResourceImages={onUpdateResourceImages}
                         open={notesPanel.open}
                         rows={noteResourceRows}
+                        recentPins={recentNotePins}
                         selectedKey={notesPanel.selectedKey}
                         mode={mode}
                         onSelectResource={selectResourceNotes}
@@ -4383,6 +4426,7 @@ function SharedMapDirectoryListContent({
                         onUpdateResourceImages={onUpdateResourceImages}
                         open={notesPanel.open}
                         rows={noteResourceRows}
+                        recentPins={recentNotePins}
                         selectedKey={notesPanel.selectedKey}
                         mode={mode}
                         onSelectResource={selectResourceNotes}
@@ -4479,6 +4523,7 @@ function SharedMapDirectoryListContent({
                         onUpdateResourceImages={onUpdateResourceImages}
                         open={notesPanel.open}
                         rows={noteResourceRows}
+                        recentPins={recentNotePins}
                         selectedKey={notesPanel.selectedKey}
                         mode={mode}
                         onSelectResource={selectResourceNotes}
@@ -4678,6 +4723,7 @@ function SharedMapDirectoryListContent({
                     onUpdateResourceImages={onUpdateResourceImages}
                     open={notesPanel.open}
                     rows={noteResourceRows}
+                    recentPins={recentNotePins}
                     selectedKey={notesPanel.selectedKey}
                     mode={mode}
                     onSelectResource={selectResourceNotes}

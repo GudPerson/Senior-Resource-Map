@@ -1,5 +1,16 @@
 # CareAround SG session handoff
 
+## 14 October 2026 — Map Notes navigation — local candidate
+
+The requested preview Map notes shortcut, resource search and last five selected pins are implemented on `codex/care-map-note-navigation-20261014`, based on accepted public `5459d7f377c7c05ebc50d328fd86ec9170995323`. Changes use the current maintained release checkout under `output/care-map-labels-release-20261007`; the dirty primary and lookup-retry candidate are untouched.
+
+Owner previews open their exact typed note, even when empty, with a labelled 44px target in normal and fullscreen modes. Search covers names/addresses/postcodes/categories/context, stays on Back and clears on Close. Recent pins uses five unique selections during the current map visit, scoped by account/map/route, with each resource on a multi-resource pin individually selectable. It stores no remote history and resets on leaving/reload. Shared lists retain their published resource allowlist and receive no owner recents. Labels and reviewed Guide instructions cover all four locales; authored Help is unchanged.
+
+Final quality passes server 1,235/client 1,030/environment 5/CMS 73/compiler 17/static/build and locked-map 112/build. Eighteen new actual-page navigation cases and seven personal-place text/image/retry cases pass; 43 native annotation/resource-image/shared-search checks also pass. Failed intermediate source extraction, Guide intent and browser attempts are preserved. Physical Android/PWA assessment and protected release acceptance remain separate. No commit, push, deployment, schema, binding, secret or production-data write is claimed for this candidate. See `docs/care-map-note-navigation-20261014.md` and the primary `output/care-map-note-navigation-20261014/` evidence bundle.
+
+
+The user explicitly authorized this feature’s commit, push and protected paired client/server deployment on 14 October 2026. Preserve the authored Help snapshot and bindings; independently accept exact-source CI, Worker provenance and complete custom-domain parity before recording production completion.
+
 ## 13 October 2026 — Personal-place Map Notes text persistence — validated regression fix
 
 The owner editor accepted personal-place text, but `handleUpdateResourceNotes` returned immediately for `personal_place`. The saved-resource endpoint only accepts hard/soft resources, and personal-place map memberships had no text-note storage. Images correctly used their separate private gallery. A fictional native-page reproduction failed twice with zero note-save requests on close; this was a pre-existing unsupported save path exposed by the expanded notes UI, not erased SQL notes.
