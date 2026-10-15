@@ -12,7 +12,9 @@ export default defineConfig({
   envDir: root,
   logLevel: 'error',
   define: {
-    'import.meta.env.VITE_TOWN_MAP_PROOF_ENABLED': '"false"',
+    'import.meta.env.VITE_TOWN_MAP_PROOF_ENABLED': JSON.stringify(
+      process.argv.includes('--production-controls') || process.argv.includes('--layout-controls-only') ? 'true' : 'false'
+    ),
     'import.meta.env.VITE_API_URL': '"/api"'
   },
   css: {

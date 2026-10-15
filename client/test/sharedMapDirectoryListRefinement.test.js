@@ -155,7 +155,8 @@ test('mobile map uses stable page scroll with sticky notes and explicit full-map
     assert.match(mobileSource, /openMobileFullMap/);
     assert.match(mobileSource, /t\('openFullMap'\)/);
     assert.match(mobileSource, /<Maximize2/);
-    assert.match(mobileSource, /absolute right-3 bottom-3 z-\[1001\]/);
+    assert.match(mobileSource, /absolute bottom-3 z-\[1001\]/);
+    assert.match(mobileSource, /mode === 'owner' \? 'right-\[56px\]' : 'right-3 sm:right-4'/);
     assert.match(sharedMapDirectorySource, /function useMobileMapOverscrollLock/);
     assert.match(sharedMapDirectorySource, /root\.style\.overscrollBehaviorY = 'none'/);
     assert.match(sharedMapDirectorySource, /document\.body\.style\.overscrollBehaviorY = 'none'/);

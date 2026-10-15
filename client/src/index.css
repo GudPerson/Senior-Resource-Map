@@ -1210,18 +1210,10 @@
   }
 }
 
-/* Owner Care Map only: keep rotation controls clear of the existing right rail. */
+/* Let Leaflet position North inside its bottom-right corner, above attribution. */
 .carearound-map-control-rail .care-map-gesture-control {
-  position: absolute;
-  left: 12px;
-  top: 12px;
-  margin: 0;
-}
-.carearound-map-control-rail .leaflet-top.leaflet-left:has(.care-map-gesture-control) {
-  left: 0;
-}
-.carearound-map-control-rail .leaflet-top.leaflet-left:has(.care-map-gesture-control) .leaflet-control-zoom {
-  float: right;
+  margin-right: 12px;
+  margin-bottom: 12px;
 }
 
 /* Keep the existing owner menu/title above the expanded mobile map. */

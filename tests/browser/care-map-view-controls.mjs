@@ -23,6 +23,7 @@ const server = await createServer({
 });
 await server.listen();
 let browser;
+const layoutControlsOnly = process.argv.includes('--layout-controls-only');
 const studioDoc = createMapStudioDocument();
 studioDoc.revision = 1;
 studioDoc.views[0].revision = 1;
@@ -46,7 +47,7 @@ const rect = createPrintAnnotation({
     fillOpacity: 1
   }
 });
-async function install(page) {
+async function install(page, { multiplePins = false } = {}) {
   page.on('pageerror', e => report.errors.push(e.message));
   const row = {
     rowKey: 'personal:91261',
@@ -114,6 +115,17 @@ async function install(page) {
       canSaveResources: true
     }
   };
+  if (multiplePins) {
+    const secondRow = { ...row, rowKey: 'personal:91262', assetKey: 'personal:91262', resourceId: 91262,
+      personalPlaceId: 91262, name: 'Fictional second centre', lat: 1.3007, lng: 103.851 };
+    const secondPin = { ...pin, pinKey: 'personal:91262', placeKey: 'personal:91262', title: secondRow.name,
+      lat: secondRow.lat, lng: secondRow.lng };
+    directory.personalPlaces.push({ ...secondRow, shortDescription: '', shortDescriptors: [] });
+    directory.places.push({ ...secondPin, name: secondRow.name, address: secondRow.address, hasCoordinates: true,
+      openProgrammeServiceCount: 0, rows: [secondRow] });
+    directory.pins.push(secondPin);
+    directory.summary = { ...directory.summary, resourceCount: 2, personalPlaceCount: 2, placeCount: 2, mappablePlaceCount: 2 };
+  }
   await page.route('**/*', async r => {
     const req = r.request(),
       url = new URL(req.url());
@@ -175,6 +187,79 @@ async function install(page) {
 try {
   browser = await chromium.launch();
   if (!process.argv.includes('--fullscreen-only')) {
+    for (const scenario of [
+      { name: 'desktop-balanced', preset: 'balanced', height: 'standard', viewport: { width: 1440, height: 1100 } },
+      { name: 'desktop-beside', preset: 'map-focus', panel: 'beside-map', height: 'compact', viewport: { width: 1440, height: 1100 } },
+      { name: 'desktop-full', preset: 'full-map', height: 'compact', viewport: { width: 1440, height: 1100 } },
+      { name: 'phone-short', preset: 'balanced', height: 'standard', mobile: true, viewport: { width: 390, height: 640 } },
+      { name: 'phone-compact', preset: 'balanced', height: 'compact', mobile: true, viewport: { width: 390, height: 640 } },
+      { name: 'tablet-compact', preset: 'balanced', height: 'compact', mobile: true, viewport: { width: 768, height: 800 } },
+    ].flatMap(scenario => scenario.mobile
+      ? [0.9, 1, 1.4].map(scale => ({ ...scenario, scale, name: scenario.name + '-text-' + scale }))
+      : [scenario])) {
+      studioDoc.views[0].design.layout.preset = scenario.preset;
+      studioDoc.views[0].design.layout.mapHeight = scenario.height;
+      studioDoc.views[0].design.layout.resourcePanel = scenario.panel || 'responsive';
+      const page = await browser.newPage({ viewport: scenario.viewport, isMobile: !!scenario.mobile, hasTouch: !!scenario.mobile });
+      await install(page, { multiplePins: true });
+      await page.goto(`http://127.0.0.1:4192/?fontScale=${scenario.scale || 1}`);
+      await page.getByRole('button', { name: 'Reset to north', exact: true }).waitFor();
+      await page.waitForTimeout(450);
+      const readControls = scope => scope.evaluate(root => {
+        const north = root.querySelector('[aria-label="Reset to north"]');
+        const toggle = root.querySelector('[data-mobile-map-actions] button:last-child');
+        const zoom = root.querySelector('.leaflet-control-zoom-out');
+        const map = root.querySelector('.leaflet-container');
+        const box = e => { const r = e?.getBoundingClientRect(); return r && { x: r.x, y: r.y, width: r.width, height: r.height }; };
+        const exposed = e => { const r = e?.getBoundingClientRect(); const hit = r && document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !!e && (e === hit || e.contains(hit)); };
+        const overlaps = (a, b) => !!a && !!b && a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+        return { north: box(north), toggle: box(toggle), zoom: box(zoom), map: box(map), northExposed: exposed(north), toggleExposed: exposed(toggle),
+          overlapsZoom: overlaps(box(north), box(zoom)) || overlaps(box(toggle), box(zoom)),
+          bearing: north?.querySelector('svg')?.style.transform || '',
+          camera: map?.parentElement?.dataset.mapControlledCenter,
+          zoomLevel: map?.parentElement?.dataset.mapControlledZoom,
+          northHint: north?.title || '' };
+      });
+      const controls = await readControls(page.locator('body'));
+      report.cases.push({ name: scenario.name + ' North is inside the map and reachable', passed: controls.northExposed
+        && controls.north.y >= controls.map.y && controls.north.y + controls.north.height <= controls.map.y + controls.map.height, controls });
+      if (!scenario.mobile) {
+        const map = page.locator('.leaflet-container:visible').first();
+        const bounds = await map.boundingBox();
+        for (const [axis, x, y] of [['vertical', 0, 120], ['horizontal', 120, 0]]) {
+          const before = (await readControls(page.locator('body'))).bearing;
+          await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+          await page.keyboard.down('Shift'); await page.mouse.wheel(x, y); await page.keyboard.up('Shift');
+          await page.waitForTimeout(450);
+          const after = (await readControls(page.locator('body'))).bearing;
+          report.cases.push({ name: scenario.name + ' native Shift trackpad ' + axis + ' rotates', passed: after !== before, before, after });
+        }
+        if (controls.northExposed) {
+          const before = await readControls(page.locator('body'));
+          await page.getByRole('button', { name: 'Reset to north', exact: true }).click();
+          await page.waitForTimeout(250);
+          const reset = await readControls(page.locator('body'));
+          report.cases.push({ name: scenario.name + ' North resets without moving the camera and explains trackpad input',
+            passed: reset.bearing === 'rotate(0deg)' && before.camera === reset.camera && before.zoomLevel === reset.zoomLevel
+              && reset.northHint.includes('Shift'), before, reset });
+        }
+      } else {
+        report.cases.push({ name: scenario.name + ' compact controls do not cover zoom out', passed: !controls.overlapsZoom
+          && controls.north.width <= 33 && controls.toggle.width <= 33 && controls.toggleExposed, controls });
+        await page.getByRole('button', { name: 'Full map', exact: true }).click();
+        await page.waitForTimeout(450);
+        const full = await readControls(page.locator('[data-mobile-full-map]'));
+        report.cases.push({ name: scenario.name + ' fullscreen controls remain reachable and clear of zoom', passed: full.northExposed
+          && full.toggleExposed && !full.overlapsZoom && full.north.y + full.north.height <= full.toggle.y, controls: full });
+      }
+      await page.screenshot({ path: path.join(out, scenario.name + '.png') });
+      await page.close();
+    }
+    studioDoc.views[0].design.layout.preset = 'full-map';
+    studioDoc.views[0].design.layout.mapHeight = 'standard';
+    studioDoc.views[0].design.layout.resourcePanel = 'responsive';
+  }
+  if (!layoutControlsOnly && !process.argv.includes('--fullscreen-only')) {
     const page = await browser.newPage({
       viewport: {
         width: 1440,
@@ -314,7 +399,7 @@ try {
     });
     await page.close();
   }
-  const mobileProfiles = [['phone', { width: 390, height: 844 }], ['tablet', { width: 768, height: 1024 }]];
+  const mobileProfiles = layoutControlsOnly ? [] : [['phone', { width: 390, height: 844 }], ['tablet', { width: 768, height: 1024 }]];
   for (const [profile, viewport, fontScale] of mobileProfiles.flatMap(([name, size]) =>
     [0.9, 1, 1.4].map(scale => [scale === 1 ? name : `${name}-text-${scale}`, size, scale]))) {
     const page = await browser.newPage({
@@ -339,7 +424,7 @@ try {
       });
       report.cases.push({ name: profile + ' ' + name, passed: n && b && exposed
           && n.y + n.height <= b.y && Math.abs(n.x + n.width / 2 - b.x - b.width / 2) <= 1
-          && n.width >= 44 && n.height >= 44, north: n, toggle: b });
+          && n.width >= 32 && n.height >= 32 && n.width <= 33 && n.height <= 33, north: n, toggle: b });
     }
     await checkNorthStack(page, 'Full map', 'North sits above expand and is reachable');
     report.cases.push({ name: profile + ' removes 45-degree controls',

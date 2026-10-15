@@ -1,5 +1,13 @@
 # CareAround SG session handoff
 
+## 15 October 2026 — North visibility and mobile compact controls — correction candidate
+
+On `codex/care-map-control-layout-fix-20261015`, based on accepted public `a16c940e9fee34808d73f53569e6372b7f655e49`. Fresh owner read-only reproduction confirms desktop North was clipped by obsolete top-left CSS after moving to bottomright. Compact multi-pin mobile maps expose a taller fit/zoom rail and could overlap the 44px pair. The user was twisting the desktop trackpad; supported desktop rotation is Shift plus two-finger scrolling, verified on both axes. The North tooltip now explains the existing localized gestures.
+
+Leaflet's bottomright placement is restored; desktop/Export stays44px. Owner-mobile North and expand/return are32px in a separate lane just left of zoom, preserving North above the toggle even on220px maps. User's smaller-control request supersedes the earlier44px mobile requirement. Guest controls and gesture/camera/source geometry, saved views, notes/images/sharing are unchanged. Six failing original assertions are retained; the exact eighteen-case loop then passes, and the expanded actual-page replay passes117 across layouts, text sizes, touch/pan/fullscreen and downloads with no errors/writes. These are fictional automated/emulated checks, not physical Android/PWA proof.
+
+The correction continues the previously approved commit/push/paired-deploy scope. Complete exact-source CI and the protected publication workflow with unchanged authored Help and44bindings, then record independent immutable snapshot/receipt, Worker/Pages provenance, all-artifact parity, normal owner promotion/cleared lock and live read-only acceptance in primary `output/care-map-control-layout-fix-20261015/handoff.md`. The maintained release checkout is current; unrelated dirty work remains preserved. See `docs/care-map-control-layout-fix-20261015.md`.
+
 ## 14 October 2026 — North control cleanup — local candidate
 
 On 15 October 2026 the user explicitly approved commit, push and deployment of both client and server through the protected workflow. Record completed production acceptance and release identities in the output handoff after independent verification.

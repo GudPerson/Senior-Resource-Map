@@ -4093,12 +4093,12 @@ function SharedMapDirectoryListContent({
                                         ? mobileMapLayoutSignature
                                         : `${mobileMapLayoutSignature}:${mobileMapListFocused ? 'list-focus' : 'default'}`,
                                 })}
-                                <div className="absolute right-3 bottom-3 z-[1001] flex flex-col items-center gap-2 sm:right-4 sm:bottom-4" data-mobile-map-actions="true">
-                                    {!mobileFullMapOpen && mode === 'owner' ? <CareMapNorthButton configuration={mobileMapElement.props?.careMapGestures} /> : null}
+                                <div className={`absolute bottom-3 z-[1001] flex flex-col items-center gap-1 sm:bottom-4 ${mode === 'owner' ? 'right-[56px]' : 'right-3 sm:right-4'}`} data-mobile-map-actions="true">
+                                    {!mobileFullMapOpen && mode === 'owner' ? <CareMapNorthButton compact configuration={mobileMapElement.props?.careMapGestures} /> : null}
                                     <button
                                         type="button"
                                         onClick={openMobileFullMap}
-                                        className={`inline-flex items-center justify-center border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 ${mode === 'owner' ? 'h-[44px] w-[44px] rounded-xl' : 'h-[30px] w-[30px] rounded-lg'}`}
+                                        className={`inline-flex items-center justify-center border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 ${mode === 'owner' ? 'h-[32px] w-[32px] rounded-lg' : 'h-[30px] w-[30px] rounded-lg'}`}
                                         aria-label={t('openFullMap')}
                                         title={t('openFullMap')}
                                     >
@@ -4225,12 +4225,12 @@ function SharedMapDirectoryListContent({
                                     className: mobileFullMapElement.props?.className,
                                     layoutSignature: `${mobileFullMapElement.props?.layoutSignature || 'mobile-map-normal'}:full`,
                                 }) : null}
-                                <div className="absolute right-3 bottom-3 z-[1001] flex flex-col items-center gap-2" data-mobile-map-actions="true">
-                                    {mode === 'owner' ? <CareMapNorthButton configuration={mobileFullMapElement?.props?.careMapGestures} /> : null}
+                                <div className={`absolute bottom-3 z-[1001] flex flex-col items-center gap-1 ${mode === 'owner' ? 'right-[56px]' : 'right-3'}`} data-mobile-map-actions="true">
+                                    {mode === 'owner' ? <CareMapNorthButton compact configuration={mobileFullMapElement?.props?.careMapGestures} /> : null}
                                     <button
                                         type="button"
                                         onClick={closeMobileFullMap}
-                                        className={`inline-flex items-center justify-center border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 ${mode === 'owner' ? 'h-[44px] w-[44px] rounded-xl' : 'h-[30px] w-[30px] rounded-lg'}`}
+                                        className={`inline-flex items-center justify-center border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 ${mode === 'owner' ? 'h-[32px] w-[32px] rounded-lg' : 'h-[30px] w-[30px] rounded-lg'}`}
                                         aria-label={t('returnToMapList')}
                                         title={t('returnToMapList')}
                                     >

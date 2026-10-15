@@ -1,5 +1,13 @@
 # Regression Ledger
 
+## 15 October 2026 — Desktop North clipping and mobile control collision — correction candidate
+
+Known-bad application `a16c940e9fee34808d73f53569e6372b7f655e49` / deployed build `f52daca8fe8e33ede389161473886a807d26cff7`: the old top-left CSS positioned the new bottomright North outside its clipped map. Mobile 44px North/expand could overlap zoom out on compact multi-pin maps. The previous replay missed desktop hit testing and the taller multi-pin rail. User clarified desktop twisting without Shift; native Shift-scroll works on both trackpad axes.
+
+The narrow fix removes obsolete corner positioning, keeps desktop/Export North 44px, and uses the user-requested 32px owner-mobile pair in a separate bottom-right lane beside zoom. North remains above expand/return, with a localized gesture hint. This supersedes the earlier mobile 44px requirement. Shared guest toggles, source coordinates, gesture/camera lifecycle, notes/images, Studio and sharing retain their contracts.
+
+Reproduce using the production-controls browser fixture with two pins: balanced/beside/full-map desktop, short/compact phone/tablet maps, scales0.9/1/1.4, normal/fullscreen, native Shift scroll on both axes, North reset, pan/pinch and PNG/PDF exports. Require reachable North fully inside the map, no zoom overlap, exact camera preservation and no unexpected writes. The original eighteen-case loop failed six and then passed eighteen; the expanded actual-page replay passes117 with zero errors/writes. Automated/emulated evidence remains distinct from physical-device assessment. See `docs/care-map-control-layout-fix-20261015.md` and primary `output/care-map-control-layout-fix-20261015/` for validation and protected paired release acceptance.
+
 ## 14 October 2026 — North control column and removal of 45-degree buttons — local candidate
 
 The user explicitly authorized commit, push and protected paired client/server deployment on 15 October 2026. Production completion remains gated on independent provenance, publication and complete artifact parity evidence recorded in the output handoff.
