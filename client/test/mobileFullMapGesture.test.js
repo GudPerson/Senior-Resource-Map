@@ -93,5 +93,5 @@ test('Shared Map retains its existing bottom-edge gesture behavior', () => {
 
 test('the mounted fullscreen overlay wires cancellation separately from completion', () => {
     assert.match(source, /onTouchCancel=\{handleMobileFullMapTouchCancel\}/);
-    assert.match(source, /onClick=\{closeMobileFullMap\}/);
+    assert.match(source, /onClick=\{fullMap \? closeMobileFullMap : openMobileFullMap\}/);
 });

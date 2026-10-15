@@ -194,13 +194,14 @@ try {
       { name: 'phone-short', preset: 'balanced', height: 'standard', mobile: true, viewport: { width: 390, height: 640 } },
       { name: 'phone-compact', preset: 'balanced', height: 'compact', mobile: true, viewport: { width: 390, height: 640 } },
       { name: 'tablet-compact', preset: 'balanced', height: 'compact', mobile: true, viewport: { width: 768, height: 800 } },
+      { name: 'tablet-landscape-desktop', preset: 'balanced', height: 'compact', touch: true, viewport: { width: 1100, height: 900 } },
     ].flatMap(scenario => scenario.mobile
       ? [0.9, 1, 1.4].map(scale => ({ ...scenario, scale, name: scenario.name + '-text-' + scale }))
       : [scenario])) {
       studioDoc.views[0].design.layout.preset = scenario.preset;
       studioDoc.views[0].design.layout.mapHeight = scenario.height;
       studioDoc.views[0].design.layout.resourcePanel = scenario.panel || 'responsive';
-      const page = await browser.newPage({ viewport: scenario.viewport, isMobile: !!scenario.mobile, hasTouch: !!scenario.mobile });
+      const page = await browser.newPage({ viewport: scenario.viewport, isMobile: !!scenario.mobile || !!scenario.touch, hasTouch: !!scenario.mobile || !!scenario.touch });
       await install(page, { multiplePins: true });
       await page.goto(`http://127.0.0.1:4192/?fontScale=${scenario.scale || 1}`);
       await page.getByRole('button', { name: 'Reset to north', exact: true }).waitFor();
@@ -209,12 +210,17 @@ try {
         const north = root.querySelector('[aria-label="Reset to north"]');
         const toggle = root.querySelector('[data-mobile-map-actions] button:last-child');
         const zoom = root.querySelector('.leaflet-control-zoom-out');
+        const otherControls = [...root.querySelectorAll('.leaflet-control-zoom a, .carearound-map-recenter-control button, [data-map-settings-control] button')];
         const map = root.querySelector('.leaflet-container');
         const box = e => { const r = e?.getBoundingClientRect(); return r && { x: r.x, y: r.y, width: r.width, height: r.height }; };
         const exposed = e => { const r = e?.getBoundingClientRect(); const hit = r && document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return !!e && (e === hit || e.contains(hit)); };
         const overlaps = (a, b) => !!a && !!b && a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
         return { north: box(north), toggle: box(toggle), zoom: box(zoom), map: box(map), northExposed: exposed(north), toggleExposed: exposed(toggle),
           overlapsZoom: overlaps(box(north), box(zoom)) || overlaps(box(toggle), box(zoom)),
+          overlapsOtherControls: otherControls.some(control => overlaps(box(north), box(control)) || overlaps(box(toggle), box(control))),
+          alignedRight: !!north && !!toggle && !!zoom
+            && Math.abs(box(north).x + box(north).width - box(zoom).x - box(zoom).width) <= 2
+            && Math.abs(box(toggle).x + box(toggle).width - box(zoom).x - box(zoom).width) <= 2,
           bearing: north?.querySelector('svg')?.style.transform || '',
           camera: map?.parentElement?.dataset.mapControlledCenter,
           zoomLevel: map?.parentElement?.dataset.mapControlledZoom,
@@ -244,13 +250,16 @@ try {
               && reset.northHint.includes('Shift'), before, reset });
         }
       } else {
-        report.cases.push({ name: scenario.name + ' compact controls do not cover zoom out', passed: !controls.overlapsZoom
-          && controls.north.width <= 33 && controls.toggle.width <= 33 && controls.toggleExposed, controls });
+        report.cases.push({ name: scenario.name + ' compact controls align with zoom without covering it', passed: controls.alignedRight && !controls.overlapsOtherControls
+          && controls.north.width <= 33 && controls.toggle.width <= 33 && controls.toggleExposed
+          && controls.north.y + controls.north.height <= controls.toggle.y
+          && controls.toggle.y + controls.toggle.height <= controls.map.y + controls.map.height, controls });
+        await page.screenshot({ path: path.join(out, scenario.name + '-normal.png') });
         await page.getByRole('button', { name: 'Full map', exact: true }).click();
         await page.waitForTimeout(450);
         const full = await readControls(page.locator('[data-mobile-full-map]'));
-        report.cases.push({ name: scenario.name + ' fullscreen controls remain reachable and clear of zoom', passed: full.northExposed
-          && full.toggleExposed && !full.overlapsZoom && full.north.y + full.north.height <= full.toggle.y, controls: full });
+        report.cases.push({ name: scenario.name + ' fullscreen controls remain aligned, reachable and clear of zoom', passed: full.alignedRight && full.northExposed
+          && full.toggleExposed && !full.overlapsOtherControls && full.north.y + full.north.height <= full.toggle.y, controls: full });
       }
       await page.screenshot({ path: path.join(out, scenario.name + '.png') });
       await page.close();

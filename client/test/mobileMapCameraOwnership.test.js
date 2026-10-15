@@ -21,12 +21,14 @@ function mountedMaps({ mode = 'owner', fullscreen = false } = {}) {
             'preserveMobileMapFrameInFlow', 'mobileMapLayoutSignature', 'mobileMapListFocused',
             'mobileFullMapFocusRequest',
             'setMobileFullMapHandledFocusKey', 'mobileFocusTrayPlaceKey',
+            'mobileMapSurfaceOverlay', 'mobileFullMapSurfaceOverlay',
             `return ${source.slice(start, end)}\n});`,
         )(
             { cloneElement: (original, props) => ({ ...original.props, ...props }) },
             element, element, mode, fullscreen, () => {}, () => {}, () => {},
             true, 'v2-map', false, { focusedPlaceKey: '', focusedPlaceKeys: [] },
             () => {}, null,
+            null, null,
         );
     };
     return { inline: clone('mobileMapElement'), full: clone('mobileFullMapElement'), camera, changes, callback };

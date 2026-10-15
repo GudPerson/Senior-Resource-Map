@@ -1,3 +1,11 @@
+## 15 October 2026 — Right-aligned mobile control follow-up
+
+On `codex/care-map-control-column-20261015`, based on accepted public `8be501f1b3b155ff7fea27fd77581c0280a129a3`. The user requests the32px North/expand pair on the same right edge as other controls. Owner mobile actions now use the existing frame surface-overlay slot and preserve its contents. A scoped height query tightens short-map spacing and hides only the zoom number below260px; all buttons remain, without changing frame/camera dimensions or gesture/notes/geometry logic. Desktop/Export and guests retain their contracts.
+
+True desktop trackpad twist cannot be implemented in Chrome without the browser exposing the angle. Primary compatibility data supports Safari GestureEvent, not Chrome. This follow-up retains working Chrome Shift-scroll/right-drag and ordinary zoom; it adds no inaccurate wheel approximation and no untested Safari-only handler.
+
+The enhanced loop reproduced18 alignment failures before correction; the complete replay passes121, with source-harness/fixture failures retained distinctly. Final quality/compiler17/CMS73/server1,235/client1,030/environment5/static/build and locked-map112 pass; final-source browser121 also passes. Protected paired release and exact live acceptance are recorded in primary `output/care-map-control-column-20261015/`. Physical Android/PWA UAT remains separate. The primary dirty tree and original retry candidate retain their original binary-diff hashes. See `docs/care-map-control-column-20261015.md`.
+
 # CareAround SG session handoff
 
 ## 15 October 2026 — North visibility and mobile compact controls — correction candidate

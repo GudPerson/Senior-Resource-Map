@@ -153,10 +153,11 @@ test('mobile map uses stable page scroll with sticky notes and explicit full-map
     assert.match(mobileSource, /\? mobileMapLayoutSignature/);
     assert.match(mobileSource, /: `\$\{mobileMapLayoutSignature\}:\$\{mobileMapListFocused \? 'list-focus' : 'default'\}`/);
     assert.match(mobileSource, /openMobileFullMap/);
-    assert.match(mobileSource, /t\('openFullMap'\)/);
+    assert.match(mobileSource, /t\(fullMap \? 'returnToMapList' : 'openFullMap'\)/);
     assert.match(mobileSource, /<Maximize2/);
-    assert.match(mobileSource, /absolute bottom-3 z-\[1001\]/);
-    assert.match(mobileSource, /mode === 'owner' \? 'right-\[56px\]' : 'right-3 sm:right-4'/);
+    assert.match(mobileSource, /absolute bottom-3 right-3 z-\[1001\]/);
+    assert.match(mobileSource, /'sm:bottom-4 sm:right-4'/);
+    assert.doesNotMatch(mobileSource, /right-\[56px\]/);
     assert.match(sharedMapDirectorySource, /function useMobileMapOverscrollLock/);
     assert.match(sharedMapDirectorySource, /root\.style\.overscrollBehaviorY = 'none'/);
     assert.match(sharedMapDirectorySource, /document\.body\.style\.overscrollBehaviorY = 'none'/);
@@ -345,7 +346,7 @@ test('mobile full map keeps explicit control with a pull-at-top fallback', () =>
     assert.match(mobileSource, /layoutSignature: `\$\{mobileFullMapElement\.props\?\.layoutSignature \|\| 'mobile-map-normal'\}:full`/);
     assert.match(mobileSource, /focusedPlaceKey: mobileFullMapFocusRequest\.focusedPlaceKey \|\| mobileFullMapElement\.props\?\.focusedPlaceKey/);
     assert.match(mobileSource, /focusedPlaceKeys: mobileFullMapFocusRequest\.focusedPlaceKeys\.length[\s\S]*\? mobileFullMapFocusRequest\.focusedPlaceKeys[\s\S]*: mobileFullMapElement\.props\?\.focusedPlaceKeys/);
-    assert.match(mobileSource, /t\('returnToMapList'\)/);
+    assert.match(mobileSource, /t\(fullMap \? 'returnToMapList' : 'openFullMap'\)/);
     assert.match(mobileSource, /<Minimize2/);
     assert.match(mobileSource, /mobileFullMapOpen \? \([\s\S]*<MobileMapFocusTray[\s\S]*selection=\{mobileFocusTraySelection\}[\s\S]*variant="full-map"[\s\S]*<MapNotesEntryButton/);
     assert.match(mobileSource, /<MapNotesEntryButton[\s\S]*rows=\{noteResourceRows\}/);
@@ -371,11 +372,11 @@ test('mobile full-map overlay has visible return and notes controls', () => {
     assert.match(mobileSource, /<div className="relative min-h-0 flex-1 disable-font-scaling">/);
     assert.match(mobileBottomSheetSource, /Drawer\.Overlay className="fixed inset-0 z-\[1600\]/);
     assert.match(mobileBottomSheetSource, /className=\{`fixed bottom-0 left-0 right-0 z-\[1610\]/);
-    assert.match(mobileSource, /onClick=\{closeMobileFullMap\}/);
+    assert.match(mobileSource, /onClick=\{fullMap \? closeMobileFullMap : openMobileFullMap\}/);
     assert.match(mobileSource, /onTouchStart=\{handleMobileFullMapTouchStart\}/);
     assert.match(mobileSource, /onTouchMove=\{handleMobileFullMapTouchMove\}/);
     assert.match(mobileSource, /onTouchEnd=\{handleMobileFullMapTouchEnd\}/);
-    assert.match(mobileSource, /aria-label=\{t\('returnToMapList'\)\}/);
+    assert.match(mobileSource, /aria-label=\{t\(fullMap \? 'returnToMapList' : 'openFullMap'\)\}/);
     assert.match(mobileSource, /h-\[30px\] w-\[30px\]/);
     assert.match(mobileSource, /<Minimize2 size=\{15\}/);
     assert.doesNotMatch(mobileSource, /<span>\{t\('returnToMapList'\)\}<\/span>/);

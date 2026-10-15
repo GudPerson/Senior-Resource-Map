@@ -4062,6 +4062,26 @@ function SharedMapDirectoryListContent({
         const mobileMapLayoutSignature = mobileMapElement?.props?.layoutSignature || 'mobile-map-normal';
         const mobileMapNotesWrapperClassName = `${mobileMapStickyClassName} [overflow-anchor:none]`;
         const mobileCardsClassName = 'space-y-4 [overflow-anchor:none]';
+        const renderMobileMapActions = (element, fullMap = false) => (
+            <div className={`absolute bottom-3 right-3 z-[1001] flex flex-col items-center gap-1 ${mode === 'owner' ? 'care-map-mobile-actions' : fullMap ? '' : 'sm:bottom-4 sm:right-4'}`} data-mobile-map-actions="true">
+                {mode === 'owner' && (fullMap || !mobileFullMapOpen) ? <CareMapNorthButton compact configuration={element?.props?.careMapGestures} /> : null}
+                <button
+                    type="button"
+                    onClick={fullMap ? closeMobileFullMap : openMobileFullMap}
+                    className={`inline-flex items-center justify-center border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 ${mode === 'owner' ? 'h-[32px] w-[32px] rounded-lg' : 'h-[30px] w-[30px] rounded-lg'}`}
+                    aria-label={t(fullMap ? 'returnToMapList' : 'openFullMap')}
+                    title={t(fullMap ? 'returnToMapList' : 'openFullMap')}
+                >
+                    {fullMap ? <Minimize2 size={15} strokeWidth={2.4} aria-hidden="true" /> : <Maximize2 size={15} strokeWidth={2.4} aria-hidden="true" />}
+                </button>
+            </div>
+        );
+        const mobileMapSurfaceOverlay = mode === 'owner'
+            ? <>{mobileMapElement?.props?.surfaceOverlay}{renderMobileMapActions(mobileMapElement)}</>
+            : mobileMapElement?.props?.surfaceOverlay;
+        const mobileFullMapSurfaceOverlay = mode === 'owner'
+            ? <>{mobileFullMapElement?.props?.surfaceOverlay}{renderMobileMapActions(mobileFullMapElement, true)}</>
+            : mobileFullMapElement?.props?.surfaceOverlay;
 
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
@@ -4089,22 +4109,15 @@ function SharedMapDirectoryListContent({
                                         ? undefined
                                         : mobileMapElement.props?.onFixedTownSurfaceViewportChange,
                                     mapHeightClassName: mobileMapElement.props?.mapHeightClassName,
+                                    className: mode === 'owner'
+                                        ? `${mobileMapElement.props?.className || ''} care-map-mobile-control-frame`
+                                        : mobileMapElement.props?.className,
+                                    surfaceOverlay: mobileMapSurfaceOverlay,
                                     layoutSignature: preserveMobileMapFrameInFlow
                                         ? mobileMapLayoutSignature
                                         : `${mobileMapLayoutSignature}:${mobileMapListFocused ? 'list-focus' : 'default'}`,
                                 })}
-                                <div className={`absolute bottom-3 z-[1001] flex flex-col items-center gap-1 sm:bottom-4 ${mode === 'owner' ? 'right-[56px]' : 'right-3 sm:right-4'}`} data-mobile-map-actions="true">
-                                    {!mobileFullMapOpen && mode === 'owner' ? <CareMapNorthButton compact configuration={mobileMapElement.props?.careMapGestures} /> : null}
-                                    <button
-                                        type="button"
-                                        onClick={openMobileFullMap}
-                                        className={`inline-flex items-center justify-center border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 ${mode === 'owner' ? 'h-[32px] w-[32px] rounded-lg' : 'h-[30px] w-[30px] rounded-lg'}`}
-                                        aria-label={t('openFullMap')}
-                                        title={t('openFullMap')}
-                                    >
-                                        <Maximize2 size={15} strokeWidth={2.4} aria-hidden="true" />
-                                    </button>
-                                </div>
+                                {mode !== 'owner' ? renderMobileMapActions(mobileMapElement) : null}
                             </div>
                             {showMapLegend ? (
                                 <MapLegend mobile />
@@ -4222,21 +4235,13 @@ function SharedMapDirectoryListContent({
                                         ? mobileFullMapFocusRequest.focusedPlaceKeys
                                         : mobileFullMapElement.props?.focusedPlaceKeys,
                                     mapHeightClassName: 'h-full min-h-0 max-h-none',
-                                    className: mobileFullMapElement.props?.className,
+                                    className: mode === 'owner'
+                                        ? `${mobileFullMapElement.props?.className || ''} care-map-mobile-control-frame`
+                                        : mobileFullMapElement.props?.className,
+                                    surfaceOverlay: mobileFullMapSurfaceOverlay,
                                     layoutSignature: `${mobileFullMapElement.props?.layoutSignature || 'mobile-map-normal'}:full`,
                                 }) : null}
-                                <div className={`absolute bottom-3 z-[1001] flex flex-col items-center gap-1 ${mode === 'owner' ? 'right-[56px]' : 'right-3'}`} data-mobile-map-actions="true">
-                                    {mode === 'owner' ? <CareMapNorthButton compact configuration={mobileFullMapElement?.props?.careMapGestures} /> : null}
-                                    <button
-                                        type="button"
-                                        onClick={closeMobileFullMap}
-                                        className={`inline-flex items-center justify-center border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 ${mode === 'owner' ? 'h-[32px] w-[32px] rounded-lg' : 'h-[30px] w-[30px] rounded-lg'}`}
-                                        aria-label={t('returnToMapList')}
-                                        title={t('returnToMapList')}
-                                    >
-                                        <Minimize2 size={15} strokeWidth={2.4} aria-hidden="true" />
-                                    </button>
-                                </div>
+                                {mode !== 'owner' ? renderMobileMapActions(mobileFullMapElement, true) : null}
                             </div>
                             <MobileMapFocusTray
                                 selection={mobileFocusTraySelection}

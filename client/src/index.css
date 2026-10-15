@@ -1216,6 +1216,40 @@
   margin-bottom: 12px;
 }
 
+/* Owner-mobile frames have an explicit height. Keep their compact action pair
+   on the existing right rail, tightening only the shortest map surfaces. */
+.care-map-mobile-control-frame {
+  container: care-map-mobile-controls / size;
+}
+
+.care-map-mobile-control-frame .care-map-mobile-actions {
+  right: 12px;
+  bottom: 12px;
+  gap: 4px;
+}
+
+@container care-map-mobile-controls (height < 260px) {
+  .carearound-map-recenter-control--with-settings {
+    top: 44px !important;
+  }
+
+  .carearound-map-control-rail--one .leaflet-control-zoom {
+    margin-top: 44px !important;
+  }
+
+  .carearound-map-control-rail--two .leaflet-control-zoom {
+    margin-top: 76px !important;
+  }
+
+  .carearound-map-control-rail .carearound-map-zoom-level {
+    display: none;
+  }
+
+  .care-map-mobile-control-frame .care-map-mobile-actions {
+    gap: 2px;
+  }
+}
+
 /* Keep the existing owner menu/title above the expanded mobile map. */
 body[data-owner-fullscreen-map-header="true"] [data-owner-map-mobile-header="true"] {
   position: fixed;

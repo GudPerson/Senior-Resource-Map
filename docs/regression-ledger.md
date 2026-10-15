@@ -1,5 +1,13 @@
 # Regression Ledger
 
+## 15 October 2026 — Mobile controls aligned to the right rail — follow-up candidate
+
+Supersedes the separate 56px lane in the preceding correction. Owner mobile North and expand/return remain32px, North above toggle, now on the same12px right edge as settings/fit/zoom. Existing frame `surfaceOverlay` contents are preserved. A scoped size-container query below260px tightens spacing and hides only the numeric zoom readout, retaining all action buttons without changing map dimensions. Desktop/Export and guest controls, camera callbacks, pin accuracy, gesture engine, geometry, Studio, notes/images and sharing remain unchanged.
+
+Desktop Chrome does not expose native trackpad twist angle; Safari's GestureEvent does. Keep accurate Chrome Shift-scroll/right-drag and pinch/scroll zoom. No wheel-based twist heuristic or Safari-only handler is added. See the primary-source research in `docs/care-map-control-column-20261015.md`.
+
+Acceptance: right-edge alignment within2px,32px targets, North above toggle, reachable and inside map with no control overlap; short/compact phone/tablet, scales0.9/1/1.4, normal/fullscreen and desktop breakpoint. Full actual-page replay121 passes with no errors/writes, including native Shift-wheel axes, camera-preserving North reset, pan/pinch/twist, header/menu, Export angle and PNG/PDF. Initial18 alignment failures, sandbox launch, landscape fixture classification and five old source-harness failures are retained separately from final checks. Evidence is fictional/intercepted/emulated, not physical Android/PWA UAT. Full quality/compiler17/CMS73/server1,235/client1,030/environment5/static/build and locked-map112 pass; final-source browser121 also passes. Protected publication acceptance belongs in `output/care-map-control-column-20261015/`.
+
 ## 15 October 2026 — Desktop North clipping and mobile control collision — correction candidate
 
 Known-bad application `a16c940e9fee34808d73f53569e6372b7f655e49` / deployed build `f52daca8fe8e33ede389161473886a807d26cff7`: the old top-left CSS positioned the new bottomright North outside its clipped map. Mobile 44px North/expand could overlap zoom out on compact multi-pin maps. The previous replay missed desktop hit testing and the taller multi-pin rail. User clarified desktop twisting without Shift; native Shift-scroll works on both trackpad axes.
