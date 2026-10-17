@@ -32,3 +32,17 @@ jobs:
 
       - name: Run credential-free quality gate
         run: npm run verify:quality
+
+      - name: Install browser for Care Map download verification
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify Care Map notes and images downloads
+        run: node tests/browser/care-map-notes-export.mjs --out=output/care-map-notes-export-browser
+
+      - name: Retain Care Map download evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: care-map-notes-export-browser
+          path: output/care-map-notes-export-browser
+          if-no-files-found: ignore

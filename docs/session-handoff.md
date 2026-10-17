@@ -1,3 +1,11 @@
+## 17 October 2026 — Care Map notes/images export — local implementation
+
+The notes download now supports one ZIP containing the complete notes PDF with labelled image pages, original image files, an offline notes/image index and a correspondence manifest. Resource/note/image references match across the files; text-only maps still produce the existing PDF. Existing image storage links photos to the resource's collection of notes, so no individual text-note link is inferred. Missing images fail the whole export with retry; owner access and sharing are unchanged.
+
+Code is isolated on `codex/care-map-notes-download-20261017` in `output/care-map-notes-download-20261017/source`, based on last-observed public `09873392d9b069ec51baa69a9c755932d81a2806`. The older primary runtime and unrelated dirty work are preserved. GitHub refresh is unavailable; reconcile remote main before release.
+
+Validation: client1,038/environment5, server1,235, locked-map112/compiler17 and final production client build pass. Five fictional PDF pages were visually checked; exact PNG/JPEG/WebP ZIP bytes, image-only rows, associations and error/cancellation handling pass. Browser replay is retained but blocked by localhost-listen EPERM; real browser/device and production acceptance remain pending. The user subsequently authorized commit, push and protected deployment on 17 October; release completion requires the output handoff evidence. See `docs/care-map-notes-export-20261017.md` and the task's output directory for evidence and release gates.
+
 ## 15 October 2026 — Right-aligned mobile control follow-up
 
 On `codex/care-map-control-column-20261015`, based on accepted public `8be501f1b3b155ff7fea27fd77581c0280a129a3`. The user requests the32px North/expand pair on the same right edge as other controls. Owner mobile actions now use the existing frame surface-overlay slot and preserve its contents. A scoped height query tightens short-map spacing and hides only the zoom number below260px; all buttons remain, without changing frame/camera dimensions or gesture/notes/geometry logic. Desktop/Export and guests retain their contracts.

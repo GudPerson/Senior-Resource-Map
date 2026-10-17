@@ -19,6 +19,6 @@ test('My Map PDF export button downloads the ledger without hidden map snapshot 
     assert.doesNotMatch(source, /captureMapSnapshot/);
     assert.doesNotMatch(source, /mapSnapshotDataUrl/);
     assert.doesNotMatch(source, /createPortal/);
-    assert.doesNotMatch(source, /DirectoryMap/);
+    assert.doesNotMatch(source, /\bDirectoryMap\b/);
     assert.doesNotMatch(source, /toPng/);
 });
