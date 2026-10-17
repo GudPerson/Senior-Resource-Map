@@ -45,6 +45,7 @@ test('complete download contains embedded PDF images, byte-exact originals and r
     assert.equal(loads, 1, 'repeated bytes are fetched once without merging resource associations');
     const paths = manifest.resources.flatMap(resource => resource.images.map(item => item.filename));
     assert.equal(new Set(paths).size, 2, 'same names cannot collide');
+    assert.deepEqual(paths.map(filename => filename.split('/')[1]), ['R001-Same-name', 'R002-Same-name']);
     paths.forEach(filename => assert.deepEqual(files[filename], png));
     const pdf = strFromU8(files['fictional-map-ledger.pdf']);
     assert.ok(pdf.startsWith('%PDF-'));
@@ -92,6 +93,10 @@ test('filenames stay relative, duplicate resources deduplicate, and saved text c
     assert.doesNotMatch(html, /<script>|<img src=x/);
     assert.match(html, /&lt;script&gt;/);
     assert.match(html, /Individual text-note links have not been recorded/);
+    for (const [name, expected] of [['Care Hub / West: Centre?', 'Care-Hub-West-Centre'], ['\u5173\u6000\u4e2d\u5fc3', '\u5173\u6000\u4e2d\u5fc3'], ['../', 'Resource'], ['A'.repeat(200), 'A'.repeat(80)]]) {
+        const named = buildMapNotesExportResources(buildMyMapPdfLedger(options([row(1, { name, notes: { items: [], images: [image] } })])));
+        assert.equal(named[0].images[0].filename.split('/')[1], `R001-${expected}`);
+    }
 });
 
 test('image exporter uses the gallery auth route, no-cache headers and releases its decoded URL', async () => {

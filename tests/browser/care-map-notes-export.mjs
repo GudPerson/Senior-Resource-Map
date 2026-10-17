@@ -91,6 +91,7 @@ try {
         for (const resource of manifest.resources) {
             const source = rows.find(row => row.name === resource.name);
             assert.ok(source);
+            assert.ok(resource.images.every(image => image.filename.startsWith(`images/${resource.reference}-${source.name.replace(/ /g, '-')}/`)));
             assert.deepEqual(resource.notes.map(note => note.text), source.notes.items.map(note => note.text));
             resource.images.forEach((image, index) => assert.deepEqual(Buffer.from(files[image.filename]), bytes.get(source.notes.images[index].assetId)));
         }

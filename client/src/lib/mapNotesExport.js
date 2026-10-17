@@ -9,6 +9,9 @@ export function buildMapNotesExportResources(ledger) {
     let number = 0;
     return ledger.categories.flatMap(category => category.resources.map(resource => {
         const reference = `R${String(++number).padStart(3, '0')}`;
+        const resourceName = String(resource.name || 'Resource').replace(/[^\p{L}\p{N}_-]+/gu, '-')
+            .replace(/^-+|-+$/g, '').slice(0, 80) || 'Resource';
+        const folder = `${reference}-${resourceName}`;
         return {
             ...resource,
             reference,
@@ -16,7 +19,7 @@ export function buildMapNotesExportResources(ledger) {
             images: (resource.images || []).map((image, index) => {
                 const imageReference = `${reference}-I${index + 1}`;
                 return { ...image, reference: imageReference,
-                    filename: `images/${reference}/${imageReference}-${mapNoteImageFilename(resource.name, index, image.mimeType)}` };
+                    filename: `images/${folder}/${imageReference}-${mapNoteImageFilename(resource.name, index, image.mimeType)}` };
             }),
         };
     }));
