@@ -1,5 +1,7 @@
 import { buildMyMapPdfFileName, buildMyMapPdfLedger } from './myMapPdfLedger.js';
 import { buildPdfMarkdownLines } from './myMapPdfMarkdown.js';
+import { buildMapNotesArchive, buildMapNotesExportResources, readMapNotesExportImage } from './mapNotesExport.js';
+import FileSaver from 'file-saver';
 
 const BRAND = {
     teal: [13, 118, 112],
@@ -140,11 +142,11 @@ function formatNote(note) {
 }
 
 function formatResourceIdentity(resource) {
-    return [resource.name, resource.address].filter(Boolean).join('\n');
+    return [resource.reference ? `${resource.reference} - ${resource.name}` : resource.name, resource.address].filter(Boolean).join('\n');
 }
 
 function prefixFirstNoteLine(lines, note) {
-    const prefix = note.dateLabel ? `[${note.dateLabel}] - ` : '';
+    const prefix = `${note.reference ? `${note.reference} ` : ''}${note.dateLabel ? `[${note.dateLabel}] - ` : ''}`;
     if (!prefix) return lines;
     if (lines.length === 0) {
         return [{ text: prefix.trim(), fontStyle: 'normal', hasLink: false }];
@@ -203,6 +205,9 @@ function buildNoteCell(line) {
 function buildResourceRows(category) {
     return category.resources.flatMap((resource) => {
         const noteLines = buildNoteLines(resource.notes);
+        if (resource.images?.length) {
+            noteLines.push({ text: `Images: ${resource.images.map(image => image.reference).join(', ')} (see image pages)`, fontStyle: 'italic', hasLink: false });
+        }
         return noteLines.map((line, index) => ({
             resource: index === 0 ? formatResourceIdentity(resource) : '',
             notes: buildNoteCell(line),
@@ -285,18 +290,32 @@ function writeLedger(doc, autoTable, ledger) {
     }
 }
 
-export async function downloadMyMapPdf({
+export async function createMyMapPdfDownload({
     directory,
     presentation,
     generatedAt = new Date(),
     locale = 'en-SG',
+    signal,
+    readImage = readMapNotesExportImage,
 } = {}) {
+    signal?.throwIfAborted();
     const [{ jsPDF }, autoTableModule] = await Promise.all([
         import('jspdf'),
         import('jspdf-autotable'),
     ]);
     const autoTable = resolveAutoTable(autoTableModule);
-    const ledger = buildMyMapPdfLedger({ directory, presentation, generatedAt, locale });
+    let ledger = buildMyMapPdfLedger({ directory, presentation, generatedAt, locale });
+    const resources = buildMapNotesExportResources(ledger);
+    const imageCount = resources.reduce((count, resource) => count + resource.images.length, 0);
+    const totalImageBytes = resources.reduce((total, resource) => total + resource.images.reduce((sum, image) => sum + image.size, 0), 0);
+    if (totalImageBytes > 64 * 1024 * 1024) {
+        throw Object.assign(new Error('Note image export exceeds 64 MB.'), { code: 'map_notes_export_too_large' });
+    }
+    if (imageCount) {
+        const byKey = new Map(resources.map(resource => [resource.assetKey, resource]));
+        ledger = { ...ledger, categories: ledger.categories.map(category => ({ ...category,
+            resources: category.resources.map(resource => byKey.get(resource.assetKey)) })) };
+    }
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     doc.setProperties({
         title: ledger.mapName,
@@ -305,5 +324,56 @@ export async function downloadMyMapPdf({
 
     writeSummary(doc, autoTable, ledger);
     writeLedger(doc, autoTable, ledger);
-    doc.save(buildMyMapPdfFileName(ledger.mapName));
+    const pdfName = buildMyMapPdfFileName(ledger.mapName);
+    const imageFiles = {};
+    const imageCache = new Map();
+    for (const resource of resources) {
+        for (const image of resource.images) {
+            signal?.throwIfAborted();
+            if (!imageCache.has(image.assetId)) imageCache.set(image.assetId, await readImage({ mapId: directory?.id, image, signal }));
+            const bytes = imageCache.get(image.assetId);
+            signal?.throwIfAborted();
+            writeNoteImagePage(doc, autoTable, resource, image, bytes);
+            imageFiles[image.filename] = bytes;
+        }
+    }
+    signal?.throwIfAborted();
+    if (!imageCount) return { blob: doc.output('blob'), filename: pdfName };
+    const bytes = await buildMapNotesArchive({ ledger, resources, imageFiles, pdf: doc.output('arraybuffer') });
+    signal?.throwIfAborted();
+    return { blob: new Blob([bytes], { type: 'application/zip' }), filename: pdfName.replace(/-ledger\.pdf$/, '-notes-and-images.zip') };
+}
+
+function writeNoteImagePage(doc, autoTable, resource, image, bytes) {
+    doc.addPage();
+    // A table wraps very long names/addresses and can paginate before the image.
+    autoImageHeading(doc, autoTable, resource, image);
+    const top = doc.lastAutoTable.finalY + 16;
+    const availableHeight = PAGE.height - 72 - top;
+    const scale = Math.min(LEDGER_CONTENT_WIDTH / image.width, availableHeight / image.height);
+    const width = image.width * scale, height = image.height * scale;
+    doc.addImage(bytes, image.mimeType === 'image/jpeg' ? 'JPEG' : image.mimeType === 'image/webp' ? 'WEBP' : 'PNG',
+        PAGE.margin + (LEDGER_CONTENT_WIDTH - width) / 2, top, width, height, image.assetId, 'FAST');
+}
+
+function autoImageHeading(doc, autoTable, resource, image) {
+    autoTable(doc, {
+        startY: 48,
+        body: [
+            [`${image.reference} - ${resource.name}`],
+            [resource.address],
+            [resource.notes.length ? `Notes: ${resource.notes.map(note => note.reference).join(', ')} (see resource ledger)` : 'No text notes.'],
+            ['Image attached to this resource\'s notes.'],
+        ],
+        theme: 'plain', styles: { fontSize: 10, textColor: BRAND.ink, cellPadding: 3 },
+        tableWidth: LEDGER_CONTENT_WIDTH,
+        margin: { left: PAGE.margin, right: PAGE.margin, top: 48, bottom: 300 },
+        didDrawPage: () => writeLedgerFooter(doc, doc.internal.getNumberOfPages()),
+    });
+}
+
+export async function downloadMyMapPdf(options = {}) {
+    const file = await createMyMapPdfDownload(options);
+    options.signal?.throwIfAborted();
+    FileSaver.saveAs(file.blob, file.filename);
 }

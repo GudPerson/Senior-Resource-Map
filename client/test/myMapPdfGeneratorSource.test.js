@@ -21,7 +21,8 @@ test('My Map PDF generator keeps the report layout focused on extractable ledger
     assert.match(source, /head: \[\['Resource \/ Address', 'Notes'\]\]/);
     assert.doesNotMatch(source, /Map snapshot/);
     assert.doesNotMatch(source, /mapSnapshotDataUrl/);
-    assert.doesNotMatch(source, /addImage/);
+    assert.match(source, /writeNoteImagePage/);
+    assert.match(source, /doc\.addImage\(bytes/);
     assert.doesNotMatch(source, /sourceMapNumber/);
     assert.doesNotMatch(source, /head: \[\['#'/);
     assert.doesNotMatch(source, /header: 'Address'/);

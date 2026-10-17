@@ -1,6 +1,7 @@
 import { getRowAssetKey, normalizeNoteItems } from './mapNotes.js';
 import { MAP_NOTE_MAX_LENGTH } from './mapNotesAutosave.js';
 import { buildMyMapCategoryRank, normalizeMyMapCategoryKey } from './myMapCategoryOrder.js';
+import { normalizeMapNoteImages } from '../../../shared/mapNoteImages.js';
 
 const LIST_ONLY_LABEL = 'List only';
 const FALLBACK_MAP_NAME = 'CareAround map';
@@ -256,6 +257,10 @@ function collectPresentationRows(presentation) {
 function buildLedgerResource(entry, presentation) {
     const { row, group, place, source } = entry;
     const notes = buildLedgerNotes(row);
+    const images = normalizeMapNoteImages(row?.notes?.images);
+    if (row?.notes?.images != null && (!Array.isArray(row.notes.images) || images.length !== row.notes.images.length)) {
+        throw new Error('Invalid note image metadata. Reload the map before downloading.');
+    }
     const sourceMapNumber = source === 'unmapped'
         ? LIST_ONLY_LABEL
         : getPresentationMapNumber(row, group, place, presentation) || LIST_ONLY_LABEL;
@@ -269,6 +274,7 @@ function buildLedgerResource(entry, presentation) {
         address: getAddress(row, place),
         sourceMapNumber,
         notes,
+        images,
     };
 }
 

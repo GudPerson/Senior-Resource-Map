@@ -1,5 +1,15 @@
 # Regression Ledger
 
+## 17 October 2026 — Care Map notes/images export — local implementation
+
+Reproduce/accept: On an owned map, attach images to two resources (including an image-only personal place), apply an interactive filter and download. Extract the ZIP and require the complete unfiltered resource set, byte-exact originals, readable image pages and matching R/N/I references without name collisions. Deny one image GET and require a retryable error with no partial download; retry successfully. A text-only map must still download its PDF. Shared/guest/embeds must not gain an owner export action.
+
+The notes download now supports one ZIP containing the complete notes PDF with labelled image pages, original image files, an offline notes/image index and a correspondence manifest. Resource/note/image references match across the files; text-only maps still produce the existing PDF. Existing image storage links photos to the resource's collection of notes, so no individual text-note link is inferred. Missing images fail the whole export with retry; owner access and sharing are unchanged.
+
+Code is isolated on `codex/care-map-notes-download-20261017` in `output/care-map-notes-download-20261017/source`, based on last-observed public `09873392d9b069ec51baa69a9c755932d81a2806`. The older primary runtime and unrelated dirty work are preserved. GitHub refresh is unavailable; reconcile remote main before release.
+
+Validation: client1,038/environment5, server1,235, locked-map112/compiler17 and final production client build pass. Five fictional PDF pages were visually checked; exact PNG/JPEG/WebP ZIP bytes, image-only rows, associations and error/cancellation handling pass. Browser replay is retained but blocked by localhost-listen EPERM; real browser/device and production acceptance remain pending. The user subsequently authorized commit, push and protected deployment on 17 October; release completion requires the output handoff evidence. See `docs/care-map-notes-export-20261017.md` and the task's output directory for evidence and release gates.
+
 ## 15 October 2026 — Mobile controls aligned to the right rail — follow-up candidate
 
 Supersedes the separate 56px lane in the preceding correction. Owner mobile North and expand/return remain32px, North above toggle, now on the same12px right edge as settings/fit/zoom. Existing frame `surfaceOverlay` contents are preserved. A scoped size-container query below260px tightens spacing and hides only the numeric zoom readout, retaining all action buttons without changing map dimensions. Desktop/Export and guest controls, camera callbacks, pin accuracy, gesture engine, geometry, Studio, notes/images and sharing remain unchanged.
