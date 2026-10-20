@@ -56,10 +56,10 @@ test('image decoder handles load failure, cancellation and a bounded timeout', a
     await assert.rejects(pending, { name: 'AbortError' });
 });
 
-function normalizationFixture({ width = 4096, height = 3000, encodedSize = () => 1024 } = {}) {
+function normalizationFixture({ width = 4096, height = 3000, encodedSize = () => 1024, alpha = false } = {}) {
     const calls = []; let closed = 0;
     const bitmap = { width, height, close: () => { closed += 1; } };
-    const canvas = { getContext: () => ({ drawImage: (...args) => calls.push({ draw: args }) }),
+    const canvas = { getContext: () => ({ drawImage: (...args) => calls.push({ draw: args }), getImageData: () => ({ data: new Uint8ClampedArray([0, 0, 0, alpha ? 0 : 255]) }) }),
         toBlob: (done, mime, quality) => { calls.push({ mime, quality }); done(new Blob([new Uint8Array(encodedSize(mime, quality))], { type: mime })); } };
     return { calls, canvas, closed: () => closed, options: { decodeBitmap: async () => bitmap, createCanvas: () => canvas } };
 }
@@ -67,8 +67,8 @@ function normalizationFixture({ width = 4096, height = 3000, encodedSize = () =>
 test('ordinary native photos are re-encoded and downscaled before upload with their bitmap always closed', async () => {
     const fixture = normalizationFixture();
     const normalized = await normalizeAnnotationImageFile(new Blob(['native-exif'], { type: 'image/jpeg' }), fixture.options);
-    assert.equal(normalized.width, 2048); assert.equal(normalized.height, 1500);
-    assert.equal(fixture.canvas.width, 2048); assert.equal(fixture.canvas.height, 1500);
+    assert.equal(normalized.width, 1600); assert.equal(normalized.height, 1171);
+    assert.equal(fixture.canvas.width, 1600); assert.equal(fixture.canvas.height, 1171);
     assert.equal(normalized.blob.type, 'image/jpeg');
     assert.equal(await normalized.blob.text(), '\0'.repeat(1024));
     assert.equal(fixture.closed(), 1);
@@ -77,16 +77,30 @@ test('ordinary native photos are re-encoded and downscaled before upload with th
     assert.ok(result.width * result.height <= 4_000_000);
 });
 
-test('transparent files use PNG and then a bounded WebP fallback when needed', async () => {
-    const fixture = normalizationFixture({ encodedSize: mime => mime === 'image/png' ? ANNOTATION_IMAGE_MAX_BYTES + 1 : 1024 });
-    const result = await normalizeAnnotationImageFile(new Blob(['alpha'], { type: 'image/png' }), fixture.options);
-    assert.equal(result.blob.type, 'image/webp');
-    assert.deepEqual(fixture.calls.filter(call => call.mime).map(call => call.mime), ['image/png', 'image/webp']);
-    assert.equal(fixture.closed(), 1);
+test('opaque large PNGs become compact JPEGs while alpha graphics stay lossless', async () => {
+    const opaque = normalizationFixture({ encodedSize: mime => mime === 'image/png' ? 900 * 1024 : 140 * 1024 });
+    const photo = await normalizeAnnotationImageFile(new Blob(['opaque'], { type: 'image/png' }), opaque.options);
+    assert.equal(photo.blob.type, 'image/jpeg'); assert.ok(photo.blob.size <= 500 * 1024);
+    assert.deepEqual(opaque.calls.filter(call => call.mime).map(call => call.mime), ['image/png', 'image/jpeg']);
+    const alpha = normalizationFixture({ alpha: true, encodedSize: () => 900 * 1024 });
+    const graphic = await normalizeAnnotationImageFile(new Blob(['alpha'], { type: 'image/png' }), alpha.options);
+    assert.equal(graphic.blob.type, 'image/png'); assert.equal(alpha.closed(), 1);
+    assert.equal(alpha.calls.filter(call => call.mime === 'image/jpeg').length, 0);
+});
+
+test('photo compression has bounded quality and size fallbacks without upscaling', async () => {
+    let encodes = 0;
+    const large = normalizationFixture({ encodedSize: () => ++encodes < 5 ? 900 * 1024 : 300 * 1024 });
+    const photo = await normalizeAnnotationImageFile(new Blob(['photo'], { type: 'image/jpeg' }), large.options);
+    assert.equal(photo.blob.type, 'image/jpeg'); assert.ok(photo.blob.size <= 500 * 1024);
+    assert.equal(photo.width, 1280); assert.equal(photo.height, 937);
+    assert.deepEqual(large.calls.filter(call => call.mime).map(call => call.quality), [.82, .74, .66, .82, .74]);
+    const small = normalizationFixture({ width: 320, height: 240 });
+    const thumbnail = await normalizeAnnotationImageFile(new Blob(['small'], { type: 'image/jpeg' }), small.options);
+    assert.equal(thumbnail.width, 320); assert.equal(thumbnail.height, 240);
     const oversize = normalizationFixture({ encodedSize: () => ANNOTATION_IMAGE_MAX_BYTES + 1 });
-    await assert.rejects(normalizeAnnotationImageFile(new Blob(['alpha'], { type: 'image/webp' }), oversize.options));
-    assert.equal(oversize.closed(), 1);
-    assert.equal(oversize.calls.filter(call => call.mime === 'image/webp').length, 3);
+    await assert.rejects(normalizeAnnotationImageFile(new Blob(['uncompressible'], { type: 'image/jpeg' }), oversize.options));
+    assert.equal(oversize.closed(), 1); assert.equal(oversize.calls.filter(call => call.mime).length, 9);
 });
 
 test('unsafe input, unsupported decoding and canceled normalization do not continue into upload', async () => {
