@@ -144,3 +144,41 @@ test('shared download streams exact published bytes and rejects private, withdra
         assert.equal((await fixture({ bucket, shared: directory }).request(`/api/shared-maps/shared-token/note-images/${first.assetId}`)).status, 404);
     }
 });
+
+
+test('three resources can each keep 20 distinct images in one map, with independent galleries in another map', async () => {
+    const bucket = new MapMediaBucket(), media = createPrivateMapMediaRepository(bucket, 7), repo = createMapNoteImageRepository(bucket, 7);
+    const images = [];
+    for (let i = 0; i < 60; i++) images.push({ ...await media.saveAsset(png({ variant: i }), 'image/png'), isShared: false });
+    for (let i = 0; i < 3; i++) await repo.replace(3, 'asset:' + (31 + i), { revision: i, images: images.slice(i * 20, i * 20 + 20) });
+    const document = (await repo.read(3)).document;
+    assert.deepEqual(document.entries.map(entry => entry.images.length), [20, 20, 20]);
+    await assert.rejects(repo.replace(3, 'asset:31', { revision: 3, images: images.slice(0, 21) }));
+    assert.equal((await repo.read(3)).document.revision, 3);
+    await repo.replace(4, 'asset:41', { revision: 0, images: images.slice(20, 40) });
+    assert.equal((await repo.read(4)).document.entries[0].images.length, 20);
+    assert.deepEqual((await repo.read(3)).document, document);
+    await repo.replace(3, 'asset:31', { revision: 3, images: images.slice(0, 19) });
+    await repo.replace(3, 'asset:31', { revision: 4, images: [...images.slice(0, 19), images[20]] });
+    assert.equal((await repo.read(3)).document.entries[0].images.length, 20, 'removing an image frees a slot in this resource gallery');
+});
+
+test('a map with many resources exceeds the former 100-gallery and 500-reference document caps', async () => {
+    const { repo, first } = await setup();
+    for (let i = 0; i < 110; i++) await repo.replace(3, 'asset:' + (i + 1), { revision: i, images: [{ ...first, isShared: false }] });
+    const { bucket } = await setup();
+    const media = createPrivateMapMediaRepository(bucket, 7), larger = createMapNoteImageRepository(bucket, 7), images = [];
+    for (let i = 0; i < 20; i++) images.push({ ...await media.saveAsset(png({ variant: i }), 'image/png'), isShared: false });
+    for (let i = 0; i < 30; i++) await larger.replace(3, 'asset:' + (i + 1), { revision: i, images });
+    const { document } = await larger.read(3);
+    assert.equal(document.entries.reduce((count, entry) => count + entry.images.length, 0), 600);
+});
+
+test('owner gallery responses include only that account storage usage', async () => {
+    const { bucket, first, second } = await setup(), app = fixture({ bucket });
+    const read = await (await app.request('/api/my-maps/3/note-images/hard/11')).json();
+    assert.deepEqual(read.storage, { usedBytes: first.size + second.size, limitBytes: 1024 * 1024 * 1024 });
+    const saved = await (await put(app, { revision: 0, images: [{ assetId: first.assetId, isShared: false }] })).json();
+    assert.deepEqual(saved.storage, read.storage);
+    assert.equal(saved.images.length, 1);
+});

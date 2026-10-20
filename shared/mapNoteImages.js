@@ -1,5 +1,5 @@
 export const MAP_NOTE_IMAGE_LIMIT = 20;
-export const MAP_NOTE_IMAGE_DOCUMENT_BYTES = 128 * 1024;
+export const MAP_NOTE_IMAGE_DOCUMENT_BYTES = 4 * 1024 * 1024;
 
 export function normalizeMapNoteImage(image) {
     if (!image || !/^[a-f0-9]{64}$/.test(image.assetId || '')

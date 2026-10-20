@@ -1,8 +1,10 @@
 import { validateCmsImage } from '../../../shared/helpContentCms.js';
 
 export const MAP_MEDIA_MAX_BYTES = 2 * 1024 * 1024;
+// Placement limit for one map's annotation document, not an upload/account cap.
 export const MAP_MEDIA_MAX_COUNT = 20;
-export const MAP_MEDIA_MAX_OWNER_BYTES = 20 * 1024 * 1024;
+export const MAP_MEDIA_MAX_OWNER_BYTES = 1024 * 1024 * 1024;
+const MAP_MEDIA_LEDGER_MAX_BYTES = 8 * 1024 * 1024;
 export const MAP_MEDIA_MAX_SIDE = 2048;
 export const MAP_MEDIA_MAX_PIXELS = 4_000_000;
 export const isMapMediaAssetId = (id) => typeof id === 'string' && /^[a-f0-9]{64}$/.test(id);
@@ -36,9 +38,10 @@ export function createPrivateMapMediaRepository(bucket, ownerId) {
     const readLedger = async () => {
         const object = await bucket.get(ledgerKey);
         if (!object) return { assets: [], etag: null };
+        if (object.size > MAP_MEDIA_LEDGER_MAX_BYTES) throw unavailable();
         let value;
         try { value = await object.json(); } catch { throw unavailable(); }
-        if (value?.version !== 1 || !Array.isArray(value.assets) || value.assets.length > MAP_MEDIA_MAX_COUNT
+        if (value?.version !== 1 || !Array.isArray(value.assets)
             || !object.etag || new Set(value.assets.map((item) => item?.assetId)).size !== value.assets.length
             || value.assets.some((item) => !isMapMediaAssetId(item?.assetId) || !['image/png', 'image/jpeg', 'image/webp'].includes(item.mimeType)
                 || !Number.isSafeInteger(item.size) || item.size < 1 || item.size > MAP_MEDIA_MAX_BYTES
@@ -55,11 +58,12 @@ export function createPrivateMapMediaRepository(bucket, ownerId) {
                 if (JSON.stringify(prior) !== JSON.stringify(metadata)) throw unavailable();
                 return;
             }
-            if (current.assets.length >= MAP_MEDIA_MAX_COUNT
-                || current.assets.reduce((total, item) => total + item.size, 0) + metadata.size > MAP_MEDIA_MAX_OWNER_BYTES) {
-                throw new MapMediaError('Your account has reached its private map image limit (20 images or 20 MB). Reuse an image already uploaded.', 413, 'map_media_quota_exceeded');
+            const ledger = JSON.stringify({ version: 1, assets: [...current.assets, metadata] });
+            if (current.assets.reduce((total, item) => total + item.size, 0) + metadata.size > MAP_MEDIA_MAX_OWNER_BYTES
+                || new TextEncoder().encode(ledger).length > MAP_MEDIA_LEDGER_MAX_BYTES) {
+                throw new MapMediaError('Your account has reached its 1 GB map image storage allowance. Reuse an image already uploaded.', 413, 'map_media_quota_exceeded');
             }
-            const result = await bucket.put(ledgerKey, JSON.stringify({ version: 1, assets: [...current.assets, metadata] }), {
+            const result = await bucket.put(ledgerKey, ledger, {
                 onlyIf: current.etag === null ? createOnly() : { etagMatches: current.etag },
                 httpMetadata: { contentType: 'application/json', cacheControl: 'private, no-store' },
             });
@@ -88,5 +92,9 @@ export function createPrivateMapMediaRepository(bucket, ownerId) {
             customMetadata: { ownerId: String(ownerId) } });
         return (await getAsset(assetId)).metadata;
     }
-    return { saveAsset, getAsset };
+    async function getUsage() {
+        const { assets } = await readLedger();
+        return { usedBytes: assets.reduce((total, item) => total + item.size, 0), limitBytes: MAP_MEDIA_MAX_OWNER_BYTES };
+    }
+    return { saveAsset, getAsset, getUsage };
 }

@@ -7,6 +7,7 @@ import { uploadAnnotationImage } from '../lib/annotationMedia.js';
 import { getAnnotationUploadError } from '../lib/annotationMessages.js';
 import { getMapNoteImageMessages } from '../lib/mapNoteImageMessages.js';
 import { getMapNoteImageRef, loadMapNoteImage, mapNoteImageFilename, normalizeMapNoteImages } from '../lib/mapNoteImages.js';
+import { MAP_NOTE_IMAGE_LIMIT } from '../../../shared/mapNoteImages.js';
 
 export default function MapNoteImages({ mapId, row, shareToken = '', readonly = false, onImagesChange }) {
     const { user } = useAuth(), { locale } = useLocale();
@@ -38,7 +39,7 @@ export default function MapNoteImages({ mapId, row, shareToken = '', readonly = 
                 const images = normalizeMapNoteImages(value?.images);
                 if (!Number.isSafeInteger(value?.revision) || value.revision < 0 || !Array.isArray(value.images)
                     || images.length !== value.images.length) throw new Error('Invalid image response.');
-                setState({ key, revision: value.revision, images, status: 'ready' });
+                setState({ key, revision: value.revision, images, storage: value.storage, status: 'ready' });
             }).catch(() => { if (!stale) { setState({ key, revision: 0, images: [], status: 'error' }); setError(m.loadFailed); } });
         }
         return () => { stale = true; if (activeKey.current === key) activeKey.current = null; uploadRef.current?.abort(); };
@@ -75,7 +76,7 @@ export default function MapNoteImages({ mapId, row, shareToken = '', readonly = 
         const normalized = normalizeMapNoteImages(saved?.images);
         if (!Number.isSafeInteger(saved?.revision) || !Array.isArray(saved?.images) || normalized.length !== saved.images.length) throw new Error('Invalid image response.');
         if (activeKey.current === requestKey) {
-            setState({ key: requestKey, revision: saved.revision, images: normalized, status: 'ready' });
+            setState({ key: requestKey, revision: saved.revision, images: normalized, storage: saved.storage, status: 'ready' });
             onImagesChange?.(row, normalized, { revision: saved.revision, updatedAt: saved.updatedAt });
         }
     }
@@ -88,7 +89,7 @@ export default function MapNoteImages({ mapId, row, shareToken = '', readonly = 
     }
     async function upload(event) {
         const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
-        if (!file || busy || readonly || current.status !== 'ready') return;
+        if (!file || busy || readonly || current.status !== 'ready' || current.images.length >= MAP_NOTE_IMAGE_LIMIT) return;
         const controller = new AbortController(), requestKey = key;
         uploadRef.current?.abort(); uploadRef.current = controller;
         setBusy('uploading'); setError(''); let attaching = false;
@@ -114,11 +115,18 @@ export default function MapNoteImages({ mapId, row, shareToken = '', readonly = 
             <p className="text-xs leading-5 text-slate-500">{readonly ? m.sharedHelp : personal ? m.personalHelp : m.sharingHelp}</p>
             {!readonly ? <>
                 <input ref={inputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" aria-label={m.add}
-                    disabled={busy || current.status !== 'ready' || current.images.length >= 20} onChange={upload} />
+                    disabled={busy || current.status !== 'ready' || current.images.length >= MAP_NOTE_IMAGE_LIMIT} onChange={upload} />
                 <button type="button" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-brand-200 px-3 py-2 text-sm font-bold text-brand-800 disabled:opacity-50"
-                    onClick={() => inputRef.current?.click()} disabled={busy || current.status !== 'ready' || current.images.length >= 20}>
+                    onClick={() => inputRef.current?.click()} disabled={busy || current.status !== 'ready' || current.images.length >= MAP_NOTE_IMAGE_LIMIT}>
                     {busy ? <LoaderCircle size={18} className="animate-spin" /> : <ImagePlus size={18} />}{busy ? m[busy] : m.add}
                 </button><p className="text-xs leading-5 text-slate-500">{m.help}</p>
+                {current.status === 'ready' ? <p className="text-xs leading-5 text-slate-600" role="status">
+                    {m.galleryUsage.replace('{count}', current.images.length).replace('{limit}', MAP_NOTE_IMAGE_LIMIT)}
+                    {Number.isSafeInteger(current.storage?.usedBytes) && current.storage.usedBytes >= 0
+                        && Number.isSafeInteger(current.storage?.limitBytes) && current.storage.limitBytes > 0
+                        ? ` · ${m.storageUsage.replace('{used}', (current.storage.usedBytes / (1024 * 1024)).toFixed(1))
+                            .replace('{limit}', String(current.storage.limitBytes / (1024 * 1024 * 1024)))}` : ''}
+                </p> : null}
             </> : null}
             {current.status === 'loading' ? <p role="status" className="text-sm">{m.loading}</p> : null}
             {error ? <div role="alert" className="space-y-2 text-sm text-red-700"><p>{error}</p><button type="button" disabled={busy} className="min-h-11 underline" onClick={() => setAttempt(value => value + 1)}>{m.retry}</button></div> : null}

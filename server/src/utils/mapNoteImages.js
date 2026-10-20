@@ -7,15 +7,12 @@ const validId = id => Number.isSafeInteger(id) && id > 0;
 
 function validateDocument(value) {
     if (!value || value.schemaVersion !== 1 || !Number.isSafeInteger(value.revision) || value.revision < 0
-        || !Array.isArray(value.entries) || value.entries.length > 100
+        || !Array.isArray(value.entries)
         || new Set(value.entries.map(entry => entry?.membershipKey)).size !== value.entries.length) throw unavailable();
-    let references = 0;
     for (const entry of value.entries) {
         if (!/^(asset|personal):[1-9]\d*$/.test(entry?.membershipKey || '') || !Array.isArray(entry.images)
             || normalizeMapNoteImages(entry.images).length !== entry.images.length) throw unavailable();
-        references += entry.images.length;
     }
-    if (references > 500) throw unavailable();
     if (value.updatedAt != null && (typeof value.updatedAt !== 'string' || !Number.isFinite(Date.parse(value.updatedAt)))) throw unavailable();
     return { schemaVersion: 1, revision: value.revision, updatedAt: value.updatedAt || null,
         entries: value.entries.map(entry => ({ membershipKey: entry.membershipKey, images: normalizeMapNoteImages(entry.images) })) };
@@ -81,7 +78,7 @@ export function createMapNoteImageRepository(bucket, ownerId) {
                 images: entry.images.map(image => ({ ...image, isShared: false })) }));
         if (entries.length) await write(targetMapId, { schemaVersion: 1, revision: 1, updatedAt: new Date().toISOString(), entries }, null);
     }
-    return { read, replace, copy };
+    return { read, replace, copy, getUsage: media.getUsage };
 }
 
 export function attachMapNoteImages(directory, map, document, { shared = false } = {}) {
