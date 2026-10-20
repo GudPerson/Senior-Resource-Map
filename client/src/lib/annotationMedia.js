@@ -4,6 +4,9 @@ import { requestFormDataWithBaseCandidates } from './api.js';
 import { normalizePrintAnnotationImage } from './printAnnotations.js';
 
 export const ANNOTATION_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+export const MAP_PHOTO_UPLOAD_MAX_SIDE = 1600;
+export const MAP_PHOTO_UPLOAD_MAX_BYTES = 500 * 1024;
+const SMALL_PNG_BYTES = 350 * 1024;
 const IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const fail = () => new Error('This image could not be loaded. Choose a PNG, JPEG or WebP image and try again.');
 const abortError = () => new DOMException('Image loading was cancelled.', 'AbortError');
@@ -77,25 +80,45 @@ export async function normalizeAnnotationImageFile(file, {
         if (signal?.aborted) throw abortError();
         if (!Number.isInteger(bitmap.width) || !Number.isInteger(bitmap.height) || bitmap.width < 1 || bitmap.height < 1
             || bitmap.width > 8192 || bitmap.height > 8192 || bitmap.width * bitmap.height > 20_000_000) throw fail();
-        const scale = Math.min(1, 2048 / bitmap.width, 2048 / bitmap.height, Math.sqrt(4_000_000 / (bitmap.width * bitmap.height)));
-        const width = Math.max(1, Math.floor(bitmap.width * scale));
-        const height = Math.max(1, Math.floor(bitmap.height * scale));
-        const canvas = createCanvas(); canvas.width = width; canvas.height = height;
-        const context = canvas.getContext('2d');
-        if (!context) throw fail();
-        context.drawImage(bitmap.source || bitmap, 0, 0, width, height);
+        const scale = Math.min(1, MAP_PHOTO_UPLOAD_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+        const canvas = createCanvas();
         const encode = (mime, quality) => new Promise((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(fail()), mime, quality));
-        let blob = await encode(file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png', 0.86);
-        if (signal?.aborted) throw abortError();
-        if (blob.size > ANNOTATION_IMAGE_MAX_BYTES) {
-            for (const quality of [0.85, 0.65, 0.45]) {
-                blob = await encode('image/webp', quality);
+        let transparent = false;
+        // Bounded fallback sizes preserve useful slide/web dimensions. Reading
+        // old files still accepts the existing 2 MB / 2048-pixel contract.
+        for (const resize of [1, 0.8, 0.64]) {
+            const width = Math.max(1, Math.floor(bitmap.width * scale * resize));
+            const height = Math.max(1, Math.floor(bitmap.height * scale * resize));
+            canvas.width = width; canvas.height = height;
+            const context = canvas.getContext('2d');
+            if (!context) throw fail();
+            context.drawImage(bitmap.source || bitmap, 0, 0, width, height);
+            if (file.type !== 'image/jpeg') {
+                const png = await encode('image/png');
                 if (signal?.aborted) throw abortError();
-                if (blob.size <= ANNOTATION_IMAGE_MAX_BYTES) break;
+                if (resize === 1 && png.size > SMALL_PNG_BYTES) {
+                    const { data } = context.getImageData(0, 0, width, height);
+                    for (let index = 3; index < data.length; index += 4) {
+                        if (data[index] !== 255) { transparent = true; break; }
+                    }
+                }
+                // Keep small graphics lossless and retain alpha for annotations.
+                // Complex transparent PNGs may use the legacy 2 MB allowance.
+                if (png.type === 'image/png' && png.size > 0
+                    && (png.size <= SMALL_PNG_BYTES || (transparent && png.size <= ANNOTATION_IMAGE_MAX_BYTES))) {
+                    return { blob: png, width, height };
+                }
+                if (transparent) continue;
+            }
+            for (const quality of [0.82, 0.74, 0.66]) {
+                const blob = await encode('image/jpeg', quality);
+                if (signal?.aborted) throw abortError();
+                if (blob.type === 'image/jpeg' && blob.size > 0 && blob.size <= MAP_PHOTO_UPLOAD_MAX_BYTES) {
+                    return { blob, width, height };
+                }
             }
         }
-        if (!blob.size || blob.size > ANNOTATION_IMAGE_MAX_BYTES || !IMAGE_MIMES.has(blob.type)) throw fail();
-        return { blob, width, height };
+        throw fail();
     } catch (error) { throw error?.name === 'AbortError' ? error : fail(); }
     finally { bitmap?.close?.(); }
 }

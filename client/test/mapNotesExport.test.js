@@ -25,12 +25,15 @@ test('PNG, JPEG and WebP attachments render in one PDF and retain their original
     const manifest = JSON.parse(strFromU8(files['notes-and-images.json']));
     manifest.resources[0].images.forEach((image, index) => assert.deepEqual(files[image.filename], raw[index]));
     const pdf = strFromU8(files['fictional-map-ledger.pdf']);
-    assert.match(pdf, /\/Count 4\b/);
+    const pages = Number(pdf.match(/\/Count (\d+)\b/)[1]);
+    assert.ok(pages < 4, 'photos share the resource ledger instead of each starting an appendix page');
+    assert.ok(!pdf.includes('see image pages'));
+    assert.ok(!pdf.includes('see resource ledger'));
 });
 
 test('complete download contains embedded PDF images, byte-exact originals and resource-matched notes', async () => {
     const first = row(1, { notes: { items: [{ text: 'First private note' }, { text: 'Second note' }], images: [image] } });
-    const second = row(2, { notes: { items: [], images: [image] } });
+    const second = row(2, { notes: { items: [{ text: 'Next resource note' }], images: [image] } });
     const config = options([first, second, first]);
     let loads = 0;
     const result = await createMyMapPdfDownload({ ...config, readImage: async ({ mapId }) => { assert.equal(mapId, 7); loads++; return png; } });
@@ -41,7 +44,7 @@ test('complete download contains embedded PDF images, byte-exact originals and r
     assert.equal(manifest.imageAssociation, 'resource-notes');
     assert.equal(manifest.resources.length, 2);
     assert.deepEqual(manifest.resources[0].notes.map(note => note.reference), ['R001-N1', 'R001-N2']);
-    assert.equal(manifest.resources[1].notes.length, 0);
+    assert.equal(manifest.resources[1].notes.length, 1);
     assert.equal(loads, 1, 'repeated bytes are fetched once without merging resource associations');
     const paths = manifest.resources.flatMap(resource => resource.images.map(item => item.filename));
     assert.equal(new Set(paths).size, 2, 'same names cannot collide');
@@ -51,9 +54,11 @@ test('complete download contains embedded PDF images, byte-exact originals and r
     assert.ok(pdf.startsWith('%PDF-'));
     assert.match(pdf, /\/Subtype \/Image/);
     for (const reference of ['R001-N1', 'R001-N2', 'R001-I1', 'R002-I1']) assert.ok(pdf.includes(reference), reference);
+    const ordered = ['R001-N1', 'R001-N2', 'R001-I1', 'R002-N1', 'R002-I1'].map(reference => pdf.indexOf(reference));
+    assert.deepEqual(ordered, [...ordered].sort((a, b) => a - b), 'each resource photo follows its own notes before the next resource');
     const html = strFromU8(files['index.html']);
     assert.match(html, /First private note/);
-    assert.match(html, /No text notes/);
+    assert.match(html, /Next resource note/);
     paths.forEach(filename => assert.ok(html.includes(filename)));
     assert.equal(first.notes.items[0].reference, undefined, 'export does not mutate saved notes');
 });
@@ -66,6 +71,25 @@ test('text-only maps keep the existing PDF filename, data and no image fetches',
     assert.ok(text.includes('Note for resource 1'));
     assert.ok(!text.includes('R001-N1'));
     assert.doesNotMatch(text, /\/Subtype \/Image/);
+});
+
+test('long notes paginate before their photos without losing or repeating an image', async () => {
+    const sample = JSON.parse(readFileSync(new URL('../../tests/fixtures/map-notes-export/images.json', import.meta.url)))[0];
+    const bytes = Uint8Array.from(Buffer.from(sample.base64, 'base64'));
+    const images = Array.from({ length: 3 }, (_, index) => ({ ...image, assetId: String(index + 1).repeat(64),
+        width: sample.width, height: sample.height, size: bytes.length }));
+    const text = Array.from({ length: 50 }, (_, i) => `Line ${i + 1}: Call ahead and confirm visit arrangements.`).join('\n');
+    const result = await createMyMapPdfDownload({ ...options([
+        row(1, { name: 'A long resource name '.repeat(20), notes: { items: [{ text }], images } }),
+        row(2, { notes: { items: [{ text: 'Following resource note' }], images: [images[0]] } }),
+    ]), readImage: async () => bytes });
+    const files = unzipSync(new Uint8Array(await result.blob.arrayBuffer()));
+    const pdf = strFromU8(files['fictional-map-ledger.pdf']);
+    assert.ok(Number(pdf.match(/\/Count (\d+)\b/)[1]) > 2);
+    const order = ['Line 50:', 'R001-I1', 'R001-I2', 'R001-I3', 'R002-N1', 'R002-I1'].map(value => pdf.indexOf(value));
+    assert.ok(order.every(value => value >= 0));
+    assert.deepEqual(order, [...order].sort((a, b) => a - b));
+    assert.equal((pdf.match(/\/I\d+ Do/g) || []).length, 4, 'page breaks never split or duplicate an image');
 });
 
 test('repeated attachments exceeding the export memory bound fail before downloading any bytes', async () => {

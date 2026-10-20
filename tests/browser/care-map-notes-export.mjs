@@ -88,6 +88,16 @@ try {
         const manifest = JSON.parse(strFromU8(files['notes-and-images.json']));
         assert.equal(manifest.resources.length, 3);
         assert.equal(manifest.resources.flatMap(resource => resource.images).length, 4);
+        const pdf = strFromU8(files['fictional-notes-export-ledger.pdf']);
+        let previous = -1;
+        for (const resource of manifest.resources) {
+            for (const attachment of [...resource.notes, ...resource.images]) {
+                const position = pdf.indexOf(attachment.reference);
+                assert.ok(position > previous, 'photos stay with their own resource notes before the next resource');
+                previous = position;
+            }
+        }
+        assert.ok(!pdf.includes('see image pages'));
         for (const resource of manifest.resources) {
             const source = rows.find(row => row.name === resource.name);
             assert.ok(source);

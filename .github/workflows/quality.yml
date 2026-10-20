@@ -42,6 +42,17 @@ jobs:
       - name: Verify independent Care Map image allowances
         run: node tests/browser/care-map-image-allowance.mjs --out=output/care-map-image-allowance-browser
 
+      - name: Verify Care Map photo compression
+        run: node tests/browser/care-map-photo-compression.mjs --out=output/care-map-photo-compression-browser
+
+      - name: Retain Care Map photo compression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: care-map-photo-compression-browser
+          path: output/care-map-photo-compression-browser
+          if-no-files-found: ignore
+
       - name: Retain Care Map image allowance evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -1,5 +1,16 @@
 ## 17 October 2026 — Care Map notes/images export — local implementation
 
+## 20 October 2026 — Resource photos beside downloaded notes; compact new uploads
+
+Downloaded notes place each resource's photos directly after that resource's text notes, before the next resource. Photos use bounded, intact rows inside the ledger; they no longer collect in a separate image appendix. Resource/note/image references, readable image folder names, image-only resources, and original saved image bytes in the ZIP remain intact. Text-only maps retain the PDF download.
+
+New note and annotation photo uploads use a maximum 1600-pixel longest side, with bounded JPEG quality/size fallbacks targeting at most 500 KiB for opaque photos. Small PNG graphics remain lossless; transparent PNGs preserve alpha and may retain the existing 2 MiB allowance. Smaller inputs are not enlarged. Existing saved media and shared snapshots are not rewritten. The 20-images-per-resource-per-map and 1 GiB account allowances remain unchanged.
+
+Reproduce/accept: add photos to two fictional resources with distinct notes, download and extract the ZIP, then confirm each resource's notes precede its own photos and the next resource follows afterwards. Check portrait/landscape, image-only resources, and long notes across pages. Upload a large photograph and confirm compact JPEG/PNG output, retained aspect ratio, readable slide/web detail and no upscaling. Check transparent and small text graphics retain lossless PNG output. Existing media must still load, copy, share and export without changed stored bytes.
+
+Verification: full local quality gate, map lockdown tests, real Chromium notes/download and independent-gallery checks pass. Five real-browser compression fixtures pass; 4000 x 3000 synthetic photo inputs (5.2–20.9 MB) save at 1600 x 1200 and about 374–376 KB, with PSNR above 33 dB. Normal and long-note PDFs were rendered and visually reviewed. Browser data/APIs are fictional; no physical-device or production-write claim is made. CI and guarded production publication are separate release gates.
+
+
 ## 20 October 2026 — Per-resource Care Map image allowance — verified candidate
 
 Each resource in each map retains an independent 20-image note gallery. The account-wide 20-image upload ceiling is removed and shared image storage increases to 1 GiB (displayed as 1 GB). Owner galleries show per-resource count and account stored-byte usage in four languages; annotation placement remains independently capped at 20 images per map. Previous 100-gallery/500-reference map metadata caps are removed under a bounded 4 MiB document. Existing v1 files remain readable without migration. No auth, sharing, personal-place privacy, schema, environment, credential or resource-data change. Removing images frees gallery slots; immutable shared media remain stored for copies, undo and frozen published links.

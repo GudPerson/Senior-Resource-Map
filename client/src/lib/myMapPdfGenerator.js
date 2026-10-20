@@ -202,16 +202,34 @@ function buildNoteCell(line) {
     };
 }
 
-function buildResourceRows(category) {
+function buildResourceRows(category, doc, imageCache) {
     return category.resources.flatMap((resource) => {
         const noteLines = buildNoteLines(resource.notes);
-        if (resource.images?.length) {
-            noteLines.push({ text: `Images: ${resource.images.map(image => image.reference).join(', ')} (see image pages)`, fontStyle: 'italic', hasLink: false });
-        }
-        return noteLines.map((line, index) => ({
+        const rows = noteLines.map((line, index) => ({
             resource: index === 0 ? formatResourceIdentity(resource) : '',
             notes: buildNoteCell(line),
         }));
+        // Keep each resource's photos immediately after its notes. Image rows
+        // span the table so portraits and landscape photos stay readable.
+        for (const image of resource.images || []) {
+            const scale = Math.min((LEDGER_CONTENT_WIDTH - 12) / image.width, 240 / image.height, 0.75);
+            const width = image.width * scale, height = image.height * scale;
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(TYPE.ledgerTable);
+            // The full identity is already in the notes row. Bound this repeated
+            // caption so even an unusually long name cannot split a photo row.
+            const name = resource.name.length > 240 ? `${resource.name.slice(0, 237)}...` : resource.name;
+            const caption = doc.splitTextToSize(`${image.reference} - ${name}`, LEDGER_CONTENT_WIDTH - 12);
+            const captionHeight = caption.length * TYPE.ledgerTable * doc.getLineHeightFactor();
+            rows.push({
+                resource: { content: caption, colSpan: 2, styles: {
+                    fontStyle: 'bold', textColor: BRAND.tealDark,
+                    minCellHeight: captionHeight + height + 24,
+                } },
+                noteImage: { image, bytes: imageCache.get(image.assetId), width, height, captionHeight },
+            });
+        }
+        return rows;
     });
 }
 
@@ -225,7 +243,7 @@ function needsFreshPage(currentY, titleLines) {
         > PAGE.height - 72;
 }
 
-function writeLedger(doc, autoTable, ledger) {
+function writeLedger(doc, autoTable, ledger, imageCache) {
     let currentY = (doc.lastAutoTable?.finalY || SUMMARY_LAYOUT.tableStartY)
         + LEDGER_LAYOUT.summaryToLedgerGap;
 
@@ -249,7 +267,8 @@ function writeLedger(doc, autoTable, ledger) {
         autoTable(doc, {
             startY: tableStartY,
             head: [['Resource / Address', 'Notes']],
-            body: buildResourceRows(category),
+            body: buildResourceRows(category, doc, imageCache),
+            rowPageBreak: 'avoid',
             theme: 'grid',
             columns: [
                 { header: 'Resource / Address', dataKey: 'resource' },
@@ -282,7 +301,15 @@ function writeLedger(doc, autoTable, ledger) {
                     minCellWidth: LEDGER_COLUMN_WIDTHS.notes,
                 },
             },
-            margin: { left: PAGE.margin, right: PAGE.margin, top: 60 },
+            margin: { left: PAGE.margin, right: PAGE.margin, top: 60, bottom: 56 },
+            didDrawCell: ({ section, column, row, cell }) => {
+                const photo = row.raw?.noteImage;
+                if (section !== 'body' || column.dataKey !== 'resource' || !photo) return;
+                const { image, bytes, width, height, captionHeight } = photo;
+                doc.addImage(bytes, image.mimeType === 'image/jpeg' ? 'JPEG' : image.mimeType === 'image/webp' ? 'WEBP' : 'PNG',
+                    cell.x + (cell.width - width) / 2, cell.y + captionHeight + 12,
+                    width, height, image.assetId, 'FAST');
+            },
             didDrawPage: () => writeLedgerFooter(doc, doc.internal.getNumberOfPages()),
         });
 
@@ -316,14 +343,6 @@ export async function createMyMapPdfDownload({
         ledger = { ...ledger, categories: ledger.categories.map(category => ({ ...category,
             resources: category.resources.map(resource => byKey.get(resource.assetKey)) })) };
     }
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    doc.setProperties({
-        title: ledger.mapName,
-        subject: 'CareAround SG Care Map PDF ledger',
-    });
-
-    writeSummary(doc, autoTable, ledger);
-    writeLedger(doc, autoTable, ledger);
     const pdfName = buildMyMapPdfFileName(ledger.mapName);
     const imageFiles = {};
     const imageCache = new Map();
@@ -333,43 +352,21 @@ export async function createMyMapPdfDownload({
             if (!imageCache.has(image.assetId)) imageCache.set(image.assetId, await readImage({ mapId: directory?.id, image, signal }));
             const bytes = imageCache.get(image.assetId);
             signal?.throwIfAborted();
-            writeNoteImagePage(doc, autoTable, resource, image, bytes);
             imageFiles[image.filename] = bytes;
         }
     }
     signal?.throwIfAborted();
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    doc.setProperties({
+        title: ledger.mapName,
+        subject: 'CareAround SG Care Map PDF ledger',
+    });
+    writeSummary(doc, autoTable, ledger);
+    writeLedger(doc, autoTable, ledger, imageCache);
     if (!imageCount) return { blob: doc.output('blob'), filename: pdfName };
     const bytes = await buildMapNotesArchive({ ledger, resources, imageFiles, pdf: doc.output('arraybuffer') });
     signal?.throwIfAborted();
     return { blob: new Blob([bytes], { type: 'application/zip' }), filename: pdfName.replace(/-ledger\.pdf$/, '-notes-and-images.zip') };
-}
-
-function writeNoteImagePage(doc, autoTable, resource, image, bytes) {
-    doc.addPage();
-    // A table wraps very long names/addresses and can paginate before the image.
-    autoImageHeading(doc, autoTable, resource, image);
-    const top = doc.lastAutoTable.finalY + 16;
-    const availableHeight = PAGE.height - 72 - top;
-    const scale = Math.min(LEDGER_CONTENT_WIDTH / image.width, availableHeight / image.height);
-    const width = image.width * scale, height = image.height * scale;
-    doc.addImage(bytes, image.mimeType === 'image/jpeg' ? 'JPEG' : image.mimeType === 'image/webp' ? 'WEBP' : 'PNG',
-        PAGE.margin + (LEDGER_CONTENT_WIDTH - width) / 2, top, width, height, image.assetId, 'FAST');
-}
-
-function autoImageHeading(doc, autoTable, resource, image) {
-    autoTable(doc, {
-        startY: 48,
-        body: [
-            [`${image.reference} - ${resource.name}`],
-            [resource.address],
-            [resource.notes.length ? `Notes: ${resource.notes.map(note => note.reference).join(', ')} (see resource ledger)` : 'No text notes.'],
-            ['Image attached to this resource\'s notes.'],
-        ],
-        theme: 'plain', styles: { fontSize: 10, textColor: BRAND.ink, cellPadding: 3 },
-        tableWidth: LEDGER_CONTENT_WIDTH,
-        margin: { left: PAGE.margin, right: PAGE.margin, top: 48, bottom: 300 },
-        didDrawPage: () => writeLedgerFooter(doc, doc.internal.getNumberOfPages()),
-    });
 }
 
 export async function downloadMyMapPdf(options = {}) {
