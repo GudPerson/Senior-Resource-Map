@@ -45,7 +45,7 @@ export function createMapNoteImageHandlers({ dbForContext = c => getDb(c.env),
         read: handler(async c => {
             const { mapId, membershipKey, repo } = await ownedResource(c);
             const { document } = await repo.read(mapId);
-            return c.json({ revision: document.revision,
+            return c.json({ revision: document.revision, storage: await repo.getUsage(),
                 updatedAt: document.updatedAt || null,
                 images: document.entries.find(entry => entry.membershipKey === membershipKey)?.images || [] });
         }),
@@ -54,7 +54,8 @@ export function createMapNoteImageHandlers({ dbForContext = c => getDb(c.env),
             let body;
             try { body = await c.req.json(); } catch { throw new MapMediaError('Choose valid note images.'); }
             if (personal && body?.images?.some(image => image?.isShared)) throw new MapMediaError('Personal place images stay private.');
-            return c.json(await repo.replace(mapId, membershipKey, body));
+            const saved = await repo.replace(mapId, membershipKey, body);
+            return c.json({ ...saved, storage: await repo.getUsage() });
         }),
         sharedRead: handler(async c => {
             const db = dbForContext(c), token = c.req.param('token');

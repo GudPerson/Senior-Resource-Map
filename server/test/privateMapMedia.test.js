@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Hono } from 'hono';
-import { createPrivateMapMediaRepository, MAP_MEDIA_MAX_BYTES, validateMapMediaImage } from '../src/utils/privateMapMedia.js';
+import { createPrivateMapMediaRepository, MAP_MEDIA_MAX_BYTES, MAP_MEDIA_MAX_OWNER_BYTES, validateMapMediaImage } from '../src/utils/privateMapMedia.js';
 import { createMapAnnotationMediaHandlers } from '../src/controllers/mapAnnotationMediaController.js';
 import { cookieSessionCsrfGuard, requestBodyGuard } from '../src/middleware/security.js';
 import { SESSION_COOKIE_NAME } from '../src/utils/sessionAuth.js';
@@ -34,23 +34,45 @@ test('immutable images deduplicate within an owner and are unavailable to anothe
     assert.equal(object.httpMetadata.cacheControl, 'private, no-store');
 });
 
-test('concurrent uploads cannot exceed the owner count quota', async () => {
+test('uploads exceed the former 20-image and 20 MB account caps, deduplicate, and report storage', async () => {
     const bucket = new MapMediaBucket(), repo = createPrivateMapMediaRepository(bucket, 7);
-    for (let i = 0; i < 19; i++) await repo.saveAsset(png({ variant: i }), 'image/png');
-    const attempts = await Promise.allSettled([20, 21, 22].map((variant) => repo.saveAsset(png({ variant }), 'image/png')));
-    assert.equal(attempts.filter(({ status }) => status === 'fulfilled').length, 1);
-    for (const attempt of attempts.filter(({ status }) => status === 'rejected')) assert.equal(attempt.reason.code, 'map_media_quota_exceeded');
-    assert.equal([...bucket.objects.keys()].filter((key) => key.includes('/assets/')).length, 20);
-    const ledger = await (await bucket.get('care-map-media/v1/owners/7/quota.json')).json();
-    assert.equal(ledger.assets.length, 20);
+    assert.deepEqual(await repo.getUsage(), { usedBytes: 0, limitBytes: MAP_MEDIA_MAX_OWNER_BYTES });
+    for (let i = 0; i < 24; i++) await repo.saveAsset(png({ variant: i, size: i < 11 ? MAP_MEDIA_MAX_BYTES : undefined }), 'image/png');
+    const before = await repo.getUsage();
+    assert.ok(before.usedBytes > 20 * 1024 * 1024);
+    assert.equal(before.limitBytes, 1024 * 1024 * 1024);
+    assert.equal((await (await bucket.get('care-map-media/v1/owners/7/quota.json')).json()).assets.length, 24);
+    await repo.saveAsset(png({ variant: 23 }), 'image/png');
+    assert.deepEqual(await repo.getUsage(), before, 'reusing the same stored bytes does not consume more storage');
+    assert.equal((await createPrivateMapMediaRepository(bucket, 8).getUsage()).usedBytes, 0);
 });
 
-test('byte quota is independent of image count, and an interrupted upload can safely resume', async () => {
-    const bucket = new MapMediaBucket(), repo = createPrivateMapMediaRepository(bucket, 7);
-    for (let i = 0; i < 10; i++) await repo.saveAsset(png({ variant: i, size: MAP_MEDIA_MAX_BYTES }), 'image/png');
+// Seed only valid reserved metadata to exercise a 1 GB boundary without allocating
+// 1 GB of fixture image bytes. Reservations are also how interrupted uploads work.
+async function nearlyFullBucket(remainingBytes) {
+    const bucket = new MapMediaBucket();
+    const assets = Array.from({ length: 512 }, (_, i) => ({ assetId: i.toString(16).padStart(64, '0'),
+        mimeType: 'image/png', size: i === 511 ? MAP_MEDIA_MAX_BYTES - remainingBytes : MAP_MEDIA_MAX_BYTES, width: 1, height: 1 }));
+    await bucket.put('care-map-media/v1/owners/7/quota.json', JSON.stringify({ version: 1, assets }));
+    return bucket;
+}
+
+test('concurrent uploads cannot exceed the 1 GB owner storage allowance', async () => {
+    const bucket = await nearlyFullBucket(png().length), repo = createPrivateMapMediaRepository(bucket, 7);
+    const attempts = await Promise.allSettled([20, 21, 22].map(variant => repo.saveAsset(png({ variant }), 'image/png')));
+    assert.equal(attempts.filter(({ status }) => status === 'fulfilled').length, 1);
+    for (const attempt of attempts.filter(({ status }) => status === 'rejected')) assert.equal(attempt.reason.code, 'map_media_quota_exceeded');
+    assert.deepEqual(await repo.getUsage(), { usedBytes: MAP_MEDIA_MAX_OWNER_BYTES, limitBytes: MAP_MEDIA_MAX_OWNER_BYTES });
+    assert.equal([...bucket.objects.keys()].filter(key => key.includes('/assets/')).length, 1);
+});
+
+test('storage quota accepts the exact boundary, rejects the next upload, and resumes interrupted uploads', async () => {
+    const bucket = await nearlyFullBucket(png().length), repo = createPrivateMapMediaRepository(bucket, 7);
+    const accepted = await repo.saveAsset(png(), 'image/png');
     await assert.rejects(repo.saveAsset(png({ variant: 11 }), 'image/png'), { status: 413, code: 'map_media_quota_exceeded' });
+    assert.deepEqual(await repo.saveAsset(png(), 'image/png'), accepted, 'a deduplicated retry works even at full storage');
     const interrupted = new MapMediaBucket(), retry = createPrivateMapMediaRepository(interrupted, 7);
-    interrupted.beforePut = async (key) => { if (key.includes('/assets/')) throw new Error('network write outcome unknown'); };
+    interrupted.beforePut = async key => { if (key.includes('/assets/')) throw new Error('network write outcome unknown'); };
     await assert.rejects(retry.saveAsset(png(), 'image/png'), /network write outcome unknown/);
     const ledger = await (await interrupted.get('care-map-media/v1/owners/7/quota.json')).json();
     assert.equal(ledger.assets.length, 1);

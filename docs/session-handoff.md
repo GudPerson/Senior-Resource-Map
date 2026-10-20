@@ -1,5 +1,14 @@
 ## 17 October 2026 — Care Map notes/images export — local implementation
 
+## 20 October 2026 — Per-resource Care Map image allowance — verified candidate
+
+Each resource in each map retains an independent 20-image note gallery. The account-wide 20-image upload ceiling is removed and shared image storage increases to 1 GiB (displayed as 1 GB). Owner galleries show per-resource count and account stored-byte usage in four languages; annotation placement remains independently capped at 20 images per map. Previous 100-gallery/500-reference map metadata caps are removed under a bounded 4 MiB document. Existing v1 files remain readable without migration. No auth, sharing, personal-place privacy, schema, environment, credential or resource-data change. Removing images frees gallery slots; immutable shared media remain stored for copies, undo and frozen published links.
+
+Baseline public main 9e76851d3bf136e19e270f7fc2c8dceeffe44142. Full quality passes: compiler17/CMS73/server1239/client1038/environment5/build17; locked maps112; focused65. New actual Chromium allowance replay18 and existing export replay9 pass on desktop/phone/tablet, with fictional data/memory storage, zero browser errors and zero unexpected writes. Acceptance includes three distinct 20-image resource galleries, independent maps, rejection of image21, removal restoring a slot, uploads above20 images/20 MiB, exact1 GiB quota/concurrency/deduplication, owner/guest boundaries and byte-exact60-image ZIPs. Physical-device and production fixture-write proof are not claimed.
+
+See docs/care-map-image-allowance-20261020.md and output/care-map-image-allowance-20261020/. CI and protected paired publication details follow in the local handoff. After usage grows, any recovery must retain the expanded media ledger reader; a historical Worker rejecting ledgers above20 images/20 MiB would invalidate new references. Preserve unrelated dirty primary work.
+
+
 ## 17 October 2026 — Resource names in export image folders — candidate
 
 Image folders now include the stable resource reference and a filename-safe readable resource name, for example `images/R001-Goodlife-Studio-Tiong-Bahru/`. Duplicate names retain distinct R references; multilingual names are retained, unsafe separators/control characters are removed, and long name components are bounded to 80 characters. Image filenames, R/N/I references, notes/PDF content, owner routes and stored data retain their existing behaviour. The offline index and JSON manifest derive their paths from the same image metadata.

@@ -52,5 +52,8 @@ test('all four locales expose complete translated image and mobile-control instr
         const m = getMapNoteImageMessages(locale); assert.deepEqual(Object.keys(m).sort(), keys);
         assert.ok(Object.values(m).every(text => typeof text === 'string' && text.length > 0));
         assert.ok(m.review.includes('{count}'));
+        assert.ok(m.help.includes('20') && m.help.includes('1 GB'));
+        assert.ok(m.galleryUsage.includes('{count}') && m.galleryUsage.includes('{limit}'));
+        assert.ok(m.storageUsage.includes('{used}') && m.storageUsage.includes('{limit}'));
     }
 });
