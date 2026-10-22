@@ -29,7 +29,8 @@ jobs:
           cache: npm
 
       - name: Install locked dependencies
-        run: npm ci
+        # Reuse lockfile-verified cache entries and fail promptly if npm is down.
+        run: npm ci --prefer-offline --fetch-retries=1 --fetch-timeout=20000
 
       - name: Run credential-free quality gate
         run: npm run verify:quality
