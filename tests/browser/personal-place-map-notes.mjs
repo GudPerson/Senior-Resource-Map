@@ -90,7 +90,7 @@ try {
         const context = canvas.getContext('2d'); context.fillStyle = '#ff7800'; context.fillRect(0, 0, 32, 32); return canvas.toDataURL('image/png').split(',')[1]; });
     await fs.writeFile(file, Buffer.from(png, 'base64'));
     for (let n = 0; n < 40 && !await page.getByRole('button', { name: 'Add image to notes', exact: true }).last().isEnabled(); n++) await page.waitForTimeout(50);
-    await page.locator('[data-map-note-images] input[type=file]').setInputFiles(file);
+    await page.locator('[data-map-note-images] input[type=file]:not([capture])').setInputFiles(file);
     await page.getByRole('link', { name: 'Download image', exact: true }).waitFor();
     const downloadPromise = page.waitForEvent('download'); await page.getByRole('link', { name: 'Download image', exact: true }).click();
     const download = await downloadPromise, imagePath = path.join(out, 'download.png'); await download.saveAs(imagePath);
