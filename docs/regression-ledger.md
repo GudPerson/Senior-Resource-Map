@@ -1,5 +1,14 @@
 # Regression Ledger
 
+## 22 October 2026 — Camera attachments in Care Map notes
+
+Owner resource galleries offer Take photo beside Add image to notes. Take photo requests a still image from the rear-facing device camera through the native file capture picker on supported phones/tablets. Saved-image selection keeps its existing picker. Both paths use the same resize/compression, private attachment save, resource/account limits, errors and request cancellation. Shared/read-only galleries do not expose either upload control. Desktop/native-camera support remains browser-dependent; a file picker may be offered.
+
+Reproduce/accept: open a resource's notes, scroll to Images and choose Take photo. Capture and accept a photo to attach it automatically to that resource. Canceling capture must leave the gallery ready and issue no upload. Both controls must be disabled during upload or at 20 images; accepted camera images must remain private and use the existing 1600-pixel/500 KiB photo normalization. Confirm ordinary saved files, personal places, shared links, existing image downloads and notes/images ZIP exports still work.
+
+Verification: full local quality and map-lockdown checks pass. Thirty actual Chromium owner-gallery cases pass across desktop/phone/tablet, including separate native chooser attributes, camera cancellation, busy/full guards, private camera-JPEG persistence, normalization and 60-image exports. Personal-place and mobile/shared-note regression replays pass with fictional intercepted APIs and memory storage. Native hardware/physical-device capture is not claimed; that remains a phone/tablet check after deployment.
+
+
 ## 20 October 2026 — Resource photos beside downloaded notes; compact new uploads
 
 Downloaded notes place each resource's photos directly after that resource's text notes, before the next resource. Photos use bounded, intact rows inside the ledger; they no longer collect in a separate image appendix. Resource/note/image references, readable image folder names, image-only resources, and original saved image bytes in the ZIP remain intact. Text-only maps retain the PDF download.

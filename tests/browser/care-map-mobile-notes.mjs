@@ -141,7 +141,7 @@ async function notes(page) {
 }
 async function upload(page, file) {
     await settle(async () => await page.getByRole('button', { name: 'Add image to notes', exact: true }).last().isEnabled());
-    await page.locator('[data-map-note-images] input[type=file]').setInputFiles(file);
+    await page.locator('[data-map-note-images] input[type=file]:not([capture])').setInputFiles(file);
 }
 
 try {
@@ -235,7 +235,10 @@ try {
         f.guest(); const publicPage = await context.newPage(); lastPage = publicPage; publicPage.on('pageerror', error => report.errors.push(error.message));
         await publicPage.goto(`${origin}?route=/shared/maps/fictional-shared`); await notes(publicPage);
         await publicPage.getByRole('link', { name: 'Download image', exact: true }).waitFor();
-        check(`${name}: shared viewer sees one downloadable image and no upload/share controls`, await publicPage.getByRole('link', { name: 'Download image', exact: true }).count() === 1 && await publicPage.getByRole('button', { name: 'Add image to notes', exact: true }).count() === 0);
+        check(`${name}: shared viewer sees one downloadable image and no upload/share controls`, await publicPage.getByRole('link', { name: 'Download image', exact: true }).count() === 1
+            && await publicPage.getByRole('button', { name: 'Add image to notes', exact: true }).count() === 0
+            && await publicPage.getByRole('button', { name: 'Take photo', exact: true }).count() === 0
+            && await publicPage.locator('input[capture]').count() === 0);
         await publicPage.screenshot({ path: path.join(out, `${name}-shared-image.png`) });
         await publicPage.getByRole('button', { name: 'Back to map notes', exact: true }).click();
         const sharedList = publicPage.getByRole('dialog');

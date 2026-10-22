@@ -30,10 +30,18 @@ try {
         const ctx = canvas.getContext('2d'); ctx.fillStyle = `rgb(${index * 4},80,160)`; ctx.fillRect(0, 0, 16, 16);
         return canvas.toDataURL('image/png').split(',')[1];
     }));
+    const cameraPhoto = await setup.evaluate(() => {
+        const canvas = document.createElement('canvas'); canvas.width = 4000; canvas.height = 3000;
+        const ctx = canvas.getContext('2d'); ctx.fillStyle = '#f0fdfa'; ctx.fillRect(0, 0, 4000, 3000);
+        ctx.fillStyle = '#134e4a'; ctx.font = 'bold 160px sans-serif'; ctx.fillText('Fictional camera photo', 200, 400);
+        ctx.font = '80px sans-serif'; ctx.fillText('Visits by appointment', 200, 650);
+        return canvas.toDataURL('image/jpeg', 0.96).split(',')[1];
+    });
     await setup.close();
     for (const [device, viewport] of Object.entries({ desktop: { width: 1440, height: 1000 }, phone: { width: 390, height: 844 }, tablet: { width: 768, height: 1024 } })) {
         const context = await browser.newContext({ viewport, hasTouch: device !== 'desktop', isMobile: device !== 'desktop', acceptDownloads: true });
         const bucket = new MapMediaBucket(), media = createPrivateMapMediaRepository(bucket, 7), repo = createMapNoteImageRepository(bucket, 7);
+        let mediaUploads = 0, holdNextUpload = false, releaseHeldUpload;
         const mapId = 91261020, secondMapId = mapId + 1, images = [];
         for (const sample of samples.slice(0, 60)) images.push({ ...await media.saveAsset(Buffer.from(sample, 'base64'), 'image/png'), isShared: false });
         await repo.replace(mapId, 'asset:31', { revision: 0, images: images.slice(0, 20) });
@@ -62,6 +70,13 @@ try {
             if (!url.pathname.startsWith('/api/')) return route.abort();
             if (url.pathname.includes('/api/auth/')) return route.fulfill({ json: { user: { id: 7, name: 'Fictional owner', role: 'standard', locale: 'en' } } });
             if (url.pathname.includes('/note-images/') || url.pathname.includes('/annotation-media')) {
+                if (method === 'POST' && url.pathname.endsWith('/annotation-media')) {
+                    mediaUploads++;
+                    if (holdNextUpload) {
+                        holdNextUpload = false;
+                        await new Promise(resolve => { releaseHeldUpload = resolve; });
+                    }
+                }
                 const response = await app.request(`http://fixture.invalid${url.pathname}`, { method, headers: request.headers(),
                     ...(!['GET', 'HEAD'].includes(method) ? { body: request.postDataBuffer() } : {}) });
                 return route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
@@ -77,15 +92,40 @@ try {
         const visit = async id => { await page.goto(`${server.resolvedUrls.local[0]}?route=/my-directory/maps/${id}`); await page.getByRole('button', { name: 'Open map notes', exact: true }).click(); };
         const select = async name => { await page.getByRole('dialog').getByRole('button', { name: new RegExp(`^Fictional ${name}`) }).click(); };
         const gallery = page.locator('[data-map-note-images]'), add = gallery.getByRole('button', { name: 'Add image to notes', exact: true }).last();
+        const takePhoto = gallery.getByRole('button', { name: 'Take photo', exact: true });
         await visit(mapId); await select('Alpha');
         await gallery.getByText('20 / 20 images for this resource', { exact: false }).waitFor();
         check(`${device}: 20-image resource is full with explicit per-resource count and 1 GB storage usage`, await add.isDisabled() && /MB used of 1 GB/.test(await gallery.innerText()));
+        check(`${device}: camera also respects the full resource gallery`, await takePhoto.isDisabled());
         await page.getByRole('button', { name: 'Back to map notes', exact: true }).click(); await select('Beta');
         await gallery.getByText('0 / 20 images for this resource', { exact: false }).waitFor();
         check(`${device}: another resource has its own allowance after more than 20 account uploads`, await add.isEnabled());
-        await gallery.locator('input[type=file]').setInputFiles({ name: 'fictional.png', mimeType: 'image/png', buffer: Buffer.from(samples[60], 'base64') });
+        await gallery.locator('input[type=file]:not([capture])').setInputFiles({ name: 'fictional.png', mimeType: 'image/png', buffer: Buffer.from(samples[60], 'base64') });
         await gallery.getByText('1 / 20 images for this resource', { exact: false }).waitFor();
         check(`${device}: actual normalized upload saves to the selected resource beyond the old account cap`, (await repo.read(mapId)).document.entries.find(entry => entry.membershipKey === 'asset:32').images.length === 1);
+        const beforeCancel = mediaUploads;
+        let chooserPending = page.waitForEvent('filechooser'); await takePhoto.click();
+        let chooser = await chooserPending;
+        assert.equal(await chooser.element().getAttribute('capture'), 'environment');
+        assert.equal(await chooser.element().getAttribute('accept'), 'image/*');
+        assert.equal(await gallery.locator('input[type=file]:not([capture])').getAttribute('capture'), null);
+        await chooser.setFiles([]);
+        check(`${device}: canceling the camera leaves the gallery ready without an upload`, mediaUploads === beforeCancel && await takePhoto.isEnabled());
+        holdNextUpload = true;
+        chooserPending = page.waitForEvent('filechooser'); await takePhoto.click(); chooser = await chooserPending;
+        const uploadArrived = page.waitForRequest(request => request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/annotation-media'));
+        await chooser.setFiles({ name: 'camera-photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(cameraPhoto, 'base64') });
+        await uploadArrived;
+        // The held response makes the busy-state check deterministic.
+        await page.waitForFunction(() => document.querySelector('[data-map-note-images] input[capture]')?.disabled === true);
+        check(`${device}: both attachment controls are disabled while a camera photo uploads`, await takePhoto.isDisabled()
+            && await gallery.locator('input[type=file]:not([capture])').isDisabled());
+        releaseHeldUpload();
+        await gallery.getByText('2 / 20 images for this resource', { exact: false }).waitFor();
+        const cameraImages = (await repo.read(mapId)).document.entries.find(entry => entry.membershipKey === 'asset:32').images;
+        const captured = cameraImages.find(item => item.mimeType === 'image/jpeg');
+        check(`${device}: camera JPEG is resized, compressed and saved privately to the selected resource`, captured?.width === 1600
+            && captured?.height === 1200 && captured?.size <= 500 * 1024 && captured?.isShared === false && cameraImages.length === 2);
         await page.screenshot({ path: path.join(out, `${device}-gallery.png`) });
         await visit(secondMapId); await select('Alpha');
         await gallery.getByText('0 / 20 images for this resource', { exact: false }).waitFor();

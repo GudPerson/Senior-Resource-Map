@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, ImagePlus, LoaderCircle, Trash2 } from 'lucide-react';
+import { Camera, Download, ImagePlus, LoaderCircle, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { api } from '../lib/api.js';
@@ -19,7 +19,7 @@ export default function MapNoteImages({ mapId, row, shareToken = '', readonly = 
     const [state, setState] = useState({ key: '', revision: 0, images: [], status: 'loading' });
     const [sources, setSources] = useState({ key: '', values: {} });
     const [busy, setBusy] = useState(''), [error, setError] = useState('');
-    const inputRef = useRef(null), uploadRef = useRef(null), activeKey = useRef(key);
+    const inputRef = useRef(null), cameraRef = useRef(null), uploadRef = useRef(null), activeKey = useRef(key);
     activeKey.current = key;
     const current = state.key === key ? state : { revision: 0, images: [], status: 'loading' };
     const currentPage = Math.min(imagePage, Math.max(0, Math.ceil(current.images.length / 4) - 1));
@@ -109,17 +109,27 @@ export default function MapNoteImages({ mapId, row, shareToken = '', readonly = 
 
     if (!ref || !mapId || (readonly && (!shareToken || sharedImages.length === 0))) return null;
     const personal = ref.resourceType === 'personal_place';
+    const uploadDisabled = Boolean(busy || current.status !== 'ready' || current.images.length >= MAP_NOTE_IMAGE_LIMIT);
     return (
         <section className="mt-5 space-y-3 border-t border-slate-200 pt-4" aria-label={m.title} data-map-note-images="true">
             <h3 className="font-bold text-slate-900">{m.title}</h3>
             <p className="text-xs leading-5 text-slate-500">{readonly ? m.sharedHelp : personal ? m.personalHelp : m.sharingHelp}</p>
             {!readonly ? <>
                 <input ref={inputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" aria-label={m.add}
-                    disabled={busy || current.status !== 'ready' || current.images.length >= MAP_NOTE_IMAGE_LIMIT} onChange={upload} />
-                <button type="button" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-brand-200 px-3 py-2 text-sm font-bold text-brand-800 disabled:opacity-50"
-                    onClick={() => inputRef.current?.click()} disabled={busy || current.status !== 'ready' || current.images.length >= MAP_NOTE_IMAGE_LIMIT}>
-                    {busy ? <LoaderCircle size={18} className="animate-spin" /> : <ImagePlus size={18} />}{busy ? m[busy] : m.add}
-                </button><p className="text-xs leading-5 text-slate-500">{m.help}</p>
+                    disabled={uploadDisabled} onChange={upload} />
+                <input ref={cameraRef} hidden type="file" accept="image/*" capture="environment" aria-label={m.takePhoto}
+                    disabled={uploadDisabled} onChange={upload} />
+                <div className="flex flex-wrap gap-2">
+                    <button type="button" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-brand-200 px-3 py-2 text-sm font-bold text-brand-800 disabled:opacity-50"
+                        onClick={() => inputRef.current?.click()} disabled={uploadDisabled}>
+                        {busy ? <LoaderCircle size={18} className="animate-spin" /> : <ImagePlus size={18} />}{busy ? m[busy] : m.add}
+                    </button>
+                    <button type="button" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-brand-200 px-3 py-2 text-sm font-bold text-brand-800 disabled:opacity-50"
+                        onClick={() => cameraRef.current?.click()} disabled={uploadDisabled}>
+                        <Camera size={18} />{m.takePhoto}
+                    </button>
+                </div>
+                <p className="text-xs leading-5 text-slate-500">{m.cameraHelp} {m.help}</p>
                 {current.status === 'ready' ? <p className="text-xs leading-5 text-slate-600" role="status">
                     {m.galleryUsage.replace('{count}', current.images.length).replace('{limit}', MAP_NOTE_IMAGE_LIMIT)}
                     {Number.isSafeInteger(current.storage?.usedBytes) && current.storage.usedBytes >= 0
