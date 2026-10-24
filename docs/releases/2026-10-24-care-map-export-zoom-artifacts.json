@@ -1,0 +1,747 @@
+{
+  "appSourceRevision": "2361d3c94238c2dd57da0c501dad426fafb24635",
+  "artifactCount": 103,
+  "buildSourceRevision": "ca4b3b1814ef826612b9662faaf15315fb9ef985",
+  "pagesDeploymentId": "7fef4784-4b7f-4edb-848f-bef964bd4897",
+  "records": [
+    {
+      "bytes": 5417,
+      "deliveryPath": "/app-shell-recovery-20260721-1.js",
+      "path": "app-shell-recovery-20260721-1.js",
+      "proofMode": "public-artifact",
+      "sha256": "7ea8a4fcf8370dcf9222ef36ae920fd26edec1fdabc7ffd0ac4b5df1194e6871"
+    },
+    {
+      "bytes": 32060,
+      "deliveryPath": "/apple-touch-icon.png",
+      "path": "apple-touch-icon.png",
+      "proofMode": "public-artifact",
+      "sha256": "1d312ec69bb1ee10ddec89866803621c6980564cf859afeea07184f29d000d86"
+    },
+    {
+      "bytes": 140571,
+      "deliveryPath": "/assets/AdminPage-Bz8XvtkV.js",
+      "path": "assets/AdminPage-Bz8XvtkV.js",
+      "proofMode": "public-artifact",
+      "sha256": "28ec4ea6119222b5ac4dbdc180ed7639245ff4b4d9fc3d8a1498943988870918"
+    },
+    {
+      "bytes": 706,
+      "deliveryPath": "/assets/AuditTrailPage-CxTOtCE6.js",
+      "path": "assets/AuditTrailPage-CxTOtCE6.js",
+      "proofMode": "public-artifact",
+      "sha256": "f7414a73481e4c70a589c87ea603af2adacfa7b6b348aaad1f4835644855a63f"
+    },
+    {
+      "bytes": 14824,
+      "deliveryPath": "/assets/AuditTrailPanel-5TWWHWKx.js",
+      "path": "assets/AuditTrailPanel-5TWWHWKx.js",
+      "proofMode": "public-artifact",
+      "sha256": "291bbd91a811e17b1f460e50ec32529691f1a2db88504b1dd162bf5cc56c7bab"
+    },
+    {
+      "bytes": 1104,
+      "deliveryPath": "/assets/AuthTransitionPage-BTd6BKsY.js",
+      "path": "assets/AuthTransitionPage-BTd6BKsY.js",
+      "proofMode": "public-artifact",
+      "sha256": "da5cc930f4a45784d4c982dcf39e24298f7db9364db166a17f6d915b5015d1e1"
+    },
+    {
+      "bytes": 36444,
+      "deliveryPath": "/assets/CareCalendarPage-B92Px54u.js",
+      "path": "assets/CareCalendarPage-B92Px54u.js",
+      "proofMode": "public-artifact",
+      "sha256": "5ce88600736b7dd7d053c0012019ec40d475a04e99a43792e16dadb983675ee3"
+    },
+    {
+      "bytes": 2656,
+      "deliveryPath": "/assets/ConfirmDialog-wz-Mumku.js",
+      "path": "assets/ConfirmDialog-wz-Mumku.js",
+      "proofMode": "public-artifact",
+      "sha256": "7994dbe895a1bb47e9f928d90039faf853e2d107404ac81ddb723ff25b93dfed"
+    },
+    {
+      "bytes": 7665,
+      "deliveryPath": "/assets/DashboardNavigation-DWuadZty.js",
+      "path": "assets/DashboardNavigation-DWuadZty.js",
+      "proofMode": "public-artifact",
+      "sha256": "0c0c7df75a95980c14c8a213fcad3002cb966feb05cce5f9b0619f8741b894db"
+    },
+    {
+      "bytes": 3984,
+      "deliveryPath": "/assets/DashboardOverview-DNm8LsL8.js",
+      "path": "assets/DashboardOverview-DNm8LsL8.js",
+      "proofMode": "public-artifact",
+      "sha256": "6b8a7096672b65780899a16117a976e09a6d54986fac9a0939272326044ab3d2"
+    },
+    {
+      "bytes": 3891,
+      "deliveryPath": "/assets/DashboardPage-BxbkBi1S.js",
+      "path": "assets/DashboardPage-BxbkBi1S.js",
+      "proofMode": "public-artifact",
+      "sha256": "49e829e00a2a4ed994326846ccb4005fbdbc538ba318e584ff7267b667aa117a"
+    },
+    {
+      "bytes": 27112,
+      "deliveryPath": "/assets/DirectoryQrCode-Dhqt2fcF.js",
+      "path": "assets/DirectoryQrCode-Dhqt2fcF.js",
+      "proofMode": "public-artifact",
+      "sha256": "9cf68d65bf54f282a9343c044267e5550dfd2e85ef99561dc8e678a649429da2"
+    },
+    {
+      "bytes": 15831,
+      "deliveryPath": "/assets/DiscoverPostalGroupListPanel-BsA02w6A.css",
+      "path": "assets/DiscoverPostalGroupListPanel-BsA02w6A.css",
+      "proofMode": "public-artifact",
+      "sha256": "11c9e140de7f1f87f99da9c5d814996ca0649bc411baf0d087283afb148a5504"
+    },
+    {
+      "bytes": 288859,
+      "deliveryPath": "/assets/DiscoverPostalGroupListPanel-CKKOYZsE.js",
+      "path": "assets/DiscoverPostalGroupListPanel-CKKOYZsE.js",
+      "proofMode": "public-artifact",
+      "sha256": "a024889b54007288b9ab9bb114fc28b9bd7fcba24f1ca5ae100bdc0c67e11f92"
+    },
+    {
+      "bytes": 1421,
+      "deliveryPath": "/assets/EmbeddedApp-BQL9-zyx.js",
+      "path": "assets/EmbeddedApp-BQL9-zyx.js",
+      "proofMode": "public-artifact",
+      "sha256": "91e6ef8ffdcb3e44b4ee5e364e3d62ebb46dc531a76902251782619703dd6480"
+    },
+    {
+      "bytes": 15915,
+      "deliveryPath": "/assets/EmbeddedMapPage-qGLuP6ug.js",
+      "path": "assets/EmbeddedMapPage-qGLuP6ug.js",
+      "proofMode": "public-artifact",
+      "sha256": "09d8a85d2fd21c3d3633ad2fc825736635167cd6e393ed55a22ece0cae57ee73"
+    },
+    {
+      "bytes": 3068,
+      "deliveryPath": "/assets/FileSaver.min-BY8D9fLh.js",
+      "path": "assets/FileSaver.min-BY8D9fLh.js",
+      "proofMode": "public-artifact",
+      "sha256": "ae8b2d72305cca3c7baabc38ad6cc4df0aeef92e872e2c764a9e6e00efa2e2ee"
+    },
+    {
+      "bytes": 17594,
+      "deliveryPath": "/assets/GovernedMapsPage-CeY4fyw6.js",
+      "path": "assets/GovernedMapsPage-CeY4fyw6.js",
+      "proofMode": "public-artifact",
+      "sha256": "a268f7082199896db32c68f2cb6acc11165e973a1174e4bbe0cbc86fbc4032a4"
+    },
+    {
+      "bytes": 405158,
+      "deliveryPath": "/assets/GovernedPilotUnavailable-DipJimCp.js",
+      "path": "assets/GovernedPilotUnavailable-DipJimCp.js",
+      "proofMode": "public-artifact",
+      "sha256": "3045cb393258eace0b372080aa647b6282810837c90ecf374de5c99acd1b5977"
+    },
+    {
+      "bytes": 44834,
+      "deliveryPath": "/assets/GuidePanel-DQd_6UOn.js",
+      "path": "assets/GuidePanel-DQd_6UOn.js",
+      "proofMode": "public-artifact",
+      "sha256": "4a000d16e5207dfea7f27875088d7d10578db56e54b6f0df062af18149d72251"
+    },
+    {
+      "bytes": 281046,
+      "deliveryPath": "/assets/HelpCentrePage-Bs0cJ-kV.js",
+      "path": "assets/HelpCentrePage-Bs0cJ-kV.js",
+      "proofMode": "public-artifact",
+      "sha256": "50d2f0eaca0ecc9cc960052a6bf8f247ff10f96d985fc67e6b957a34ea38c1e5"
+    },
+    {
+      "bytes": 21252,
+      "deliveryPath": "/assets/HelpCentrePage-L5-wz2gf.css",
+      "path": "assets/HelpCentrePage-L5-wz2gf.css",
+      "proofMode": "public-artifact",
+      "sha256": "cd0d74177a2965a4cbab36a87a1de29b9ee59f2519e52a8f5c67a13f3c77addf"
+    },
+    {
+      "bytes": 63818,
+      "deliveryPath": "/assets/ImageUpload-Cs-7Tc6N.js",
+      "path": "assets/ImageUpload-Cs-7Tc6N.js",
+      "proofMode": "public-artifact",
+      "sha256": "16a8581ef7dd2f50fa4d2655e74550dba5c6d1a3f9550360e42a292af64fceb4"
+    },
+    {
+      "bytes": 15974,
+      "deliveryPath": "/assets/LegalPage-XWDeQJma.js",
+      "path": "assets/LegalPage-XWDeQJma.js",
+      "proofMode": "public-artifact",
+      "sha256": "ddf34ef1343a426f8abba6c518dc70983bfbfad5544398f439841ec28e617d41"
+    },
+    {
+      "bytes": 30606,
+      "deliveryPath": "/assets/MapImageExportButton-SnJZzheV.js",
+      "path": "assets/MapImageExportButton-SnJZzheV.js",
+      "proofMode": "public-artifact",
+      "sha256": "af55881428e2dbdac9cc964ede5999a937b93bf16b06b8342278f6fdebc0eae9"
+    },
+    {
+      "bytes": 2314,
+      "deliveryPath": "/assets/MembershipLinkPage-DPIrw51F.js",
+      "path": "assets/MembershipLinkPage-DPIrw51F.js",
+      "proofMode": "public-artifact",
+      "sha256": "82541f4e2c06f0e195a645ece6b68988ee4fb6d26edddf5c393baf85ce88fc06"
+    },
+    {
+      "bytes": 49507,
+      "deliveryPath": "/assets/MyDirectoryPage-BnIPMFj5.js",
+      "path": "assets/MyDirectoryPage-BnIPMFj5.js",
+      "proofMode": "public-artifact",
+      "sha256": "ed7d7eb8ee6853cbd9a5d684b65ec1a307054732dceed36280253ea087baa3b1"
+    },
+    {
+      "bytes": 229991,
+      "deliveryPath": "/assets/MyMapDetailPage-B3ESrMEI.js",
+      "path": "assets/MyMapDetailPage-B3ESrMEI.js",
+      "proofMode": "public-artifact",
+      "sha256": "568278a6391582988d1e619d47f7f2ff8383592aad8df685aa22bd79a6680bf5"
+    },
+    {
+      "bytes": 10589,
+      "deliveryPath": "/assets/OfferingScheduleEntriesEditor-CqCFLOGG.js",
+      "path": "assets/OfferingScheduleEntriesEditor-CqCFLOGG.js",
+      "proofMode": "public-artifact",
+      "sha256": "a0f38fac0813435f482cb4813d3b619a4a816ead296a41110fed42033f82001b"
+    },
+    {
+      "bytes": 7688,
+      "deliveryPath": "/assets/OrganizationOnboardingPage-DmSxUxtB.js",
+      "path": "assets/OrganizationOnboardingPage-DmSxUxtB.js",
+      "proofMode": "public-artifact",
+      "sha256": "c8de2d113d0163d90fbc7201d1eba894297fb4cee6b7001b6dd67877644040ba"
+    },
+    {
+      "bytes": 3308,
+      "deliveryPath": "/assets/OrganizationWorkspacePage-DM-0P_vC.js",
+      "path": "assets/OrganizationWorkspacePage-DM-0P_vC.js",
+      "proofMode": "public-artifact",
+      "sha256": "85eeb52b11c8aa974ab0408042b5031dbcb82bfcff3b8e29c2af562c4b6b4f32"
+    },
+    {
+      "bytes": 3350,
+      "deliveryPath": "/assets/Pagination-BXEwUOK2.js",
+      "path": "assets/Pagination-BXEwUOK2.js",
+      "proofMode": "public-artifact",
+      "sha256": "e53a61a41b1efd91c2cdf479be6f37a85a98b9793b226c35a520c08bca381e16"
+    },
+    {
+      "bytes": 240380,
+      "deliveryPath": "/assets/PrintAnnotationLayer-CPp5yBrJ.js",
+      "path": "assets/PrintAnnotationLayer-CPp5yBrJ.js",
+      "proofMode": "public-artifact",
+      "sha256": "f1652e5d2bbb47ca90ebb25d30c0f26d351e7891d3f877ea1948ea4a07f8778f"
+    },
+    {
+      "bytes": 4077,
+      "deliveryPath": "/assets/PrintAnnotationLayer-DCsLq0WG.css",
+      "path": "assets/PrintAnnotationLayer-DCsLq0WG.css",
+      "proofMode": "public-artifact",
+      "sha256": "4d3581056c7bd72a09b07e986bd7acb8b9bc90ce6964efa2b9929b1d76a57509"
+    },
+    {
+      "bytes": 30243,
+      "deliveryPath": "/assets/ProfilePage-6g5qbVmy.js",
+      "path": "assets/ProfilePage-6g5qbVmy.js",
+      "proofMode": "public-artifact",
+      "sha256": "adeaf0f5b11b2c3d7d23bf3fb1b146ae01551a80f3ceeab282bf940726be4315"
+    },
+    {
+      "bytes": 86432,
+      "deliveryPath": "/assets/ResourceClaimsPanel-Dlk0xnya.js",
+      "path": "assets/ResourceClaimsPanel-Dlk0xnya.js",
+      "proofMode": "public-artifact",
+      "sha256": "1b6054dbd924b882ee98281cd7ebdf6550e3793a881b1d1c20de121d79510304"
+    },
+    {
+      "bytes": 3470,
+      "deliveryPath": "/assets/ResourcePage-C4O0gk7-.js",
+      "path": "assets/ResourcePage-C4O0gk7-.js",
+      "proofMode": "public-artifact",
+      "sha256": "4479fa9f1a0875d2ada12dff52c576c4e41cfda087aeae7fdbb359ef50c61c1d"
+    },
+    {
+      "bytes": 3394,
+      "deliveryPath": "/assets/ResourceRowIcon-CxgH0Vyo.js",
+      "path": "assets/ResourceRowIcon-CxgH0Vyo.js",
+      "proofMode": "public-artifact",
+      "sha256": "15596df7bf2ad4edc68a779f481572de9082258dd981843462e31c0719bcfa3f"
+    },
+    {
+      "bytes": 342321,
+      "deliveryPath": "/assets/ResourcesPage-6sG6Sl0R.js",
+      "path": "assets/ResourcesPage-6sG6Sl0R.js",
+      "proofMode": "public-artifact",
+      "sha256": "281acfacc52a10bf27d02ddda891f8d50e1e86c79e7b4100296f0343825459f0"
+    },
+    {
+      "bytes": 3926,
+      "deliveryPath": "/assets/SavedSearchForm-D0gcnQWS.js",
+      "path": "assets/SavedSearchForm-D0gcnQWS.js",
+      "proofMode": "public-artifact",
+      "sha256": "db39f480d0a8dca286a3e9736742256f254f60d6bea13d9d95e0684b8620213f"
+    },
+    {
+      "bytes": 21676,
+      "deliveryPath": "/assets/SharedMapPage-BhK7_ht4.js",
+      "path": "assets/SharedMapPage-BhK7_ht4.js",
+      "proofMode": "public-artifact",
+      "sha256": "38ae58ceb318fb6d7207e6842bd61ac4f9765978753ff4e4fe520f561f78d8a4"
+    },
+    {
+      "bytes": 311127,
+      "deliveryPath": "/assets/StandardAppRoot-g5ZvTErf.js",
+      "path": "assets/StandardAppRoot-g5ZvTErf.js",
+      "proofMode": "public-artifact",
+      "sha256": "cb2919ab47851bd60e60db8f119d84a39779d63e05c9129ef5270c07e44b4c91"
+    },
+    {
+      "bytes": 37671,
+      "deliveryPath": "/assets/SupportHubPage-CRro10eV.js",
+      "path": "assets/SupportHubPage-CRro10eV.js",
+      "proofMode": "public-artifact",
+      "sha256": "db485e5318a6221f694a49c6cfefc15973dd2d7298fcc7a47dd2381b08fb31fc"
+    },
+    {
+      "bytes": 18935,
+      "deliveryPath": "/assets/TownMapDownloadsPage-qoo99pKs.js",
+      "path": "assets/TownMapDownloadsPage-qoo99pKs.js",
+      "proofMode": "public-artifact",
+      "sha256": "bfd4d68da5b584b5548a5705b93369a3f8d20271ebd54e842357cf47ee5f0737"
+    },
+    {
+      "bytes": 189,
+      "deliveryPath": "/assets/arrow-right-hBi2ow-Y.js",
+      "path": "assets/arrow-right-hBi2ow-Y.js",
+      "proofMode": "public-artifact",
+      "sha256": "ebbd65a8517ef4af7348c5e58d19895465894349a4c66cfd996af113418d69cb"
+    },
+    {
+      "bytes": 186,
+      "deliveryPath": "/assets/arrow-up-C5MjeYi-.js",
+      "path": "assets/arrow-up-C5MjeYi-.js",
+      "proofMode": "public-artifact",
+      "sha256": "fe29f4f7e1d5681f91f427598f013a92cb9358061f5b435bc269e9346a56314e"
+    },
+    {
+      "bytes": 314,
+      "deliveryPath": "/assets/bell-Z0DYwZqT.js",
+      "path": "assets/bell-Z0DYwZqT.js",
+      "proofMode": "public-artifact",
+      "sha256": "f5c0fd63fda4459e9da7576db7a0175c1ece34062d353ffd9a3f6c1fd12a9c7b"
+    },
+    {
+      "bytes": 303,
+      "deliveryPath": "/assets/book-open-DqKo0BEx.js",
+      "path": "assets/book-open-DqKo0BEx.js",
+      "proofMode": "public-artifact",
+      "sha256": "4f447bed1b555a35f3ade1c6ef2bb65d84ee1e73e0d7af9497a98fad21844fcd"
+    },
+    {
+      "bytes": 11724,
+      "deliveryPath": "/assets/browser-DMwIDsE6.js",
+      "path": "assets/browser-DMwIDsE6.js",
+      "proofMode": "public-artifact",
+      "sha256": "1761bbeec2be4e01507ce5d7aee7c98f13d04578b0847094d66ee39f3dbf653b"
+    },
+    {
+      "bytes": 386,
+      "deliveryPath": "/assets/calendar-plus-CF64LBt4.js",
+      "path": "assets/calendar-plus-CF64LBt4.js",
+      "proofMode": "public-artifact",
+      "sha256": "77b2cbde330ffe8e17499db2201be3210c282029a08966aae2c568f6b2ad5b9f"
+    },
+    {
+      "bytes": 313244,
+      "deliveryPath": "/assets/carearound-mark-B3I2PcXr.png",
+      "path": "assets/carearound-mark-B3I2PcXr.png",
+      "proofMode": "public-artifact",
+      "sha256": "fed3951df1988dcc839c5c4de230229a30307f9b4772d2a9a3f693067e6f02ce"
+    },
+    {
+      "bytes": 188,
+      "deliveryPath": "/assets/clock-3-Bri_ARoa.js",
+      "path": "assets/clock-3-Bri_ARoa.js",
+      "proofMode": "public-artifact",
+      "sha256": "788b26f595936dfa0678af38618f60d1bb61828d6a1f86362a3bf24ebddeb870"
+    },
+    {
+      "bytes": 255,
+      "deliveryPath": "/assets/copy-x5MHvEf5.js",
+      "path": "assets/copy-x5MHvEf5.js",
+      "proofMode": "public-artifact",
+      "sha256": "91113d7c1edc202a5cf4e07a5383ecb0443e94a6d34a3cedc6082fef27db9f9b"
+    },
+    {
+      "bytes": 500,
+      "deliveryPath": "/assets/defineProperty-BAgxAJIZ.js",
+      "path": "assets/defineProperty-BAgxAJIZ.js",
+      "proofMode": "public-artifact",
+      "sha256": "9101ba5efed5f3af9d500feca5475776cd9a6d40fb34c6216369a5d66ce8c95b"
+    },
+    {
+      "bytes": 42716,
+      "deliveryPath": "/assets/discovery-pin-layer-D6C9ZGKy.png",
+      "path": "assets/discovery-pin-layer-D6C9ZGKy.png",
+      "proofMode": "public-artifact",
+      "sha256": "21e906703a44bdfc5f8c6d308e4896a2b39dc7d47291ca8988894b8db6c4e7ee"
+    },
+    {
+      "bytes": 256,
+      "deliveryPath": "/assets/download-6UJrSBvg.js",
+      "path": "assets/download-6UJrSBvg.js",
+      "proofMode": "public-artifact",
+      "sha256": "f84ca2902eae301eedbc5594c335733e4f3d3d6071e265326292af3c567a4310"
+    },
+    {
+      "bytes": 417,
+      "deliveryPath": "/assets/earth-GICR87oj.js",
+      "path": "assets/earth-GICR87oj.js",
+      "proofMode": "public-artifact",
+      "sha256": "48d1bc1db4a19f37b9e6a37b891244e5adad22517249c5c2e5b1786492a29493"
+    },
+    {
+      "bytes": 379,
+      "deliveryPath": "/assets/files-CEUt0puO.js",
+      "path": "assets/files-CEUt0puO.js",
+      "proofMode": "public-artifact",
+      "sha256": "8a006b73f0ed046c977a285b5564909a884c3fd27d4b50001a3b9746cdbac13c"
+    },
+    {
+      "bytes": 2407,
+      "deliveryPath": "/assets/helpContentApi-CjqycV2P.js",
+      "path": "assets/helpContentApi-CjqycV2P.js",
+      "proofMode": "public-artifact",
+      "sha256": "f389e072558981e487bd88bf3f0e690e765d4f9af1a5e89c21d52e12965f6c8c"
+    },
+    {
+      "bytes": 3566,
+      "deliveryPath": "/assets/helpLibrary-D8Gs6DfZ.js",
+      "path": "assets/helpLibrary-D8Gs6DfZ.js",
+      "proofMode": "public-artifact",
+      "sha256": "3950e5d8e5dcca8bb112733d112af0ca6c763b68930943c9a55d36661857d2dc"
+    },
+    {
+      "bytes": 129676,
+      "deliveryPath": "/assets/home-anchor-D8gEOkpi.png",
+      "path": "assets/home-anchor-D8gEOkpi.png",
+      "proofMode": "public-artifact",
+      "sha256": "654a06266727a5802caf149aa1acf01613064c273312ef7fe3bb382bfd65a5c5"
+    },
+    {
+      "bytes": 201041,
+      "deliveryPath": "/assets/html2canvas.esm-DXEQVQnt.js",
+      "path": "assets/html2canvas.esm-DXEQVQnt.js",
+      "proofMode": "public-artifact",
+      "sha256": "7b07a9ca175c614e8e7de447198d35b0d161dd50db2c63b5f7fd6ea0e1e876f2"
+    },
+    {
+      "bytes": 195205,
+      "deliveryPath": "/assets/index-ApyUqWTz.js",
+      "path": "assets/index-ApyUqWTz.js",
+      "proofMode": "public-artifact",
+      "sha256": "c4a558dadffa60242840647394a5e70b1ad61fa8e1d95526aa80dbdb283908ef"
+    },
+    {
+      "bytes": 160264,
+      "deliveryPath": "/assets/index-DSMwkK29.css",
+      "path": "assets/index-DSMwkK29.css",
+      "proofMode": "public-artifact",
+      "sha256": "7571cfffd0639e629ef573b54105ef1a157c1e0d9c7a33d5cfd7045774b184ef"
+    },
+    {
+      "bytes": 158479,
+      "deliveryPath": "/assets/index.es-DGSr5UTq.js",
+      "path": "assets/index.es-DGSr5UTq.js",
+      "proofMode": "public-artifact",
+      "sha256": "dc10c07f0d4ef861e2cb9fb8e299ccb58926a3c924fc23656e67b5d9f0f85beb"
+    },
+    {
+      "bytes": 223,
+      "deliveryPath": "/assets/info-BBKu_5t8.js",
+      "path": "assets/info-BBKu_5t8.js",
+      "proofMode": "public-artifact",
+      "sha256": "55f95292109970d3433bbe03abf28d4b138e52c11323fa4ca8c7428fc91e2ee6"
+    },
+    {
+      "bytes": 378285,
+      "deliveryPath": "/assets/jspdf.es.min-1MFgaQTy.js",
+      "path": "assets/jspdf.es.min-1MFgaQTy.js",
+      "proofMode": "public-artifact",
+      "sha256": "5fae2dca497fde006a231639bfea923342eba66a825644b990c057916e4d8e1d"
+    },
+    {
+      "bytes": 31041,
+      "deliveryPath": "/assets/jspdf.plugin.autotable-B0IxatYY.js",
+      "path": "assets/jspdf.plugin.autotable-B0IxatYY.js",
+      "proofMode": "public-artifact",
+      "sha256": "62f28a87b9d96f1e324e52215be570ce764f7f9cdf4f21f92b5b53bcd979ddfa"
+    },
+    {
+      "bytes": 340,
+      "deliveryPath": "/assets/languages-Bnt8bDCA.js",
+      "path": "assets/languages-Bnt8bDCA.js",
+      "proofMode": "public-artifact",
+      "sha256": "da75737d8bd0fa7e7f0d35e0860b76c304d30d8092cf56e2517e662c437db830"
+    },
+    {
+      "bytes": 266,
+      "deliveryPath": "/assets/link-2-M-btY3jA.js",
+      "path": "assets/link-2-M-btY3jA.js",
+      "proofMode": "public-artifact",
+      "sha256": "2e83b8ed07bf8cc3ccda6f770e205b7ae38fe6a41160fcc51ac539ae016aa326"
+    },
+    {
+      "bytes": 213,
+      "deliveryPath": "/assets/menu-C7KVAUmT.js",
+      "path": "assets/menu-C7KVAUmT.js",
+      "proofMode": "public-artifact",
+      "sha256": "72657c9faefeda467e5161a0a60e0f733e3e5bf2270218684ac840a9067344eb"
+    },
+    {
+      "bytes": 2867,
+      "deliveryPath": "/assets/myMapExcelExporter-DIFDALZg.js",
+      "path": "assets/myMapExcelExporter-DIFDALZg.js",
+      "proofMode": "public-artifact",
+      "sha256": "a7db4eb30178fa401f26cbdba27a8e62badec045b4dad802e4753a27167bebb3"
+    },
+    {
+      "bytes": 18097,
+      "deliveryPath": "/assets/myMapPdfGenerator-DlK0ksSA.js",
+      "path": "assets/myMapPdfGenerator-DlK0ksSA.js",
+      "proofMode": "public-artifact",
+      "sha256": "b2bb394f67a9590dbcd1c37a67ad9eb2e4bdd937710a69e07f650709ff8a59f7"
+    },
+    {
+      "bytes": 38367,
+      "deliveryPath": "/assets/myMapsLoading-CxJa_Jcg.js",
+      "path": "assets/myMapsLoading-CxJa_Jcg.js",
+      "proofMode": "public-artifact",
+      "sha256": "10aec891ae8853990966bd05eed42f22b519d88bdc99cdba288032bb8ca1ebad"
+    },
+    {
+      "bytes": 19809,
+      "deliveryPath": "/assets/papaparse.min-B-EOgN6v.js",
+      "path": "assets/papaparse.min-B-EOgN6v.js",
+      "proofMode": "public-artifact",
+      "sha256": "75726c24e0cb04ea1e9d10b20d744a90d32cb30666fa6844ebc7bef4ee605819"
+    },
+    {
+      "bytes": 300,
+      "deliveryPath": "/assets/pencil-DbXvEVPr.js",
+      "path": "assets/pencil-DbXvEVPr.js",
+      "proofMode": "public-artifact",
+      "sha256": "bf59c60b9d68a3042ae5f05b9e00d4b00e84dd96393faa54df00b7a78a545737"
+    },
+    {
+      "bytes": 3281,
+      "deliveryPath": "/assets/personalPlaceCategories-0l5h5LJ2.js",
+      "path": "assets/personalPlaceCategories-0l5h5LJ2.js",
+      "proofMode": "public-artifact",
+      "sha256": "c013099c1b91cc0870340593eeef07e54f6bba3b71279589fa3312f9be4cf821"
+    },
+    {
+      "bytes": 999,
+      "deliveryPath": "/assets/profileAttributes-Cab6QCBm.js",
+      "path": "assets/profileAttributes-Cab6QCBm.js",
+      "proofMode": "public-artifact",
+      "sha256": "dfe4e63f6e81572301360c7daa3934ceeaf94f73c1bbe4583c34394804de5d44"
+    },
+    {
+      "bytes": 28741,
+      "deliveryPath": "/assets/purify.es-4eNOHKSq.js",
+      "path": "assets/purify.es-4eNOHKSq.js",
+      "proofMode": "public-artifact",
+      "sha256": "b149107e9dfa79ad7b6767570b168da62305f074e15089b1efe4dfcc701af5dd"
+    },
+    {
+      "bytes": 3622,
+      "deliveryPath": "/assets/pwaRegistration-R9bCmvjF.js",
+      "path": "assets/pwaRegistration-R9bCmvjF.js",
+      "proofMode": "public-artifact",
+      "sha256": "0a09dc2471ad29800cdc1f08b87d0f5241ca417dd549f2ba43bf15d043352d9f"
+    },
+    {
+      "bytes": 85975,
+      "deliveryPath": "/assets/react-select.esm-72PN-mFp.js",
+      "path": "assets/react-select.esm-72PN-mFp.js",
+      "proofMode": "public-artifact",
+      "sha256": "a9bbab5f329403610b3eb73f2907c1ab03488958902624f9d4af12886719bc51"
+    },
+    {
+      "bytes": 224,
+      "deliveryPath": "/assets/rotate-ccw-DU4Lb83N.js",
+      "path": "assets/rotate-ccw-DU4Lb83N.js",
+      "proofMode": "public-artifact",
+      "sha256": "692fda825fb316dd83b49c69cd506c0778296c3229b4d3867b927d299db0cd5f"
+    },
+    {
+      "bytes": 597,
+      "deliveryPath": "/assets/shield-BGrR28Ci.js",
+      "path": "assets/shield-BGrR28Ci.js",
+      "proofMode": "public-artifact",
+      "sha256": "ea8b0137c88187b23f70fca2b01c9288072cc9b6c5f861486445b9557e49f711"
+    },
+    {
+      "bytes": 339,
+      "deliveryPath": "/assets/shield-check-9x6LjTe_.js",
+      "path": "assets/shield-check-9x6LjTe_.js",
+      "proofMode": "public-artifact",
+      "sha256": "411ad5ff3eae3f8b8902c9d9089a5aee7ec90bd40c153ef1f5e7bcd5e74223bc"
+    },
+    {
+      "bytes": 1320,
+      "deliveryPath": "/assets/slicedToArray-Dby63wcm.js",
+      "path": "assets/slicedToArray-Dby63wcm.js",
+      "proofMode": "public-artifact",
+      "sha256": "45dfb51f718c0291af1070f7a235dc9a071064da47de228ca1abe0b822f7489c"
+    },
+    {
+      "bytes": 496,
+      "deliveryPath": "/assets/star-Cz2mVWln.js",
+      "path": "assets/star-Cz2mVWln.js",
+      "proofMode": "public-artifact",
+      "sha256": "27e75059b71185f46de46c085d040f581a83e539ad4895d4cd4e51857005dcda"
+    },
+    {
+      "bytes": 352,
+      "deliveryPath": "/assets/trash-2-hdWuduiE.js",
+      "path": "assets/trash-2-hdWuduiE.js",
+      "proofMode": "public-artifact",
+      "sha256": "b50d7c0e5d8c3ee5ca7dd4312511f645aaf815a15c74b868fcaf3d6edb24476f"
+    },
+    {
+      "bytes": 503,
+      "deliveryPath": "/assets/undo-2-DsxCZt_-.js",
+      "path": "assets/undo-2-DsxCZt_-.js",
+      "proofMode": "public-artifact",
+      "sha256": "b8de8949debe354701fcfa1eaa1c838b3e79025c465b47eedb90e84a9cba2e45"
+    },
+    {
+      "bytes": 2988,
+      "deliveryPath": "/assets/useDirectoryDistanceAnchor-CO3AZEJt.css",
+      "path": "assets/useDirectoryDistanceAnchor-CO3AZEJt.css",
+      "proofMode": "public-artifact",
+      "sha256": "a3bd77521709cd40c82f9fc980fa506731f8dd8b94c9f86b8f166a858d39fe79"
+    },
+    {
+      "bytes": 225651,
+      "deliveryPath": "/assets/useDirectoryDistanceAnchor-DiyuyiKM.js",
+      "path": "assets/useDirectoryDistanceAnchor-DiyuyiKM.js",
+      "proofMode": "public-artifact",
+      "sha256": "8559bbb48518a123215a3f9ed2a8e9a0a496c14f9a1dbb7246bb94cee3a6a774"
+    },
+    {
+      "bytes": 330,
+      "deliveryPath": "/assets/users-BL3H0p8D.js",
+      "path": "assets/users-BL3H0p8D.js",
+      "proofMode": "public-artifact",
+      "sha256": "d694d69f72a2696c64d45fde895b0611e51795f05bcd3c75917fe983cb1e4a58"
+    },
+    {
+      "bytes": 499549,
+      "deliveryPath": "/assets/xlsx-CKwrMZHi.js",
+      "path": "assets/xlsx-CKwrMZHi.js",
+      "proofMode": "public-artifact",
+      "sha256": "f895dd67a19c78f7cfa4069482c2f9bd4c754167dc8f9b15f11988e5358ee1ba"
+    },
+    {
+      "bytes": 6139,
+      "deliveryPath": "/favicon.png",
+      "path": "favicon.png",
+      "proofMode": "public-artifact",
+      "sha256": "f1ac8de1c93c9d6e9f9b34203e8c599166620fad1194251c3735622f4675b410"
+    },
+    {
+      "bytes": 2558,
+      "deliveryPath": "/favicon.svg",
+      "path": "favicon.svg",
+      "proofMode": "public-artifact",
+      "sha256": "5106aec91e7b6ceafdaa6e3f9fb2a347a3644a9f5fd64307384eb2d2ba237a93"
+    },
+    {
+      "bytes": 131,
+      "deliveryPath": "/help-content-status.json",
+      "path": "help-content-status.json",
+      "proofMode": "public-artifact",
+      "sha256": "14dc07b3ead3b74280b589bcbbd635d46df2938a9aa223672ec7f6287338884a"
+    },
+    {
+      "bytes": 35480,
+      "deliveryPath": "/icon-192.png",
+      "path": "icon-192.png",
+      "proofMode": "public-artifact",
+      "sha256": "23747c8e67c665ecd8f0c93bf0b4f314928cb3e3820729c0a06cfc264c992e1c"
+    },
+    {
+      "bytes": 167120,
+      "deliveryPath": "/icon-512.png",
+      "path": "icon-512.png",
+      "proofMode": "public-artifact",
+      "sha256": "96ec95b77c2357114f6fb0ce3f769c5e1092796f57414536d92a8b509776ee9a"
+    },
+    {
+      "bytes": 1188,
+      "deliveryPath": "/__help-release-proof/home",
+      "path": "index.html",
+      "proofMode": "deployed-html-asset",
+      "securityHeaders": {
+        "content-security-policy": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://accounts.google.com https://static.cloudflareinsights.com; frame-src 'self' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; form-action 'self'; upgrade-insecure-requests",
+        "permissions-policy": "camera=(), microphone=(), geolocation=(self), payment=()",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY"
+      },
+      "sha256": "32dbf737b831499b6e3eb907b6f1a66a6da3b971cc49b23178ca3d3ca73109ce"
+    },
+    {
+      "bytes": 1576,
+      "deliveryPath": "/__help-release-proof/offline",
+      "path": "offline.html",
+      "proofMode": "deployed-html-asset",
+      "securityHeaders": {
+        "content-security-policy": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://accounts.google.com https://static.cloudflareinsights.com; frame-src 'self' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; form-action 'self'; upgrade-insecure-requests",
+        "permissions-policy": "camera=(), microphone=(), geolocation=(self), payment=()",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY"
+      },
+      "sha256": "ecd99f700786bc229b75261812852fcd433d7c73e3aaa8cc4be8181971c2c7a8"
+    },
+    {
+      "bytes": 3927,
+      "deliveryPath": "/pwa/carearound-sw",
+      "path": "pwa/carearound-sw",
+      "proofMode": "public-artifact",
+      "sha256": "19e526e274fd28e1e2d76bc86284554f74ec2dd2af0f5c35ed135721daa823ea"
+    },
+    {
+      "bytes": 659,
+      "deliveryPath": "/release.json",
+      "path": "release.json",
+      "proofMode": "public-artifact",
+      "sha256": "99df2674dbb1f0f5cd987e85ee196615d52410b4b8b9f2a74cbbe957c8f6480f"
+    },
+    {
+      "bytes": 1274,
+      "deliveryPath": "/site.webmanifest",
+      "path": "site.webmanifest",
+      "proofMode": "public-artifact",
+      "sha256": "5623d9301be3971d52c446f433241387fd226be04425a10c623e02f1fb7532cb"
+    },
+    {
+      "bytes": 1497,
+      "deliveryPath": "/vite.svg",
+      "path": "vite.svg",
+      "proofMode": "public-artifact",
+      "sha256": "4a748afd443918bb16591c834c401dae33e87861ab5dbad0811c3a3b4a9214fb"
+    }
+  ],
+  "schemaVersion": 1,
+  "workerVersionId": "ca0cdfa6-f492-4930-a711-c5781ae7a6a0"
+}
