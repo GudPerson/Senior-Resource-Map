@@ -59,6 +59,7 @@ import {
     filterMapStudioDirectoryByLayers,
 } from '../lib/mapStudioPresentationAdapter.js';
 import { FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES } from '../lib/fixedTownSurface.js';
+import { HALF_STEP_MAP_ZOOM_DELTA } from '../lib/mapZoom.js';
 import {
     DEFAULT_PRINT_ANNOTATION_STYLE,
     PRINT_ANNOTATION_DRAW_TOOLS,
@@ -542,7 +543,10 @@ function PrintDirectoryMap({
         onPrintMapStateChange?.({ view });
     }, [onPrintMapStateChange]);
     const handleControlledMapHeightChange = useCallback((height) => {
-        onPrintMapStateChange?.({ height });
+        onPrintMapStateChange?.({ height, preserveRequestedMapScale: false });
+    }, [onPrintMapStateChange]);
+    const handleRequestedMapScaleChange = useCallback((preserveRequestedMapScale) => {
+        onPrintMapStateChange?.({ preserveRequestedMapScale });
     }, [onPrintMapStateChange]);
     return (
         <div
@@ -634,12 +638,15 @@ function PrintDirectoryMap({
                 fixedTownSurfaceLockMinZoom={false}
                 fixedTownSurfaceSnapToMinZoom={Boolean(printMapState && interactive)}
                 fixedTownSurfaceContainOnResize={Boolean(printMapState && interactive)}
+                fixedTownSurfacePreferRequestedScale={Boolean(printMapState?.preserveRequestedMapScale)}
+                onFixedTownSurfaceRequestedScaleChange={printMapState && interactive ? handleRequestedMapScaleChange : null}
                 fixedTownSurfaceFallbackBelowMinZoom={false}
                 fixedTownSurfaceMaxDecodedBytes={printMapState?.pageLayout === PRINT_MAP_PAGE_LAYOUT_FULL
                     ? FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES
                     : null}
                 fixedTownSurfaceFallbackScope="local"
                 onFixedTownSurfaceViewportChange={interactive ? onFixedTownSurfaceViewportChange : null}
+                zoomControlStep={printMapState ? HALF_STEP_MAP_ZOOM_DELTA : undefined}
                 mobileControlPortalTarget={mobileControlPortalTarget}
                 onMapClick={onMapClick}
                 mapModeControl={printMapState && interactive && !designLocked ? mapModeControl : null}

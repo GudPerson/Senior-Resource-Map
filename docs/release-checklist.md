@@ -171,7 +171,7 @@ a visible non-blocking loading indicator, live OneMap while the manifest
 resolves, and uninterrupted map interaction while fixed chunks complete. On
 owner My Map, confirm explicit
 controls also move by `0.5` without changing its exact `15+` native threshold;
-Shared Map, embed, and print controls must remain whole-step.
+Controlled owner Print/Export uses the same half-step buttons and decimal readout (approved 24 October 2026); its floor-based native/overview renderer thresholds remain separate. Shared Map, embed, and print callers without controlled owner state retain whole-step controls.
 A second pass must use slow fractional or trackpad-style input across raw zooms
 `14.4-15.6`, in both directions and in Default and Gray. Repeat after Reset and
 a real desktop resize, then open the mobile map and confirm the visible map at

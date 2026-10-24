@@ -9,6 +9,8 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 import OneMapBadge from './OneMapBadge.jsx';
 import CareMapGestureControl from './CareMapGestureControl.jsx';
+import DirectoryMapRequestedScaleSync from './DirectoryMapRequestedScaleSync.jsx';
+import { shouldUseFixedTownOverviewAtRequestedScale } from '../lib/fixedTownZoomRecovery.js';
 import { isCareMapGestureActive } from '../lib/careMapGestureState.js';
 import MapSettingsControl from './MapSettingsControl.jsx';
 import DirectoryMapZoomLevelControl from './DirectoryMapZoomLevelControl.jsx';
@@ -1767,6 +1769,7 @@ function DirectoryMapRecenterControl({
     fitPaddingTopLeft,
     fitPaddingBottomRight,
     onResetView,
+    onBeforeResetView = null,
 }) {
     const map = useMap();
     const { t } = useLocale();
@@ -1788,6 +1791,7 @@ function DirectoryMapRecenterControl({
                     onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
+                        onBeforeResetView?.();
                         onResetView?.();
                         fitDirectoryCamera(map, pins, anchorPoint, {
                             animate: true,
@@ -2180,6 +2184,8 @@ function DirectoryMapFixedTownResizeContainmentSync({
     minZoom,
     transitionMinZoom = minZoom,
     maxDecodedBytes = null,
+    requestedScaleRef = null,
+    overviewManifest = null,
 }) {
     const map = useMap();
 
@@ -2210,7 +2216,12 @@ function DirectoryMapFixedTownResizeContainmentSync({
             const currentZoom = Number(map.getZoom());
             const normalizedMinZoom = Number(minZoom);
             if (shouldDeferFixedTownContainmentToLowerTier({
-                zoom: currentZoom,
+                // Match the renderer's tier while React switches the manifest.
+                // Native containment must not cancel a move into the overview.
+                zoom: resolveFixedTownDisplayZoomStep({
+                    zoom: currentZoom,
+                    preserveContainmentStep: true,
+                }),
                 activeMinZoom: normalizedMinZoom,
                 transitionMinZoom,
             })) {
@@ -2236,6 +2247,13 @@ function DirectoryMapFixedTownResizeContainmentSync({
             const viewportWithinDecodedBudget = visibleChunks.length > 0
                 && getFixedTownChunksDecodedBytes(visibleChunks) <= decodedByteLimit;
             if (viewportContained && viewportWithinDecodedBudget) return;
+            if (requestedScaleRef?.current && shouldUseFixedTownOverviewAtRequestedScale({
+                enabled: true,
+                nativeManifest: manifest,
+                overviewManifest,
+                viewportBounds,
+                maxDecodedBytes,
+            })) return;
 
             // A genuine pan outside the selected surface must still use the normal
             // regular-map fallback. Only contain a resized or settled zoom viewport
@@ -2327,7 +2345,7 @@ function DirectoryMapFixedTownResizeContainmentSync({
             if (frame !== null) window.cancelAnimationFrame(frame);
             map.off('resize moveend zoomend', scheduleContainment);
         };
-    }, [enabled, manifest, map, maxDecodedBytes, minZoom, transitionMinZoom]);
+    }, [enabled, manifest, map, maxDecodedBytes, minZoom, overviewManifest, requestedScaleRef, transitionMinZoom]);
 
     return null;
 }
@@ -2460,9 +2478,10 @@ function DirectoryMapFixedTownMinZoomSnapSync({
     return null;
 }
 
-function DirectoryMapViewStateSync({ value = null, onChange = null, onSettled = null, gestureCamera = false }) {
+function DirectoryMapViewStateSync({ value = null, onChange = null, onSettled = null, gestureCamera = false, onExternalCameraApply = null }) {
     const map = useMap();
     const cameraValueRef = useRef(value);
+    const lastEmittedViewRef = useRef(null);
     cameraValueRef.current = value;
 
     useEffect(() => {
@@ -2478,10 +2497,16 @@ function DirectoryMapViewStateSync({ value = null, onChange = null, onSettled = 
             && Math.abs(currentCenter.lng - lng) <= 0.0000001
             && Math.abs(currentZoom - zoom) <= 0.001
         );
-        if (!alreadyApplied) map.setView([lat, lng], zoom, { animate: false });
+        if (!alreadyApplied) {
+            const emitted = lastEmittedViewRef.current;
+            if (!emitted || Math.abs(emitted.zoom - zoom) > 0.001
+                || Math.abs(emitted.center[0] - lat) > 0.0000001
+                || Math.abs(emitted.center[1] - lng) > 0.0000001) onExternalCameraApply?.();
+            map.setView([lat, lng], zoom, { animate: false });
+        }
         const settledTimeout = window.setTimeout(() => onSettled?.(), 250);
         return () => window.clearTimeout(settledTimeout);
-    }, [gestureCamera, map, onSettled, value?.center?.[0], value?.center?.[1], value?.zoom]);
+    }, [gestureCamera, map, onExternalCameraApply, onSettled, value?.center?.[0], value?.center?.[1], value?.zoom]);
 
     useEffect(() => {
         if (!onChange) return undefined;
@@ -2495,7 +2520,12 @@ function DirectoryMapViewStateSync({ value = null, onChange = null, onSettled = 
                 if (Math.abs(zoom - Number(controlled.zoom)) <= 0.001
                     && map.project(center, zoom).distanceTo(expected) <= 1.6) return;
             }
-            onChange({ center: [center.lat, center.lng], zoom });
+            const nextView = { center: [center.lat, center.lng], zoom };
+            // Containment can correct a camera before its previous update renders.
+            // Compare the next event with the latest emission, not that stale prop.
+            cameraValueRef.current = nextView;
+            lastEmittedViewRef.current = nextView;
+            onChange(nextView);
         };
         const frame = window.requestAnimationFrame(emit);
         map.on('moveend zoomend gestureend', emit);
@@ -2767,6 +2797,8 @@ export default function DirectoryMap({
     fixedTownSurfaceLockMinZoom = true,
     fixedTownSurfaceSnapToMinZoom = false,
     fixedTownSurfaceContainOnResize = false,
+    fixedTownSurfacePreferRequestedScale = false,
+    onFixedTownSurfaceRequestedScaleChange = null,
     fixedTownSurfaceFallbackBelowMinZoom = true,
     fixedTownSurfaceMaxDecodedBytes = null,
     fixedTownSurfaceFallbackScope = 'global',
@@ -2833,6 +2865,18 @@ export default function DirectoryMap({
     const [categoryPinGroupLayout, setCategoryPinGroupLayout] = useState(null);
     const [categoryPinPanelHighlightKey, setCategoryPinPanelHighlightKey] = useState('');
     const [compactCategoryBubbles, setCompactCategoryBubbles] = useState(false);
+    const requestedScaleRef = useRef(fixedTownSurfacePreferRequestedScale);
+    const requestedScalePropRef = useRef(fixedTownSurfacePreferRequestedScale);
+    requestedScalePropRef.current = fixedTownSurfacePreferRequestedScale;
+    useEffect(() => { requestedScaleRef.current = fixedTownSurfacePreferRequestedScale; }, [fixedTownSurfacePreferRequestedScale]);
+    const handleRequestedScaleChange = useCallback((value) => {
+        requestedScaleRef.current = value;
+        if (value !== requestedScalePropRef.current) onFixedTownSurfaceRequestedScaleChange?.(value);
+    }, [onFixedTownSurfaceRequestedScaleChange]);
+    const clearRequestedScale = useCallback(() => {
+        mapInstanceRef.current?.fire('carearound-requested-scale-reset');
+        handleRequestedScaleChange(false);
+    }, [handleRequestedScaleChange]);
     const [fixedTownSurfaceZoom, setFixedTownSurfaceZoom] = useState(null);
     const [fixedTownSurfaceViewportEligible, setFixedTownSurfaceViewportEligible] = useState(null);
     const [fixedTownSurfaceViewportBounds, setFixedTownSurfaceViewportBounds] = useState(null);
@@ -2885,7 +2929,15 @@ export default function DirectoryMap({
     // A rotated viewport can exceed the local native surface while still
     // fitting the wider atlas. Keep its geographic background without moving
     // the camera or enabling live tiles above their fallback zoom limit.
-    const fixedTownSurfaceTier = careMapRotationEnabled
+    const requestedScaleNeedsOverview = zoomFixedTownSurfaceTier === 'native'
+        && shouldUseFixedTownOverviewAtRequestedScale({
+            enabled: fixedTownSurfacePreferRequestedScale,
+            nativeManifest: fixedTownSurfaceManifest,
+            overviewManifest: fixedTownOverviewSurfaceManifest,
+            viewportBounds: fixedTownSurfaceViewportBounds,
+            maxDecodedBytes: fixedTownSurfaceMaxDecodedBytes,
+        });
+    const fixedTownSurfaceTier = requestedScaleNeedsOverview ? 'overview' : careMapRotationEnabled
         && zoomFixedTownSurfaceTier === 'native'
         && fixedTownNativeViewportCovered === false
         && fixedTownOverviewViewportCovered === true
@@ -3696,6 +3748,7 @@ export default function DirectoryMap({
             data-map-controlled-zoom={Number.isFinite(Number(mapViewState?.zoom)) ? Number(mapViewState.zoom) : undefined}
             data-map-basemap-mode={effectiveBasemapMode}
             data-fixed-town-surface-tier={effectiveBasemapMode === 'town' ? fixedTownSurfaceTier : undefined}
+            data-fixed-town-requested-scale={fixedTownSurfacePreferRequestedScale || undefined}
             data-fixed-town-native-viewport-covered={fixedTownNativeViewportCovered ?? undefined}
             data-fixed-town-overview-viewport-covered={fixedTownOverviewViewportCovered ?? undefined}
             data-print-export-map-frame={onMapReadyForCapture ? 'true' : undefined}
@@ -3733,7 +3786,16 @@ export default function DirectoryMap({
                     enabled={observeFrameResize}
                     frameRef={mapFrameRef}
                 />
+                <DirectoryMapRequestedScaleSync
+                    enabled={interactive && fixedTownOverviewConfigured && Boolean(fixedTownOverviewSurfaceManifest)
+                        && Boolean(onFixedTownSurfaceRequestedScaleChange)}
+                    preferenceRef={requestedScaleRef}
+                    mobileControlTarget={mobileControlPortalTarget}
+                    onChange={handleRequestedScaleChange}
+                />
                 <DirectoryMapFixedTownResizeContainmentSync
+                    requestedScaleRef={requestedScaleRef}
+                    overviewManifest={fixedTownOverviewSurfaceManifest}
                     enabled={fixedTownSurfaceContainOnResize
                         && townBasemapRequested
                         && fixedTownSurfaceConfigured}
@@ -3845,6 +3907,7 @@ export default function DirectoryMap({
                 />
                 <DirectoryMapViewStateSync
                     gestureCamera={careMapRotationEnabled}
+                    onExternalCameraApply={onFixedTownSurfaceRequestedScaleChange ? clearRequestedScale : null}
                     value={mapViewState}
                     onChange={onMapViewStateChange}
                     onSettled={onMapReadyForCapture ? handleCaptureMapSettled : null}
@@ -3859,6 +3922,7 @@ export default function DirectoryMap({
                     onMapClick={handleDirectoryMapClick}
                 />
                 <DirectoryMapRecenterControl
+                    onBeforeResetView={onFixedTownSurfaceRequestedScaleChange ? clearRequestedScale : null}
                     activeAnchor={anchorPoint}
                     hasMapSettingsControl={hasMapSettingsControl}
                     pins={displayPins}
