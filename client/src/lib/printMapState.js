@@ -426,6 +426,7 @@ export function buildPrintMapCaptureKey(state) {
     return [
         normalizeCareAroundMapStyle(state?.mapStyle),
         state?.basemapMode === 'auto' ? 'auto' : 'live',
+        state?.preserveRequestedMapScale ? 'requested-scale' : 'contained-scale',
         clampPrintMapHeight(state?.height, state),
         view ? view.center.map((value) => value.toFixed(7)).join(',') : 'fit',
         view ? view.zoom.toFixed(3) : 'fit',

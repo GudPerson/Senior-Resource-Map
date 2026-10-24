@@ -81,6 +81,7 @@ export default function DirectoryMapMobileControlDock({
                     <button
                         type="button"
                         aria-label="Zoom out"
+                        data-map-zoom-action="out"
                         className={controlButtonClassName}
                         disabled={!zoomState.canZoomOut}
                         onClick={() => map.zoomOut(controlStep)}
