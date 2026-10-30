@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 
 import pinLayerIcon from '../../assets/discovery-pin-layer.png';
@@ -106,6 +106,7 @@ export default function DiscoveryPinLayerControl({
     categoryOptions = [],
     onChangeCategorySelection,
     presentation = 'popover',
+    workspace = false,
     selectedCategoryKeys = [],
 }) {
     const { t } = useLocale();
@@ -138,6 +139,19 @@ export default function DiscoveryPinLayerControl({
         closeAndFocusTrigger();
     }, [closeAndFocusTrigger]);
 
+    useEffect(() => {
+        if (!workspace || presentation !== 'popover') return;
+        const onEscape = (event) => {
+            if (event.key !== 'Escape' || !detailsRef.current?.open) return;
+            const foregroundModal = [...document.querySelectorAll('[role=dialog], [role=alertdialog]')].some(dialog => !detailsRef.current?.contains(dialog) && !dialog.closest('[aria-hidden="true"], [inert], details:not([open])') && getComputedStyle(dialog).visibility !== 'hidden' && dialog.getClientRects().length > 0);
+            if (foregroundModal) return;
+            event.preventDefault();
+            closeAndFocusTrigger();
+        };
+        document.addEventListener('keydown', onEscape, true);
+        return () => document.removeEventListener('keydown', onEscape, true);
+    }, [closeAndFocusTrigger, presentation, workspace]);
+
     const panelContent = (
         <PinLayerPanel
             categoryOptions={categoryOptions}
@@ -153,8 +167,9 @@ export default function DiscoveryPinLayerControl({
                 ref={detailsRef}
                 className="group relative shrink-0"
                 data-discovery-pin-layer-control="true"
+                onToggle={workspace ? (event) => setOpen(event.currentTarget.open) : undefined}
                 onKeyDown={(event) => {
-                    if (event.key !== 'Escape') return;
+                    if (event.key !== 'Escape' || (workspace && !detailsRef.current?.open)) return;
                     event.preventDefault();
                     closeAndFocusTrigger();
                 }}
@@ -184,7 +199,7 @@ export default function DiscoveryPinLayerControl({
                     role="dialog"
                     aria-label={t('discoveryMapPinCategories')}
                     className="absolute right-0 top-full z-50 mt-2 w-[320px] rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xl"
-                    style={{ backgroundColor: '#ffffff' }}
+                    style={{ backgroundColor: '#ffffff', ...(workspace ? { width: 'min(320px, calc(100vw - 32px))' } : {}) }}
                 >
                     <div className="mb-4 flex items-start justify-between gap-3">
                         <div className="min-w-0">

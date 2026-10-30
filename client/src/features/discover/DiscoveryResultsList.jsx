@@ -8,6 +8,7 @@ import DiscoveryMobileBrowseCard from './DiscoveryMobileBrowseCard.jsx';
 export function DiscoveryResultsList({
     filtered,
     isDesktop = false,
+    mapFirstGrid = false,
     loading,
     mobileCardDensity = 'comfortable',
     onCardHoverEnd,
@@ -82,7 +83,8 @@ export function DiscoveryResultsList({
                 </div>
             ) : (
                 <div
-                    className={
+                    data-map-first-card-grid={mapFirstGrid ? 'discover' : undefined}
+                    className={mapFirstGrid ? 'grid gap-4' :
                         isDesktop
                             ? 'grid grid-cols-1 gap-3 lg:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] lg:gap-4'
                             : isCompactMobile

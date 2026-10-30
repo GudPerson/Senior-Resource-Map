@@ -493,6 +493,7 @@ function DesktopFilterPanel({
     isSaveAllIndeterminate,
     isSaveAllPending,
     locationNotice,
+    mapFirst = false,
     mapPinCategoryOptions,
     onCollapsedPullExpand,
     onCollapse,
@@ -529,6 +530,25 @@ function DesktopFilterPanel({
         : locationControlMode === 'compact'
             ? t('homePostalCode')
             : '';
+    const LocationRow = mapFirst ? 'div' : React.Fragment;
+    const savedOnlyControl = user ? (
+                        <label className={`flex shrink-0 cursor-pointer select-none items-center gap-3 rounded-2xl border px-3 py-2 transition-all hover:bg-white ${DISCOVERY_SECONDARY_CONTROL_HEIGHT_CLASS}`} style={{ borderColor: 'var(--color-border)' }}>
+                            <div className="relative inline-block w-8 align-middle transition duration-200 ease-in">
+                                <input
+                                    type="checkbox"
+                                    checked={showFavoritesOnly}
+                                    onChange={(event) => setShowFavoritesOnly(event.target.checked)}
+                                    className="toggle-checkbox absolute block h-4 w-4 appearance-none rounded-full border-2 bg-white cursor-pointer"
+                                    style={{ right: showFavoritesOnly ? 0 : '1rem', borderColor: showFavoritesOnly ? '#10b981' : '#cbd5e1' }}
+                                />
+                                <div className="toggle-label block h-4 cursor-pointer overflow-hidden rounded-full" style={{ backgroundColor: showFavoritesOnly ? '#10b981' : 'var(--color-border)' }} />
+                            </div>
+                            <span className={DISCOVERY_LABEL_TEXT_CLASS} style={{ color: 'var(--color-text-secondary)' }}>
+                                {t('discoverySavedOnly')}
+                            </span>
+                        </label>
+                    ) : null;
+
     const collapsedPullStartYRef = useRef(null);
 
     const handleCollapsedSummaryWheel = (event) => {
@@ -679,12 +699,12 @@ function DesktopFilterPanel({
                                 }}
                             />
                         </div>
-                        <DiscoveryPinLayerControl
+                        {!mapFirst && <DiscoveryPinLayerControl
                             categoryOptions={mapPinCategoryOptions}
                             onChangeCategorySelection={onChangeMapPinCategorySelection}
                             presentation="popover"
                             selectedCategoryKeys={selectedMapPinCategoryKeys}
-                        />
+                        />}
                     </div>
 
                     <div ref={locationControlsRef} className="flex gap-2">
@@ -787,23 +807,7 @@ function DesktopFilterPanel({
                         />
                     ) : null}
 
-                    {user ? (
-                        <label className={`flex shrink-0 cursor-pointer select-none items-center gap-3 rounded-2xl border px-3 py-2 transition-all hover:bg-white ${DISCOVERY_SECONDARY_CONTROL_HEIGHT_CLASS}`} style={{ borderColor: 'var(--color-border)' }}>
-                            <div className="relative inline-block w-8 align-middle transition duration-200 ease-in">
-                                <input
-                                    type="checkbox"
-                                    checked={showFavoritesOnly}
-                                    onChange={(event) => setShowFavoritesOnly(event.target.checked)}
-                                    className="toggle-checkbox absolute block h-4 w-4 appearance-none rounded-full border-2 bg-white cursor-pointer"
-                                    style={{ right: showFavoritesOnly ? 0 : '1rem', borderColor: showFavoritesOnly ? '#10b981' : '#cbd5e1' }}
-                                />
-                                <div className="toggle-label block h-4 cursor-pointer overflow-hidden rounded-full" style={{ backgroundColor: showFavoritesOnly ? '#10b981' : 'var(--color-border)' }} />
-                            </div>
-                            <span className={DISCOVERY_LABEL_TEXT_CLASS} style={{ color: 'var(--color-text-secondary)' }}>
-                                {t('discoverySavedOnly')}
-                            </span>
-                        </label>
-                    ) : null}
+                    {!mapFirst ? savedOnlyControl : null}
                 </div>
 
                 {locationNotice ? (
@@ -824,8 +828,10 @@ function DesktopFilterPanel({
                     </div>
                 ) : null}
 
+                <LocationRow {...(mapFirst ? { className: 'flex flex-wrap items-center gap-2', 'data-map-first-location-row': 'true' } : {})}>
+                    {mapFirst ? savedOnlyControl : null}
                 {userLocation ? (
-                    <div className="flex items-center justify-between rounded-2xl border px-4 py-2.5 text-xs font-extrabold transition-all" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.72)' }}>
+                    <div data-map-first-location={mapFirst ? 'true' : undefined} className={`${mapFirst ? 'min-w-[10rem] flex-1 flex-wrap gap-2 px-3' : 'px-4'} flex items-center justify-between rounded-2xl border py-2.5 text-xs font-extrabold transition-all`} style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.72)' }}>
                         <div className="flex items-center gap-2">
                             <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             <span style={{ color: 'var(--color-brand-strong)' }}>
@@ -839,6 +845,7 @@ function DesktopFilterPanel({
                         ) : null}
                     </div>
                 ) : null}
+                </LocationRow>
             </div>
         </div>
     );
@@ -1000,6 +1007,19 @@ export function DiscoveryFilterPanel(props) {
                                 </div>
                             ) : null}
 
+                            {props.mapFirst ? (
+                                <div data-map-first-location-row="true" className="flex flex-wrap items-center gap-2">
+                                    {user ? <label className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-2xl border border-slate-200 px-3 py-2 text-xs font-semibold">
+                                        <input type="checkbox" checked={showFavoritesOnly} onChange={event => setShowFavoritesOnly(event.target.checked)} />
+                                        {t('discoverySavedOnly')}
+                                    </label> : null}
+                                    {userLocation ? <div data-map-first-location="true" className="flex min-w-[10rem] flex-1 flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 px-3 py-2 text-xs font-bold text-brand-700">
+                                        <span>{t('discoveryUsingLocation', { label: getSearchLocationLabel(searchOrigin) })}</span>
+                                        {canClearLocationSearch ? <button type="button" onClick={clearLocationSearch} className="underline">{t('clear')}</button> : null}
+                                    </div> : null}
+                                </div>
+                            ) : null}
+
                             {savedAssetCount > 0 && mapDisabled ? (
                                 <div className="rounded-2xl border px-3 py-2 text-[12px] font-medium leading-5" style={{ borderColor: 'var(--color-border)', backgroundColor: 'rgba(255,255,255,0.88)', color: 'var(--color-text-secondary)' }}>
                                     {t('discoverySavedNoMapNotice')}
@@ -1040,12 +1060,12 @@ export function DiscoveryFilterPanel(props) {
                                     <Search size={15} />
                                     {t('discoveryBrowse')}
                                 </button>
-                                <DiscoveryPinLayerControl
+                                {!props.mapFirst && <DiscoveryPinLayerControl
                                     categoryOptions={mapPinCategoryOptions}
                                     onChangeCategorySelection={onChangeMapPinCategorySelection}
                                     presentation="sheet"
                                     selectedCategoryKeys={selectedMapPinCategoryKeys}
-                                />
+                                />}
                             </div>
                         </div>
                     )}

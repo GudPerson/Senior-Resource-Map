@@ -18,6 +18,7 @@ import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useSplitPaneResize } from '../hooks/useSplitPaneResize.js';
 import DiscoveryFilterPanel from '../features/discover/DiscoveryFilterPanel.jsx';
+import DiscoveryPinLayerControl from '../features/discover/DiscoveryPinLayerControl.jsx';
 import DesktopSavedPlaceDetailPanel from '../features/discover/DesktopSavedPlaceDetailPanel.jsx';
 import DiscoveryMap from '../features/discover/DiscoveryMap.jsx';
 import {
@@ -2297,6 +2298,7 @@ export default function DiscoverPage() {
             onOpenMap: () => setMapFirstResourcesPreference(false),
         });
         const mapFirstResults = React.cloneElement(resultsList, {
+            mapFirstGrid: true,
             mobileCardDensity: mapFirstCardDensity,
             onFocusAssetOnMap: (...args) => {
                 handleFocusAssetOnMap(...args);
@@ -2308,15 +2310,21 @@ export default function DiscoverPage() {
                 <MapFirstWorkspace kind="discover" map={mapView}
                     resourcesOpen={resourcesOpen} onResourcesOpenChange={setMapFirstResourcesPreference}
                     onExit={() => setMapFirstOpen(false)} exitLabel={t('discoveryBrowse')}
-                    toolbar={<div className="relative">
+                    toolbar={<div className="flex min-w-0 items-center gap-2">
+                        <div className="relative min-w-0 flex-1">
                         <Search size={17} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                         <input type="search" value={search} aria-label={t('discoverySearchMobilePlaceholder')}
                             placeholder={t('discoverySearchMobilePlaceholder')}
                             onChange={(event) => { handleSearchChange(event.target.value); setMapFirstResourcesPreference(true); }}
                             className="h-11 w-full min-w-0 rounded-2xl border border-slate-200 bg-white pl-10 pr-3 text-base shadow-md focus:outline-none focus:ring-2 focus:ring-brand-200" />
+                        </div>
+                        <DiscoveryPinLayerControl categoryOptions={mapPinCategoryOptions}
+                            onChangeCategorySelection={setSelectedMapPinCategoryKeys}
+                            selectedCategoryKeys={selectedMapPinCategoryKeys}
+                            presentation={isDesktop ? 'popover' : 'sheet'} workspace />
                     </div>}
                     resources={desktopPaneMode === 'detail' && selectedPlacePin ? desktopLeftPane : (
-                        <div className="flex min-h-0 flex-col [&_[data-discovery-search]]:hidden">
+                        <div className="flex h-full min-h-0 flex-col [&_[data-discovery-search]]:hidden">
                             {mapFirstFilters}
                             {mapFirstResults}
                         </div>
