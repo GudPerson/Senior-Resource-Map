@@ -557,6 +557,8 @@ function MyMapMobileControls({
     renderPdfExportButton,
     mapStudioPanel = null,
     compactOverlay = false,
+    desktopMapFirst = false,
+    onDesktopMapStudio = null,
 }) {
     const { t } = useLocale();
     const [open, setOpen] = useState(false);
@@ -582,16 +584,24 @@ function MyMapMobileControls({
 
     const openMapStudio = useCallback(() => {
         setOpen(false);
+        if (onDesktopMapStudio) { window.requestAnimationFrame(onDesktopMapStudio); return; }
         window.requestAnimationFrame(() => setStudioOpen(true));
-    }, []);
+    }, [onDesktopMapStudio]);
 
     const openMapStudioLayout = useCallback(() => {
         setOpen(false);
+        if (onDesktopMapStudio) {
+            window.requestAnimationFrame(() => {
+                onDesktopMapStudio();
+                window.requestAnimationFrame(() => onEditLayout?.());
+            });
+            return;
+        }
         window.requestAnimationFrame(() => {
             setStudioOpen(true);
             window.requestAnimationFrame(() => onEditLayout?.());
         });
-    }, [onEditLayout]);
+    }, [onEditLayout, onDesktopMapStudio]);
 
     const returnToMapOptions = useCallback(() => {
         setStudioOpen(false);
@@ -617,7 +627,7 @@ function MyMapMobileControls({
 
     return (
         <>
-            <div className={headerClassName} data-owner-map-mobile-header="true">
+            <div className={headerClassName} style={desktopMapFirst ? { display: 'flex' } : undefined} data-owner-map-mobile-header="true">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                     <button
                         type="button"
@@ -646,10 +656,11 @@ function MyMapMobileControls({
 
             <Drawer.Root direction="left" open={open} onOpenChange={setOpen}>
                 <Drawer.Portal>
-                    <Drawer.Overlay className="fixed inset-0 z-[1200] bg-slate-950/35 xl:hidden" />
+                    <Drawer.Overlay className="fixed inset-0 z-[1200] bg-slate-950/35 xl:hidden" style={desktopMapFirst ? { display: 'block' } : undefined} />
                     <Drawer.Content
                         className="fixed bottom-0 left-0 top-[56px] z-[1210] flex w-[min(92vw,380px)] flex-col border-r bg-white shadow-2xl sm:top-[64px] xl:hidden"
                         style={{
+                            display: desktopMapFirst ? 'flex' : undefined,
                             borderColor: 'var(--color-border)',
                             background: 'linear-gradient(180deg, #ffffff 0%, #f6fcfb 100%)',
                         }}
@@ -772,6 +783,7 @@ function MyMapMobileControls({
                 tabIndex={-1}
                 onClick={() => setStudioOpen(false)}
                 className={`fixed inset-0 z-[1200] bg-slate-950/35 transition-opacity xl:hidden ${studioOpen ? 'pointer-events-auto visible opacity-100' : 'pointer-events-none invisible opacity-0'}`}
+                style={desktopMapFirst ? { display: 'block' } : undefined}
             />
             <section
                 ref={studioDialogRef}
@@ -784,6 +796,7 @@ function MyMapMobileControls({
                 tabIndex={-1}
                 className={`fixed bottom-0 left-0 top-[56px] z-[1210] flex w-[min(92vw,380px)] flex-col border-r border-slate-200 bg-white shadow-2xl transition-[transform,visibility] duration-200 sm:top-[64px] xl:hidden ${studioOpen ? 'pointer-events-auto visible translate-x-0' : 'pointer-events-none invisible -translate-x-full'}`}
                 data-mobile-map-studio-panel="true"
+                style={desktopMapFirst ? { display: 'flex' } : undefined}
             >
                 <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
                     <button
@@ -1601,6 +1614,8 @@ export default function MyMapDetailPage() {
     const [error, setError] = useState('');
     const [actionError, setActionError] = useState('');
     const [query, setQuery] = useState('');
+    const [mapFirstOpen, setMapFirstOpen] = useState(true);
+    useEffect(() => { setMapFirstOpen(true); }, [mapId]);
     const [focusedPlaceKey, setFocusedPlaceKey] = useState(null);
     const [focusedPlaceKeys, setFocusedPlaceKeys] = useState([]);
     const [highlightPlaceKey, setHighlightPlaceKey] = useState(null);
@@ -1692,6 +1707,9 @@ export default function MyMapDetailPage() {
     const [printAnnotationEditorOpen, setPrintAnnotationEditorOpen] = useState(false);
     const [printShortDescriptionMode, setPrintShortDescriptionMode] = useState(false);
     const [interactiveAnnotationEditorOpen, setInteractiveAnnotationEditorOpen] = useState(false);
+    useEffect(() => {
+        if (interactiveAnnotationEditorOpen || personalPlacePickerActive) setMapFirstOpen(false);
+    }, [interactiveAnnotationEditorOpen, personalPlacePickerActive]);
     const [interactiveShortDescriptionMode, setInteractiveShortDescriptionMode] = useState(false);
     const [pinVisibilityMode, setPinVisibilityMode] = useState(false);
     const [resourceRemovalMode, setResourceRemovalMode] = useState(false);
@@ -3765,6 +3783,11 @@ export default function MyMapDetailPage() {
         setShareOpen(true);
     }
 
+    function openExistingDesktopMapStudio() {
+        setMapFirstOpen(false);
+        window.requestAnimationFrame(() => document.querySelector('[data-map-studio-top-row] button')?.focus());
+    }
+
     function openMapStudioLayoutSettings() {
         mapStudioControllerRef.current?.openLayoutSettings();
     }
@@ -4207,6 +4230,9 @@ export default function MyMapDetailPage() {
         return (
             <>
                 <MyMapV2PreviewScaffold
+                    mapFirstView={!interactiveAnnotationEditorOpen && !personalPlacePickerActive}
+                    mapFirstOpen={mapFirstOpen}
+                    onMapFirstOpenChange={setMapFirstOpen}
                     careMapGestures={careMapGestures}
                     directory={mapStudioFilteredDirectory}
                     query={query}
@@ -4246,7 +4272,7 @@ export default function MyMapDetailPage() {
                     onResetView={clearMapSelection}
                     mapOverlay={ownerInteractiveAnnotationOverlay}
                     mapSurfaceOverlay={ownerAnnotationSurfaceOverlay}
-                    toolbar={useDesktopOwnerLayout ? (
+                    toolbar={useDesktopOwnerLayout && !mapFirstOpen ? (
                         <OwnerHeader
                             directory={directory}
                             query={query}
@@ -4258,13 +4284,15 @@ export default function MyMapDetailPage() {
                         />
                     ) : (
                         <MyMapMobileControls
+                            desktopMapFirst={mapFirstOpen}
+                            onDesktopMapStudio={useDesktopOwnerLayout ? openExistingDesktopMapStudio : null}
                             directory={directory}
                             query={query}
                             onQueryChange={setQuery}
                             anchorState={anchorState}
                             onAddAssets={openManageAssets}
                             {...ownerToolbarActionProps}
-                            mapStudioPanel={ownerMapStudioPanel}
+                            mapStudioPanel={useDesktopOwnerLayout ? null : ownerMapStudioPanel}
                             compactOverlay
                         />
                     )}
@@ -4439,15 +4467,17 @@ export default function MyMapDetailPage() {
     return (
         <>
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50" data-route-cache-version={MY_MAP_ROUTE_CACHE_VERSION}>
-                {!useDesktopOwnerLayout ? (
+                {!useDesktopOwnerLayout || mapFirstOpen ? (
                         <MyMapMobileControls
+                            desktopMapFirst={mapFirstOpen}
+                            onDesktopMapStudio={useDesktopOwnerLayout ? openExistingDesktopMapStudio : null}
                             directory={directory}
                             query={query}
                             onQueryChange={setQuery}
                             anchorState={anchorState}
                             onAddAssets={openManageAssets}
                             {...ownerToolbarActionProps}
-                            mapStudioPanel={ownerMapStudioPanel}
+                            mapStudioPanel={useDesktopOwnerLayout ? null : ownerMapStudioPanel}
                         />
                 ) : null}
 
@@ -4458,7 +4488,7 @@ export default function MyMapDetailPage() {
                         </div>
                     ) : null}
 
-                    {useDesktopOwnerLayout ? (
+                    {useDesktopOwnerLayout && !mapFirstOpen ? (
                         <div>
                             <OwnerHeader
                                 directory={directory}
@@ -4480,7 +4510,7 @@ export default function MyMapDetailPage() {
                         />
                     ) : null}
 
-                    {mapStudioFilteredDirectory.summary.resourceCount === 0 ? (
+                    {mapStudioFilteredDirectory.summary.resourceCount === 0 && (personalPlacePickerActive || interactiveAnnotationEditorOpen) ? (
                         <div className="space-y-4">
                             {personalPlacePickerActive || interactiveAnnotationEditorOpen ? (
                                 <DirectoryMap
@@ -4541,6 +4571,10 @@ export default function MyMapDetailPage() {
                     ) : (
                         <>
                             <SharedMapDirectoryList
+                                mapFirstView={!interactiveAnnotationEditorOpen && !personalPlacePickerActive}
+                                mapFirstOpen={mapFirstOpen}
+                                onMapFirstOpenChange={setMapFirstOpen}
+                                mapFirstEmptyState={<EmptyOwnerDirectory onAddAssets={openManageAssets} onAddPersonalPlace={openPersonalPlacePicker} />}
                                 annotationResourceInteraction={annotationActivation.resourceCardInteraction}
                                 directory={directory}
                                 presentation={ownerPresentation}

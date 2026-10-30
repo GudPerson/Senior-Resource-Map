@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import MapNoteImages from './MapNoteImages.jsx';
 import MapNotesResourceList from './MapNotesResourceList.jsx';
+import MapFirstWorkspace from './MapFirstWorkspace.jsx';
 import { rememberMapNotePin } from '../lib/mapNotesNavigation.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { AnnotationResourceInteractionContext, useAnnotationResourceCard } from './AnnotationResourceInteraction.jsx';
@@ -3531,6 +3532,10 @@ function SharedMapDirectoryListContent({
     interactiveMapWidth = 'wide',
     interactiveResourceColumnCount = 2,
     interactiveSideResourceColumnCount = 1,
+    mapFirstView = false,
+    mapFirstEmptyState = null,
+    mapFirstOpen = true,
+    onMapFirstOpenChange = null,
 }) {
     const { t } = useLocale();
     const location = useLocation();
@@ -3551,6 +3556,8 @@ function SharedMapDirectoryListContent({
     const [clusterMapping, setClusterMapping] = useState({});
     const [mobileMapListFocused, setMobileMapListFocused] = useState(false);
     const [mobileFullMapOpen, setMobileFullMapOpen] = useState(false);
+    const setMapFirstOpen = onMapFirstOpenChange;
+    const [mapFirstResourcesOpen, setMapFirstResourcesOpen] = useState(null);
     const [mobileFocusTrayPlaceKey, setMobileFocusTrayPlaceKey] = useState(null);
     const [mobileFullMapHandledFocusKey, setMobileFullMapHandledFocusKey] = useState(null);
     const hiddenPinPlaceKeySet = useMemo(() => new Set(
@@ -3564,8 +3571,10 @@ function SharedMapDirectoryListContent({
         : layout;
     const interactive = layout !== 'print';
     const isMobileMapPanelEnabled = interactive && resolvedLayout === 'mobile';
+    const ownerMapFirstEnabled = mode === 'owner' && interactive && mapFirstView && mapFirstOpen;
+    useEffect(() => { setMapFirstResourcesOpen(null); }, [directory?.id]);
     const ownerFullscreenMapTop = useOwnerFullscreenMapHeader(
-        mode === 'owner' && isMobileMapPanelEnabled && mobileFullMapOpen,
+        mode === 'owner' && (ownerMapFirstEnabled || (isMobileMapPanelEnabled && mobileFullMapOpen)),
     );
     const useAdaptiveDesktopUnmapped = interactive && resolvedLayout === 'desktop';
     const mappedGroups = presentation?.mappedGroups || [];
@@ -3645,10 +3654,10 @@ function SharedMapDirectoryListContent({
             ? (highlightPlaceKeys.length ? highlightPlaceKeys : (highlightPlaceKey ? [highlightPlaceKey] : []))
             : []);
     const mobileFocusTraySelection = useMemo(() => (
-        isMobileMapPanelEnabled
+        (isMobileMapPanelEnabled || ownerMapFirstEnabled)
             ? resolveMobileFocusTraySelection(mobileDisplayGroups, mobileFocusTrayPlaceKey, presentation?.pins || [])
             : null
-    ), [isMobileMapPanelEnabled, mobileDisplayGroups, mobileFocusTrayPlaceKey, presentation?.pins]);
+    ), [isMobileMapPanelEnabled, ownerMapFirstEnabled, mobileDisplayGroups, mobileFocusTrayPlaceKey, presentation?.pins]);
     const mobileFullMapFocusRequest = useMemo(() => {
         if (!mobileFullMapOpen || !mobileFocusTraySelection) {
             return { focusedPlaceKey: null, focusedPlaceKeys: [] };
@@ -3690,6 +3699,12 @@ function SharedMapDirectoryListContent({
     }
 
     const handleDirectoryViewOnMap = useCallback((placeKey) => {
+        if (ownerMapFirstEnabled) {
+            setMobileFocusTrayPlaceKey(placeKey ? String(placeKey) : null);
+            setMapFirstResourcesOpen(false);
+            onViewOnMap?.(placeKey);
+            return;
+        }
         if (isMobileMapPanelEnabled) {
             setMobileMapListFocused(false);
             setMobileFocusTrayPlaceKey(placeKey ? String(placeKey) : null);
@@ -3697,16 +3712,16 @@ function SharedMapDirectoryListContent({
             holdMobileFocusTrayDuringMapReveal();
         }
         onViewOnMap?.(placeKey);
-    }, [isMobileMapPanelEnabled, onViewOnMap]);
+    }, [isMobileMapPanelEnabled, ownerMapFirstEnabled, onViewOnMap]);
 
     const handleMobileMapViewSection = useCallback((placeKey) => {
-        if (isMobileMapPanelEnabled) {
+        if (isMobileMapPanelEnabled || ownerMapFirstEnabled) {
             setMobileFocusTrayPlaceKey(placeKey ? String(placeKey) : null);
             setMobileFullMapHandledFocusKey(null);
             holdMobileFocusTrayDuringMapReveal();
         }
         renderMobileMap?.().props?.onViewSection?.(placeKey);
-    }, [isMobileMapPanelEnabled, renderMobileMap]);
+    }, [isMobileMapPanelEnabled, ownerMapFirstEnabled, renderMobileMap]);
 
     const handleMobileMapClusterSelect = useCallback((placeKeys) => {
         renderMobileMap?.().props?.onClusterSelect?.(placeKeys);
@@ -3714,9 +3729,10 @@ function SharedMapDirectoryListContent({
 
     const openMobileFullMap = useCallback(() => {
         if (!isMobileMapPanelEnabled) return;
+        if (mapFirstView && mode === 'owner') { setMapFirstOpen(true); return; }
         setMobileMapListFocused(false);
         setMobileFullMapOpen(true);
-    }, [isMobileMapPanelEnabled]);
+    }, [isMobileMapPanelEnabled, mapFirstView, mode]);
 
     const closeMobileFullMap = useCallback(() => {
         setMobileMapListFocused(false);
@@ -3932,7 +3948,7 @@ function SharedMapDirectoryListContent({
         }
 
         setFlashPlaceKey(selectionPlaceKey);
-        if (!autoScrollToHighlight) return undefined;
+        if (!autoScrollToHighlight || ownerMapFirstEnabled) return undefined;
 
         if (resolvedLayout === 'desktop') {
             const desktopScrollTarget = desktopScrollTargetRef?.current || desktopMapWrapperRef.current;
@@ -3976,13 +3992,91 @@ function SharedMapDirectoryListContent({
             });
         }
         // No timeout — flashPlaceKey stays set permanently until the next selection.
-    }, [autoScrollToHighlight, desktopScrollTargetRef, interactive, isMobileMapPanelEnabled, resolvedLayout, selectionPlaceKey, selectionScrollRequest]);
+    }, [autoScrollToHighlight, desktopScrollTargetRef, interactive, isMobileMapPanelEnabled, ownerMapFirstEnabled, resolvedLayout, selectionPlaceKey, selectionScrollRequest]);
+
+    if (ownerMapFirstEnabled) {
+        // Reuse the actual controlled map directly, without a second camera or
+        // the saved-layout resize surface. The entry shell is never persisted.
+        const element = renderMobileMap?.() || renderDesktopMap?.();
+        const hasMappedPins = Boolean(presentation?.pins?.length);
+        const resourcesOpen = mapFirstResourcesOpen ?? !hasMappedPins;
+        const mapFirstGroups = resolvedLayout === 'desktop' ? displayGroups : mobileDisplayGroups;
+        const resources = resourceDisplay === 'table' ? (
+            <MyMapResourceTable directory={directory} presentation={presentation} interactive
+                onViewOnMap={handleDirectoryViewOnMap} onHoverPlaceStart={onHoverPlaceStart}
+                onHoverPlaceEnd={onHoverPlaceEnd} onTogglePinVisibility={onTogglePinVisibility}
+                hiddenPinPlaceKeys={hiddenPinPlaceKeys} numberedPinShapesByCategory={numberedPinShapesByCategory}
+                numberedPinStylesByCategory={numberedPinStylesByCategory} labelDetail={printLabelDetail}
+                columnCount={1} />
+        ) : (
+            <DirectoryGroupColumn groups={mapFirstGroups} mode={mode} interactive
+                fullCardLink={false} onViewOnMap={handleDirectoryViewOnMap}
+                onHoverPlaceStart={onHoverPlaceStart} onHoverPlaceEnd={onHoverPlaceEnd}
+                onRemoveResource={onRemoveResource} onTogglePinVisibility={onTogglePinVisibility}
+                hiddenPinPlaceKeySet={hiddenPinPlaceKeySet} onEditPersonalPlace={onEditPersonalPlace}
+                onEditResourceShortDescription={onEditResourceShortDescription}
+                onUpdateResourceNotes={onUpdateResourceNotes} onOpenResourceNotes={openResourceNotes}
+                canSaveResources={canSaveResources} highlightPlaceKey={flashPlaceKey}
+                highlightPlaceKeys={highlightPlaceKeys} sectionRefs={sectionRefs} clusterMapping={clusterMapping}
+                showDesktopHoverLogo={showDesktopHoverLogo} logoRevealPlaceKeys={logoRevealPlaceKeys}
+                cardBadgeMode={cardBadgeMode} showInteractiveNumberBadges={showInteractiveNumberBadges}
+                numberedPinShapesByCategory={numberedPinShapesByCategory} numberedPinStylesByCategory={numberedPinStylesByCategory}
+                showCategoryPills={showCategoryPills} printNumberBadgePosition="start" printLabelDetail={printLabelDetail} />
+        );
+        return (
+            <DirectoryReturnPathContext.Provider value={detailReturnPath}>
+                <MapFirstWorkspace kind="care-map" top={ownerFullscreenMapTop}
+                    resourcesOpen={resourcesOpen} onResourcesOpenChange={setMapFirstResourcesOpen}
+                    onExit={() => setMapFirstOpen(false)}
+                    resources={<div className="space-y-4 p-3">
+                        <MapNotesEntryButton rows={noteResourceRows} mode={mode} onOpen={openResourceNotes} />
+                        {displayGroups.length || unmappedRows.length ? resources : mapFirstEmptyState || <p className="p-4 text-sm text-slate-600">{t('noMapSearchResults')}</p>}
+                        {shouldRenderUnmappedSections ? <DirectoryUnmappedSection rows={unmappedRows} interactive mode={mode}
+                            canSaveResources={canSaveResources} onRemoveResource={onRemoveResource}
+                            onEditResourceShortDescription={onEditResourceShortDescription} onOpenResourceNotes={openResourceNotes} compact /> : null}
+                    </div>}
+                    map={<div className="relative h-full">
+                        {element ? React.cloneElement(element, {
+                            onClusterChange: setClusterMapping, onViewSection: handleMobileMapViewSection,
+                            onClusterSelect: handleMobileMapClusterSelect,
+                            careMapGestures: element.props?.careMapGestures
+                                ? { ...element.props.careMapGestures, showNorthControl: resolvedLayout !== 'mobile' }
+                                : null,
+                            className: resolvedLayout === 'mobile'
+                                ? `${element.props?.className || ''} care-map-mobile-control-frame` : element.props?.className,
+                            surfaceOverlay: resolvedLayout === 'mobile' ? <>{element.props?.surfaceOverlay}
+                                <div className="care-map-mobile-actions absolute bottom-3 right-3 z-[1001] flex flex-col items-center gap-1" data-mobile-map-actions="true">
+                                    <CareMapNorthButton compact configuration={element.props?.careMapGestures} />
+                                    <button type="button" onClick={() => setMapFirstOpen(false)}
+                                        aria-label={t('returnToMapList')} title={t('returnToMapList')}
+                                        className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-lg border border-slate-200 bg-white text-brand-700 shadow-md">
+                                        <Minimize2 size={15} strokeWidth={2.4} aria-hidden="true" />
+                                    </button>
+                                </div></> : element.props?.surfaceOverlay,
+                            mapHeightPx: null, mapHeightClassName: 'h-full min-h-0 max-h-none',
+                            layoutSignature: `${element.props?.layoutSignature || 'owner-map'}:map-first`,
+                        }) : null}
+                        <div className="pointer-events-none absolute bottom-3 left-3 right-16 z-[1001] max-h-[35svh] overflow-y-auto lg:right-auto lg:w-[420px] [&>*]:pointer-events-auto">
+                            <MobileMapFocusTray selection={mobileFocusTraySelection} mode={mode}
+                                onViewOnMap={handleDirectoryViewOnMap} onOpenResourceNotes={openResourceNotes}
+                                clusterMapping={clusterMapping} cardBadgeMode={cardBadgeMode}
+                                variant="full-map" cardVariant={mobileFocusCardVariant} labelDetail={printLabelDetail} />
+                        </div>
+                    </div>} />
+                <MapNotesOverlay mapId={directory?.id} shareToken={directory?.share?.shareToken || ''}
+                    onUpdateResourceImages={onUpdateResourceImages} open={notesPanel.open} rows={noteResourceRows}
+                    recentPins={recentNotePins} selectedKey={notesPanel.selectedKey} mode={mode}
+                    onSelectResource={selectResourceNotes} onBackToList={backToNotesList} onClose={closeResourceNotes}
+                    onUpdateResourceNotes={onUpdateResourceNotes} />
+            </DirectoryReturnPathContext.Provider>
+        );
+    }
 
     if (!displayGroups.length && !unmappedRows.length) {
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
                 <div className={`rounded-[28px] border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500 ${className}`}>
-                    {t('noMapSearchResults')}
+                    {mapFirstEmptyState || t('noMapSearchResults')}
                 </div>
             </DirectoryReturnPathContext.Provider>
         );
@@ -4752,9 +4846,20 @@ function SharedMapDirectoryListContent({
 }
 
 export default function SharedMapDirectoryList(props) {
+    const { t } = useLocale();
+    const [localMapFirstOpen, setLocalMapFirstOpen] = useState(true);
+    const mapFirstOpen = props.mapFirstOpen ?? localMapFirstOpen;
+    const setMapFirstOpen = props.onMapFirstOpenChange || setLocalMapFirstOpen;
+    useEffect(() => { setLocalMapFirstOpen(true); }, [props.directory?.id]);
+    const ownerMapFirst = props.mode === 'owner' && props.layout !== 'print' && props.mapFirstView;
     const interaction = props.mode === 'owner' && props.layout !== 'print'
         ? props.annotationResourceInteraction || null : null;
     return <AnnotationResourceInteractionContext.Provider value={interaction}>
-        <SharedMapDirectoryListContent {...props} />
+        {ownerMapFirst && !mapFirstOpen ? <button type="button" data-map-first-enter="true"
+            onClick={() => setMapFirstOpen(true)}
+            className="fixed bottom-[max(16px,env(safe-area-inset-bottom))] right-4 z-[1140] inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-brand-700 shadow-lg">
+            <Maximize2 size={17} aria-hidden="true" />{t('openFullMap')}
+        </button> : null}
+        <SharedMapDirectoryListContent {...props} mapFirstOpen={mapFirstOpen} onMapFirstOpenChange={setMapFirstOpen} />
     </AnnotationResourceInteractionContext.Provider>;
 }

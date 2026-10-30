@@ -88,7 +88,7 @@ test('my map v2 scaffold reuses the existing presentation stack and delegates th
     assert.match(myMapDetailPageSource, /zoomControlStep=\{HALF_STEP_MAP_ZOOM_DELTA\}/);
     assert.match(myMapV2ScaffoldSource, /minimumZoomCenter=\{minimumZoomCenter\}/);
     assert.match(myMapV2ScaffoldSource, /lockMinimumZoomCamera=\{lockMinimumZoomCamera\}/);
-    assert.match(myMapDetailPageSource, /toolbar=\{useDesktopOwnerLayout \? \(/);
+    assert.match(myMapDetailPageSource, /toolbar=\{useDesktopOwnerLayout && !mapFirstOpen \? \(/);
     assert.match(myMapDetailPageSource, /const useDesktopOwnerLayout = useMediaQuery\('\(min-width: 1024px\)'\)/);
     assert.match(myMapDetailPageSource, /const useDesktopDirectoryBodyLayout = useMediaQuery\('\(min-width: 1024px\)'\)/);
     assert.match(myMapDetailPageSource, /useDesktopBodyLayout=\{useDesktopDirectoryBodyLayout\}/);
@@ -123,7 +123,7 @@ test('my map v2 mobile chrome stays compact in normal flow above the scrolling m
     assert.match(mobileControlsSource, /Drawer\.Overlay className="fixed inset-0 z-\[1200\]/);
     assert.match(mobileControlsSource, /className="fixed bottom-0 left-0 top-\[56px\] z-\[1210\]/);
     assert.match(myMapDetailPageSource, /const ownerToolbarActionProps = \{[\s\S]*?renderPdfExportButton,/);
-    assert.match(myMapDetailPageSource, /\{\.\.\.ownerToolbarActionProps\}[\s\S]*?mapStudioPanel=\{ownerMapStudioPanel\}[\s\S]*?compactOverlay/);
+    assert.match(myMapDetailPageSource, /\{\.\.\.ownerToolbarActionProps\}[\s\S]*?mapStudioPanel=\{useDesktopOwnerLayout \? null : ownerMapStudioPanel\}[\s\S]*?compactOverlay/);
     assert.match(myMapV2ScaffoldSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\] z-\[1090\]/);
     assert.match(myMapDetailPageSource, /mobileMapStickyClassName="sticky top-\[56px\] sm:top-\[64px\] z-\[1090\]/);
     assert.match(myMapV2ScaffoldSource, /preserveMobileMapFrameInFlow=\{preserveMobileMapFrameInFlow\}/);

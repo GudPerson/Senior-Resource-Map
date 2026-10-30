@@ -68,6 +68,8 @@ try {
         const page = await context.newPage(); page.on('pageerror', error => report.errors.push(`${device}: ${error.message}`));
         page.on('download', () => downloads++);
         await page.goto(`${server.resolvedUrls.local[0]}?route=/my-directory/maps/${directory.id}`);
+        // Media assertions exercise the existing layout after its explicit return action.
+        await page.locator('[data-map-first-exit="true"]').click();
         if (device !== 'desktop') await page.getByRole('button', { name: 'Open map controls', exact: true }).click();
         const button = page.getByRole('button', { name: 'Download notes & images (ZIP)', exact: true });
         await button.waitFor();

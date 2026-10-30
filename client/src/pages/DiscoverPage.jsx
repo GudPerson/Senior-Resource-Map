@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { Drawer } from 'vaul';
 
 import { api } from '../lib/api.js';
@@ -27,6 +27,7 @@ import {
 import SharedDiscoverPostalGroupListPanel from '../features/discover/DiscoverPostalGroupListPanel.jsx';
 import { DiscoveryResultsList } from '../features/discover/DiscoveryResultsList.jsx';
 import SavedMapEmptyState from '../features/discover/SavedMapEmptyState.jsx';
+import MapFirstWorkspace from '../components/MapFirstWorkspace.jsx';
 import {
     applyLocationIndicators,
     buildLocationIndicatorContextRequest,
@@ -297,6 +298,9 @@ export default function DiscoverPage() {
     const [transientFocusAssetKey, setTransientFocusAssetKey] = useState(null);
     const [mapFocusRequest, setMapFocusRequest] = useState(null);
     const [mobileMode, setMobileMode] = useState('browse');
+    const [mapFirstOpen, setMapFirstOpen] = useState(true);
+    const [mapFirstResourcesPreference, setMapFirstResourcesPreference] = useState(null);
+    const [mapFirstCardDensity, setMapFirstCardDensity] = useState('comfortable');
     const [mobileCardDensity, setMobileCardDensity] = useState('compact');
     const [isSearchPanelCollapsed, setIsSearchPanelCollapsed] = useState(false);
     const [locationIndicatorState, setLocationIndicatorState] = useState({ contextKey: '', indicators: {} });
@@ -2280,6 +2284,47 @@ export default function DiscoverPage() {
             </Drawer.Portal>
         </Drawer.Root>
     ) : null;
+
+    if (mapFirstOpen) {
+        const resourcesOpen = mapFirstResourcesPreference ?? !hasRenderableMapPins;
+        const mapFirstFilters = React.cloneElement(filterPanel, {
+            mobileMode: 'browse',
+            mapFirst: true,
+            mobileCardDensity: mapFirstCardDensity,
+            onChangeMobileCardDensity: setMapFirstCardDensity,
+            isCollapsed: false,
+            onCollapse: () => setMapFirstResourcesPreference(false),
+            onOpenMap: () => setMapFirstResourcesPreference(false),
+        });
+        const mapFirstResults = React.cloneElement(resultsList, {
+            mobileCardDensity: mapFirstCardDensity,
+            onFocusAssetOnMap: (...args) => {
+                handleFocusAssetOnMap(...args);
+                setMapFirstResourcesPreference(false);
+            },
+        });
+        return (
+            <>
+                <MapFirstWorkspace kind="discover" map={mapView}
+                    resourcesOpen={resourcesOpen} onResourcesOpenChange={setMapFirstResourcesPreference}
+                    onExit={() => setMapFirstOpen(false)} exitLabel={t('discoveryBrowse')}
+                    toolbar={<div className="relative">
+                        <Search size={17} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <input type="search" value={search} aria-label={t('discoverySearchMobilePlaceholder')}
+                            placeholder={t('discoverySearchMobilePlaceholder')}
+                            onChange={(event) => { handleSearchChange(event.target.value); setMapFirstResourcesPreference(true); }}
+                            className="h-11 w-full min-w-0 rounded-2xl border border-slate-200 bg-white pl-10 pr-3 text-base shadow-md focus:outline-none focus:ring-2 focus:ring-brand-200" />
+                    </div>}
+                    resources={desktopPaneMode === 'detail' && selectedPlacePin ? desktopLeftPane : (
+                        <div className="flex min-h-0 flex-col [&_[data-discovery-search]]:hidden">
+                            {mapFirstFilters}
+                            {mapFirstResults}
+                        </div>
+                    )} />
+                {mobileDetailDrawer}
+            </>
+        );
+    }
 
     return (
         <div
