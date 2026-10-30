@@ -59,6 +59,7 @@ let base;
     } }],
     define: {
       'import.meta.env.VITE_API_URL': '"/api"',
+      'import.meta.env.VITE_SUPPORT_INBOX_ENABLED': '"true"',
       'import.meta.env.VITE_TOWN_MAP_PROOF_ENABLED': '"true"',
       'import.meta.env.VITE_TOWN_MAP_ZOOM14_OVERVIEW_ENABLED': '"true"',
       ...Object.fromEntries([['ASSET_BASE_URL', 'v2/native-scale-20260722/default'], ['GRAY_ASSET_BASE_URL', 'v2/native-scale-20260722/gray'], ['OVERVIEW_ASSET_BASE_URL', 'v3/zoom14-atlas-20260730/default'], ['GRAY_OVERVIEW_ASSET_BASE_URL', 'v3/zoom14-atlas-20260730/gray']].map(([key, value]) => [`import.meta.env.VITE_TOWN_MAP_${key}`, JSON.stringify(`/__carearound-town-maps/${value}`)])),
@@ -125,17 +126,19 @@ async function shot(page, name) {
   report.screenshots.push(target);
 }
 async function viewportMetrics(page, name) {
-  return page.locator(`[data-map-first="${name}"]`).evaluate(root => {
+  const metrics = await page.locator(`[data-map-first="${name}"]`).evaluate(root => {
     const r = root.getBoundingClientRect();
     const map = root.querySelector('[data-map-first-map]')?.getBoundingClientRect();
-    return { shell: { x: r.x, y: r.y, width: r.width, height: r.height, bottom: r.bottom }, map: map && { x: map.x, y: map.y, width: map.width, height: map.height, bottom: map.bottom }, viewport: { width: innerWidth, height: innerHeight }, overflowX: document.documentElement.scrollWidth - innerWidth };
+    return { shell: { x: r.x, y: r.y, width: r.width, height: r.height, bottom: r.bottom }, map: map && { x: map.x, y: map.y, width: map.width, height: map.height, bottom: map.bottom }, viewport: { width: innerWidth, height: innerHeight }, overflowX: document.documentElement.scrollWidth - innerWidth, offenders: [...document.querySelectorAll('body *')].filter(e => e.getClientRects().length && !e.closest('[inert], [aria-hidden="true"]')).map(e => ({tag:e.tagName, className:typeof e.className==='string'?e.className:'',x:e.getBoundingClientRect().x,right:e.getBoundingClientRect().right,width:e.getBoundingClientRect().width})).filter(e=>e.x < -2 || e.right > innerWidth+2).slice(0,20) };
   });
+  (report.viewportMetrics ||= []).push({case:page.__fixtureCase,name,...metrics});
+  return metrics;
 }
 function assertViewport(metrics) {
   assert.ok(metrics.shell.width >= metrics.viewport.width - 3, 'shell spans app-window width');
   assert.ok(Math.abs(metrics.shell.bottom - metrics.viewport.height) <= 3, 'shell reaches viewport bottom');
   assert.ok(metrics.map?.height >= metrics.viewport.height * .55, 'map retains useful full-window area');
-  assert.ok(metrics.overflowX <= 2, 'no page horizontal overflow');
+  assert.ok(metrics.overflowX <= 2, `no page horizontal overflow: ${JSON.stringify(metrics)}`);
 }
 const camera = page => page.evaluate(() => [...(window.__mapFirstMaps || [])].filter(map => map.getContainer()?.isConnected).map(map => {
   const element = map.getContainer(), r = element.getBoundingClientRect();
@@ -295,6 +298,11 @@ async function runCase(label, options, fn) {
   } catch (error) {
     report.cases.push({ name: label, passed: false, error: error.stack });
     await shot(page, `${label}-FAILED`).catch(() => {});
+    const exit = page.locator('[data-map-first-exit="true"]');
+    if (await exit.isVisible().catch(() => false)) {
+      await exit.click().catch(() => {});
+      (report.failureExitMetrics ||= []).push(await page.evaluate(label => ({case:label,viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,navbarWidth:document.querySelector('.navbar-controls')?.getBoundingClientRect().width,navbarRight:document.querySelector('.navbar-controls')?.getBoundingClientRect().right}),label));
+    }
   } finally { await context.close(); }
 }
 try {
@@ -394,8 +402,29 @@ try {
           await page.evaluate(()=>{document.documentElement.style.setProperty('--font-scale','1');document.documentElement.style.fontSize='';});
           await page.waitForTimeout(400);
         }
+        if (layout.name === 'tablet' && kind === 'empty') {
+          for (const width of [640, 768, 1023]) {
+            await page.setViewportSize({width,height:1024});
+            await page.waitForTimeout(250);
+            assertViewport(await viewportMetrics(page,'care-map'));
+            const nav = await page.locator('nav.navbar-static-scale').evaluate(root => ({
+              brandCompact:getComputedStyle(root.querySelector('.brand-lockup > div')).display==='none',
+              actions:[...root.querySelectorAll('button,select,a')].filter(e=>e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden').map(e=>{const r=e.getBoundingClientRect();const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return{id:e.id||e.getAttribute('aria-label'),width:r.width,inside:r.x>=0&&r.right<=innerWidth,exposed:Boolean(hit&&(e===hit||e.contains(hit)))}}),
+            }));
+            (report.compactNavbarChecks ||= []).push({width,...nav});
+            assert.ok(nav.brandCompact,'tablet workspace uses compact brand');
+            assert.ok(nav.actions.every(action=>action.inside&&action.exposed),'all existing navigation actions remain inside the viewport and reachable');
+          }
+          await page.setViewportSize(layout.viewport);
+          await page.waitForTimeout(250);
+        }
         await shell.locator('[data-map-first-exit]').first().click();
         await shell.waitFor({ state: 'hidden' });
+        if (layout.name === 'tablet' && kind === 'empty') {
+          assert.equal(await page.locator('[data-map-first]').count(),0,'active workspace marker is removed on exit');
+          assert.notEqual(await page.locator('nav .brand-lockup > div').evaluate(e=>getComputedStyle(e).display),'none','legacy tablet wordmark restores after exit');
+          report.legacyTabletNavbarAfterExit = await page.evaluate(()=>({width:innerWidth,overflowX:document.documentElement.scrollWidth-innerWidth}));
+        }
         assert.notEqual(await page.evaluate(() => document.body.style.overflow), 'hidden', 'owner exit restores body scrolling');
         await page.goto(new URL('/discover', base).href);
         await page.locator('[data-map-first="discover"]').waitFor({ state: 'visible' });

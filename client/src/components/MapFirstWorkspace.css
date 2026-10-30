@@ -19,3 +19,15 @@
         max-height: none;
     }
 }
+/* Keep the full signed-in navigation row reachable in the active tablet workspace.
+   The home link retains its accessible name; leaving the workspace restores it. */
+@media (min-width: 640px) and (max-width: 1023px) {
+    body:has([data-map-first]) .navbar-static-scale .brand-lockup > div {
+        display: none;
+    }
+    body:has([data-map-first]) .navbar-static-scale #locale-select {
+        max-width: 88px;
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+}
