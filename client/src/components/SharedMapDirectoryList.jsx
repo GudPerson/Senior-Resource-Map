@@ -3300,6 +3300,7 @@ function DirectoryGroupColumn({
     printNumberBadgePosition = 'end',
     printLabelDetail = PRINT_MAP_LABEL_DETAIL_FULL,
     printColumnCount = 1,
+    mapFirstGrid = false,
     afterContent = null,
 }) {
     if (!groups.length && !afterContent) {
@@ -3315,6 +3316,7 @@ function DirectoryGroupColumn({
     const groupColumns = normalizedPrintColumnCount > 1
         ? splitPrintSideResourceGroups(groups, normalizedPrintColumnCount)
         : [groups];
+    const GroupWrapper = mapFirstGrid ? 'div' : React.Fragment;
     const renderGroups = (columnGroups) => columnGroups.map((group, index) => {
                 const categoryKey = normalizeLabel(group.categorySortKey || group.categoryLabel);
                 const categoryStatus = group.isUnmappedGroup ? 'unmapped' : 'mapped';
@@ -3328,7 +3330,7 @@ function DirectoryGroupColumn({
                 const shouldShowCategoryPill = Boolean(showCategoryPills && group.categoryLabel && categoryRunKey !== previousCategoryRunKey);
 
                 return (
-                    <React.Fragment key={group.placeKey}>
+                    <GroupWrapper key={group.placeKey}>
                         {shouldShowCategoryPill ? (
                             <DirectoryCategoryPill
                                 label={group.categoryLabel}
@@ -3382,13 +3384,14 @@ function DirectoryGroupColumn({
                                 }
                             }}
                         />
-                    </React.Fragment>
+                    </GroupWrapper>
                 );
             });
 
     return (
         <div
-            className={normalizedPrintColumnCount > 1 ? 'grid min-w-0 gap-3' : spacingClassName}
+            data-map-first-card-grid={mapFirstGrid ? 'care-map' : undefined}
+            className={mapFirstGrid || normalizedPrintColumnCount > 1 ? 'grid min-w-0 gap-3' : spacingClassName}
             style={normalizedPrintColumnCount > 1
                 ? { gridTemplateColumns: `repeat(${normalizedPrintColumnCount}, minmax(0, 1fr))` }
                 : undefined}
@@ -3419,6 +3422,7 @@ function DirectoryUnmappedSection({
     onEditResourceShortDescription,
     onOpenResourceNotes,
     compact = false,
+    mapFirstGrid = false,
     className = '',
 }) {
     const { t } = useLocale();
@@ -3435,6 +3439,7 @@ function DirectoryUnmappedSection({
                         {rows.length}
                     </span>
                 </div>
+                <div data-map-first-card-grid={mapFirstGrid ? 'unmapped' : undefined} className={mapFirstGrid ? '' : 'space-y-3'}>
                 {rows.map((row) => (
                     <DirectoryUnmappedRow
                         key={row.rowKey}
@@ -3448,6 +3453,7 @@ function DirectoryUnmappedSection({
                         compact
                     />
                 ))}
+                </div>
             </section>
         );
     }
@@ -4009,7 +4015,7 @@ function SharedMapDirectoryListContent({
                 numberedPinStylesByCategory={numberedPinStylesByCategory} labelDetail={printLabelDetail}
                 columnCount={1} />
         ) : (
-            <DirectoryGroupColumn groups={mapFirstGroups} mode={mode} interactive
+            <DirectoryGroupColumn groups={mapFirstGroups} mode={mode} interactive mapFirstGrid
                 fullCardLink={false} onViewOnMap={handleDirectoryViewOnMap}
                 onHoverPlaceStart={onHoverPlaceStart} onHoverPlaceEnd={onHoverPlaceEnd}
                 onRemoveResource={onRemoveResource} onTogglePinVisibility={onTogglePinVisibility}
@@ -4031,7 +4037,7 @@ function SharedMapDirectoryListContent({
                     resources={<div className="space-y-4 p-3">
                         <MapNotesEntryButton rows={noteResourceRows} mode={mode} onOpen={openResourceNotes} />
                         {displayGroups.length || unmappedRows.length ? resources : mapFirstEmptyState || <p className="p-4 text-sm text-slate-600">{t('noMapSearchResults')}</p>}
-                        {shouldRenderUnmappedSections ? <DirectoryUnmappedSection rows={unmappedRows} interactive mode={mode}
+                        {shouldRenderUnmappedSections ? <DirectoryUnmappedSection rows={unmappedRows} interactive mode={mode} mapFirstGrid
                             canSaveResources={canSaveResources} onRemoveResource={onRemoveResource}
                             onEditResourceShortDescription={onEditResourceShortDescription} onOpenResourceNotes={openResourceNotes} compact /> : null}
                     </div>}

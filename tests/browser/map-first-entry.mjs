@@ -17,8 +17,8 @@ await fs.mkdir(out, { recursive: true });
 const report = { boundary: 'Actual App/router/providers. Fictional intercepted auth/resources/maps, synthetic pixels, desktop and phone/tablet emulation. No production access, physical-device, Android PWA, heap or image-quality claim.', cases: [], cameraComparisons: [], ownerHeaderChecks: [], errors: [], unexpectedWrites: [], expectedDraftSaveAttempts: [], screenshots: [] };
 const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=', 'base64');
 const asset = { id: 82001, name: 'Fictional Alpha Centre', category: 'Fixture support', subCategory: 'Fixture centre', type: 'hard', resourceType: 'hard', resourceId: 82001, status: 'active', visibility: 'public', address: 'Fictional address', postalCode: '680001', lat: 1.38, lng: 103.75 };
-const secondAsset = { ...asset, id: 82002, resourceId: 82002, name: 'Fictional Beta Centre', lat: 1.381, lng: 103.751 };
-const resources = [asset, secondAsset, ...Array.from({ length: 10 }, (_, index) => ({ ...secondAsset, id: 82003 + index, resourceId: 82003 + index, name: `Fictional support resource ${index + 3}` }))];
+const secondAsset = { ...asset, id: 82002, resourceId: 82002, name: 'Fictional Beta Centre', subCategory: 'Fixture outreach', postalCode: '680002', address: 'Fictional Beta address', lat: 1.381, lng: 103.751 };
+const resources = [asset, secondAsset, ...Array.from({ length: 28 }, (_, index) => ({ ...secondAsset, id: 82003 + index, resourceId: 82003 + index, name: `Fictional support resource ${index + 3}` }))];
 const mapId = 91261012;
 const documentFor = (gray = false) => {
   const value = createMapStudioDocument();
@@ -31,12 +31,14 @@ const documentFor = (gray = false) => {
 };
 function directoryFor(kind = 'mixed', shared = false) {
   const makeRow = (id, mapped) => ({ rowKey: `personal:${id}`, assetKey: `personal:${id}`, resourceType: 'personal', resourceId: id, personalPlaceId: id, name: mapped ? 'Fictional mapped resource' : 'Fictional list-only resource', personalPlaceCategory: 'home', subCategory: 'Personal place', address: 'Fictional address', lat: mapped ? 1.38 : null, lng: mapped ? 103.75 : null, isPersonalPlace: true, saveEligible: false, status: 'active', mapShortDescriptors: [], notes: [{ id: `note-${id}`, text: 'Fictional stored owner note', isShared: false }] });
-  const rows = kind === 'empty' ? [] : kind === 'list-only' ? [makeRow(91262, false)] : kind === 'mapped' ? [makeRow(91261, true)] : [makeRow(91261, true), makeRow(91262, false)];
+  const rows = kind === 'empty' ? [] : kind === 'list-only' ? [makeRow(91262, false)] : kind === 'mapped' ? [makeRow(91261, true)] : [makeRow(91261, true), { ...makeRow(91264, true), name: 'Fictional second mapped resource', lat: 1.3802, lng: 103.7502 }, { ...makeRow(91265, true), name: 'Fictional third mapped resource', lat: 1.3804, lng: 103.7504 }, makeRow(91262, false)];
+  if(kind==='mixed') rows.splice(3,0,...Array.from({length:15},(_,index)=>({...makeRow(91300+index,true),name:`Fictional extra mapped resource ${index+1}`,lat:1.38+index*.00005,lng:103.75+index*.00005})));
   const mapped = rows.filter(row => Number.isFinite(row.lat));
   const directory = { id: mapId, name: 'Fictional Care Map', description: 'Entry-state regression fixture', categoryOrder: [], summary: { resourceCount: rows.length, savedResourceCount: 0, personalPlaceCount: rows.length, placeCount: rows.length, mappablePlaceCount: mapped.length }, share: { isShared: shared, shareToken: shared ? 'fictional-map-first' : null, embedEnabled: false, embedAllowedOrigins: [] }, assets: [], personalPlaces: rows.map(row => ({ ...row, shortDescription: '', shortDescriptors: [] })), places: rows.map(row => ({ pinKey: row.assetKey, placeKey: row.assetKey, title: row.name, name: row.name, address: row.address, lat: row.lat, lng: row.lng, hasCoordinates: Number.isFinite(row.lat), openProgrammeServiceCount: 0, rows: [row] })), pins: mapped.map(row => ({ pinKey: row.assetKey, placeKey: row.assetKey, title: row.name, lat: row.lat, lng: row.lng, curatedCount: 0, previewResourceNames: [] })), viewer: { isAuthenticated: !shared, isOwner: !shared, canSaveCopy: shared, canSaveResources: !shared } };
   if (kind === 'mixed') {
     const group = { rowKey:'soft-91263:group', assetKey:'soft-91263', resourceType:'soft', resourceId:91263, name:'Fictional list-only Group', subCategory:'Group', assetMode:'group', status:'list_only', mapFocusPlaceKeys:['personal:91261'], mapShortDescriptors:[] };
     directory.assets.push(group);
+    directory.places[0].rows.push({ ...asset, rowKey: 'hard-82001:linked', assetKey: 'hard-82001', name: 'Fictional linked place resource', mapShortDescriptors: [] });
     directory.places.push({placeKey:'fallback-soft-91263',placeId:null,name:group.name,address:null,postalCode:'',lat:null,lng:null,hasCoordinates:false,rows:[group]});
     directory.summary.resourceCount++;
     directory.summary.savedResourceCount++;
@@ -105,13 +107,13 @@ async function install(page, { owner = true, kind = 'mixed', shared = false, fon
         return route.fulfill({ status: 409, json: { error: 'Unexpected fixture write.' } });
       }
       if (url.pathname === '/api/platform-access') return route.fulfill({ json: { settings: { publicDirectoryMode: 'open', publicRegistrationMode: 'open', publicLoginMode: 'open' } } });
-      if (url.pathname.startsWith('/api/auth/')) return route.fulfill({ json: { user: owner ? { id: 91261, name: 'Fictional owner', role: 'standard', locale: 'en' } : null } });
+      if (url.pathname.startsWith('/api/auth/')) return route.fulfill({ json: { user: owner ? { id: 91261, name: 'Fictional owner', role: 'standard', locale: 'en', postalCode: '680001' } : null } });
       if (url.pathname.endsWith(`/my-maps/${mapId}`) || url.pathname.endsWith('/shared-maps/fictional-map-first')) return route.fulfill({ json: directory });
       if (url.pathname.endsWith(`/my-maps/${mapId}/studio`)) return route.fulfill({ json: { mapId, document: documentFor(gray), updatedAt: null } });
       if (url.pathname.endsWith(`/my-maps/${mapId}/print-annotations`)) return route.fulfill({ json: { mapId, schemaVersion: 1, annotations: [], revision: 1 } });
-      if (url.pathname === '/api/favorites') return route.fulfill({ json: saved ? [{ ...asset, resourceType: 'hard', resourceId: asset.id }] : [] });
+      if (url.pathname === '/api/favorites') return route.fulfill({ json: saved ? [asset,secondAsset].map(item=>({...item,resourceType:'hard',resourceId:item.id})) : [] });
       if (url.pathname === '/api/hard-assets') return route.fulfill({ json: resources });
-      if (url.pathname === '/api/sub-categories') return route.fulfill({ json: [{ id: 82001, name: 'Fixture centre', type: 'hard', color: '#0f766e' }] });
+      if (url.pathname === '/api/sub-categories') return route.fulfill({ json: [{ id: 82001, name: 'Fixture centre', type: 'hard', color: '#0f766e' },{id:82002,name:'Fixture outreach',type:'hard',color:'#0369a1'}] });
       return route.fulfill({ json: [] });
     }
     if (url.origin === new URL(base).origin) return route.continue();
@@ -148,6 +150,17 @@ const camera = page => page.evaluate(() => [...(window.__mapFirstMaps || [])].fi
   });
   return { id: map._leaflet_id, containerId: element._leaflet_id, exposed, width: r.width, height: r.height, center: [map.getCenter().lat, map.getCenter().lng], zoom: map.getZoom(), images: element.querySelectorAll('.leaflet-image-layer').length, liveTiles: element.querySelectorAll('.leaflet-tile-pane img').length };
 }).filter(map => map.exposed && map.width && map.height));
+async function settledCamera(page) {
+  let previous='',stable=0;
+  for(let sample=0;sample<40;sample++) {
+    const value=await camera(page);
+    const key=JSON.stringify(value.map(({id,center,zoom,width,height})=>({id,center,zoom,width,height})));
+    stable=key===previous?stable+1:0; previous=key;
+    if(stable>=3&&value.length===1) return value;
+    await page.waitForTimeout(100);
+  }
+  throw new Error('Fixture camera did not reach a settled baseline');
+}
 async function checkHiddenTabOrder(page, shell) {
   const toggle = shell.locator('[data-map-first-resources-toggle]').first();
   await toggle.focus();
@@ -209,6 +222,183 @@ async function assertResourceGeometry(page, shell) {
   if (metrics.viewport<640) assert.ok(metrics.width/metrics.viewport>=.88, 'phone Resources is a near-full-width bottom sheet');
   assert.ok(metrics.overflow<=2, 'resource content has no horizontal overflow');
 }
+async function assertColumns(page, shell, label) {
+  const panel=shell.locator('[data-map-first-resources]');
+  if (!await panel.isVisible()) await shell.locator('[data-map-first-resources-toggle]').click();
+  const capacity=Number(await shell.getAttribute('data-map-first-column-capacity'));
+  const grid=panel.locator('[data-map-first-card-grid]').first();
+  await grid.waitFor({state:'visible'});
+  const scroller=await grid.evaluateHandle(root=>{let e=root.parentElement;while(e&&!(e.scrollHeight>e.clientHeight+120&&/auto|scroll/.test(getComputedStyle(e).overflowY)))e=e.parentElement;if(e)e.scrollTop=80;return e;});
+  await page.waitForFunction(e=>!e||Math.abs(e.scrollTop-80)<=1,scroller); // Settle existing smooth scrolling before a width action.
+  const before=await settledCamera(page);
+  const initialNodes=await grid.evaluate(root=>{window.__fixtureGridNodes=[...root.children]; return root.children.length;});
+  assert.ok(initialNodes>=3,'actual resource groups/cards populate the column fixture');
+  const expand=shell.locator('[data-map-first-columns-expand]'),shrink=shell.locator('[data-map-first-columns-shrink]');
+  const sequence=[...Array.from({length:capacity},(_,i)=>i+1),...Array.from({length:capacity-1},(_,i)=>capacity-1-i)];
+  let current=1;
+  for(const expected of sequence) {
+    if(expected>current) { await expand.focus(); await page.keyboard.press('Enter'); }
+    if(expected<current) { await shrink.focus(); await page.keyboard.press('Space'); }
+    await page.waitForTimeout(100);
+    assert.equal(Number(await shell.getAttribute('data-map-first-columns')),expected,'edge arrows change one column at a time');
+    const geometry=await grid.evaluate(root=>({columns:getComputedStyle(root).gridTemplateColumns,boxes:[...root.children].slice(0,3).map(e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};}),retained:window.__fixtureGridNodes.every((e,i)=>e===root.children[i]&&e.isConnected)}));
+    assert.equal(new Set(geometry.boxes.slice(0,expected).map(b=>Math.round(b.x))).size,expected,'real cards occupy separate column positions');
+    assert.ok(geometry.boxes.every(b=>b.width>=240),'cards retain readable width');
+    assert.ok(geometry.retained,'column changes retain the same mounted resource nodes');
+    const scroll=await scroller.evaluate(e=>e?{top:e.scrollTop,max:e.scrollHeight-e.clientHeight}:null);
+    if(scroll) assert.ok(Math.abs(scroll.top-Math.min(80,scroll.max))<=1,`resource scroll position survives column changes: ${JSON.stringify({expected,scroll})}`);
+    assert.deepEqual(await camera(page),before,'drawer width leaves map identity/camera/frame untouched');
+    await assertEssentialControlsExposed(page);
+    await assertResourceGeometry(page,shell);
+    (report.columnChecks ||= []).push({case:page.__fixtureCase,label,expected,capacity,...geometry});
+    await shot(page,`${page.__fixtureCase}-${label}-${expected}-columns`);
+    current=expected;
+  }
+  assert.equal(await shrink.isDisabled(),true,'one column is the lower bound');
+  if(await shell.getAttribute('data-map-first')==='discover') {
+    const row=panel.locator('[data-map-first-location-row]').filter({visible:true});
+    const geometry=await row.evaluate(root=>{const children=[...root.children].filter(e=>e.getClientRects().length);return children.map(e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,right:r.right,bottom:r.bottom};});});
+    assert.equal(geometry.length,2,'Saved only and Using Home are present in the resource summary');
+    if(page.viewportSize().width>=1024) assert.ok(Math.abs(geometry[0].y-geometry[1].y)<3,'Saved only and Using Home share a row when space permits');
+    (report.locationRows ||= []).push({case:page.__fixtureCase,geometry});
+  }
+  if(capacity===1) assert.ok(await expand.isHidden()||await expand.isDisabled(),'phone/capped expansion cannot overflow');
+  else {
+    for(let count=1;count<capacity;count++) await expand.click();
+    assert.equal(await expand.isDisabled(),true,'readable viewport cap is explicit');
+    for(let count=capacity;count>1;count--) await shrink.click();
+  }
+}
+async function assertLayerTools(page,shell) {
+  const controls=page.locator('[data-discovery-pin-layer-control]');
+  assert.equal(await controls.count(),1,'one layer control, no hidden drawer duplicate');
+  assert.equal(await shell.locator('[data-map-first-resources] [data-discovery-pin-layer-control]').count(),0,'layer control is outside Resources');
+  const trigger=controls.locator('summary,button').first();
+  const search=shell.locator('input[type=search]').first();
+  const a=await trigger.boundingBox(),b=await search.boundingBox();
+  assert.ok(Math.abs(a.y-b.y)<4&&a.x>=b.x+b.width,'layer trigger stays beside Search');
+  const toggle=shell.locator('[data-map-first-resources-toggle]');
+  const panel=shell.locator('[data-map-first-resources]');
+  if(await panel.isVisible()) await toggle.click();
+  const originalPins=await shell.locator('.leaflet-marker-icon').count();
+  const originalCards=await shell.locator('[data-map-first-card-grid=discover] > *').count();
+  for(const resourcesOpen of [false,true]) {
+    if(resourcesOpen) await toggle.click();
+    const capacity=Number(await shell.getAttribute('data-map-first-column-capacity'));
+    if(resourcesOpen) for(let i=1;i<capacity;i++) await shell.locator('[data-map-first-columns-expand]').click();
+    await trigger.click();
+    const dialog=page.getByRole('dialog',{name:/map pin categories/i}).filter({visible:true});
+    await dialog.waitFor({state:'visible'});
+    const bounds=await dialog.boundingBox();
+    assert.ok(bounds.x>=0&&bounds.x+bounds.width<=page.viewportSize().width+1,'layer picker stays within viewport');
+    const check=dialog.locator('input[type=checkbox]').nth(1);
+    await check.check();
+    if(page.viewportSize().width>=1024) {
+      const panelId=await trigger.getAttribute('aria-controls');
+      await toggle.click(); await dialog.waitFor({state:'visible'});
+      await toggle.click(); await dialog.waitFor({state:'visible'});
+      assert.equal(await trigger.getAttribute('aria-controls'),panelId,'open layer picker retains its identity across Resources visibility');
+    }
+    assert.ok(await check.isChecked(),'actual layer selection works above open expanded drawer');
+    await page.waitForFunction(count=>{const pins=document.querySelectorAll('[data-map-first=discover] .leaflet-marker-icon').length;return pins>0&&pins<count;},originalPins);
+    assert.equal(await shell.locator('[data-map-first-card-grid=discover] > *').count(),originalCards,'layer selection changes saved map markers without filtering resource results');
+    if(!resourcesOpen&&page.viewportSize().width>=1024) {
+      await page.locator('[data-guide-launcher]').click();
+      const guide=page.getByRole('dialog',{name:'CareAround Guide',exact:true});
+      await guide.waitFor({state:'visible'});
+      await guide.getByRole('button',{name:'Expand Guide',exact:true}).click();
+      assert.equal(await guide.getAttribute('aria-modal'),'true','existing Guide is a real foreground modal');
+      await page.keyboard.press('Escape');
+      await guide.waitFor({state:'hidden'});
+      assert.ok(await dialog.isVisible(),'foreground Guide owns Escape while native layer remains open');
+      assert.equal(await panel.isVisible(),resourcesOpen,'foreground modal Escape does not dismiss Resources');
+      (report.foregroundDialogChecks ||= []).push({case:page.__fixtureCase,dialog:'existing expanded CareAround Guide',layerStillOpen:true});
+    }
+    await search.focus().catch(()=>{}); // Nonmodal desktop picker owns Escape even after focus moves.
+    (report.layerEscapeCandidates ||= []).push(await page.locator('[role=dialog], [role=alertdialog]').evaluateAll(nodes=>nodes.map(e=>({label:e.getAttribute('aria-label'),ownLayer:!!e.closest('[data-discovery-pin-layer-control]'),ariaHidden:e.getAttribute('aria-hidden'),ancestorHidden:!!e.closest('[aria-hidden=true]'),inert:!!e.closest('[inert]'),display:getComputedStyle(e).display,visibility:getComputedStyle(e).visibility,rects:e.getClientRects().length}))));
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({state:'hidden'});
+    await page.waitForFunction(e=>e===document.activeElement,await trigger.elementHandle());
+    assert.ok(await trigger.evaluate(e=>e===document.activeElement),'Escape returns focus to external layer trigger');
+    assert.equal(await panel.isVisible(),resourcesOpen,'layer Escape does not dismiss Resources');
+    assert.equal(await shell.isVisible(),true,'layer Escape does not exit map');
+    if(page.viewportSize().width>=1024) {
+      // Deterministic synthetic DOM timing: native summary default action opens
+      // details, then Search Escape occurs in the same turn before onToggle effects.
+      const fast=await trigger.evaluate(summary=>{
+        summary.click(); const opened=summary.parentElement.open;
+        const search=document.querySelector('[data-map-first=discover] input[type=search]');
+        search.focus(); const key=new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true});
+        search.dispatchEvent(key);
+        return {opened,closed:!summary.parentElement.open,prevented:key.defaultPrevented};
+      });
+      assert.deepEqual(fast,{opened:true,closed:true,prevented:true},'same-turn native reopen/Search Escape closes the layer before delayed toggle effects');
+      await page.waitForFunction(e=>e===document.activeElement,await trigger.elementHandle());
+      (report.fastLayerEscapeChecks ||= []).push({case:page.__fixtureCase,boundary:'synthetic same-event-loop DOM events',...fast});
+    }
+    await trigger.click();
+    await dialog.waitFor({state:'visible'});
+    assert.ok(await dialog.locator('input[type=checkbox]').nth(1).isChecked(),'layer selection survives Resources and width changes');
+    await page.keyboard.press('Escape');
+    if(resourcesOpen) for(let i=capacity;i>1;i--) await shell.locator('[data-map-first-columns-shrink]').click();
+  }
+  await settledCamera(page);
+  await trigger.focus(); await page.keyboard.press('Escape');
+  await panel.waitFor({state:'hidden'});
+  assert.ok(await shell.isVisible(),'next Escape closes Resources without exiting the map');
+  await toggle.click();
+  if(page.viewportSize().width>=640) {
+    const arrow=shell.locator('[data-map-first-columns-expand]'); await arrow.focus();
+    await page.keyboard.press('Escape'); await panel.waitFor({state:'hidden'});
+    assert.ok(await toggle.evaluate(e=>e===document.activeElement),'Escape from an edge arrow returns focus to Resources');
+    await toggle.click();
+  }
+}
+async function assertResponsiveColumns(page,shell) {
+  const viewport=page.viewportSize(),initial=await camera(page);
+  await page.setViewportSize({width:1024,height:900});
+  await page.waitForTimeout(350);
+  const expand=shell.locator('[data-map-first-columns-expand]'),shrink=shell.locator('[data-map-first-columns-shrink]');
+  while(!await expand.isDisabled()) await expand.click();
+  const focused=await shrink.elementHandle(); await shrink.focus();
+  await page.getByRole('button',{name:'Increase text size',exact:true}).click();
+  await page.waitForTimeout(350);
+  const large=Number(await shell.getAttribute('data-map-first-columns'));
+  assert.ok(large<=2,'actual text-size increase caps cards to readable columns');
+  assert.ok(await focused.evaluate(e=>e.isConnected),'responsive clamp retains the arrow element');
+  await assertResourceGeometry(page,shell); await assertEssentialControlsExposed(page);
+  await shot(page,'discover-1024-large-text-capped');
+  await page.getByRole('button',{name:'Decrease text size',exact:true}).click();
+  await page.setViewportSize({width:768,height:1024});
+  await page.waitForTimeout(350);
+  assert.equal(await shell.getAttribute('data-map-first-columns'),'2','tablet clamps three requested columns to two');
+  await assertResourceGeometry(page,shell); await assertEssentialControlsExposed(page);
+  await page.setViewportSize({width:390,height:844});
+  await page.waitForTimeout(350);
+  assert.equal(await shell.getAttribute('data-map-first-columns'),'1','phone always shows one readable column');
+  await assertResourceGeometry(page,shell); await assertEssentialControlsExposed(page);
+  await page.setViewportSize(viewport); await page.waitForTimeout(500);
+  const current=await camera(page);
+  assert.deepEqual(current.map(m=>m.id),initial.map(m=>m.id),'viewport and text-size changes retain the connected map instance');
+  while(!await shrink.isDisabled()) await shrink.click();
+}
+async function assertResultsPagination(page,shell) {
+  const grid=shell.locator('[data-map-first-card-grid="discover"]');
+  const initial=await grid.locator(':scope > *').count(),before=await settledCamera(page);
+  const scrolling=grid.locator('..');
+  const box=await scrolling.boundingBox(),clip=await shell.locator('[data-map-first-resources]').boundingBox();
+  const original={x:box.x+box.width*.5,y:box.y+box.height*.75};
+  const target={x:box.x+box.width*.5,y:(Math.max(box.y,clip.y)+Math.min(box.y+box.height,clip.y+clip.height))/2};
+  const hit=await scrolling.evaluate((root,{original,target})=>({originalOnMap:!!document.elementFromPoint(original.x,original.y)?.closest('.leaflet-container'),targetInsideResults:root.contains(document.elementFromPoint(target.x,target.y))}),{original,target});
+  (report.paginationPointers ||= []).push({case:page.__fixtureCase,box,clip,original,target,...hit});
+  assert.ok(hit.targetInsideResults,'pagination wheel targets the exposed result scroll area, not its clipped padding');
+  await page.mouse.move(target.x,target.y);
+  await page.mouse.wheel(0,15000);
+  await page.waitForFunction(initial=>document.querySelector('[data-map-first-card-grid="discover"]').children.length>initial,initial);
+  assert.ok(await grid.locator(':scope > *').count()>initial,'existing result scroll auto-loads additional real cards');
+  assert.deepEqual(await camera(page),before,'pagination scrolling leaves the map camera/frame untouched');
+  (report.paginationChecks ||= []).push({initial,loaded:await grid.locator(':scope > *').count()});
+}
 async function assertOwnerContext(page) {
   const header=page.locator('[data-owner-map-mobile-header="true"]');
   await header.waitFor({state:'visible'});
@@ -229,13 +419,13 @@ async function assertOwnerContext(page) {
 }
 async function assertResultScrollCamera(page, shell) {
   const panel=shell.locator('[data-map-first-resources]').first();
-  const before=await camera(page);
+  const before=await settledCamera(page);
   const box=await panel.boundingBox();
   await page.mouse.move(box.x+box.width*.5,box.y+box.height*.8);
   await page.mouse.wheel(0,700);
   await page.waitForTimeout(600);
   const scroll=await panel.evaluate(root=>[root,...root.querySelectorAll('*')].filter(element=>element.scrollHeight>element.clientHeight+10&&/auto|scroll/.test(getComputedStyle(element).overflowY)).map(element=>({top:element.scrollTop,height:element.clientHeight,total:element.scrollHeight})));
-  assert.ok(scroll.some(element=>element.top>0),'actual resource panel scroll occurred');
+  assert.ok(scroll.some(element=>element.top>0),`actual resource panel scroll occurred: ${JSON.stringify(scroll)}`);
   const after=await camera(page);
   report.cameraComparisons.push({case:page.__fixtureCase,kind:'discover-result-scroll',before,after,scroll,events:await page.evaluate(()=>window.__mapFirstEvents.slice(-30))});
   assert.deepEqual(after.map(({id,center,zoom,width,height})=>({id,center,zoom,width,height})),before.map(({id,center,zoom,width,height})=>({id,center,zoom,width,height})),'resource scrolling preserves settled map instance/camera/frame');
@@ -265,6 +455,10 @@ async function assertOwnerDraftPreserved(page, shell) {
   assert.equal(await textarea.inputValue(), draft, 'unfinished note survives resource hide');
   await toggle.evaluate(element => element.click());
   assert.equal(await textarea.inputValue(), draft, 'unfinished note survives resource reopen');
+  const expand=shell.locator('[data-map-first-columns-expand]'),shrink=shell.locator('[data-map-first-columns-shrink]');
+  await expand.evaluate(e=>e.click());
+  await shrink.evaluate(e=>e.click());
+  assert.equal(await textarea.inputValue(),draft,'unfinished note survives drawer column changes');
   await page.waitForTimeout(700);
   assert.equal(await textarea.inputValue(), draft, 'unfinished local draft is not replaced by the server fixture');
   await shot(page, 'desktop-owner-unfinished-note-preserved');
@@ -296,6 +490,7 @@ async function runCase(label, options, fn) {
     await fn(page);
     report.cases.push({ name: label, passed: true });
   } catch (error) {
+    console.error(label,error.stack);
     report.cases.push({ name: label, passed: false, error: error.stack });
     await shot(page, `${label}-FAILED`).catch(() => {});
     const exit = page.locator('[data-map-first-exit="true"]');
@@ -345,7 +540,22 @@ try {
       await page.waitForTimeout(650);
       assertViewport(await viewportMetrics(page, 'discover'));
       await toggleResources(page, shell);
+      await assertColumns(page,shell,'discover');
+      await assertLayerTools(page,shell);
       await assertResultScrollCamera(page,shell);
+      await assertResultsPagination(page,shell);
+      if(layout.name==='desktop') await assertResponsiveColumns(page,shell);
+      if(layout.name==='phone') {
+        await page.evaluate(()=>{document.documentElement.style.setProperty('--font-scale','1.4');document.documentElement.style.fontSize='22.4px';});
+        await page.waitForTimeout(300);
+        const rows=await shell.locator('[data-map-first-location-row]').filter({visible:true}).evaluate(root=>[...root.children].map(e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,right:r.right,bottom:r.bottom};}));
+        assert.equal(rows.length,2,'large-text Saved/Home remain available');
+        assert.ok(rows[1].y>=rows[0].bottom,'large text wraps Saved/Home into readable rows');
+        await assertResourceGeometry(page,shell); await assertEssentialControlsExposed(page);
+        await shot(page,'phone-discover-large-text-summary-wrap');
+        await page.evaluate(()=>{document.documentElement.style.setProperty('--font-scale','1');document.documentElement.style.fontSize='';});
+        await page.waitForTimeout(300);
+      }
       await assertResourceGeometry(page,shell);
       await assertEssentialControlsExposed(page);
       await shot(page, `${layout.name}-discover-saved-pin-resources`);
@@ -369,6 +579,7 @@ try {
         await toggleResources(page, shell);
         const panel = shell.locator('[data-map-first-resources]').first();
         if (kind === 'mixed') {
+          await assertColumns(page,shell,'owner');
           await panel.getByText('Fictional list-only Group',{exact:true}).first().waitFor();
           const text=await panel.textContent();
           const mapped=text.indexOf('Fictional mapped resource'), group=text.indexOf('Fictional list-only Group');
@@ -439,6 +650,7 @@ try {
           await assertOwnerContext(page);
           await toggleResources(page,classic);
           await assertResourceGeometry(page,classic);
+          if(kind==='mixed') await assertColumns(page,classic,'classic');
           await assertEssentialControlsExposed(page);
           await shot(page,`desktop-owner-classic-${kind}-resources`);
           await classic.locator('[data-map-first-exit]').click();
