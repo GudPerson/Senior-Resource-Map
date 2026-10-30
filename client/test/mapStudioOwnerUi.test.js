@@ -86,8 +86,9 @@ test('sharing flushes autosave and publishes only the selected persisted view', 
 test('the owner panel stays mounted in the mobile drawer and remains a desktop top row outside Print View', () => {
     assert.match(ownerPageSource, /import MapStudioViewsPanel from '\.\.\/components\/MapStudioViewsPanel\.jsx';/);
     assert.match(ownerPageSource, /const ownerMapStudioPanel = \(/);
-    assert.match(ownerPageSource, /mapStudioPanel=\{ownerMapStudioPanel\}/);
+    assert.match(ownerPageSource, /mapStudioPanel=\{useDesktopOwnerLayout \? null : ownerMapStudioPanel\}/);
     assert.match(ownerPageSource, /studioPanel=\{useDesktopOwnerLayout \? ownerMapStudioPanel : null\}/);
+    assert.match(ownerPageSource, /onDesktopMapStudio=\{useDesktopOwnerLayout \? openExistingDesktopMapStudio : null\}/);
     assert.match(v2ScaffoldSource, /studioPanel = null/);
     assert.match(ownerPageSource, /data-map-studio-top-row="true">[\s\S]*\{ownerMapStudioPanel\}/);
     assert.match(v2ScaffoldSource, /data-map-studio-top-row="true">[\s\S]*\{studioPanel\}/);

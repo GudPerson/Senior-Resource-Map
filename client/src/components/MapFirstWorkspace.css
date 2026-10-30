@@ -1,0 +1,21 @@
+/* Panels overlay the map; neither their size nor their open state changes its canvas. */
+@media (max-width: 1023px) {
+    [data-map-first] [data-mobile-map-actions].care-map-mobile-actions {
+        bottom: var(--map-first-panel-clearance, 12px);
+    }
+}
+@media (max-width: 1023px) and (max-height: 700px) {
+    [data-map-first][data-map-first-resources-open="true"] .carearound-map-zoom-level {
+        display: none;
+    }
+}
+/* A very short, wide phone uses a readable rail instead of covering its controls. */
+@media (max-width: 1023px) and (max-height: 500px) and (orientation: landscape) {
+    [data-map-first] [data-map-first-resources] {
+        top: 72px;
+        bottom: 36px;
+        right: auto;
+        width: min(440px, calc(100% - 104px));
+        max-height: none;
+    }
+}

@@ -82,6 +82,9 @@ export default function MyMapV2PreviewScaffold({
     mapSurfaceStatus = null,
     mapStudioRuntime = null,
     careMapGestures = null,
+    mapFirstView = false,
+    mapFirstOpen = undefined,
+    onMapFirstOpenChange = null,
 }) {
     const resourceCount = Number(directory?.summary?.resourceCount || 0);
     const mapHeight = mapStudioRuntime?.layout?.mapHeight || 'standard';
@@ -203,7 +206,7 @@ export default function MyMapV2PreviewScaffold({
                     />
                 ) : null}
 
-                {resourceCount === 0 ? (
+                {resourceCount === 0 && !mapFirstView ? (
                     <div className="space-y-4">
                         {onMapClick || mapOverlay || mapSurfaceOverlay
                             ? renderMap(useDesktopLayout ? desktopMapHeightClass : mobileMapHeightClass)
@@ -215,6 +218,10 @@ export default function MyMapV2PreviewScaffold({
                         directory={directory}
                         presentation={presentation}
                         mode="owner"
+                        mapFirstView={mapFirstView}
+                        mapFirstOpen={mapFirstOpen}
+                        onMapFirstOpenChange={onMapFirstOpenChange}
+                        mapFirstEmptyState={emptyState}
                         layout={useDesktopBodyLayout ? 'desktop' : 'responsive'}
                         onViewOnMap={onViewOnMap}
                         onHoverPlaceStart={onHoverPlaceStart}

@@ -663,7 +663,7 @@ function DesktopFilterPanel({
             <div className="space-y-4 p-6 pt-2">
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2">
-                        <div className="relative min-w-0 flex-1">
+                        <div data-discovery-search="true" className="relative min-w-0 flex-1">
                             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
                             <input
                                 type="search"
@@ -916,6 +916,7 @@ export function DiscoveryFilterPanel(props) {
                 <div className="space-y-3 px-3 py-3">
                     {mobileMode === 'browse' ? (
                         <>
+                            {!props.mapFirst ? (
                             <div
                                 className="rounded-[24px] border px-4 py-3"
                                 style={{
@@ -952,8 +953,10 @@ export function DiscoveryFilterPanel(props) {
                                 </div>
                             </div>
 
+                            ) : null}
+
                             <div className="flex items-center gap-1.5 min-[360px]:gap-2">
-                                <div className="relative min-w-0 flex-1">
+                                <div data-discovery-search="true" className="relative min-w-0 flex-1">
                                     <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
                                     <input
                                         type="search"

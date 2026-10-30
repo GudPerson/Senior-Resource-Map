@@ -38,6 +38,9 @@ jobs:
       - name: Install browser for Care Map download verification
         run: npx playwright install --with-deps chromium
 
+      - name: Verify map-first entry and responsive controls
+        run: node tests/browser/map-first-entry.mjs --out=output/map-first-entry-browser
+
       - name: Verify Care Map notes and images downloads
         run: node tests/browser/care-map-notes-export.mjs --out=output/care-map-notes-export-browser
 
@@ -46,6 +49,14 @@ jobs:
 
       - name: Verify Care Map photo compression
         run: node tests/browser/care-map-photo-compression.mjs --out=output/care-map-photo-compression-browser
+
+      - name: Retain map-first entry evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: map-first-entry-browser
+          path: output/map-first-entry-browser
+          if-no-files-found: ignore
 
       - name: Retain Care Map photo compression evidence
         if: always()

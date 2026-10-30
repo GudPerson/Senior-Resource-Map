@@ -89,7 +89,12 @@ try {
             return route.fulfill({ json: [] });
         });
         page = await context.newPage(); page.on('pageerror', error => report.errors.push(`${device}: ${error.message}`));
-        const visit = async id => { await page.goto(`${server.resolvedUrls.local[0]}?route=/my-directory/maps/${id}`); await page.getByRole('button', { name: 'Open map notes', exact: true }).click(); };
+        const visit = async id => {
+            await page.goto(`${server.resolvedUrls.local[0]}?route=/my-directory/maps/${id}`);
+            // Keep every gallery assertion on its established layout; map-first has its own CI replay.
+            await page.locator('[data-map-first-exit="true"]').click();
+            await page.getByRole('button', { name: 'Open map notes', exact: true }).click();
+        };
         const select = async name => { await page.getByRole('dialog').getByRole('button', { name: new RegExp(`^Fictional ${name}`) }).click(); };
         const gallery = page.locator('[data-map-note-images]'), add = gallery.getByRole('button', { name: 'Add image to notes', exact: true }).last();
         const takePhoto = gallery.getByRole('button', { name: 'Take photo', exact: true });
@@ -140,6 +145,7 @@ try {
         check(`${device}: removing an image frees a resource slot`, await add.isEnabled());
         await repo.replace(mapId, 'asset:31', { revision: (await repo.read(mapId)).document.revision, images: images.slice(0, 20) });
         await page.reload();
+        await page.locator('[data-map-first-exit="true"]').click();
         if (device !== 'desktop') await page.getByRole('button', { name: 'Open map controls', exact: true }).click();
         const pending = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download notes & images (ZIP)', exact: true }).click();
         const download = await pending, filename = path.join(out, `${device}-60-images.zip`); await download.saveAs(filename);
