@@ -83,6 +83,7 @@ export default function MyMapV2PreviewScaffold({
     mapStudioRuntime = null,
     careMapGestures = null,
     mapFirstView = false,
+    ownerWorkspace = null,
     mapFirstOpen = undefined,
     onMapFirstOpenChange = null,
 }) {
@@ -219,6 +220,7 @@ export default function MyMapV2PreviewScaffold({
                         presentation={presentation}
                         mode="owner"
                         mapFirstView={mapFirstView}
+                        ownerWorkspace={ownerWorkspace}
                         mapFirstOpen={mapFirstOpen}
                         onMapFirstOpenChange={onMapFirstOpenChange}
                         mapFirstEmptyState={emptyState}

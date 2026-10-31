@@ -88,7 +88,7 @@ test('my map v2 scaffold reuses the existing presentation stack and delegates th
     assert.match(myMapDetailPageSource, /zoomControlStep=\{HALF_STEP_MAP_ZOOM_DELTA\}/);
     assert.match(myMapV2ScaffoldSource, /minimumZoomCenter=\{minimumZoomCenter\}/);
     assert.match(myMapV2ScaffoldSource, /lockMinimumZoomCamera=\{lockMinimumZoomCamera\}/);
-    assert.match(myMapDetailPageSource, /toolbar=\{useDesktopOwnerLayout && !mapFirstOpen \? \(/);
+    assert.match(myMapDetailPageSource, /toolbar=\{splitWorkspace \? null : useDesktopOwnerLayout && !mapFirstOpen \? \(/);
     assert.match(myMapDetailPageSource, /const useDesktopOwnerLayout = useMediaQuery\('\(min-width: 1024px\)'\)/);
     assert.match(myMapDetailPageSource, /const useDesktopDirectoryBodyLayout = useMediaQuery\('\(min-width: 1024px\)'\)/);
     assert.match(myMapDetailPageSource, /useDesktopBodyLayout=\{useDesktopDirectoryBodyLayout\}/);

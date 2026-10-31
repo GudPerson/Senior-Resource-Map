@@ -178,12 +178,14 @@ export default function PrintAnnotationToolbar({
     onUndo,
     onRedo,
     onClose,
+    embedded = false,
+    closeDisabled = false,
 }) {
     const { locale } = useLocale();
     const messages = getAnnotationMessages(locale);
     const boundaryMessages = getKmlBoundaryMessages(locale);
     const mobileMessages = getMapNoteImageMessages(locale);
-    const [detailsOpen, setDetailsOpen] = useState(false);
+    const [detailsOpen, setDetailsOpen] = useState(embedded);
     const [textBuffer, setTextBuffer] = useState(selectedAnnotation?.text ?? draftText);
     const [styleBuffer, setStyleBuffer] = useState(selectedAnnotation?.style ?? draftStyle);
     const [imageAltBuffer, setImageAltBuffer] = useState(selectedAnnotation?.image?.alt || '');
@@ -262,6 +264,7 @@ export default function PrintAnnotationToolbar({
         <div
             className={`absolute left-3 right-3 bottom-3 lg:right-auto lg:bottom-auto lg:top-3 z-[1100] ${detailsOpen ? 'max-h-[calc(100%-1.5rem)]' : 'max-h-[65%]'} lg:max-h-[calc(100%-1.5rem)] lg:w-[320px] max-w-[calc(100%-1.5rem)] flex flex-col overflow-hidden overscroll-contain rounded-lg border border-slate-200 bg-white/95 p-2 lg:p-3 shadow-xl backdrop-blur`}
             data-print-annotation-toolbar="true"
+            data-print-annotation-toolbar-embedded={embedded}
         >
             <div className="flex shrink-0 items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -272,7 +275,7 @@ export default function PrintAnnotationToolbar({
                     aria-expanded={detailsOpen} onClick={() => setDetailsOpen(value => !value)}>
                     {detailsOpen ? mobileMessages.collapse : mobileMessages.options}
                 </button>
-                <IconButton label="Close annotations" onClick={onClose}>
+                <IconButton label="Close annotations" onClick={onClose} disabled={closeDisabled}>
                     <X size={16} />
                 </IconButton>
             </div>

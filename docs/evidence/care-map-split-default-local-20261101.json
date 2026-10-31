@@ -1,0 +1,94 @@
+{
+  "date": "2026-11-01",
+  "status": "local release candidate passed; not production proof",
+  "publicBaseline": "d8c108aeb04335a366c88d0caf757969ec47d5d7",
+  "runtimeFilesCanonicalSha256": "46377f370e40c293128562c4eae7c272d83fc8e7c2a279b16de1726107fdc73e",
+  "quality": {
+    "helpCompiler": 17,
+    "helpCms": 73,
+    "server": 1239,
+    "client": 1047,
+    "clientEnvironment": 5,
+    "lockedMap": 116,
+    "configuredClientBuild": "PASS, six stable plus four Discover derivative roots"
+  },
+  "reports": {
+    "qa-final35": {
+      "path": "/private/tmp/carearound-split-default-release-20261101/qa-final35/report.json",
+      "sha256": "549321481e73467a922bb48ab4919a3f4fab8169d165bf8fefdae38bb17cb55c",
+      "caseCount": 35,
+      "errors": 0,
+      "unexpectedWrites": 0
+    },
+    "qa-false-policy": {
+      "path": "/private/tmp/carearound-split-default-release-20261101/qa-false-policy/report.json",
+      "sha256": "1bd3e8c8a05e3ea53ad029d3644a4a7bb2211663fa257efd74f3b16e9a0d7422",
+      "caseCount": 1,
+      "errors": 0,
+      "unexpectedWrites": 0
+    },
+    "map-first-browser-retry": {
+      "path": "/private/tmp/carearound-split-default-release-20261101/map-first-browser-retry/report.json",
+      "sha256": "7de49d656f33175ebc3c75e77dc959560cb1de4690f0da2d6f3ece070974f2f0",
+      "caseCount": 17,
+      "errors": 0,
+      "unexpectedWrites": 0
+    },
+    "notes-export": {
+      "path": "/private/tmp/carearound-split-default-release-20261101/notes-export/report.json",
+      "sha256": "f93848347bf616a69c830e732cd5bc79c2a3a43190bd302905b726dad91f32e7",
+      "caseCount": 9,
+      "errors": 0,
+      "unexpectedWrites": 0
+    },
+    "image-allowance": {
+      "path": "/private/tmp/carearound-split-default-release-20261101/image-allowance/report.json",
+      "sha256": "8e7f460a8f82900f6684ac7c33470a48245ba666b5b1db92791092e71058ad24",
+      "caseCount": 30,
+      "errors": 0,
+      "unexpectedWrites": 0
+    },
+    "photo-compression": {
+      "path": "/private/tmp/carearound-split-default-release-20261101/photo-compression/report.json",
+      "sha256": "61ed39036b6c02c6ef93407188594cd51a21dd3c33f6d5e926b2398f94afa3a4",
+      "caseCount": 5,
+      "errors": 0,
+      "unexpectedWrites": 0
+    },
+    "mobile-notes-retry": {
+      "path": "/private/tmp/carearound-split-default-release-20261101/mobile-notes-retry/report.json",
+      "sha256": "dfbbbfdc8bee983c86808cf6c889739f6d0e2579e41a0f4d9dfe4a7663ee8795",
+      "caseCount": 43,
+      "errors": 0,
+      "unexpectedWrites": 0
+    },
+    "note-navigation-current-fullmap": {
+      "path": "/private/tmp/carearound-split-default-release-20261101/note-navigation-current-fullmap/report.json",
+      "sha256": "541d9f64b79dacf030af7a30967c3df094e2f41423de957f7e4de65b60f8010f",
+      "caseCount": 18,
+      "errors": 0,
+      "unexpectedWrites": 0
+    },
+    "personal-place-map-notes-retry": {
+      "path": "/private/tmp/carearound-split-default-release-20261101/personal-place-map-notes-retry/report.json",
+      "sha256": "09a66c729162aa668d206c1db6e62b139ae2a49f12ab4e6a47306103a7110dfb",
+      "caseCount": 7,
+      "errors": 0,
+      "unexpectedWrites": 0
+    },
+    "care-map-export-zoom": {
+      "path": "/private/tmp/carearound-split-default-release-20261101/care-map-export-zoom/report.json",
+      "sha256": "eaa3348f82f87709c6778b69ae702939771dc9c4e9c87078db7b4bd56b2e8fca",
+      "caseCount": 45,
+      "errors": 0,
+      "unexpectedWrites": 0
+    }
+  },
+  "evidenceBoundary": "Actual app/router/controller with fictional intercepted API/resources/pixels; no physical-device/PWA, production backend or private export output-quality claim",
+  "iterationFailures": [
+    "Initial sandbox EPERM localhost bind; approved execution-context retry passed",
+    "Mobile/notes/personal-place legacy fixtures omitted visible Current map-first return after entry/reload; assertions retained after navigation correction",
+    "Legacy global Full map selector ambiguous; scoped existing native action and released Current full-map destination; fullscreen note assertions retained"
+  ],
+  "productionMutations": []
+}

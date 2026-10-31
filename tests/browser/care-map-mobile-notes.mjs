@@ -155,7 +155,7 @@ try {
             URL.revokeObjectURL = url => { window.__fixtureImageUrls.delete(url); revoke(url); };
         });
         const f = await fixture(context), page = await context.newPage(); lastPage = page; page.on('pageerror', error => report.errors.push(error.message));
-        await page.goto(`${origin}?route=/my-directory/maps/${f.mapId}`);
+        await page.goto(`${origin}?route=/my-directory/maps/${f.mapId}?workspace=current`);
         await page.getByRole('button', { name: 'Open map controls', exact: true }).waitFor();
         await menu(page, 'Edit content');
         const annotate = page.getByRole('menuitemcheckbox', { name: 'Annotate', exact: true });
@@ -223,6 +223,8 @@ try {
             && await page.evaluate(() => window.__fixtureImageUrls.size) === 1);
         await page.getByRole('button', { name: 'Close map notes', exact: true }).click(); await settle(() => f.textSaves() === 1);
         await page.reload(); await page.getByRole('button', { name: 'Open map controls', exact: true }).waitFor();
+        // Reload restores Current map-first entry; return through its visible action before the same notes assertions.
+        await page.locator('[data-map-first-exit="true"]').click();
         await notes(page); await settle(async () => await page.getByRole('link', { name: 'Download image', exact: true }).count() === 4);
         check(`${name}: image attachments and text survive reload`, await page.getByRole('dialog').innerText().then(text => text.includes('Fictional text stays')));
         await page.getByRole('button', { name: 'Close map notes', exact: true }).click();

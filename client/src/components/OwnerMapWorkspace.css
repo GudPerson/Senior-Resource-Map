@@ -1,0 +1,109 @@
+/* Owner-only presentation. Overlays never resize or replace the working map. */
+.owner-map-workspace { position: fixed; inset: 64px 0 0; z-index: 1140; isolation: isolate; background: #edf4f2; margin: 0; --owner-workspace-rail: 96px; }
+.owner-workspace-map { position: absolute; inset: 0; }
+.owner-workspace-rail { position: absolute; left: 14px; top: 16px; width: 80px; z-index: 1005; display: flex; flex-direction: column; gap: 3px; padding: 6px; border: 1px solid #d8e5e5; border-radius: 20px; background: #fff; box-shadow: 0 8px 26px #14394116; max-height: calc(100% - 56px); overflow: auto; }
+.owner-workspace-rail button { min-height: 58px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; border-radius: 13px; color: #17526a; font-size: 0.625rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.owner-workspace-list-label { display: none; }
+.owner-workspace-rail button[aria-pressed="true"] { background: #008b85; color: #fff; }
+.owner-map-workspace button:disabled { opacity: .45; cursor: default; }
+.owner-map-workspace button:focus-visible, .owner-map-workspace a:focus-visible { outline: 3px solid #078d85; outline-offset: 2px; }
+.owner-workspace-context { position: absolute; z-index: 1004; top: 16px; left: 110px; width: min(520px, calc(100% - 182px)); display: grid; gap: 6px; container: owner-map-context / inline-size; }
+/* A compact control strip, separate from the transient Resources / tool panels. */
+.owner-workspace-identity { display: grid; grid-template-columns: minmax(6rem,1fr) minmax(7rem,12rem) auto auto; grid-template-areas: "title view mode status"; align-items: center; gap: 8px; min-height: 50px; padding: 2px 6px 2px 10px; min-width: 0; background: #fff; border: 1px solid #d8e5e5; border-radius: 12px; box-shadow: 0 2px 8px #1439410d; }
+.owner-workspace-title { grid-area: title; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #16435a; font-size: .875rem; font-weight: 700; line-height: 1.3; margin: 0; }
+.owner-workspace-view-select { grid-area: view; min-width: 0; width: 100%; min-height: 44px; border: 0; border-radius: 8px; background-color: #f7fbfa; padding: 0 26px 0 8px; color: #16435a; font-size: .8125rem; font-weight: 650; text-overflow: ellipsis; }
+.owner-workspace-view-select:focus-visible { outline: 3px solid #078d85; outline-offset: 1px; }
+.owner-workspace-view-select:disabled { opacity: .55; }
+.owner-workspace-mode { grid-area: mode; color: #087d79; font-size: .6875rem; white-space: nowrap; }
+.owner-workspace-save-indicator { grid-area: status; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 6px; color: #087d79; border: 1px solid transparent; border-radius: 9px; }
+.owner-workspace-save-indicator[data-save-status="pending"] { color: #966200; }
+.owner-workspace-save-indicator[data-save-status="error"] { color: #9a3c1d; border-color: #f4d2b5; background: #fff7ed; }
+.owner-workspace-save-issue { font-size: .6875rem; font-weight: 700; max-width: 5.5rem; line-height: 1.2; }
+.owner-workspace-search { max-width: 360px; display: flex; gap: 6px; align-items: stretch; min-width: 0; }
+.owner-workspace-search > :first-child { min-width: 0; flex: 1; }
+.owner-workspace-search > button { flex-shrink: 0; display: grid; place-items: center; width: 44px; min-height: 44px; background: #fff; border: 1px solid #d8e5e5; border-radius: 14px; box-shadow: 0 5px 18px #14394112; color: #17526a; }
+.owner-workspace-search input { min-height: 44px; background: #fff; box-shadow: 0 5px 18px #14394112; }
+.owner-workspace-panel { border: 1px solid #d8e5e5; border-radius: 22px; background: #fff; box-shadow: 0 8px 30px #1439411a; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.owner-workspace-panel[hidden], .owner-map-workspace [hidden] { display: none !important; }
+.owner-workspace-panel > header { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 12px 7px 16px; border-bottom: 1px solid #e5eded; background: #fff; }
+.owner-workspace-panel h2 { font-size: .9375rem; font-weight: 700; color: #17485c; }
+.owner-workspace-panel > header > button { display: grid; place-items: center; min-width: 44px; min-height: 44px; border-radius: 12px; color: #516b7a; }
+.owner-workspace-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.owner-workspace-resources-host { position: absolute; z-index: 1003; left: 110px; top: var(--owner-workspace-panel-top, 164px); bottom: 36px; width: min(var(--owner-workspace-resource-width, 21rem), calc(100% - 182px)); }
+.owner-workspace-resources { height: 100%; }
+.owner-workspace-column-actions { position: absolute; left: 100%; top: 45%; display: flex; flex-direction: column; border: 1px solid #d8e5e5; border-radius: 0 12px 12px 0; background: white; overflow: hidden; }
+.owner-workspace-column-actions button { width: 32px; min-height: 44px; display: grid; place-items: center; color: #087d79; }
+.owner-workspace-inspector { position: absolute; z-index: 1004; right: 64px; top: 16px; bottom: 36px; width: min(23rem, calc(100% - 182px)); }
+.owner-workspace-inspector .owner-workspace-scroll { padding: 14px; }
+.owner-workspace-command-list { display: grid; gap: 8px; }
+.owner-workspace-command { display: flex; align-items: center; justify-content: flex-start; gap: 10px; min-height: 46px; width: 100%; padding: 10px 12px; border: 1px solid #dce7ea; border-radius: 13px; font-size: .8125rem; font-weight: 650; color: #17526a; text-align: left; background: white; }
+.owner-workspace-command svg { flex-shrink: 0; }
+.owner-workspace-command.is-active { background: #e8f8f3; border-color: #12a89b; color: #087d79; }
+.owner-workspace-command.is-danger { color: #b53c42; }
+.owner-workspace-add-actions { display: grid; gap: 6px; padding: 10px 12px; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #edf1f3; }
+.owner-workspace-add-actions .owner-workspace-command { padding: 7px 8px; font-size: .6875rem; }
+.owner-workspace-help { color: #5b7183; font-size: .75rem; line-height: 1.65; margin-bottom: 12px; }
+.owner-workspace-footer { border-top: 1px solid #e5eded; padding-top: 12px; margin-top: 14px; display: grid; gap: 7px; }
+.owner-workspace-display { display: grid; gap: 12px; padding-bottom: 16px; }
+.owner-workspace-error { position: absolute; z-index: 1100; bottom: 40px; left: 110px; max-width: min(420px,calc(100% - 160px)); padding: 10px; background: #fffbeb; border: 1px solid #f1d18b; border-radius: 12px; color: #8f3c17; font-size: .8125rem; }
+.owner-workspace-operation { position: absolute; z-index: 1005; bottom: 38px; left: 110px; max-width: 24rem; color: #17526a; background: white; border: 1px solid #d8e5e5; border-radius: 12px; padding: 9px 12px; font-size: .75rem; pointer-events: none; }
+/* Preserve the controller; only its controls take a stacked, in-panel form. */
+[data-map-studio-presentation="workspace"] { border: 0; padding: 0 !important; box-shadow: none; border-radius: 0; }
+[data-map-studio-presentation="workspace"] > .flex, [data-map-studio-presentation="workspace"] > .flex > .flex { flex-direction: column !important; align-items: stretch !important; width: 100% !important; }
+[data-map-studio-presentation="workspace"] [data-map-studio-heading="true"] { display: none; }
+[data-map-studio-presentation="workspace"] [data-map-studio-design-settings-panel] { position: static; width: 100%; max-width: none; max-height: none; overflow: visible; box-shadow: none; }
+[data-map-studio-presentation="workspace"] [data-map-studio-design-settings-panel] > * { box-shadow: none; }
+[data-map-studio-presentation="workspace"] .lg\:ml-auto { margin-left: 0; }
+[data-print-annotation-toolbar-embedded="true"] { position: static !important; width: 100% !important; max-width: none !important; max-height: none !important; box-shadow: none; border: 0; padding: 0; }
+[data-print-annotation-toolbar-embedded="true"] > .overflow-x-auto { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); overflow: visible; }
+[data-print-annotation-toolbar-embedded="true"] > .min-h-0 { overflow: visible; }
+@media (min-width: 640px) and (max-width: 1023px) {
+    body:has([data-owner-workspace]) .navbar-static-scale .brand-lockup > div { display: none; }
+    body:has([data-owner-workspace]) .navbar-static-scale #locale-select { max-width: 88px; padding-inline: 8px; }
+}
+[data-owner-workspace-split="false"] .owner-workspace-inspector { left: 110px; right: auto; top: var(--owner-workspace-panel-top, 164px); }
+@media (max-width: 639px) {
+    .owner-map-workspace { top: 56px; }
+    .owner-workspace-rail { inset: auto 8px max(10px,env(safe-area-inset-bottom)); width: auto; max-height: 68px; flex-direction: row; gap: 2px; border-radius: 18px; padding: 4px; }
+    .owner-workspace-rail .owner-workspace-resources-label { display: none; }
+    .owner-workspace-rail .owner-workspace-list-label { display: inline; }
+    .owner-workspace-rail button { flex: 1; min-width: 44px; min-height: 52px; font-size: .6875rem; }
+    .owner-workspace-rail [data-owner-workspace-tool="share"], .owner-workspace-rail [data-owner-workspace-tool="export"] { display: none; }
+    .owner-workspace-context { left: 10px; top: 10px; width: calc(100% - 68px); gap: 6px; }
+    .owner-workspace-resources-host, [data-owner-workspace-split="false"] .owner-workspace-inspector { left: 8px; right: 8px; top: auto; bottom: calc(80px + env(safe-area-inset-bottom)); width: auto; height: min(42svh, calc(100% - 220px)); }
+    .owner-workspace-resources-host { width: auto !important; }
+    .owner-workspace-column-actions { display: none; }
+    .owner-workspace-panel { border-radius: 18px; }
+    .owner-workspace-panel > header { padding: 2px 8px 2px 13px; }
+    .owner-workspace-operation { left: 10px; right: 65px; bottom: auto; top: 139px; font-size: .6875rem; padding: 6px 9px; }
+    .owner-workspace-error { bottom: calc(80px + env(safe-area-inset-bottom)); left: 12px; max-width: calc(100% - 24px); }
+}
+@media (max-height: 499px) and (min-width: 640px) {
+    /* Landscape uses a side panel, so the compact North/return pair needs no bottom-sheet lift. */
+    [data-owner-workspace] [data-mobile-map-actions].care-map-mobile-actions { bottom: 12px; }
+    .owner-workspace-rail { top: 8px; bottom: 30px; }
+    .owner-workspace-context { top: 8px; }
+    .owner-workspace-resources-host, [data-owner-workspace-split="false"] .owner-workspace-inspector { top: 8px; left: auto; right: 64px; width: min(23rem,calc(100% - 420px)); }
+    /* Reserve the actual side-inspector width, plus left context / right rail / 24px gap. */
+    .owner-workspace-context { width: min(260px,calc(100% - min(23rem,calc(100% - 420px)) - 198px)); }
+    .owner-workspace-operation { display: none; }
+}
+
+[data-map-studio-workspace-view-row="true"] { display: grid !important; grid-template-columns: minmax(0,1fr) 44px; gap: 8px !important; align-items: end !important; }
+[data-map-studio-workspace-view-row="true"] > .flex { grid-column: 1 / -1; }
+.owner-workspace-view-actions { position: relative; align-self: end; width: 44px; }
+.owner-workspace-view-actions > summary { display: grid; place-items: center; height: 44px; width: 44px; cursor: pointer; list-style: none; border: 1px solid #dce7ea; border-radius: 12px; color: #17526a; background: #fff; }
+.owner-workspace-view-actions > summary::-webkit-details-marker { display: none; }
+.owner-workspace-view-actions > div { position: absolute; z-index: 30; top: calc(100% + 8px); right: 0; width: min(18rem,calc(100vw - 80px)); max-height: min(50svh,320px); overflow-y: auto; padding: 10px; border: 1px solid #dce7ea; border-radius: 14px; background: #fff; box-shadow: 0 10px 28px #14394126; }
+[data-map-studio-presentation="workspace"] [data-map-studio-design-controls] { border: 0; padding: 0; border-radius: 0; background: transparent; }
+
+@media (max-width: 639px) {
+    /* Keep the existing provider credit on the exposed map, above the phone sheet and dock. */
+    [data-owner-workspace] [data-map-provider-credit="onemap"] { top: var(--owner-workspace-panel-top, 164px); bottom: auto; left: 10px; }
+}
+
+/* Adapt to the strip's actual available width and root text size, not just the viewport. */
+@container owner-map-context (max-width: 31rem) {
+    .owner-workspace-identity { grid-template-columns: minmax(0,1fr) auto; grid-template-areas: "title mode" "view status"; gap: 0 6px; min-height: 0; padding: 2px 6px; }
+    .owner-workspace-mode { text-align: right; }
+}
