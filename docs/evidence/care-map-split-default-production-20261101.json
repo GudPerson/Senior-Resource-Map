@@ -1,0 +1,218 @@
+{
+  "dateSgt": "2026-11-01",
+  "status": "Published and independently accepted",
+  "source": {
+    "base": "d8c108aeb04335a366c88d0caf757969ec47d5d7",
+    "feature": "eaefc5580efb6b8c6290bb8f11d05e240c30d185",
+    "publicMain": "2c15ad8b4b3111665d4b4b5ee1daf7ec2b0a147b",
+    "tree": "90b39ef347cdcea52854324a4843be9562e82c50",
+    "privateContentBuild": "e32f2fb66624d864fdb4ddeb46abc520020ea10a",
+    "pr": "https://github.com/GudPerson/Senior-Resource-Map/pull/95",
+    "publicChangedFiles": 33,
+    "runtimeFilesCanonicalSha256": "46377f370e40c293128562c4eae7c272d83fc8e7c2a279b16de1726107fdc73e",
+    "harnessSha256": "1e0b4b366f822a0d2424cbdebcc7107dc95aa521eadfc1e3472212d9c66c0ec3"
+  },
+  "quality": {
+    "local": "PASS; see care-map-split-default-local-20261101.json",
+    "prRun": 41231457354,
+    "mainRun": 41232283661,
+    "exactSourceQualityConclusions": "success",
+    "privateWorkflowHead": "330420711969ff4978bbbd1300aee99eadc39705",
+    "privateRun": 41234690664,
+    "privateJob": 124635881912,
+    "privateConclusion": "success",
+    "privateGates": [
+      {
+        "gate": "release-adapter-tests",
+        "passed": true
+      },
+      {
+        "gate": "verify:quality",
+        "passed": true
+      },
+      {
+        "gate": "test:map-lockdown",
+        "passed": true
+      },
+      {
+        "gate": "worker-dry-run",
+        "passed": true
+      }
+    ]
+  },
+  "publication": {
+    "releaseId": "1793475137335-375c06f0-ebe3-4dbc-99a6-f2d5eb2441b0",
+    "jobId": "f744b243-bcbe-4e20-92b2-d425b8d5c9bc",
+    "snapshotDigest": "dc07013e2f16a987a08e293cd78520307bc3e863dd1edd5b7fe8618e1da7bc11",
+    "version": "2026-10-31.help-cms.1793475137185",
+    "baseSourceRevision": "2c15ad8b4b3111665d4b4b5ee1daf7ec2b0a147b",
+    "compiledContentDigest": "d04cd77e81f1bf4127d17bbb05a13dc97f45a05ab496e422ff37a8c3f2ee1b34",
+    "buildSourceRevision": "e32f2fb66624d864fdb4ddeb46abc520020ea10a",
+    "workerVersionId": "ce6fdd63-ccdc-455b-b3d8-5e3654f3b40b",
+    "pagesDeploymentId": "466575b6-e1b0-4b9d-ad8f-f85ae0768ebb",
+    "state": "published",
+    "receiptAccepted": true,
+    "receiptError": null,
+    "failedStage": null,
+    "failureCode": null
+  },
+  "sourcePinPreparation": {
+    "connectorAttempt": "One POST rejected403 for connector scope; independently verified no state change",
+    "cliStage": "One independently reviewed Wrangler4.145 versions secret put; inactive candidate ead05cd2-bb91-450c-b0bf-2d7038dc9447",
+    "cliActivation": "One separately approved versions deploy candidate100; no auto retry",
+    "onlyBindingChange": "HELP_CMS_SOURCE_REVISION set to approved publicMain; other43 preserved without secret extraction/copy",
+    "preparationModuleBytes": 5206844,
+    "preparationModuleSha256": "8912aa394fddd47cb41a750146a10b627fd8dc8d7004229ee4a43c0e587b0b8c",
+    "preparationTruthfulPrivateTag": "git-268dad179253e5f42d6afc9a09127cf45a96d5c3",
+    "normalPublisherRecovery": {
+      "workerVersionId": "ead05cd2-bb91-450c-b0bf-2d7038dc9447",
+      "workerSourceRevision": "268dad179253e5f42d6afc9a09127cf45a96d5c3",
+      "pagesSourceRevision": "268dad179253e5f42d6afc9a09127cf45a96d5c3",
+      "contentVersion": "2026-10-30.help-cms.1793376498476",
+      "contentDigest": "238da9345b50bdad8617b94912af4322a9200bfd9eadbc614667ed48cf47ca3d",
+      "pagesDeploymentId": "cd1bfe19-829b-401a-88bf-162f44a05fcb"
+    }
+  },
+  "delivery": {
+    "runnerArtifacts": 105,
+    "runnerOrdinaryHtml": 6,
+    "independentCustomArtifacts": 105,
+    "independentImmutableNonHtmlArtifacts": 103,
+    "independentOrdinaryHtml": 12,
+    "immutableProductionOnlyProofDenials": 4,
+    "ordinaryBeaconContract": "custom6 each1; immutable6 each0",
+    "rawHtmlContract": "Only two production proof endpoints provide exact HTML bytes; ordinary HTML not described as byte-equivalent",
+    "workerBindingCount": 44,
+    "rawRedactedDescriptorSha256": "bec80b7ccfcbe4d3585c19b3ae69b9d9d5f0719b93965a0e4d182cdb0d6bed2b",
+    "globalSettingsSha256": "1584739aa115aabcf077abb00623e7db2b0fde5c37cbb3a218603360b7f6a38b",
+    "publicHealthAndMatchingContent": "PASS6 metadata checks public-final-metadata.json"
+  },
+  "authoredLibrary": {
+    "algorithm": "authored-v1: recursively key-sort {manifest,articles}, omit ONLY manifest.version, preserve arrays, SHA256 UTF8 compactJSON",
+    "beforeSha256": "f94a57a2b0da8f553f5a574179ccb820b913526ebbbb0a6a7c05d58ba2712d8c",
+    "afterSha256": "f94a57a2b0da8f553f5a574179ccb820b913526ebbbb0a6a7c05d58ba2712d8c",
+    "articles": 48,
+    "categories": 11,
+    "historical92c9EquivalenceClaimed": false,
+    "unchanged": true
+  },
+  "rootOwnerAcceptance": {
+    "promotion": {
+      "checkedAtUtc": "2026-10-31T19:44:20.584Z",
+      "configured": true,
+      "publishingAvailable": true,
+      "baseDrift": false,
+      "activeReleaseId": null,
+      "baseContentVersion": "2026-10-31.help-cms.1793475137185",
+      "baseVersionMatches": true,
+      "authoredUnchanged": true,
+      "articleCount": 48,
+      "categoryCount": 11,
+      "saveDraftEnabled": false
+    },
+    "productionDom": {
+      "checkedAtUtc": "2026-10-31T19:54:03.750Z",
+      "boundary": "Existing authorized owner map; DOM metadata only; no map edits, notes, uploads or view changes; screenshots local only",
+      "publicMain": "2c15ad8b4b3111665d4b4b5ee1daf7ec2b0a147b",
+      "privateBuild": "e32f2fb66624d864fdb4ddeb46abc520020ea10a",
+      "defaultEntry": {
+        "explicitWorkspaceQuery": false,
+        "currentMapFirstCount": 1,
+        "headerCount": 1,
+        "leafletCount": 1,
+        "mode": "explore",
+        "saveStatus": "saved",
+        "studioControllerCount": 1,
+        "viewSelectCount": 1,
+        "workspaceCount": 1
+      },
+      "classicDefault": {
+        "classicRequested": true,
+        "explicitWorkspaceQuery": false,
+        "currentMapFirstCount": 1,
+        "headerCount": 1,
+        "leafletCount": 1,
+        "mode": "explore",
+        "saveStatus": "saved",
+        "studioControllerCount": 1,
+        "viewSelectCount": 1,
+        "workspaceCount": 1
+      },
+      "currentFallback": {
+        "workspaceCurrent": true,
+        "selectedViewTokenPreserved": true,
+        "currentMapFirstCount": 1,
+        "headerCount": 0,
+        "leafletCount": 1,
+        "studioControllerCount": 1,
+        "viewSelectCount": 0,
+        "workspaceCount": 0
+      },
+      "classicCurrentFallback": {
+        "workspaceCurrent": true,
+        "classicPreserved": true,
+        "selectedViewTokenPreserved": true,
+        "currentMapFirstCount": 1,
+        "headerCount": 0,
+        "leafletCount": 1,
+        "studioControllerCount": 1,
+        "viewSelectCount": 0,
+        "workspaceCount": 0
+      },
+      "network": {
+        "traceTruncated": false,
+        "observedApiRequestCount": 47,
+        "ownerMapMutationCount": 0
+      },
+      "earlierDiagnostic": {
+        "delayedInitialNetworkSampleTruncated": true,
+        "excludedFromAcceptedNoWriteProof": true
+      },
+      "metadataOmitsMapTitlesAndViewIds": true
+    },
+    "independentQaCrossChecks": 15,
+    "verificationTabsClosed": true,
+    "originalUserDiscoverTabUntouched": true
+  },
+  "rollback": "Retained More\u2192Use current layout flushes Studio and preserves valid selected view before full reload; workspace=current opts out without restoring old data. Explicitfalse compile default is not strictkill because explicitSplit still wins. Global UI recovery uses normal compatible publisher with latest approved content.",
+  "proofBoundaries": [
+    "Actual App fixtures are fictional/intercepted; production metadata probes are separate",
+    "Credentialed full verify:release smoke not claimed",
+    "Physical-device/PWA and private upload/export-output quality remain separate"
+  ],
+  "privacy": "No credential/environment copies; no private CMS bodies or production screenshots in public Git; operator account/config stays local",
+  "artifactMetadata": {
+    "publisher-final-report.json": "1feba3f2fd2fec4c699161b32d0751362931c019de0ca36388c146e25d3d6fcf",
+    "publisher-expected-inventory.json": "cba27ae9c5eb72640b1e695f3c5e05a49ac69578dd401180182bb8d1997a7a69",
+    "public-final-metadata.json": "2472041a1876dfb602682601bdc1ebef18532802328aed072372f3c285660a18",
+    "owner-promotion-proof.json": "7c1690cedc9fe32298c4d4e1f377ffd960da8f5a3d0708146d602d49a3e369bb",
+    "production-owner-dom-proof.json": "822bc880fdba6cb15b3cff5a7e482d29c543674ef39eae0f6440508ecbcc8a42"
+  },
+  "immutablePagesUrl": "https://466575b6.senior-resource-map.pages.dev",
+  "finalQaAcceptance": {
+    "state": "PASS; no blockers",
+    "report": "qa-final-acceptance.md",
+    "reportSha256": "9e339543db94d8c10e5c757e9d6283c2ed71c5fc5fa83b250cac42d76a99bb45",
+    "manifest": "qa-manifest-v3-final.json",
+    "manifestSha256": "08e247c918ea3d4362c992f425164d4587376f16ce6c11ed3c8ab50ac4b9ed75",
+    "metadataAndFictionalFiles": 114,
+    "productionJpegsIncluded": false,
+    "productionDomCrossChecks": 15
+  },
+  "preservation": {
+    "primaryChangedEntries": 153,
+    "primaryBranch": "codex/documentation-refresh-20260905",
+    "oldCandidates": {
+      "care-map-split-implementation-20261031": {
+        "verifiedFiles": 22,
+        "unchanged": true
+      },
+      "care-map-compact-header-20261031": {
+        "verifiedFiles": 23,
+        "unchanged": true
+      }
+    },
+    "priorEvidenceA787Clean": true,
+    "deployedRuntime15AndHarnessUnchanged": true
+  }
+}

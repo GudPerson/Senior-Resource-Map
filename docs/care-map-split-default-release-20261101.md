@@ -1,6 +1,6 @@
 # Owner Care Map default workspace release — 1 November 2026
 
-Status: release preparation; not yet pushed or published. The user authorized commit, push and deployment of the accepted Split workspace and compact map header as the owner default, retaining the current presentation for rollback. Final production IDs and parity evidence must be recorded after the protected release completes.
+Status: **published and independently accepted**. Public main `2c15ad8b4b3111665d4b4b5ee1daf7ec2b0a147b` (PR95) is live through the unchanged protected publisher. Final record: `docs/evidence/care-map-split-default-production-20261101.json`. The Current presentation remains available for rollback without restoring map/CMS data.
 
 ## Source and scope
 
@@ -30,3 +30,17 @@ Before commit/push: scoped source review, complete local quality/map/browser gat
 The final release must show matching Worker/Pages private-build provenance and public Help/Guide/client version/digest, complete asset/ordinary-HTML delivery proof, accepted published receipt, promoted content pointers and cleared release lock. Owner no-query default and guarded Current fallback require live behavior checks after delivery.
 
 Working evidence: `/private/tmp/carearound-split-default-release-20261101/`. Durable source/QA/release receipts will be linked here before final handoff.
+
+## Accepted production result
+
+The exact feature/PR head was `eaefc5580efb6b8c6290bb8f11d05e240c30d185`; merged main2c15 has the identical tested tree/runtime/harness. PR quality41231457354 and main quality41232283661 both pass. Private workflow330420711969ff4978bbbd1300aee99eadc39705 was not changed; run41234690664/job124635881912 passed all4 protected gates and acknowledged the published receipt.
+
+Private content build `e32f2fb66624d864fdb4ddeb46abc520020ea10a` is served by Worker `ce6fdd63-ccdc-455b-b3d8-5e3654f3b40b` and Pages `466575b6-e1b0-4b9d-ad8f-f85ae0768ebb` ([immutable URL](https://466575b6.senior-resource-map.pages.dev)). Publication1793475137335-375c06f0-ebe3-4dbc-99a6-f2d5eb2441b0/jobf744b243-bcbe-4e20-92b2-d425b8d5c9bc uses snapshotdc07013e2f16a987a08e293cd78520307bc3e863dd1edd5b7fe8618e1da7bc11. Help/Guide/client agree on version2026-10-31.help-cms.1793475137185 and digestd04cd77e81f1bf4127d17bbb05a13dc97f45a05ab496e422ff37a8c3f2ee1b34; health is OK. Workspace promotion and lock clearance are confirmed. Authored-v1 remains f94a57a2b0da8f553f5a574179ccb820b913526ebbbb0a6a7c05d58ba2712d8c,48 articles/11 categories (exclude only manifest.version, recursively sort keys, preserve arrays). No historical92c9 equivalence is asserted.
+
+Independent delivery passes105 custom artifacts,103 immutable non-HTML files,12 ordinary HTML cases and4 immutable-origin denials for production-only proof endpoints. Root read-only production checks pass default and classic no-workspace-query entry and both guarded Current fallbacks, with one controller/map and retained selected-view token. The accepted untruncated47-request trace shows zero owner-map mutations. Earlier truncated sampling is excluded. Private production images/DOM bodies are not committed.
+
+The first source-pin connector attempt was rejected403 for connection scope and independently caused no state change. Revised one-shot pinned Wrangler4.145 `versions secret put` staged an inactive source-pin-only version using existing auth, followed by a separately approved activation. No tokens were extracted, new scopes granted or credentials copied. Exact module bytes/etag,44 descriptors/runtime/global settings and old truthful private268 tag were preserved before normal publication. Its recovery baseline was ead05cd2-bb91-450c-b0bf-2d7038dc9447 / prior Pagescd1b. No ordinary secret-put, stale-dist upload, private-workflow change, forced unlock, manual dispatch or old publication retry was used. Automatic public Pages preview/main failures and fixture navigation diagnostics remain separate from the accepted protected release.
+
+The committed public source33-file patch/ZIP and scratch apply/all-hash proof are preserved in the durable review folder. Final evidence is on separate `codex/split-workspace-default-release-evidence-20261101`; it may be pushed as a backup but must not be merged into main or trigger another publication for this release. Accepted public source pin remains2c15. Primary153, original22/23-file local candidates, their immutable artifacts and prior clean a787 checkout remain intact. Physical-device/PWA, credentialed full verify:release smoke and private media output-quality proof remain explicitly separate.
+
+Final independent signoff: `qa-final-acceptance.md` SHA256 `9e339543db94d8c10e5c757e9d6283c2ed71c5fc5fa83b250cac42d76a99bb45`; final manifest `qa-manifest-v3-final.json` SHA256 `08e247c918ea3d4362c992f425164d4587376f16ce6c11ed3c8ab50ac4b9ed75` in the durable release folder. Its114 metadata/fictional files exclude production JPEGs/private captures. Root closed its two verification tabs and left the original Discover tab untouched.
