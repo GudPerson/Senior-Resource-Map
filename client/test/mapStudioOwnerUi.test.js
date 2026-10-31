@@ -87,7 +87,7 @@ test('the owner panel stays mounted in the mobile drawer and remains a desktop t
     assert.match(ownerPageSource, /import MapStudioViewsPanel from '\.\.\/components\/MapStudioViewsPanel\.jsx';/);
     assert.match(ownerPageSource, /const ownerMapStudioPanel = \(/);
     assert.match(ownerPageSource, /mapStudioPanel=\{useDesktopOwnerLayout \? null : ownerMapStudioPanel\}/);
-    assert.match(ownerPageSource, /studioPanel=\{useDesktopOwnerLayout \? ownerMapStudioPanel : null\}/);
+    assert.match(ownerPageSource, /studioPanel=\{splitWorkspace \? null : useDesktopOwnerLayout \? ownerMapStudioPanel : null\}/);
     assert.match(ownerPageSource, /onDesktopMapStudio=\{useDesktopOwnerLayout \? openExistingDesktopMapStudio : null\}/);
     assert.match(v2ScaffoldSource, /studioPanel = null/);
     assert.match(ownerPageSource, /data-map-studio-top-row="true">[\s\S]*\{ownerMapStudioPanel\}/);

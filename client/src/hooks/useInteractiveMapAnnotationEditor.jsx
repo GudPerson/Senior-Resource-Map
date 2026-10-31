@@ -38,6 +38,7 @@ export default function useInteractiveMapAnnotationEditor({
     canUndo = false,
     canRedo = false,
     onClose = null,
+    toolbarInInspector = false,
 } = {}) {
     const [tool, setTool] = useState(PRINT_ANNOTATION_TOOL_SELECT);
     const [selectedId, setSelectedId] = useState(null);
@@ -174,10 +175,12 @@ export default function useInteractiveMapAnnotationEditor({
         });
     }, [replaceAnnotations, selectedId]);
 
+    const hasUnfinishedDraft = draftPoints.length > 0 || Boolean(draftImage);
     const closeEditor = useCallback(() => {
+        if (toolbarInInspector && hasUnfinishedDraft) return;
         saveNow?.();
         onClose?.();
-    }, [onClose, saveNow]);
+    }, [hasUnfinishedDraft, onClose, saveNow, toolbarInInspector]);
 
     const mapOverlay = enabled ? (
         <PrintAnnotationLayer
@@ -206,6 +209,8 @@ export default function useInteractiveMapAnnotationEditor({
 
     const surfaceOverlay = enabled ? (
         <PrintAnnotationToolbar
+            embedded={toolbarInInspector}
+            closeDisabled={toolbarInInspector && hasUnfinishedDraft}
             tool={tool}
             draftText={draftText}
             draftStyle={draftStyle}
@@ -268,5 +273,6 @@ export default function useInteractiveMapAnnotationEditor({
         />
     ) : null;
 
-    return { mapOverlay, surfaceOverlay };
+    return { mapOverlay, surfaceOverlay: toolbarInInspector ? null : surfaceOverlay,
+        inspectorControls: toolbarInInspector ? surfaceOverlay : null, hasUnfinishedDraft };
 }

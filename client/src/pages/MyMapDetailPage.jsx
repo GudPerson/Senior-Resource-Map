@@ -90,6 +90,7 @@ import {
     buildMapStudioResourceLayerCatalog,
     filterMapStudioDirectoryByLayers,
 } from '../lib/mapStudioPresentationAdapter.js';
+import { currentOwnerWorkspaceUrl, isOwnerMapWorkspaceEnabled } from '../lib/ownerMapWorkspace.js';
 import { MY_MAP_UI_MODE_V2, getMyMapUiMode } from '../lib/myMapUiMode.js';
 import {
     FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES,
@@ -1594,6 +1595,9 @@ function useTownMapOverviewManifestStates({
 export default function MyMapDetailPage() {
     const { mapId } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
+    // A presentation is selected once per page load; changing it never reparents a live save controller.
+    const [splitWorkspaceSelected] = useState(() => isOwnerMapWorkspaceEnabled(searchParams, import.meta.env.VITE_OWNER_MAP_WORKSPACE_ENABLED));
+    const [studioSaveState, setStudioSaveState] = useState(null);
     const { user } = useAuth();
     const { t, locale } = useLocale();
     const annotationMessages = getAnnotationMessages(locale);
@@ -1708,8 +1712,8 @@ export default function MyMapDetailPage() {
     const [printShortDescriptionMode, setPrintShortDescriptionMode] = useState(false);
     const [interactiveAnnotationEditorOpen, setInteractiveAnnotationEditorOpen] = useState(false);
     useEffect(() => {
-        if (interactiveAnnotationEditorOpen || personalPlacePickerActive) setMapFirstOpen(false);
-    }, [interactiveAnnotationEditorOpen, personalPlacePickerActive]);
+        if (!splitWorkspaceSelected && (interactiveAnnotationEditorOpen || personalPlacePickerActive)) setMapFirstOpen(false);
+    }, [interactiveAnnotationEditorOpen, personalPlacePickerActive, splitWorkspaceSelected]);
     const [interactiveShortDescriptionMode, setInteractiveShortDescriptionMode] = useState(false);
     const [pinVisibilityMode, setPinVisibilityMode] = useState(false);
     const [resourceRemovalMode, setResourceRemovalMode] = useState(false);
@@ -1752,6 +1756,7 @@ export default function MyMapDetailPage() {
         <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
     ) : null;
     const isPrintView = searchParams.get('view') === 'print';
+    const splitWorkspace = splitWorkspaceSelected && !isPrintView;
     const careMapGestures = useCareMapGestures({
         scopeKey: `${mapId}:${mapStudioRuntimeSnapshot?.activeViewId || ''}`,
         paused: interactiveAnnotationEditorOpen || (personalPlacePickerActive && !isPrintView),
@@ -1839,6 +1844,7 @@ export default function MyMapDetailPage() {
         canUndo: printAnnotations.canUndo,
         canRedo: printAnnotations.canRedo,
         onClose: () => setInteractiveAnnotationEditorOpen(false),
+        toolbarInInspector: splitWorkspace,
     });
     const ownerInteractiveAnnotationOverlay = interactiveAnnotationEditor.mapOverlay
         || ownerReadOnlyAnnotationOverlay;
@@ -3883,6 +3889,7 @@ export default function MyMapDetailPage() {
         <MapStudioViewsPanel
             ref={mapStudioControllerRef}
             mapId={mapId}
+            initialViewId={searchParams.get('workspaceView') || ''}
             defaultMapStyle={mapStyle}
             defaultDetailMode={basemapMode}
             resourceLayerCatalog={mapStudioResourceLayerCatalog}
@@ -3892,8 +3899,32 @@ export default function MyMapDetailPage() {
                     || `${String(annotation.type || 'Annotation').replace(/-/g, ' ')} ${index + 1}`,
             }))}
             onOwnerSessionChange={handleOwnerMapStudioSessionChange}
+            presentation={splitWorkspace ? 'workspace' : 'current'}
+            onSaveStateChange={splitWorkspace ? setStudioSaveState : null}
         />
     );
+    const ownerWorkspace = splitWorkspace ? {
+        ...ownerToolbarActionProps,
+        directory, query, onQueryChange: setQuery, anchorState, actionError,
+        onAddAssets: openManageAssets,
+        studioPanel: ownerMapStudioPanel,
+        studioState: studioSaveState,
+        onSelectView: nextViewId => mapStudioControllerRef.current?.selectView(nextViewId),
+        annotationControls: interactiveAnnotationEditor.inspectorControls,
+        onOpenStudio: openMapStudioLayoutSettings,
+        onExplore: async () => {
+            if (await flushMapStudioChanges()) mapStudioControllerRef.current?.setMode('explore');
+        },
+        onCurrentLayout: async () => {
+            if (interactiveAnnotationEditorOpen || personalPlacePickerActive) return;
+            const snapshot = await flushMapStudioChanges();
+            if (!snapshot) {
+                setActionError(t('mapStudioSaveFailed'));
+                return;
+            }
+            window.location.assign(currentOwnerWorkspaceUrl(window.location.href, snapshot.activeViewId));
+        },
+    } : null;
     const ownerMapStudioRuntime = mapStudioInteractiveModel ? {
         ...mapStudioInteractiveModel,
         directoryMap: {
@@ -4230,7 +4261,8 @@ export default function MyMapDetailPage() {
         return (
             <>
                 <MyMapV2PreviewScaffold
-                    mapFirstView={!interactiveAnnotationEditorOpen && !personalPlacePickerActive}
+                    mapFirstView={splitWorkspace || (!interactiveAnnotationEditorOpen && !personalPlacePickerActive)}
+                    ownerWorkspace={ownerWorkspace}
                     mapFirstOpen={mapFirstOpen}
                     onMapFirstOpenChange={setMapFirstOpen}
                     careMapGestures={careMapGestures}
@@ -4272,7 +4304,7 @@ export default function MyMapDetailPage() {
                     onResetView={clearMapSelection}
                     mapOverlay={ownerInteractiveAnnotationOverlay}
                     mapSurfaceOverlay={ownerAnnotationSurfaceOverlay}
-                    toolbar={useDesktopOwnerLayout && !mapFirstOpen ? (
+                    toolbar={splitWorkspace ? null : useDesktopOwnerLayout && !mapFirstOpen ? (
                         <OwnerHeader
                             directory={directory}
                             query={query}
@@ -4296,7 +4328,7 @@ export default function MyMapDetailPage() {
                             compactOverlay
                         />
                     )}
-                    studioPanel={useDesktopOwnerLayout ? ownerMapStudioPanel : null}
+                    studioPanel={splitWorkspace ? null : useDesktopOwnerLayout ? ownerMapStudioPanel : null}
                     emptyLabel={query ? t('noMapPlacesMatchSearch') : t('mapNoPlacesYet')}
                     emptyState={(
                         <EmptyOwnerDirectory
@@ -4467,7 +4499,7 @@ export default function MyMapDetailPage() {
     return (
         <>
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50" data-route-cache-version={MY_MAP_ROUTE_CACHE_VERSION}>
-                {!useDesktopOwnerLayout || mapFirstOpen ? (
+                {!splitWorkspace && (!useDesktopOwnerLayout || mapFirstOpen) ? (
                         <MyMapMobileControls
                             desktopMapFirst={mapFirstOpen}
                             onDesktopMapStudio={useDesktopOwnerLayout ? openExistingDesktopMapStudio : null}
@@ -4482,13 +4514,13 @@ export default function MyMapDetailPage() {
                 ) : null}
 
                 <div className="mx-auto w-full max-w-[1800px] space-y-4 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 2xl:px-14 xl:space-y-5">
-                    {useDesktopOwnerLayout ? (
+                    {!splitWorkspace && useDesktopOwnerLayout ? (
                         <div data-map-studio-top-row="true">
                             {ownerMapStudioPanel}
                         </div>
                     ) : null}
 
-                    {useDesktopOwnerLayout && !mapFirstOpen ? (
+                    {!splitWorkspace && useDesktopOwnerLayout && !mapFirstOpen ? (
                         <div>
                             <OwnerHeader
                                 directory={directory}
@@ -4510,7 +4542,7 @@ export default function MyMapDetailPage() {
                         />
                     ) : null}
 
-                    {mapStudioFilteredDirectory.summary.resourceCount === 0 && (personalPlacePickerActive || interactiveAnnotationEditorOpen) ? (
+                    {!splitWorkspace && mapStudioFilteredDirectory.summary.resourceCount === 0 && (personalPlacePickerActive || interactiveAnnotationEditorOpen) ? (
                         <div className="space-y-4">
                             {personalPlacePickerActive || interactiveAnnotationEditorOpen ? (
                                 <DirectoryMap
@@ -4571,7 +4603,8 @@ export default function MyMapDetailPage() {
                     ) : (
                         <>
                             <SharedMapDirectoryList
-                                mapFirstView={!interactiveAnnotationEditorOpen && !personalPlacePickerActive}
+                                mapFirstView={splitWorkspace || (!interactiveAnnotationEditorOpen && !personalPlacePickerActive)}
+                                ownerWorkspace={ownerWorkspace}
                                 mapFirstOpen={mapFirstOpen}
                                 onMapFirstOpenChange={setMapFirstOpen}
                                 mapFirstEmptyState={<EmptyOwnerDirectory onAddAssets={openManageAssets} onAddPersonalPlace={openPersonalPlacePicker} />}

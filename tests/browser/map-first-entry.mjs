@@ -562,7 +562,7 @@ try {
     });
     for (const kind of ['mixed', 'list-only', 'empty']) {
       await runCase(`${layout.name}-owner-${kind}`, { ...layout, owner: true, kind }, async page => {
-        await page.goto(new URL(`/my-directory/maps/${mapId}`, base).href);
+        await page.goto(new URL(`/my-directory/maps/${mapId}?workspace=current`, base).href);
         const shell = page.locator('[data-map-first="care-map"]');
         await shell.waitFor({ state: 'visible' });
         await page.waitForTimeout(1000);
@@ -643,7 +643,7 @@ try {
         await page.locator('[data-map-first="care-map"]').waitFor({ state: 'visible' });
         assert.equal(new URL(page.url()).pathname, `/my-directory/maps/${mapId}`, 'browser Back restores owner route');
         if (layout.name === 'desktop' && ['mixed','empty'].includes(kind)) {
-          await page.goto(new URL(`/my-directory/maps/${mapId}?ui=stable`,base).href);
+          await page.goto(new URL(`/my-directory/maps/${mapId}?ui=stable&workspace=current`,base).href);
           const classic=page.locator('[data-map-first="care-map"]');
           await classic.waitFor({state:'visible'});
           assert.equal(await page.locator('[data-my-map-ui="v2"]').count(),0,'explicit stable route selects the classic owner branch');
@@ -658,7 +658,7 @@ try {
           assert.notEqual(await page.evaluate(()=>document.body.style.overflow),'hidden','classic exit restores scrolling');
           await page.locator('[data-map-first-enter]').click();
           await classic.waitFor({state:'visible'});
-          await page.goto(new URL(`/my-directory/maps/${mapId}`,base).href);
+          await page.goto(new URL(`/my-directory/maps/${mapId}?workspace=current`,base).href);
           await page.locator('[data-map-first="care-map"]').waitFor({state:'visible'});
         }
         if (layout.name === 'desktop' && kind === 'mixed') await assertOwnerDraftPreserved(page, page.locator('[data-map-first="care-map"]'));

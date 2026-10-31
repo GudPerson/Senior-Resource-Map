@@ -51,7 +51,9 @@ try {
             return route.fulfill({ json: [] });
         });
         page = await context.newPage(); page.on('pageerror', error => report.errors.push(`${device}: ${error.message}`));
-        await page.goto(`${server.resolvedUrls.local[0]}?route=/my-directory/maps/${directory.id}`);
+        await page.goto(`${server.resolvedUrls.local[0]}?route=/my-directory/maps/${directory.id}?workspace=current`);
+        // Keep legacy notes assertions on Current after its visible map-first return.
+        await page.locator('[data-map-first-exit="true"]').click();
         const dialog = page.getByRole('dialog'), search = dialog.getByRole('searchbox', { name: 'Search resources' });
         const open = async () => { await page.getByRole('button', { name: 'Open map notes', exact: true }).click(); await search.waitFor(); };
         await check(`${device}: 93-resource search by postal code and name, empty result and clear`, async () => {
@@ -109,15 +111,15 @@ try {
             await page.locator('.leaflet-marker-icon[title="Fictional pin 6"]').first().dispatchEvent('click');
         });
         if (device !== 'desktop') await check(`${device}: fullscreen preview notes remains accessible above the map`, async () => {
-            await page.getByRole('button', { name: 'Full map', exact: true }).click();
-            const full = page.locator('[data-mobile-full-map]');
+            await page.locator('[data-mobile-map-actions]').getByRole('button', { name: 'Full map', exact: true }).click();
+            const full = page.locator('[data-map-first="care-map"]');
             await full.locator('.leaflet-marker-icon[title="Fictional pin 6"]').first().dispatchEvent('click');
             await full.locator('[data-mobile-map-focus-tray-card]').getByRole('button', { name: 'View notes for Fictional pin 6', exact: true }).click();
             assert.match(await dialog.locator('header').innerText(), /Fictional pin 6/);
             await dialog.getByRole('button', { name: 'Close map notes', exact: true }).click();
         });
         await check(`${device}: visit history resets on reload and search starts blank`, async () => {
-            await page.reload(); await open(); assert.equal(await search.inputValue(), '');
+            await page.reload(); await page.locator('[data-map-first-exit="true"]').click(); await open(); assert.equal(await search.inputValue(), '');
             assert.equal(await dialog.locator('[data-map-notes-recent-pin]').count(), 0);
         });
         await context.close();

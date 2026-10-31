@@ -19,5 +19,5 @@ const nav = <nav data-fixture-navbar style={{
   zIndex: 1300,
   background: "white"
 }}>Fictional app navigation</nav>;
-const route = new URLSearchParams(location.search).get('route') || '/my-directory/maps/91261012';
+const route = new URLSearchParams(location.search).get('route') || '/my-directory/maps/91261012?workspace=current';
 createRoot(document.getElementById('root')).render(<MemoryRouter initialEntries={[route]}><AuthProvider><LocaleProvider><MapStyleProvider><SavedAssetsProvider>{nav}<Routes><Route path="/my-directory/maps/:mapId" element={<MyMapDetailPage />} /><Route path="/shared/maps/:token" element={<SharedMapPage />} /></Routes></SavedAssetsProvider></MapStyleProvider></LocaleProvider></AuthProvider></MemoryRouter>);

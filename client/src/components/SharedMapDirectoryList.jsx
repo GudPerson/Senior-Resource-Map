@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import MapNoteImages from './MapNoteImages.jsx';
 import MapNotesResourceList from './MapNotesResourceList.jsx';
 import MapFirstWorkspace from './MapFirstWorkspace.jsx';
+import OwnerMapWorkspace from './OwnerMapWorkspace.jsx';
 import { rememberMapNotePin } from '../lib/mapNotesNavigation.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { AnnotationResourceInteractionContext, useAnnotationResourceCard } from './AnnotationResourceInteraction.jsx';
@@ -3539,6 +3540,7 @@ function SharedMapDirectoryListContent({
     interactiveResourceColumnCount = 2,
     interactiveSideResourceColumnCount = 1,
     mapFirstView = false,
+    ownerWorkspace = null,
     mapFirstEmptyState = null,
     mapFirstOpen = true,
     onMapFirstOpenChange = null,
@@ -4006,6 +4008,7 @@ function SharedMapDirectoryListContent({
         const element = renderMobileMap?.() || renderDesktopMap?.();
         const hasMappedPins = Boolean(presentation?.pins?.length);
         const resourcesOpen = mapFirstResourcesOpen ?? !hasMappedPins;
+        const Workspace = ownerWorkspace ? OwnerMapWorkspace : MapFirstWorkspace;
         const mapFirstGroups = resolvedLayout === 'desktop' ? displayGroups : mobileDisplayGroups;
         const resources = resourceDisplay === 'table' ? (
             <MyMapResourceTable directory={directory} presentation={presentation} interactive
@@ -4031,9 +4034,11 @@ function SharedMapDirectoryListContent({
         );
         return (
             <DirectoryReturnPathContext.Provider value={detailReturnPath}>
-                <MapFirstWorkspace kind="care-map" top={ownerFullscreenMapTop}
+                <Workspace kind="care-map" top={ownerFullscreenMapTop}
+                    configuration={ownerWorkspace} onOpenNotes={() => openResourceNotes(null)}
+                    notesOpen={notesPanel.open} notesAvailable={noteResourceRows.length > 0}
                     resourcesOpen={resourcesOpen} onResourcesOpenChange={setMapFirstResourcesOpen}
-                    onExit={() => setMapFirstOpen(false)}
+                    onExit={() => { if (ownerWorkspace) { if (!notesPanel.open) ownerWorkspace.onCurrentLayout(); } else setMapFirstOpen(false); }}
                     resources={<div className="space-y-4 p-3">
                         <MapNotesEntryButton rows={noteResourceRows} mode={mode} onOpen={openResourceNotes} />
                         {displayGroups.length || unmappedRows.length ? resources : mapFirstEmptyState || <p className="p-4 text-sm text-slate-600">{t('noMapSearchResults')}</p>}
@@ -4053,8 +4058,8 @@ function SharedMapDirectoryListContent({
                             surfaceOverlay: resolvedLayout === 'mobile' ? <>{element.props?.surfaceOverlay}
                                 <div className="care-map-mobile-actions absolute bottom-3 right-3 z-[1001] flex flex-col items-center gap-1" data-mobile-map-actions="true">
                                     <CareMapNorthButton compact configuration={element.props?.careMapGestures} />
-                                    <button type="button" onClick={() => setMapFirstOpen(false)}
-                                        aria-label={t('returnToMapList')} title={t('returnToMapList')}
+                                    <button type="button" onClick={() => { if (ownerWorkspace) { if (!notesPanel.open) ownerWorkspace.onCurrentLayout(); } else setMapFirstOpen(false); }}
+                                        aria-label={ownerWorkspace ? t('mapWorkspaceCurrentLayout') : t('returnToMapList')} title={ownerWorkspace ? t('mapWorkspaceCurrentLayout') : t('returnToMapList')}
                                         className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-lg border border-slate-200 bg-white text-brand-700 shadow-md">
                                         <Minimize2 size={15} strokeWidth={2.4} aria-hidden="true" />
                                     </button>

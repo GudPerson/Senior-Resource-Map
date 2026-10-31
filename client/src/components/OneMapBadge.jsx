@@ -2,7 +2,7 @@ import { CAREAROUND_BASEMAP_LOGO_URL } from '../lib/mapTheme.js';
 
 export default function OneMapBadge({ showLogo = true }) {
     return (
-        <div className="pointer-events-none absolute bottom-2 left-2 z-[500] inline-flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/92 px-2 py-1 shadow-sm backdrop-blur">
+        <div data-map-provider-credit="onemap" className="pointer-events-none absolute bottom-2 left-2 z-[500] inline-flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/92 px-2 py-1 shadow-sm backdrop-blur">
             {showLogo ? (
                 <img
                     src={CAREAROUND_BASEMAP_LOGO_URL}

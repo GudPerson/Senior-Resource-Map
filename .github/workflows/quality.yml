@@ -41,6 +41,11 @@ jobs:
       - name: Verify map-first entry and responsive controls
         run: node tests/browser/map-first-entry.mjs --out=output/map-first-entry-browser
 
+      - name: Verify default owner split workspace and compact header
+        run: |
+          node tests/browser/owner-split-workspace.mjs --out=output/owner-split-workspace-browser/default
+          node tests/browser/owner-split-workspace.mjs --workspace-flag=false --case=release-false-default-policy --out=output/owner-split-workspace-browser/false-policy
+
       - name: Verify Care Map notes and images downloads
         run: node tests/browser/care-map-notes-export.mjs --out=output/care-map-notes-export-browser
 
@@ -56,6 +61,14 @@ jobs:
         with:
           name: map-first-entry-browser
           path: output/map-first-entry-browser
+          if-no-files-found: ignore
+
+      - name: Retain default owner workspace evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner-split-workspace-browser
+          path: output/owner-split-workspace-browser
           if-no-files-found: ignore
 
       - name: Retain Care Map photo compression evidence

@@ -90,7 +90,7 @@ try {
         });
         page = await context.newPage(); page.on('pageerror', error => report.errors.push(`${device}: ${error.message}`));
         const visit = async id => {
-            await page.goto(`${server.resolvedUrls.local[0]}?route=/my-directory/maps/${id}`);
+            await page.goto(`${server.resolvedUrls.local[0]}?route=/my-directory/maps/${id}?workspace=current`);
             // Keep every gallery assertion on its established layout; map-first has its own CI replay.
             await page.locator('[data-map-first-exit="true"]').click();
             await page.getByRole('button', { name: 'Open map notes', exact: true }).click();

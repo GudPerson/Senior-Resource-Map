@@ -82,7 +82,9 @@ try {
         return route.abort();
     });
     page = await context.newPage(); page.on('pageerror', error => report.errors.push(error.message));
-    await page.goto(`${server.resolvedUrls.local[0]}?route=/my-directory/maps/${mapId}`);
+    await page.goto(`${server.resolvedUrls.local[0]}?route=/my-directory/maps/${mapId}?workspace=current`);
+    // Current reload/entry starts map-first; use its real return before legacy notes assertions.
+    await page.locator('[data-map-first-exit="true"]').click();
     await openNotes();
     await page.getByRole('dialog').locator('textarea').first().fill('Personal place note must survive closing and reload.');
     const file = path.join(out, 'fictional.png');
@@ -102,7 +104,7 @@ try {
     for (let n = 0; n < 30 && report.writes.length === 0; n++) await page.waitForTimeout(50);
     assert.equal(report.writes.length, 1, 'Closing personal-place notes must persist the text exactly once');
     report.cases.push('Personal-place note emits one persistence request on close');
-    await page.reload(); await openNotes();
+    await page.reload(); await page.locator('[data-map-first-exit="true"]').click(); await openNotes();
     assert.ok((await page.getByRole('dialog').innerText()).includes('Personal place note must survive closing and reload.'), 'Personal-place note survives reload');
     report.cases.push('Personal-place text survives reload');
     await page.getByRole('link', { name: 'Download image', exact: true }).waitFor();

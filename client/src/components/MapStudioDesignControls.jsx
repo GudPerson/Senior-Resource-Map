@@ -103,6 +103,8 @@ export default function MapStudioDesignControls({
     onPatch = null,
     onClose = null,
     disabled = false,
+    heading = undefined,
+    helpText = undefined,
 }) {
     const { t } = useLocale();
     const headingId = useId();
@@ -142,10 +144,10 @@ export default function MapStudioDesignControls({
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <h3 id={headingId} className="text-base font-black text-slate-900">
-                        {t('mapStudioDesignControls')}
+                        {heading || t('mapStudioDesignControls')}
                     </h3>
                     <p className="mt-0.5 text-xs leading-4 text-slate-600 sm:text-sm sm:leading-5">
-                        {t('mapStudioDesignControlsHelp')}
+                        {helpText || t('mapStudioDesignControlsHelp')}
                     </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
