@@ -1,6 +1,6 @@
 # Original Discover and Care Map presentation rollback — 2 November 2026
 
-Status: **locally validated candidate; not deployed**. Commit/push of the isolated branch is approved after independent QA; exact-head CI and the compatible publication remain separate gates. Current production remains public main `2c15ad8b4b3111665d4b4b5ee1daf7ec2b0a147b`, private build `e32f2fb66624d864fdb4ddeb46abc520020ea10a` (Split owner default). Work is isolated on `codex/original-map-ui-rollback-20261101` in the fresh verified managed checkout. The primary153 unfinished entries, earlier candidates and frozen release artifacts are protected.
+Status: **merged and source-prepared; normal owner publication pending; original UI rollback NOT LIVE**. [PR96](https://github.com/GudPerson/Senior-Resource-Map/pull/96) merged as public main `8f2665946d338b2eec08e162a23ea05e06e9253e`; exact PR and merged-main quality runs passed all21 steps. The unchanged-code source-pin clone is active, while deployed application code remains private build `e32f2fb66624d864fdb4ddeb46abc520020ea10a` and Pages `466575b6-e1b0-4b9d-ad8f-f85ae0768ebb`, still the previous presentation. Only the next protected publisher's source selection is prepared. The primary153 unfinished entries, earlier candidates and frozen release artifacts remain protected. This separate evidence branch must never be merged to main.
 
 ## Target and historical reference
 
@@ -39,6 +39,19 @@ Build/client checks were rerun after the Fragment repair. Locked/static/export/m
 
 Durable independent reports/captures: `/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/care-map-original-ui-rollback-20261101/`. Evidence working folder: `/private/tmp/carearound-original-map-ui-rollback-20261101/`, including runtime-only patch/hash review, policy before/after, production build profile and verification logs. Independent baseline captures are fictional/intercepted browser evidence, not production or physical-device proof.
 
-## Release boundary
+## Release preparation and remaining owner action
 
-No merge/deployment or production mutation has occurred. The reviewed codex branch may be committed/pushed; root retains merge and release coordination after exact-head CI. Use the normal compatible protected publication path carrying the latest approved Help/CMS content. Do not deploy2361/stale public dist, restore map documents, delete browser drafts or modify the private publisher/credentials. The available owner publication actor may require the final existing UI action to be user-operated; this does not block making the rollback concrete and reviewable locally.
+[PR quality41324444933](https://github.com/GudPerson/Senior-Resource-Map/actions/runs/41324444933) passed on exact feature `ae223fc503f0a3c8c9cdc1292b6d53022ecdf415`; [main quality41325499901](https://github.com/GudPerson/Senior-Resource-Map/actions/runs/41325499901) passed on exact merged main `8f2665946d338b2eec08e162a23ea05e06e9253e`. Both completed all21 steps, including the committed rollback harness. Main tree `c2013c199d8d795d5edf38eca92b0759fceeeb57` equals the tested feature tree; six runtime and committed harness hashes match. No app source changed after acceptance.
+
+A separately reviewed source-pin-only clone `506bef6a-7e66-4e8c-9b9f-670d8cb8104c` was staged once and activated once at100% through deployment `b0f59ec8-11b4-4713-8a7c-bd086656ffbe`. Module ETag, handler/runtime, all44 binding-descriptor and global-settings fingerprints matched the previous runtime; its truthful `git-e32f2fb66624d864fdb4ddeb46abc520020ea10a` tag remains. Six public responses were200 and existing Help/Guide/client content stayed aligned at version `2026-10-31.help-cms.1793475137185`, digest `d04cd77e81f1bf4127d17bbb05a13dc97f45a05ab496e422ff37a8c3f2ee1b34`. These are source-preparation checks, not proof of original-UI delivery.
+
+Normal owner publication has **not** been submitted. Authenticated browser automation was unavailable in this session, so the user was asked to perform the existing owner action:
+
+1. Sign in as owner and open [Help Centre management](https://app.carearound.sg/help-centre?manage=1).
+2. Open **More owner tools → Review & publish**. Review the existing saved approved library; no editorial draft save is required for this application-source-only publication.
+3. Enter a meaningful review note, acknowledge the dialog and click **Publish saved content** once. Approve the existing protected environment if requested, then wait for that same job.
+4. Record the new release/job and final paired Worker/Pages receipt. Verify matching source/content/artifacts, unlocked published state and actual original Discover/Care Map presentation before calling the rollback live. A failed/partial job requires its normal recovery flow, not another dispatch or source repin.
+
+Use the [normal publication runbook](help-content-cms-release-runbook.md#4-publish-approved-content-after-installation) and [release checklist](release-checklist.md). Keep public main at the reviewed source until publication; this evidence-only branch is pushed separately and must not be merged. Do not deploy2361/stale dist, restore map documents, delete browser drafts or change publisher guards/credentials.
+
+Sanitized preparation metadata: [original-map-ui-rollback-prepared-20261102.json](evidence/original-map-ui-rollback-prepared-20261102.json). The immutable local QA manifest is `qa-local-manifest.json`, SHA256 `bd9d7ea39b1dad2303990b6ab5bb91a51ed1dbcd884a90a0ddfe52ac76d49756` (50 QA-owned metadata/fictional files); `qa-local-acceptance.md` records10/10 plus3/3. Frozen QA/v1 files were not edited. There is no authenticated production owner-UI, physical-device/PWA or private-image/export-quality acceptance for this rollback yet.

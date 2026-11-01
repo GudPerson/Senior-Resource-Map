@@ -1,0 +1,103 @@
+{
+  "recordedAtUTC": "2026-11-01T16:44:22.084885+00:00",
+  "state": "merged-source-prepared-owner-publication-pending",
+  "originalUiRollbackLive": false,
+  "normalOwnerPublicationPerformed": false,
+  "publicSource": {
+    "revision": "8f2665946d338b2eec08e162a23ea05e06e9253e",
+    "tree": "c2013c199d8d795d5edf38eca92b0759fceeeb57",
+    "featureRevision": "ae223fc503f0a3c8c9cdc1292b6d53022ecdf415",
+    "pullRequest": "https://github.com/GudPerson/Senior-Resource-Map/pull/96",
+    "runtimeCanonicalSha256": "8cb975e9e97acb412071b9adf85985af295334f68cacfea65c21a1403b45e173",
+    "committedHarnessSha256": "0a2c1b2ab992781bcf19fbe93b6bc655f2b1212edf7aa6af0a9df6f7a3ec1160"
+  },
+  "exactHeadCI": [
+    {
+      "scope": "pull-request",
+      "sourceRevision": "ae223fc503f0a3c8c9cdc1292b6d53022ecdf415",
+      "runId": 41324444933,
+      "jobId": 124901332158,
+      "conclusion": "success",
+      "all21StepsPassed": true,
+      "url": "https://github.com/GudPerson/Senior-Resource-Map/actions/runs/41324444933"
+    },
+    {
+      "scope": "merged-main",
+      "sourceRevision": "8f2665946d338b2eec08e162a23ea05e06e9253e",
+      "runId": 41325499901,
+      "jobId": 124904459278,
+      "conclusion": "success",
+      "all21StepsPassed": true,
+      "url": "https://github.com/GudPerson/Senior-Resource-Map/actions/runs/41325499901"
+    }
+  ],
+  "sourcePinPreparation": {
+    "recordedAtUTC": "2026-11-01T16:40:22.899321+00:00",
+    "sourceRecordSha256": "fb1975b0e960b76f9b199dd089f9286ee1bafee78cec82b570057db7ea72085f",
+    "targetPublicSourceRevision": "8f2665946d338b2eec08e162a23ea05e06e9253e",
+    "activeWorkerVersionId": "506bef6a-7e66-4e8c-9b9f-670d8cb8104c",
+    "deploymentId": "b0f59ec8-11b4-4713-8a7c-bd086656ffbe",
+    "trafficPercentage": 100,
+    "operatorAttemptCount": {
+      "stage": 1,
+      "activate": 1
+    },
+    "meaning": "Only the next normal protected paired publisher source selection changed. Deployed code/UI and approved content remain the previous baseline until owner publication.",
+    "unchangedFingerprints": {
+      "moduleEtag": "1bdc52634584ab858db8582b11c385c25a1b5f28c445e86ee08f258377247df0",
+      "handlersSha256": "821793ca181e0b3f39adc39a6b2827e9deecf0513baf0b1e0f55f58f7c688410",
+      "runtimeSha256": "2f456ab00ee88842cbe7a2ff2ded8c97d429079b9019c0ae8ce71522a2ee0557",
+      "bindingDescriptorsSha256": "bec80b7ccfcbe4d3585c19b3ae69b9d9d5f0719b93965a0e4d182cdb0d6bed2b",
+      "bindingCount": 44,
+      "truthfulTag": "git-e32f2fb66624d864fdb4ddeb46abc520020ea10a"
+    },
+    "globalSettingsSha256": "157cb32f16e8b5795731c2251c1f9481390066107c77d5102be56e1f9313b2a4",
+    "rootIndependentComparison": {
+      "checkedAtUTC": "2026-11-01T16:38:47.122Z",
+      "candidateDeploymentAndFingerprintsMatch": true,
+      "completeSettingsComparedEqualToPreactivation": true
+    }
+  },
+  "liveBaselineAfterPreparation": {
+    "observedAtUTC": "2026-11-01T16:39:44.009034+00:00",
+    "sixPublicResponses200": true,
+    "deployedCodeRevision": "e32f2fb66624d864fdb4ddeb46abc520020ea10a",
+    "pagesDeploymentId": "466575b6-e1b0-4b9d-ad8f-f85ae0768ebb",
+    "contentVersion": "2026-10-31.help-cms.1793475137185",
+    "contentDigest": "d04cd77e81f1bf4127d17bbb05a13dc97f45a05ab496e422ff37a8c3f2ee1b34",
+    "ui": "previous Split/map-first presentation; rollback not yet published"
+  },
+  "immutableLocalQA": {
+    "manifest": "qa-local-manifest.json",
+    "manifestSha256": "bd9d7ea39b1dad2303990b6ab5bb91a51ed1dbcd884a90a0ddfe52ac76d49756",
+    "ownedFileCount": 50,
+    "report": "qa-local-acceptance.md",
+    "defaultCasesPassed": 10,
+    "falsePolicyStaleCasesPassed": 3,
+    "executedHarnessSha256": "e5fd5af754730cd54c7179992280dc6993f91740d29deebc37d1056037ba275d",
+    "committedHarnessWhitespaceDelta": "Only two trailing spaces removed on blank line148; exact-head CI executes committed bytes",
+    "evidenceType": "fictional/intercepted local actual-App historical-source comparison",
+    "frozenFilesModified": false
+  },
+  "pendingOwnerAction": {
+    "route": "https://app.carearound.sg/help-centre?manage=1",
+    "path": [
+      "More owner tools",
+      "Review & publish",
+      "Publish saved content"
+    ],
+    "instructions": "Use the normal owner UI to review the existing saved approved library, enter a review note, acknowledge the dialog and submit once. No editorial draft save is required for this application-source-only publication. Approve the protected environment if requested; wait for the same job to finish.",
+    "reason": "Authenticated browser automation unavailable in this session; owner UI action requested from user.",
+    "followUp": "Record the new release/job, protected paired Worker/Pages receipt, source/content/artifact parity, unlocked published state and actual original-UI acceptance before calling the rollback live."
+  },
+  "limitations": [
+    "No normal owner publication was submitted in this preparation step.",
+    "Six public responses and unchanged fingerprints prove prepared-runtime alignment, not new original-UI delivery.",
+    "No authenticated production owner-page, physical-device/PWA or private-image/export-quality acceptance for this rollback is claimed.",
+    "Documentation evidence branch must not be merged to main or trigger another publication."
+  ],
+  "runbooks": [
+    "docs/help-content-cms-release-runbook.md#4-publish-approved-content-after-installation",
+    "docs/release-checklist.md"
+  ]
+}
