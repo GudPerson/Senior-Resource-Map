@@ -16,7 +16,7 @@ const repo = fileURLToPath(new URL('../../', import.meta.url));
 const arg = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
 const out = arg('out') || await fs.mkdtemp(path.join(os.tmpdir(), 'carearound-owner-split-'));
 await fs.mkdir(out, { recursive: true });
-const report = { boundary: 'Actual App/router/providers; fictional APIs, intercepted writes and synthetic pixels. Browser-emulated responsive/keyboard and controlled HTTP failure/concurrency. No real backend, production, private content, physical gestures or device/PWA proof.', workspaceFlag: arg('workspace-flag') ?? 'absent/source-default', cases: [], assertions: [], screenshots: [], errors: [], unexpectedWrites: [], expectedNoteFailures: [] };
+const report = { profile: 'retained-experiment-fixture', mapFirstExperimentEnabled: true, productionDefaultProof: false, boundary: 'Actual App/router/providers; fictional APIs, intercepted writes and synthetic pixels. Browser-emulated responsive/keyboard and controlled HTTP failure/concurrency. No real backend, production, private content, physical gestures or device/PWA proof.', workspaceFlag: arg('workspace-flag') ?? 'absent/owner-default-within-enabled-experiment', cases: [], assertions: [], screenshots: [], errors: [], unexpectedWrites: [], expectedNoteFailures: [] };
 const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=', 'base64');
 const mapId = 91261031;
 const owner = { id: 91261, name: 'Fictional workspace owner', role: 'standard', locale: 'en', postalCode: '680001' };
@@ -71,7 +71,8 @@ const server = await createServer({
       const defaultsRef = useRef(`).replace('onOwnerSessionChange?.(snapshot);', 'window.__qaStudioSessions.push({id:qaInstance.current,snapshot}); onOwnerSessionChange?.(snapshot);')
       .replace('useImperativeHandle(ref, () => ({', 'useImperativeHandle(ref, () => (window.__qaStudioImperative = {');
   } }],
-  define: { 'import.meta.env.VITE_API_URL': '"/api"', 'import.meta.env.VITE_SUPPORT_INBOX_ENABLED': '"true"',
+  define: { 'import.meta.env.VITE_MAP_FIRST_EXPERIMENT_ENABLED': '"true"',
+      'import.meta.env.VITE_API_URL': '"/api"', 'import.meta.env.VITE_SUPPORT_INBOX_ENABLED': '"true"',
     'import.meta.env.VITE_OWNER_MAP_WORKSPACE_ENABLED': arg('workspace-flag') === undefined ? 'undefined' : JSON.stringify(arg('workspace-flag')), 'import.meta.env.VITE_TOWN_MAP_PROOF_ENABLED': '"true"', 'import.meta.env.VITE_TOWN_MAP_ZOOM14_OVERVIEW_ENABLED': '"true"',
     ...Object.fromEntries([['ASSET_BASE_URL', 'v2/native-scale-20260722/default'], ['GRAY_ASSET_BASE_URL', 'v2/native-scale-20260722/gray'], ['OVERVIEW_ASSET_BASE_URL', 'v3/zoom14-atlas-20260730/default'], ['GRAY_OVERVIEW_ASSET_BASE_URL', 'v3/zoom14-atlas-20260730/gray']].map(([key, value]) => [`import.meta.env.VITE_TOWN_MAP_${key}`, JSON.stringify(`/__carearound-town-maps/${value}`)])) },
 });

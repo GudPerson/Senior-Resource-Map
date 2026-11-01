@@ -14,7 +14,7 @@ const repo = fileURLToPath(new URL('../../', import.meta.url));
 const arg = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
 const out = arg('out') || await fs.mkdtemp(path.join(os.tmpdir(), 'carearound-map-first-entry-'));
 await fs.mkdir(out, { recursive: true });
-const report = { boundary: 'Actual App/router/providers. Fictional intercepted auth/resources/maps, synthetic pixels, desktop and phone/tablet emulation. No production access, physical-device, Android PWA, heap or image-quality claim.', cases: [], cameraComparisons: [], ownerHeaderChecks: [], errors: [], unexpectedWrites: [], expectedDraftSaveAttempts: [], screenshots: [] };
+const report = { profile: 'retained-experiment-fixture', mapFirstExperimentEnabled: true, productionDefaultProof: false, boundary: 'Actual App/router/providers. Fictional intercepted auth/resources/maps, synthetic pixels, desktop and phone/tablet emulation. No production access, physical-device, Android PWA, heap or image-quality claim.', cases: [], cameraComparisons: [], ownerHeaderChecks: [], errors: [], unexpectedWrites: [], expectedDraftSaveAttempts: [], screenshots: [] };
 const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=', 'base64');
 const asset = { id: 82001, name: 'Fictional Alpha Centre', category: 'Fixture support', subCategory: 'Fixture centre', type: 'hard', resourceType: 'hard', resourceId: 82001, status: 'active', visibility: 'public', address: 'Fictional address', postalCode: '680001', lat: 1.38, lng: 103.75 };
 const secondAsset = { ...asset, id: 82002, resourceId: 82002, name: 'Fictional Beta Centre', subCategory: 'Fixture outreach', postalCode: '680002', address: 'Fictional Beta address', lat: 1.381, lng: 103.751 };
@@ -60,6 +60,7 @@ let base;
       if (id.endsWith('/components/DirectoryMap.jsx')) return source.replace('mapInstanceRef.current = map;', 'mapInstanceRef.current = map; if (map) window.__registerMapFirst?.(map);');
     } }],
     define: {
+      'import.meta.env.VITE_MAP_FIRST_EXPERIMENT_ENABLED': '"true"',
       'import.meta.env.VITE_API_URL': '"/api"',
       'import.meta.env.VITE_SUPPORT_INBOX_ENABLED': '"true"',
       'import.meta.env.VITE_TOWN_MAP_PROOF_ENABLED': '"true"',

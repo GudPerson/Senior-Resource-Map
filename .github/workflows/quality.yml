@@ -38,10 +38,16 @@ jobs:
       - name: Install browser for Care Map download verification
         run: npx playwright install --with-deps chromium
 
-      - name: Verify map-first entry and responsive controls
+      - name: Verify original Discover and Care Map production-default presentation
+        run: |
+          git fetch --no-tags --depth=1 origin 2361d3c94238c2dd57da0c501dad426fafb24635
+          node tests/browser/original-map-ui-rollback.mjs --out=output/original-map-ui-rollback-browser/default --port=4491
+          node tests/browser/original-map-ui-rollback.mjs --experiment=false --owner-flag=true --case=stale --out=output/original-map-ui-rollback-browser/false-policy --port=4491
+
+      - name: Verify retained map-first experiment fixture
         run: node tests/browser/map-first-entry.mjs --out=output/map-first-entry-browser
 
-      - name: Verify default owner split workspace and compact header
+      - name: Verify retained owner split experiment fixture
         run: |
           node tests/browser/owner-split-workspace.mjs --out=output/owner-split-workspace-browser/default
           node tests/browser/owner-split-workspace.mjs --workspace-flag=false --case=release-false-default-policy --out=output/owner-split-workspace-browser/false-policy
@@ -55,19 +61,27 @@ jobs:
       - name: Verify Care Map photo compression
         run: node tests/browser/care-map-photo-compression.mjs --out=output/care-map-photo-compression-browser
 
-      - name: Retain map-first entry evidence
+      - name: Retain original presentation rollback evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: map-first-entry-browser
+          name: original-map-ui-rollback-browser
+          path: output/original-map-ui-rollback-browser
+          if-no-files-found: ignore
+
+      - name: Retain opt-in map-first experiment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retained-map-first-experiment-browser
           path: output/map-first-entry-browser
           if-no-files-found: ignore
 
-      - name: Retain default owner workspace evidence
+      - name: Retain opt-in owner experiment evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: owner-split-workspace-browser
+          name: retained-owner-split-experiment-browser
           path: output/owner-split-workspace-browser
           if-no-files-found: ignore
 

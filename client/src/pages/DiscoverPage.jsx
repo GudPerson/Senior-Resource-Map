@@ -29,6 +29,7 @@ import SharedDiscoverPostalGroupListPanel from '../features/discover/DiscoverPos
 import { DiscoveryResultsList } from '../features/discover/DiscoveryResultsList.jsx';
 import SavedMapEmptyState from '../features/discover/SavedMapEmptyState.jsx';
 import MapFirstWorkspace from '../components/MapFirstWorkspace.jsx';
+import { isMapFirstExperimentEnabled } from '../lib/mapPresentationPolicy.js';
 import {
     applyLocationIndicators,
     buildLocationIndicatorContextRequest,
@@ -299,7 +300,8 @@ export default function DiscoverPage() {
     const [transientFocusAssetKey, setTransientFocusAssetKey] = useState(null);
     const [mapFocusRequest, setMapFocusRequest] = useState(null);
     const [mobileMode, setMobileMode] = useState('browse');
-    const [mapFirstOpen, setMapFirstOpen] = useState(true);
+    const mapFirstPresentationEnabled = isMapFirstExperimentEnabled();
+    const [mapFirstOpen, setMapFirstOpen] = useState(mapFirstPresentationEnabled);
     const [mapFirstResourcesPreference, setMapFirstResourcesPreference] = useState(null);
     const [mapFirstCardDensity, setMapFirstCardDensity] = useState('comfortable');
     const [mobileCardDensity, setMobileCardDensity] = useState('compact');
@@ -2286,7 +2288,7 @@ export default function DiscoverPage() {
         </Drawer.Root>
     ) : null;
 
-    if (mapFirstOpen) {
+    if (mapFirstPresentationEnabled && mapFirstOpen) {
         const resourcesOpen = mapFirstResourcesPreference ?? !hasRenderableMapPins;
         const mapFirstFilters = React.cloneElement(filterPanel, {
             mobileMode: 'browse',
