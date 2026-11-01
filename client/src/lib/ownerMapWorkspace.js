@@ -1,5 +1,8 @@
+import { isMapFirstExperimentEnabled } from './mapPresentationPolicy.js';
+
 // Presentation only. This never changes a Studio document, permission or camera.
-export function isOwnerMapWorkspaceEnabled(search, enabled = true) {
+export function isOwnerMapWorkspaceEnabled(search, enabled = true, experimentEnabled = isMapFirstExperimentEnabled()) {
+    if (!isMapFirstExperimentEnabled(experimentEnabled)) return false;
     const params = search instanceof URLSearchParams ? search : new URLSearchParams(search || '');
     if (params.get('workspace') === 'current') return false;
     if (params.get('workspace') === 'split') return true;

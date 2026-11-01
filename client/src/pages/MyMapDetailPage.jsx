@@ -91,6 +91,7 @@ import {
     filterMapStudioDirectoryByLayers,
 } from '../lib/mapStudioPresentationAdapter.js';
 import { currentOwnerWorkspaceUrl, isOwnerMapWorkspaceEnabled } from '../lib/ownerMapWorkspace.js';
+import { isMapFirstExperimentEnabled } from '../lib/mapPresentationPolicy.js';
 import { MY_MAP_UI_MODE_V2, getMyMapUiMode } from '../lib/myMapUiMode.js';
 import {
     FIXED_TOWN_SURFACE_EXTENDED_MAX_DECODED_BYTES,
@@ -1618,8 +1619,10 @@ export default function MyMapDetailPage() {
     const [error, setError] = useState('');
     const [actionError, setActionError] = useState('');
     const [query, setQuery] = useState('');
-    const [mapFirstOpen, setMapFirstOpen] = useState(true);
-    useEffect(() => { setMapFirstOpen(true); }, [mapId]);
+    const mapFirstPresentationEnabled = isMapFirstExperimentEnabled();
+    const [requestedMapFirstOpen, setMapFirstOpen] = useState(mapFirstPresentationEnabled);
+    const mapFirstOpen = mapFirstPresentationEnabled && requestedMapFirstOpen;
+    useEffect(() => { setMapFirstOpen(mapFirstPresentationEnabled); }, [mapId, mapFirstPresentationEnabled]);
     const [focusedPlaceKey, setFocusedPlaceKey] = useState(null);
     const [focusedPlaceKeys, setFocusedPlaceKeys] = useState([]);
     const [highlightPlaceKey, setHighlightPlaceKey] = useState(null);
@@ -4261,7 +4264,7 @@ export default function MyMapDetailPage() {
         return (
             <>
                 <MyMapV2PreviewScaffold
-                    mapFirstView={splitWorkspace || (!interactiveAnnotationEditorOpen && !personalPlacePickerActive)}
+                    mapFirstView={mapFirstPresentationEnabled && (splitWorkspace || (!interactiveAnnotationEditorOpen && !personalPlacePickerActive))}
                     ownerWorkspace={ownerWorkspace}
                     mapFirstOpen={mapFirstOpen}
                     onMapFirstOpenChange={setMapFirstOpen}
@@ -4542,7 +4545,7 @@ export default function MyMapDetailPage() {
                         />
                     ) : null}
 
-                    {!splitWorkspace && mapStudioFilteredDirectory.summary.resourceCount === 0 && (personalPlacePickerActive || interactiveAnnotationEditorOpen) ? (
+                    {!splitWorkspace && mapStudioFilteredDirectory.summary.resourceCount === 0 && (!mapFirstPresentationEnabled || personalPlacePickerActive || interactiveAnnotationEditorOpen) ? (
                         <div className="space-y-4">
                             {personalPlacePickerActive || interactiveAnnotationEditorOpen ? (
                                 <DirectoryMap
@@ -4603,7 +4606,7 @@ export default function MyMapDetailPage() {
                     ) : (
                         <>
                             <SharedMapDirectoryList
-                                mapFirstView={splitWorkspace || (!interactiveAnnotationEditorOpen && !personalPlacePickerActive)}
+                                mapFirstView={mapFirstPresentationEnabled && (splitWorkspace || (!interactiveAnnotationEditorOpen && !personalPlacePickerActive))}
                                 ownerWorkspace={ownerWorkspace}
                                 mapFirstOpen={mapFirstOpen}
                                 onMapFirstOpenChange={setMapFirstOpen}

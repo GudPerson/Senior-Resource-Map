@@ -6,6 +6,7 @@ import MapNoteImages from './MapNoteImages.jsx';
 import MapNotesResourceList from './MapNotesResourceList.jsx';
 import MapFirstWorkspace from './MapFirstWorkspace.jsx';
 import OwnerMapWorkspace from './OwnerMapWorkspace.jsx';
+import { isMapFirstExperimentEnabled } from '../lib/mapPresentationPolicy.js';
 import { rememberMapNotePin } from '../lib/mapNotesNavigation.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { AnnotationResourceInteractionContext, useAnnotationResourceCard } from './AnnotationResourceInteraction.jsx';
@@ -4858,11 +4859,13 @@ function SharedMapDirectoryListContent({
 
 export default function SharedMapDirectoryList(props) {
     const { t } = useLocale();
-    const [localMapFirstOpen, setLocalMapFirstOpen] = useState(true);
-    const mapFirstOpen = props.mapFirstOpen ?? localMapFirstOpen;
+    const mapFirstPresentationEnabled = isMapFirstExperimentEnabled();
+    const [localMapFirstOpen, setLocalMapFirstOpen] = useState(mapFirstPresentationEnabled);
+    const mapFirstView = mapFirstPresentationEnabled && Boolean(props.mapFirstView);
+    const mapFirstOpen = mapFirstView && (props.mapFirstOpen ?? localMapFirstOpen);
     const setMapFirstOpen = props.onMapFirstOpenChange || setLocalMapFirstOpen;
-    useEffect(() => { setLocalMapFirstOpen(true); }, [props.directory?.id]);
-    const ownerMapFirst = props.mode === 'owner' && props.layout !== 'print' && props.mapFirstView;
+    useEffect(() => { setLocalMapFirstOpen(mapFirstPresentationEnabled); }, [props.directory?.id, mapFirstPresentationEnabled]);
+    const ownerMapFirst = props.mode === 'owner' && props.layout !== 'print' && mapFirstView;
     const interaction = props.mode === 'owner' && props.layout !== 'print'
         ? props.annotationResourceInteraction || null : null;
     return <AnnotationResourceInteractionContext.Provider value={interaction}>
@@ -4871,6 +4874,8 @@ export default function SharedMapDirectoryList(props) {
             className="fixed bottom-[max(16px,env(safe-area-inset-bottom))] right-4 z-[1140] inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-brand-700 shadow-lg">
             <Maximize2 size={17} aria-hidden="true" />{t('openFullMap')}
         </button> : null}
-        <SharedMapDirectoryListContent {...props} mapFirstOpen={mapFirstOpen} onMapFirstOpenChange={setMapFirstOpen} />
+        <SharedMapDirectoryListContent {...props} mapFirstView={mapFirstView}
+            ownerWorkspace={mapFirstPresentationEnabled ? props.ownerWorkspace : null}
+            mapFirstOpen={mapFirstOpen} onMapFirstOpenChange={setMapFirstOpen} />
     </AnnotationResourceInteractionContext.Provider>;
 }

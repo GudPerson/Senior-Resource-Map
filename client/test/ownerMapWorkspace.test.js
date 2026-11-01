@@ -2,19 +2,29 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { currentOwnerWorkspaceUrl, getOwnerWorkspaceCapacity, isOwnerMapWorkspaceEnabled } from '../src/lib/ownerMapWorkspace.js';
 
-test('owner workspace defaults on without a build flag and retains explicit presentation overrides', () => {
-    assert.equal(isOwnerMapWorkspaceEnabled(''), true);
-    assert.equal(isOwnerMapWorkspaceEnabled('', undefined), true);
-    assert.equal(isOwnerMapWorkspaceEnabled('', false), false);
-    assert.equal(isOwnerMapWorkspaceEnabled('', 'false'), false);
-    assert.equal(isOwnerMapWorkspaceEnabled('workspace=split', false), true);
-    assert.equal(isOwnerMapWorkspaceEnabled('workspace=current', 'true'), false);
-    assert.equal(isOwnerMapWorkspaceEnabled('workspace=split'), true);
-    assert.equal(isOwnerMapWorkspaceEnabled('workspace=current', true), false);
-    assert.equal(isOwnerMapWorkspaceEnabled('workspace=unknown'), true);
-    assert.equal(isOwnerMapWorkspaceEnabled('ui=stable'), true);
-    assert.equal(isOwnerMapWorkspaceEnabled('', 'true'), true);
-    assert.equal(isOwnerMapWorkspaceEnabled('ui=stable&workspace=split'), true);
+const enabledExperimentWorkspace = (search, enabled) => isOwnerMapWorkspaceEnabled(search, enabled, true);
+
+test('enabled experiment builds retain owner presentation selection and explicit overrides', () => {
+    assert.equal(enabledExperimentWorkspace(''), true);
+    assert.equal(enabledExperimentWorkspace('', undefined), true);
+    assert.equal(enabledExperimentWorkspace('', false), false);
+    assert.equal(enabledExperimentWorkspace('', 'false'), false);
+    assert.equal(enabledExperimentWorkspace('workspace=split', false), true);
+    assert.equal(enabledExperimentWorkspace('workspace=current', 'true'), false);
+    assert.equal(enabledExperimentWorkspace('workspace=split'), true);
+    assert.equal(enabledExperimentWorkspace('workspace=current', true), false);
+    assert.equal(enabledExperimentWorkspace('workspace=unknown'), true);
+    assert.equal(enabledExperimentWorkspace('ui=stable'), true);
+    assert.equal(enabledExperimentWorkspace('', 'true'), true);
+    assert.equal(enabledExperimentWorkspace('ui=stable&workspace=split'), true);
+});
+
+test('rollback policy prevents workspace flags and old owner build settings from restoring experiments', () => {
+    for (const search of ['', 'workspace=split', 'workspace=current', 'ui=stable&workspace=split', 'mapFirst=true']) {
+        for (const enabled of [undefined, true, 'true', false, 'false']) {
+            assert.equal(isOwnerMapWorkspaceEnabled(search, enabled), false, `${search}: ${enabled}`);
+        }
+    }
 });
 
 test('current presentation preserves unrelated selected-view, route and map parameters', () => {

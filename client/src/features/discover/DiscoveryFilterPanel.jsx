@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { ChevronDown, Columns2, Heart, House, LocateFixed, Map, MapPin, Rows3, Search, SlidersHorizontal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -530,7 +530,7 @@ function DesktopFilterPanel({
         : locationControlMode === 'compact'
             ? t('homePostalCode')
             : '';
-    const LocationRow = mapFirst ? 'div' : React.Fragment;
+    const LocationRow = mapFirst ? 'div' : Fragment;
     const savedOnlyControl = user ? (
                         <label className={`flex shrink-0 cursor-pointer select-none items-center gap-3 rounded-2xl border px-3 py-2 transition-all hover:bg-white ${DISCOVERY_SECONDARY_CONTROL_HEIGHT_CLASS}`} style={{ borderColor: 'var(--color-border)' }}>
                             <div className="relative inline-block w-8 align-middle transition duration-200 ease-in">
