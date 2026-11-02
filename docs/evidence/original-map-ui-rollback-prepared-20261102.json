@@ -1,8 +1,11 @@
 {
-  "recordedAtUTC": "2026-11-01T16:44:22.084885+00:00",
-  "state": "merged-source-prepared-owner-publication-pending",
-  "originalUiRollbackLive": false,
-  "normalOwnerPublicationPerformed": false,
+  "recordedAtUTC": "2026-11-02T01:35:44.282944+00:00",
+  "state": "published-scoped-production-acceptance-owner-visual-uat-unclaimed",
+  "normalOwnerPublicationPerformed": true,
+  "applicationRollbackPublished": true,
+  "ownerPublicationPending": false,
+  "publishedAtUTC": "2026-11-02T01:21:41Z",
+  "publishedAtSGT": "2026-11-02T09:21:41+08:00",
   "publicSource": {
     "revision": "8f2665946d338b2eec08e162a23ea05e06e9253e",
     "tree": "c2013c199d8d795d5edf38eca92b0759fceeeb57",
@@ -31,41 +34,81 @@
       "url": "https://github.com/GudPerson/Senior-Resource-Map/actions/runs/41325499901"
     }
   ],
-  "sourcePinPreparation": {
-    "recordedAtUTC": "2026-11-01T16:40:22.899321+00:00",
-    "sourceRecordSha256": "fb1975b0e960b76f9b199dd089f9286ee1bafee78cec82b570057db7ea72085f",
-    "targetPublicSourceRevision": "8f2665946d338b2eec08e162a23ea05e06e9253e",
-    "activeWorkerVersionId": "506bef6a-7e66-4e8c-9b9f-670d8cb8104c",
-    "deploymentId": "b0f59ec8-11b4-4713-8a7c-bd086656ffbe",
-    "trafficPercentage": 100,
-    "operatorAttemptCount": {
-      "stage": 1,
-      "activate": 1
-    },
-    "meaning": "Only the next normal protected paired publisher source selection changed. Deployed code/UI and approved content remain the previous baseline until owner publication.",
-    "unchangedFingerprints": {
-      "moduleEtag": "1bdc52634584ab858db8582b11c385c25a1b5f28c445e86ee08f258377247df0",
-      "handlersSha256": "821793ca181e0b3f39adc39a6b2827e9deecf0513baf0b1e0f55f58f7c688410",
-      "runtimeSha256": "2f456ab00ee88842cbe7a2ff2ded8c97d429079b9019c0ae8ce71522a2ee0557",
-      "bindingDescriptorsSha256": "bec80b7ccfcbe4d3585c19b3ae69b9d9d5f0719b93965a0e4d182cdb0d6bed2b",
-      "bindingCount": 44,
-      "truthfulTag": "git-e32f2fb66624d864fdb4ddeb46abc520020ea10a"
-    },
-    "globalSettingsSha256": "157cb32f16e8b5795731c2251c1f9481390066107c77d5102be56e1f9313b2a4",
-    "rootIndependentComparison": {
-      "checkedAtUTC": "2026-11-01T16:38:47.122Z",
-      "candidateDeploymentAndFingerprintsMatch": true,
-      "completeSettingsComparedEqualToPreactivation": true
-    }
+  "publication": {
+    "releaseId": "1793582083066-94e41165-4343-4bf6-815f-0231239c3d4c",
+    "jobId": "6c065ae5-4db5-4357-a02e-1faac76892b2",
+    "runId": 41371453019,
+    "runJobId": 125042616527,
+    "conclusion": "success",
+    "workflowStepsPassed": 7,
+    "releaseQualityGatesPassed": 4,
+    "acknowledgedReceiptState": "published",
+    "publishedPointerPromoted": true,
+    "publicationLock": null,
+    "readinessAllTrue": true,
+    "publicBaseSourceRevision": "8f2665946d338b2eec08e162a23ea05e06e9253e",
+    "privateBuildSourceRevision": "22e7a20b9c65590f00a4a839989bae154cb96a2e",
+    "contentVersion": "2026-11-02.help-cms.1793582082858",
+    "snapshotDigest": "f6536bc7d035b7c5ad496b10d42f2d73b855bd3559ca6ef403420289fda82abd",
+    "compiledDigest": "0773d8aad5d18a02bc065d1adcd281547cb6920fd6ec775dda3f9ff0e8387967",
+    "approvedSnapshotDeliveredCoherently": true,
+    "authoredV1BodyEqualityIndependentlyVerified": false
   },
-  "liveBaselineAfterPreparation": {
-    "observedAtUTC": "2026-11-01T16:39:44.009034+00:00",
-    "sixPublicResponses200": true,
-    "deployedCodeRevision": "e32f2fb66624d864fdb4ddeb46abc520020ea10a",
-    "pagesDeploymentId": "466575b6-e1b0-4b9d-ad8f-f85ae0768ebb",
-    "contentVersion": "2026-10-31.help-cms.1793475137185",
-    "contentDigest": "d04cd77e81f1bf4127d17bbb05a13dc97f45a05ab496e422ff37a8c3f2ee1b34",
-    "ui": "previous Split/map-first presentation; rollback not yet published"
+  "liveTargets": {
+    "workerVersionId": "95a67c7c-6f9f-4b1c-840a-8629452ac4af",
+    "trafficPercentage": 100,
+    "workerDeploymentId": "10735be3-b963-4b94-9dfa-872b9cf2668d",
+    "workerMetadataETag": "f8ec0c27d150ff5048488d6515fa3e8d395a635e30eaf508d995ebaeecd5071c",
+    "workerRawBundleFetched": false,
+    "pagesDeploymentId": "407157e5-93c1-43f3-ad05-7760af43ecd0",
+    "canonicalImmutableUrl": "https://407157e5.senior-resource-map.pages.dev",
+    "pagesEnvironment": "production/main",
+    "sourceClean": true
+  },
+  "independentProductionQA": {
+    "aggregateChecksPassed": 19,
+    "freshExpectedInventoryFromExactNewProducer": true,
+    "compiledInventoryRecords": 105,
+    "customArtifactChecksPassed": 105,
+    "immutableArtifactChecksPassed": 103,
+    "ordinaryHtmlChecksPassed": 12,
+    "immutableProofDenialsPassed": 4,
+    "bindings": 44,
+    "bindingDescriptorsSha256": "bec80b7ccfcbe4d3585c19b3ae69b9d9d5f0719b93965a0e4d182cdb0d6bed2b",
+    "runtimeMatchesApprovedBaseline": true,
+    "globalSettingsSha256": "157cb32f16e8b5795731c2251c1f9481390066107c77d5102be56e1f9313b2a4",
+    "commonExperimentFlagInActualProjectAndDeployment": "absent",
+    "olderOwnerWorkspaceFlagInActualProjectAndDeployment": "absent",
+    "manifest": "qa-production-manifest.json",
+    "manifestSha256": "62fe630f9830b24e724adbb3dd92a8266b0ebddf9a11eecf384817324c96f6d5",
+    "ownedFiles": 18
+  },
+  "actualAnonymousPublicUI": {
+    "report": "ui-acceptance.md",
+    "manifest": "ui-manifest.json",
+    "manifestSha256": "84729053afcde6be1c05a9f4fc4ca6a4a24348568d0799194287c80da8945cf8",
+    "newPublicClientSourceRevision": "22e7a20b9c65590f00a4a839989bae154cb96a2e",
+    "sourceClean": true,
+    "desktopViewport": [
+      1728,
+      1050
+    ],
+    "originalSidebarWidth": 450,
+    "adjacentMapPaneWidth": 1278,
+    "phoneViewport": [
+      390,
+      844
+    ],
+    "originalBrowseResultsVisible": true,
+    "experimentRoots": 0,
+    "pageRenderErrors": 0,
+    "blockedAnalyticsPostAttempts": 1,
+    "dataWritingRequestsTransmitted": 0,
+    "authenticationOrUserProfileImported": false,
+    "geolocationGranted": false,
+    "browserClosed": true,
+    "actualScreenshots": "public anonymous Discover captures retained locally only; none committed",
+    "authenticatedOwnerMapVisualUAT": "unclaimed; no supported authenticated actor"
   },
   "immutableLocalQA": {
     "manifest": "qa-local-manifest.json",
@@ -79,23 +122,55 @@
     "evidenceType": "fictional/intercepted local actual-App historical-source comparison",
     "frozenFilesModified": false
   },
-  "pendingOwnerAction": {
-    "route": "https://app.carearound.sg/help-centre?manage=1",
-    "path": [
-      "More owner tools",
-      "Review & publish",
-      "Publish saved content"
-    ],
-    "instructions": "Use the normal owner UI to review the existing saved approved library, enter a review note, acknowledge the dialog and submit once. No editorial draft save is required for this application-source-only publication. Approve the protected environment if requested; wait for the same job to finish.",
-    "reason": "Authenticated browser automation unavailable in this session; owner UI action requested from user.",
-    "followUp": "Record the new release/job, protected paired Worker/Pages receipt, source/content/artifact parity, unlocked published state and actual original-UI acceptance before calling the rollback live."
+  "historicalSourcePinPreparation": {
+    "supersededByCompletedPublication": true,
+    "record": {
+      "recordedAtUTC": "2026-11-01T16:40:22.899321+00:00",
+      "sourceRecordSha256": "fb1975b0e960b76f9b199dd089f9286ee1bafee78cec82b570057db7ea72085f",
+      "targetPublicSourceRevision": "8f2665946d338b2eec08e162a23ea05e06e9253e",
+      "activeWorkerVersionId": "506bef6a-7e66-4e8c-9b9f-670d8cb8104c",
+      "deploymentId": "b0f59ec8-11b4-4713-8a7c-bd086656ffbe",
+      "trafficPercentage": 100,
+      "operatorAttemptCount": {
+        "stage": 1,
+        "activate": 1
+      },
+      "meaning": "Only the next normal protected paired publisher source selection changed. Deployed code/UI and approved content remain the previous baseline until owner publication.",
+      "unchangedFingerprints": {
+        "moduleEtag": "1bdc52634584ab858db8582b11c385c25a1b5f28c445e86ee08f258377247df0",
+        "handlersSha256": "821793ca181e0b3f39adc39a6b2827e9deecf0513baf0b1e0f55f58f7c688410",
+        "runtimeSha256": "2f456ab00ee88842cbe7a2ff2ded8c97d429079b9019c0ae8ce71522a2ee0557",
+        "bindingDescriptorsSha256": "bec80b7ccfcbe4d3585c19b3ae69b9d9d5f0719b93965a0e4d182cdb0d6bed2b",
+        "bindingCount": 44,
+        "truthfulTag": "git-e32f2fb66624d864fdb4ddeb46abc520020ea10a"
+      },
+      "globalSettingsSha256": "157cb32f16e8b5795731c2251c1f9481390066107c77d5102be56e1f9313b2a4",
+      "rootIndependentComparison": {
+        "checkedAtUTC": "2026-11-01T16:38:47.122Z",
+        "candidateDeploymentAndFingerprintsMatch": true,
+        "completeSettingsComparedEqualToPreactivation": true
+      }
+    },
+    "liveBaselineAtPreparation": {
+      "observedAtUTC": "2026-11-01T16:39:44.009034+00:00",
+      "sixPublicResponses200": true,
+      "deployedCodeRevision": "e32f2fb66624d864fdb4ddeb46abc520020ea10a",
+      "pagesDeploymentId": "466575b6-e1b0-4b9d-ad8f-f85ae0768ebb",
+      "contentVersion": "2026-10-31.help-cms.1793475137185",
+      "contentDigest": "d04cd77e81f1bf4127d17bbb05a13dc97f45a05ab496e422ff37a8c3f2ee1b34",
+      "ui": "previous Split/map-first presentation; rollback not yet published"
+    },
+    "oldPendingOwnerInstruction": "Historical only; owner has now completed normal publication. Do not repeat."
   },
-  "limitations": [
-    "No normal owner publication was submitted in this preparation step.",
-    "Six public responses and unchanged fingerprints prove prepared-runtime alignment, not new original-UI delivery.",
-    "No authenticated production owner-page, physical-device/PWA or private-image/export-quality acceptance for this rollback is claimed.",
-    "Documentation evidence branch must not be merged to main or trigger another publication."
+  "limits": [
+    "Authenticated owner Care Maps visual/interaction UAT and full credentialed smoke remain unclaimed.",
+    "Physical-device/gestures/PWA/private-image/export-quality UAT remains unclaimed.",
+    "Authored-v1 source-body equality was not independently re-read; snapshot identity and compiled-version coherence do not assert authored-body equality.",
+    "Exact compiled four-entry Functions route inventory was not exposed; deployed ordinary/proof/embed behavior passed, positive enabled token not exercised.",
+    "Guest public resource counts do not establish owner-library counts.",
+    "Actual production screenshots remain external/local only. No private Worker body or auth/session/workspace body was read."
   ],
+  "nextAction": "No further publication/retry is required for this release or this documentation evidence update. Keep evidence branch separate and main pinned at approved source.",
   "runbooks": [
     "docs/help-content-cms-release-runbook.md#4-publish-approved-content-after-installation",
     "docs/release-checklist.md"
