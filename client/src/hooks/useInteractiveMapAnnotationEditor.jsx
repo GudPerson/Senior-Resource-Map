@@ -39,6 +39,7 @@ export default function useInteractiveMapAnnotationEditor({
     canRedo = false,
     onClose = null,
     toolbarInInspector = false,
+    onFindWithinArea = null,
 } = {}) {
     const [tool, setTool] = useState(PRINT_ANNOTATION_TOOL_SELECT);
     const [selectedId, setSelectedId] = useState(null);
@@ -216,6 +217,7 @@ export default function useInteractiveMapAnnotationEditor({
             draftStyle={draftStyle}
             draftPointCount={draftPoints.length}
             selectedAnnotation={selectedAnnotation}
+            onFindWithinArea={onFindWithinArea}
             status={status}
             error={error}
             canUndo={canUndo}

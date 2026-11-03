@@ -38,6 +38,7 @@ import organizationOnboardingRoutes from './routes/organizationOnboarding.js';
 import resourceClaimsRoutes from './routes/resourceClaims.js';
 import { createNotificationRoutes } from './routes/notifications.js';
 import { createSavedSearchRoutes } from './routes/savedSearches.js';
+import addressSnapshotRoutes, { addressSnapshotResponseHeaders } from './routes/addressSnapshot.js';
 import {
     aiRateLimit,
     authPollingRateLimit,
@@ -69,13 +70,20 @@ const appCors = cors(corsOptions);
 const helpCmsCors = cors({ ...corsOptions, allowHeaders: [...corsOptions.allowHeaders, 'X-CareAround-Session'] });
 
 app.use('*', requestObservability);
+// Run outside shared headers so private denials also retain credential variation.
+app.use('/api/address-snapshot/*', addressSnapshotResponseHeaders);
 app.use('*', securityHeaders);
 app.use('*', (c, next) => {
     const isHelpCms = c.req.path === '/api/help/cms' || c.req.path.startsWith('/api/help/cms/');
     return (isHelpCms ? helpCmsCors : appCors)(c, next);
 });
 app.use('*', cookieSessionCsrfGuard);
-app.use('*', requestBodyGuard);
+app.use('*', (c, next) => {
+    // These two authenticated routes enforce their own streamed 1 MiB JSON limit.
+    const boundedAddressQuery = c.req.method === 'POST'
+        && (c.req.path === '/api/address-snapshot/nearby' || c.req.path === '/api/address-snapshot/area');
+    return boundedAddressQuery ? next() : requestBodyGuard(c, next);
+});
 
 app.use('/api/auth/login', authRateLimit);
 app.use('/api/auth/register', authRateLimit);
@@ -135,6 +143,7 @@ app.route('/api/organization-onboarding', organizationOnboardingRoutes);
 app.route('/api/resource-claims', resourceClaimsRoutes);
 app.route('/api/notifications', createNotificationRoutes());
 app.route('/api/saved-searches', createSavedSearchRoutes());
+app.route('/api/address-snapshot', addressSnapshotRoutes);
 
 app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

@@ -9,6 +9,7 @@ function notifyAuthExpired() {
 }
 
 const COOKIE_SCOPED_AUTH_PATH_PREFIXES = [
+    '/address-snapshot',
     '/admin',
     '/audience-zones',
     '/calendar',
@@ -92,9 +93,11 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
         keepalive = false,
         headers = {},
         signal,
+        cache,
     } = options;
     const canRetryAcrossBases = method === 'GET' || method === 'HEAD';
     const canUseFallbackBase = canRetryAcrossBases && canRetryAcrossBasesForPath(path);
+    const canUseHtmlFallback = canRetryAcrossBases && !String(path).startsWith('/address-snapshot');
     let lastNetworkError = null;
 
     for (let i = 0; i < baseCandidates.length; i += 1) {
@@ -110,6 +113,7 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
                     method,
                     headers: buildRequestHeaders(method, headers, body !== undefined),
                     credentials: 'include',
+                    ...(cache ? { cache } : {}),
                     ...(signal ? { signal } : {}),
                     ...(keepalive ? { keepalive: true } : {}),
                     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -144,7 +148,7 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
                 throw error;
             }
             // Retry on non-JSON responses to survive rewrite/base URL mismatches.
-            if (!isJson && canRetryAcrossBases && i < BASE_CANDIDATES.length - 1) continue;
+            if (!isJson && canUseHtmlFallback && i < BASE_CANDIDATES.length - 1) continue;
             if (!isJson) {
                 throw new Error('API route misconfigured: received HTML instead of JSON. Check VITE_API_URL and Cloudflare /api routing.');
             }
@@ -152,7 +156,7 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
         }
 
         if (!isJson) {
-            if (canRetryAcrossBases && i < BASE_CANDIDATES.length - 1) continue;
+            if (canUseHtmlFallback && i < BASE_CANDIDATES.length - 1) continue;
             throw new Error('API returned non-JSON response unexpectedly.');
         }
 

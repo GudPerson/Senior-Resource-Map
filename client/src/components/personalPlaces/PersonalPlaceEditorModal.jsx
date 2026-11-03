@@ -3,6 +3,8 @@ import { MapPin, Search, Settings2, X } from 'lucide-react';
 
 import ImageUpload from '../ImageUpload.jsx';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { getMapSpatialMessages } from '../../lib/mapSpatialMessages.js';
+import { distanceMeters, formatRadiusDistance } from '../../lib/mapSpatialGeometry.js';
 import { api } from '../../lib/api.js';
 import { searchOneMap } from '../../lib/geo.js';
 import { PersonalPlaceCategoryIcon } from '../../lib/personalPlaceCategories.jsx';
@@ -33,7 +35,7 @@ export default function PersonalPlaceEditorModal({
     onManageCategories,
     onSubmit,
 }) {
-    const { t } = useLocale();
+    const { t, locale } = useLocale();
     const activeCategories = useMemo(
         () => categories.filter((category) => !category.isArchived),
         [categories]
@@ -66,7 +68,7 @@ export default function PersonalPlaceEditorModal({
             String(draft?.address || '').trim()
             || String(draft?.postalCode || '').trim()
         );
-        const locationMode = draft?.id && !hasAddressedLocation ? 'map_only' : 'addressed';
+        const locationMode = draft?.locationMode === 'map_only' || (draft?.id && !hasAddressedLocation) ? 'map_only' : 'addressed';
         setForm({
             name: draft?.name || '',
             logoUrl: draft?.logoUrl || '',
@@ -129,6 +131,10 @@ export default function PersonalPlaceEditorModal({
             locationMode: mapOnly ? 'map_only' : 'addressed',
             address: mapOnly ? '' : current.address,
             postalCode: mapOnly ? '' : current.postalCode,
+            ...(mapOnly && !draft?.id && draft?.selectedPoint ? {
+                lat: formatCoordinate(draft.selectedPoint.lat),
+                lng: formatCoordinate(draft.selectedPoint.lng),
+            } : {}),
         }));
         setLookupQuery('');
         setLookupError('');
@@ -234,6 +240,17 @@ export default function PersonalPlaceEditorModal({
 
                 <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
                     <div className="space-y-4">
+                        {draft?.selectedPoint ? <div className="rounded-2xl border border-brand-100 bg-brand-50 p-3 text-xs leading-5 text-brand-900" data-address-location-review>
+                            <p>{form.locationMode === 'map_only' ? getMapSpatialMessages(locale).pointNotice : draft.addressSnapshot ? getMapSpatialMessages(locale).reviewNotice : getMapSpatialMessages(locale).manualNotice}</p>
+                            {form.locationMode === 'addressed' && form.address ? <>
+                                <p className="mt-2 font-bold">{form.address}</p>
+                                <p className="mt-1" data-address-position-preview>{(locationVerified ? getMapSpatialMessages(locale).verifiedDistance : getMapSpatialMessages(locale).suggestedDistance).replace('{distance}', formatRadiusDistance(distanceMeters([Number(form.lat || draft.lat), Number(form.lng || draft.lng)], [Number(draft.selectedPoint.lat), Number(draft.selectedPoint.lng)])))}</p>
+                            </> : null}
+                            <details className="mt-2"><summary className="cursor-pointer font-semibold">{getMapSpatialMessages(locale).locationCoordinates}</summary>
+                                <p className="mt-1">{getMapSpatialMessages(locale).selectedPoint}: {Number(draft.selectedPoint.lat).toFixed(6)}, {Number(draft.selectedPoint.lng).toFixed(6)}</p>
+                                <p className="mt-1">{form.locationMode === 'map_only' ? getMapSpatialMessages(locale).placePoint : locationVerified ? getMapSpatialMessages(locale).verifiedPosition : getMapSpatialMessages(locale).suggestedPosition}: {Number(form.lat || draft.lat).toFixed(6)}, {Number(form.lng || draft.lng).toFixed(6)}</p>
+                            </details>
+                        </div> : null}
                         <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                             <input
                                 type="checkbox"

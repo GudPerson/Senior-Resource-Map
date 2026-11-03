@@ -1,0 +1,279 @@
+{
+  "date": "2026-11-03",
+  "status": "local-browser-validated-not-released",
+  "head": "8f2665946d338b2eec08e162a23ea05e06e9253e",
+  "previewUrl": "http://127.0.0.1:4496/my-directory/maps/91261103",
+  "boundaries": [
+    "Actual App/router/providers with fictional owner, map, CareAround resources and synthetic map pixels.",
+    "Synthetic pagination/export cases use 225 fictional address rows through the actual local index and HTTP service.",
+    "Separate actual-CSV case uses the existing prepared read-only CSV sidecar; no current nationwide coverage or per-address freshness proof.",
+    "Candidate selection remains unverified until the existing postal-verification step. No live OneMap, production account, database, physical-device or actual private-place creation proof.",
+    "No commit, push, deployment, CSV mutation, schema change or production write."
+  ],
+  "reports": {
+    "synthetic": {
+      "passed": true,
+      "caseCount": 14,
+      "report": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/browser-evidence/synthetic/report.json",
+      "reportSha256": "dc6c6d2a8f6c1ac4ee264d4dfa8f44fdc0488e66ceaa7155fbc315e45a10b514",
+      "sourceUnchanged": true,
+      "errors": [],
+      "unexpectedRemoteRequests": [],
+      "cases": [
+        {
+          "name": "desktop-original-owner-entry",
+          "passed": true
+        },
+        {
+          "name": "phone-original-owner-entry",
+          "passed": true
+        },
+        {
+          "name": "circle-label-selected-area-catalogue-and-addresses",
+          "passed": true
+        },
+        {
+          "name": "point-candidate-review-and-cancel",
+          "passed": true
+        },
+        {
+          "name": "point-no-address-review-cancel",
+          "passed": true
+        },
+        {
+          "name": "point-stale-nearby-cancel",
+          "passed": true
+        },
+        {
+          "name": "point-stale-nearby-map-change",
+          "passed": true
+        },
+        {
+          "name": "point-snapshot-unavailable-retry",
+          "passed": true
+        },
+        {
+          "name": "circle-print-and-real-png-export",
+          "passed": true
+        },
+        {
+          "name": "phone-new-area-and-point-review",
+          "passed": true
+        },
+        {
+          "name": "circle-live-radius-preview-without-save",
+          "passed": true
+        },
+        {
+          "name": "selected-rotated-box-area-query",
+          "passed": true
+        },
+        {
+          "name": "selected-rounded-polygon-area-query",
+          "passed": true
+        },
+        {
+          "name": "area-cancel-held-response-no-saved-mutation",
+          "passed": true
+        }
+      ]
+    },
+    "real-csv": {
+      "passed": true,
+      "caseCount": 1,
+      "report": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/browser-evidence/real-csv/report.json",
+      "reportSha256": "14e23277a65c6264557276ca432c95a76da48a00ab3d6cbfe473790fea547a37",
+      "sourceUnchanged": true,
+      "errors": [],
+      "unexpectedRemoteRequests": [],
+      "cases": [
+        {
+          "name": "real-csv-point-and-selected-circle-area",
+          "passed": true
+        }
+      ]
+    }
+  },
+  "fixtureSourceSha256": {
+    "tests/browser/caremap-spatial-tools.mjs": "a86d8a206bc838a2068cdc6440f94b6fc9dc844e8e120e2b5c8b8e941827d52d",
+    "tests/fixtures/caremap-spatial-tools/README.md": "7b355675347c6681ea07f10e074fdf6fa6cc10dcee797e8c763605ac13080f3b",
+    "tests/fixtures/caremap-spatial-tools/fictional-api.mjs": "b3d6104e1e4047a980df2b46e5e6e29a2a428ce01bda693ed4b66712c1d5a024",
+    "tests/fixtures/caremap-spatial-tools/index.html": "55c6e1bdc0ceca8c1063a51cc622ead5a7b8eadf3460313e0fe15ffed5ce83e6",
+    "tests/fixtures/caremap-spatial-tools/main.jsx": "d63640fa0d3d552eb72393dfe508edd2788e1457d398a1a00d80e43a58694a37",
+    "tests/fixtures/caremap-spatial-tools/vite.config.mjs": "69f36a933b3c7ef4f524a2bd9a11e065577fef837fbf1dbe4438696d0e6674db"
+  },
+  "gateSourceParity": {
+    "overlappingFiles": 364,
+    "mismatches": [],
+    "gateCompoundSha256": "d1b9e66ab32af09785a1ad2bb8fb875564a06194cde4b876a81e1710fed3aac1"
+  },
+  "actualCsv": {
+    "metadata": {
+      "label": "Local Singapore address snapshot",
+      "preparedAt": "2026-11-02T16:06:56.006Z",
+      "preparationEvidence": "CSV file modification time; not per-address verification",
+      "loadedAt": "2026-11-03T04:35:58.135Z",
+      "source": "Existing Singapore address CSV; mixed source ages; not live verified",
+      "coverage": "Incomplete local snapshot. Addresses, buildings and postal codes may be missing or outdated.",
+      "sha256": "2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4",
+      "recordCount": 143807,
+      "postalCodeCount": 122261
+    },
+    "areaTotal": 233,
+    "nearbyTotal": 5,
+    "nearbyReturned": 5,
+    "noWrites": true
+  },
+  "csvPreservation": {
+    "sha256": "2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4",
+    "bytes": 18073346,
+    "mtime": "2026-11-02T16:06:56.006Z",
+    "checkedAt": "2026-11-03T04:51:13.656Z",
+    "boundary": "Read-only hash after actual App snapshot-service nearby and area QA; no CSV mutation."
+  },
+  "pngVisualInspection": {
+    "file": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/browser-evidence/synthetic/circle-radius-export.png",
+    "result": "Visually inspected: actual App cards, pins, circle, dashed radius guide and 500 m radius label are present. Earlier tile-only diagnostic was caused by fixture URL interception and is excluded from acceptance."
+  },
+  "retainedFailureEvidence": [
+    "/private/tmp/caremap-spatial-red-20261103/report.json (initial fixture locator setup failures)",
+    "/private/tmp/caremap-spatial-red-feature-20261103/report.json (expected missing new features)",
+    "/private/tmp/caremap-spatial-integration1-20261103/report.json (actual initialization-order defect, fixed)",
+    "/private/tmp/caremap-spatial-integration3-20261103/report.json (settling/annotation interception diagnostics; earlier PNG is dimension proof only)",
+    "/private/tmp/caremap-spatial-integration4-20261103/report.json (two fixture locator mismatches, corrected)"
+  ],
+  "tooling": {
+    "playwrightVersion": "1.54.2",
+    "playwrightModule": "/Users/sweetbuns/.npm/_npx/79f7573dc2bb19bb/node_modules/playwright/index.mjs",
+    "chromiumVersion": "139.0.7258.5",
+    "projectDependenciesMutatedByQa": false
+  },
+  "previewProcesses": {
+    "vite": {
+      "pid": 84011,
+      "address": "http://127.0.0.1:4496"
+    },
+    "snapshot": {
+      "pid": 84623,
+      "address": "http://127.0.0.1:8796"
+    },
+    "ephemeralHarnessPortsClosed": [
+      4498,
+      4499
+    ]
+  },
+  "productionServicePreparation": {
+    "status": "Production connection locally validated, NOT RELEASED",
+    "geometryWorkLimit": 250000,
+    "acceptedProviderCases": {
+      "authenticatedProductionFixture": 16,
+      "explicitLocalFixture": 16
+    },
+    "durableManifest": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/manifest.json",
+    "reports": {
+      "production": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/browser-production/report.json",
+        "sha256": "4c2ea5e3047310a8d54a4d61e46c982afda3713edac037014bfff7c93881cb65",
+        "sourceUnchanged": true
+      },
+      "local": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/browser-local/report.json",
+        "sha256": "b8066f1238434ca06e112483ee989ccc0f414d6f14deb412c8fdc61a49e3f521",
+        "sourceUnchanged": true
+      }
+    },
+    "fullPrivateCmsComparison": {
+      "workspaceMatchesActualPublishedSnapshot": true,
+      "embeddedBaselineMatchesActualPublishedSnapshot": true,
+      "articleCount": 48,
+      "topicCount": 11,
+      "proof": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/owner-cms-readiness-proof.json",
+      "pointInTimeOnly": true
+    },
+    "uploader": {
+      "status": "Fresh r2 preparation; no remote apply performed",
+      "testsPassed": 17,
+      "expectedObjects": 1099,
+      "expectedBytes": 28877797,
+      "prefix": "address-snapshot/v1/2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4-r2/",
+      "manifestSha256": "0670fbbce22de6a82b776008eecaa2791737e2ddcc41e58403a03601000ee4e2",
+      "maxConcurrency": 4,
+      "readAttempts": 3,
+      "readBackoffMs": [
+        250,
+        1000
+      ],
+      "readPolicy": "Idempotent transport exceptions, including missing details; explicit client statuses and typed integrity/validation errors fatal. Body retry performs freshGET.",
+      "putAttempts": 1,
+      "remoteApplyPerformed": false,
+      "reviewedDryRunPlan": "Pending fresh r2 protocol-bound plan and independent inventory validation",
+      "syntheticOpaqueErrorBoundary": "Opaque/primitive/generic rejections are synthetic fixtures, not an observed live thrown shape.",
+      "priorR1PreparationAndAttempt": {
+        "status": "Fresh r1 recovery prepared; remote apply not performed",
+        "testsPassed": 14,
+        "prefix": "address-snapshot/v1/2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4-r1/",
+        "manifestSha256": "36cb83a77b54dd061c03e73b1a201b0ca4e0350258f84e9c14ea772118a32d9a",
+        "maxConcurrency": 4,
+        "readAttempts": 3,
+        "readBackoffMs": [
+          250,
+          1000
+        ],
+        "putAttempts": 1,
+        "remoteApplyPerformed": true,
+        "previousAttempt": {
+          "testsPassed": 8,
+          "dryRunObjects": 1099,
+          "dryRunBytes": 28874503,
+          "planDigest": "4e9ddb03204cc8d7f48334ca89e5e1dcc3e560e8c5650fd5250f15aea489a6cd",
+          "remoteApplyPerformed": true,
+          "outcome": "FAILED/UNKNOWN before verification checkpoint",
+          "dataKeysInventoried": 1098,
+          "manifestPresent": false,
+          "independentlyHashVerifiedObjects": 2,
+          "allDataHashVerified": false,
+          "causeEstablished": false,
+          "resumed": false,
+          "preserved": true
+        },
+        "expectedObjects": 1099,
+        "expectedBytes": 28877797,
+        "reviewedDryRunPlan": "Pending new protocol-bound plan and independent inventory validation",
+        "independentProtocolTests": {
+          "passed": 14,
+          "failed": 0,
+          "report": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/recovery-r1/uploader/independent-report.json",
+          "reportSha256": "af7ac01b77bd0ce24fb9597da927dca433d636870e0f7367bee94e21a7857045",
+          "sourceUnchanged": true,
+          "uploaderSha256": "c84f900e67c1b8cf534013b3846a962fb2bbae4884096f684303ed35683b7505",
+          "boundary": "Fictional records and recording in-memory storage; no remote session or writes."
+        },
+        "outcome": "Stopped after72 acknowledged PUTs/71 verified data objects; no manifest or unknown PUT outcome",
+        "acknowledgedPuts": 72,
+        "verifiedDataObjects": 71,
+        "manifestPresent": false,
+        "readRetries": 0,
+        "originalThrownShapeCaptured": false,
+        "freshExactObjectDiagnostic": {
+          "headChecks": 1,
+          "getBodyHashChecks": 100,
+          "failed": 0,
+          "peakConcurrentReads": 4,
+          "bytes": 641,
+          "reproducedOriginalFailure": false
+        },
+        "resumed": false,
+        "preserved": true
+      }
+    },
+    "pending": [
+      "independent r2 uploader review and exact new plan approval",
+      "new whole-source quality/map-lockdown and exact final PR/main CI",
+      "fresh immutable r2 upload and independent full remote readback",
+      "deferred source-pin and normal protected publication",
+      "production authenticated query/denial verification"
+    ],
+    "focusedAddressTestsPassed": 40,
+    "priorBrowserEvidenceBoundary": "The accepted16+16 browser reports predate immutable r1 prefix/uploader recovery; no UI/auth/layout changes are introduced by the bounded recovery."
+  }
+}
