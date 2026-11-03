@@ -191,19 +191,54 @@
       "pointInTimeOnly": true
     },
     "uploader": {
-      "testsPassed": 8,
-      "dryRunObjects": 1099,
-      "dryRunBytes": 28874503,
-      "planDigest": "4e9ddb03204cc8d7f48334ca89e5e1dcc3e560e8c5650fd5250f15aea489a6cd",
-      "remoteApplyPerformed": false
+      "status": "Fresh r1 recovery prepared; remote apply not performed",
+      "testsPassed": 14,
+      "prefix": "address-snapshot/v1/2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4-r1/",
+      "manifestSha256": "36cb83a77b54dd061c03e73b1a201b0ca4e0350258f84e9c14ea772118a32d9a",
+      "maxConcurrency": 4,
+      "readAttempts": 3,
+      "readBackoffMs": [
+        250,
+        1000
+      ],
+      "putAttempts": 1,
+      "remoteApplyPerformed": false,
+      "previousAttempt": {
+        "testsPassed": 8,
+        "dryRunObjects": 1099,
+        "dryRunBytes": 28874503,
+        "planDigest": "4e9ddb03204cc8d7f48334ca89e5e1dcc3e560e8c5650fd5250f15aea489a6cd",
+        "remoteApplyPerformed": true,
+        "outcome": "FAILED/UNKNOWN before verification checkpoint",
+        "dataKeysInventoried": 1098,
+        "manifestPresent": false,
+        "independentlyHashVerifiedObjects": 2,
+        "allDataHashVerified": false,
+        "causeEstablished": false,
+        "resumed": false,
+        "preserved": true
+      },
+      "expectedObjects": 1099,
+      "expectedBytes": 28877797,
+      "reviewedDryRunPlan": "Pending new protocol-bound plan and independent inventory validation",
+      "independentProtocolTests": {
+        "passed": 14,
+        "failed": 0,
+        "report": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/recovery-r1/uploader/independent-report.json",
+        "reportSha256": "af7ac01b77bd0ce24fb9597da927dca433d636870e0f7367bee94e21a7857045",
+        "sourceUnchanged": true,
+        "uploaderSha256": "c84f900e67c1b8cf534013b3846a962fb2bbae4884096f684303ed35683b7505",
+        "boundary": "Fictional records and recording in-memory storage; no remote session or writes."
+      }
     },
     "pending": [
-      "whole-source quality/map-lockdown aggregates",
-      "exact-source release CI",
-      "approved immutable upload and independent remote readback",
-      "source-pin and normal protected publication",
+      "independent recovery uploader review and exact r1 plan approval",
+      "new whole-source quality/map-lockdown and exact PR/main CI",
+      "fresh immutable recovery upload and independent full remote readback",
+      "rebound source-pin and normal protected publication",
       "production authenticated query/denial verification"
     ],
-    "focusedAddressTestsPassed": 40
+    "focusedAddressTestsPassed": 40,
+    "priorBrowserEvidenceBoundary": "The accepted16+16 browser reports predate immutable r1 prefix/uploader recovery; no UI/auth/layout changes are introduced by the bounded recovery."
   }
 }

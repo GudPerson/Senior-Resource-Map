@@ -13,9 +13,13 @@ const requireValue = (condition, message) => { if (!condition) throw new Error(m
 
 // Pure in-memory compiler shared by the production builder and fictional tests.
 // Original source field strings determine IDs; source ordinals preserve existing pagination order.
-export function compileAddressSnapshotRecords(records, { sourceSha256, preparedAt } = {}) {
+export function compileAddressSnapshotRecords(records, { sourceSha256, preparedAt, prefix = `address-snapshot/v1/${sourceSha256}` } = {}) {
     requireValue(/^[a-f0-9]{64}$/.test(sourceSha256 || '') && typeof preparedAt === 'string'
         && new Date(preparedAt).toISOString() === preparedAt, 'A source digest and precise preparation timestamp are required.');
+    const sourcePrefix = `address-snapshot/v1/${sourceSha256}`;
+    requireValue(typeof prefix === 'string' && (prefix === sourcePrefix
+        || prefix.startsWith(sourcePrefix) && /^-r[1-9][0-9]{0,5}$/.test(prefix.slice(sourcePrefix.length))),
+    'Release prefix must name this source digest and an optional positive r revision.');
     const cells = new Map(), duplicates = new Map(), postals = new Set(); let count = 0;
     for (const fields of records) {
         requireValue(Array.isArray(fields) && fields.length === 7 && fields.every(value => typeof value === 'string' && value.length <= 65536), 'Invalid address source record.');
@@ -31,7 +35,6 @@ export function compileAddressSnapshotRecords(records, { sourceSha256, preparedA
         postals.add(postalCode);
     }
     requireValue(count > 0, 'A published address snapshot must contain records.');
-    const prefix = `address-snapshot/v1/${sourceSha256}`;
     const manifest = { schemaVersion: 1, snapshot: {
         label: 'Singapore address snapshot', preparedAt, preparationEvidence: 'CSV file modification time; not per-address verification',
         source: 'Existing CSV; mixed source ages; not live verified', coverage: 'Incomplete and potentially outdated',
@@ -95,7 +98,7 @@ export async function buildAddressSnapshot({ csvPath, outputRoot, expected = ADD
     requireValue(hash.digest('hex') === expected.sourceSha256 && records.length === expected.recordCount, 'Source bytes/count do not match the approved snapshot.');
     const after = await stat(source);
     requireValue(after.size === before.size && after.mtimeMs === before.mtimeMs, 'Source changed while preparing the snapshot.');
-    const result = compileAddressSnapshotRecords(records, { sourceSha256: expected.sourceSha256, preparedAt: before.mtime.toISOString() });
+    const result = compileAddressSnapshotRecords(records, { sourceSha256: expected.sourceSha256, preparedAt: before.mtime.toISOString(), prefix: expected.prefix });
     for (const key of ['manifestSha256', 'manifestBytes', 'recordCount', 'postalCodeCount', 'tileCount', 'totalBytes']) {
         requireValue(result.config[key] === expected[key], `Compiled snapshot ${key} does not match the approved artifact.`);
     }

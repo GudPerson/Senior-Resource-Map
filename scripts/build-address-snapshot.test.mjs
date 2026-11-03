@@ -26,6 +26,35 @@ test('compiler preserves duplicate source rows, original IDs and exact Float64s 
     assert.equal([...first.objects.keys()].at(-1), `${first.config.prefix}/manifest.json`);
 });
 
+test('a fresh release namespace changes only object keys and manifest bytes, preserving all source IDs and data payloads', () => {
+    const options = { sourceSha256: 'a'.repeat(64), preparedAt: '2026-11-03T00:00:00.000Z' };
+    const original = compileAddressSnapshotRecords(records, options);
+    const prefix = `${original.config.prefix}-r1`;
+    const recovery = compileAddressSnapshotRecords(records, { ...options, prefix });
+    assert.equal(recovery.config.prefix, prefix);
+    assert.equal(recovery.config.sourceSha256, original.config.sourceSha256);
+    assert.deepEqual(recovery.manifest.snapshot, original.manifest.snapshot);
+    assert.notEqual(recovery.config.manifestSha256, original.config.manifestSha256);
+    for (const [key, object] of original.objects) {
+        if (key.endsWith('/manifest.json')) continue;
+        const replacement = recovery.objects.get(prefix + key.slice(original.config.prefix.length));
+        assert.deepEqual(replacement.bytes, object.bytes);
+        assert.equal(replacement.sha256, object.sha256);
+        assert.equal(replacement.contentType, object.contentType);
+    }
+    assert.equal(recovery.objects.size, original.objects.size);
+    assert.equal(recovery.config.totalBytes - original.config.totalBytes, original.config.tileCount * 2 * 3);
+});
+
+test('release prefixes cannot escape the fixed namespace, substitute another source digest, or use ambiguous revisions', () => {
+    const options = { sourceSha256: 'a'.repeat(64), preparedAt: '2026-11-03T00:00:00.000Z' };
+    const base = `address-snapshot/v1/${options.sourceSha256}`;
+    for (const prefix of ['', null, `${base}/../other`, `${base}/`, `${base}-r0`, `${base}-r01`, `${base}-r1000000`,
+        `${base}-r1/more`, `address-snapshot/v1/${'b'.repeat(64)}-r1`, `other/${options.sourceSha256}-r1`]) {
+        assert.throws(() => compileAddressSnapshotRecords(records, { ...options, prefix }), /Release prefix/);
+    }
+});
+
 test('invalid, empty or non-string source records cannot become a published snapshot', () => {
     const options = { sourceSha256: 'a'.repeat(64), preparedAt: '2026-11-03T00:00:00.000Z' };
     for (const input of [[], [[...records[0].slice(0, 5), '', '103.8']], [[18906, ...records[0].slice(1)]],
@@ -36,7 +65,7 @@ test('external create-only build reproduces the compiled pin without modifying t
     const directory = await mkdtemp(join(tmpdir(), 'address-compiler-test-')); t.after(() => rm(directory, { recursive: true, force: true }));
     const contents = 'postal_code,blk_no,road_name,building,address,latitude,longitude\n' + records.map(row => row.join(',')).join('\n') + '\n';
     const csvPath = join(directory, 'source.csv'); await writeFile(csvPath, contents);
-    const before = await stat(csvPath), expected = compileAddressSnapshotRecords(records, { sourceSha256: hash(contents), preparedAt: before.mtime.toISOString() }).config;
+    const before = await stat(csvPath), expected = compileAddressSnapshotRecords(records, { sourceSha256: hash(contents), preparedAt: before.mtime.toISOString(), prefix: `address-snapshot/v1/${hash(contents)}-r1` }).config;
     const outputRoot = join(directory, 'compiled');
     const result = await buildAddressSnapshot({ csvPath, outputRoot, expected });
     assert.equal(result.objectCount, expected.tileCount * 2 + 1);

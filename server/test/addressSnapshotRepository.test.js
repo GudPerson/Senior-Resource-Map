@@ -10,7 +10,7 @@ const circle = { type: 'circle', center, radiusMeters: 100 };
 const records = Array.from({ length: 233 }, (_, i) => [i < 2 ? '012345' : String(100000 + i), String(i + 1), 'Fictional Road',
     i === 0 ? '=1+1' : `Block ${i}`, `Fictional address ${i}`, String(1.3799 + i % 15 * .00001), String(103.7499 + Math.floor(i / 15) * .00001)]);
 records.push(['999999', '99', 'Far Road', 'Far', 'Far', '1.4', '103.77']);
-function fixture() { return compileAddressSnapshotRecords(records, { sourceSha256: pin, preparedAt: '2026-11-03T00:00:00.000Z' }); }
+function fixture() { return compileAddressSnapshotRecords(records, { sourceSha256: pin, preparedAt: '2026-11-03T00:00:00.000Z', prefix: `address-snapshot/v1/${pin}-r1` }); }
 function resign(data) {
     let total = 0;
     for (const tile of data.manifest.tiles) for (const kind of ['index', 'rows']) {
@@ -140,7 +140,7 @@ test('hole interiors stay excluded and multipart islands form a union', async ()
 
 test('250000 geometry-work boundary is admitted and one more edge is denied before coordinate reads', async () => {
     const compact = Array.from({ length: 100 }, (_, i) => ['012345', String(i), 'A', 'B', 'C', String(1.381 + i * .0000001), '103.751']);
-    const data = compileAddressSnapshotRecords(compact, { sourceSha256: pin, preparedAt: '2026-11-03T00:00:00.000Z' });
+    const data = compileAddressSnapshotRecords(compact, { sourceSha256: pin, preparedAt: '2026-11-03T00:00:00.000Z', prefix: `address-snapshot/v1/${pin}-r1` });
     const polygon = count => ({ type: 'Polygon', coordinates: [Array.from({ length: count + 1 }, (_, i) => {
         const angle = i % count * 2 * Math.PI / count;
         return [103.751 + Math.cos(angle) * .001, 1.381 + Math.sin(angle) * .001];
