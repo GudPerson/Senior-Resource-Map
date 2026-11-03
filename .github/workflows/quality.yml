@@ -52,6 +52,11 @@ jobs:
           node tests/browser/owner-split-workspace.mjs --out=output/owner-split-workspace-browser/default
           node tests/browser/owner-split-workspace.mjs --workspace-flag=false --case=release-false-default-policy --out=output/owner-split-workspace-browser/false-policy
 
+      - name: Verify Care Map spatial tools with local and authenticated production providers
+        run: |
+          node tests/browser/caremap-spatial-tools.mjs --provider=local --out=output/caremap-spatial-tools-browser/local --port=4497
+          node tests/browser/caremap-spatial-tools.mjs --provider=production --out=output/caremap-spatial-tools-browser/production --port=4497
+
       - name: Verify Care Map notes and images downloads
         run: node tests/browser/care-map-notes-export.mjs --out=output/care-map-notes-export-browser
 
@@ -99,6 +104,14 @@ jobs:
         with:
           name: care-map-image-allowance-browser
           path: output/care-map-image-allowance-browser
+          if-no-files-found: ignore
+
+      - name: Retain Care Map spatial tools evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: caremap-spatial-tools-browser
+          path: output/caremap-spatial-tools-browser
           if-no-files-found: ignore
 
       - name: Retain Care Map download evidence

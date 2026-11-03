@@ -23,6 +23,9 @@ import {
     X,
 } from 'lucide-react';
 
+import { createSpatialAreaFromAnnotation } from '../lib/mapSpatialGeometry.js';
+import { getMapSpatialMessages } from '../lib/mapSpatialMessages.js';
+
 import {
     PRINT_ANNOTATION_COLORS,
     PRINT_ANNOTATION_DRAW_TOOLS,
@@ -165,6 +168,7 @@ export default function PrintAnnotationToolbar({
     imageControls = null,
     importControls = null,
     resourceControls = null,
+    onFindWithinArea = null,
     onToolChange,
     onDraftTextChange,
     onDraftStyleChange,
@@ -298,6 +302,12 @@ export default function PrintAnnotationToolbar({
                 {imageControls}
                 {importControls}
             </div>
+
+            {onFindWithinArea && createSpatialAreaFromAnnotation(selectedAnnotation) ? (
+                <button type="button" onClick={() => onFindWithinArea(selectedAnnotation)}
+                    className="mt-3 min-h-11 w-full rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-bold text-brand-800 hover:bg-brand-100"
+                    data-map-find-within-area>{getMapSpatialMessages(locale).findWithin}</button>
+            ) : null}
 
             {helperText ? (
                 <p

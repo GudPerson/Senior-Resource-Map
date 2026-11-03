@@ -19,6 +19,8 @@ import {
 } from 'react-leaflet';
 import L from 'leaflet';
 import PrintAnnotationTransformHandle from './PrintAnnotationTransformHandle.jsx';
+import { formatRadiusDistance } from '../lib/mapSpatialGeometry.js';
+import { getMapSpatialMessages } from '../lib/mapSpatialMessages.js';
 
 import {
     PRINT_ANNOTATION_DRAW_TOOLS,
@@ -117,7 +119,7 @@ function createPinIcon(annotation, selected) {
     });
 }
 
-function createShapeTextIcon(annotation) {
+function createShapeTextIcon(annotation, interactive = false) {
     const { fontSize, textColor } = annotation.style;
     const rotationDegrees = normalizePrintAnnotationRotation(annotation.rotationDegrees);
     return L.divIcon({
@@ -136,7 +138,7 @@ function createShapeTextIcon(annotation) {
             line-height:1.2;
             overflow:visible;
             overflow-wrap:anywhere;
-            pointer-events:auto;
+            pointer-events:${interactive ? 'auto' : 'none'};
             text-align:center;
             text-shadow:0 1px 2px rgba(255,255,255,.95),0 0 5px rgba(255,255,255,.8);
             transform:rotate(${-rotationDegrees}deg);
@@ -390,8 +392,8 @@ function ShapeTextMarker({
 }) {
     const activateTouch = useAnnotationBrowseElement(markerRef, annotation, browse, onActivate, onDeactivate);
     const icon = useMemo(
-        () => createShapeTextIcon(annotation),
-        [annotation],
+        () => createShapeTextIcon(annotation, interactive),
+        [annotation, interactive],
     );
 
     return (
@@ -418,6 +420,28 @@ function setShapeTextRotation(marker, rotationDegrees) {
     element.style.transform = `rotate(${-normalizePrintAnnotationRotation(rotationDegrees)}deg)`;
 }
 
+function CircleRadiusGuide({ points, color = '#0f766e' }) {
+    const map = useMap();
+    const { locale } = useLocale();
+    const line = useRef(null);
+    const m = getMapSpatialMessages(locale);
+    useEffect(() => {
+        const layer = line.current;
+        const sync = () => layer?.getElement()?.setAttribute('data-map-radius-guide', 'true');
+        sync(); layer?.on('add', sync);
+        return () => layer?.off('add', sync);
+    }, []);
+    if (!Array.isArray(points) || points.length < 2) return null;
+    const radius = Math.max(1, map.distance(points[0], points[1]));
+    if (!Number.isFinite(radius)) return null;
+    return <Polyline ref={line} positions={points.slice(0, 2)} interactive={false}
+        pathOptions={{ color, weight: 1.5, dashArray: '5 4', opacity: 0.9 }}>
+        <Tooltip permanent direction="center" className="carearound-map-radius-tooltip" opacity={1}>
+            <span data-map-radius-label title={m.straightLine} style={{ color: '#0f172a', fontSize: '12px', fontWeight: 800, whiteSpace: 'nowrap' }}>{formatRadiusDistance(radius)} {m.radius}</span>
+        </Tooltip>
+    </Polyline>;
+}
+
 function AnnotationShape({
     annotation,
     selected,
@@ -435,6 +459,8 @@ function AnnotationShape({
     const shapeRef = useRef(null);
     const shapeTextRef = useRef(null);
     const previewTransformRef = useRef(null);
+    const [circlePreviewPoints, setCirclePreviewPoints] = useState(null);
+    useEffect(() => { setCirclePreviewPoints(null); }, [annotation.points]);
     const activateTouch = useAnnotationBrowseElement(shapeRef, annotation, browse, onActivate, onDeactivate);
     const eventHandlers = interactive ? {
         click: (event) => {
@@ -463,6 +489,7 @@ function AnnotationShape({
         } else if (annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE) {
             shapeRef.current?.setLatLng(nextPoints[0]);
             shapeRef.current?.setRadius(Math.max(1, map.distance(nextPoints[0], nextPoints[1])));
+            setCirclePreviewPoints(nextPoints);
         } else {
             shapeRef.current?.setLatLngs(nextDisplayPoints);
         }
@@ -564,6 +591,7 @@ function AnnotationShape({
     return (
         <>
             {shape}
+            {annotation.type === PRINT_ANNOTATION_TOOL_CIRCLE ? <CircleRadiusGuide points={circlePreviewPoints || annotation.points} color={annotation.style.color} /> : null}
             {annotation.text && supportsInsideText ? (
                 <ShapeTextMarker
                     annotation={annotation}
@@ -910,6 +938,7 @@ function DraftShape({
     return (
         <>
             {shape}
+            {tool === PRINT_ANNOTATION_TOOL_CIRCLE && geometryPoints.length >= 2 ? <CircleRadiusGuide points={geometryPoints} color={style.color} /> : null}
             {points.map((point, index) => (
                 <Marker
                     key={`draft-anchor:${index}`}

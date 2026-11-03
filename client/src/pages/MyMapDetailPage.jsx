@@ -30,6 +30,9 @@ import { useCareMapGestures } from '../hooks/useCareMapGestures.js';
 import { useConfirmDialog } from '../components/ConfirmDialog.jsx';
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
 import DirectoryMap from '../components/DirectoryMap.jsx';
+import NearbyAddressPicker from '../components/NearbyAddressPicker.jsx';
+import MapAreaResultsPanel from '../components/MapAreaResultsPanel.jsx';
+import { createSpatialAreaFromAnnotation } from '../lib/mapSpatialGeometry.js';
 import DirectoryPrintView from '../components/DirectoryPrintView.jsx';
 import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
 import EditMapDetailsModal from '../components/EditMapDetailsModal.jsx';
@@ -1647,6 +1650,12 @@ export default function MyMapDetailPage() {
     const [personalPlacePickerActive, setPersonalPlacePickerActive] = useState(false);
     const [personalPlaceModalOpen, setPersonalPlaceModalOpen] = useState(false);
     const [personalPlaceDraft, setPersonalPlaceDraft] = useState(null);
+    const [nearbyAddressSelection, setNearbyAddressSelection] = useState(null);
+    const [areaSelection, setAreaSelection] = useState(null);
+    const spatialContextRef = useRef(currentMapCacheKey);
+    spatialContextRef.current = currentMapCacheKey;
+    const nearbyAddressPoint = nearbyAddressSelection?.contextKey === currentMapCacheKey ? nearbyAddressSelection.point : null;
+    const spatialArea = areaSelection?.contextKey === currentMapCacheKey ? areaSelection.area : null;
     const [personalPlaceSubmitting, setPersonalPlaceSubmitting] = useState(false);
     const [personalPlaceError, setPersonalPlaceError] = useState('');
     const [personalPlacesLibrary, setPersonalPlacesLibrary] = useState([]);
@@ -1748,6 +1757,8 @@ export default function MyMapDetailPage() {
         || addOpen
         || categoryOrderOpen
         || personalPlaceModalOpen
+        || Boolean(nearbyAddressPoint)
+        || Boolean(spatialArea)
         || personalPlaceChooserOpen
         || personalPlaceImportOpen
         || personalPlaceCategoryManagerOpen
@@ -1759,6 +1770,10 @@ export default function MyMapDetailPage() {
         <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
     ) : null;
     const isPrintView = searchParams.get('view') === 'print';
+    useEffect(() => {
+        setNearbyAddressSelection(null);
+        setAreaSelection(null);
+    }, [currentMapCacheKey, isPrintView]);
     const splitWorkspace = splitWorkspaceSelected && !isPrintView;
     const careMapGestures = useCareMapGestures({
         scopeKey: `${mapId}:${mapStudioRuntimeSnapshot?.activeViewId || ''}`,
@@ -1798,7 +1813,7 @@ export default function MyMapDetailPage() {
         annotations: printAnnotations.annotations,
         visibleAnnotationIds: visibleOwnerAnnotations.map((annotation) => annotation.id),
         enabled: Boolean(user?.id) && !isPrintView && !interactiveAnnotationEditorOpen
-            && !suspendMapInteraction && !resourceRemovalMode && !pinVisibilityMode,
+            && !personalPlacePickerActive && !suspendMapInteraction && !resourceRemovalMode && !pinVisibilityMode,
     });
     const privateAnnotationImages = usePrivateAnnotationImages({
         mapId,
@@ -1814,9 +1829,10 @@ export default function MyMapDetailPage() {
         if (!annotations.length) return null;
         return (
             <PrintAnnotationLayer
+                key={personalPlacePickerActive ? 'point-picker' : 'browse'}
                 annotations={annotations}
                 editable={false}
-                browseInteractive={!suspendMapInteraction && !resourceRemovalMode && !pinVisibilityMode}
+                browseInteractive={!personalPlacePickerActive && !suspendMapInteraction && !resourceRemovalMode && !pinVisibilityMode}
                 onActivate={annotationActivation.activateAnnotation}
                 onDeactivate={annotationActivation.clearAnnotation}
                 annotationGlowColors={annotationActivation.annotationEffects.annotationGlowColors}
@@ -1829,7 +1845,7 @@ export default function MyMapDetailPage() {
     }, [
         annotationActivation.activateAnnotation, annotationActivation.clearAnnotation, annotationActivation.annotationEffects,
         annotationActivation.visibleAnnotations, interactiveAnnotationEditorOpen, isPrintView,
-        pinVisibilityMode, printAnnotations.annotations.length, privateAnnotationImages.sources,
+        personalPlacePickerActive, pinVisibilityMode, printAnnotations.annotations.length, privateAnnotationImages.sources,
         resourceRemovalMode, suspendMapInteraction,
     ]);
     const interactiveAnnotationEditor = useInteractiveMapAnnotationEditor({
@@ -1848,6 +1864,7 @@ export default function MyMapDetailPage() {
         canRedo: printAnnotations.canRedo,
         onClose: () => setInteractiveAnnotationEditorOpen(false),
         toolbarInInspector: splitWorkspace,
+        onFindWithinArea: handleFindWithinArea,
     });
     const ownerInteractiveAnnotationOverlay = interactiveAnnotationEditor.mapOverlay
         || ownerReadOnlyAnnotationOverlay;
@@ -3195,20 +3212,33 @@ export default function MyMapDetailPage() {
     }
 
     function handlePersonalPlaceMapClick({ lat, lng } = {}) {
-        if (!personalPlacePickerActive) return;
-        setPersonalPlaceDraft({
-            id: null,
-            name: '',
-            logoUrl: '',
-            categoryLabel: '',
-            address: '',
-            postalCode: '',
-            lat,
-            lng,
-        });
+        if (!personalPlacePickerActive || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
         setPersonalPlaceError('');
         setPersonalPlacePickerActive(false);
+        setNearbyAddressSelection({ contextKey: currentMapCacheKey, point: { lat, lng } });
+    }
+
+    function finishPersonalPlaceLocation(candidate = null, snapshot = null, manualAddress = false) {
+        if (!nearbyAddressPoint || spatialContextRef.current !== currentMapCacheKey) return;
+        const hasAddress = candidate && /^\d{6}$/.test(candidate.postalCode);
+        setPersonalPlaceDraft({
+            id: null, name: candidate?.building && candidate.building !== 'NIL' ? candidate.building : '',
+            logoUrl: '', categoryLabel: '',
+            address: hasAddress ? candidate.address : '', postalCode: hasAddress ? candidate.postalCode : '',
+            lat: hasAddress ? candidate.lat : nearbyAddressPoint.lat,
+            lng: hasAddress ? candidate.lng : nearbyAddressPoint.lng,
+            locationMode: hasAddress || manualAddress ? 'addressed' : 'map_only',
+            addressSnapshot: snapshot, selectedPoint: { ...nearbyAddressPoint },
+        });
+        setNearbyAddressSelection(null);
+        setPersonalPlaceError('');
         setPersonalPlaceModalOpen(true);
+    }
+
+    function handleFindWithinArea(annotation) {
+        const area = createSpatialAreaFromAnnotation(annotation);
+        if (!area) return;
+        setAreaSelection({ contextKey: currentMapCacheKey, area });
     }
 
     function handleEditPersonalPlace(row) {
@@ -3832,6 +3862,14 @@ export default function MyMapDetailPage() {
         setPrintAnnotationEditorOpen(true);
     }
 
+    const spatialDialogs = (<>
+        {nearbyAddressPoint ? <NearbyAddressPicker key={`nearby:${currentMapCacheKey}`} point={nearbyAddressPoint}
+            onClose={() => setNearbyAddressSelection(null)} onChoose={finishPersonalPlaceLocation}
+            onMapOnly={() => finishPersonalPlaceLocation()} onManual={() => finishPersonalPlaceLocation(null, null, true)} /> : null}
+        {spatialArea && !isPrintView ? <MapAreaResultsPanel key={`area:${currentMapCacheKey}`} area={spatialArea}
+            onClose={() => setAreaSelection(null)} /> : null}
+    </>);
+
     if (loading || (directory && directoryCacheKeyRef.current !== currentMapCacheKey)) {
         return (
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50" data-route-cache-version={MY_MAP_ROUTE_CACHE_VERSION}>
@@ -4232,6 +4270,7 @@ export default function MyMapDetailPage() {
                     onImported={refreshPersonalPlaceImport}
                 />
 
+                {spatialDialogs}
                 <PersonalPlaceEditorModal
                     open={personalPlaceModalOpen}
                     draft={personalPlaceDraft}
@@ -4461,6 +4500,7 @@ export default function MyMapDetailPage() {
                     onImported={refreshPersonalPlaceImport}
                 />
 
+                {spatialDialogs}
                 <PersonalPlaceEditorModal
                     open={personalPlaceModalOpen}
                     draft={personalPlaceDraft}
@@ -4835,7 +4875,8 @@ export default function MyMapDetailPage() {
                 onImported={refreshPersonalPlaceImport}
             />
 
-            <PersonalPlaceEditorModal
+            {spatialDialogs}
+                <PersonalPlaceEditorModal
                 open={personalPlaceModalOpen}
                 draft={personalPlaceDraft}
                 categories={personalPlaceCategories}
