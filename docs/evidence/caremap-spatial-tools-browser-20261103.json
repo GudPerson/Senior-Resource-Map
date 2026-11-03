@@ -1,14 +1,14 @@
 {
   "date": "2026-11-03",
-  "status": "local-browser-validated-not-released",
-  "head": "8f2665946d338b2eec08e162a23ea05e06e9253e",
+  "status": "live-published-verified",
+  "head": "ddc232b707a27f55336a3064c71cb847be4cd2c5",
   "previewUrl": "http://127.0.0.1:4496/my-directory/maps/91261103",
   "boundaries": [
-    "Actual App/router/providers with fictional owner, map, CareAround resources and synthetic map pixels.",
-    "Synthetic pagination/export cases use 225 fictional address rows through the actual local index and HTTP service.",
-    "Separate actual-CSV case uses the existing prepared read-only CSV sidecar; no current nationwide coverage or per-address freshness proof.",
-    "Candidate selection remains unverified until the existing postal-verification step. No live OneMap, production account, database, physical-device or actual private-place creation proof.",
-    "No commit, push, deployment, CSV mutation, schema change or production write."
+    "Production identities and all final acceptance proofs are in productionRelease.",
+    "Native owner and live Map25 acceptance were read-only; no private place or annotation was saved.",
+    "Opaque transport examples are synthetic, not a captured live failure shape.",
+    "The CSV has mixed ages/incomplete coverage; no national freshness/completeness or cloud CPU entitlement claim.",
+    "No physical phone/PWA or new live private PNG output-quality acceptance is claimed."
   ],
   "reports": {
     "synthetic": {
@@ -163,7 +163,7 @@
     ]
   },
   "productionServicePreparation": {
-    "status": "Production connection locally validated, NOT RELEASED",
+    "status": "Historical preparation before completed r2 staging/publication; see productionRelease.",
     "geometryWorkLimit": 250000,
     "acceptedProviderCases": {
       "authenticatedProductionFixture": 16,
@@ -185,13 +185,14 @@
     "fullPrivateCmsComparison": {
       "workspaceMatchesActualPublishedSnapshot": true,
       "embeddedBaselineMatchesActualPublishedSnapshot": true,
-      "articleCount": 48,
-      "topicCount": 11,
       "proof": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/owner-cms-readiness-proof.json",
-      "pointInTimeOnly": true
+      "pointInTimeOnly": true,
+      "evidenceBasis": "Pre-publication no-editorial-drift evidence was exact equality of three known private object hashes; historical counts below are not final public acceptance counts.",
+      "historicalReportedArticleCount": 48,
+      "historicalReportedTopicCount": 11
     },
     "uploader": {
-      "status": "Fresh r2 preparation; no remote apply performed",
+      "status": "Historical r2 preparation checkpoint; completed upload proof is productionRelease.storage.",
       "testsPassed": 17,
       "expectedObjects": 1099,
       "expectedBytes": 28877797,
@@ -209,7 +210,7 @@
       "reviewedDryRunPlan": "Pending fresh r2 protocol-bound plan and independent inventory validation",
       "syntheticOpaqueErrorBoundary": "Opaque/primitive/generic rejections are synthetic fixtures, not an observed live thrown shape.",
       "priorR1PreparationAndAttempt": {
-        "status": "Fresh r1 recovery prepared; remote apply not performed",
+        "status": "Historical failed r1 attempt; no manifest, preserved without resume.",
         "testsPassed": 14,
         "prefix": "address-snapshot/v1/2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4-r1/",
         "manifestSha256": "36cb83a77b54dd061c03e73b1a201b0ca4e0350258f84e9c14ea772118a32d9a",
@@ -266,14 +267,322 @@
         "preserved": true
       }
     },
-    "pending": [
+    "focusedAddressTestsPassed": 40,
+    "priorBrowserEvidenceBoundary": "The accepted16+16 browser reports predate immutable r1 prefix/uploader recovery; no UI/auth/layout changes are introduced by the bounded recovery.",
+    "historicalCheckpoint": true,
+    "pendingAtHistoricalCheckpoint": [
       "independent r2 uploader review and exact new plan approval",
       "new whole-source quality/map-lockdown and exact final PR/main CI",
       "fresh immutable r2 upload and independent full remote readback",
       "deferred source-pin and normal protected publication",
       "production authenticated query/denial verification"
+    ]
+  },
+  "historicalLocalPreview": {
+    "head": "8f2665946d338b2eec08e162a23ea05e06e9253e",
+    "status": "local-browser-validated-not-released",
+    "scope": "The earlier reports, fixture hashes, gateSourceParity, actualCsv, preview processes and PNG inspection below remain historical local evidence, not final deployment/physical-device proof."
+  },
+  "historicalLocalPreviewBoundaries": [
+    "Actual App/router/providers with fictional owner, map, CareAround resources and synthetic map pixels.",
+    "Synthetic pagination/export cases use 225 fictional address rows through the actual local index and HTTP service.",
+    "Separate actual-CSV case uses the existing prepared read-only CSV sidecar; no current nationwide coverage or per-address freshness proof.",
+    "Candidate selection remains unverified until the existing postal-verification step. No live OneMap, production account, database, physical-device or actual private-place creation proof.",
+    "No commit, push, deployment, CSV mutation, schema change or production write."
+  ],
+  "headMeaning": "Deployed public application source; the separate docs-only evidence commit is not a production pin.",
+  "productionRelease": {
+    "status": "LIVE / PUBLISHED",
+    "publicSourceRevision": "ddc232b707a27f55336a3064c71cb847be4cd2c5",
+    "privateBuildRevision": "a2adac3fb5ad92fc4465fdf99658723fe172d7d3",
+    "worker": {
+      "versionId": "9212ecdb-aecd-413d-bd49-ae3ef371f5e9",
+      "versionNumber": 382,
+      "deploymentId": "afca12fb-a2eb-4c08-afc9-2ef3dc45df1a",
+      "trafficPercent": 100,
+      "moduleETag": "6276f8b74fbd1e4c4076e242060ef40dcc28cd6238461ef6ec156283c59e19d4",
+      "truthfulTag": "git-a2adac3fb5ad92fc4465fdf99658723fe172d7d3"
+    },
+    "pages": {
+      "deploymentId": "86eac013-17d1-499a-a6b4-6004c7b175c2",
+      "environment": "production",
+      "status": "success"
+    },
+    "contentVersion": "2026-11-03.help-cms.1793698406906",
+    "compiledContentDigest": "a2187ee15bdba1fd8aa8a7f989c7803915c556e948244ef5bd4c09797ed178cf",
+    "snapshotDigest": "65b4f343df38d042c0ddce73f56f361f390515eb443a7eedcdf3b43f5294a89b",
+    "publication": {
+      "releaseId": "1793698407105-32eeaf15-4598-4884-aea3-717187db48e8",
+      "jobId": "21e76c96-c0c8-45bd-9095-2bd27a168bc1",
+      "workflowRunId": 41611989076,
+      "workflowHeadRevision": "330420711969ff4978bbbd1300aee99eadc39705",
+      "attempt": 1,
+      "publishedAtUTC": "2026-11-03T09:39:30.543Z",
+      "receiptAccepted": true,
+      "activeReleaseId": null,
+      "ownerLockCheckedAtUTC": "2026-11-03T09:41:36.999Z",
+      "baseDrift": false,
+      "recordedDeploymentOrder": [
+        "worker",
+        "pages"
+      ]
+    },
+    "controlPlane": {
+      "verifiedBy": "Root read-only Cloudflare control-plane check",
+      "verifiedAtUTC": "2026-11-03T09:46:04.938Z",
+      "bindingCount": 44,
+      "bindingDescriptorsSha256": "bec80b7ccfcbe4d3585c19b3ae69b9d9d5f0719b93965a0e4d182cdb0d6bed2b",
+      "globalTenFieldSha256": "157cb32f16e8b5795731c2251c1f9481390066107c77d5102be56e1f9313b2a4",
+      "compatibilityDateAndThreeFlagsUnchanged": true
+    },
+    "ci": {
+      "pr": {
+        "number": 97,
+        "head": "7ba5d609c4eead934344154399d009976185a6c0",
+        "runId": 41605019103,
+        "event": "pull_request",
+        "successfulSteps": 23,
+        "artifacts": 7
+      },
+      "main": {
+        "head": "ddc232b707a27f55336a3064c71cb847be4cd2c5",
+        "runId": 41607873591,
+        "event": "push",
+        "successfulSteps": 23,
+        "artifacts": 7
+      },
+      "quality": {
+        "server": 1265,
+        "address": 51,
+        "client": 1075,
+        "clientEnvironment": 5,
+        "helpCms": 73,
+        "compilerContracts": 17,
+        "configuredBuild": "passed"
+      },
+      "mapLockdown": {
+        "tests": 116,
+        "configuredBuild": "passed"
+      },
+      "source1189Sha256": "d4439f002a82f91ed291a9e89945acb3b1256ad80348480c140016e83e6bea75",
+      "runtime619Sha256": "656e99f6f5ce9ad4c4c17ece686d5c62835602bd16aabdca1effe9518cf6895c"
+    },
+    "publisherVerification": {
+      "qualityGates": [
+        {
+          "gate": "release-adapter-tests",
+          "passed": true
+        },
+        {
+          "gate": "verify:quality",
+          "passed": true
+        },
+        {
+          "gate": "test:map-lockdown",
+          "passed": true
+        },
+        {
+          "gate": "worker-dry-run",
+          "passed": true
+        }
+      ],
+      "artifacts": 105,
+      "allArtifactByteAndShaChecksPassed": true,
+      "ordinaryHtmlCases": 6,
+      "allOrdinaryHtmlCacheSecurityAndSingleBeaconChecksPassed": true,
+      "helpGuideClientVersionAndCompiledDigestMatch": true,
+      "receiptAccepted": true,
+      "scope": "Independent extraction of the final publisher report; raw private workflow logs are not copied."
+    },
+    "storage": {
+      "prefix": "address-snapshot/v1/2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4-r2/",
+      "sourceSha256": "2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4",
+      "recordCount": 143807,
+      "postalCodeCount": 122261,
+      "manifestSha256": "0670fbbce22de6a82b776008eecaa2791737e2ddcc41e58403a03601000ee4e2",
+      "manifestBytes": 320450,
+      "tileCount": 549,
+      "objectCount": 1099,
+      "totalBytes": 28877797,
+      "dataObjectsVerifiedBeforeManifest": 1098,
+      "singlePutIntentsAndAcknowledgements": 1099,
+      "unknownPuts": 0,
+      "freshIndependentFullReadbackAndInventory": "passed",
+      "independentPinnedWranglerManifestProof": "passed",
+      "actualApplyReadRetries": 0,
+      "all1098DataPayloadsAndSourceIdsUnchanged": true,
+      "csvUnchanged": true,
+      "opaqueErrorBoundary": "Opaque/primitive/generic cases are synthetic; the100/100 healthy diagnostic and successful r2 publication captured no live failing exception shape."
+    },
+    "nativeApiAcceptance": {
+      "passed": 8,
+      "normalCookieOwnerRequests200": 5,
+      "anonymousRequests401": 3,
+      "goldenQueryCases": 4,
+      "csvDerivedCountsPagingAndIdentityHashesMatch": true,
+      "nearbyRows": 5,
+      "circleRows": 233,
+      "circleUniquePostals": 188,
+      "circlePages": [
+        200,
+        33
+      ],
+      "samePostalExtraRowsPreserved": 45,
+      "mutations": 0
+    },
+    "independentPublicAcceptance": {
+      "status": "passed",
+      "helpEntries": 40,
+      "helpCategories": 9,
+      "guideTopics": 12,
+      "helpGuideClientVersionDigestAndPrivateBuildMatch": true,
+      "anonymous401WithoutSnapshotOrRows": true,
+      "privateNoStore": true,
+      "rawVaryMembers": [
+        "Origin",
+        "Cookie",
+        "Authorization",
+        "X-Session-Token"
+      ],
+      "ordinaryHtmlCases": 6,
+      "declaredUserAgent": "CareAround-Release-Verification",
+      "accept": "text/html",
+      "cacheControl": "no-cache",
+      "allCacheSecurityAndSingleBeaconChecksPassed": true,
+      "independentFullArtifactRefetchClaimed": false
+    },
+    "liveMap25Acceptance": {
+      "status": "passed",
+      "finishedAtUTC": "2026-11-03T09:54:45.072Z",
+      "originalToolbarStudioPlacePickerAreaActionAndExportNavigation": "passed",
+      "mapStudioAnnotationsGetHashesUnchanged": true,
+      "annotationRevision": 30,
+      "annotationCount": 76,
+      "shapeCount": 6,
+      "writes": 0
+    },
+    "historicalFailures": {
+      "originalUpload": {
+        "namespace": "address-snapshot/v1/2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4/",
+        "dataKeysInventoried": 1098,
+        "manifestPresent": false,
+        "allDataHashVerified": false,
+        "outcome": "failed/unknown before verification; only two objects independently hash checked",
+        "causeEstablished": false,
+        "preservedAndNeverResumed": true
+      },
+      "r1Upload": {
+        "namespace": "address-snapshot/v1/2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4-r1/",
+        "acknowledgedPuts": 72,
+        "verifiedDataObjects": 71,
+        "unknownPuts": 0,
+        "manifestPresent": false,
+        "freshDiagnosticHeadChecks": 1,
+        "freshDiagnosticGetChecks": 100,
+        "freshDiagnosticFailures": 0,
+        "liveThrownShapeCaptured": false,
+        "causeEstablished": false,
+        "preservedAndNeverResumed": true
+      },
+      "automaticPages": {
+        "deploymentId": "385c8492-4adf-4241-98f7-e657687809bf",
+        "source": "ddc232b707a27f55336a3064c71cb847be4cd2c5",
+        "build": {
+          "name": "build",
+          "started_on": "2026-11-03T09:03:13.710731Z",
+          "ended_on": "2026-11-03T09:03:23.406688Z",
+          "status": "failure"
+        },
+        "staleCmsGuardInvoked": true,
+        "deployStage": "idle; no start/end timestamps",
+        "acceptedDeployment": false,
+        "classification": "Automatic Pages build blocked before deployment by the stale-CMS guard; baseline production remained served.",
+        "sourceReceiptSha256": "796c175c5ca345a74bf3119f466860c28dbed7a34dda045733d6f1e2fad5435e"
+      }
+    },
+    "recordedPrePublicationRecoveryReference": {
+      "workerVersionId": "bfcfce9c-abb3-441f-9513-e06225a0a487",
+      "workerSourceRevision": "22e7a20b9c65590f00a4a839989bae154cb96a2e",
+      "pagesSourceRevision": "22e7a20b9c65590f00a4a839989bae154cb96a2e",
+      "contentVersion": "2026-11-02.help-cms.1793582082858",
+      "contentDigest": "0773d8aad5d18a02bc065d1adcd281547cb6920fd6ec775dda3f9ff0e8387967",
+      "pagesDeploymentId": "407157e5-93c1-43f3-ad05-7760af43ecd0",
+      "workerVersionNumber": 381,
+      "scope": "Recorded pre-publication recovery reference, not a rollback instruction. Worker95a/380 was historical pre-pin only.",
+      "approvedPublicSourcePin": "ddc232b707a27f55336a3064c71cb847be4cd2c5"
+    },
+    "preservedContracts": [
+      "Original Discover/Care Map UI and Map Studio/export controls",
+      "Existing sign-in, live identity, CORS/CSRF and catalogue-access rules",
+      "Existing live postal verification and explicit private-place Save",
+      "No database migration or source CSV import; no private-place/annotation save in acceptance"
     ],
-    "focusedAddressTestsPassed": 40,
-    "priorBrowserEvidenceBoundary": "The accepted16+16 browser reports predate immutable r1 prefix/uploader recovery; no UI/auth/layout changes are introduced by the bounded recovery."
+    "limits": {
+      "geometryWork": 250000,
+      "snapshotCoverage": "Mixed source ages, incomplete coverage and possibly outdated addresses; preparation time is not per-row verification.",
+      "notClaimed": [
+        "National completeness or current freshness",
+        "Cloud CPU entitlement",
+        "Physical phone/PWA UAT",
+        "New live private PNG output quality",
+        "Real private-place creation"
+      ]
+    },
+    "pendingAcceptance": [],
+    "evidenceBranch": {
+      "name": "codex/caremap-spatial-tools-release-evidence-20261103",
+      "base": "ddc232b707a27f55336a3064c71cb847be4cd2c5",
+      "role": "Docs-only handoff; never the production source pin; no new PR/main merge or app republish for this evidence commit."
+    },
+    "proofs": {
+      "postDeployManifest": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/post-deploy-independent/evidence-manifest.json",
+        "sha256": "aa546b578689a7da985ffeb7daa77f24c5cf100fa3f36bfc1adaa15f9b55e3e5"
+      },
+      "nativeOwnerApi": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/post-deploy-independent/native-api-owner-acceptance-report.json",
+        "sha256": "311abfbaff374033e6a38f3f6f74f8044deec69558257dd1f1d5697120e1a063"
+      },
+      "nativeGoldenComparison": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/post-deploy-independent/independent-native-report-comparison.json",
+        "sha256": "6eb1b4e7b0fb88a6125322d5a6d63f0cd02ea9403915af67d75ae2d4021446cc"
+      },
+      "publicStatus": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/post-deploy-independent/public-status-report.json",
+        "sha256": "fe0c6ba5e5294ce9053a74e861cbd47cd4c9d46093997f582097c20c9ee2f7a9"
+      },
+      "independentOrdinaryHtml": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/post-deploy-independent/ordinary-documents-report.json",
+        "sha256": "21de607179dceaa25c1f1f3501ad63ccfad87c3f4e022ca575cf2581b63ddce2"
+      },
+      "liveMap25Controls": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/live-map25-controls/report.json",
+        "sha256": "87c1907800de06ab4414591e5aab53ac8fb06918c216dc1fe3c68d3490d80655"
+      },
+      "r2Staging": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/recovery-r2/staging-verified/evidence-manifest.json",
+        "sha256": "1a578fb387fed44d386452d54936666d9007a0a252bd33dde7975dd591e0c7ce"
+      },
+      "publisher-summary.json": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/release-closeout/publisher-summary.json",
+        "sha256": "0315601f265017f8d948618f3ef02bba53fd4c28c4169024c885fd008d7d83e5"
+      },
+      "published-owner-receipt.json": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/release-closeout/published-owner-receipt.json",
+        "sha256": "c9e0e08c5c1d4cd65cb6b53f9bd4d6cd290d142e3170587e035ee4ced1d766ad"
+      },
+      "pr97-quality.json": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/release-closeout/pr97-quality.json",
+        "sha256": "20be20a9615c37c2820f6f0a44fa5180163739cf818d6c8c4aa75dc902fe5500"
+      },
+      "main-quality.json": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/release-closeout/main-quality.json",
+        "sha256": "de7ce6c505ba6f200464243cd0b4dbc4ffd9de482e5e729248485115640e67c9"
+      },
+      "automaticPagesBlocked": {
+        "path": "/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-spatial-tools-20261103/production-service-evidence/release-closeout/automatic-pages-build-blocked.json",
+        "sha256": "83bf40cb467cb339b7b01125192a6f31e0c55828d014f7a46599694c1118338e"
+      }
+    }
   }
 }
