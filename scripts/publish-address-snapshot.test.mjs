@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { compileAddressSnapshotRecords } from './build-address-snapshot.mjs';
-import { loadAddressPublicationPlan, publishAddressSnapshot, verifyAddressPublication, runAddressPublisher, validateAddressOperatorConfig, verifyAddressObject, addressPublicationFailure } from './publish-address-snapshot.mjs';
+import { loadAddressPublicationPlan, publishAddressSnapshot, verifyAddressPublication, runAddressPublisher, validateAddressOperatorConfig, verifyAddressObject, addressPublicationFailure, AddressPublicationError } from './publish-address-snapshot.mjs';
 
 async function fixture(t, { tiles = 1 } = {}) {
     const directory = await mkdtemp(join(tmpdir(), 'address-publisher-test-'));
@@ -193,4 +193,54 @@ test('concurrent publication serializes durable intents and omits local paths fr
     assert.ok(barrier >= 0 && barrier < manifestIntent);
     assert.equal(events[barrier].verified, plan.objects.length);
     assert.equal(JSON.stringify(events).includes(plan.directory), false);
+});
+
+
+test('synthetic opaque, primitive and generic transport rejections stop after three idempotent attempts without a manifest', async t => {
+    const plan = await fixture(t);
+    const failures = [() => ({}), () => undefined, () => null, () => 'synthetic opaque rejection', () => new Error('Synthetic generic rejection')];
+    for (const operation of ['list', 'head', 'get', 'body']) {
+        for (const rejectWith of failures) {
+            const remote = fakeR2(), waits = [], events = []; let attempts = 0, freshGets = 0;
+            const fail = () => { attempts++; throw rejectWith(); };
+            if (operation === 'body') {
+                const get = remote.bucket.get;
+                remote.bucket.get = async key => { freshGets++; const result = await get(key); result.arrayBuffer = async () => fail(); return result; };
+            } else remote.bucket[operation] = async () => fail();
+            await assert.rejects(publishAddressSnapshot(remote.bucket, plan, { sleep: async ms => waits.push(ms), checkpoint: async event => events.push(event) }), error => error.code === 'TRANSIENT_READ_EXHAUSTED');
+            assert.equal(attempts, 3, operation); assert.deepEqual(waits, [250, 1000]);
+            assert.equal(events.filter(event => event.stage === 'read-retry').length, 2);
+            assert.equal(remote.objects.has(plan.manifest.key), false);
+            if (operation === 'body') assert.equal(freshGets, 3, 'Every body retry must fetch a fresh object');
+            const puts = remote.calls.filter(call => call.type === 'put');
+            assert.equal(puts.length, operation === 'get' || operation === 'body' ? 1 : 0, 'Read recovery must never repeat a PUT');
+        }
+    }
+});
+
+test('synthetic opaque read recovery obtains a fresh object and never repeats an acknowledged PUT', async t => {
+    const plan = await fixture(t), remote = fakeR2(), get = remote.bucket.get;
+    let failedGets = 0;
+    remote.bucket.get = async key => {
+        if (key === plan.objects[0].key && failedGets++ < 2) throw {};
+        return get(key);
+    };
+    const result = await publishAddressSnapshot(remote.bucket, plan, { sleep: async () => {} });
+    assert.equal(result.verified, true); assert.equal(failedGets, 3);
+    for (const object of plan.publicPlan.objects) assert.equal(remote.calls.filter(call => call.type === 'put' && call.key === object.key).length, 1);
+});
+
+test('explicit client statuses and typed validation failures remain fatal under the general idempotent-read policy', async t => {
+    const plan = await fixture(t);
+    const failures = [
+        ...[400, 401, 403, 404, 408, 429].map(status => () => Object.assign(new TypeError('fetch failed'), { status })),
+        () => 'HTTP 401', () => 'HTTP 404',
+        () => new AddressPublicationError('SYNTHETIC_INVALID_RESULT', { phase: 'validation', errorClass: 'validation' }),
+    ];
+    for (const rejectWith of failures) {
+        const remote = fakeR2(); let calls = 0; const waits = [];
+        remote.bucket.get = async () => { calls++; throw rejectWith(); };
+        await assert.rejects(publishAddressSnapshot(remote.bucket, plan, { sleep: async ms => waits.push(ms) }), error => ['READ_FAILED', 'SYNTHETIC_INVALID_RESULT'].includes(error.code));
+        assert.equal(calls, 1); assert.deepEqual(waits, []); assert.equal(remote.objects.has(plan.manifest.key), false);
+    }
 });

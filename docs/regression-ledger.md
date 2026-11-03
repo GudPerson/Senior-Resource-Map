@@ -1,4 +1,12 @@
-## 3 November 2026 - Immutable address staging recovery - NOT RELEASED
+## 3 November 2026 - Fresh r2 address staging preparation - NOT RELEASED
+
+The r1 attempt stopped before its manifest after 72 acknowledged PUTs and 71 verified data objects, with no unknown PUT outcome. The journal reports an unclassified read error while the proxy log separately reports an R2-header-missing 500. A fresh bounded diagnostic of the exact 641-byte pack passed one HEAD and 100 GET/body/SHA checks at concurrency four. No live thrown shape was captured and the original cause remains unproven. Preserve both failed namespaces without resume, overwrite or deletion.
+
+The new candidate uses `address-snapshot/v1/2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4-r2/`, manifest `0670fbbce22de6a82b776008eecaa2791737e2ddcc41e58403a03601000ee4e2`, 1,099 objects / 28,877,797 bytes. Data payloads and the production 250,000-work cap are unchanged. Operator-only HEAD/GET/body/LIST transport exceptions now admit at most three attempts even when status/message is unavailable; every body retry obtains a fresh GET. Explicit client/access/not-found statuses and typed integrity/validation failures remain immediate. PUTs are still single atomic attempts; canaries, concurrency four, serialized intents, drain-on-failure and manifest-last barriers remain enforced.
+
+Owned tests pass 17/17, including synthetic opaque/primitive/generic rejections across all read operations, exhaustion without a manifest, fresh-GET body retries, fatal client/integrity cases and no repeated PUT. Those synthetic shapes were not observed live. Independent review, a new protocol-bound r2 plan, required whole-source quality/map checks and exact final PR/main CI remain separate gates. PR97 stays draft. The proposed source-pin plan is deferred and its unchanged helper correctly fails closed on the old digest; no source-pin stage, activation, owner publication or application deployment has occurred. See `docs/address-snapshot-production-service.md`.
+
+## 3 November 2026 - Earlier r1 recovery checkpoint - BEFORE SECOND FAILED STAGING
 
 The original R2 staging attempt failed/unknown with a generic 500 before its verification checkpoint. Read-only diagnosis found exactly 1,098 expected data keys, no manifest and no extra/missing keys. Only the first index and last row pack were independently hash/MIME/cache verified; all data hashes were not verified. The failing phase and a session-expiry cause cannot be established. Preserve that namespace; no resume, overwrite or deletion is allowed. Production application behavior remains unchanged.
 

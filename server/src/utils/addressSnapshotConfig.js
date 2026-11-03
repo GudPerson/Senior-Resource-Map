@@ -1,8 +1,8 @@
 // Immutable source/data pairing. No public object route or mutable current pointer.
 export const ADDRESS_SNAPSHOT_CONFIG = Object.freeze({
     sourceSha256: '2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4',
-    manifestSha256: '36cb83a77b54dd061c03e73b1a201b0ca4e0350258f84e9c14ea772118a32d9a',
-    prefix: 'address-snapshot/v1/2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4-r1',
+    manifestSha256: '0670fbbce22de6a82b776008eecaa2791737e2ddcc41e58403a03601000ee4e2',
+    prefix: 'address-snapshot/v1/2d9740ed84cea78fd571ddc5c06e14c13d780bf47f4d50f405804c2e473b18e4-r2',
     manifestBytes: 320450,
     recordCount: 143807,
     postalCodeCount: 122261,

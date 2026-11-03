@@ -10,7 +10,7 @@ export const ADDRESS_SNAPSHOT_BUCKET = 'carearound-help-content-private';
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const requireValue = (value, message) => { if (!value) throw new Error(message); };
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-export const ADDRESS_PUBLICATION_PROTOCOL = Object.freeze({ maxConcurrency: 4, readAttempts: 3, readBackoffMs: Object.freeze([250, 1000]), canary: 'First index and matching row pack, each GET-verified before bulk', putAttempts: 1 });
+export const ADDRESS_PUBLICATION_PROTOCOL = Object.freeze({ maxConcurrency: 4, readAttempts: 3, readBackoffMs: Object.freeze([250, 1000]), readFailurePolicy: 'Idempotent transport exceptions, including missing error details; explicit client statuses and typed integrity/validation errors are fatal', canary: 'First index and matching row pack, each GET-verified before bulk', putAttempts: 1 });
 
 // Local inspection only. Dataset files stay external to the public repository.
 export async function loadAddressPublicationPlan(artifactRoot, { expected = ADDRESS_SNAPSHOT_CONFIG } = {}) {
@@ -57,14 +57,14 @@ export class AddressPublicationError extends Error {
     }
 }
 function readFailure(error) {
-    const message = String(error?.message || '').slice(0, 2048);
+    const message = String(typeof error === 'string' ? error : error?.message || '').slice(0, 2048);
     const directStatus = Number(error?.status ?? error?.statusCode ?? error?.response?.status ?? error?.cause?.status ?? error?.cause?.statusCode);
     const match = message.match(/\b(?:HTTP(?:\/[0-9.]+)?|status(?:\s*code)?|returned|response)\s*[:=]?\s*(\d{3})\b/i)
         || message.match(/\b(500|502|503|504)\b/i);
     const status = Number.isInteger(directStatus) && directStatus >= 100 && directStatus <= 599 ? directStatus : match ? Number(match[1]) : undefined;
     const network = ['ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN', 'ECONNREFUSED', 'UND_ERR_SOCKET', 'UND_ERR_CONNECT_TIMEOUT'].some(code => code === error?.code || code === error?.cause?.code)
         || error?.name === 'TypeError' && /fetch|network|socket|connection/i.test(message);
-    return { status, transient: !(error instanceof AddressPublicationError) && (status !== undefined ? [500, 502, 503, 504].includes(status) : network),
+    return { status, transient: !(error instanceof AddressPublicationError) && (status === undefined || status >= 500),
         errorClass: status !== undefined ? 'http' : network ? 'network' : 'unclassified' };
 }
 export function addressPublicationFailure(error) {
