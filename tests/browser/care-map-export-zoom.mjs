@@ -228,6 +228,8 @@ async function install(page, {
     return r.abort();
   });
 }
+// One pixel stays within Leaflet's 0.1 zoom snap on Mac/Linux at DPR 1 or 2.
+const fineWheelPixels = 1;
 const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=', 'base64');
 const paintedStandardPixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGO48OwDAAUwAqemVUSMAAAAAElFTkSuQmCC', 'base64');
 async function screenshotPixel(page, point) {
@@ -284,7 +286,7 @@ async function verifyInteractiveLowerZoomBoundary() {
           await page.mouse.move(mapBox.x + mapBox.width / 2, Math.min(1100, mapBox.y + mapBox.height / 2));
           for (let action = 0; action < 3; action++) {
             const before = await readMap();
-            await page.mouse.wheel(0, 10);
+            await page.mouse.wheel(0, fineWheelPixels);
             await page.waitForTimeout(700);
             const after = await readMap();
             report.cases.push({ name: 'Interactive fractional outward wheel retains progress', savedZoom, before: before.zoom, ...after });
@@ -392,8 +394,8 @@ async function verifyAnnotationInwardZoom() {
             else if (target !== 'clear') assert.equal(hit.tag, 'path');
             await page.mouse.move(hit.x, hit.y);
             const requestStart = tileRequests.length;
-            if (gesture === 'wheel') await page.mouse.wheel(0, -10);
-            else await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: hit.x, y: hit.y, deltaX: 0, deltaY: -10, modifiers: 2 });
+            if (gesture === 'wheel') await page.mouse.wheel(0, -fineWheelPixels);
+            else await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: hit.x, y: hit.y, deltaX: 0, deltaY: -fineWheelPixels, modifiers: 2 });
             await page.waitForTimeout(650);
             const after = await readMap();
             report.cases.push({ name: 'Actual annotation-target fractional inward zoom', dense, editor: dense, gesture, target, hit, ...after });
@@ -408,7 +410,7 @@ async function verifyAnnotationInwardZoom() {
           for (const expectedZoom of [13.1, 13.2, 13.3, 13.4, 13.5]) {
             const hit = await hitTarget('clear');
             const requestStart = tileRequests.length;
-            await page.mouse.move(hit.x, hit.y); await page.mouse.wheel(0, -10);
+            await page.mouse.move(hit.x, hit.y); await page.mouse.wheel(0, -fineWheelPixels);
             await page.waitForTimeout(650);
             const after = await readMap();
             assert.ok(Math.abs(after.zoom - expectedZoom) < 0.001, 'successive small inward inputs accumulate across the Standard fractional band');
@@ -433,7 +435,7 @@ async function verifyAnnotationInwardZoom() {
           }
           assert.ok(overviewSeen); assert.equal(state.mode, 'live');
           const before = state.zoom, hit = await hitTarget('fill'), requestStart = tileRequests.length;
-          await page.mouse.move(hit.x, hit.y); await page.mouse.wheel(0, -10); await page.waitForTimeout(650);
+          await page.mouse.move(hit.x, hit.y); await page.mouse.wheel(0, -fineWheelPixels); await page.waitForTimeout(650);
           state = await readMap();
           assert.ok(Math.abs(state.zoom - before - 0.1) < 0.001);
           assert.ok(state.loadedBackgrounds > 0);
@@ -569,6 +571,25 @@ try {
     };
   });
   const assertParity = async expectedTier => {
+    const { zoom, center } = await currentMap();
+    const waitStarted = Date.now();
+    try {
+      await page.waitForFunction(({ zoom, center, expectedTier }) => {
+        const maps = window.fixtureMaps.filter(map => map?._loaded && map.getContainer().isConnected);
+        const readiness = document.querySelector('[data-print-export-readiness]')?.dataset.printExportReadiness;
+        if (readiness === 'error') throw new Error('Export readiness failed while awaiting the intended camera');
+        const preview = maps.find(map => !map.getContainer().parentElement.dataset.printExportMapFrame);
+        const capture = maps.find(map => map.getContainer().parentElement.dataset.printExportMapFrame);
+        const matches = map => map && Math.abs(map.getZoom() - zoom) < 0.001
+          && map.project(map.getCenter(), zoom).distanceTo(map.project(center, zoom)) <= 1.6
+          && map.getContainer().parentElement.dataset.fixedTownSurfaceTier === expectedTier;
+        return readiness === 'ready' && matches(preview) && matches(capture);
+      }, { zoom, center, expectedTier }, { timeout: 10000 });
+    } catch (error) {
+      report.lastParity = { expectedTier, intendedCamera: { zoom, center }, snapshot: await read() };
+      throw error;
+    }
+    (report.parityReadinessWaits ||= []).push({ expectedTier, zoom, center, elapsedMs: Date.now() - waitStarted });
     const snapshot = await read();
     report.lastParity={expectedTier,snapshot};
     const preview = snapshot.maps.find(m => !m.dataset.printExportMapFrame);
@@ -641,7 +662,7 @@ try {
   for (const expectedZoom of [13.1, 13.2, 13.3, 13.4]) {
     const pointer = await mapPoint();
     const requestStart = exportTileRequests.length;
-    await page.mouse.move(pointer.x, pointer.y); await page.mouse.wheel(0, -10);
+    await page.mouse.move(pointer.x, pointer.y); await page.mouse.wheel(0, -fineWheelPixels);
     await page.waitForTimeout(700);
     report.fractionalExportAttempt = { expectedZoom, state: await read() };
     await page.waitForFunction(expected => {
@@ -678,7 +699,7 @@ try {
     const before = await currentMap();
     const pointer = await mapPoint();
     await page.mouse.move(pointer.x, pointer.y);
-    await page.mouse.wheel(0, 10);
+    await page.mouse.wheel(0, fineWheelPixels);
     await page.waitForTimeout(700);
     const after = await currentMap();
     report.cases.push({
@@ -688,7 +709,7 @@ try {
     });
     assert.ok(after.zoom < before.zoom, 'first small wheel keeps its requested outward scale');
     await assertParity('overview');
-    await page.mouse.wheel(0, -10);
+    await page.mouse.wheel(0, -fineWheelPixels);
     await page.waitForTimeout(700);
     assert.ok((await currentMap()).zoom > after.zoom, 'first inward action advances scale');
     await assertParity('native');
@@ -749,7 +770,7 @@ try {
   await page.waitForTimeout(700);
   const panPoint = await mapPoint();
   await page.mouse.move(panPoint.x, panPoint.y);
-  await page.mouse.wheel(0, 10);
+  await page.mouse.wheel(0, fineWheelPixels);
   await page.waitForTimeout(700);
   const panScale = (await currentMap()).zoom;
   await assertParity('overview');
