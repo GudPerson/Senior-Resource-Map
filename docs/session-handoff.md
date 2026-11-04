@@ -1,5 +1,7 @@
 ## 5 November 2026 — Care Map fractional inward zoom — local validation
 
+Release preparation: PR #99 also wires the existing 70-case Default and Gray browser suite into the credential-free quality workflow; the new exact-head CI run is pending.
+
 Worktree exception remains `/Users/sweetbuns/.codex/worktrees/caremap-spatial-tools-20261103/CareAroundSG`, branch `codex/annotation-trackpad-zoom-20261105`, base public main `814bbdeeec7f444c4ae7c28597e41ac9bb501123`. Preserve the primary checkout and prior evidence commit `382f9346`. Three implementation/test paths plus this handoff and ledger form the candidate; no unrelated edits.
 
 Confirmed reset: small inward wheel/ctrl-wheel requests 13.1, then the legacy normalizer restores 13 on annotation fill/stroke/label and clear map. The final DirectoryMap-only change skips that normalizer for existing fractional controls and bridges capped fractional display C+0.5 to the unchanged native URL ceiling C. Actual constructor caps enter the TileLayer key. Whole-step/uncapped behavior, camera bounds/coverage/budgets, prior 14 containment correction, original UI and annotation/vendor/address code remain protected.
