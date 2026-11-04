@@ -225,10 +225,77 @@ async function install(page, {
   });
 }
 const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=', 'base64');
+async function installTownMapAssets(page, imageDelay = 0) {
+  await page.route('**/__carearound-town-maps/**', async route => {
+    const u = new URL(route.request().url());
+    const overview = u.pathname.includes('zoom14-atlas');
+    const isIndex = u.pathname.endsWith('/manifest.json') && !u.pathname.includes('/surfaces/');
+    if (u.pathname.endsWith('.json')) return route.fulfill({
+      body: gunzipSync(await fs.readFile(path.join(repo, 'tests/fixtures/care-map-export-zoom', (overview ? isIndex ? 'overview-index' : 'overview-sg14' : isIndex ? 'native-index' : 'native-w01') + '.json.gz'))).toString('utf8'),
+      contentType: 'application/json'
+    });
+    if (imageDelay) await new Promise(resolve => setTimeout(resolve, imageDelay));
+    return route.fulfill({ body: pixel, contentType: 'image/png' });
+  });
+}
+
+async function verifyInteractiveLowerZoomBoundary() {
+  const savedCamera = studioDoc.views[0].design.camera;
+  try {
+    for (const savedZoom of [14, 13.9, 13.8]) {
+      studioDoc.views[0].design.camera = { ...savedCamera, view: { ...savedCamera.view, zoom: savedZoom } };
+      const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
+      try {
+        await install(page);
+        await installTownMapAssets(page, 200);
+        await page.goto(new URL('?route=/my-directory/maps/91261012', baseUrl).href);
+        await page.waitForFunction(() => window.fixtureMaps?.some(map => map?._loaded && map.getContainer().isConnected));
+        await page.waitForTimeout(1000);
+        const readMap = () => page.evaluate(() => {
+          const map = window.fixtureMaps.find(item => item?._loaded && item.getContainer().isConnected);
+          return { zoom: map.getZoom(), mode: map.getContainer().parentElement.dataset.mapBasemapMode };
+        });
+        assert.ok(Math.abs((await readMap()).zoom - savedZoom) < 0.001, 'an explicit saved camera restores its fractional zoom');
+        if (savedZoom === 14) {
+          for (const expectedZoom of [13.5, 13, 12.5, 12]) {
+            await page.locator('.leaflet-control-zoom-out').first().click();
+            await page.waitForTimeout(700);
+            const after = await readMap();
+            report.cases.push({ name: 'Interactive overview to Standard one-action half step', savedZoom, expectedZoom, ...after });
+            assert.ok(Math.abs(after.zoom - expectedZoom) < 0.001, 'overview containment must not snap an outward half step back to 14');
+            assert.equal(after.mode, 'live', 'Standard takes over below the overview tier');
+          }
+        } else {
+          const mapBox = await page.locator('.leaflet-container').first().boundingBox();
+          await page.mouse.move(mapBox.x + mapBox.width / 2, Math.min(1100, mapBox.y + mapBox.height / 2));
+          for (let action = 0; action < 3; action++) {
+            const before = await readMap();
+            await page.mouse.wheel(0, 10);
+            await page.waitForTimeout(700);
+            const after = await readMap();
+            report.cases.push({ name: 'Interactive fractional outward wheel retains progress', savedZoom, before: before.zoom, ...after });
+            assert.ok(after.zoom < before.zoom - 0.01, 'fractional zoom-out must not flash and return to 14');
+          }
+        }
+        await page.reload();
+        await page.waitForFunction(() => window.fixtureMaps?.some(map => map?._loaded && map.getContainer().isConnected));
+        await page.waitForTimeout(1000);
+        assert.ok(Math.abs((await readMap()).zoom - savedZoom) < 0.001, 'reloading still applies the authoritative saved view');
+        report.cases.push({ name: 'Interactive explicit saved camera survives boundary exploration', savedZoom });
+      } finally {
+        await page.close();
+      }
+    }
+  } finally {
+    studioDoc.views[0].design.camera = savedCamera;
+  }
+}
+
 try {
   browser = await chromium.launch({
     headless: true
   });
+  await verifyInteractiveLowerZoomBoundary();
   const page = await browser.newPage({
     viewport: {
       width: 1600,
@@ -239,19 +306,7 @@ try {
   await install(page, {
     multiplePins: true
   });
-  await page.route('**/__carearound-town-maps/**', async route => {
-    const u = new URL(route.request().url());
-    const overview = u.pathname.includes('zoom14-atlas');
-    const isIndex = u.pathname.endsWith('/manifest.json') && !u.pathname.includes('/surfaces/');
-    if (u.pathname.endsWith('.json')) return route.fulfill({
-      body: gunzipSync(await fs.readFile(path.join(repo, 'tests/fixtures/care-map-export-zoom', (overview ? isIndex ? 'overview-index' : 'overview-sg14' : isIndex ? 'native-index' : 'native-w01') + '.json.gz'))).toString('utf8'),
-      contentType: 'application/json'
-    });
-    return route.fulfill({
-      body: pixel,
-      contentType: 'image/png'
-    });
-  });
+  await installTownMapAssets(page);
   await page.goto(new URL('?route=/my-directory/maps/91261012?view=print%26studioView=view-default', baseUrl).href);
   await page.waitForFunction(() => window.fixtureMaps?.length);
   await page.waitForTimeout(1000);
@@ -390,6 +445,23 @@ try {
     assert.ok(Math.abs(after.zoom-expectedZoom)<0.001,'one '+direction+' button keeps its requested half step across the native boundary');
     const snapshot = await assertParity(tier);
     report.cases.push({name:'Export threshold half-step '+direction,before:before.zoom,after:after.zoom,label:snapshot.maps.find(m=>!m.dataset.printExportMapFrame).zoomLabel,tier});
+  }
+  await page.evaluate(() => {
+    const map = window.fixtureMaps.find(item => item?._loaded && item.getContainer().isConnected && !item.getContainer().parentElement.dataset.printExportMapFrame);
+    map.setZoom(14, { animate: false });
+  });
+  await page.waitForTimeout(700);
+  const containedOverview = await currentMap();
+  assert.ok(containedOverview.zoom >= 14 && containedOverview.zoom < 14.5, 'maximum-height overview keeps its valid coverage containment');
+  for (let action = 0; action < 2; action++) {
+    const before = await currentMap();
+    await page.locator('.leaflet-control-zoom-out').first().press('Enter');
+    await page.waitForTimeout(700);
+    const after = await currentMap();
+    report.cases.push({ name: 'Maximum-height export escapes overview containment', before: before.zoom, after: after.zoom });
+    assert.ok(after.zoom < 14 && after.zoom < before.zoom - 0.01, 'outward input escapes the tall overview frame instead of snapping back');
+    const maps = (await read()).maps;
+    assert.ok(Math.abs(maps.find(map => !map.dataset.printExportMapFrame).zoom - maps.find(map => map.dataset.printExportMapFrame).zoom) < 0.001, 'tall preview and capture retain the same outward camera');
   }
   for (let round = 0; round < Number(process.argv.find(a => a.startsWith('--rounds='))?.slice(9) || 10); round++) {
     await resetMap();

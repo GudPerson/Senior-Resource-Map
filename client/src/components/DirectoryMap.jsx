@@ -2215,13 +2215,14 @@ function DirectoryMapFixedTownResizeContainmentSync({
             if (map._rotate && (map.getBearing() !== 0 || isCareMapGestureActive(map))) return;
             const currentZoom = Number(map.getZoom());
             const normalizedMinZoom = Number(minZoom);
+            const displayZoom = resolveFixedTownDisplayZoomStep({
+                zoom: currentZoom,
+                preserveContainmentStep: true,
+            });
             if (shouldDeferFixedTownContainmentToLowerTier({
                 // Match the renderer's tier while React switches the manifest.
                 // Native containment must not cancel a move into the overview.
-                zoom: resolveFixedTownDisplayZoomStep({
-                    zoom: currentZoom,
-                    preserveContainmentStep: true,
-                }),
+                zoom: displayZoom,
                 activeMinZoom: normalizedMinZoom,
                 transitionMinZoom,
             })) {
@@ -2230,7 +2231,8 @@ function DirectoryMapFixedTownResizeContainmentSync({
             if (
                 !Number.isFinite(currentZoom)
                 || !Number.isFinite(normalizedMinZoom)
-                || !isFixedTownSurfaceZoomEligible(currentZoom, normalizedMinZoom)
+                // Overview containment must also yield when Standard takes over.
+                || !isFixedTownSurfaceZoomEligible(displayZoom, normalizedMinZoom)
             ) {
                 return;
             }
