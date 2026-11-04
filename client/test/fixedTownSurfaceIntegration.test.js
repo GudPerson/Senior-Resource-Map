@@ -75,7 +75,7 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /areWsenBoundsContained\(viewportBounds, surfaceBounds\)/);
     assert.match(
         directoryMapSource,
-        /normalizeStandardZoomBelow=\{shouldGateTownRequestedLiveTiles\s*\?\s*resolvedFixedTownTransitionMinZoom/,
+        /normalizeStandardZoomBelow=\{shouldGateTownRequestedLiveTiles\s*&&\s*resolvedZoomControlStep\s*>=\s*1\s*\?\s*resolvedFixedTownTransitionMinZoom/,
     );
     assert.match(
         directoryMapSource,
@@ -136,7 +136,8 @@ test('directory map keeps Live as the default and resolves Town locally from set
     assert.match(directoryMapSource, /shouldCapTownRequestedLiveTiles = shouldCapFixedTownRequestedLiveTiles/);
     assert.match(directoryMapSource, /viewportEligible: fixedTownSurfaceViewportEligible/);
     assert.match(directoryMapSource, /surfaceFaulted: Boolean\(fixedTownSurfaceFaultReason\)/);
-    assert.match(directoryMapSource, /maxZoom=\{shouldCapTownRequestedLiveTiles/);
+    assert.match(directoryMapSource, /const liveTileMaxZoom = shouldCapTownRequestedLiveTiles/);
+    assert.match(directoryMapSource, /maxZoom=\{liveTileMaxZoom\}/);
     assert.match(directoryMapSource, /fixedTownSurfaceFaultReason === 'viewport-memory-limit'/);
     assert.match(directoryMapSource, /shouldRetryFixedTownSurfaceMemoryFallback\(\{/);
     assert.match(directoryMapSource, /fallbackZoom: fixedTownSurfaceFaultZoomRef\.current/);
