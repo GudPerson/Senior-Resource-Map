@@ -269,6 +269,7 @@ export default function PrintAnnotationToolbar({
             className={`absolute left-3 right-3 bottom-3 lg:right-auto lg:bottom-auto lg:top-3 z-[1100] ${detailsOpen ? 'max-h-[calc(100%-1.5rem)]' : 'max-h-[65%]'} lg:max-h-[calc(100%-1.5rem)] lg:w-[320px] max-w-[calc(100%-1.5rem)] flex flex-col overflow-hidden overscroll-contain rounded-lg border border-slate-200 bg-white/95 p-2 lg:p-3 shadow-xl backdrop-blur`}
             data-print-annotation-toolbar="true"
             data-print-annotation-toolbar-embedded={embedded}
+            data-care-map-gesture-ui="true"
         >
             <div className="flex shrink-0 items-center justify-between gap-2">
                 <div className="flex items-center gap-2">

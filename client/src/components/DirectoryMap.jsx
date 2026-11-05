@@ -3792,12 +3792,13 @@ export default function DirectoryMap({
                 <DirectoryMapInstanceSync onMapReady={(map) => {
                     mapInstanceRef.current = map;
                 }} />
-                {careMapRotationEnabled && <CareMapGestureControl configuration={careMapGestures} interactive={interactive} />}
+                {careMapRotationEnabled && <CareMapGestureControl configuration={careMapGestures} interactive={interactive} cameraViewState={mapViewState} />}
                 <DirectoryMapFrameResizeSync
                     enabled={observeFrameResize}
                     frameRef={mapFrameRef}
                 />
                 <DirectoryMapRequestedScaleSync
+                    desktopWheelPolicy={careMapGestures?.desktopWheelPolicy}
                     enabled={interactive && fixedTownOverviewConfigured && Boolean(fixedTownOverviewSurfaceManifest)
                         && Boolean(onFixedTownSurfaceRequestedScaleChange)}
                     preferenceRef={requestedScaleRef}

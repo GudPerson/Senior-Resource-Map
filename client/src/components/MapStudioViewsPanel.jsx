@@ -25,6 +25,7 @@ import {
 import { useConfirmDialog } from './ConfirmDialog.jsx';
 import MapStudioDesignControls from './MapStudioDesignControls.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { useOwnerMapEditingCanvas } from '../contexts/OwnerMapEditingCanvasContext.jsx';
 import { api } from '../lib/api.js';
 import {
     acknowledgeMapStudioOwnerSave,
@@ -81,6 +82,8 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
     onSaveStateChange = null,
 }, ref) {
     const { t } = useLocale();
+    const editingCanvas = useOwnerMapEditingCanvas();
+    const canvasPanelHidden = Boolean(editingCanvas?.active && editingCanvas.panel !== 'studio');
     const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const defaultsRef = useRef({ mapStyle: defaultMapStyle, detailMode: defaultDetailMode });
     const tRef = useRef(t);
@@ -356,7 +359,7 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
     }, [dirty]);
 
     useEffect(() => {
-        if (!designSettingsOpen || presentation === 'workspace') return undefined;
+        if (!designSettingsOpen || presentation === 'workspace' || canvasPanelHidden) return undefined;
         const handleDesignSettingsKeyDown = (event) => {
             if (event.key !== 'Escape') return;
             event.preventDefault();
@@ -364,17 +367,17 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
         };
         window.addEventListener('keydown', handleDesignSettingsKeyDown);
         return () => window.removeEventListener('keydown', handleDesignSettingsKeyDown);
-    }, [designSettingsOpen, presentation]);
+    }, [canvasPanelHidden, designSettingsOpen, presentation]);
 
     useEffect(() => {
-        if (!designSettingsOpen || designSettingsCollapsed || presentation === 'workspace') return undefined;
+        if (!designSettingsOpen || designSettingsCollapsed || presentation === 'workspace' || canvasPanelHidden) return undefined;
         const handleDesignSettingsOutsidePointer = (event) => {
             if (designSettingsPanelRef.current?.contains(event.target)) return;
             setDesignSettingsCollapsed(true);
         };
         document.addEventListener('pointerdown', handleDesignSettingsOutsidePointer, true);
         return () => document.removeEventListener('pointerdown', handleDesignSettingsOutsidePointer, true);
-    }, [designSettingsCollapsed, designSettingsOpen, presentation]);
+    }, [canvasPanelHidden, designSettingsCollapsed, designSettingsOpen, presentation]);
 
     const closeDesignSettings = useCallback(() => {
         setDesignSettingsOpen(false);
