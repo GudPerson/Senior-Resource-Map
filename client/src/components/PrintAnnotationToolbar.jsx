@@ -3,6 +3,7 @@ import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getAnnotationMessages } from '../lib/annotationMessages.js';
 import { getKmlBoundaryMessages } from '../lib/kmlBoundaryMessages.js';
 import { getMapNoteImageMessages } from '../lib/mapNoteImageMessages.js';
+import { getAnnotationToolMessages } from '../lib/annotationToolMessages.js';
 
 import {
     ArrowDown,
@@ -184,11 +185,15 @@ export default function PrintAnnotationToolbar({
     onClose,
     embedded = false,
     closeDisabled = false,
+    modeControls = null,
+    measurementControls = null,
+    creationLimitReached = false,
 }) {
     const { locale } = useLocale();
     const messages = getAnnotationMessages(locale);
     const boundaryMessages = getKmlBoundaryMessages(locale);
     const mobileMessages = getMapNoteImageMessages(locale);
+    const toolMessages = getAnnotationToolMessages(locale);
     const [detailsOpen, setDetailsOpen] = useState(embedded);
     const [textBuffer, setTextBuffer] = useState(selectedAnnotation?.text ?? draftText);
     const [styleBuffer, setStyleBuffer] = useState(selectedAnnotation?.style ?? draftStyle);
@@ -274,7 +279,7 @@ export default function PrintAnnotationToolbar({
             <div className="flex shrink-0 items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     <CircleDot size={17} className="text-brand-700" aria-hidden="true" />
-                    <span className="text-sm font-bold text-slate-900">Annotations</span>
+                    <span className="text-sm font-bold text-slate-900">{modeControls ? toolMessages.title : 'Annotations'}</span>
                 </div>
                 <button type="button" className="ml-auto min-h-11 rounded-md px-2 text-xs font-bold text-brand-800 lg:hidden"
                     aria-expanded={detailsOpen} onClick={() => setDetailsOpen(value => !value)}>
@@ -285,12 +290,18 @@ export default function PrintAnnotationToolbar({
                 </IconButton>
             </div>
 
+            {modeControls}
+            {measurementControls ? <div className="min-h-0 overflow-y-auto overscroll-contain">{measurementControls}</div> : <>
+            {modeControls ? <p className="mb-2 text-xs leading-5 text-slate-600">{toolMessages.drawingHelp}</p> : null}
+            {creationLimitReached ? <p role="status" data-annotation-capacity-notice
+                className="my-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs leading-5 text-amber-900">{toolMessages.capacity}</p> : null}
             <div className="mt-1 flex shrink-0 gap-1 overflow-x-auto pb-1 lg:mt-3 lg:grid lg:grid-cols-4 lg:overflow-visible lg:pb-0">
                 {TOOL_OPTIONS.map(({ value, label, Icon }) => (
                     <IconButton
                         key={value}
                         label={label}
                         active={tool === value}
+                        disabled={creationLimitReached && PRINT_ANNOTATION_DRAW_TOOLS.has(value)}
                         onClick={() => onToolChange?.(value)}
                     >
                         <Icon size={16} />
@@ -696,6 +707,7 @@ export default function PrintAnnotationToolbar({
                     ) : null}
                 </div>
             </div>
+            </>}
         </div>
     );
 }

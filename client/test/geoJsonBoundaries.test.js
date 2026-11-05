@@ -125,14 +125,14 @@ test('1,000 corners include the holes of each part, with no simplification or in
     assert.equal(parse(feature([[outer], [circle(1001)]], {}, 'MultiPolygon')).boundaries.length, 0);
 });
 
-test('GeoJSON uses the unchanged combined 20,000 stored-point and 100-annotation limits', () => {
+test('GeoJSON retains the 20,000 stored-point budget and accepts the 200-annotation capacity', () => {
     const parsed = parse(collection(Array.from({ length: 10 }, (_, i) => feature([circle(1000)], { name: `Area ${i}` }))));
     const full = appendKmlBoundaries([], parsed.boundaries);
     assert.equal(full.reduce((sum, item) => sum + item.points.length + item.controlPoints.length, 0), 20000);
     const before = JSON.stringify(full);
     assert.throws(() => appendKmlBoundaries(full, parse(feature()).boundaries), code('budget'));
     assert.equal(JSON.stringify(full), before);
-    assert.equal(getKmlImportCapacity(Array.from({ length: 100 }, () => ({ points: [] })), parse(feature()).boundaries), 'count');
+    assert.equal(getKmlImportCapacity(Array.from({ length: 200 }, () => ({ points: [] })), parse(feature()).boundaries), 'count');
     assert.deepEqual(normalizePrintAnnotations(JSON.parse(before)), full);
 });
 

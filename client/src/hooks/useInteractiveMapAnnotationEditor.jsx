@@ -5,6 +5,9 @@ import PrintAnnotationToolbar from '../components/PrintAnnotationToolbar.jsx';
 import AnnotationImageUpload from '../components/AnnotationImageUpload.jsx';
 import AnnotationResourcePicker from '../components/AnnotationResourcePicker.jsx';
 import KmlBoundaryImport from '../components/KmlBoundaryImport.jsx';
+import TemporaryMapMeasurementLayer from '../components/TemporaryMapMeasurementLayer.jsx';
+import { AnnotationToolModeControls, TemporaryMapMeasurementControls } from '../components/AnnotationToolModeControls.jsx';
+import useTemporaryMapMeasurement from './useTemporaryMapMeasurement.js';
 import { appendKmlBoundaries } from '../lib/kmlBoundaries.js';
 import { getAnnotationResourceLinkBudget } from '../lib/annotationResourceLinks.js';
 import {
@@ -16,6 +19,7 @@ import {
     PRINT_ANNOTATION_TOOL_RECTANGLE,
     PRINT_ANNOTATION_TOOL_CIRCLE,
     PRINT_ANNOTATION_TOOL_SELECT,
+    PRINT_ANNOTATION_MAX_COUNT,
     createPrintAnnotation,
     canAddPrintAnnotation,
     duplicatePrintAnnotation,
@@ -39,6 +43,8 @@ export default function useInteractiveMapAnnotationEditor({
     canRedo = false,
     onClose = null,
     toolbarInInspector = false,
+    temporaryMeasurementEnabled = false,
+    measurementScopeKey = '',
     onFindWithinArea = null,
 } = {}) {
     const [tool, setTool] = useState(PRINT_ANNOTATION_TOOL_SELECT);
@@ -47,6 +53,10 @@ export default function useInteractiveMapAnnotationEditor({
     const [draftText, setDraftText] = useState('');
     const [draftStyle, setDraftStyle] = useState(DEFAULT_PRINT_ANNOTATION_STYLE);
     const [draftImage, setDraftImage] = useState(null);
+    const [measuring, setMeasuring] = useState(false);
+    const measurementActive = enabled && temporaryMeasurementEnabled && measuring;
+    const temporaryMeasurement = useTemporaryMapMeasurement({ enabled: measurementActive, mapId, scopeKey: measurementScopeKey });
+    const clearTemporaryMeasurement = temporaryMeasurement.clear;
     const selectedIndex = annotations.findIndex((annotation) => annotation.id === selectedId);
     const selectedAnnotation = useMemo(() => (
         annotations.find((annotation) => annotation.id === selectedId) || null
@@ -67,18 +77,25 @@ export default function useInteractiveMapAnnotationEditor({
         setTool(PRINT_ANNOTATION_TOOL_SELECT);
     }, [mapId]);
 
+    useEffect(() => {
+        if (!enabled || !temporaryMeasurementEnabled) setMeasuring(false);
+    }, [enabled, temporaryMeasurementEnabled]);
+
     const cancelDraft = useCallback(() => {
         setDraftPoints([]);
         setDraftImage(null);
         setTool(PRINT_ANNOTATION_TOOL_SELECT);
-    }, []);
+        setMeasuring(false);
+        clearTemporaryMeasurement();
+    }, [clearTemporaryMeasurement]);
 
     const handleToolChange = useCallback((nextTool) => {
+        if (PRINT_ANNOTATION_DRAW_TOOLS.has(nextTool) && !canAddPrintAnnotation(annotations, nextTool)) return;
         setTool(nextTool);
         if (PRINT_ANNOTATION_DRAW_TOOLS.has(nextTool)) setSelectedId(null);
         setDraftPoints([]);
         if (nextTool !== 'image') setDraftImage(null);
-    }, []);
+    }, [annotations]);
 
     const handleCreate = useCallback((type, points) => {
         if (!canAddPrintAnnotation(annotations, type)) return;
@@ -177,6 +194,11 @@ export default function useInteractiveMapAnnotationEditor({
     }, [replaceAnnotations, selectedId]);
 
     const hasUnfinishedDraft = draftPoints.length > 0 || Boolean(draftImage);
+    const handleMeasurementModeChange = (nextMeasuring) => {
+        if (nextMeasuring && hasUnfinishedDraft) return;
+        clearTemporaryMeasurement();
+        setMeasuring(nextMeasuring);
+    };
     const closeEditor = useCallback(() => {
         if (toolbarInInspector && hasUnfinishedDraft) return;
         saveNow?.();
@@ -184,9 +206,10 @@ export default function useInteractiveMapAnnotationEditor({
     }, [hasUnfinishedDraft, onClose, saveNow, toolbarInInspector]);
 
     const mapOverlay = enabled ? (
+        <>
         <PrintAnnotationLayer
             annotations={annotations}
-            editable
+            editable={!measurementActive}
             tool={tool}
             selectedId={selectedId}
             draftPoints={draftPoints}
@@ -206,6 +229,9 @@ export default function useInteractiveMapAnnotationEditor({
             onCreate={handleCreate}
             onCancel={cancelDraft}
         />
+        {measurementActive ? <TemporaryMapMeasurementLayer measurement={temporaryMeasurement.measurement}
+            onPoint={temporaryMeasurement.addPoint} /> : null}
+        </>
     ) : null;
 
     const surfaceOverlay = enabled ? (
@@ -213,6 +239,12 @@ export default function useInteractiveMapAnnotationEditor({
             embedded={toolbarInInspector}
             closeDisabled={toolbarInInspector && hasUnfinishedDraft}
             tool={tool}
+            modeControls={temporaryMeasurementEnabled ? <AnnotationToolModeControls measuring={measuring}
+                hasUnfinishedDrawing={hasUnfinishedDraft} onChange={handleMeasurementModeChange} /> : null}
+            measurementControls={measurementActive ? <TemporaryMapMeasurementControls
+                measurement={temporaryMeasurement.measurement} onKindChange={temporaryMeasurement.chooseKind}
+                onClear={clearTemporaryMeasurement} /> : null}
+            creationLimitReached={annotations.length >= PRINT_ANNOTATION_MAX_COUNT}
             draftText={draftText}
             draftStyle={draftStyle}
             draftPointCount={draftPoints.length}
@@ -227,7 +259,7 @@ export default function useInteractiveMapAnnotationEditor({
             canDuplicateSelected={Boolean(selectedAnnotation && canAddPrintAnnotation(annotations, selectedAnnotation.type, selectedAnnotation.resourceLinks))}
             importControls={mapId ? (
                 <KmlBoundaryImport mapId={mapId} annotations={annotations}
-                    disabled={['idle', 'loading', 'error'].includes(status)}
+                    disabled={['idle', 'loading', 'error'].includes(status) || annotations.length >= PRINT_ANNOTATION_MAX_COUNT}
                     onImport={(boundaries) => {
                         let importedId = null;
                         replaceAnnotations?.((current) => {
@@ -277,5 +309,6 @@ export default function useInteractiveMapAnnotationEditor({
 
     return { mapOverlay, surfaceOverlay: toolbarInInspector ? null : surfaceOverlay,
         inspectorControls: toolbarInInspector ? surfaceOverlay : null, hasUnfinishedDraft,
+        hasTemporaryMeasurement: temporaryMeasurement.hasMeasurement, clearTemporaryMeasurement,
         tool, cancelDraft, selectTool: handleToolChange };
 }

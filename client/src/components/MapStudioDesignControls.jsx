@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { ChevronDown, PanelLeft, PanelRight, X } from 'lucide-react';
 
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import AnnotationLayerManager from './AnnotationLayerManager.jsx';
 import {
     MAP_STUDIO_PIN_STYLE_BUBBLE,
     MAP_STUDIO_PIN_STYLE_CATEGORY_ICON,
@@ -98,6 +99,12 @@ export default function MapStudioDesignControls({
     design,
     resourceLayerCatalog = null,
     annotationLayerCatalog = [],
+    onAnnotationGroupChange = null,
+    onAnnotationGroupUndo = null,
+    canUndoAnnotationGroup = false,
+    onAnnotationGroupRetry = null,
+    canRetryAnnotationGroup = false,
+    annotationGroupsDisabled = true,
     panelSide = MAP_STUDIO_LAYOUT_PANEL_SIDE_RIGHT,
     onPanelSideChange = null,
     onPatch = null,
@@ -121,12 +128,6 @@ export default function MapStudioDesignControls({
     const hiddenAnnotationIds = new Set(normalizePrintMapHiddenLayerKeys(
         value.layers.hiddenAnnotationIds,
     ));
-    const toggleAnnotation = (annotationId) => {
-        const nextHiddenIds = new Set(hiddenAnnotationIds);
-        if (nextHiddenIds.has(annotationId)) nextHiddenIds.delete(annotationId);
-        else nextHiddenIds.add(annotationId);
-        onPatch?.({ layers: { hiddenAnnotationIds: [...nextHiddenIds] } });
-    };
     const labelOptions = [
         { value: PRINT_MAP_LABEL_DETAIL_NAMES, label: t('printLabelNamesOnly') },
         { value: PRINT_MAP_LABEL_DETAIL_LOGOS, label: t('printLabelNamesLogos') },
@@ -333,14 +334,12 @@ export default function MapStudioDesignControls({
                         />
                         <div className="border-t border-slate-200 p-3">
                             <p className="mb-2 text-xs font-medium leading-4 text-slate-500">{t('mapStudioAnnotationItemsHelp')}</p>
-                            <div className="space-y-2">
-                                {annotationLayerCatalog.map((annotation) => (
-                                    <label key={annotation.id} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700">
-                                        <input type="checkbox" checked={!hiddenAnnotationIds.has(annotation.id)} onChange={() => toggleAnnotation(annotation.id)} disabled={disabled} className="h-5 w-5 rounded border-slate-300 text-brand-700 focus:ring-brand-200" />
-                                        <span className="min-w-0 truncate">{annotation.label}</span>
-                                    </label>
-                                ))}
-                            </div>
+                            <AnnotationLayerManager catalog={annotationLayerCatalog} hiddenIds={[...hiddenAnnotationIds]}
+                                onVisibilityChange={nextHiddenIds => onPatch?.({ layers: { hiddenAnnotationIds: nextHiddenIds } })}
+                                onGroupChange={onAnnotationGroupChange} onGroupUndo={onAnnotationGroupUndo}
+                                canUndoGroup={canUndoAnnotationGroup} onGroupRetry={onAnnotationGroupRetry} canRetryGroup={canRetryAnnotationGroup}
+                                catalogReady={!annotationGroupsDisabled}
+                                groupsDisabled={annotationGroupsDisabled} disabled={disabled} />
                         </div>
                     </details>
                 ) : null}

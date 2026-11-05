@@ -52,7 +52,7 @@ test('exact display and transform previews bypass rounding while hand-drawn poly
     assert.notDeepEqual(buildPrintAnnotationPolygonPoints(drawing), points);
 });
 test('count and combined corner budgets reject the entire import without changing existing document', () => {
-    const existing = Array.from({ length: 100 }, (_, i) => ({ id: `a_${i}`, points: [[1, 103]] }));
+    const existing = Array.from({ length: 200 }, (_, i) => ({ id: `a_${i}`, points: [[1, 103]] }));
     const before = JSON.stringify(existing);
     assert.equal(getKmlImportCapacity(existing, [area]), 'count');
     assert.throws(() => appendKmlBoundaries(existing, [area]), code('count'));

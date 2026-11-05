@@ -61,9 +61,9 @@ function createViewEntropy(sequence) {
     return randomId || `${Date.now().toString(36)}-${sequence}`;
 }
 
-function StudioViewActions({ workspace, label, children }) {
-    if (!workspace) return children;
-    return <details data-owner-workspace-view-actions="true" className="owner-workspace-view-actions"
+function StudioViewActions({ workspace, canvas, label, children }) {
+    if (!workspace && !canvas) return children;
+    return <details data-owner-workspace-view-actions="true" className={`owner-workspace-view-actions${canvas ? ' map-studio-canvas-view-actions' : ''}`}
         onClick={event => { if (event.target.closest('button')) event.currentTarget.open = false; }}>
         <summary aria-label={label}><MoreHorizontal size={19} aria-hidden="true" /><span className="sr-only">{label}</span></summary>
         {children}
@@ -77,13 +77,21 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
     defaultDetailMode = 'auto',
     resourceLayerCatalog = null,
     annotationLayerCatalog = [],
+    onAnnotationGroupChange = null,
+    onAnnotationGroupUndo = null,
+    canUndoAnnotationGroup = false,
+    onAnnotationGroupRetry = null,
+    canRetryAnnotationGroup = false,
+    annotationGroupsDisabled = true,
     onOwnerSessionChange = null,
     presentation = 'current',
     onSaveStateChange = null,
 }, ref) {
     const { t } = useLocale();
     const editingCanvas = useOwnerMapEditingCanvas();
-    const canvasPanelHidden = Boolean(editingCanvas?.active && editingCanvas.panel !== 'studio');
+    const canvasActive = Boolean(editingCanvas?.active);
+    const canvasPanelHidden = canvasActive && editingCanvas.panel !== 'studio';
+    const compactViewActions = presentation === 'workspace' || canvasActive;
     const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const defaultsRef = useRef({ mapStyle: defaultMapStyle, detailMode: defaultDetailMode });
     const tRef = useRef(t);
@@ -359,7 +367,7 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
     }, [dirty]);
 
     useEffect(() => {
-        if (!designSettingsOpen || presentation === 'workspace' || canvasPanelHidden) return undefined;
+        if (!designSettingsOpen || presentation === 'workspace' || canvasActive || canvasPanelHidden) return undefined;
         const handleDesignSettingsKeyDown = (event) => {
             if (event.key !== 'Escape') return;
             event.preventDefault();
@@ -367,17 +375,17 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
         };
         window.addEventListener('keydown', handleDesignSettingsKeyDown);
         return () => window.removeEventListener('keydown', handleDesignSettingsKeyDown);
-    }, [canvasPanelHidden, designSettingsOpen, presentation]);
+    }, [canvasActive, canvasPanelHidden, designSettingsOpen, presentation]);
 
     useEffect(() => {
-        if (!designSettingsOpen || designSettingsCollapsed || presentation === 'workspace' || canvasPanelHidden) return undefined;
+        if (!designSettingsOpen || designSettingsCollapsed || presentation === 'workspace' || canvasActive || canvasPanelHidden) return undefined;
         const handleDesignSettingsOutsidePointer = (event) => {
             if (designSettingsPanelRef.current?.contains(event.target)) return;
             setDesignSettingsCollapsed(true);
         };
         document.addEventListener('pointerdown', handleDesignSettingsOutsidePointer, true);
         return () => document.removeEventListener('pointerdown', handleDesignSettingsOutsidePointer, true);
-    }, [canvasPanelHidden, designSettingsCollapsed, designSettingsOpen, presentation]);
+    }, [canvasActive, canvasPanelHidden, designSettingsCollapsed, designSettingsOpen, presentation]);
 
     const closeDesignSettings = useCallback(() => {
         setDesignSettingsOpen(false);
@@ -542,8 +550,9 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                 aria-labelledby={`map-studio-title-${mapId}`}
                 data-map-studio-owner-panel="true"
                 data-map-studio-presentation={presentation}
+                data-map-studio-canvas={canvasActive ? 'true' : undefined}
             >
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
+                <div data-map-studio-top-controls="true" className="flex flex-col gap-4 xl:flex-row xl:items-center">
                     <div data-map-studio-heading="true" className="flex min-w-0 items-center gap-3 xl:w-[220px] xl:flex-shrink-0">
                         <span className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
                             <Layers3 size={20} aria-hidden="true" />
@@ -562,6 +571,10 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                                             : t('mapStudioAllChangesSaved')}
                             </p>
                         </div>
+                        {canvasActive ? <button type="button" className="map-studio-canvas-close"
+                            aria-label={editingCanvas.messages.closePanel} onClick={editingCanvas.closePanel}>
+                            <X size={18} aria-hidden="true" />
+                        </button> : null}
                     </div>
 
                     {loading ? (
@@ -578,7 +591,7 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                             </button>
                         </div>
                     ) : (
-                        <div className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-end" data-map-studio-workspace-view-row={presentation === 'workspace' ? 'true' : undefined}>
+                        <div className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-end" data-map-studio-view-controls="true" data-map-studio-workspace-view-row={presentation === 'workspace' ? 'true' : undefined}>
                             <label className="min-w-0 flex-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500" htmlFor={`map-studio-view-${mapId}`}>
                                 {t('mapStudioView')}
                                 <select
@@ -596,7 +609,7 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                                 </select>
                             </label>
 
-                            <StudioViewActions workspace={presentation === 'workspace'} label={t('mapStudioViewActions')}>
+                            <StudioViewActions workspace={presentation === 'workspace'} canvas={canvasActive} label={t('mapStudioViewActions')}>
                             <div className="flex flex-wrap gap-2" aria-label={t('mapStudioViewActions')}>
                                 <button type="button" onClick={openCreateEditor} disabled={saving || ownerState.workingDocument.views.length >= MAP_STUDIO_MAX_VIEWS} className="btn-ghost min-h-11 flex-1 justify-center border border-slate-200 px-3 text-xs text-slate-700 sm:flex-none sm:text-sm">
                                     <Plus size={16} aria-hidden="true" />
@@ -618,12 +631,12 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                                     <Trash2 size={16} aria-hidden="true" />
                                     {t('delete')}
                                 </button>
-                                {presentation === 'workspace' ? discardControl : null}
+                                {compactViewActions ? discardControl : null}
                             </div>
 
                             </StudioViewActions>
-                            <div className="flex gap-2 lg:ml-auto" hidden={presentation === 'workspace' && (saveStatus !== 'error' || conflict)}>
-                                {presentation !== 'workspace' ? discardControl : null}
+                            <div data-map-studio-save-actions="true" className="flex gap-2 lg:ml-auto" hidden={compactViewActions && (saveStatus !== 'error' || conflict)}>
+                                {!compactViewActions ? discardControl : null}
                                 {saveStatus === 'error' && !conflict ? (
                                     <button type="button" onClick={handleRetrySave} disabled={saving} className="btn-primary min-h-11 flex-1 justify-center px-4 text-xs disabled:opacity-45 sm:text-sm lg:flex-none">
                                         <RefreshCw size={16} aria-hidden="true" />
@@ -642,7 +655,7 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                         <div
                             ref={designSettingsPanelRef}
                             id={`map-studio-design-settings-${mapId}`}
-                            role={presentation === 'workspace' || designSettingsCollapsed ? 'region' : 'dialog'}
+                            role={presentation === 'workspace' || canvasActive || designSettingsCollapsed ? 'region' : 'dialog'}
                             aria-label={t('editLayout')}
                             className={`w-full lg:absolute lg:top-[calc(100%+12px)] lg:z-20 lg:w-[420px] lg:max-w-[calc(100vw-2rem)] lg:rounded-2xl lg:bg-white lg:shadow-2xl ${
                                 designSettingsCollapsed
@@ -684,10 +697,16 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                                     design={ownerState.session.draftDesign}
                                     resourceLayerCatalog={resourceLayerCatalog}
                                     annotationLayerCatalog={annotationLayerCatalog}
+                                    onAnnotationGroupChange={onAnnotationGroupChange}
+                                    onAnnotationGroupUndo={onAnnotationGroupUndo}
+                                    canUndoAnnotationGroup={canUndoAnnotationGroup}
+                                    onAnnotationGroupRetry={onAnnotationGroupRetry}
+                                    canRetryAnnotationGroup={canRetryAnnotationGroup}
+                                    annotationGroupsDisabled={annotationGroupsDisabled}
                                     panelSide={designSettingsSide}
-                                    onPanelSideChange={presentation === 'workspace' ? null : handleDesignSettingsSideChange}
+                                    onPanelSideChange={compactViewActions ? null : handleDesignSettingsSideChange}
                                     onPatch={handleDesignPatch}
-                                    onClose={presentation === 'workspace' ? null : closeDesignSettings}
+                                    onClose={compactViewActions ? null : closeDesignSettings}
                                     heading={presentation === 'workspace' ? t('mapWorkspaceSavedDesign') : undefined}
                                     helpText={presentation === 'workspace' ? t('mapWorkspaceDesignHelp') : undefined}
                                     disabled={Boolean(editorMode)}

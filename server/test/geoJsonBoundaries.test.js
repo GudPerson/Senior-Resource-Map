@@ -38,8 +38,8 @@ test('GeoJSON private annotations are excluded from both public snapshot paths e
 
 test('the unchanged server budget includes both coordinate arrays for GeoJSON and existing annotations', () => {
     const imported = area();
-    const annotations = Array.from({ length: 100 }, (_, i) => ({ ...imported, id: `area_${i}` }));
-    assert.equal(validate(annotations).annotations.length, 100);
+    const annotations = Array.from({ length: 200 }, (_, i) => ({ ...imported, id: `area_${i}` }));
+    assert.equal(validate(annotations).annotations.length, 200);
     assert.throws(() => validate([...annotations, { ...imported, id: 'extra' }]), /Print annotations is invalid/);
     const points = Array.from({ length: 1000 }, (_, i) => [1.3 + Math.sin(i * Math.PI * 2 / 1000) * 0.001, 103.7 + Math.cos(i * Math.PI * 2 / 1000) * 0.001]);
     const full = appendKmlBoundaries([], [{ name: 'Full exact geometry', points: Array.from({ length: 10 }, () => points).flat(),

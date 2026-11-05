@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-    AlertTriangle, CheckCircle2, ChevronDown, Clock3, Download, Layers3,
-    List, LoaderCircle, Maximize2, Minimize2, Pencil, Plus, Ruler, Share2, X,
+    AlertTriangle, CheckCircle2, Clock3, Download, Layers3,
+    List, LoaderCircle, Maximize2, Minimize2, Pencil, Plus, Share2, X,
 } from 'lucide-react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { OwnerMapEditingCanvasContext } from '../contexts/OwnerMapEditingCanvasContext.jsx';
@@ -45,6 +45,8 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
     const handleEscape = useCallback(() => {
         if (configRef.current.hasUnfinishedDraft) {
             configRef.current.onCancelAnnotationDraft?.();
+        } else if (configRef.current.hasTemporaryMeasurement) {
+            configRef.current.onClearTemporaryMeasurement?.();
         } else if (panel) closePanel();
         else exit();
     }, [closePanel, exit, panel]);
@@ -78,19 +80,18 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
 
     const openTool = (name, event) => {
         lastTriggerRef.current = event?.currentTarget || lastTriggerRef.current;
-        const keepsCurrentDraft = name === 'draw' || (name === 'measure' && config.annotationTool === 'circle');
+        const keepsCurrentDraft = name === 'draw';
         if (config.hasUnfinishedDraft && !keepsCurrentDraft) {
             setNotice(messages.finishDraft);
             return;
         }
         setNotice('');
         if (name === 'share') { config.onOpenShare?.(); return; }
-        const target = ['draw', 'measure'].includes(name) ? 'annotations' : name;
+        const target = name === 'draw' ? 'annotations' : name;
         if (config.annotationEditing && target !== 'annotations') config.onCancelAnnotationDraft?.();
-        if (target === panel && !['draw', 'measure'].includes(name)) { closePanel(); return; }
+        if (target === panel && name !== 'draw') { closePanel(); return; }
         if (target === 'annotations') {
             if (!config.annotationEditing) config.onToggleAnnotations?.();
-            if (name === 'measure' && config.annotationTool !== 'circle') config.onSelectAnnotationTool?.('circle');
         }
         if (target === 'studio') config.onOpenStudio?.();
         setPanel(target);
@@ -112,19 +113,16 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
             : saves.combined === 'pending' ? Clock3 : CheckCircle2;
     const statusError = config.studioState?.loadError || config.studioState?.actionError
         || config.annotationError || config.actionError || '';
-    const viewOptions = config.studioState?.viewOptions || [];
-    const viewDisabled = !viewOptions.length || config.studioState?.loading || config.studioState?.saving
-        || config.annotationEditing || config.personalPlacePickerActive;
+    const activeViewName = config.studioState?.activeViewName || messages.loading;
     const tools = [
         ['content', messages.content, List],
-        ['draw', messages.draw, Pencil, !config.canEditAnnotations || !config.annotationsReady],
-        ['measure', messages.measure, Ruler, !config.canEditAnnotations || !config.annotationsReady],
+        ['draw', messages.drawMeasure, Pencil, !config.canEditAnnotations || !config.annotationsReady],
         ['studio', t('mapStudioTitle'), Layers3, config.editLayoutDisabled],
         ['resources', messages.resources, List],
         ['export', messages.export, Download],
     ];
     const toolDisabled = (name, disabled = false) => disabled || (config.hasUnfinishedDraft
-        && !(name === 'draw' || (name === 'measure' && config.annotationTool === 'circle')));
+        && name !== 'draw');
     const menuItems = [...tools, ['share', t('share'), Share2]].map(([name, text, Icon, disabled]) => ({
         name, text, Icon, disabled: toolDisabled(name, disabled),
         guidance: config.hasUnfinishedDraft && toolDisabled(name, disabled) ? messages.finishDraft : '',
@@ -155,18 +153,14 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
                     </button>
                     {active ? <>
                         <div ref={headerRef} className="owner-canvas-header">
-                            <div className="owner-canvas-identity">
-                                <h1 title={config.directory?.name}>{config.directory?.name}</h1>
-                                <span>{messages.title}</span>
-                            </div>
-                            <label className="owner-canvas-view">
-                                <span className="sr-only">{messages.view}</span>
-                                <select aria-label={messages.view} value={config.studioState?.activeViewId || ''}
-                                    disabled={viewDisabled} onChange={event => config.onSelectView?.(event.target.value)}>
-                                    {!viewOptions.length ? <option value="">{messages.loading}</option> : null}
-                                    {viewOptions.map(view => <option key={view.id} value={view.id}>{view.name}{view.isDefault ? ` · ${t('mapStudioDefault')}` : ''}</option>)}
-                                </select><ChevronDown size={14} aria-hidden="true" />
-                            </label>
+                            <button type="button" className="owner-canvas-identity" data-owner-canvas-context="true"
+                                aria-label={`${config.directory?.name || ''}; ${messages.view}: ${activeViewName}; ${t('mapStudioTitle')}`}
+                                disabled={toolDisabled('studio', config.editLayoutDisabled)}
+                                title={`${config.directory?.name || ''} · ${activeViewName}`}
+                                onClick={event => openTool('studio', event)}>
+                                <span className="owner-canvas-map-name">{config.directory?.name}</span>
+                                <span className="owner-canvas-view-name">{activeViewName}</span>
+                            </button>
                             <button type="button" className={`owner-canvas-save owner-canvas-save--${saves.combined}`}
                                 aria-label={statusLabel} title={statusLabel} data-owner-canvas-save={saves.combined}
                                 onClick={event => openTool(saves.annotations === 'failed' ? 'draw' : 'studio', event)}>
@@ -180,10 +174,8 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
                         </button>
                         <nav className="owner-canvas-rail" aria-label={messages.tools}>
                             {tools.map(([name, label, Icon, disabled]) => {
-                                const selected = name === 'draw' ? panel === 'annotations' && config.annotationTool !== 'circle'
-                                    : name === 'measure' ? panel === 'annotations' && config.annotationTool === 'circle'
-                                        : panel === name;
-                                const keepsCurrentDraft = name === 'draw' || (name === 'measure' && config.annotationTool === 'circle');
+                                const selected = name === 'draw' ? panel === 'annotations' : panel === name;
+                                const keepsCurrentDraft = name === 'draw';
                                 return <button type="button" key={name} data-owner-canvas-tool={name}
                                     aria-expanded={selected} disabled={toolDisabled(name, disabled)}
                                     title={config.hasUnfinishedDraft && !keepsCurrentDraft ? messages.finishDraft : undefined}
