@@ -46,6 +46,7 @@
 .owner-canvas-context-menu>button:disabled { opacity:.4; }
 .owner-canvas-alert { left:var(--owner-canvas-panel-left);top:calc(var(--owner-canvas-panel-top) - 3px);max-width:min(520px,calc(100vw - 180px));padding:10px 13px;border:1px solid #edcfa7;border-radius:10px;background:#fff7eb;color:#8e4c20;font-size:12px;box-shadow:0 4px 16px #183c4812; }
 [data-owner-canvas-resources-root], [data-owner-canvas-resources-body] { display:contents; }
+.owner-editing-canvas[data-owner-canvas-active="false"] [data-owner-canvas-resources-root] { display:block; }
 [data-owner-canvas-resources-heading] { display:none; }
 .owner-editing-canvas[data-owner-canvas-active="true"] [data-owner-canvas-resources-body] [data-directory-place-card],
 .owner-editing-canvas[data-owner-canvas-active="true"] [data-owner-canvas-resources-body] [data-directory-place-card] .transition-all { transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter; }
