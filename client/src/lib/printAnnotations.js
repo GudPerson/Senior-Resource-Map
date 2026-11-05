@@ -1,9 +1,11 @@
 import { getAnnotationResourceLinkBudget, normalizeAnnotationResourceLinks, normalizeAnnotationResourceBehaviour } from './annotationResourceLinks.js';
 import { isAnnotationResourceGlowColor, normalizeAnnotationResourceGlowColor } from '../../../shared/annotationAppearance.js';
+import { normalizeAnnotationGroupName } from '../../../shared/annotationGroups.js';
+import { PRINT_ANNOTATION_DOCUMENT_MAX_COUNT } from '../../../shared/printAnnotationLimits.js';
 import { KML_MAX_GEOMETRY_POINTS, normalizeKmlBoundaryParts, splitKmlBoundaryParts, orientKmlBoundaryDisplayParts } from '../../../shared/kmlBoundaryGeometry.js';
 
 export const PRINT_ANNOTATION_SCHEMA_VERSION = 1;
-export const PRINT_ANNOTATION_MAX_COUNT = 100;
+export const PRINT_ANNOTATION_MAX_COUNT = PRINT_ANNOTATION_DOCUMENT_MAX_COUNT;
 export const PRINT_ANNOTATION_MAX_IMAGES = 20;
 export const PRINT_ANNOTATION_MAX_POINTS = 500;
 export const PRINT_ANNOTATION_MAX_CONTROL_POINTS = 200;
@@ -276,6 +278,7 @@ export function normalizePrintAnnotation(annotation) {
     const id = String(annotation?.id || '').trim();
     if (!/^[a-z0-9_-]{1,80}$/i.test(id)) return null;
     const text = String(annotation?.text || '').trim().slice(0, 240);
+    const groupName = normalizeAnnotationGroupName(annotation?.groupName);
     if (type === PRINT_ANNOTATION_TOOL_PIN && !text) return null;
     const controlPoints = type === PRINT_ANNOTATION_TOOL_POLYGON
         ? normalizePointList(annotation?.controlPoints, boundary ? KML_MAX_GEOMETRY_POINTS : PRINT_ANNOTATION_MAX_CONTROL_POINTS)
@@ -313,6 +316,7 @@ export function normalizePrintAnnotation(annotation) {
             controlPoints: boundary ? polygonPoints : polygonPoints.slice(0, PRINT_ANNOTATION_MAX_CONTROL_POINTS),
         } : {}),
         ...(rotationDegrees ? { rotationDegrees } : {}),
+        ...(groupName ? { groupName } : {}),
         ...(image ? { image } : {}),
         ...(image && annotation.imageBorder === true ? { imageBorder: true } : {}),
         ...(resourceLinks.length ? { resourceLinks, resourceBehaviour: normalizeAnnotationResourceBehaviour(annotation?.resourceBehaviour),

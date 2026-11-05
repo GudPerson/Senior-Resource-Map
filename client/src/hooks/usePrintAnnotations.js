@@ -2,6 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api } from '../lib/api.js';
 import {
+    PRINT_ANNOTATION_CLIENT_CAPABILITIES, acknowledgesAnnotationFeatures,
+} from '../../../shared/annotationWriteCompatibility.js';
+import {
+    annotationDraftNeedsQuarantine, clearAnnotationLocalDraft, quarantineAnnotationLocalDraft,
+    readAnnotationLocalDraft, writeAnnotationLocalDraft,
+} from '../lib/annotationDraftStorage.js';
+import {
     PRINT_ANNOTATION_SCHEMA_VERSION,
     getAnnotationLocalDraftKey,
     normalizePrintAnnotations,
@@ -16,40 +23,9 @@ const EMPTY_DOCUMENT = Object.freeze({
     updatedAt: null,
 });
 
-function readLocalDraft(storageKey) {
-    if (!storageKey || typeof window === 'undefined') return null;
-    try {
-        const parsed = JSON.parse(window.localStorage.getItem(storageKey) || 'null');
-        if (!parsed || parsed.schemaVersion !== PRINT_ANNOTATION_SCHEMA_VERSION) return null;
-        return {
-            baseRevision: Number(parsed.baseRevision || 0),
-            annotations: normalizePrintAnnotations(parsed.annotations),
-        };
-    } catch {
-        return null;
-    }
-}
-
-function writeLocalDraft(storageKey, baseRevision, annotations) {
-    if (!storageKey || typeof window === 'undefined') return;
-    try {
-        window.localStorage.setItem(storageKey, JSON.stringify({
-            schemaVersion: PRINT_ANNOTATION_SCHEMA_VERSION,
-            baseRevision,
-            annotations,
-        }));
-    } catch {
-        // Server persistence remains authoritative when browser storage is unavailable.
-    }
-}
-
-function clearLocalDraft(storageKey) {
-    if (!storageKey || typeof window === 'undefined') return;
-    try {
-        window.localStorage.removeItem(storageKey);
-    } catch {
-        // Ignore browser storage cleanup failures.
-    }
+function getDraftStorage() {
+    try { return typeof window === 'undefined' ? null : window.localStorage; }
+    catch { return null; }
 }
 
 export function usePrintAnnotations({
@@ -58,6 +34,7 @@ export function usePrintAnnotations({
     enabled,
     restoreLocalDraft = true,
     autosave = true,
+    onDraftRecoveryNotice = null,
 }) {
     const storageKey = getAnnotationLocalDraftKey(userId, mapId);
     const [document, setDocument] = useState(EMPTY_DOCUMENT);
@@ -74,6 +51,9 @@ export function usePrintAnnotations({
     const loadingTokenRef = useRef(0);
     const pastRef = useRef([]);
     const futureRef = useRef([]);
+    const protectedDraftKeysRef = useRef(new Set());
+    const recoveryNoticeRef = useRef(onDraftRecoveryNotice);
+    recoveryNoticeRef.current = onDraftRecoveryNotice;
 
     const syncDocumentState = useCallback((annotations, revision, updatedAt = null) => {
         const normalized = normalizePrintAnnotations(annotations);
@@ -100,8 +80,18 @@ export function usePrintAnnotations({
                 if (cancelled || loadingTokenRef.current !== token) return;
                 const revision = Number(loaded?.revision || 0);
                 const serverAnnotations = normalizePrintAnnotations(loaded?.annotations);
-                const localDraft = restoreLocalDraft ? readLocalDraft(storageKey) : null;
+                const localDraft = restoreLocalDraft ? readAnnotationLocalDraft(getDraftStorage(), storageKey) : null;
+                const incompatibleDraft = annotationDraftNeedsQuarantine(localDraft, serverAnnotations);
+                if (incompatibleDraft) {
+                    const retained = quarantineAnnotationLocalDraft(getDraftStorage(), storageKey, localDraft.raw);
+                    if (retained.protectPrimary) protectedDraftKeysRef.current.add(storageKey);
+                    else protectedDraftKeysRef.current.delete(storageKey);
+                    recoveryNoticeRef.current?.(retained.protectPrimary
+                        ? 'An earlier local drawing draft was kept in this browser because it could not be copied safely. The saved map was loaded; local draft backup is unavailable in this tab.'
+                        : 'An earlier local drawing draft was kept separately because this map uses newer annotation features. The saved map was loaded.');
+                }
                 const canRestoreDraft = localDraft
+                    && !incompatibleDraft
                     && localDraft.baseRevision === revision
                     && JSON.stringify(localDraft.annotations) !== JSON.stringify(serverAnnotations);
                 syncDocumentState(
@@ -144,8 +134,18 @@ export function usePrintAnnotations({
                     schemaVersion: PRINT_ANNOTATION_SCHEMA_VERSION,
                     revision: revisionToSave,
                     annotations: annotationsToSave,
+                    clientCapabilities: PRINT_ANNOTATION_CLIENT_CAPABILITIES,
                 });
                 revisionRef.current = Number(saved?.revision || revisionToSave + 1);
+                if (!acknowledgesAnnotationFeatures(annotationsToSave, saved?.annotations)) {
+                    // A downlevel Worker may advance its revision while stripping
+                    // groups. Retain that revision and the full intended draft so
+                    // a later retry can recover without losing data or claiming Saved.
+                    setDocument(current => ({ ...current, revision: revisionRef.current }));
+                    const mismatch = new Error('CareAround could not confirm all annotation changes. Your drawing remains unsaved; update CareAround and retry.');
+                    mismatch.code = 'ANNOTATION_ACK_MISMATCH';
+                    throw mismatch;
+                }
                 const stillCurrent = annotationsRef.current === annotationsToSave;
                 dirtyRef.current = !stillCurrent;
                 setDocument((current) => ({
@@ -158,16 +158,16 @@ export function usePrintAnnotations({
                         window.clearTimeout(localDraftTimerRef.current);
                         localDraftTimerRef.current = null;
                     }
-                    clearLocalDraft(storageKey);
+                    clearAnnotationLocalDraft(getDraftStorage(), storageKey, protectedDraftKeysRef.current);
                     setStatus('saved');
                 } else {
-                    writeLocalDraft(storageKey, revisionRef.current, annotationsRef.current);
+                    writeAnnotationLocalDraft(getDraftStorage(), storageKey, revisionRef.current, annotationsRef.current, protectedDraftKeysRef.current);
                     setStatus('unsaved');
                 }
                 return saved;
             } catch (saveError) {
                 dirtyRef.current = true;
-                writeLocalDraft(storageKey, revisionRef.current, annotationsRef.current);
+                writeAnnotationLocalDraft(getDraftStorage(), storageKey, revisionRef.current, annotationsRef.current, protectedDraftKeysRef.current);
                 setStatus('error');
                 setError(saveError?.message || 'Print annotations could not be saved.');
                 return null;
@@ -210,7 +210,7 @@ export function usePrintAnnotations({
         if (localDraftTimerRef.current) {
             window.clearTimeout(localDraftTimerRef.current);
             if (dirtyRef.current) {
-                writeLocalDraft(storageKey, revisionRef.current, annotationsRef.current);
+                writeAnnotationLocalDraft(getDraftStorage(), storageKey, revisionRef.current, annotationsRef.current, protectedDraftKeysRef.current);
             }
         }
     }, [storageKey]);
@@ -229,7 +229,7 @@ export function usePrintAnnotations({
         if (localDraftTimerRef.current) window.clearTimeout(localDraftTimerRef.current);
         localDraftTimerRef.current = window.setTimeout(() => {
             localDraftTimerRef.current = null;
-            writeLocalDraft(storageKey, revisionRef.current, annotationsRef.current);
+            writeAnnotationLocalDraft(getDraftStorage(), storageKey, revisionRef.current, annotationsRef.current, protectedDraftKeysRef.current);
         }, LOCAL_DRAFT_DELAY_MS);
         setDocument((value) => ({ ...value, annotations: next }));
         setHistoryVersion((value) => value + 1);

@@ -13,6 +13,7 @@ import {
 import { myMapPrintAnnotationDocuments, myMaps } from '../src/db/schema.js';
 import { appendKmlBoundaries } from '../../client/src/lib/kmlBoundaries.js';
 import { normalizePrintAnnotations } from '../../client/src/lib/printAnnotations.js';
+import { PRINT_ANNOTATION_CLIENT_CAPABILITIES } from '../../shared/annotationWriteCompatibility.js';
 
 const OWNER = { id: 7, role: 'standard' };
 const MAP_ID = 3;
@@ -96,6 +97,34 @@ function createBoundaryPoints(count) {
         103.7 + (index * 0.000001),
     ]);
 }
+
+test('named annotation groups round-trip owner persistence without changing geometry or legacy payloads', async () => {
+    const db = createFakeDb();
+    const legacy = createPolygon();
+    const grouped = { ...legacy, groupName: '  District   teams ' };
+    const body = validatePrintAnnotationDocumentInput({ schemaVersion: 1, revision: 0, annotations: [grouped], clientCapabilities: PRINT_ANNOTATION_CLIENT_CAPABILITIES });
+    assert.equal(body.annotations[0].groupName, 'District teams');
+    assert.deepEqual(body.annotations[0].points, legacy.points);
+    const saved = await replacePrintAnnotationDocument(db, OWNER, MAP_ID, body);
+    assert.equal(saved.annotations[0].groupName, 'District teams');
+    assert.deepEqual((await getPrintAnnotationDocument(db, OWNER, MAP_ID)).annotations, saved.annotations);
+    const { groupName, ...rest } = saved.annotations[0];
+    void groupName;
+    assert.deepEqual(rest, legacy);
+    assert.deepEqual(validatePrintAnnotationDocumentInput({ schemaVersion: 1, annotations: [{ ...legacy, groupName: ' ' }] }).annotations, [legacy]);
+    assert.equal(Object.hasOwn(validatePrintAnnotationDocumentInput({ schemaVersion: 1, annotations: [legacy] }).annotations[0], 'groupName'), false);
+    await assert.rejects(replacePrintAnnotationDocument(db, OWNER, MAP_ID, body), error => error.status === 409);
+});
+
+test('owner group metadata is bounded and is stripped from public and frozen embedded annotation snapshots', () => {
+    const legacy = createPolygon({ isShared: true });
+    const grouped = { ...legacy, groupName: 'Private owner group' };
+    assert.deepEqual(buildEmbeddedPrintAnnotationSnapshot([grouped]), buildEmbeddedPrintAnnotationSnapshot([legacy]));
+    assert.deepEqual(normalizeEmbeddedPrintAnnotationSnapshot([grouped]), normalizeEmbeddedPrintAnnotationSnapshot([legacy]));
+    for (const groupName of ['x'.repeat(81), 10, {}, null]) {
+        assert.throws(() => validatePrintAnnotationDocumentInput({ schemaVersion: 1, annotations: [{ ...legacy, groupName }] }), /Print annotations is invalid/);
+    }
+});
 
 test('private KML boundaries preserve source appearance, revision conflicts and owner-only persistence', async () => {
     const db = createFakeDb();

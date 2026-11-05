@@ -144,13 +144,13 @@ test('private resource metadata preserves old shared shapes and disappears when 
     assert.deepEqual(unlinked.points, shape.points);
 });
 
-test('image creation and duplication stop at twenty objects while old shape capacity stays at one hundred', () => {
+test('image creation and duplication stop at twenty objects while saved shape capacity is two hundred', () => {
     const images = Array.from({ length: 20 }, (_, index) => ({ id: `image_${index}`, type: 'image' }));
     assert.equal(canAddPrintAnnotation(images.slice(0, 19), 'image'), true);
     assert.equal(canAddPrintAnnotation(images, 'image'), false);
     assert.equal(canAddPrintAnnotation(images, 'rectangle'), true);
-    assert.equal(canAddPrintAnnotation([...images, ...Array.from({ length: 80 }, () => ({ type: 'rectangle' }))], 'rectangle'), false);
-    assert.equal(canAddPrintAnnotation(Array.from({ length: 100 }, () => ({ type: 'pin' })), 'image'), false);
+    assert.equal(canAddPrintAnnotation([...images, ...Array.from({ length: 180 }, () => ({ type: 'rectangle' }))], 'rectangle'), false);
+    assert.equal(canAddPrintAnnotation(Array.from({ length: 200 }, () => ({ type: 'pin' })), 'image'), false);
 });
 
 const printAnnotationsHookSource = fs.readFileSync(
@@ -719,7 +719,7 @@ test('annotation autosaves are serialized to preserve revision order', () => {
     assert.match(hookSource, /LOCAL_DRAFT_DELAY_MS = 180/);
     assert.match(hookSource, /restoreLocalDraft = true/);
     assert.match(hookSource, /autosave = true/);
-    assert.match(hookSource, /restoreLocalDraft \? readLocalDraft\(storageKey\) : null/);
+    assert.match(hookSource, /restoreLocalDraft \? readAnnotationLocalDraft\(getDraftStorage\(\), storageKey\) : null/);
     assert.match(hookSource, /status !== 'unsaved' \|\| !enabled \|\| !autosave/);
     assert.doesNotMatch(hookSource, /refineRoadBoundary|snapDistanceMeters/);
 });

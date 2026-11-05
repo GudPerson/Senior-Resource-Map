@@ -1,3 +1,5 @@
+import { PRINT_ANNOTATION_DOCUMENT_MAX_COUNT } from '../../../shared/printAnnotationLimits.js';
+
 const copy = {
     en: {
         import: 'Import boundaries', title: 'Import map boundaries', choose: 'Choose boundary file',
@@ -19,7 +21,7 @@ const copy = {
             coordinates: 'Invalid coordinates or a boundary crossing the date line.', altitude: 'Areas with non-zero altitude are not supported.',
             ring: 'The area must form a closed boundary without crossings or repeated corners.', name: 'The area needs a name of up to 240 characters.',
             style: 'Unsupported appearance. Use normal colours and an outline width from 0 to 12.',
-            selection: 'Select at least one boundary.', count: 'This map would exceed 100 annotations. Select fewer areas or remove existing annotations.',
+            selection: 'Select at least one boundary.', count: `This map would exceed ${PRINT_ANNOTATION_DOCUMENT_MAX_COUNT} annotations. Select fewer areas or remove existing annotations.`,
             budget: 'These areas exceed the map’s corner limit. Select fewer areas or remove existing annotations.',
             read: 'The file could not be read. Choose it again.',
         },
@@ -38,7 +40,7 @@ const copy = {
             holes: '空洞须位于多边形内部，且不能交叉或重叠。', vertices: '某部分连同其空洞超过 1,000 个角点。', coordinates: '坐标无效或边界跨越国际日期变更线。',
             altitude: '不支持高度非零的区域。', ring: '区域须为闭合边界，且没有交叉或重复角点。', name: '区域须有名称，最多 240 个字符。',
             style: '不支持此外观。请使用普通颜色和 0 至 12 的边线宽度。', selection: '请至少选择一个边界。',
-            count: '此地图将超过 100 个标注。请减少所选区域或移除已有标注。', budget: '这些区域超过地图角点上限。请减少所选区域或移除已有标注。', read: '无法读取文件，请重新选择。',
+            count: `此地图将超过 ${PRINT_ANNOTATION_DOCUMENT_MAX_COUNT} 个标注。请减少所选区域或移除已有标注。`, budget: '这些区域超过地图角点上限。请减少所选区域或移除已有标注。', read: '无法读取文件，请重新选择。',
         },
     },
     ms: {
@@ -55,7 +57,7 @@ const copy = {
             holes: 'Lubang mesti berada dalam poligon tanpa persilangan atau pertindihan.', vertices: 'Satu bahagian mempunyai lebih 1,000 penjuru, termasuk lubangnya.', coordinates: 'Koordinat tidak sah atau sempadan melintasi garis tarikh.',
             altitude: 'Kawasan dengan altitud bukan sifar tidak disokong.', ring: 'Kawasan mesti membentuk sempadan tertutup tanpa persilangan atau penjuru berulang.', name: 'Kawasan memerlukan nama sehingga 240 aksara.',
             style: 'Rupa tidak disokong. Gunakan warna biasa dan lebar garisan 0 hingga 12.', selection: 'Pilih sekurang-kurangnya satu sempadan.',
-            count: 'Peta ini akan melebihi 100 anotasi. Pilih kurang kawasan atau buang anotasi sedia ada.', budget: 'Kawasan ini melebihi had penjuru peta. Pilih kurang kawasan atau buang anotasi sedia ada.', read: 'Fail tidak dapat dibaca. Pilih semula.',
+            count: `Peta ini akan melebihi ${PRINT_ANNOTATION_DOCUMENT_MAX_COUNT} anotasi. Pilih kurang kawasan atau buang anotasi sedia ada.`, budget: 'Kawasan ini melebihi had penjuru peta. Pilih kurang kawasan atau buang anotasi sedia ada.', read: 'Fail tidak dapat dibaca. Pilih semula.',
         },
     },
     ta: {
@@ -72,7 +74,7 @@ const copy = {
             holes: 'உள் வெற்றிடங்கள் பலகோணத்துக்குள் இருக்க வேண்டும்; ஒன்றை ஒன்று கடக்கவோ மேலெழுதவோ கூடாது.', vertices: 'உள் வெற்றிடங்கள் உட்பட ஒரு பகுதியில் 1,000 மூலைகளுக்கு மேல் உள்ளன.', coordinates: 'செல்லாத இட ஆயங்கள் அல்லது தேதிக் கோட்டைத் தாண்டும் எல்லை.',
             altitude: 'பூஜ்ஜியமற்ற உயரமுள்ள பகுதிகள் ஆதரிக்கப்படாது.', ring: 'பகுதி குறுக்கீடுகள் அல்லது மீண்டும் வரும் மூலைகள் இல்லாத மூடிய எல்லையாக இருக்க வேண்டும்.', name: 'பகுதிக்கு 240 எழுத்துகள் வரையிலான பெயர் தேவை.',
             style: 'இந்தத் தோற்றம் ஆதரிக்கப்படாது. சாதாரண நிறங்களையும் 0 முதல் 12 வரையிலான கோட்டு அகலத்தையும் பயன்படுத்தவும்.', selection: 'குறைந்தது ஒரு எல்லையைத் தேர்ந்தெடுக்கவும்.',
-            count: 'இந்த வரைபடம் 100 குறிப்புகளைத் தாண்டும். குறைவான பகுதிகளைத் தேர்ந்தெடுக்கவும் அல்லது இருக்கும் குறிப்புகளை நீக்கவும்.', budget: 'இந்தப் பகுதிகள் வரைபடத்தின் மூலை வரம்பைத் தாண்டும். குறைவான பகுதிகளைத் தேர்ந்தெடுக்கவும் அல்லது இருக்கும் குறிப்புகளை நீக்கவும்.', read: 'கோப்பைப் படிக்க முடியவில்லை. மீண்டும் தேர்ந்தெடுக்கவும்.',
+            count: `இந்த வரைபடம் ${PRINT_ANNOTATION_DOCUMENT_MAX_COUNT} குறிப்புகளைத் தாண்டும். குறைவான பகுதிகளைத் தேர்ந்தெடுக்கவும் அல்லது இருக்கும் குறிப்புகளை நீக்கவும்.`, budget: 'இந்தப் பகுதிகள் வரைபடத்தின் மூலை வரம்பைத் தாண்டும். குறைவான பகுதிகளைத் தேர்ந்தெடுக்கவும் அல்லது இருக்கும் குறிப்புகளை நீக்கவும்.', read: 'கோப்பைப் படிக்க முடியவில்லை. மீண்டும் தேர்ந்தெடுக்கவும்.',
         },
     },
 };

@@ -33,6 +33,8 @@ import DirectoryMap from '../components/DirectoryMap.jsx';
 import NearbyAddressPicker from '../components/NearbyAddressPicker.jsx';
 import MapAreaResultsPanel from '../components/MapAreaResultsPanel.jsx';
 import { createSpatialAreaFromAnnotation } from '../lib/mapSpatialGeometry.js';
+import { assignAnnotationGroup, canRetryAnnotationGroupOperation, canUndoAnnotationGroupOperation } from '../lib/annotationLayerManager.js';
+import { normalizePrintAnnotations } from '../lib/printAnnotations.js';
 import DirectoryPrintView from '../components/DirectoryPrintView.jsx';
 import DirectorySearchBar from '../components/DirectorySearchBar.jsx';
 import EditMapDetailsModal from '../components/EditMapDetailsModal.jsx';
@@ -1802,9 +1804,12 @@ export default function MyMapDetailPage() {
         userId: user?.id,
         enabled: Boolean(mapId && user?.id),
         restoreLocalDraft: true,
+        onDraftRecoveryNotice: setActionError,
         autosave: isPrintView || interactiveAnnotationEditorOpen,
     });
     const printAnnotationsReady = ['saved', 'unsaved', 'saving'].includes(printAnnotations.status);
+    const annotationGroupOperationRef = useRef(null);
+    useEffect(() => { annotationGroupOperationRef.current = null; }, [mapId]);
     const visibleOwnerAnnotations = useMemo(() => (
         mapStudioInteractiveModel
             ? filterPrintMapAnnotations(printAnnotations.annotations, {
@@ -1873,6 +1878,8 @@ export default function MyMapDetailPage() {
         canRedo: printAnnotations.canRedo,
         onClose: () => setInteractiveAnnotationEditorOpen(false),
         toolbarInInspector: splitWorkspace,
+        temporaryMeasurementEnabled: editingCanvasOpen,
+        measurementScopeKey: studioSaveState?.activeViewId || '',
         onFindWithinArea: handleFindWithinArea,
     });
     const ownerInteractiveAnnotationOverlay = interactiveAnnotationEditor.mapOverlay
@@ -3935,6 +3942,46 @@ export default function MyMapDetailPage() {
         onOpenShare: openMapShare,
         renderPdfExportButton,
     };
+    const annotationGroupsDisabled = !canEditPrintAnnotations || directory?.viewer?.isOwner !== true
+        || !['saved', 'unsaved'].includes(printAnnotations.status) || interactiveAnnotationEditor.hasUnfinishedDraft;
+    const changeAnnotationGroup = async (ids, groupName) => {
+        if (annotationGroupsDisabled) return false;
+        const operation = { mapId, failed: false, reverted: false };
+        annotationGroupOperationRef.current = operation;
+        printAnnotations.replaceAnnotations(current => {
+            const next = assignAnnotationGroup(current, ids, groupName);
+            operation.beforeDocument = JSON.stringify(current);
+            operation.expectedDocument = JSON.stringify(normalizePrintAnnotations(next));
+            return next;
+        });
+        // Studio can organize annotations with the drawing editor closed; use
+        // its existing revision queue and history, rather than a second save path.
+        const saved = Boolean(await printAnnotations.saveNow());
+        if (annotationGroupOperationRef.current === operation) operation.failed = !saved;
+        return saved;
+    };
+    const groupOperationContext = {
+        mapId, annotations: printAnnotations.annotations, canUndo: printAnnotations.canUndo,
+        ownerReady: canEditPrintAnnotations && directory?.viewer?.isOwner === true
+            && ['saved', 'unsaved', 'error'].includes(printAnnotations.status) && !interactiveAnnotationEditor.hasUnfinishedDraft,
+    };
+    const undoAnnotationGroup = async () => {
+        const operation = annotationGroupOperationRef.current;
+        if (!canUndoAnnotationGroupOperation(operation, groupOperationContext)) return false;
+        operation.reverted = true;
+        printAnnotations.undo();
+        operation.expectedDocument = operation.beforeDocument;
+        const saved = Boolean(await printAnnotations.saveNow());
+        if (annotationGroupOperationRef.current === operation) operation.failed = !saved;
+        return saved;
+    };
+    const retryAnnotationGroup = async () => {
+        const operation = annotationGroupOperationRef.current;
+        if (!canRetryAnnotationGroupOperation(operation, groupOperationContext)) return false;
+        const saved = Boolean(await printAnnotations.saveNow());
+        if (annotationGroupOperationRef.current === operation) operation.failed = !saved;
+        return saved;
+    };
     const ownerMapStudioPanel = (
         <MapStudioViewsPanel
             ref={mapStudioControllerRef}
@@ -3945,9 +3992,18 @@ export default function MyMapDetailPage() {
             resourceLayerCatalog={mapStudioResourceLayerCatalog}
             annotationLayerCatalog={printAnnotations.annotations.map((annotation, index) => ({
                 id: annotation.id,
+                type: annotation.type,
+                boundarySource: annotation.boundarySource,
+                groupName: annotation.groupName,
                 label: String(annotation.text || '').trim()
                     || `${String(annotation.type || 'Annotation').replace(/-/g, ' ')} ${index + 1}`,
             }))}
+            onAnnotationGroupChange={changeAnnotationGroup}
+            onAnnotationGroupUndo={undoAnnotationGroup}
+            canUndoAnnotationGroup={canUndoAnnotationGroupOperation(annotationGroupOperationRef.current, groupOperationContext)}
+            onAnnotationGroupRetry={retryAnnotationGroup}
+            canRetryAnnotationGroup={canRetryAnnotationGroupOperation(annotationGroupOperationRef.current, groupOperationContext)}
+            annotationGroupsDisabled={annotationGroupsDisabled}
             onOwnerSessionChange={handleOwnerMapStudioSessionChange}
             presentation={splitWorkspace ? 'workspace' : 'current'}
             onSaveStateChange={setStudioSaveState}
@@ -3986,6 +4042,8 @@ export default function MyMapDetailPage() {
         annotationTool: interactiveAnnotationEditor.tool,
         bearing: careMapGestures.bearing,
         hasUnfinishedDraft: interactiveAnnotationEditor.hasUnfinishedDraft,
+        hasTemporaryMeasurement: interactiveAnnotationEditor.hasTemporaryMeasurement,
+        onClearTemporaryMeasurement: interactiveAnnotationEditor.clearTemporaryMeasurement,
         onCancelAnnotationDraft: interactiveAnnotationEditor.cancelDraft,
         onSelectAnnotationTool: interactiveAnnotationEditor.selectTool,
         onOpenStudio: openMapStudioLayoutSettings,

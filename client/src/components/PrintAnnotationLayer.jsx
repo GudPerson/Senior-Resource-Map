@@ -1014,9 +1014,7 @@ export default function PrintAnnotationLayer({
         onUpdate?.(annotationId, patch);
     }, [onUpdate]);
 
-    return (
-        <>
-            {annotations.map((annotation, layerIndex) => {
+    const renderAnnotation = (annotation, layerIndex) => {
                 const selected = editable && annotation.id === selectedId;
                 const highlighted = activeIds.has(annotation.id) || pulseIds.has(annotation.id);
                 const attentionClass = `${activeIds.has(annotation.id) ? 'carearound-annotation-active' : ''} ${pulseIds.has(annotation.id) ? `carearound-annotation-pulse${activationVersion % 2 === 0 ? ' carearound-annotation-pulse-repeat' : ''}` : ''}`;
@@ -1077,7 +1075,20 @@ export default function PrintAnnotationLayer({
                         />
                     </Pane>
                 );
-            })}
+    };
+
+    return (
+        <>
+            {annotations.slice(0, 100).map(renderAnnotation)}
+            {annotations.length > 100 ? (
+                // Preserve the original first100 pane styles and identities.
+                // Additional items retain unique internal ordering, while the
+                // parent stays below Leaflet resource markers (z600). Merely
+                // raising450+index would cover those pins after item150.
+                <Pane name="print-annotation-additional-stack" style={{ zIndex: 550 }}>
+                    {annotations.slice(100).map((annotation, index) => renderAnnotation(annotation, index + 100))}
+                </Pane>
+            ) : null}
             {editable ? (
                 <>
                     <Pane name="print-annotation-draft" style={{ zIndex: 690 }}>
