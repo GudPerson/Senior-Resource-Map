@@ -9,6 +9,7 @@ import OwnerMapWorkspace from './OwnerMapWorkspace.jsx';
 import { isMapFirstExperimentEnabled } from '../lib/mapPresentationPolicy.js';
 import { rememberMapNotePin } from '../lib/mapNotesNavigation.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { useOwnerMapEditingCanvas } from '../contexts/OwnerMapEditingCanvasContext.jsx';
 import { AnnotationResourceInteractionContext, useAnnotationResourceCard } from './AnnotationResourceInteraction.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { useOwnerFullscreenMapHeader } from '../hooks/useOwnerFullscreenMapHeader.js';
@@ -4174,6 +4175,7 @@ function SharedMapDirectoryListContent({
                 <button
                     type="button"
                     onClick={fullMap ? closeMobileFullMap : openMobileFullMap}
+                    data-owner-map-expand-toggle="true"
                     className={`inline-flex items-center justify-center border border-slate-200 bg-white text-brand-700 shadow-md transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-100 ${mode === 'owner' ? 'h-[32px] w-[32px] rounded-lg' : 'h-[30px] w-[30px] rounded-lg'}`}
                     aria-label={t(fullMap ? 'returnToMapList' : 'openFullMap')}
                     title={t(fullMap ? 'returnToMapList' : 'openFullMap')}
@@ -4859,6 +4861,7 @@ function SharedMapDirectoryListContent({
 
 export default function SharedMapDirectoryList(props) {
     const { t } = useLocale();
+    const editingCanvas = useOwnerMapEditingCanvas();
     const mapFirstPresentationEnabled = isMapFirstExperimentEnabled();
     const [localMapFirstOpen, setLocalMapFirstOpen] = useState(mapFirstPresentationEnabled);
     const mapFirstView = mapFirstPresentationEnabled && Boolean(props.mapFirstView);
@@ -4868,14 +4871,25 @@ export default function SharedMapDirectoryList(props) {
     const ownerMapFirst = props.mode === 'owner' && props.layout !== 'print' && mapFirstView;
     const interaction = props.mode === 'owner' && props.layout !== 'print'
         ? props.annotationResourceInteraction || null : null;
+    const content = <SharedMapDirectoryListContent {...props} mapFirstView={mapFirstView}
+        ownerWorkspace={mapFirstPresentationEnabled ? props.ownerWorkspace : null}
+        mapFirstOpen={mapFirstOpen} onMapFirstOpenChange={setMapFirstOpen} />;
     return <AnnotationResourceInteractionContext.Provider value={interaction}>
         {ownerMapFirst && !mapFirstOpen ? <button type="button" data-map-first-enter="true"
             onClick={() => setMapFirstOpen(true)}
             className="fixed bottom-[max(16px,env(safe-area-inset-bottom))] right-4 z-[1140] inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-brand-700 shadow-lg">
             <Maximize2 size={17} aria-hidden="true" />{t('openFullMap')}
         </button> : null}
-        <SharedMapDirectoryListContent {...props} mapFirstView={mapFirstView}
-            ownerWorkspace={mapFirstPresentationEnabled ? props.ownerWorkspace : null}
-            mapFirstOpen={mapFirstOpen} onMapFirstOpenChange={setMapFirstOpen} />
+        {editingCanvas && props.mode === 'owner' && props.layout !== 'print' ? (
+            <div data-owner-canvas-resources-root="true">
+                <div className="owner-canvas-panel-heading" data-owner-canvas-resources-heading="true">
+                    <h2>{t('resources')}</h2>
+                    <button type="button" aria-label={editingCanvas.messages.closePanel} onClick={editingCanvas.closePanel}>
+                        <X size={18} aria-hidden="true" />
+                    </button>
+                </div>
+                <div data-owner-canvas-resources-body="true">{content}</div>
+            </div>
+        ) : content}
     </AnnotationResourceInteractionContext.Provider>;
 }

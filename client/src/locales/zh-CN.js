@@ -749,6 +749,7 @@ export const zhCnDictionary = {
     careMapResetNorth: "恢复北向上",
     careMapRotateRight: "向右旋转",
     careMapGesturesHint: "双指捏合可缩放，双指扭转可旋转。滚动可缩放；按住 Shift 滚动，或按住鼠标右键拖动可旋转。",
+    careMapPageScrollGesturesHint: '双指捏合，或按住 Ctrl 滚动可缩放；按住 Shift 滚动，或按住鼠标右键拖动可旋转。',
     returnToMapList: '返回列表',
     noMapSearchResults: '没有符合这张地图搜索的地点或资源。',
     assetLogoAlt: '资源标志',

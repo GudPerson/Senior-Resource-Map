@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import { isCareMapGestureActive } from '../lib/careMapGestureState.js';
+import { isCareMapZoomWheel } from '../lib/careMapDesktopInput.js';
 
 // Input origin stays outside React's camera updates: fit/reset/resize must keep
 // their existing containment, while an owner's outward gesture keeps its scale.
-export default function DirectoryMapRequestedScaleSync({ enabled, preferenceRef, onChange, mobileControlTarget = null }) {
+export default function DirectoryMapRequestedScaleSync({ enabled, preferenceRef, onChange, mobileControlTarget = null, desktopWheelPolicy = 'legacy' }) {
     const map = useMap();
     const candidateRef = useRef(null);
     useEffect(() => {
@@ -33,7 +34,7 @@ export default function DirectoryMapRequestedScaleSync({ enabled, preferenceRef,
             setPreference(false);
         };
         const wheel = (event) => {
-            if (!event.shiftKey && event.deltaY > 0) begin();
+            if (event.deltaY > 0 && isCareMapZoomWheel(event, desktopWheelPolicy)) begin();
         };
         const touch = (event) => {
             if (event.touches.length >= 2) begin();
@@ -87,6 +88,6 @@ export default function DirectoryMapRequestedScaleSync({ enabled, preferenceRef,
             map.off('zoomend gestureend', settled);
             map.off('resize carearound-requested-scale-reset', clear);
         };
-    }, [enabled, map, mobileControlTarget, onChange, preferenceRef]);
+    }, [desktopWheelPolicy, enabled, map, mobileControlTarget, onChange, preferenceRef]);
     return null;
 }

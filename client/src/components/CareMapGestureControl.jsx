@@ -6,8 +6,10 @@ import { useLocale } from '../contexts/LocaleContext.jsx';
 import { alignCareMapGeographicLayers, refreshCareMapSvgProjection } from '../lib/careMapRotation.js';
 import { isCareMapGestureActive, normalizeCareMapBearing } from '../lib/careMapGestureState.js';
 import CareMapNorthButton from './CareMapNorthButton.jsx';
+import CareMapDesktopInputControl from './CareMapDesktopInputControl.jsx';
+import { CARE_MAP_PAGE_SCROLL_PINCH, normalizeCareMapWheelPolicy } from '../lib/careMapDesktopInput.js';
 
-export default function CareMapGestureControl({ configuration, interactive = true }) {
+export default function CareMapGestureControl({ configuration, interactive = true, cameraViewState = null }) {
     const map = useMap();
     const { t } = useLocale();
     const [target, setTarget] = useState(null);
@@ -17,6 +19,9 @@ export default function CareMapGestureControl({ configuration, interactive = tru
     const paused = Boolean(configuration?.paused);
     const bearing = normalizeCareMapBearing(configuration?.bearing);
     const showNorthControl = configuration?.showNorthControl !== false;
+    const desktopPinch = normalizeCareMapWheelPolicy(configuration?.desktopWheelPolicy) === CARE_MAP_PAGE_SCROLL_PINCH;
+    const gestureHint = t(desktopPinch ? 'careMapPageScrollGesturesHint' : 'careMapGesturesHint');
+    const cameraKey = JSON.stringify([cameraViewState?.center?.[0], cameraViewState?.center?.[1], cameraViewState?.zoom]);
 
     useEffect(() => {
         if (!map._rotate) return undefined;
@@ -33,7 +38,7 @@ export default function CareMapGestureControl({ configuration, interactive = tru
     useEffect(() => {
         if (!map._rotate) return undefined;
         const canRotate = interactive && active && !paused;
-        if (interactive && active) map.scrollWheelZoom?.enable(); else map.scrollWheelZoom?.disable();
+        if (interactive && active && !desktopPinch) map.scrollWheelZoom?.enable(); else map.scrollWheelZoom?.disable();
         map.options.touchRotate = canRotate;
         map.options.shiftKeyRotate = canRotate;
         map.options.dragRotate = canRotate;
@@ -44,7 +49,7 @@ export default function CareMapGestureControl({ configuration, interactive = tru
         else { map.touchGestures?.disable(); if (interactive && active) map.touchZoom?.enable(); else map.touchZoom?.disable(); }
         if (Math.abs(map.getBearing() - bearing) > 0.000001) map.setBearing(bearing);
         return undefined;
-    }, [active, bearing, interactive, map, paused]);
+    }, [active, bearing, desktopPinch, interactive, map, paused]);
 
     useEffect(() => {
         if (!active || !map._rotate) return undefined;
@@ -78,15 +83,22 @@ export default function CareMapGestureControl({ configuration, interactive = tru
         return () => { setTarget(null); control.remove(); };
     }, [active, map, showNorthControl]);
 
-    if (!target || !showNorthControl) return null;
     const resetNorth = () => {
         map.setBearing(0);
         configurationRef.current?.onBearingChange?.(map.getBearing());
     };
-    return createPortal(
-        <div role="group" aria-label={t('careMapRotationControls')} title={t('careMapGesturesHint')}
+    return <>
+        <CareMapDesktopInputControl
+            enabled={interactive && active && desktopPinch}
+            gain={configuration?.pinchZoomGain}
+            scopeKey={configuration?.scopeKey}
+            cameraKey={cameraKey}
+        />
+        {target && showNorthControl ? createPortal(
+        <div role="group" aria-label={t('careMapRotationControls')} title={gestureHint}
             data-care-map-gestures="true">
-            <CareMapNorthButton configuration={configuration} interactive={interactive} onReset={resetNorth} />
+            <CareMapNorthButton configuration={configuration} interactive={interactive} onReset={resetNorth} hint={gestureHint} />
         </div>, target,
-    );
+        ) : null}
+    </>;
 }

@@ -764,6 +764,7 @@ export const enDictionary = {
     careMapResetNorth: "Reset to north",
     careMapRotateRight: "Rotate right",
     careMapGesturesHint: "Pinch to zoom or twist with two fingers. Scroll to zoom; hold Shift and scroll, or drag with the right mouse button, to rotate.",
+    careMapPageScrollGesturesHint: 'Pinch or hold Ctrl and scroll to zoom; hold Shift and scroll, or drag with the right mouse button, to rotate.',
     returnToMapList: 'Back to list',
     noMapSearchResults: 'No places or resources match this map search.',
     assetLogoAlt: 'Resource logo',

@@ -261,6 +261,7 @@ async function verifyInteractiveLowerZoomBoundary() {
     for (const savedZoom of [14, 13.9, 13.8]) {
       studioDoc.views[0].design.camera = { ...savedCamera, view: { ...savedCamera.view, zoom: savedZoom } };
       const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
+      let cdp;
       try {
         await install(page);
         await installTownMapAssets(page, 200);
@@ -282,14 +283,15 @@ async function verifyInteractiveLowerZoomBoundary() {
             assert.equal(after.mode, 'live', 'Standard takes over below the overview tier');
           }
         } else {
+          cdp = await page.context().newCDPSession(page);
           const mapBox = await page.locator('.leaflet-container').first().boundingBox();
           await page.mouse.move(mapBox.x + mapBox.width / 2, Math.min(1100, mapBox.y + mapBox.height / 2));
           for (let action = 0; action < 3; action++) {
             const before = await readMap();
-            await page.mouse.wheel(0, fineWheelPixels);
+            await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: mapBox.x + mapBox.width / 2, y: Math.min(1100, mapBox.y + mapBox.height / 2), deltaX: 0, deltaY: fineWheelPixels, modifiers: 2 });
             await page.waitForTimeout(700);
             const after = await readMap();
-            report.cases.push({ name: 'Interactive fractional outward wheel retains progress', savedZoom, before: before.zoom, ...after });
+            report.cases.push({ name: 'Interactive fractional outward ctrl-pinch retains progress', savedZoom, before: before.zoom, ...after });
             assert.ok(after.zoom < before.zoom - 0.01, 'fractional zoom-out must not flash and return to 14');
           }
         }
@@ -299,6 +301,7 @@ async function verifyInteractiveLowerZoomBoundary() {
         assert.ok(Math.abs((await readMap()).zoom - savedZoom) < 0.001, 'reloading still applies the authoritative saved view');
         report.cases.push({ name: 'Interactive explicit saved camera survives boundary exploration', savedZoom });
       } finally {
+        await cdp?.detach();
         await page.close();
       }
     }
@@ -394,12 +397,15 @@ async function verifyAnnotationInwardZoom() {
             else if (target !== 'clear') assert.equal(hit.tag, 'path');
             await page.mouse.move(hit.x, hit.y);
             const requestStart = tileRequests.length;
+            await page.evaluate(() => { window.__qaLastOwnerWheel = null; window.addEventListener('wheel', event => queueMicrotask(() => { window.__qaLastOwnerWheel = { ctrlKey: event.ctrlKey, defaultPrevented: event.defaultPrevented }; }), { once: true }); });
             if (gesture === 'wheel') await page.mouse.wheel(0, -fineWheelPixels);
             else await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: hit.x, y: hit.y, deltaX: 0, deltaY: -fineWheelPixels, modifiers: 2 });
             await page.waitForTimeout(650);
             const after = await readMap();
-            report.cases.push({ name: 'Actual annotation-target fractional inward zoom', dense, editor: dense, gesture, target, hit, ...after });
-            assert.ok(Math.abs(after.zoom - 13.1) < 0.001, 'one small inward wheel over the actual boundary target must retain 13.1');
+            const wheelPolicy = await page.evaluate(() => window.__qaLastOwnerWheel);
+            report.cases.push({ name: gesture === 'wheel' ? 'Actual annotation-target owner scroll passes through' : 'Actual annotation-target fractional inward ctrl-pinch', dense, editor: dense, gesture, target, hit, wheelPolicy, ...after });
+            assert.ok(Math.abs(after.zoom - (gesture === 'wheel' ? 13 : 13.1)) < 0.001, gesture === 'wheel' ? 'ordinary owner scrolling must leave the map zoom untouched' : 'one small admitted ctrl-pinch over the actual boundary target must retain 13.1');
+            assert.deepEqual(wheelPolicy, { ctrlKey: gesture !== 'wheel', defaultPrevented: gesture !== 'wheel' }, 'only an admitted owner pinch prevents the ordinary page-scroll action');
             assert.equal(after.minZoom, 11); assert.equal(after.maxZoom, 19);
             assert.ok(after.loadedBackgrounds > 0, 'fractional input retains a decoded background');
             assertGatedRequests(after, requestStart);
@@ -410,7 +416,7 @@ async function verifyAnnotationInwardZoom() {
           for (const expectedZoom of [13.1, 13.2, 13.3, 13.4, 13.5]) {
             const hit = await hitTarget('clear');
             const requestStart = tileRequests.length;
-            await page.mouse.move(hit.x, hit.y); await page.mouse.wheel(0, -fineWheelPixels);
+            await page.mouse.move(hit.x, hit.y); await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: hit.x, y: hit.y, deltaX: 0, deltaY: -fineWheelPixels, modifiers: 2 });
             await page.waitForTimeout(650);
             const after = await readMap();
             assert.ok(Math.abs(after.zoom - expectedZoom) < 0.001, 'successive small inward inputs accumulate across the Standard fractional band');
@@ -435,7 +441,7 @@ async function verifyAnnotationInwardZoom() {
           }
           assert.ok(overviewSeen); assert.equal(state.mode, 'live');
           const before = state.zoom, hit = await hitTarget('fill'), requestStart = tileRequests.length;
-          await page.mouse.move(hit.x, hit.y); await page.mouse.wheel(0, -fineWheelPixels); await page.waitForTimeout(650);
+          await page.mouse.move(hit.x, hit.y); await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: hit.x, y: hit.y, deltaX: 0, deltaY: -fineWheelPixels, modifiers: 2 }); await page.waitForTimeout(650);
           state = await readMap();
           assert.ok(Math.abs(state.zoom - before - 0.1) < 0.001);
           assert.ok(state.loadedBackgrounds > 0);

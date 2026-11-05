@@ -276,5 +276,6 @@ export default function useInteractiveMapAnnotationEditor({
     ) : null;
 
     return { mapOverlay, surfaceOverlay: toolbarInInspector ? null : surfaceOverlay,
-        inspectorControls: toolbarInInspector ? surfaceOverlay : null, hasUnfinishedDraft };
+        inspectorControls: toolbarInInspector ? surfaceOverlay : null, hasUnfinishedDraft,
+        tool, cancelDraft, selectTool: handleToolChange };
 }

@@ -749,6 +749,7 @@ export const msDictionary = {
     careMapResetNorth: "Kembali ke utara",
     careMapRotateRight: "Putar ke kanan",
     careMapGesturesHint: "Cubit untuk zum atau putar dengan dua jari. Tatal untuk zum; tahan Shift dan tatal, atau seret dengan butang kanan tetikus untuk memutar.",
+    careMapPageScrollGesturesHint: 'Cubit atau tahan Ctrl dan tatal untuk zum; tahan Shift dan tatal, atau seret dengan butang kanan tetikus untuk memutar.',
     returnToMapList: 'Kembali ke senarai',
     noMapSearchResults: 'Tiada tempat atau sumber sepadan dengan carian peta ini.',
     assetLogoAlt: 'Logo sumber',

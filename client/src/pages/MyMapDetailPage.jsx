@@ -41,6 +41,7 @@ import MyMapPdfExportButton from '../components/MyMapPdfExportButton.jsx';
 import MyMapExcelExportButton from '../components/MyMapExcelExportButton.jsx';
 import MyMapCategoryOrderModal from '../components/MyMapCategoryOrderModal.jsx';
 import MyMapV2PreviewScaffold from '../components/MyMapV2PreviewScaffold.jsx';
+import OwnerMapEditingCanvas from '../components/OwnerMapEditingCanvas.jsx';
 import MapAssetShortDescriptionModal from '../components/MapAssetShortDescriptionModal.jsx';
 import MapStudioViewsPanel from '../components/MapStudioViewsPanel.jsx';
 import PrintAnnotationLayer from '../components/PrintAnnotationLayer.jsx';
@@ -53,6 +54,7 @@ import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import TownMapModeControl from '../components/TownMapModeControl.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { useOwnerMapEditingCanvas } from '../contexts/OwnerMapEditingCanvasContext.jsx';
 import { useMapStyle } from '../contexts/MapStyleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
@@ -566,8 +568,11 @@ function MyMapMobileControls({
     onDesktopMapStudio = null,
 }) {
     const { t } = useLocale();
+    const editingCanvas = useOwnerMapEditingCanvas();
     const [open, setOpen] = useState(false);
     const [studioOpen, setStudioOpen] = useState(false);
+    const canvasStudioOpen = Boolean(editingCanvas?.active && editingCanvas.panel === 'studio');
+    const studioVisible = studioOpen || canvasStudioOpen;
     const studioDialogRef = useRef(null);
     const headerClassName = compactOverlay
         ? 'sticky top-[56px] z-[1100] flex h-11 items-center border-b border-slate-200 bg-slate-50/95 px-4 shadow-[0_12px_24px_-24px_rgba(15,23,42,0.45)] backdrop-blur sm:top-[64px] sm:h-12 sm:px-6 xl:hidden disable-font-scaling'
@@ -793,13 +798,13 @@ function MyMapMobileControls({
             <section
                 ref={studioDialogRef}
                 id={`mobile-map-studio-${directory.id}`}
-                role="dialog"
+                role={canvasStudioOpen ? 'region' : 'dialog'}
                 aria-modal={studioOpen ? 'true' : undefined}
                 aria-label={t('mapStudioTitle')}
-                aria-hidden={!studioOpen}
-                inert={studioOpen ? undefined : true}
+                aria-hidden={!studioVisible}
+                inert={studioVisible ? undefined : true}
                 tabIndex={-1}
-                className={`fixed bottom-0 left-0 top-[56px] z-[1210] flex w-[min(92vw,380px)] flex-col border-r border-slate-200 bg-white shadow-2xl transition-[transform,visibility] duration-200 sm:top-[64px] xl:hidden ${studioOpen ? 'pointer-events-auto visible translate-x-0' : 'pointer-events-none invisible -translate-x-full'}`}
+                className={`fixed bottom-0 left-0 top-[56px] z-[1210] flex w-[min(92vw,380px)] flex-col border-r border-slate-200 bg-white shadow-2xl transition-[transform,visibility] duration-200 sm:top-[64px] xl:hidden ${studioVisible ? 'pointer-events-auto visible translate-x-0' : 'pointer-events-none invisible -translate-x-full'}`}
                 data-mobile-map-studio-panel="true"
                 style={desktopMapFirst ? { display: 'flex' } : undefined}
             >
@@ -1602,6 +1607,7 @@ export default function MyMapDetailPage() {
     // A presentation is selected once per page load; changing it never reparents a live save controller.
     const [splitWorkspaceSelected] = useState(() => isOwnerMapWorkspaceEnabled(searchParams, import.meta.env.VITE_OWNER_MAP_WORKSPACE_ENABLED));
     const [studioSaveState, setStudioSaveState] = useState(null);
+    const [editingCanvasOpen, setEditingCanvasOpen] = useState(false);
     const { user } = useAuth();
     const { t, locale } = useLocale();
     const annotationMessages = getAnnotationMessages(locale);
@@ -1770,6 +1776,7 @@ export default function MyMapDetailPage() {
         <PersonalPlaceActionStatus status={personalPlaceActionStatus} />
     ) : null;
     const isPrintView = searchParams.get('view') === 'print';
+    useEffect(() => { setEditingCanvasOpen(false); }, [mapId, isPrintView]);
     useEffect(() => {
         setNearbyAddressSelection(null);
         setAreaSelection(null);
@@ -1778,6 +1785,8 @@ export default function MyMapDetailPage() {
     const careMapGestures = useCareMapGestures({
         scopeKey: `${mapId}:${mapStudioRuntimeSnapshot?.activeViewId || ''}`,
         paused: interactiveAnnotationEditorOpen || (personalPlacePickerActive && !isPrintView),
+        desktopWheelPolicy: 'page-scroll-pinch',
+        pinchZoomGain: 1.5,
     });
     const printStudioViewId = searchParams.get('studioView') || '';
     const exportCareMapGestures = useCareMapGestures({
@@ -3941,7 +3950,7 @@ export default function MyMapDetailPage() {
             }))}
             onOwnerSessionChange={handleOwnerMapStudioSessionChange}
             presentation={splitWorkspace ? 'workspace' : 'current'}
-            onSaveStateChange={splitWorkspace ? setStudioSaveState : null}
+            onSaveStateChange={setStudioSaveState}
         />
     );
     const ownerWorkspace = splitWorkspace ? {
@@ -3966,6 +3975,23 @@ export default function MyMapDetailPage() {
             window.location.assign(currentOwnerWorkspaceUrl(window.location.href, snapshot.activeViewId));
         },
     } : null;
+    const editingCanvasConfiguration = {
+        ...ownerToolbarActionProps,
+        canvasAvailable: !splitWorkspace,
+        directory,
+        actionError,
+        studioState: studioSaveState,
+        annotationStatus: printAnnotations.status,
+        annotationError: printAnnotations.error,
+        annotationTool: interactiveAnnotationEditor.tool,
+        bearing: careMapGestures.bearing,
+        hasUnfinishedDraft: interactiveAnnotationEditor.hasUnfinishedDraft,
+        onCancelAnnotationDraft: interactiveAnnotationEditor.cancelDraft,
+        onSelectAnnotationTool: interactiveAnnotationEditor.selectTool,
+        onOpenStudio: openMapStudioLayoutSettings,
+        onSelectView: nextViewId => mapStudioControllerRef.current?.selectView(nextViewId),
+        onAddAssets: openManageAssets,
+    };
     const ownerMapStudioRuntime = mapStudioInteractiveModel ? {
         ...mapStudioInteractiveModel,
         directoryMap: {
@@ -4301,7 +4327,8 @@ export default function MyMapDetailPage() {
 
     if (isV2View) {
         return (
-            <>
+            <OwnerMapEditingCanvas active={editingCanvasOpen} onActiveChange={setEditingCanvasOpen}
+                configuration={editingCanvasConfiguration}>
                 <MyMapV2PreviewScaffold
                     mapFirstView={mapFirstPresentationEnabled && (splitWorkspace || (!interactiveAnnotationEditorOpen && !personalPlacePickerActive))}
                     ownerWorkspace={ownerWorkspace}
@@ -4535,12 +4562,13 @@ export default function MyMapDetailPage() {
                     onUpdate={handleUpdatePersonalPlaceCategory}
                 />
                 {confirmDialog}
-            </>
+            </OwnerMapEditingCanvas>
         );
     }
 
     return (
-        <>
+        <OwnerMapEditingCanvas active={editingCanvasOpen} onActiveChange={setEditingCanvasOpen}
+            configuration={editingCanvasConfiguration}>
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50" data-route-cache-version={MY_MAP_ROUTE_CACHE_VERSION}>
                 {!splitWorkspace && (!useDesktopOwnerLayout || mapFirstOpen) ? (
                         <MyMapMobileControls
@@ -4910,6 +4938,6 @@ export default function MyMapDetailPage() {
                 onUpdate={handleUpdatePersonalPlaceCategory}
             />
             {confirmDialog}
-        </>
+        </OwnerMapEditingCanvas>
     );
 }

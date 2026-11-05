@@ -97,7 +97,9 @@ test('the owner panel stays mounted in the mobile drawer and remains a desktop t
     assert.match(ownerPageSource, /mapStudioPanel = null/);
     assert.match(ownerPageSource, /<Drawer\.Portal>[\s\S]*<Drawer\.Content/);
     assert.doesNotMatch(ownerPageSource, /<Drawer\.Portal forceMount>/);
-    assert.match(ownerPageSource, /role="dialog"[\s\S]*aria-modal=\{studioOpen \? 'true' : undefined\}[\s\S]*inert=\{studioOpen \? undefined : true\}/);
+    assert.match(ownerPageSource, /const canvasStudioOpen = Boolean\(editingCanvas\?\.active && editingCanvas\.panel === 'studio'\)/);
+    assert.match(ownerPageSource, /const studioVisible = studioOpen \|\| canvasStudioOpen/);
+    assert.match(ownerPageSource, /role=\{canvasStudioOpen \? 'region' : 'dialog'\}[\s\S]*aria-modal=\{studioOpen \? 'true' : undefined\}[\s\S]*aria-hidden=\{!studioVisible\}[\s\S]*inert=\{studioVisible \? undefined : true\}/);
     assert.match(ownerPageSource, /data-mobile-map-studio-trigger="true"/);
     assert.match(ownerPageSource, /data-mobile-map-studio-panel="true"[\s\S]*\{mapStudioPanel\}/);
     assert.doesNotMatch(ownerPageSource, /\{!useDesktopOwnerLayout \? ownerMapStudioPanel : null\}/);
