@@ -60,6 +60,11 @@ jobs:
       - name: Verify Care Map notes and images downloads
         run: node tests/browser/care-map-notes-export.mjs --out=output/care-map-notes-export-browser
 
+      - name: Verify Care Map fractional zoom and Export parity in Default and Gray
+        run: |
+          node tests/browser/care-map-export-zoom.mjs --rounds=2 --out="${RUNNER_TEMP}/care-map-export-zoom-browser/default"
+          node tests/browser/care-map-export-zoom.mjs --gray --rounds=2 --out="${RUNNER_TEMP}/care-map-export-zoom-browser/gray"
+
       - name: Verify independent Care Map image allowances
         run: node tests/browser/care-map-image-allowance.mjs --out=output/care-map-image-allowance-browser
 
@@ -120,4 +125,12 @@ jobs:
         with:
           name: care-map-notes-export-browser
           path: output/care-map-notes-export-browser
+          if-no-files-found: ignore
+
+      - name: Retain Care Map fractional zoom and Export evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: care-map-export-zoom-browser
+          path: ${{ runner.temp }}/care-map-export-zoom-browser
           if-no-files-found: ignore

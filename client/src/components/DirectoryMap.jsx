@@ -3127,6 +3127,15 @@ export default function DirectoryMap({
         viewportEligible: fixedTownSurfaceViewportEligible,
         surfaceFaulted: Boolean(fixedTownSurfaceFaultReason),
     });
+    // Leaflet prunes at raw maxZoom but fetches at rounded/clamped tile zoom.
+    // Admit fractional camera progress without raising the native request ceiling.
+    const cappedLiveTileZoom = Math.round(resolvedFixedTownSurfaceMinZoom) - 1;
+    const liveTileMaxZoom = shouldCapTownRequestedLiveTiles
+        ? cappedLiveTileZoom + (resolvedZoomControlStep < 1 ? 0.5 : 0)
+        : undefined;
+    const liveTileMaxNativeZoom = shouldCapTownRequestedLiveTiles && resolvedZoomControlStep < 1
+        ? Math.min(CAREAROUND_BASEMAP_NATIVE_ZOOM, cappedLiveTileZoom)
+        : CAREAROUND_BASEMAP_NATIVE_ZOOM;
     const shouldRenderFixedTownSurface = effectiveBasemapMode === 'town'
         || (
             shouldSuppressTownLiveTiles
@@ -3808,7 +3817,7 @@ export default function DirectoryMap({
                 />
                 <DirectoryMapZoomSync
                     enabled={shouldTrackFixedTownSurfaceZoom}
-                    normalizeStandardZoomBelow={shouldGateTownRequestedLiveTiles
+                    normalizeStandardZoomBelow={shouldGateTownRequestedLiveTiles && resolvedZoomControlStep >= 1
                         ? resolvedFixedTownTransitionMinZoom
                         : null}
                     onZoomChange={setFixedTownSurfaceZoom}
@@ -3871,14 +3880,12 @@ export default function DirectoryMap({
                     />
                 ) : shouldSuppressTownLiveTiles ? null : (
                         <TileLayer
-                            key={`${shouldGateTownRequestedLiveTiles ? 'town-request-live-gated' : 'carearound-live'}:${resolvedBasemapUrl}:${onMapReadyForCapture ? captureReadyKey : ''}`}
+                            key={`${shouldGateTownRequestedLiveTiles ? 'town-request-live-gated' : 'carearound-live'}:${liveTileMaxZoom ?? 'uncapped'}:${liveTileMaxNativeZoom}:${resolvedBasemapUrl}:${onMapReadyForCapture ? captureReadyKey : ''}`}
                             attribution={CAREAROUND_BASEMAP_ATTRIBUTION}
                         minNativeZoom={CAREAROUND_BASEMAP_MIN_NATIVE_ZOOM}
                         url={resolvedBasemapUrl}
-                        maxZoom={shouldCapTownRequestedLiveTiles
-                            ? Math.round(resolvedFixedTownSurfaceMinZoom) - 1
-                            : undefined}
-                        maxNativeZoom={CAREAROUND_BASEMAP_NATIVE_ZOOM}
+                        maxZoom={liveTileMaxZoom}
+                        maxNativeZoom={liveTileMaxNativeZoom}
                         eventHandlers={onMapReadyForCapture ? {
                             load: handleCaptureTilesLoaded,
                             tileerror: () => {

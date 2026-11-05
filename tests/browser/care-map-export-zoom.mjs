@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import { createMapStudioDocument } from '../../client/src/lib/mapStudioState.js';
+import { createPrintAnnotation } from '../../client/src/lib/printAnnotations.js';
+import { appendKmlBoundaries } from '../../client/src/lib/kmlBoundaries.js';
 const repo = fileURLToPath(new URL('../../', import.meta.url));
 const out = process.argv.find(a => a.startsWith('--out='))?.slice(6) || (await fs.mkdtemp(path.join(os.tmpdir(), 'care-map-view-controls-')));
 await fs.mkdir(out, {
@@ -56,7 +58,9 @@ studioDoc.views[0].design.layout.preset = 'full-map';
 studioDoc.views[0].design.pins.style = 'numbered';
 if (process.argv.includes('--gray')) studioDoc.views[0].design.basemap.style = 'gray';
 async function install(page, {
-  multiplePins = false
+  multiplePins = false,
+  annotations = [],
+  tilePixel = null
 } = {}) {
   page.on('pageerror', e => report.errors.push(e.message));
   const row = {
@@ -186,7 +190,7 @@ async function install(page, {
       json: {
         mapId: 91261012,
         schemaVersion: 1,
-        annotations: [],
+        annotations,
         revision: 1
       }
     });
@@ -218,13 +222,25 @@ async function install(page, {
       contentType: 'text/css'
     });
     if (url.hostname.includes('onemap.gov.sg')) return r.fulfill({
-      body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=', 'base64'),
+      body: tilePixel || Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=', 'base64'),
       contentType: 'image/png'
     });
     return r.abort();
   });
 }
+// One pixel stays within Leaflet's 0.1 zoom snap on Mac/Linux at DPR 1 or 2.
+const fineWheelPixels = 1;
 const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=', 'base64');
+const paintedStandardPixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGO48OwDAAUwAqemVUSMAAAAAElFTkSuQmCC', 'base64');
+async function screenshotPixel(page, point) {
+  const screenshot = await page.screenshot();
+  return page.evaluate(async ({ image, point }) => {
+    const decoded = new Image(); decoded.src = image; await decoded.decode();
+    const canvas = document.createElement('canvas'); canvas.width = decoded.width; canvas.height = decoded.height;
+    const context = canvas.getContext('2d'); context.drawImage(decoded, 0, 0);
+    return [...context.getImageData(Math.floor(point.x * devicePixelRatio), Math.floor(point.y * devicePixelRatio), 1, 1).data];
+  }, { image: `data:image/png;base64,${screenshot.toString('base64')}`, point });
+}
 async function installTownMapAssets(page, imageDelay = 0) {
   await page.route('**/__carearound-town-maps/**', async route => {
     const u = new URL(route.request().url());
@@ -270,7 +286,7 @@ async function verifyInteractiveLowerZoomBoundary() {
           await page.mouse.move(mapBox.x + mapBox.width / 2, Math.min(1100, mapBox.y + mapBox.height / 2));
           for (let action = 0; action < 3; action++) {
             const before = await readMap();
-            await page.mouse.wheel(0, 10);
+            await page.mouse.wheel(0, fineWheelPixels);
             await page.waitForTimeout(700);
             const after = await readMap();
             report.cases.push({ name: 'Interactive fractional outward wheel retains progress', savedZoom, before: before.zoom, ...after });
@@ -291,10 +307,155 @@ async function verifyInteractiveLowerZoomBoundary() {
   }
 }
 
+async function verifyAnnotationInwardZoom() {
+  const savedCamera = studioDoc.views[0].design.camera;
+  try {
+    studioDoc.views[0].design.camera = { ...savedCamera, view: { center: [1.38, 103.75], zoom: 13 } };
+    for (const dense of [false, true]) {
+      const seeds = dense ? [[981, 1.38, 103.76, 0.04], [441, 1.44, 103.82, 0.02], [812, 1.32, 103.82, 0.02]] : [[4, 1.38, 103.76, 0.04]];
+      const annotations = seeds.map(([count, lat, lng, radius], index) => {
+        const points = dense
+          ? Array.from({ length: count }, (_, i) => [lat + radius * Math.sin(i * 2 * Math.PI / count), lng + radius * Math.cos(i * 2 * Math.PI / count)])
+          : [[1.34, 103.72], [1.34, 103.80], [1.42, 103.80], [1.42, 103.72]];
+        const text = `Fictional boundary ${index + 1}`;
+        const style = { color: '#056e5b', weight: 4.2, fillColor: '#64b78a', fillOpacity: 0.11, fontSize: 16, textColor: '#334155' };
+        const annotation = dense
+          ? appendKmlBoundaries([], [{ points, name: text, style }])[0]
+          : createPrintAnnotation({ type: 'polygon', points, text, style });
+        assert.equal(annotation.points.length, count, 'dense synthetic boundary keeps its input complexity');
+        return annotation;
+      });
+      const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
+      let cdp;
+      const tileRequests = [];
+      page.on('request', request => {
+        const url = new URL(request.url());
+        const tile = url.pathname.match(/\/(\d+)\/\d+\/\d+(?:\.[a-z]+)?$/i);
+        if (url.hostname.includes('onemap.gov.sg') && tile) tileRequests.push(Number(tile[1]));
+      });
+      try {
+        await install(page, { annotations, tilePixel: paintedStandardPixel });
+        await installTownMapAssets(page);
+        await page.goto(new URL('?route=/my-directory/maps/91261012', baseUrl).href);
+        await page.locator('[data-annotation-shape-text]').first().waitFor();
+        if (dense) {
+          await page.getByRole('button', { name: 'Edit content', exact: true }).click();
+          await page.getByText('Annotate', { exact: true }).click();
+        }
+        await page.waitForTimeout(650);
+        cdp = await page.context().newCDPSession(page);
+        const resetCamera = async () => {
+          await page.evaluate(() => window.fixtureMaps.find(map => map?._loaded && map.getContainer().isConnected).setView([1.38, 103.75], 13, { animate: false }));
+          await page.waitForTimeout(350);
+        };
+        const readMap = () => page.evaluate(() => {
+          const map = window.fixtureMaps.find(item => item?._loaded && item.getContainer().isConnected);
+          const el = map.getContainer();
+          return { zoom: map.getZoom(), minZoom: map.getMinZoom(), maxZoom: map.getMaxZoom(),
+            mode: el.parentElement.dataset.mapBasemapMode, tier: el.parentElement.dataset.fixedTownSurfaceTier,
+            tileLayers: Object.values(map._layers).filter(layer => typeof layer.getTileUrl === 'function').map(layer => ({
+              maxZoom: Number.isFinite(layer.options.maxZoom) ? layer.options.maxZoom : null,
+              maxNativeZoom: layer.options.maxNativeZoom, detectRetina: layer.options.detectRetina, zoomOffset: layer.options.zoomOffset,
+              tileZooms: [...new Set(Object.values(layer._tiles || {}).map(tile => tile.coords.z))],
+            })),
+            loadedBackgrounds: [...el.querySelectorAll('.leaflet-tile-pane img, .leaflet-image-layer')].filter(img => img.complete && img.naturalWidth > 0).length };
+        });
+        const assertGatedRequests = (state, requestStart) => {
+          for (const layer of state.tileLayers) {
+            if (layer.maxZoom === null) continue;
+            const integerCeiling = Math.floor(layer.maxZoom);
+            assert.equal(layer.maxZoom, integerCeiling + 0.5);
+            assert.ok(layer.maxNativeZoom <= integerCeiling, 'fractional display admission cannot raise the native URL ceiling');
+            assert.ok(layer.tileZooms.every(zoom => zoom <= integerCeiling));
+            assert.ok(tileRequests.slice(requestStart).every(zoom => zoom <= integerCeiling), 'actual gated OneMap URLs stay below the existing integer ceiling');
+          }
+        };
+        const hitTarget = target => page.evaluate(target => {
+          const map = window.fixtureMaps.find(item => item?._loaded && item.getContainer().isConnected);
+          const box = map.getContainer().getBoundingClientRect();
+          let x, y;
+          if (target === 'label') {
+            const label = document.querySelector('[data-annotation-shape-text]').getBoundingClientRect();
+            x = label.x + label.width / 2; y = label.y + label.height / 2;
+          } else {
+            const coordinate = target === 'fill' ? [1.36, 103.76] : target === 'stroke' ? [1.38, 103.72] : [1.38, 103.68];
+            const point = map.latLngToContainerPoint(coordinate); x = box.x + point.x; y = box.y + point.y;
+          }
+          const element = document.elementFromPoint(x, y);
+          return { x, y, tag: element?.tagName, annotation: Boolean(element?.closest('[class*="print-annotation-"]')),
+            label: Boolean(element?.closest('[data-annotation-shape-text]')) };
+        }, target);
+        for (const gesture of ['wheel', 'ctrl-wheel']) {
+          for (const target of ['fill', 'stroke', 'label', 'clear']) {
+            await resetCamera();
+            const hit = await hitTarget(target);
+            assert.equal(hit.annotation, target !== 'clear', 'browser hit-testing reaches the intended annotation or clear-map path');
+            if (target === 'label') assert.equal(hit.label, true);
+            else if (target !== 'clear') assert.equal(hit.tag, 'path');
+            await page.mouse.move(hit.x, hit.y);
+            const requestStart = tileRequests.length;
+            if (gesture === 'wheel') await page.mouse.wheel(0, -fineWheelPixels);
+            else await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: hit.x, y: hit.y, deltaX: 0, deltaY: -fineWheelPixels, modifiers: 2 });
+            await page.waitForTimeout(650);
+            const after = await readMap();
+            report.cases.push({ name: 'Actual annotation-target fractional inward zoom', dense, editor: dense, gesture, target, hit, ...after });
+            assert.ok(Math.abs(after.zoom - 13.1) < 0.001, 'one small inward wheel over the actual boundary target must retain 13.1');
+            assert.equal(after.minZoom, 11); assert.equal(after.maxZoom, 19);
+            assert.ok(after.loadedBackgrounds > 0, 'fractional input retains a decoded background');
+            assertGatedRequests(after, requestStart);
+          }
+        }
+        if (!dense) {
+          await resetCamera();
+          for (const expectedZoom of [13.1, 13.2, 13.3, 13.4, 13.5]) {
+            const hit = await hitTarget('clear');
+            const requestStart = tileRequests.length;
+            await page.mouse.move(hit.x, hit.y); await page.mouse.wheel(0, -fineWheelPixels);
+            await page.waitForTimeout(650);
+            const after = await readMap();
+            assert.ok(Math.abs(after.zoom - expectedZoom) < 0.001, 'successive small inward inputs accumulate across the Standard fractional band');
+            const point = await hitTarget('clear');
+            const rgb = await screenshotPixel(page, point);
+            assert.deepEqual(rgb, [208, 230, 240, 255], 'Standard tiles stay visibly painted through 13.1–13.5 without removing tile caps');
+            assertGatedRequests(after, requestStart);
+            report.cases.push({ name: 'Painted Standard fractional-band continuity', zoom: after.zoom, rgb, loadedBackgrounds: after.loadedBackgrounds });
+          }
+          let state = await readMap();
+          for (let action = 0; action < 6 && state.tier !== 'native'; action++) {
+            await page.locator('.leaflet-control-zoom-in').first().click(); await page.waitForTimeout(650);
+            state = await readMap();
+            assert.ok(state.loadedBackgrounds > 0);
+          }
+          assert.equal(state.tier, 'native', 'interactive warm-up reaches native detail through real controls');
+          let overviewSeen = false;
+          for (let action = 0; action < 8 && state.mode !== 'live'; action++) {
+            await page.locator('.leaflet-control-zoom-out').first().click(); await page.waitForTimeout(650);
+            state = await readMap(); overviewSeen ||= state.tier === 'overview';
+            assert.ok(state.loadedBackgrounds > 0, 'native/overview/Standard handoff keeps a decoded background');
+          }
+          assert.ok(overviewSeen); assert.equal(state.mode, 'live');
+          const before = state.zoom, hit = await hitTarget('fill'), requestStart = tileRequests.length;
+          await page.mouse.move(hit.x, hit.y); await page.mouse.wheel(0, -fineWheelPixels); await page.waitForTimeout(650);
+          state = await readMap();
+          assert.ok(Math.abs(state.zoom - before - 0.1) < 0.001);
+          assert.ok(state.loadedBackgrounds > 0);
+          assertGatedRequests(state, requestStart);
+          report.cases.push({ name: 'Warm interactive native/overview/Standard inward continuation', before, hit, ...state });
+        }
+      } finally {
+        await cdp?.detach(); await page.close();
+      }
+    }
+  } finally {
+    studioDoc.views[0].design.camera = savedCamera;
+  }
+}
+
 try {
   browser = await chromium.launch({
     headless: true
   });
+  await verifyAnnotationInwardZoom();
   await verifyInteractiveLowerZoomBoundary();
   const page = await browser.newPage({
     viewport: {
@@ -303,8 +464,14 @@ try {
     },
     hasTouch: true
   });
+  const exportTileRequests = [];
+  page.on('request', request => {
+    const url = new URL(request.url()), tile = url.pathname.match(/\/(\d+)\/\d+\/\d+(?:\.[a-z]+)?$/i);
+    if (url.hostname.includes('onemap.gov.sg') && tile) exportTileRequests.push(Number(tile[1]));
+  });
   await install(page, {
-    multiplePins: true
+    multiplePins: true,
+    tilePixel: paintedStandardPixel
   });
   await installTownMapAssets(page);
   await page.goto(new URL('?route=/my-directory/maps/91261012?view=print%26studioView=view-default', baseUrl).href);
@@ -327,6 +494,11 @@ try {
         },
         chunks: el.querySelectorAll('.leaflet-image-layer').length,
         tiles: el.querySelectorAll('.leaflet-tile-pane img').length,
+        tileLayers: Object.values(map._layers).filter(layer => typeof layer.getTileUrl === 'function').map(layer => ({
+          maxZoom: Number.isFinite(layer.options.maxZoom) ? layer.options.maxZoom : null,
+          maxNativeZoom: layer.options.maxNativeZoom, detectRetina: layer.options.detectRetina, zoomOffset: layer.options.zoomOffset,
+          tileZooms: [...new Set(Object.values(layer._tiles || {}).map(tile => tile.coords.z))],
+        })),
         events: map.fixtureEvents.slice(-15)
       };
     });
@@ -399,6 +571,25 @@ try {
     };
   });
   const assertParity = async expectedTier => {
+    const { zoom, center } = await currentMap();
+    const waitStarted = Date.now();
+    try {
+      await page.waitForFunction(({ zoom, center, expectedTier }) => {
+        const maps = window.fixtureMaps.filter(map => map?._loaded && map.getContainer().isConnected);
+        const readiness = document.querySelector('[data-print-export-readiness]')?.dataset.printExportReadiness;
+        if (readiness === 'error') throw new Error('Export readiness failed while awaiting the intended camera');
+        const preview = maps.find(map => !map.getContainer().parentElement.dataset.printExportMapFrame);
+        const capture = maps.find(map => map.getContainer().parentElement.dataset.printExportMapFrame);
+        const matches = map => map && Math.abs(map.getZoom() - zoom) < 0.001
+          && map.project(map.getCenter(), zoom).distanceTo(map.project(center, zoom)) <= 1.6
+          && map.getContainer().parentElement.dataset.fixedTownSurfaceTier === expectedTier;
+        return readiness === 'ready' && matches(preview) && matches(capture);
+      }, { zoom, center, expectedTier }, { timeout: 10000 });
+    } catch (error) {
+      report.lastParity = { expectedTier, intendedCamera: { zoom, center }, snapshot: await read() };
+      throw error;
+    }
+    (report.parityReadinessWaits ||= []).push({ expectedTier, zoom, center, elapsedMs: Date.now() - waitStarted });
     const snapshot = await read();
     report.lastParity={expectedTier,snapshot};
     const preview = snapshot.maps.find(m => !m.dataset.printExportMapFrame);
@@ -463,6 +654,39 @@ try {
     const maps = (await read()).maps;
     assert.ok(Math.abs(maps.find(map => !map.dataset.printExportMapFrame).zoom - maps.find(map => map.dataset.printExportMapFrame).zoom) < 0.001, 'tall preview and capture retain the same outward camera');
   }
+  await page.evaluate(() => {
+    const map = window.fixtureMaps.find(item => item?._loaded && item.getContainer().isConnected && !item.getContainer().parentElement.dataset.printExportMapFrame);
+    map.setZoom(13, { animate: false });
+  });
+  await page.waitForFunction(() => window.fixtureMaps.filter(map => map?._loaded && map.getContainer().isConnected).every(map => Math.abs(map.getZoom() - 13) < 0.001));
+  for (const expectedZoom of [13.1, 13.2, 13.3, 13.4]) {
+    const pointer = await mapPoint();
+    const requestStart = exportTileRequests.length;
+    await page.mouse.move(pointer.x, pointer.y); await page.mouse.wheel(0, -fineWheelPixels);
+    await page.waitForTimeout(700);
+    report.fractionalExportAttempt = { expectedZoom, state: await read() };
+    await page.waitForFunction(expected => {
+      const maps = window.fixtureMaps.filter(map => map?._loaded && map.getContainer().isConnected);
+      return maps.length === 2 && maps.every(map => Math.abs(map.getZoom() - expected) < 0.001
+        && [...map.getContainer().querySelectorAll('.leaflet-tile-pane img')].some(img => img.complete && img.naturalWidth > 0));
+    }, expectedZoom, { timeout: 10000 });
+    const state = await read();
+    for (const map of state.maps) {
+      assert.ok(Math.abs(map.zoom - expectedZoom) < 0.001, 'Export preview and hidden capture retain the fractional inward camera');
+      assert.equal(map.dataset.mapBasemapMode, 'live');
+      assert.ok(map.tiles > 0);
+    }
+    assert.equal(state.maps.find(map => !map.dataset.printExportMapFrame).zoomLabel, String(expectedZoom));
+    const preview = state.maps.find(map => !map.dataset.printExportMapFrame);
+    assert.equal(preview.tileLayers[0].maxZoom, 13.5);
+    assert.equal(preview.tileLayers[0].maxNativeZoom, 13);
+    assert.ok(preview.tileLayers[0].tileZooms.every(zoom => zoom <= 13));
+    const requestedZooms = exportTileRequests.slice(requestStart);
+    assert.ok(requestedZooms.every(zoom => zoom <= 13), 'warm Export cannot request a higher native LOD while admitting fractional camera progress');
+    const rgb = await screenshotPixel(page, { x: preview.x + preview.width / 4, y: Math.min(1120, preview.y + preview.height / 2) });
+    assert.deepEqual(rgb, [208, 230, 240, 255], 'warm Export preview remains visibly painted through the fractional gap');
+    report.cases.push({ name: 'Export fractional inward preview/capture parity', expectedZoom, rgb, requestedZooms, state });
+  }
   for (let round = 0; round < Number(process.argv.find(a => a.startsWith('--rounds='))?.slice(9) || 10); round++) {
     await resetMap();
     await page.evaluate(() => {
@@ -475,7 +699,7 @@ try {
     const before = await currentMap();
     const pointer = await mapPoint();
     await page.mouse.move(pointer.x, pointer.y);
-    await page.mouse.wheel(0, 10);
+    await page.mouse.wheel(0, fineWheelPixels);
     await page.waitForTimeout(700);
     const after = await currentMap();
     report.cases.push({
@@ -485,7 +709,7 @@ try {
     });
     assert.ok(after.zoom < before.zoom, 'first small wheel keeps its requested outward scale');
     await assertParity('overview');
-    await page.mouse.wheel(0, -10);
+    await page.mouse.wheel(0, -fineWheelPixels);
     await page.waitForTimeout(700);
     assert.ok((await currentMap()).zoom > after.zoom, 'first inward action advances scale');
     await assertParity('native');
@@ -546,7 +770,7 @@ try {
   await page.waitForTimeout(700);
   const panPoint = await mapPoint();
   await page.mouse.move(panPoint.x, panPoint.y);
-  await page.mouse.wheel(0, 10);
+  await page.mouse.wheel(0, fineWheelPixels);
   await page.waitForTimeout(700);
   const panScale = (await currentMap()).zoom;
   await assertParity('overview');
