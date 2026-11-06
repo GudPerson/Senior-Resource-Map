@@ -694,6 +694,7 @@ const MapStudioViewsPanel = forwardRef(function MapStudioViewsPanel({
                                 </div>
                             ) : (
                                 <MapStudioDesignControls
+                                    key={mapId}
                                     design={ownerState.session.draftDesign}
                                     resourceLayerCatalog={resourceLayerCatalog}
                                     annotationLayerCatalog={annotationLayerCatalog}

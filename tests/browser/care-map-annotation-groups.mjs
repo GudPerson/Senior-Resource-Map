@@ -41,7 +41,7 @@ try{
  const type=()=>manager.getByRole('combobox',{name:'Type',exact:true});
  const group=()=>manager.getByRole('combobox',{name:'Group',exact:true});
  const rows=()=>manager.locator('[data-annotation-layer-item]');
- const all=()=>manager.getByRole('checkbox',{name:'Show all matching annotations',exact:true});
+ const all=()=>manager.locator('[data-annotation-select-all]');
  const hidden=()=>[...state.document.views[0].design.layers.hiddenAnnotationIds].sort();
  const initialHidden=hidden();
  await check('search/type/custom group filters never write either document',async()=>{
@@ -53,33 +53,29 @@ try{
   await page.waitForTimeout(1000);assert.equal(studioWrites.length,0);assert.equal(state.allowedWrites.length,0);assert.deepEqual(hidden(),initialHidden);
   return{intersectedMatches:2,zeroMatchesDisabled:true,typeMatches:1,studioWrites:0,annotationWrites:0};
  });
- await check('filtered check all is mixed and preserves off-filter and stale visibility ids',async()=>{
+ await check('matching selection checkbox is mixed and never changes off-filter or stale visibility ids',async()=>{
+  assert.equal(await all().isChecked(),false);await rows().first().getByRole('checkbox').check();
   assert.equal(await all().getAttribute('aria-checked'),'mixed');assert.equal(await all().evaluate(n=>n.indeterminate),true);
-  await all().check();await until(()=>studioWrites.length===1,'show matching did not persist');
-  assert.deepEqual(hidden(),[offFilter,stale].sort());assert.equal(await all().isChecked(),true);
-  await all().uncheck();await until(()=>studioWrites.length===2,'hide matching did not persist');
-  assert.deepEqual(hidden(),[...ids,offFilter,stale].sort());
-  await rows().first().getByRole('checkbox').check();await until(()=>studioWrites.length===3,'individual visibility did not persist');
-  assert.equal(await all().getAttribute('aria-checked'),'mixed');assert.equal(state.allowedWrites.length,0);
-  for(const write of studioWrites){const after=structuredClone(write.after),before=structuredClone(write.before);assert.equal(after.revision,before.revision+1);assert.equal(after.views[0].revision,before.views[0].revision+1);delete after.revision;delete before.revision;after.views[0].revision=before.views[0].revision;after.views[0].design.layers.hiddenAnnotationIds=before.views[0].design.layers.hiddenAnnotationIds;assert.deepEqual(after,before);}
-  return{studioWrites:3,annotationWrites:0,offFilterAndStalePreserved:true,mixed:true};
+  await all().check();assert.equal(await all().isChecked(),true);await all().uncheck();assert.equal(await all().isChecked(),false);
+  await all().check();await page.waitForTimeout(700);assert.deepEqual(hidden(),initialHidden);assert.equal(studioWrites.length,0);assert.equal(state.allowedWrites.length,0);
+  return{selectedMatchingItems:3,studioWrites:0,annotationWrites:0,offFilterAndStaleVisibilityPreserved:true,mixedSelection:true};
  });
  const hiddenBeforeGroup=hidden();
- await manager.locator('details.annotation-layer-organise>summary').click();
+ await all().check();await manager.locator('[data-annotation-group-selected]').click();
  const name=()=>manager.getByRole('combobox',{name:'Group name',exact:true});
  await check('typing a group is local; explicit move persists only metadata using current revision',async()=>{
   await name().fill('  Community   partners  ');await page.waitForTimeout(1000);assert.equal(state.allowedWrites.length,0);
-  await manager.getByRole('button',{name:'Move 3 matching items',exact:true}).click();
+  await manager.locator('[data-annotation-group-apply]').click();
   await until(()=>state.allowedWrites.length===1,'group action did not save');await manager.getByRole('status').filter({hasText:'Group saved.'}).waitFor();
   for(const id of ids)assert.equal(state.annotations.find(a=>a.id===id).groupName,'Community partners');
-  assert.deepEqual(withoutGroups(state.annotations),withoutGroups(original));assert.deepEqual(hidden(),hiddenBeforeGroup);assert.equal(studioWrites.length,3);
+  assert.deepEqual(withoutGroups(state.annotations),withoutGroups(original));assert.deepEqual(hidden(),hiddenBeforeGroup);assert.equal(studioWrites.length,0);
   assert.equal(state.annotationRevision,2);
   await page.screenshot({path:path.join(out,'annotation-groups.png')});
   return{annotationWrites:1,revision:2,changedIds:3,geometryAndStyleExact:true,viewVisibilityUnchanged:true};
  });
  await check('identical normalized assignment is disabled and Enter cannot create a no-op save',async()=>{
-  await group().selectOption('group:Community partners');await name().fill('Community partners');
-  assert.equal(await manager.getByRole('button',{name:'Move 3 matching items',exact:true}).isDisabled(),true);
+  await group().selectOption('group:Community partners');await all().check();await manager.locator('[data-annotation-group-selected]').click();await name().fill('Community partners');
+  assert.equal(await manager.locator('[data-annotation-group-apply]').isDisabled(),true);
   await name().press('Enter');await page.waitForTimeout(1000);assert.equal(state.allowedWrites.length,1);
   return{noOpWrites:0,groupFilter:'Community partners'};
  });
@@ -92,21 +88,21 @@ try{
   return{undoWrites:1,allAnnotationsExact:true,invalidGroupFilterReset:'all',viewVisibilityUnchanged:true};
  });
  await check('explicit ungroup persists only matching group metadata and survives ordinary reload',async()=>{
-  await group().selectOption('group:Health teams');assert.equal(await rows().count(),2);await name().fill('');
-  await manager.getByRole('button',{name:'Ungroup 2 matching items',exact:true}).click();await until(()=>state.allowedWrites.length===3,'Ungroup did not save');
+  await manager.locator('[data-annotation-selection-clear]').click();await group().selectOption('group:Health teams');assert.equal(await rows().count(),2);await all().check();
+  await manager.locator('[data-annotation-group-ungroup]').click();await until(()=>state.allowedWrites.length===3,'Ungroup did not save');
   assert.equal(Object.hasOwn(state.annotations[1],'groupName'),false);assert.equal(Object.hasOwn(state.annotations[2],'groupName'),false);
   assert.deepEqual(withoutGroups(state.annotations),withoutGroups(original));assert.deepEqual(hidden(),hiddenBeforeGroup);
   await page.reload();await page.locator('[data-owner-canvas-enter]').click();await page.locator('[data-owner-canvas-tool="studio"]').click();await page.locator('[data-map-studio-annotation-layers]>summary').click();manager=page.locator('[data-annotation-layer-manager]');
   assert.equal(await manager.getByRole('combobox',{name:'Group',exact:true}).locator('option').filter({hasText:'Health teams'}).count(),0);assert.equal(await rows().count(),97);
-  assert.deepEqual(hidden(),hiddenBeforeGroup);assert.equal(state.allowedWrites.length,3);assert.equal(studioWrites.length,3);
+  assert.deepEqual(hidden(),hiddenBeforeGroup);assert.equal(state.allowedWrites.length,3);assert.equal(studioWrites.length,0);
   return{ungroupWrites:1,reloadCount:97,revision:state.annotationRevision,visibilityUnchanged:true};
  });
  await check('a newly named group survives a fresh owner-page reload',async()=>{
-  await search().fill('dense');await manager.locator('details.annotation-layer-organise>summary').click();await name().fill('Persisted team');
-  await manager.getByRole('button',{name:'Move 3 matching items',exact:true}).click();await until(()=>state.allowedWrites.length===4,'new group did not persist');
+  await search().fill('dense');await all().check();await manager.locator('[data-annotation-group-selected]').click();await name().fill('Persisted team');
+  await manager.locator('[data-annotation-group-apply]').click();await until(()=>state.allowedWrites.length===4,'new group did not persist');
   await page.reload();await page.locator('[data-owner-canvas-enter]').click();await page.locator('[data-owner-canvas-tool="studio"]').click();await page.locator('[data-map-studio-annotation-layers]>summary').click();manager=page.locator('[data-annotation-layer-manager]');
   await group().selectOption('group:Persisted team');assert.equal(await rows().count(),3);await group().selectOption('all');
-  assert.deepEqual(withoutGroups(state.annotations),withoutGroups(original));assert.deepEqual(hidden(),hiddenBeforeGroup);assert.equal(state.allowedWrites.length,4);assert.equal(studioWrites.length,3);
+  assert.deepEqual(withoutGroups(state.annotations),withoutGroups(original));assert.deepEqual(hidden(),hiddenBeforeGroup);assert.equal(state.allowedWrites.length,4);assert.equal(studioWrites.length,0);
   return{positiveGroupReload:true,matchingItems:3,geometryAndVisibilityUnchanged:true};
  });
  await check('failed group save retains its local draft and offers an immediate retry',async()=>{
@@ -116,13 +112,12 @@ try{
    return route.fallback();
   });
   const savedBefore=structuredClone(state.annotations),beforeWrites=state.allowedWrites.length;
-  await search().fill('dense');await manager.locator('details.annotation-layer-organise>summary').click();await name().fill('Recovery team');
-  await manager.getByRole('button',{name:'Move 3 matching items',exact:true}).click();await manager.getByRole('alert').waitFor();
+  await search().fill('dense');await all().check();await manager.locator('[data-annotation-group-selected]').click();await name().fill('Recovery team');
+  await manager.locator('[data-annotation-group-apply]').click();await manager.getByRole('alert').waitFor();
   assert.deepEqual(state.annotations,savedBefore);assert.equal(state.allowedWrites.length,beforeWrites);
   assert.equal(await page.locator('[data-owner-canvas-save]').getAttribute('data-owner-canvas-save'),'failed');
   await page.locator('[data-owner-canvas-exit]').click();await page.locator('[data-owner-canvas-enter]').click();await page.locator('[data-owner-canvas-tool="studio"]').click();
   const itemDetails=page.locator('[data-map-studio-annotation-layers]');if(await itemDetails.getAttribute('open')===null)await itemDetails.locator(':scope>summary').click();manager=page.locator('[data-annotation-layer-manager]');
-  const organise=manager.locator('details.annotation-layer-organise');if(await organise.getAttribute('open')===null)await organise.locator(':scope>summary').click();
   const retry=manager.getByRole('button',{name:'Retry saving group',exact:true});assert.equal(await retry.count(),1,'a failed group action must offer retry in its own inspector');
   await retry.click();await until(()=>failedAttempts===2,'second deliberate failure not observed');await manager.getByRole('alert').waitFor();assert.equal(state.allowedWrites.length,beforeWrites);
   await retry.click();await until(()=>state.allowedWrites.length===beforeWrites+1,'group retry did not persist');

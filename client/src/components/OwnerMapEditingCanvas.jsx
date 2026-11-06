@@ -34,7 +34,10 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
             current.onCancelAnnotationDraft?.();
             return;
         }
-        if (current.annotationEditing) current.onCancelAnnotationDraft?.();
+        if (current.annotationEditing) {
+            if (current.onCloseAnnotations?.() === false) return;
+            current.onCancelAnnotationDraft?.();
+        }
         setPanel(null);
         lastTriggerRef.current?.focus({ preventScroll: true });
     }, []);
@@ -88,7 +91,13 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
         setNotice('');
         if (name === 'share') { config.onOpenShare?.(); return; }
         const target = name === 'draw' ? 'annotations' : name;
-        if (config.annotationEditing && target !== 'annotations') config.onCancelAnnotationDraft?.();
+        if (config.annotationEditing && target !== 'annotations') {
+            if (config.onCloseAnnotations?.() === false) {
+                setNotice(messages.finishDraft);
+                return;
+            }
+            config.onCancelAnnotationDraft?.();
+        }
         if (target === panel && name !== 'draw') { closePanel(); return; }
         if (target === 'annotations') {
             if (!config.annotationEditing) config.onToggleAnnotations?.();

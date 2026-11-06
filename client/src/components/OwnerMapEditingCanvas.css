@@ -58,6 +58,13 @@
 /* The canvas inspector is the only scroll owner. A non-scrollable nested
    overflow:auto + overscroll:contain box otherwise traps wheel input. */
 .owner-editing-canvas[data-owner-canvas-active="true"][data-owner-canvas-panel="studio"] [data-map-studio-design-settings-panel] { position:static!important;width:100%!important;max-width:none!important;max-height:none!important;overflow:visible!important;overscroll-behavior:auto!important;box-shadow:none!important; }
+/* Clip the inner card without making it a second sticky/scroll container. */
+.owner-editing-canvas[data-owner-canvas-active="true"][data-owner-canvas-panel="studio"] [data-map-studio-design-controls] { overflow:clip; }
+.owner-editing-canvas[data-owner-canvas-active="true"][data-owner-canvas-panel="studio"] .annotation-layer-selection { position:sticky; }
+/* Short inspectors need the complete selection form to flow with the page. */
+@media(max-width:640px),(max-height:720px) {
+ .owner-editing-canvas[data-owner-canvas-active="true"][data-owner-canvas-panel="studio"] .annotation-layer-selection { position:static; }
+}
 [data-map-studio-canvas="true"] [data-map-studio-top-controls] { flex-direction:column;align-items:stretch;gap:12px; }
 [data-map-studio-canvas="true"] [data-map-studio-heading] { width:auto;flex-shrink:1; }
 [data-map-studio-canvas="true"] [data-map-studio-heading]>div { flex:1; }
