@@ -46,6 +46,7 @@ export default function MyMapV2PreviewScaffold({
     onResetView,
     onMapClick,
     mapOverlay = null,
+    inspectionOverlay = null,
     mapSurfaceOverlay = null,
     toolbar = null,
     studioPanel = null,
@@ -175,6 +176,7 @@ export default function MyMapV2PreviewScaffold({
             onMapViewStateChange={mapStudioRuntime?.onMapViewStateChange ?? null}
             careMapGestures={careMapGestures}
             mapOverlay={mapOverlay}
+            inspectionOverlay={inspectionOverlay}
             surfaceOverlay={mapSurfaceOverlay}
             surfaceStatus={mapSurfaceStatus}
         />

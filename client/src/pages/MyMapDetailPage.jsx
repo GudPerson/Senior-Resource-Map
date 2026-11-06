@@ -2267,14 +2267,12 @@ export default function MyMapDetailPage() {
             ? buildOwnerNumberedPinPresentation(mapPinBasePresentation)
             : mapPinBasePresentation
     ), [mapPinBasePresentation, mapStudioInteractiveModel?.directoryMap?.markerMode]);
-    const ownerInteractiveAnnotationOverlay = <>
-        {interactiveAnnotationEditor.mapOverlay || ownerReadOnlyAnnotationOverlay}
-        {!isPrintView && directory?.viewer?.isOwner === true ? <OwnerMapLayerProbe
+    const ownerInteractiveAnnotationOverlay = interactiveAnnotationEditor.mapOverlay || ownerReadOnlyAnnotationOverlay;
+    const ownerMapInspectionOverlay = !isPrintView && directory?.viewer?.isOwner === true ? <OwnerMapLayerProbe
             annotations={interactiveAnnotationEditorOpen ? printAnnotations.annotations : annotationActivation.visibleAnnotations}
             presentation={mapOwnerPresentation}
             showPins={mapStudioInteractiveModel?.resourceLayer?.visible ?? true}
-            scopeKey={`${user?.id || ''}:${mapId}:${mapStudioRuntimeSnapshot?.activeViewId || ''}`} /> : null}
-    </>;
+            scopeKey={`${user?.id || ''}:${mapId}:${mapStudioRuntimeSnapshot?.activeViewId || ''}`} /> : null;
     const pdfPresentation = useMemo(() => (
         buildDirectoryPresentation(directory)
     ), [directory]);
@@ -4146,6 +4144,7 @@ export default function MyMapDetailPage() {
     const studioMapHeight = mapStudioInteractiveModel?.layout?.mapHeight || 'standard';
     const classicMapStudioMapProps = {
         ownerToolMenu: directory?.viewer?.isOwner === true,
+        inspectionOverlay: ownerMapInspectionOverlay,
         careMapGestures,
         layoutSignature: `classic-map:${mapStudioLayoutSignature}`,
         mapStyleOverride: mapStudioInteractiveModel?.directoryMap?.mapStyleOverride ?? null,
@@ -4469,6 +4468,7 @@ export default function MyMapDetailPage() {
                 configuration={editingCanvasConfiguration}>
                 <MyMapV2PreviewScaffold
                     ownerToolMenu={directory?.viewer?.isOwner === true}
+                    inspectionOverlay={ownerMapInspectionOverlay}
                     mapFirstView={mapFirstPresentationEnabled && (splitWorkspace || (!interactiveAnnotationEditorOpen && !personalPlacePickerActive))}
                     ownerWorkspace={ownerWorkspace}
                     mapFirstOpen={mapFirstOpen}

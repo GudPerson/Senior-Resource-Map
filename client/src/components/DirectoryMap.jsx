@@ -2828,6 +2828,7 @@ export default function DirectoryMap({
     mobileControlPortalTarget = null,
     onMapClick = null,
     mapOverlay = null,
+    inspectionOverlay = null,
     surfaceOverlay = null,
     surfaceStatus = null,
 }) {
@@ -3996,6 +3997,8 @@ export default function DirectoryMap({
                 ) : null}
                 {renderedMarkers}
                 {mapOverlay}
+                {/* Passive inspection must never admit an otherwise empty map. */}
+                {inspectionOverlay}
             </MapContainer>
             {visibleCategoryPinGroup ? (
                 <DiscoverPostalGroupListPanel
