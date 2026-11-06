@@ -495,6 +495,24 @@ try {
     assert.ok(state.document.views.some(view => view.id === state.document.defaultViewId), 'delete retains valid default view');
     await unchangedController(page, controller, state, loads); await shot(page, 'split-real-saved-view-commands');
   });
+  await runCase('split-pending-delete-persists-under-resource-hover', {}, async (page, state) => {
+    const shell = await openSplit(page), p = await studio(page, shell), controller = await activeStudioIdentity(page), loads = state.studioLoads;
+    const choose = async name => { const menu = p.locator('[data-owner-workspace-view-actions]'); if (await menu.getAttribute('open') === null) await menu.locator('summary').click(); await menu.getByRole('button', { name, exact: true }).click(); };
+    await choose('Duplicate'); await waitUntil(() => state.document.views.length === 3, 'duplicate saved before hover regression');
+    const selector = p.locator('select[id^="map-studio-view-"]'), duplicateId = await selector.inputValue();
+    await choose('Set default'); await waitUntil(() => state.document.defaultViewId === duplicateId, 'default saved before hover regression');
+    await choose('Delete'); const dialog = page.locator('[role="dialog"],[role="alertdialog"]').filter({ visible: true }).last(); await dialog.waitFor(); await dialog.getByRole('button').last().click();
+    await waitUntil(async () => await selector.locator('option').count() === 2, 'confirmed deletion is locally visible before hover');
+    assert.equal(state.document.views.length, 3, 'persistence is still pending when the pointer enters the marker');
+    const point = await page.evaluate(() => [...document.querySelectorAll('.leaflet-marker-icon')].map(element => {
+      const r = element.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2;
+      return { x, y, exposed: !!r.width && !!r.height && !!document.elementFromPoint(x, y)?.closest('.leaflet-marker-icon') };
+    }).filter(value => value.exposed).sort((a, b) => Math.hypot(a.x - 967, a.y - 598) - Math.hypot(b.x - 967, b.y - 598))[0]);
+    assert.ok(point?.exposed, 'pointer targets an exposed real resource marker');
+    await page.mouse.move(point.x, point.y);
+    await waitUntil(() => state.document.views.length === 2 && !state.document.views.some(view => view.id === duplicateId), 'pending Delete persists while the pointer stays on a resource marker');
+    await unchangedController(page, controller, state, loads); await shot(page, 'split-pending-delete-persists-under-resource-hover');
+  });
   await runCase('split-explicit-explore-mode-flush', {}, async (page, state) => {
     const shell = await openSplit(page), p = await studio(page, shell), controller = await activeStudioIdentity(page), loads = state.studioLoads;
     state.nextResponse = 'error'; await p.getByRole('button', { name: 'Numbered pins', exact: true }).click();

@@ -1,4 +1,5 @@
 import {
+    createMapStudioExplorationState,
     createMapStudioSession,
     createMapStudioView,
     deleteMapStudioView,
@@ -97,9 +98,14 @@ export function patchOwnerMapStudioDraft(state, patch = {}) {
 }
 
 export function patchOwnerMapStudioExploration(state, patch = {}) {
+    const session = patchMapStudioExploration(state.session, patch);
+    // Repeated marker hover must not restart a pending document's autosave.
+    if (JSON.stringify(session.exploration) === JSON.stringify(createMapStudioExplorationState(state.session.exploration))) {
+        return state;
+    }
     return {
         ...state,
-        session: patchMapStudioExploration(state.session, patch),
+        session,
     };
 }
 

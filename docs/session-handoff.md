@@ -1,3 +1,13 @@
+## 7 November 2026 — Layer-inspector release validation — UNRELEASED
+
+PR #104 is paused for a narrow autosave repair after retained CI failures. Feature `0d14c78f…` and empty-map admission fix `fff77496…` remain in history. The latter separates passive inspection from the content overlay that admits an empty map; original empty state, Draw and personal-place picker controls pass. No merge, source pin or deployment is claimed.
+
+The repeated CI Delete failure was reproduced locally by leaving the native pointer on a resource marker after confirmation: identical exploration updates repeatedly cancelled the pending 900 ms save. The owner-only wrapper now preserves object identity for normalized no-ops, while real query/hover/focus/selection/camera changes still update. Studio autosave/effect/single-flight logic and API/schema remain untouched.
+
+Validation passes 35 focused owner/session tests, raw RED→GREEN controls and the full ordered 36-case workspace suite, including all original 35 cases and the unchanged 10-second save oracle. Configured client build passes in 7.392 s. [Repair receipt](/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-layer-inspector-20261106/release-20261107/qa/owner-exploration-noop-fix-ready.json) (`75fa6310…`) retains causal diagnostic bytes separately from uninstrumented acceptance. Earlier CI `42259972629` and `42265267010` attempts 1/2 are not relabelled as passing or flaky.
+
+Next: exact reviewed repair commit/push, fresh PR/main CI plus independent archive/source audits, then the authorized normal paired publisher and bounded signed-in checks. Preserve primary153 and the capable Scope/200/group API; no further user approval is needed for the already authorized release. Historical local-only and previous LIVE checkpoints below remain unchanged.
+
 ## 7 November 2026 — Care Map layers/labels — LOCAL VALIDATED, NOT RELEASED
 
 The local candidate is on `codex/caremap-layer-inspector-20261106`, uncommitted parent `9c61fa429b819cfa7eaf5e4d34f0948169382ca7`. No push, CI, deployment or signed-in production map/CMS edits occurred. Prior public07d4/private354 identity belongs to the earlier release and was not refreshed here; primary153 remains byte-identical in status metadata.
