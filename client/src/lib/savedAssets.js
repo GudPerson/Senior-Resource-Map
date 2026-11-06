@@ -17,6 +17,11 @@ export function buildSavedAssetDetailPath(resourceType, resourceId) {
     return `/resource/${resourceType}/${resourceId}`;
 }
 
+export function canApplySavedAssetsSnapshot(items, expectedUserId, currentUserId) {
+    return Array.isArray(items) && expectedUserId !== null && expectedUserId !== undefined
+        && currentUserId !== null && currentUserId !== undefined && String(expectedUserId) === String(currentUserId);
+}
+
 export function selectBulkSavedAssetTargets(items, savedAssetKeys, shouldSave) {
     const currentKeys = savedAssetKeys instanceof Set ? savedAssetKeys : new Set();
     const desiredSavedState = Boolean(shouldSave);

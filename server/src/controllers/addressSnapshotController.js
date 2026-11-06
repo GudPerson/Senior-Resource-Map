@@ -1,6 +1,7 @@
 import { createAddressSnapshotRepository } from '../utils/addressSnapshotRepository.js';
 import { ADDRESS_SNAPSHOT_CONFIG } from '../utils/addressSnapshotConfig.js';
 import { isSpatialCoordinate, normalizeSpatialArea } from '../../../shared/addressSnapshotSpatial.js';
+import { normalizeAddressSnapshotLimit } from '../../../shared/addressSnapshotQueryLimits.js';
 
 export const ADDRESS_SNAPSHOT_MAX_BODY_BYTES = 1024 * 1024;
 
@@ -75,7 +76,9 @@ function validateQuery(body, kind) {
 function errorResponse(c, error) {
     const code = Object.hasOwn(RESPONSES, error?.code) ? error.code : 'ADDRESS_SNAPSHOT_UNAVAILABLE';
     const response = RESPONSES[code];
-    return c.json({ error: response.error, code, ...(response.status === 503 ? { ready: false } : {}) }, response.status);
+    const addressLimit = code === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' ? normalizeAddressSnapshotLimit(error.addressLimit) : undefined;
+    return c.json({ error: response.error, code, ...(addressLimit ? { addressLimit } : {}),
+        ...(response.status === 503 ? { ready: false } : {}) }, response.status);
 }
 
 export function createAddressSnapshotHandlers({

@@ -370,6 +370,20 @@ export const bulkRemoveUnusedFavorites = async (c) => {
     }
 };
 
+// Bulk/area workflows express a desired saved state; retrying must never toggle
+// an acknowledged or concurrent save off. Keep the established toggle separate.
+export const saveFavorite = async (c) => {
+    try {
+        const user = c.get('user');
+        const db = getDb(c.env);
+        await ensureBoundarySchema(db, c.env);
+        const body = validateRequestBody(await c.req.json(), favoriteResourceRefSchema, 'Saved resource');
+        return c.json(await ensureSavedAsset(db, user, body.resourceType, body.resourceId));
+    } catch (err) {
+        return c.json({ error: err.message || 'Failed to save resource' }, err.status || 500);
+    }
+};
+
 export const toggleFavorite = async (c) => {
     try {
         const user = c.get('user');

@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import {
     buildOptimisticSavedAsset,
     buildSavedAssetKey,
+    canApplySavedAssetsSnapshot,
     selectBulkSavedAssetTargets,
 } from '../lib/savedAssets.js';
 import { loadSavedAssetsWithRetry } from '../lib/savedAssetsLoading.js';
@@ -22,6 +23,8 @@ function replaceSavedAsset(items, nextItem) {
 
 export function SavedAssetsProvider({ children }) {
     const { user } = useAuth();
+    const currentUserIdRef = useRef(user?.id);
+    currentUserIdRef.current = user?.id;
     const [savedAssets, setSavedAssets] = useState([]);
     const [savedAssetsLoading, setSavedAssetsLoading] = useState(false);
     const [savedAssetsLoadError, setSavedAssetsLoadError] = useState('');
@@ -37,6 +40,11 @@ export function SavedAssetsProvider({ children }) {
 
     const syncPendingKeys = useCallback(() => {
         setPendingKeys([...pendingKeysRef.current]);
+    }, []);
+    const applySavedAssetsSnapshot = useCallback((items, expectedUserId) => {
+        if (!canApplySavedAssetsSnapshot(items, expectedUserId, currentUserIdRef.current)) return false;
+        setSavedAssets(items);
+        return true;
     }, []);
 
     const refreshSavedAssets = useCallback(async () => {
@@ -264,6 +272,7 @@ export function SavedAssetsProvider({ children }) {
                 pendingKeys,
                 bulkPending,
                 refreshSavedAssets,
+                applySavedAssetsSnapshot,
                 isSaved,
                 isSavedAssetPending,
                 toggleSavedAsset,

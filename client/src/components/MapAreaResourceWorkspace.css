@@ -1,0 +1,26 @@
+/* Small area workspaces use one body scroller; other dialogs keep their layout. */
+@media (max-width: 640px), (max-height: 900px) {
+    [data-map-area-workspace] {
+        display: block;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    [data-map-area-workspace] [data-map-area-results],
+    [data-map-area-workspace] [role="tabpanel"],
+    [data-map-area-workspace] [data-map-area-resource-chooser] {
+        display: block;
+    }
+
+    [data-map-area-workspace] [data-map-area-resource-chooser] > ul {
+        overflow: visible;
+    }
+
+    [data-map-area-workspace] [data-map-area-resource-chooser] > footer,
+    [data-map-area-workspace] #map-area-panel-addresses > footer {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        background: white;
+    }
+}

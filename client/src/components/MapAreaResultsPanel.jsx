@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import MapSpatialDialog from './MapSpatialDialog.jsx';
+import MapAreaResourceChooser from './MapAreaResourceChooser.jsx';
 import { AddressSnapshotNotice } from './NearbyAddressPicker.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { getMapSpatialMessages } from '../lib/mapSpatialMessages.js';
@@ -8,6 +9,7 @@ import { fetchAllPaginatedResults } from '../lib/paginatedResults.js';
 import { classifyMapAreaResources } from '../lib/mapAreaResources.js';
 import { findSnapshotAddressesWithinArea } from '../lib/addressSnapshotClient.js';
 import { serializeAddressSnapshotCsv } from '../lib/mapSpatialGeometry.js';
+import { formatAreaMessage, getMapAreaResourceMessages } from '../lib/mapAreaResourceMessages.js';
 
 function downloadCsv(rows) {
     const blob = new Blob([serializeAddressSnapshotCsv(rows)], { type: 'text/csv;charset=utf-8' });
@@ -18,10 +20,13 @@ function downloadCsv(rows) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export default function MapAreaResultsPanel({ area, onClose }) {
+export default function MapAreaResultsPanel({ area, onClose, embedded = false, initialTab = 'addresses',
+    existingAssets = [], scopeKey = '', disabled = false, onSaveAndAdd = null, onBusyChange = null }) {
     const { locale } = useLocale();
     const m = getMapSpatialMessages(locale);
-    const [tab, setTab] = useState('addresses');
+    const rm = getMapAreaResourceMessages(locale);
+    const [tab, setTab] = useState(initialTab);
+    const [resourceBusy, setResourceBusy] = useState(false);
     const [addressRetry, setAddressRetry] = useState(0), [resourceRetry, setResourceRetry] = useState(0);
     const [result, setResult] = useState(null), [addressStatus, setAddressStatus] = useState('loading');
     const [addressError, setAddressError] = useState(false), [loadingPage, setLoadingPage] = useState(false);
@@ -45,7 +50,7 @@ export default function MapAreaResultsPanel({ area, onClose }) {
             });
             setAddressStatus('ready');
         } catch (error) {
-            if (!controller.signal.aborted) { setAddressError(error?.code || 'ADDRESS_SNAPSHOT_UNAVAILABLE'); if (reset) setAddressStatus('error'); }
+            if (!controller.signal.aborted) { setAddressError({ code: error?.code || 'ADDRESS_SNAPSHOT_UNAVAILABLE', limit: error?.addressLimit }); if (reset) setAddressStatus('error'); }
         } finally {
             if (!controller.signal.aborted) { pageBusy.current = false; setLoadingPage(false); }
         }
@@ -114,11 +119,11 @@ export default function MapAreaResultsPanel({ area, onClose }) {
         } catch (error) { if (!controller.signal.aborted) setNotice(error?.code === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' ? m.areaTooLarge : error?.code === 'ADDRESS_SNAPSHOT_CHANGED' ? m.snapshotChanged : m.exportFailed); }
         finally { if (!controller.signal.aborted) setExporting(false); exportBusy.current = false; }
     }
-    return <MapSpatialDialog title={m.findWithin} closeLabel={m.close} onClose={onClose} wide data-map-area-results>
+    const content = <>
         <div role="tablist" aria-label={m.findWithin} className="flex shrink-0 gap-1 border-b border-slate-100 p-2">
             {[['addresses', m.addresses], ['resources', m.resources]].map(([id, label]) => <button key={id} type="button" role="tab" id={`map-area-tab-${id}`} aria-controls={`map-area-panel-${id}`} aria-selected={tab === id}
                 className={`min-h-11 min-w-0 flex-1 rounded-xl px-3 text-sm font-bold ${tab === id ? 'bg-brand-50 text-brand-800' : 'text-slate-600 hover:bg-slate-50'}`}
-                onClick={() => { setTab(id); setNotice(''); }} onKeyDown={event => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) { event.preventDefault(); const next = event.key === 'Home' ? 'addresses' : event.key === 'End' ? 'resources' : id === 'addresses' ? 'resources' : 'addresses'; setTab(next); document.getElementById(`map-area-tab-${next}`)?.focus(); } }}>
+                disabled={resourceBusy} onClick={() => { setTab(id); setNotice(''); }} onKeyDown={event => { if (!resourceBusy && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) { event.preventDefault(); const next = event.key === 'Home' ? 'addresses' : event.key === 'End' ? 'resources' : id === 'addresses' ? 'resources' : 'addresses'; setTab(next); document.getElementById(`map-area-tab-${next}`)?.focus(); } }}>
                 {label}{id === 'addresses' && result ? ` (${result.total})` : id === 'resources' && resources ? ` (${resources.inside.length})` : ''}
             </button>)}
         </div>
@@ -129,7 +134,10 @@ export default function MapAreaResultsPanel({ area, onClose }) {
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-5">
                 {addressStatus === 'loading' ? <p role="status" className="py-5 text-sm text-slate-600">{m.loadingAddresses}</p> : null}
-                {addressError ? <div role="alert" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p>{addressError === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' ? m.areaTooLarge : addressError === 'ADDRESS_SNAPSHOT_CHANGED' ? m.snapshotChanged : m.addressesError}</p><button type="button" className="btn-ghost mt-2 min-h-11" onClick={addressError === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' ? onClose : () => setAddressRetry(value => value + 1)}>{addressError === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' ? m.shrinkArea : m.retry}</button></div> : null}
+                {addressError ? <div role="alert" data-map-area-address-error={addressError.code} className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    <p>{addressError.code === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' ? rm.tooLarge : addressError.code === 'ADDRESS_SNAPSHOT_CHANGED' ? rm.changed : addressError.code === 'ADDRESS_SNAPSHOT_INVALID_QUERY' ? rm.invalid : m.addressesError}</p>
+                    {addressError.limit && rm[`limit_${addressError.limit.reason}`] ? <p className="mt-2 text-xs leading-5" data-map-area-address-limit={addressError.limit.reason}>{rm[`limit_${addressError.limit.reason}`]} {formatAreaMessage(rm.limitNumbers, addressError.limit)}</p> : null}
+                    <button type="button" className="btn-ghost mt-2 min-h-11" onClick={addressError.code === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' ? onClose : () => setAddressRetry(value => value + 1)}>{addressError.code === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' ? m.shrinkArea : m.retry}</button></div> : null}
                 {addressStatus === 'ready' && !rows.length ? <p role="status" className="py-4 text-sm text-slate-600">{m.noAddresses}</p> : null}
                 {rows.length ? <label className="mb-2 flex min-h-11 cursor-pointer items-center gap-3 text-sm font-bold text-slate-700"><input type="checkbox" checked={allLoadedSelected} onChange={() => setSelected(allLoadedSelected ? new Set() : new Set(rows.map(row => row.id)))} className="h-5 w-5 accent-brand-600" />{m.selectAll}</label> : null}
                 <ul className="space-y-2">
@@ -148,17 +156,20 @@ export default function MapAreaResultsPanel({ area, onClose }) {
                 </div>
                 {notice ? <p role="status" className="mt-2 text-xs leading-5 text-slate-600">{notice}</p> : null}
             </footer>
-        </div> : <div role="tabpanel" id="map-area-panel-resources" aria-labelledby="map-area-tab-resources" className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
-            <p className="mb-3 text-xs leading-5 text-slate-500">{m.visibleCatalogue}</p>
+        </div> : <div role="tabpanel" id="map-area-panel-resources" aria-labelledby="map-area-tab-resources" className={onSaveAndAdd ? 'flex min-h-0 flex-1 flex-col' : 'min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5'}>
+            <p className="shrink-0 px-4 pt-3 text-xs leading-5 text-slate-500">{m.visibleCatalogue}</p>
             {resourceStatus === 'loading' ? <p role="status" className="py-5 text-sm text-slate-600">{m.loadingResources}</p> : null}
             {resourceStatus === 'error' ? <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p>{m.resourcesError}</p><button type="button" className="btn-ghost mt-2 min-h-11" onClick={() => setResourceRetry(value => value + 1)}>{m.retry}</button></div> : null}
             {resourceStatus === 'ready' && !resources?.inside.length ? <p className="py-4 text-sm text-slate-600">{m.noResources}</p> : null}
-            <ul className="space-y-2">{(resources?.inside || []).map(row => <li key={row.id} className="rounded-xl border border-slate-200 p-3">
+            {onSaveAndAdd && resourceStatus === 'ready' ? <MapAreaResourceChooser rows={resources?.inside || []} existingAssets={existingAssets}
+                scopeKey={scopeKey} disabled={disabled} onSaveAndAdd={onSaveAndAdd} onBusyChange={value => { setResourceBusy(value); onBusyChange?.(value); }} /> : <ul className="space-y-2">{(resources?.inside || []).map(row => <li key={row.id} className="rounded-xl border border-slate-200 p-3">
                 <a href={row.detailPath} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-brand-800 underline underline-offset-2">{row.name}</a>
                 <p className="mt-1 text-xs text-slate-500">{row.resourceType === 'hard' ? 'Place' : 'Programme / service'}</p>
                 {row.locations.map((location, index) => <p key={index} className="mt-1 break-words text-sm leading-5 text-slate-600">{location.address || location.name || location.postalCode || location.postal_code || `${location.lat}, ${location.lng}`}</p>)}
-            </li>)}</ul>
-            {resources?.unassessed.length ? <p className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600" data-map-area-unlocated>{m.unlocatedHeading}: {resources.unassessed.length}. {m.unlocated}</p> : null}
+            </li>)}</ul>}
+            {resources?.unassessed.length ? <p className="shrink-0 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600" data-map-area-unlocated>{m.unlocatedHeading}: {resources.unassessed.length}. {m.unlocated}</p> : null}
         </div>}
-    </MapSpatialDialog>;
+    </>;
+    return embedded ? <section className="flex min-h-0 flex-1 flex-col" data-map-area-results>{content}</section>
+        : <MapSpatialDialog title={m.findWithin} closeLabel={m.close} onClose={onClose} wide data-map-area-results>{content}</MapSpatialDialog>;
 }

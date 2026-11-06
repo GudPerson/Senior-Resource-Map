@@ -4,6 +4,7 @@ import {
     bulkRemoveUnusedFavorites,
     getFavoriteMapUsage,
     getFavorites,
+    saveFavorite,
     toggleFavorite,
 } from '../controllers/favoritesController.js';
 
@@ -12,6 +13,7 @@ const router = new Hono();
 router.get('/', authenticateToken, getFavorites);
 router.get('/map-usage', authenticateToken, getFavoriteMapUsage);
 router.post('/bulk-remove-unused', authenticateToken, bulkRemoveUnusedFavorites);
+router.post('/save', authenticateToken, saveFavorite);
 router.post('/toggle', authenticateToken, toggleFavorite);
 
 export default router;

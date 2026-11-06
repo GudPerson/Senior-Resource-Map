@@ -34,9 +34,11 @@ import {
 } from '../utils/savedAssets.js';
 import {
     buildLiveMyMapAssetSnapshotFromDb,
+    buildScopedMyMapAssetSnapshotFromDb,
     buildMyMapDirectory,
     normalizeMyMapAssetSnapshot,
 } from '../utils/myMapDirectory.js';
+import { invalidMapLocationScope, scopedResourceKeysFromMapAssets, validateSelectedPlaceIds } from '../utils/mapLocationScope.js';
 import {
     MY_MAP_CATEGORY_ORDER_LIMIT,
     normalizeMyMapCategoryOrder,
@@ -69,6 +71,8 @@ const optionalHexColorSchema = z.union([
 const mapAssetRefBodySchema = z.object({
     resourceType: z.enum(['hard', 'soft']),
     resourceId: positiveIntValueSchema('Resource id'),
+    // Validated against canonical current venues before any membership write.
+    selectedPlaceIds: z.unknown().optional(),
 });
 
 const createMyMapBodySchema = z.object({
@@ -223,7 +227,8 @@ function parseAssetRef(value) {
     const resourceType = normalizeResourceType(value?.resourceType);
     const resourceId = parseResourceId(value?.resourceId);
     if (!resourceType || !resourceId) return null;
-    return { resourceType, resourceId };
+    const selectedPlaceIds = validateSelectedPlaceIds(value?.selectedPlaceIds);
+    return { resourceType, resourceId, ...(selectedPlaceIds !== null ? { selectedPlaceIds } : {}) };
 }
 
 function parseAssetRefs(values) {
@@ -233,6 +238,8 @@ function parseAssetRefs(values) {
     values.forEach((value) => {
         const parsed = parseAssetRef(value);
         if (!parsed) return;
+        const previous = unique.get(`${parsed.resourceType}:${parsed.resourceId}`);
+        if (previous && (previous.selectedPlaceIds || parsed.selectedPlaceIds)) throw invalidMapLocationScope();
         unique.set(`${parsed.resourceType}:${parsed.resourceId}`, parsed);
     });
 
@@ -616,7 +623,10 @@ export async function createMyMap(db, user, body, resolutionContext = null) {
 
     for (const assetRef of assetRefs) {
         const favorite = await requireSavedAssetRecord(db, user, assetRef, finalResolutionContext);
-        savedRecords.push(favorite);
+        const scopedSnapshot = assetRef.selectedPlaceIds
+            ? await buildScopedMyMapAssetSnapshotFromDb(db, user, assetRef, assetRef.selectedPlaceIds, finalResolutionContext)
+            : null;
+        savedRecords.push(scopedSnapshot ? { ...favorite, snapshot: scopedSnapshot } : favorite);
     }
 
     const [createdMap] = await db.insert(myMaps).values({
@@ -865,8 +875,10 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
         buildEmbeddedPrintAnnotationSnapshot(map.printAnnotationDocument?.annotations),
         selectedStudioView?.design,
     );
+    const scopedResourceKeys = scopedResourceKeysFromMapAssets(map.assets);
     await persistShareSnapshot(db, mapId, shareToken, {
         ...publicSharedSnapshot,
+        ...(scopedResourceKeys.length ? { mapLocationScopeVersion: 1, scopedResourceKeys } : {}),
         embeddedAnnotations,
         embeddedResourceContacts,
         embeddedPresentation,
@@ -938,11 +950,16 @@ export async function addAssetToMyMap(db, user, mapId, body, resolutionContext =
         throw createHttpError(409, 'This asset is already in the map');
     }
 
+    const scopedSnapshot = assetRef.selectedPlaceIds
+        ? await buildScopedMyMapAssetSnapshotFromDb(db, user, assetRef, assetRef.selectedPlaceIds,
+            resolutionContext || await createSavedAssetResolutionContext(db, user))
+        : null;
+
     const [createdAsset] = await db.insert(myMapAssets).values({
         mapId: map.id,
         resourceType: assetRef.resourceType,
         resourceId: assetRef.resourceId,
-        snapshot: favorite.snapshot || null,
+        snapshot: scopedSnapshot || favorite.snapshot || null,
     }).returning();
 
     await touchMap(db, map.id);
@@ -1235,7 +1252,8 @@ export const postMyMap = async (c) => {
         return c.json(map, 201);
     } catch (err) {
         console.error('postMyMap Error:', err);
-        return c.json({ error: err.message || 'Failed to create map' }, err.status || 500);
+        return c.json({ error: err.message || 'Failed to create map',
+            ...(err.code === 'MAP_LOCATION_SCOPE_INVALID' ? { code: err.code } : {}) }, err.status || 500);
     }
 };
 
@@ -1405,7 +1423,8 @@ export const postMyMapAsset = async (c) => {
         return c.json(item, 201);
     } catch (err) {
         console.error('postMyMapAsset Error:', err);
-        return c.json({ error: err.message || 'Failed to add asset to map' }, err.status || 500);
+        return c.json({ error: err.message || 'Failed to add asset to map',
+            ...(err.code === 'MAP_LOCATION_SCOPE_INVALID' ? { code: err.code } : {}) }, err.status || 500);
     }
 };
 

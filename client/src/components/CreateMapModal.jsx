@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Heart, LoaderCircle, Map, RefreshCw, Search, X } from 'lucide-react';
 
 import { api } from '../lib/api.js';
@@ -10,6 +10,8 @@ import {
     MANAGE_MAP_CATALOG_MIN_QUERY_LENGTH,
 } from '../lib/manageMapResourceCatalog.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { getMapAreaResourceMessages } from '../lib/mapAreaResourceMessages.js';
+import { mergeNewMapMembershipKeys } from '../lib/mapAreaResourceSelection.js';
 
 const EMPTY_ASSET_KEYS = [];
 
@@ -32,10 +34,15 @@ export default function CreateMapModal({
     error = '',
     allowCatalogSearch = false,
     onSaveCatalogAsset = null,
+    withinAreaContent = null,
+    initialSection = 'saved',
+    selectionScopeKey = '',
     onClose,
     onSubmit,
 }) {
-    const { t } = useLocale();
+    const { t, locale } = useLocale();
+    const areaMessages = getMapAreaResourceMessages(locale);
+    const [section, setSection] = useState(initialSection);
     const [name, setName] = useState('');
     const [query, setQuery] = useState('');
     const [filter, setFilter] = useState('all');
@@ -47,12 +54,15 @@ export default function CreateMapModal({
     const [catalogActionError, setCatalogActionError] = useState('');
     const [catalogSavingKeys, setCatalogSavingKeys] = useState(new Set());
     const titleId = useId();
+    const membershipSessionRef = useRef(null);
 
     const isCreateMode = mode === 'create';
+    const hasWithinArea = !isCreateMode && withinAreaContent !== null;
     const busy = loading || submitting;
     const canSearchCatalog = allowCatalogSearch && typeof onSaveCatalogAsset === 'function';
     const catalogActionBusy = catalogSavingKeys.size > 0;
     const dialogBusy = busy || catalogActionBusy;
+    const manageSelectionReady = mode === 'manage-assets' ? !loading && !interactionDisabled : null;
     const normalizedQuery = normalizeText(query);
     const initialAssetKeySignature = useMemo(() => JSON.stringify(
         [...new Set(initialAssetKeys.map((key) => String(key)))].sort(),
@@ -88,7 +98,16 @@ export default function CreateMapModal({
         && normalizedQuery.length >= MANAGE_MAP_CATALOG_MIN_QUERY_LENGTH;
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) { membershipSessionRef.current = null; return; }
+        const nextMembership = JSON.parse(initialAssetKeySignature);
+        const previousSession = membershipSessionRef.current;
+        const sameSession = previousSession?.mode === mode && previousSession.scopeKey === selectionScopeKey;
+        membershipSessionRef.current = { mode, scopeKey: selectionScopeKey, keys: nextMembership,
+            initialized: sameSession && previousSession.initialized || Boolean(manageSelectionReady) };
+        if (mode === 'manage-assets' && sameSession && previousSession.initialized) {
+            setSelectedKeys(current => mergeNewMapMembershipKeys(current, previousSession.keys, nextMembership));
+            return;
+        }
         setName('');
         setQuery('');
         setFilter('all');
@@ -98,8 +117,9 @@ export default function CreateMapModal({
         setCatalogLoadVersion(0);
         setCatalogActionError('');
         setCatalogSavingKeys(new Set());
-        setSelectedKeys(new Set(JSON.parse(initialAssetKeySignature)));
-    }, [isOpen, initialAssetKeySignature]);
+        setSelectedKeys(new Set(nextMembership));
+    }, [isOpen, initialAssetKeySignature, mode, manageSelectionReady, selectionScopeKey]);
+    useEffect(() => { if (isOpen) setSection(initialSection); }, [isOpen, initialSection]);
 
     useEffect(() => {
         if (!isOpen || !catalogSearchActive || catalogStatus !== 'idle') return;
@@ -279,12 +299,12 @@ export default function CreateMapModal({
                         <h2 id={titleId} className="mt-2 text-2xl font-bold text-slate-900">
                             {isCreateMode
                                 ? (canSearchCatalog ? t('createMapWithResources') : t('createMapFromSaved'))
-                                : t('chooseWhatStaysInMap')}
+                                : section === 'area' && hasWithinArea ? areaMessages.withinArea : t('chooseWhatStaysInMap')}
                         </h2>
                         <p className="mt-2 text-sm text-slate-500">
                             {isCreateMode
                                 ? (canSearchCatalog ? t('pickSavedOrFindResourcesTogether') : t('pickSavedResourcesTogether'))
-                                : t('tickSavedResourcesIncluded')}
+                                : section === 'area' && hasWithinArea ? areaMessages.saveHelp : t('tickSavedResourcesIncluded')}
                         </p>
                     </div>
                     <button
@@ -298,7 +318,16 @@ export default function CreateMapModal({
                     </button>
                 </div>
 
-                <form
+                {hasWithinArea ? <div role="tablist" aria-label={t('chooseMapResources')} className="flex shrink-0 gap-2 border-b border-slate-100 px-5 py-2">
+                    {[['saved', areaMessages.savedCatalogue], ['area', areaMessages.withinArea]].map(([value, label]) => <button type="button" key={value}
+                        role="tab" aria-selected={section === value} aria-controls={`${titleId}-${value}`} data-map-resources-tab={value}
+                        disabled={dialogBusy} className={`min-h-11 min-w-0 flex-1 rounded-xl px-3 text-sm font-bold ${section === value ? 'bg-brand-50 text-brand-800' : 'text-slate-600'}`}
+                        onClick={() => setSection(value)}>{label}</button>)}
+                </div> : null}
+                {section === 'area' && hasWithinArea ? <div id={`${titleId}-area`} role="tabpanel" className="flex min-h-0 flex-1 flex-col">
+                    {error ? <p role="alert" className="shrink-0 px-4 py-3 text-sm font-medium text-red-600">{error}</p> : null}
+                    {withinAreaContent}</div> : <form
+                    id={`${titleId}-saved`}
                     onSubmit={handleSubmit}
                     className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5 sm:px-6 sm:pb-5"
                     aria-busy={dialogBusy}
@@ -588,7 +617,7 @@ export default function CreateMapModal({
                             </button>
                         </div>
                     </div>
-                </form>
+                </form>}
             </div>
         </div>
     );

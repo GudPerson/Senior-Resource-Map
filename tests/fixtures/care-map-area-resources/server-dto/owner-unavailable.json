@@ -1,0 +1,128 @@
+{
+  "id": 3,
+  "name": "Community planning",
+  "description": null,
+  "categoryOrder": [],
+  "createdAt": "2026-03-14T10:00:00.000Z",
+  "updatedAt": "2026-11-06T09:37:50.405Z",
+  "summary": {
+    "resourceCount": 1,
+    "savedResourceCount": 1,
+    "personalPlaceCount": 0,
+    "placeCount": 1,
+    "mappablePlaceCount": 0
+  },
+  "share": {
+    "isShared": true,
+    "shareToken": "UQgblmJXOUnpo-_SpvYrKTv24fhk0fvt",
+    "sharePath": "/shared/maps/UQgblmJXOUnpo-_SpvYrKTv24fhk0fvt",
+    "shareIncludesHandoffNotes": false,
+    "shareUpdatedAt": "2026-11-06T09:37:50.405Z",
+    "embedEnabled": true,
+    "embedAllowedOrigins": [
+      "https://fictional.example"
+    ],
+    "embedPath": "/embed/maps/UQgblmJXOUnpo-_SpvYrKTv24fhk0fvt"
+  },
+  "assets": [
+    {
+      "assetKey": "soft-9001",
+      "resourceType": "soft",
+      "resourceId": 9001,
+      "status": "available",
+      "mapLocationScope": {
+        "version": 1,
+        "placeIds": [
+          82102
+        ]
+      },
+      "shortDescriptor": null,
+      "shortDescriptorTextColor": null,
+      "shortDescriptorHighlightColor": null,
+      "shortDescriptors": [],
+      "notes": {
+        "items": [
+          {
+            "id": 1,
+            "text": "Published curator note",
+            "isShared": true,
+            "sortOrder": 0,
+            "createdAt": null,
+            "updatedAt": null
+          }
+        ],
+        "notesUpdatedAt": null
+      }
+    }
+  ],
+  "personalPlaces": [],
+  "places": [
+    {
+      "placeKey": "unavailable-scope-soft-9001",
+      "placeId": null,
+      "name": "Selected venue unavailable",
+      "address": null,
+      "postalCode": null,
+      "lat": null,
+      "lng": null,
+      "hasCoordinates": false,
+      "openProgrammeServiceCount": 0,
+      "curatedCount": 1,
+      "rows": [
+        {
+          "rowKey": "9:unavailable-scope-soft-9001",
+          "resourceType": "soft",
+          "resourceId": 9001,
+          "name": "Fictional regional programme",
+          "bucket": null,
+          "subCategory": "Programme",
+          "iconKey": "programme",
+          "categoryIconUrl": null,
+          "categoryColor": null,
+          "descriptor": null,
+          "mapShortDescriptors": [],
+          "mapShortDescriptor": null,
+          "mapShortDescriptorTextColor": null,
+          "mapShortDescriptorHighlightColor": null,
+          "address": null,
+          "logoUrl": null,
+          "website": null,
+          "contactPhone": null,
+          "socialLinks": {},
+          "availabilityEnabled": false,
+          "availabilityCount": 0,
+          "availabilityUnit": null,
+          "openProgrammeServiceCount": 0,
+          "detailPath": null,
+          "status": "unavailable",
+          "saveEligible": false,
+          "access": null,
+          "missingProfileFields": [],
+          "assetKey": "soft-9001",
+          "addedAt": "2026-03-14T10:05:00.000Z",
+          "notes": {
+            "items": [
+              {
+                "id": 1,
+                "text": "Published curator note",
+                "isShared": true,
+                "sortOrder": 0,
+                "createdAt": null,
+                "updatedAt": null
+              }
+            ],
+            "notesUpdatedAt": null
+          }
+        }
+      ]
+    }
+  ],
+  "pins": [],
+  "viewer": {
+    "isAuthenticated": true,
+    "isOwner": true,
+    "canSaveCopy": false,
+    "canSaveResources": false,
+    "copyDefaultName": null
+  }
+}

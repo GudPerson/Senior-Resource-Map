@@ -1,0 +1,33 @@
+{
+  "id": 3,
+  "name": "Community planning",
+  "description": null,
+  "categoryOrder": [],
+  "createdAt": "2026-03-14T10:00:00.000Z",
+  "updatedAt": "2026-03-14T10:00:00.000Z",
+  "summary": {
+    "resourceCount": 0,
+    "savedResourceCount": 0,
+    "personalPlaceCount": 0,
+    "placeCount": 0,
+    "mappablePlaceCount": 0
+  },
+  "share": {
+    "isShared": true,
+    "shareToken": "UQgblmJXOUnpo-_SpvYrKTv24fhk0fvt",
+    "sharePath": "/shared/maps/UQgblmJXOUnpo-_SpvYrKTv24fhk0fvt",
+    "shareIncludesHandoffNotes": false,
+    "shareUpdatedAt": "2026-11-06T09:37:50.405Z"
+  },
+  "assets": [],
+  "personalPlaces": [],
+  "places": [],
+  "pins": [],
+  "viewer": {
+    "isAuthenticated": true,
+    "isOwner": false,
+    "canSaveCopy": true,
+    "canSaveResources": true,
+    "copyDefaultName": "Copy of Community planning"
+  }
+}

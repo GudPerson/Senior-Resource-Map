@@ -1,5 +1,6 @@
 import { getImpersonationToken, getSessionAuthHeaders } from './sessionAuth.js';
 import { getApiBaseCandidates } from './apiBase.js';
+import { normalizeAddressSnapshotLimit } from '../../../shared/addressSnapshotQueryLimits.js';
 
 const BASE_CANDIDATES = getApiBaseCandidates();
 
@@ -145,6 +146,10 @@ export async function requestWithBaseCandidates(method, path, body, options = {}
                 const error = new Error(data.error);
                 error.status = res.status;
                 if (data.code) error.code = data.code;
+                if (String(path).startsWith('/address-snapshot/') && data.code === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE') {
+                    const addressLimit = normalizeAddressSnapshotLimit(data.addressLimit);
+                    if (addressLimit) error.addressLimit = addressLimit;
+                }
                 throw error;
             }
             // Retry on non-JSON responses to survive rewrite/base URL mismatches.
@@ -595,6 +600,7 @@ export const api = {
     getSavedAssetMapUsage: () => request('GET', '/favorites/map-usage'),
     bulkRemoveUnusedSavedAssets: (resources) => request('POST', '/favorites/bulk-remove-unused', { resources }),
     toggleSavedAsset: (resourceType, resourceId) => request('POST', '/favorites/toggle', { resourceType, resourceId }),
+    ensureSavedAsset: (resourceType, resourceId, options = {}) => request('POST', '/favorites/save', { resourceType, resourceId }, options),
 
     // Favorites (compatibility aliases)
     getFavorites: (options = {}) => request('GET', '/favorites', undefined, options),
@@ -611,7 +617,7 @@ export const api = {
     // My Maps
     getMyMaps: () => request('GET', '/my-maps'),
     createMyMap: (body) => request('POST', '/my-maps', body),
-    getMyMap: (id) => request('GET', `/my-maps/${id}`),
+    getMyMap: (id, options = {}) => request('GET', `/my-maps/${id}`, undefined, options),
     getMyMapStudio: (id, options = {}) => request('GET', `/my-maps/${id}/studio`, undefined, options),
     updateMyMapStudio: (id, body) => request('PUT', `/my-maps/${id}/studio`, body),
     updateMyMap: (id, body) => request('PATCH', `/my-maps/${id}`, body),
@@ -623,7 +629,7 @@ export const api = {
     publishMyMapShare: (id, body = {}) => request('POST', `/my-maps/${id}/share`, body),
     unpublishMyMapShare: (id) => request('DELETE', `/my-maps/${id}/share`),
     updateMyMapEmbed: (id, body) => request('PATCH', `/my-maps/${id}/embed`, body),
-    addMyMapAsset: (id, body) => request('POST', `/my-maps/${id}/assets`, body),
+    addMyMapAsset: (id, body, options = {}) => request('POST', `/my-maps/${id}/assets`, body, options),
     updateMyMapAssetShortDescriptor: (id, resourceType, resourceId, body) => request('PATCH', `/my-maps/${id}/assets/${resourceType}/${resourceId}/short-description`, body),
     updateMyMapAssetNotes: (id, resourceType, resourceId, body, options = {}) => request('PATCH', `/my-maps/${id}/assets/${resourceType}/${resourceId}/notes`, body, options),
     updateMyMapPersonalPlaceNotes: (id, placeId, body, options = {}) => request('PATCH', `/my-maps/${id}/personal-places/${placeId}/notes`, body, options),

@@ -1,4 +1,5 @@
 import { requestWithBaseCandidates } from './api.js';
+import { normalizeAddressSnapshotLimit } from '../../../shared/addressSnapshotQueryLimits.js';
 
 const SHA256 = /^[a-f0-9]{64}$/;
 const ERROR_MESSAGES = {
@@ -9,11 +10,13 @@ const ERROR_MESSAGES = {
 };
 
 export class AddressSnapshotError extends Error {
-    constructor(message, code = 'ADDRESS_SNAPSHOT_UNAVAILABLE', status) {
+    constructor(message, code = 'ADDRESS_SNAPSHOT_UNAVAILABLE', status, addressLimit) {
         super(message || ERROR_MESSAGES[code] || ERROR_MESSAGES.ADDRESS_SNAPSHOT_UNAVAILABLE);
         this.name = 'AddressSnapshotError';
         this.code = code;
         if (status) this.status = status;
+        const limit = code === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' ? normalizeAddressSnapshotLimit(addressLimit) : undefined;
+        if (limit) this.addressLimit = limit;
     }
 }
 
@@ -38,14 +41,14 @@ export function createAddressSnapshotClient({ provider = 'production', apiReques
             const value = await response.json();
             if (!response.ok) {
                 const code = value?.code || ({ 400: 'ADDRESS_SNAPSHOT_INVALID_QUERY', 409: 'ADDRESS_SNAPSHOT_CHANGED', 422: 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' })[response.status];
-                throw new AddressSnapshotError(undefined, ERROR_MESSAGES[code] ? code : undefined, response.status);
+                throw new AddressSnapshotError(undefined, ERROR_MESSAGES[code] ? code : undefined, response.status, value?.addressLimit);
             }
             return value;
         } catch (error) {
             if (error?.name === 'AbortError' || signal?.aborted) throw error;
             if (error instanceof AddressSnapshotError) throw error;
             const code = ERROR_MESSAGES[error?.code] ? error.code : 'ADDRESS_SNAPSHOT_UNAVAILABLE';
-            throw new AddressSnapshotError(undefined, code, error?.status);
+            throw new AddressSnapshotError(undefined, code, error?.status, error?.addressLimit);
         }
     }
     async function getAddressSnapshotMetadata({ signal } = {}) {
