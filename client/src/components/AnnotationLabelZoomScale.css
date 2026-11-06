@@ -1,0 +1,29 @@
+/* Keep Leaflet's geographic transform; only annotation label footprints scale. */
+.carearound-print-annotation-marker--text {
+    width: calc(240px * var(--carearound-annotation-label-scale, 1)) !important;
+    height: calc(70px * var(--carearound-annotation-label-scale, 1)) !important;
+    margin-left: calc(-120px * var(--carearound-annotation-label-scale, 1)) !important;
+    margin-top: calc(-35px * var(--carearound-annotation-label-scale, 1)) !important;
+}
+
+.carearound-print-annotation-marker--pin {
+    width: calc(38px * var(--carearound-annotation-label-scale, 1)) !important;
+    height: calc(38px * var(--carearound-annotation-label-scale, 1)) !important;
+    margin-left: calc(-19px * var(--carearound-annotation-label-scale, 1)) !important;
+    margin-top: calc(-38px * var(--carearound-annotation-label-scale, 1)) !important;
+}
+
+.leaflet-tooltip.carearound-print-annotation-label {
+    font-size: calc(0.75rem * var(--carearound-annotation-label-scale, 1));
+    padding: calc(6px * var(--carearound-annotation-label-scale, 1));
+    border-width: calc(1px * var(--carearound-annotation-label-scale, 1));
+    border-radius: calc(3px * var(--carearound-annotation-label-scale, 1));
+    margin-left: calc(20px * var(--carearound-annotation-label-scale, 1) - 14px);
+    margin-top: calc(18px - 18px * var(--carearound-annotation-label-scale, 1));
+}
+
+.leaflet-tooltip.carearound-print-annotation-label::before {
+    border-width: calc(6px * var(--carearound-annotation-label-scale, 1));
+    margin-top: calc(-6px * var(--carearound-annotation-label-scale, 1));
+    margin-left: calc(-12px * var(--carearound-annotation-label-scale, 1));
+}

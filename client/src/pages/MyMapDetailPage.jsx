@@ -46,6 +46,7 @@ import MyMapExcelExportButton from '../components/MyMapExcelExportButton.jsx';
 import MyMapCategoryOrderModal from '../components/MyMapCategoryOrderModal.jsx';
 import MyMapV2PreviewScaffold from '../components/MyMapV2PreviewScaffold.jsx';
 import OwnerMapEditingCanvas from '../components/OwnerMapEditingCanvas.jsx';
+import OwnerMapLayerProbe from '../components/OwnerMapLayerProbe.jsx';
 import MapAssetShortDescriptionModal from '../components/MapAssetShortDescriptionModal.jsx';
 import MapStudioViewsPanel from '../components/MapStudioViewsPanel.jsx';
 import PrintAnnotationLayer from '../components/PrintAnnotationLayer.jsx';
@@ -1893,8 +1894,6 @@ export default function MyMapDetailPage() {
         measurementScopeKey: studioSaveState?.activeViewId || '',
         onFindWithinArea: handleFindWithinArea,
     });
-    const ownerInteractiveAnnotationOverlay = interactiveAnnotationEditor.mapOverlay
-        || ownerReadOnlyAnnotationOverlay;
     const hasAnnotationAttention = annotationActivation.annotationEffects.activeIds.size > 0;
     const ownerAnnotationSurfaceOverlay = interactiveAnnotationEditor.surfaceOverlay
         || hasAnnotationAttention || privateAnnotationImages.error ? (
@@ -2268,6 +2267,14 @@ export default function MyMapDetailPage() {
             ? buildOwnerNumberedPinPresentation(mapPinBasePresentation)
             : mapPinBasePresentation
     ), [mapPinBasePresentation, mapStudioInteractiveModel?.directoryMap?.markerMode]);
+    const ownerInteractiveAnnotationOverlay = <>
+        {interactiveAnnotationEditor.mapOverlay || ownerReadOnlyAnnotationOverlay}
+        {!isPrintView && directory?.viewer?.isOwner === true ? <OwnerMapLayerProbe
+            annotations={interactiveAnnotationEditorOpen ? printAnnotations.annotations : annotationActivation.visibleAnnotations}
+            presentation={mapOwnerPresentation}
+            showPins={mapStudioInteractiveModel?.resourceLayer?.visible ?? true}
+            scopeKey={`${user?.id || ''}:${mapId}:${mapStudioRuntimeSnapshot?.activeViewId || ''}`} /> : null}
+    </>;
     const pdfPresentation = useMemo(() => (
         buildDirectoryPresentation(directory)
     ), [directory]);
@@ -4104,6 +4111,8 @@ export default function MyMapDetailPage() {
         ...ownerToolbarActionProps,
         canvasAvailable: !splitWorkspace,
         directory,
+        ownerKey: user?.id || '',
+        mapId,
         actionError,
         studioState: studioSaveState,
         annotationStatus: printAnnotations.status,
@@ -4136,6 +4145,7 @@ export default function MyMapDetailPage() {
     } : null;
     const studioMapHeight = mapStudioInteractiveModel?.layout?.mapHeight || 'standard';
     const classicMapStudioMapProps = {
+        ownerToolMenu: directory?.viewer?.isOwner === true,
         careMapGestures,
         layoutSignature: `classic-map:${mapStudioLayoutSignature}`,
         mapStyleOverride: mapStudioInteractiveModel?.directoryMap?.mapStyleOverride ?? null,
@@ -4458,6 +4468,7 @@ export default function MyMapDetailPage() {
             <OwnerMapEditingCanvas active={editingCanvasOpen} onActiveChange={setEditingCanvasOpen}
                 configuration={editingCanvasConfiguration}>
                 <MyMapV2PreviewScaffold
+                    ownerToolMenu={directory?.viewer?.isOwner === true}
                     mapFirstView={mapFirstPresentationEnabled && (splitWorkspace || (!interactiveAnnotationEditorOpen && !personalPlacePickerActive))}
                     ownerWorkspace={ownerWorkspace}
                     mapFirstOpen={mapFirstOpen}

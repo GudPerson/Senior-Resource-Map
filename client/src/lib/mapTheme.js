@@ -21,3 +21,9 @@ export function getCareAroundBasemapUrl(style) {
         ? CAREAROUND_BASEMAP_URL
         : CAREAROUND_DEFAULT_BASEMAP_URL;
 }
+
+export function getCareAroundMapSeaColor(style) {
+    return normalizeCareAroundMapStyle(style) === CAREAROUND_MAP_STYLE_GRAY
+        ? '#d1d1d1'
+        : '#6da8e4';
+}

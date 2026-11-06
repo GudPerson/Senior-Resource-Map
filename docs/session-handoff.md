@@ -1,3 +1,15 @@
+## 7 November 2026 — Care Map layers/labels — LOCAL VALIDATED, NOT RELEASED
+
+The local candidate is on `codex/caremap-layer-inspector-20261106`, uncommitted parent `9c61fa429b819cfa7eaf5e4d34f0948169382ca7`. No push, CI, deployment or signed-in production map/CMS edits occurred. Prior public07d4/private354 identity belongs to the earlier release and was not refreshed here; primary153 remains byte-identical in status metadata.
+
+Original-map right-click now shares the canvas tools and full overlap list. Optional hover is a compact names-only peek with a visible count/full-list hint. Eligibility follows current rendered/scoped resources and annotations; source hides and map/view/user boundaries remain guarded. Default/Gray frame sea fill and per-map zoom-scaled annotation/pin/Tooltip labels preserve stored font sizes, geometry, resource pins and existing gestures/edit/export flows.
+
+Local gates pass once each: quality55.64s (server1,292/client1,175+environment5/CMS73/address51/Help17/configured build) and map lockdown116+distinct build7.40s. Eight inspector and eleven menu cases pass; eight renderer cases are modular proof with unchanged renderer files, plus two final presentation rechecks.654 runtime/21 observer hashes match after validation, and primary153 status SHA remains42ce52d5…. [Evidence](/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-layer-inspector-20261106/qa/verification-summary.json) (`3a822800…`); [screenshot preview](/Users/sweetbuns/.codex/visualizations/2026/10/23/01a16770-9bad-7d80-8a28-111ecb10f61b/caremap-layer-inspector-20261106/local-preview.html).
+
+Keep claims bounded: hover is not a simultaneous full list; right-click provides all current matches. Shared annotation parity means existing EmbeddedMapPage, while ordinary Shared remains unchanged. Theme fill does not establish terrain repair.200-label/export/isolation evidence uses fictional data; no physical-device, FPS or production UAT claim. Actual REDs, diagnostic-response boundaries and failed setup/oracle attempts remain retained; the first clean classic RED had an empty legacy source fingerprint and is qualified.
+
+Next step is user review of the local result. Any later commit/push/deployment needs its own authorized source/CI/normal paired-release gates; preserve existing200-item and selected-venue API compatibility guards.
+
 ## 6 November 2026 — Resources within a drawn area — LIVE
 
 PR #103 is published: public `07d4ed0489cb15cf7f906c7097c8b73e690ba3c8`, tree `38eee46554a9fbcea27d70d86f16763dfb9409bb`, private build `35402f5f82fef47b0b651a31fd0194a90ff108ff`. Worker v394 `264a7e6c-c34f-42a9-8051-dd0c0b61ceef` serves sole100% deployment `ba34ba85-633a-4518-abbc-53163ec6cb77`; Pages `5ed182f7-2c17-4283-9be4-48187b13bef5` serves private354. Primary153 and prior branches remain protected. The evidence branch changes only these two documents, with no main merge, repin or republish.

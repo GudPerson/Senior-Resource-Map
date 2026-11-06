@@ -12,6 +12,7 @@ import CareMapGestureControl from './CareMapGestureControl.jsx';
 import DirectoryMapRequestedScaleSync from './DirectoryMapRequestedScaleSync.jsx';
 import { shouldUseFixedTownOverviewAtRequestedScale } from '../lib/fixedTownZoomRecovery.js';
 import { isCareMapGestureActive } from '../lib/careMapGestureState.js';
+import { isOwnerMapSecondaryActivation } from '../lib/ownerMapMarkerActivation.js';
 import MapSettingsControl from './MapSettingsControl.jsx';
 import DirectoryMapZoomLevelControl from './DirectoryMapZoomLevelControl.jsx';
 import DirectoryMapMobileControlDock from './DirectoryMapMobileControlDock.jsx';
@@ -29,6 +30,7 @@ import {
     CAREAROUND_BASEMAP_MIN_ZOOM,
     CAREAROUND_BASEMAP_NATIVE_ZOOM,
     getCareAroundBasemapUrl,
+    getCareAroundMapSeaColor,
     normalizeCareAroundMapStyle,
 } from '../lib/mapTheme.js';
 import { normalizeMapZoomControlStep } from '../lib/mapZoom.js';
@@ -1813,6 +1815,7 @@ function DirectoryMapRecenterControl({
 function DirectoryClusterHoverSync({
     clusterGroupRef,
     enabled = true,
+    ownerToolMenu = false,
     clusterMarkerMode = 'bubble',
     activePlaceKeys = [],
     onPlaceActivate,
@@ -1888,6 +1891,7 @@ function DirectoryClusterHoverSync({
         };
 
         const handleClusterActivate = (event) => {
+            if (isOwnerMapSecondaryActivation(event, ownerToolMenu)) return;
             const cluster = event.layer;
             if (!cluster || typeof cluster.getChildCount !== 'function' || cluster.getChildCount() <= 1) return;
             event.originalEvent?.preventDefault?.();
@@ -2071,6 +2075,7 @@ function DirectoryClusterHoverSync({
         clusterGroupRef,
         clusterMarkerMode,
         enabled,
+        ownerToolMenu,
         onClusterSelect,
         onHoverClusterEnd,
         onHoverClusterStart,
@@ -2749,6 +2754,7 @@ export default function DirectoryMap({
     onHoverClusterEnd,
     onClusterSelect,
     interactive = true,
+    ownerToolMenu = false,
     className = '',
     emptyLabel = 'This directory does not have any mappable places yet.',
     markerMode = 'count',
@@ -2850,6 +2856,7 @@ export default function DirectoryMap({
     const mapInstanceRef = useRef(null);
     const resolvedMapStyle = normalizeCareAroundMapStyle(mapStyleOverride ?? mapStyle);
     const resolvedBasemapUrl = basemapUrl || getCareAroundBasemapUrl(resolvedMapStyle);
+    const resolvedSeaColor = getCareAroundMapSeaColor(resolvedMapStyle);
     const resolvedMapHeightPx = Number.isFinite(Number(mapHeightPx)) && Number(mapHeightPx) > 0
         ? Math.round(Number(mapHeightPx))
         : null;
@@ -3451,6 +3458,7 @@ export default function DirectoryMap({
     };
 
     const handleMarkerActivate = (event, pin) => {
+        if (isOwnerMapSecondaryActivation(event, ownerToolMenu)) return;
         if (markerMode === 'category-icon') {
             event?.originalEvent?.preventDefault?.();
             event?.originalEvent?.stopPropagation?.();
@@ -3752,7 +3760,7 @@ export default function DirectoryMap({
         <div
             ref={mapFrameRef}
             className={frameClassName}
-            style={resolvedMapHeightPx ? { height: `${resolvedMapHeightPx}px` } : undefined}
+            style={{ backgroundColor: resolvedSeaColor, ...(resolvedMapHeightPx ? { height: `${resolvedMapHeightPx}px` } : {}) }}
             data-map-style={resolvedMapStyle}
             data-map-controlled-height={resolvedMapHeightPx || undefined}
             data-map-controlled-center={mapViewState?.center?.join(',') || undefined}
@@ -3786,6 +3794,7 @@ export default function DirectoryMap({
                 keyboard={interactive}
                 zoomControl={showZoomControl}
                 className={resolvedContainerClassName}
+                style={{ backgroundColor: resolvedSeaColor }}
                 attributionControl={showAttribution}
                 maxZoom={CAREAROUND_BASEMAP_MAX_ZOOM}
             >
@@ -3943,6 +3952,7 @@ export default function DirectoryMap({
                 />
                 <DirectoryClusterHoverSync
                     clusterGroupRef={clusterGroupRef}
+                    ownerToolMenu={ownerToolMenu}
                     enabled={interactive && shouldCluster}
                     clusterMarkerMode={clusterMarkerMode}
                     activePlaceKeys={activePlaceKeys}
