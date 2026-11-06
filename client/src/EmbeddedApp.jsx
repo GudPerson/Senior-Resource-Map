@@ -8,6 +8,7 @@ import { GOVERNED_MAPS_UI_ENABLED } from './lib/governedPilotRelease.js';
 import GovernedPilotUnavailable from './components/GovernedPilotUnavailable.jsx';
 
 const EmbeddedMapPage = lazy(() => import('./pages/EmbeddedMapPage.jsx'));
+const RegionalDiscoveryPage = lazy(() => import('./pages/RegionalDiscoveryPage.jsx'));
 
 function EmbeddedMapLoading() {
     const { t } = useLocale();
@@ -18,22 +19,28 @@ function EmbeddedMapLoading() {
     );
 }
 
-export default function EmbeddedApp() {
+function LegacyEmbeddedRoutes() {
     return (
         <A11yProvider>
             <MapStyleProvider>
                 <LocaleProvider>
-                    <BrowserRouter>
-                        <Suspense fallback={<EmbeddedMapLoading />}>
-                            <Routes>
-                                <Route path="/embed/maps/:token" element={<EmbeddedMapPage />} />
-                                <Route path="/embed/governed-maps/:token" element={GOVERNED_MAPS_UI_ENABLED ? <EmbeddedMapPage mapKind="governed" /> : <GovernedPilotUnavailable capability="Governed Care Maps" />} />
-                                <Route path="*" element={<Navigate to="/" replace />} />
-                            </Routes>
-                        </Suspense>
-                    </BrowserRouter>
+                    <Suspense fallback={<EmbeddedMapLoading />}>
+                        <Routes>
+                            <Route path="/embed/maps/:token" element={<EmbeddedMapPage />} />
+                            <Route path="/embed/governed-maps/:token" element={GOVERNED_MAPS_UI_ENABLED ? <EmbeddedMapPage mapKind="governed" /> : <GovernedPilotUnavailable capability="Governed Care Maps" />} />
+                            <Route path="*" element={<Navigate to="/" replace />} />
+                        </Routes>
+                    </Suspense>
                 </LocaleProvider>
             </MapStyleProvider>
         </A11yProvider>
     );
+}
+
+// Regional guests use in-memory state, outside the legacy preference providers.
+export default function EmbeddedApp() {
+    return <BrowserRouter><Routes>
+        <Route path="/embed/maps/:token/regional-discovery" element={<Suspense fallback={null}><RegionalDiscoveryPage /></Suspense>} />
+        <Route path="*" element={<LegacyEmbeddedRoutes />} />
+    </Routes></BrowserRouter>;
 }

@@ -7,6 +7,7 @@ import { getMapNoteImageMessages } from '../lib/mapNoteImageMessages.js';
 import { getDirectoryMapNoteImages } from '../../../shared/mapNoteImages.js';
 import { handleModalKeyboardEvent } from '../lib/modalKeyboard.js';
 import { hasSharedMapUpdates } from '../lib/shareMapStatus.js';
+import { normalizeRegionalDiscoveryEmbeddedView } from '../features/regional-discovery/regionalDiscoverySettings.js';
 
 function buildShareUrl(sharePath) {
     if (!sharePath) return '';
@@ -71,6 +72,7 @@ export default function ShareMapModal({
     onUpdateEmbed,
     annotations = [],
     annotationsReady = true,
+    RegionalDiscoverySettingsComponent = null,
 }) {
     const { t, locale } = useLocale();
     const annotationMessages = getAnnotationMessages(locale);
@@ -84,6 +86,7 @@ export default function ShareMapModal({
     const [embedEnabled, setEmbedEnabled] = useState(false);
     const [embedOrigins, setEmbedOrigins] = useState([]);
     const [embedPreviewRevision, setEmbedPreviewRevision] = useState(0);
+    const [regionalPublicationRevision, setRegionalPublicationRevision] = useState(0);
     const [includeAnnotationsSelection, setIncludeAnnotationsSelection] = useState(null);
     const includeAnnotationsRef = useRef(null);
     const closeButtonRef = useRef(null);
@@ -157,12 +160,23 @@ export default function ShareMapModal({
         }
     }
 
-    async function handlePublishClick() {
+    async function publishShare(embeddedView) {
         const published = await onPublish?.({ includeAnnotations: includeAnnotationsSelection,
-            noteImagesRevision: map?.noteImagesRevision });
-        if (!published) return;
+            noteImagesRevision: map?.noteImagesRevision,
+            ...(embeddedView ? { embeddedView } : {}) });
+        if (!published) return false;
         setIncludeAnnotationsSelection(null);
         setEmbedPreviewRevision((current) => current + 1);
+        setRegionalPublicationRevision((current) => current + 1);
+        return true;
+    }
+
+    function handlePublishClick() {
+        return publishShare();
+    }
+
+    function handleRegionalPublish(intent) {
+        return publishShare(normalizeRegionalDiscoveryEmbeddedView(intent));
     }
 
     function handleIncludeAnnotationsChange(event) {
@@ -194,7 +208,10 @@ export default function ShareMapModal({
             enabled: embedEnabled,
             allowedOrigins: embedOrigins,
         });
-        if (saved !== false) setEmbedFeedback(t('embedSettingsSaved'));
+        if (saved !== false) {
+            setEmbedFeedback(t('embedSettingsSaved'));
+            setRegionalPublicationRevision((current) => current + 1);
+        }
     }
 
     async function handleCopyEmbedCode() {
@@ -486,6 +503,15 @@ export default function ShareMapModal({
                         <p className="text-xs leading-5 text-slate-600">{annotationMessages.imagePrivate}</p>
                     ) : null}
                     {privateBoundaryCount > 0 ? <p className="text-xs leading-5 text-slate-600">{getKmlBoundaryMessages(locale).private}</p> : null}
+
+                    {RegionalDiscoverySettingsComponent && <RegionalDiscoverySettingsComponent
+                        key={map.id}
+                        mapId={map.id}
+                        mapName={map.name}
+                        disabled={submitting}
+                        onPublish={handleRegionalPublish}
+                        publicationRefreshKey={JSON.stringify([map.share, map.sharePath, map.embedPath, persistedEmbedEnabled, persistedEmbedOrigins, regionalPublicationRevision])}
+                    />}
 
                     {error ? (
                         <p className="text-sm font-medium text-red-600">{error}</p>

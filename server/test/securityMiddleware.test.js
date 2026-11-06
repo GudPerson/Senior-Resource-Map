@@ -297,3 +297,19 @@ test('auth rate limiter does not spend login budget on phone status polling', as
         globalThis.__carearoundRateLimitBuckets = previousStore;
     }
 });
+
+test('regional read-only POST ignores ambient cookies but no adjacent mutation bypasses CSRF',async()=>{
+    const guarded=new Hono();guarded.use('*',cookieSessionCsrfGuard);guarded.all('*',c=>c.json({public:true}));
+    const request=(path,method='POST')=>guarded.request(path,{method,headers:{Cookie:'sc_token=fictional',Origin:'https://foreign.example.invalid'}});
+    assert.equal((await request('/api/shared-maps/token/embed/regional-discovery/evaluate')).status,200);
+    for(const path of ['/api/shared-maps/token/copy','/api/my-maps/9/share','/api/admin/regional-discovery/contacts','/api/shared-maps/token/embed/regional-discovery/evaluate/extra','/api/shared-maps/token/embed/regional-discovery/evaluate-forged']) assert.equal((await request(path)).status,403,path);
+    assert.equal((await request('/api/shared-maps/token/embed/regional-discovery/evaluate','PUT')).status,403);
+});
+
+test('new regional errors are no-store before body and CSRF guards',async()=>{
+    for(const body of ['{',JSON.stringify({padding:'x'.repeat(2*1024*1024)})]) {
+        const response=await app.request('/api/shared-maps/token/embed/regional-discovery/evaluate',{method:'POST',headers:{'Content-Type':'application/json','Content-Length':String(body.length)},body});
+        assert.equal(response.status,body==='{'?400:413);assert.equal(response.headers.get('cache-control'),'no-store');
+    }
+    const ordinary=await app.request('/api/health');assert.equal(ordinary.headers.get('cache-control'),null);
+});

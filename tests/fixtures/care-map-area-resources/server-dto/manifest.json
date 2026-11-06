@@ -1,17 +1,17 @@
 {
   "boundary": "Genuine serialized controller DTOs built from fictional in-memoryDB; exact DTOs through unchanged client buildDirectoryPresentation in default and v2-cards; no production records or network",
   "sourceTest": "server/test/myMapsController.test.js \u2014 serialized scoped server DTOs",
-  "sourceTestSha256": "6205569eec87b5d8566911c1d170e539bcbf910ab5144a90d07740e2675f0c67",
+  "sourceTestSha256": "8a5181ead86c2f45dfa0e35e9a3b1b395c2095a59c7884b6512fa416ca700eec",
   "runtime": {
     "server/src/utils/mapLocationScope.js": "e9d3fdca45c8d14ad595502fb6f3d4f229528ca33cce818adc496d8d211b32c8",
     "server/src/utils/myMapDirectory.js": "0fd0c23abcd10085d21f92fcb131ec1d0f2646dc9e6bdd9b884d6554066fd131",
-    "server/src/controllers/myMapsController.js": "cfe3c15cc800fcc71c7c0542072a6234c6889ed56dee38d1ff1a9859b55328da",
-    "server/src/controllers/sharedMapsController.js": "87b2b88c6a11a875a02bb1a397c6b65134e223fa1dbd537374d51d8cef70d5a9",
+    "server/src/controllers/myMapsController.js": "39d91c998918ec373f503b1b0040360425f1c06aaafb6d59f93bdd4bb3ab0d51",
+    "server/src/controllers/sharedMapsController.js": "1187f3779709a9c1f7a1d6f7f31cc267029d4ff456146aedd480bf85f7be17b1",
     "client/src/lib/directoryPresentation.js": "a9b498b8529513551a321c466a8e67dd70095730adfe3f67da3d6bb437ca716f"
   },
   "files": {
     "shared-selected.json": {
-      "sha256": "3ac32f7a653aecc997a1222db6a5ff178a052d4e9bb0806fda70456b8eb7688c",
+      "sha256": "1fa5600c308b712d794aa8f7ab39bce93e953a8469240d569536f4531d01075c",
       "bytes": 3594
     },
     "owner-selected.json": {
@@ -19,12 +19,23 @@
       "bytes": 3938
     },
     "shared-withdrawn.json": {
-      "sha256": "159b6335d57a6f6537443cbae898db95c62150937e173fdfc548c21d46194197",
+      "sha256": "3efe43ef234c9e061de3338fe903e7052d4e73829a4e3f270dab2955ad589ee3",
       "bytes": 825
     },
     "owner-unavailable.json": {
-      "sha256": "2a7d11affda52b85cc3fd964cdbf1a9e9de010de8b99c6fa2d264b000ba833c9",
+      "sha256": "ab05cbb48808bfece868c762bbb901218a284d6446fb3b8654f842ee6158a585",
       "bytes": 3424
     }
+  },
+  "sourceIdentity": {
+    "baseRevision": "07d4ed0489cb15cf7f906c7097c8b73e690ba3c8",
+    "state": "Uncommitted reviewed regional-discovery working tree; exact producer/runtime bytes below, not a claim these changes exist in the base commit."
+  },
+  "serialization": {
+    "command": "CAREAROUND_SCOPE_DTO_CAPTURE_DIR=ABS_NEW_DIRECTORY node --test --test-name-pattern='serialized scoped server DTOs' server/test/myMapsController.test.js",
+    "controllerSerialized": true,
+    "productionProof": false,
+    "priorManifestSha256": "2abdc7ed77cc00e0da355eec795da67642ec68391362cd31457320d45b1dd4df",
+    "semanticComparison": "owner-selected exact bytes unchanged. Other differences limited to generated share token, derived share/embed paths and publication timestamps. Resource membership, selected venues, pins, coordinates, privacy, contacts and both default/v2 presentation assertions unchanged."
   }
 }

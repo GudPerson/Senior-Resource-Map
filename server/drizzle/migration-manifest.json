@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "authoritativeSchema": "src/db/schema.js",
-  "currentSchemaSha256": "109c907594f511c0f6da50badeea45de45393f29c0bbbfc2a11c716b517648dd",
+  "currentSchemaSha256": "2ad623a5ee4c061e416486754a214ee6daa214b3f6247e0083e090807d5aaf0e",
   "runtimeCompatibilityBootstrap": "src/utils/boundarySchema.js",
   "runtimeCompatibilityBootstrapSha256": "8a9bdb2545fe0ce03c37aaf11ddee97ae5f04834d586c2381c3e04360f60c63f",
   "migrations": [
@@ -194,6 +194,25 @@
         "A publishing approval requires an active linked organisation, an active unexpired agreement allowing public listing and external sharing, an approved field list, and the requested public use.",
         "Existing imported resources receive no permission row and no source data is deleted or rewritten.",
         "The installed generator omits CHECK constraints; the reviewed SQL restores all seven permission checks and migration tests must verify them."
+      ]
+    },
+    {
+      "id": "0011_regional_discovery",
+      "file": "drizzle/0011_regional_discovery.sql",
+      "sha256": "71955cb0f33e12042f7859dae1ae8676c639b6d8a4dc27f8876bd9b6de008915",
+      "snapshotFile": "drizzle/meta/0011_snapshot.json",
+      "snapshotSha256": "302576d00b6dd13ee74403cb37c0abc519e4bdeffd80d92a5023903c92cbdcfd",
+      "type": "additive-isolated-regional-discovery",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "Roll back the regional application feature while retaining additive documents, enquiry fields, email grants and audit history. Do not transform existing maps, resources or publication permissions. Any removal requires a separately reviewed forward repair.",
+      "environmentStatus": "Local fictional PGlite fixture evidence only; no configured database schema apply, real approval, pilot enablement, push or deployment authorised or performed.",
+      "cautions": [
+        "Apply after 0010 before using regional persistence. Compact requests perform no regional-store lookup; absent documents default to revision 0 compact.",
+        "Approval and withdrawal require Super Admin and atomic CAS plus sensitive audit evidence. Original email binds the exact canonical value/hash; home-SR replacement has no per-provider grant.",
+        "Eleven declared CHECK constraints omitted by the installed generator are restored in reviewed SQL and tested in disposable PostgreSQL.",
+        "No global publication fields, claim transitions, ordinary Discovery, generic boundary bootstrap or existing compact payload is changed.",
+        "Decision actor IDs are positive historical provenance without live-user foreign keys. Existing account deletion retains decisions and audit events; current live authentication and Super Admin authority remain required for new decisions."
       ]
     }
   ]

@@ -33,6 +33,7 @@ import { createHelpCmsRoutes, createHelpMediaRoutes } from './routes/helpCms.js'
 import helpArticleRoutes from './routes/helpArticles.js';
 import releaseRoutes from './routes/release.js';
 import platformAccessRoutes from './routes/platformAccess.js';
+import regionalDiscoveryGovernanceRoutes from './routes/regionalDiscoveryGovernance.js';
 import governedMapsRoutes from './routes/governedMaps.js';
 import organizationOnboardingRoutes from './routes/organizationOnboarding.js';
 import resourceClaimsRoutes from './routes/resourceClaims.js';
@@ -138,6 +139,7 @@ app.route('/api/help/cms', createHelpCmsRoutes());
 app.route('/api/help/media', createHelpMediaRoutes());
 app.route('/api/release', releaseRoutes);
 app.route('/api/platform-access', platformAccessRoutes);
+app.route('/api/regional-discovery-governance', regionalDiscoveryGovernanceRoutes);
 app.route('/api/governed-maps', governedMapsRoutes);
 app.route('/api/organization-onboarding', organizationOnboardingRoutes);
 app.route('/api/resource-claims', resourceClaimsRoutes);

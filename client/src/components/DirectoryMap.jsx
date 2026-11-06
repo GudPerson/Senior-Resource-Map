@@ -2771,6 +2771,8 @@ export default function DirectoryMap({
     numberedPinShapesByCategory = {},
     numberedPinStylesByCategory = {},
     showPopup = true,
+    resourceSelectionMode = 'internal',
+    showResetControl = true,
     showZoomControl = interactive,
     showAttribution = true,
     showProviderBadgeLogo = true,
@@ -2896,12 +2898,12 @@ export default function DirectoryMap({
     const previousBasemapModeRef = useRef(basemapMode);
     const visibleCategoryPinGroupKey = selectedCategoryPinGroupKey || hoveredCategoryPinGroupKey;
     const visibleCategoryPinGroup = useMemo(() => (
-        markerMode === 'category-icon'
+        resourceSelectionMode !== 'external' && markerMode === 'category-icon'
             ? displayMarkerPins.find((pin) => (
                 String(pin.pinKey || pin.placeKey) === visibleCategoryPinGroupKey
             )) || null
             : null
-    ), [displayMarkerPins, markerMode, visibleCategoryPinGroupKey]);
+    ), [displayMarkerPins, markerMode, resourceSelectionMode, visibleCategoryPinGroupKey]);
     const resolvedMapMinZoom = Number.isFinite(Number(mapMinZoom))
         ? Number(mapMinZoom)
         : CAREAROUND_BASEMAP_MIN_ZOOM;
@@ -3203,7 +3205,7 @@ export default function DirectoryMap({
         ].join(':');
     }).join(';'), [displayMarkerPins, placeNumberByKey, resolvedMarkerScale]);
     const anchorPoint = useMemo(() => normalizeAnchorPoint(activeAnchor), [activeAnchor]);
-    const showRecenterControl = interactive && (displayPins.length + (anchorPoint ? 1 : 0)) > 1;
+    const showRecenterControl = showResetControl && interactive && (displayPins.length + (anchorPoint ? 1 : 0)) > 1;
     const hasMapSettingsControl = Boolean(resolvedMapModeControl || showMapStyleControl);
     const notifyReady = useMemo(() => () => {
         if (hasReportedReadyRef.current) return;
@@ -3343,7 +3345,7 @@ export default function DirectoryMap({
         }
     }, [closeCategoryPinGroup, markerMode, visibleCategoryPinGroup, visibleCategoryPinGroupKey]);
 
-    const handlePlaceActivate = (placeKey) => {
+    const handlePlaceActivate = (placeKey, externalDetail) => {
         if (!interactive || !placeKey) return;
 
         const token = String(placeKey);
@@ -3356,7 +3358,8 @@ export default function DirectoryMap({
         }
 
         lastPlaceActivationRef.current = { token, at: now };
-        onViewSection?.(placeKey);
+        if (resourceSelectionMode === 'external') onViewSection?.(placeKey, externalDetail || { placeKeys: [String(placeKey)] });
+        else onViewSection?.(placeKey);
     };
 
     const handleCategoryPinGroupActivate = (pin) => {
@@ -3423,8 +3426,14 @@ export default function DirectoryMap({
         return pin.placeKey;
     };
 
+    const externalMarkerDetail = (pin) => ({ placeKeys: [...new Set((pin.memberPlaceKeys?.length ? pin.memberPlaceKeys : [pin.placeKey]).map(String))] });
+
     const handleMarkerHoverStart = (event, pin) => {
         const placeKey = getMarkerEventPlaceKey(event, pin);
+        if (resourceSelectionMode === 'external') {
+            onHoverPlaceStart?.(placeKey, externalMarkerDetail(pin));
+            return;
+        }
         if (markerMode === 'category-icon' && categoryPinPanelIsDesktop) {
             cancelCategoryPinHoverClose();
             if (!selectedCategoryPinGroupKey) {
@@ -3441,6 +3450,11 @@ export default function DirectoryMap({
     };
 
     const handleMarkerHoverEnd = (event, pin) => {
+        if (resourceSelectionMode === 'external') {
+            const placeKey = getMarkerEventPlaceKey(event, pin);
+            onHoverPlaceEnd?.(placeKey, externalMarkerDetail(pin));
+            return;
+        }
         const placeKey = markerMode === 'category-bubble'
             ? (lastCategoryBubbleHoverKeyRef.current || getMarkerEventPlaceKey(event, pin))
             : markerMode === 'print-badge'
@@ -3460,6 +3474,12 @@ export default function DirectoryMap({
 
     const handleMarkerActivate = (event, pin) => {
         if (isOwnerMapSecondaryActivation(event, ownerToolMenu)) return;
+        if (resourceSelectionMode === 'external') {
+            event?.originalEvent?.preventDefault?.();
+            event?.originalEvent?.stopPropagation?.();
+            handlePlaceActivate(getMarkerEventPlaceKey(event, pin), externalMarkerDetail(pin));
+            return;
+        }
         if (markerMode === 'category-icon') {
             event?.originalEvent?.preventDefault?.();
             event?.originalEvent?.stopPropagation?.();
@@ -3470,6 +3490,17 @@ export default function DirectoryMap({
             if (handleCompactCategoryBubbleReveal(event)) return;
         }
         handlePlaceActivate(getMarkerEventPlaceKey(event, pin));
+    };
+
+    const handleExternalMarkerKeyDown = (event, pin) => {
+        const keyboardEvent = event?.originalEvent;
+        if (keyboardEvent?.key !== 'Enter' && keyboardEvent?.key !== ' ') return;
+        if (keyboardEvent.repeat) {
+            keyboardEvent.preventDefault?.();
+            keyboardEvent.stopPropagation?.();
+            return;
+        }
+        handleMarkerActivate(event, pin);
     };
 
     const renderedMarkers = useMemo(() => {
@@ -3596,6 +3627,7 @@ export default function DirectoryMap({
                                     click: (event) => handleMarkerActivate(event, pin),
                                     mouseover: (event) => handleMarkerHoverStart(event, pin),
                                     mouseout: (event) => handleMarkerHoverEnd(event, pin),
+                                    ...(resourceSelectionMode === 'external' ? { keydown: (event) => handleExternalMarkerKeyDown(event, pin) } : {}),
                                 } : undefined}
                             />
                         );
@@ -3709,6 +3741,7 @@ export default function DirectoryMap({
                         click: (event) => handleMarkerActivate(event, pin),
                         mouseover: (event) => handleMarkerHoverStart(event, pin),
                         mouseout: (event) => handleMarkerHoverEnd(event, pin),
+                        ...(resourceSelectionMode === 'external' ? { keydown: (event) => handleExternalMarkerKeyDown(event, pin) } : {}),
                     } : undefined}
                 />
             );
@@ -3909,7 +3942,7 @@ export default function DirectoryMap({
                         } : undefined}
                     />
                 )}
-                <DirectoryMapController
+                {resourceSelectionMode !== 'external' && <DirectoryMapController
                     activeAnchor={anchorPoint}
                     pins={displayPins}
                     focusedPlaceKey={focusedPlaceKey}
@@ -3924,7 +3957,7 @@ export default function DirectoryMap({
                     onMapSettled={onMapReadyForCapture ? handleCaptureMapSettled : undefined}
                     directDeepFocus={shouldUseDirectTownDeepFocus}
                     deferDeepFocusUntilDirect={shouldDeferTownDeepFocus}
-                />
+                />}
                 <DirectoryMapViewStateSync
                     gestureCamera={careMapRotationEnabled}
                     onExternalCameraApply={onFixedTownSurfaceRequestedScaleChange ? clearRequestedScale : null}
@@ -3941,7 +3974,7 @@ export default function DirectoryMap({
                     enabled={mapClickEnabled}
                     onMapClick={handleDirectoryMapClick}
                 />
-                <DirectoryMapRecenterControl
+                {showResetControl && <DirectoryMapRecenterControl
                     onBeforeResetView={onFixedTownSurfaceRequestedScaleChange ? clearRequestedScale : null}
                     activeAnchor={anchorPoint}
                     hasMapSettingsControl={hasMapSettingsControl}
@@ -3950,11 +3983,11 @@ export default function DirectoryMap({
                     fitPaddingTopLeft={fitPaddingTopLeft}
                     fitPaddingBottomRight={fitPaddingBottomRight}
                     onResetView={onResetView}
-                />
+                />}
                 <DirectoryClusterHoverSync
                     clusterGroupRef={clusterGroupRef}
                     ownerToolMenu={ownerToolMenu}
-                    enabled={interactive && shouldCluster}
+                    enabled={resourceSelectionMode !== 'external' && interactive && shouldCluster}
                     clusterMarkerMode={clusterMarkerMode}
                     activePlaceKeys={activePlaceKeys}
                     onPlaceActivate={handlePlaceActivate}
@@ -4000,7 +4033,7 @@ export default function DirectoryMap({
                 {/* Passive inspection must never admit an otherwise empty map. */}
                 {inspectionOverlay}
             </MapContainer>
-            {visibleCategoryPinGroup ? (
+            {resourceSelectionMode !== 'external' && visibleCategoryPinGroup ? (
                 <DiscoverPostalGroupListPanel
                     anchorLayout={categoryPinGroupLayout?.pinKey === String(visibleCategoryPinGroup.pinKey)
                         ? categoryPinGroupLayout

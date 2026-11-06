@@ -36,6 +36,7 @@ import { getMyMapPersonalPlaceImportLocation } from '../controllers/personalPlac
 import { postMapAnnotationMedia, getMapAnnotationMedia } from '../controllers/mapAnnotationMediaController.js';
 import { getMapNoteImages, putMapNoteImages } from '../controllers/mapNoteImagesController.js';
 import { patchPersonalPlaceMapNotes } from '../controllers/personalPlaceMapNotesController.js';
+import { getMyMapRegionalDiscovery, putMyMapRegionalDiscovery, postMyMapRegionalDiscoveryPreview } from '../controllers/regionalDiscoveryController.js';
 
 const router = new Hono();
 
@@ -48,6 +49,9 @@ router.patch('/:id/embed', authenticateToken, patchMyMapEmbed);
 router.delete('/:id', authenticateToken, deleteMyMap);
 router.post('/:id/duplicate', authenticateToken, postMyMapDuplicate);
 router.post('/:id/share', authenticateToken, postMyMapShare);
+router.get('/:id/regional-discovery', authenticateToken, getMyMapRegionalDiscovery);
+router.put('/:id/regional-discovery', authenticateToken, putMyMapRegionalDiscovery);
+router.post('/:id/regional-discovery/preview', authenticateToken, postMyMapRegionalDiscoveryPreview);
 router.delete('/:id/share', authenticateToken, deleteMyMapShare);
 router.get('/:id/studio', authenticateToken, getMyMapStudio);
 router.put('/:id/studio', authenticateToken, putMyMapStudio);

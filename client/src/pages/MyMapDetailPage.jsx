@@ -55,6 +55,8 @@ import PersonalPlaceCategoryManagerModal from '../components/personalPlaces/Pers
 import PersonalPlaceEditorModal from '../components/personalPlaces/PersonalPlaceEditorModal.jsx';
 import PersonalPlaceImportModal from '../components/personalPlaces/PersonalPlaceImportModal.jsx';
 import ShareMapModal from '../components/ShareMapModal.jsx';
+import RegionalDiscoverySettings from '../components/RegionalDiscoverySettings.jsx';
+import { normalizeRegionalDiscoveryEmbeddedView } from '../features/regional-discovery/regionalDiscoverySettings.js';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import TownMapModeControl from '../components/TownMapModeControl.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -3548,9 +3550,11 @@ export default function MyMapDetailPage() {
                 setShareError(t('failedPublishShare'));
                 return false;
             }
+            const embeddedView = normalizeRegionalDiscoveryEmbeddedView(options.embeddedView);
             await api.publishMyMapShare(directory.id, {
                 ...(shareStudioSnapshot?.documentRevision > 0 ? { studioViewId: shareStudioSnapshot.activeViewId } : {}),
                 ...(options.noteImagesRevision !== undefined ? { noteImagesRevision: options.noteImagesRevision } : {}),
+                ...(embeddedView ? { embeddedView } : {}),
             });
             await loadMap();
             return true;
@@ -4637,6 +4641,7 @@ export default function MyMapDetailPage() {
                         setShareOpen(false);
                         setShareError('');
                     }}
+                    RegionalDiscoverySettingsComponent={RegionalDiscoverySettings}
                     onPublish={handlePublishShare}
                     onUnpublish={handleUnpublishShare}
                     onUpdateEmbed={handleUpdateEmbed}
@@ -5017,6 +5022,7 @@ export default function MyMapDetailPage() {
                     setShareOpen(false);
                     setShareError('');
                 }}
+                RegionalDiscoverySettingsComponent={RegionalDiscoverySettings}
                 onPublish={handlePublishShare}
                 onUnpublish={handleUnpublishShare}
                 onUpdateEmbed={handleUpdateEmbed}
