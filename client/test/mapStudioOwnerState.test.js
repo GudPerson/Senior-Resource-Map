@@ -210,3 +210,46 @@ test('owner exploration mutations never dirty the persistent document', () => {
     const prepared = prepareMapStudioOwnerSave(explored);
     assert.equal('exploration' in prepared.payload, false);
 });
+
+test('canonical exploration no-ops preserve owner identity while a view deletion is pending', () => {
+    const document = createMapStudioDocument();
+    document.views.push({ ...document.views[0], id: 'view-second', name: 'Second' });
+    const deleted = deleteOwnerMapStudioView(createMapStudioOwnerState(document), 'view-second');
+    const explored = patchOwnerMapStudioExploration(deleted, {
+        query: 'q'.repeat(240), hoveredPlaceKey: 'hard:1',
+        focusedPlaceKeys: ['hard:2', 'hard:3'], selectedPlaceKeys: ['soft:1'],
+        cameraView: { center: [1.38, 103.74], zoom: 15 },
+    });
+    for (let index = 0; index < 200; index += 1) {
+        assert.strictEqual(patchOwnerMapStudioExploration(explored, {
+            query: 'q'.repeat(241), hoveredPlaceKey: ' hard:1 ',
+            focusedPlaceKeys: [' hard:2 ', 'hard:2', 'hard:3'], selectedPlaceKeys: ['soft:1', 'soft:1'],
+            cameraView: { center: [1.38, 103.74], zoom: 15 },
+        }), explored, 'equal normalized exploration must not replace the pending owner state');
+    }
+    assert.equal(isMapStudioOwnerStateDirty(explored), true);
+    assert.strictEqual(explored.workingDocument, deleted.workingDocument);
+    assert.strictEqual(explored.persistedDocument, deleted.persistedDocument);
+    assert.equal(explored.workingDocument.views.length, 1);
+    assert.equal(explored.persistedDocument.views.length, 2);
+});
+
+test('real exploration fields and ordered focus/selection changes retain the existing update behavior', () => {
+    const initial = patchOwnerMapStudioExploration(createMapStudioOwnerState(createMapStudioDocument()), {
+        query: 'care', hoveredPlaceKey: 'hard:1', focusedPlaceKeys: ['hard:1', 'hard:2'],
+        selectedPlaceKeys: ['soft:1', 'soft:2'], cameraView: { center: [1.38, 103.74], zoom: 15 },
+    });
+    for (const patch of [
+        { query: 'support' }, { hoveredPlaceKey: 'hard:2' }, { hoveredPlaceKey: null },
+        { focusedPlaceKeys: ['hard:2', 'hard:1'] }, { selectedPlaceKeys: ['soft:2', 'soft:1'] },
+        { cameraView: { center: [1.39, 103.74], zoom: 15 } },
+        { cameraView: { center: [1.38, 103.74], zoom: 16 } },
+    ]) {
+        const next = patchOwnerMapStudioExploration(initial, patch);
+        assert.notStrictEqual(next, initial);
+        assert.notDeepEqual(next.session.exploration, initial.session.exploration);
+        assert.strictEqual(next.workingDocument, initial.workingDocument);
+        assert.strictEqual(next.persistedDocument, initial.persistedDocument);
+        assert.equal(isMapStudioOwnerStateDirty(next), false);
+    }
+});

@@ -14,6 +14,7 @@ const V2_MOBILE_FIT_PADDING_BOTTOM_RIGHT = [104, 44];
 
 export default function MyMapV2PreviewScaffold({
     directory,
+    ownerToolMenu = false,
     activeAnchor,
     presentation,
     mapPresentation = presentation,
@@ -45,6 +46,7 @@ export default function MyMapV2PreviewScaffold({
     onResetView,
     onMapClick,
     mapOverlay = null,
+    inspectionOverlay = null,
     mapSurfaceOverlay = null,
     toolbar = null,
     studioPanel = null,
@@ -107,6 +109,7 @@ export default function MyMapV2PreviewScaffold({
 
     const renderMap = (mapHeightClassName) => (
         <DirectoryMap
+            ownerToolMenu={ownerToolMenu}
             activeAnchor={activeAnchor}
             pins={mapPresentation.pins}
             focusedPlaceKey={focusedPlaceKey}
@@ -173,6 +176,7 @@ export default function MyMapV2PreviewScaffold({
             onMapViewStateChange={mapStudioRuntime?.onMapViewStateChange ?? null}
             careMapGestures={careMapGestures}
             mapOverlay={mapOverlay}
+            inspectionOverlay={inspectionOverlay}
             surfaceOverlay={mapSurfaceOverlay}
             surfaceStatus={mapSurfaceStatus}
         />

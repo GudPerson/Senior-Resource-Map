@@ -19,6 +19,7 @@ import {
 } from 'react-leaflet';
 import L from 'leaflet';
 import PrintAnnotationTransformHandle from './PrintAnnotationTransformHandle.jsx';
+import AnnotationLabelZoomScale from './AnnotationLabelZoomScale.jsx';
 import { formatRadiusDistance } from '../lib/mapSpatialGeometry.js';
 import { getMapSpatialMessages } from '../lib/mapSpatialMessages.js';
 
@@ -97,23 +98,23 @@ function escapeMarkup(value) {
 function createPinIcon(annotation, selected) {
     const color = annotation.style.color;
     return L.divIcon({
-        className: 'carearound-print-annotation-marker',
-        html: `<div style="
+        className: 'carearound-print-annotation-marker carearound-print-annotation-marker--pin',
+        html: `<div data-annotation-pin-id="${escapeMarkup(annotation.id)}" style="
             display:flex;
             align-items:center;
             justify-content:center;
-            width:34px;
-            height:34px;
-            border:3px solid #ffffff;
+            width:calc(34px * var(--carearound-annotation-label-scale, 1));
+            height:calc(34px * var(--carearound-annotation-label-scale, 1));
+            border:calc(3px * var(--carearound-annotation-label-scale, 1)) solid #ffffff;
             border-radius:50% 50% 50% 0;
             background:${color};
             color:#ffffff;
-            font-size:12px;
+            font-size:calc(12px * var(--carearound-annotation-label-scale, 1));
             font-weight:900;
-            box-shadow:0 4px 12px rgba(15,23,42,.28);
+            box-shadow:0 calc(4px * var(--carearound-annotation-label-scale, 1)) calc(12px * var(--carearound-annotation-label-scale, 1)) rgba(15,23,42,.28);
             transform:rotate(-45deg);
-            outline:${selected ? `3px solid ${color}55` : 'none'};
-        "><span style="max-width:22px;overflow:hidden;transform:rotate(45deg);white-space:nowrap;">${escapeMarkup(annotation.text.slice(0, 3))}</span></div>`,
+            outline:${selected ? `calc(3px * var(--carearound-annotation-label-scale, 1)) solid ${color}55` : 'none'};
+        "><span style="max-width:calc(22px * var(--carearound-annotation-label-scale, 1));overflow:hidden;transform:rotate(45deg);white-space:nowrap;">${escapeMarkup(annotation.text.slice(0, 3))}</span></div>`,
         iconSize: [38, 38],
         iconAnchor: [19, 38],
     });
@@ -123,24 +124,24 @@ function createShapeTextIcon(annotation, interactive = false) {
     const { fontSize, textColor } = annotation.style;
     const rotationDegrees = normalizePrintAnnotationRotation(annotation.rotationDegrees);
     return L.divIcon({
-        className: 'carearound-print-annotation-marker',
-        html: `<div data-annotation-shape-text="true" style="
+        className: 'carearound-print-annotation-marker carearound-print-annotation-marker--text',
+        html: `<div data-annotation-shape-text="true" data-annotation-label-id="${escapeMarkup(annotation.id)}" style="
             box-sizing:border-box;
             display:flex;
             align-items:center;
             justify-content:center;
-            width:240px;
-            min-height:70px;
-            padding:6px 10px;
+            width:calc(240px * var(--carearound-annotation-label-scale, 1));
+            min-height:calc(70px * var(--carearound-annotation-label-scale, 1));
+            padding:calc(6px * var(--carearound-annotation-label-scale, 1)) calc(10px * var(--carearound-annotation-label-scale, 1));
             color:${textColor};
-            font-size:${fontSize}px;
+            font-size:calc(${fontSize}px * var(--carearound-annotation-label-scale, 1));
             font-weight:800;
             line-height:1.2;
             overflow:visible;
             overflow-wrap:anywhere;
             pointer-events:${interactive ? 'auto' : 'none'};
             text-align:center;
-            text-shadow:0 1px 2px rgba(255,255,255,.95),0 0 5px rgba(255,255,255,.8);
+            text-shadow:0 calc(1px * var(--carearound-annotation-label-scale, 1)) calc(2px * var(--carearound-annotation-label-scale, 1)) rgba(255,255,255,.95),0 0 calc(5px * var(--carearound-annotation-label-scale, 1)) rgba(255,255,255,.8);
             transform:rotate(${-rotationDegrees}deg);
             transform-origin:50% 50%;
             white-space:pre-wrap;
@@ -675,9 +676,10 @@ function PinAnnotation({
                 className="carearound-print-annotation-label"
             >
                 <span
+                    data-annotation-label-id={annotation.id}
                     style={{
                         color: annotation.style.textColor,
-                        fontSize: `${annotation.style.fontSize}px`,
+                        fontSize: `calc(${annotation.style.fontSize}px * var(--carearound-annotation-label-scale, 1))`,
                         fontWeight: 800,
                     }}
                 >
@@ -1079,6 +1081,7 @@ export default function PrintAnnotationLayer({
 
     return (
         <>
+            <AnnotationLabelZoomScale />
             {annotations.slice(0, 100).map(renderAnnotation)}
             {annotations.length > 100 ? (
                 // Preserve the original first100 pane styles and identities.

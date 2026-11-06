@@ -10,6 +10,9 @@ import useOwnerCanvasToolMenu from '../hooks/useOwnerCanvasToolMenu.js';
 import { getOwnerMapCanvasMessages } from '../lib/ownerMapCanvasMessages.js';
 import { resolveOwnerMapCanvasSaveState } from '../lib/ownerMapCanvasState.js';
 import OwnerCanvasToolMenu from './OwnerCanvasToolMenu.jsx';
+import MapLayerInspector from './MapLayerInspector.jsx';
+import { getMapLayerInspectorMessages } from '../lib/mapLayerInspectorMessages.js';
+import { hasMapLayerHits, mapLayerInspectionKey } from '../lib/mapLayerInspection.js';
 import './OwnerMapEditingCanvas.css';
 
 // One owner page, one map and the original mounted editors. This component owns
@@ -17,6 +20,7 @@ import './OwnerMapEditingCanvas.css';
 export default function OwnerMapEditingCanvas({ active, onActiveChange, configuration: config, children }) {
     const { t, locale } = useLocale();
     const messages = getOwnerMapCanvasMessages(locale);
+    const layerMessages = getMapLayerInspectorMessages(locale);
     const rootRef = useRef(null);
     const chromeRef = useRef(null);
     const headerRef = useRef(null);
@@ -27,6 +31,25 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
     configRef.current = config;
     const [panel, setPanel] = useState(null);
     const [notice, setNotice] = useState('');
+    const [showLayers, setShowLayers] = useState(false);
+    const [hoverInspection, setHoverInspection] = useState(null);
+    const [inspectionRevision, setInspectionRevision] = useState(0);
+    const inspectionRef = useRef(null);
+    const menuOpenRef = useRef(false);
+    const menuAnchorRef = useRef(null);
+    const menuInspectionKeyRef = useRef('');
+    const layersEnabledRef = useRef(false);
+    layersEnabledRef.current = showLayers;
+    const registerLayerInspection = useCallback(controller => {
+        inspectionRef.current = controller;
+        setHoverInspection(null);
+        setInspectionRevision(value => value + 1);
+    }, []);
+    const onLayerHover = useCallback(value => {
+        const next = !menuOpenRef.current && layersEnabledRef.current && hasMapLayerHits(value?.result) ? value : null;
+        setHoverInspection(current => mapLayerInspectionKey(current) === mapLayerInspectionKey(next) ? current : next);
+    }, []);
+    const capturePoint = useCallback(point => inspectionRef.current?.capture(point), []);
     const toolHandlerRef = useRef(null);
     const openDraw = useCallback(event => toolHandlerRef.current?.('draw', event), []);
 
@@ -41,7 +64,8 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
             current.onCancelAnnotationDraft?.();
         }
         setPanel(null);
-        lastTriggerRef.current?.focus({ preventScroll: true });
+        const target = lastTriggerRef.current?.isConnected ? lastTriggerRef.current : rootRef.current?.querySelector('.leaflet-container');
+        target?.focus({ preventScroll: true });
     }, []);
     const exit = useCallback(() => {
         setPanel(null);
@@ -59,10 +83,40 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
         rootRef, chromeRef, entryStateRef, active, panel, onEscape: handleEscape,
     });
     const { menu, menuRef, closeMenu } = useOwnerCanvasToolMenu({
-        active, rootRef, scopeKey: `${config.directory?.id || ''}:${config.studioState?.activeViewId || ''}`,
-        bearing: config.bearing,
+        active: mapAvailable && config.directory?.viewer?.isOwner === true && !foregroundOpen,
+        rootRef, scopeKey: `${config.ownerKey || ''}:${config.mapId || ''}:${config.directory?.id || ''}:${config.studioState?.activeViewId || ''}:${active}`,
+        bearing: config.bearing, capturePoint,
     });
-    const context = useMemo(() => ({ active, panel, closePanel, openDraw, messages }), [active, closePanel, messages, openDraw, panel]);
+    menuOpenRef.current = Boolean(menu);
+    menuAnchorRef.current = menu?.anchor || null;
+    const onLayerMapChange = useCallback(() => { setHoverInspection(null); closeMenu(false); }, [closeMenu]);
+    const onLayerSceneChange = useCallback(() => {
+        const controller = inspectionRef.current;
+        setHoverInspection(current => {
+            if (!current || !controller || !layersEnabledRef.current || menuOpenRef.current) return null;
+            const result = controller.inspect(current);
+            const next = hasMapLayerHits(result) ? { ...current, result } : null;
+            return mapLayerInspectionKey(current) === mapLayerInspectionKey(next) ? current : next;
+        });
+        const anchor = menuAnchorRef.current;
+        if (controller && anchor) {
+            const key = mapLayerInspectionKey({ ...anchor, result: controller.inspect(anchor) });
+            if (key !== menuInspectionKeyRef.current) {
+                menuInspectionKeyRef.current = key;
+                setInspectionRevision(value => value + 1);
+            }
+        }
+    }, []);
+    const context = useMemo(() => ({ active, panel, closePanel, openDraw, messages,
+        showLayers, registerLayerInspection, onLayerHover, onLayerMapChange, onLayerSceneChange,
+    }), [active, closePanel, messages, onLayerHover, onLayerMapChange, onLayerSceneChange, openDraw, panel, registerLayerInspection, showLayers]);
+    const layerResult = useMemo(() => {
+        const result = menu?.anchor ? inspectionRef.current?.inspect(menu.anchor) : null;
+        menuInspectionKeyRef.current = menu?.anchor ? mapLayerInspectionKey({ ...menu.anchor, result }) : '';
+        return result;
+    }, [inspectionRevision, menu]);
+    useEffect(() => { setShowLayers(false); }, [config.mapId, config.directory?.id, config.ownerKey, config.studioState?.activeViewId]);
+    useEffect(() => { setHoverInspection(null); }, [active, config.studioState?.activeViewId]);
 
     useEffect(() => {
         if (active && panel === 'annotations' && !config.annotationEditing) setPanel(null);
@@ -71,6 +125,11 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
     useLayoutEffect(() => {
         if (active) returnButtonRef.current?.focus({ preventScroll: true });
     }, [active]);
+    useLayoutEffect(() => {
+        if (!active && ['content', 'export'].includes(panel)) {
+            rootRef.current?.querySelector(`[data-owner-canvas-inspector="${panel}"] button`)?.focus({ preventScroll: true });
+        }
+    }, [active, panel]);
     useLayoutEffect(() => {
         if (!active || !headerRef.current) return undefined;
         const measure = () => rootRef.current?.style.setProperty(
@@ -99,6 +158,21 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
                 return;
             }
             config.onCancelAnnotationDraft?.();
+        }
+        if (!active && target === 'studio') {
+            setPanel(null);
+            config.onOpenStudio?.();
+            return;
+        }
+        if (!active && target === 'resources') {
+            setPanel(null);
+            const resources = rootRef.current?.querySelector('[data-owner-canvas-resources-root]');
+            if (resources) {
+                resources.setAttribute('tabindex', '-1');
+                resources.focus({ preventScroll: true });
+                resources.scrollIntoView({ block: 'start', behavior: 'auto' });
+            }
+            return;
         }
         if (target === panel && name !== 'draw') { closePanel(); return; }
         if (target === 'annotations') {
@@ -201,8 +275,12 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
                                 <Share2 size={20} aria-hidden="true" /><span>{t('share')}</span>
                             </button>
                         </nav>
+                    </> : null}
                         {['content', 'export'].includes(panel) ? (
-                            <aside className="owner-canvas-inspector" aria-label={messages[panel]} data-owner-canvas-inspector={panel}>
+                            <aside className={`owner-canvas-inspector${active ? '' : ' owner-canvas-inspector--classic'}`} aria-label={messages[panel]} data-owner-canvas-inspector={panel}
+                                data-care-map-gesture-ui="true" onKeyDown={event => {
+                                    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closePanel(); }
+                                }}>
                                 <div className="owner-canvas-panel-heading"><h2>{messages[panel]}</h2>
                                     <button type="button" aria-label={messages.closePanel} onClick={closePanel}><X size={18} /></button>
                                 </div>
@@ -225,8 +303,10 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
                         ) : null}
                         {(notice || statusError) ? <p className="owner-canvas-alert" role="alert">{notice || statusError}</p> : null}
                         {menu ? <OwnerCanvasToolMenu menu={menu} menuRef={menuRef} label={messages.tools}
-                            items={menuItems} onChoose={chooseMenuTool} onDismiss={closeMenu} /> : null}
-                    </> : null}
+                            items={menuItems} onChoose={chooseMenuTool} onDismiss={closeMenu}
+                            layerMessages={layerMessages} layerResult={layerResult} showLayers={showLayers}
+                            onToggleLayers={() => { setShowLayers(value => !value); setHoverInspection(null); }} /> : null}
+                        {showLayers && !menu ? <MapLayerInspector inspection={hoverInspection} messages={layerMessages} /> : null}
                 </div>
             </div>
         </OwnerMapEditingCanvasContext.Provider>

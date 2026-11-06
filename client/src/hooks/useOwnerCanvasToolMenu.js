@@ -3,19 +3,21 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 const EXCLUDED_TARGETS = [
     'button', 'a', 'input', 'select', 'textarea', 'summary', '[contenteditable="true"]',
     '[data-care-map-gesture-ui]', '[data-map-settings-control]', '[data-print-annotation-toolbar]',
-    '.leaflet-control', '.carearound-print-annotation-vertex', '.carearound-print-annotation-draft-preview',
+    '.leaflet-control', '.leaflet-popup', '.carearound-print-annotation-vertex', '.carearound-print-annotation-draft-preview',
     '[role="menu"]', '[role="dialog"]', '[role="alertdialog"]',
 ].join(',');
 
 function eligibleMapTarget(root, target) {
     return target instanceof Element && root?.contains(target)
-        && target.closest('[data-owner-canvas-map-surface]')
+        && target.closest('.leaflet-container')
+        && root.querySelectorAll('.leaflet-container').length === 1
+        && !target.closest('[inert], [hidden]')
         && !target.closest(EXCLUDED_TARGETS);
 }
 
 // Observe the native secondary-button stream. Leaflet retains complete ownership
 // of down/move/up, including rotation; only an admitted contextmenu is suppressed.
-export default function useOwnerCanvasToolMenu({ active, rootRef, scopeKey, bearing }) {
+export default function useOwnerCanvasToolMenu({ active, rootRef, scopeKey, bearing, capturePoint }) {
     const [menu, setMenu] = useState(null);
     const menuRef = useRef(null);
     const menuStateRef = useRef(null);
@@ -23,6 +25,8 @@ export default function useOwnerCanvasToolMenu({ active, rootRef, scopeKey, bear
     const activeRef = useRef(active);
     const restoreFrameRef = useRef(null);
     const bearingRef = useRef(bearing);
+    const captureRef = useRef(capturePoint);
+    captureRef.current = capturePoint;
     activeRef.current = active;
 
     const closeMenu = useCallback((restoreFocus = true) => {
@@ -49,7 +53,7 @@ export default function useOwnerCanvasToolMenu({ active, rootRef, scopeKey, bear
         let admissionFrame = null;
         const show = (point, focusTarget) => {
             if (disposed || !activeRef.current) return;
-            const next = { x: point.x, y: point.y, focusTarget };
+            const next = { x: point.x, y: point.y, focusTarget, anchor: captureRef.current?.(point) || null };
             menuStateRef.current = next;
             setMenu(next);
         };
@@ -62,7 +66,7 @@ export default function useOwnerCanvasToolMenu({ active, rootRef, scopeKey, bear
                 admissionFrame = null;
                 if (disposed || !activeRef.current || candidateRef.current !== candidate || candidate.dragged
                     || !candidate.surface.isConnected || !eligibleMapTarget(root, candidate.target)) return;
-                show(candidate.anchor, candidate.surface.querySelector('.leaflet-container'));
+                show(candidate.anchor, candidate.surface);
             });
         };
         const observeDown = (event) => {
@@ -74,7 +78,7 @@ export default function useOwnerCanvasToolMenu({ active, rootRef, scopeKey, bear
                 x: event.clientX, y: event.clientY,
                 anchor: { x: event.clientX, y: event.clientY },
                 target: event.target,
-                surface: event.target.closest('[data-owner-canvas-map-surface]'),
+                surface: event.target.closest('.leaflet-container'),
                 dragged: false, released: false, contextRequested: false, queued: false,
             };
         };
@@ -98,7 +102,11 @@ export default function useOwnerCanvasToolMenu({ active, rootRef, scopeKey, bear
             if (!eligibleMapTarget(root, event.target)) return;
             const candidate = candidateRef.current;
             if (!candidate || (candidate.released && performance.now() - candidate.releasedAt > 600)) return;
-            if (event.target.closest('[data-owner-canvas-map-surface]') !== candidate.surface) return;
+            if (event.target.closest('.leaflet-container') !== candidate.surface) return;
+            // A resource hover/selection icon may replace its SVG between down
+            // and contextmenu. Revalidate the real context target on the same
+            // retained map instead of insisting the old SVG node still exists.
+            candidate.target = event.target;
             // Leaflet's rotation plugin legitimately prevents this event too.
             // defaultPrevented is not an indication of a UI/menu target.
             event.preventDefault();

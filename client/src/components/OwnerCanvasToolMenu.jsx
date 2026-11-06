@@ -1,6 +1,9 @@
-import { useLayoutEffect, useState } from 'react';
+import { Fragment, useLayoutEffect, useState } from 'react';
+import { Eye } from 'lucide-react';
+import { MapLayerReadout } from './MapLayerInspector.jsx';
 
-export default function OwnerCanvasToolMenu({ menu, menuRef, label, items, onChoose, onDismiss }) {
+export default function OwnerCanvasToolMenu({ menu, menuRef, label, items, onChoose, onDismiss,
+    layerMessages, layerResult, showLayers, onToggleLayers }) {
     const [position, setPosition] = useState({ x: menu.x, y: menu.y });
     useLayoutEffect(() => {
         const node = menuRef.current;
@@ -20,6 +23,7 @@ export default function OwnerCanvasToolMenu({ menu, menuRef, label, items, onCho
             return;
         }
         if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+        if (event.target.closest('[data-map-layer-scroll]')) return;
         event.preventDefault();
         event.stopPropagation();
         const buttons = [...menuRef.current.querySelectorAll('button:not(:disabled)')];
@@ -34,10 +38,22 @@ export default function OwnerCanvasToolMenu({ menu, menuRef, label, items, onCho
             data-care-map-gesture-ui="true" className="owner-canvas-context-menu"
             style={{ left: position.x, top: position.y }} onKeyDown={handleKey}>
             {items.map(({ name, text, Icon, disabled, guidance }) => (
-                <button type="button" role="menuitem" key={name} disabled={disabled}
+                <Fragment key={name}>
+                {name === 'share' ? <button type="button" role="menuitemcheckbox" aria-checked={showLayers}
+                    data-map-layer-toggle="true" onClick={onToggleLayers}>
+                    <Eye size={18} aria-hidden="true" /><span>{layerMessages.showLayers}</span>
+                </button> : null}
+                <button type="button" role="menuitem" disabled={disabled}
                     data-owner-canvas-menu-action={name} title={guidance || undefined}
                     onClick={() => onChoose(name)}><Icon size={18} aria-hidden="true" /><span>{text}</span></button>
+                </Fragment>
             ))}
+            <section className="owner-canvas-context-layers" aria-label={layerMessages.here}>
+                <h2>{layerMessages.here}</h2>
+                <div tabIndex={0} role="region" aria-label={layerMessages.here} data-map-layer-scroll="true">
+                    <MapLayerReadout result={layerResult} messages={layerMessages} />
+                </div>
+            </section>
         </div>
     );
 }
