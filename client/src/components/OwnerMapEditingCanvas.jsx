@@ -27,6 +27,8 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
     configRef.current = config;
     const [panel, setPanel] = useState(null);
     const [notice, setNotice] = useState('');
+    const toolHandlerRef = useRef(null);
+    const openDraw = useCallback(event => toolHandlerRef.current?.('draw', event), []);
 
     const closePanel = useCallback(() => {
         const current = configRef.current;
@@ -60,7 +62,7 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
         active, rootRef, scopeKey: `${config.directory?.id || ''}:${config.studioState?.activeViewId || ''}`,
         bearing: config.bearing,
     });
-    const context = useMemo(() => ({ active, panel, closePanel, messages }), [active, closePanel, messages, panel]);
+    const context = useMemo(() => ({ active, panel, closePanel, openDraw, messages }), [active, closePanel, messages, openDraw, panel]);
 
     useEffect(() => {
         if (active && panel === 'annotations' && !config.annotationEditing) setPanel(null);
@@ -105,6 +107,7 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
         if (target === 'studio') config.onOpenStudio?.();
         setPanel(target);
     };
+    toolHandlerRef.current = openTool;
     const start = (event) => {
         if (!mapAvailable || config.canvasAvailable === false) return;
         entryStateRef.current = {

@@ -31,7 +31,9 @@ import { useConfirmDialog } from '../components/ConfirmDialog.jsx';
 import DirectoryDistanceControls from '../components/DirectoryDistanceControls.jsx';
 import DirectoryMap from '../components/DirectoryMap.jsx';
 import NearbyAddressPicker from '../components/NearbyAddressPicker.jsx';
-import MapAreaResultsPanel from '../components/MapAreaResultsPanel.jsx';
+import MapAreaResourceWorkspace from '../components/MapAreaResourceWorkspace.jsx';
+import { runAreaResourceAddition } from '../lib/mapAreaResourceSelection.js';
+import { getOwnerMapCanvasMessages } from '../lib/ownerMapCanvasMessages.js';
 import { createSpatialAreaFromAnnotation } from '../lib/mapSpatialGeometry.js';
 import { assignAnnotationGroup, canRetryAnnotationGroupOperation, canUndoAnnotationGroupOperation } from '../lib/annotationLayerManager.js';
 import { normalizePrintAnnotations } from '../lib/printAnnotations.js';
@@ -1620,6 +1622,7 @@ export default function MyMapDetailPage() {
         savedAssetsLoading,
         savedAssetsLoadError,
         toggleSavedAsset,
+        applySavedAssetsSnapshot,
     } = useSavedAssets();
     const currentMapCacheKey = getMyMapDetailCacheKey(user, mapId);
     const activeImportContextRef = useRef(currentMapCacheKey);
@@ -1652,6 +1655,8 @@ export default function MyMapDetailPage() {
     const [addReady, setAddReady] = useState(false);
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [addError, setAddError] = useState('');
+    const [addSection, setAddSection] = useState('saved');
+    const areaResourceOperationRef = useRef(null);
     const [categoryOrderOpen, setCategoryOrderOpen] = useState(false);
     const [categoryOrderSubmitting, setCategoryOrderSubmitting] = useState(false);
     const [categoryOrderError, setCategoryOrderError] = useState('');
@@ -1660,10 +1665,16 @@ export default function MyMapDetailPage() {
     const [personalPlaceDraft, setPersonalPlaceDraft] = useState(null);
     const [nearbyAddressSelection, setNearbyAddressSelection] = useState(null);
     const [areaSelection, setAreaSelection] = useState(null);
+    const areaSelectionRef = useRef(areaSelection);
+    areaSelectionRef.current = areaSelection;
     const spatialContextRef = useRef(currentMapCacheKey);
     spatialContextRef.current = currentMapCacheKey;
     const nearbyAddressPoint = nearbyAddressSelection?.contextKey === currentMapCacheKey ? nearbyAddressSelection.point : null;
     const spatialArea = areaSelection?.contextKey === currentMapCacheKey ? areaSelection.area : null;
+    useEffect(() => {
+        setAddOpen(false); setAddSubmitting(false); setAddReady(false); setAddSection('saved');
+        return () => { areaResourceOperationRef.current?.abort(); areaResourceOperationRef.current = null; };
+    }, [currentMapCacheKey]);
     const [personalPlaceSubmitting, setPersonalPlaceSubmitting] = useState(false);
     const [personalPlaceError, setPersonalPlaceError] = useState('');
     const [personalPlacesLibrary, setPersonalPlacesLibrary] = useState([]);
@@ -3129,6 +3140,41 @@ export default function MyMapDetailPage() {
         }
     }
 
+    async function handleAddAreaResources(items, { signal, onProgress } = {}) {
+        if (!addReady || !directory || directory.viewer?.isOwner !== true || mapAssetMutationInFlightRef.current) {
+            throw new Error(t('failedUpdateMapResources'));
+        }
+        const targetId = directory.id, targetContext = currentMapCacheKey, targetArea = areaSelectionRef.current;
+        const contextController = new AbortController();
+        const workSignal = signal ? AbortSignal.any([signal, contextController.signal]) : contextController.signal;
+        const operation = { abort: () => contextController.abort() };
+        areaResourceOperationRef.current = operation;
+        mapAssetMutationInFlightRef.current = true;
+        const isCurrent = () => spatialContextRef.current === targetContext && areaSelectionRef.current === targetArea
+            && areaResourceOperationRef.current === operation && !contextController.signal.aborted;
+        const readOptions = reconcile => ({ cache: 'no-store', networkAttemptsPerBase: 1, signal: reconcile ? contextController.signal : workSignal });
+        try {
+            const result = await runAreaResourceAddition({ items,
+                isCurrent, shouldStop: () => workSignal.aborted || !isCurrent(),
+                getMap: ({ reconcile = false } = {}) => api.getMyMap(targetId, readOptions(reconcile)),
+                getSaved: ({ reconcile = false } = {}) => api.getSavedAssets(readOptions(reconcile)),
+                ensureSaved: ref => api.ensureSavedAsset(ref.resourceType, ref.resourceId, { signal: workSignal, networkAttemptsPerBase: 1 }),
+                addToMap: ref => api.addMyMapAsset(targetId, ref, { signal: workSignal, networkAttemptsPerBase: 1 }),
+                onProgress: value => { if (isCurrent()) onProgress?.(value); },
+            });
+            if (isCurrent() && result.map) {
+                cacheMyMapDetail(user, targetId, result.map);
+                directoryCacheKeyRef.current = targetContext;
+                setDirectory(result.map);
+            }
+            if (isCurrent() && result.savedAssets) applySavedAssetsSnapshot(result.savedAssets, user.id);
+            return result;
+        } finally {
+            mapAssetMutationInFlightRef.current = false;
+            if (areaResourceOperationRef.current === operation) areaResourceOperationRef.current = null;
+        }
+    }
+
     async function handleSaveManageCatalogAsset(asset) {
         const key = `${asset.resourceType}-${asset.resourceId}`;
         const existing = savedAssets.find((savedAsset) => (
@@ -3147,8 +3193,15 @@ export default function MyMapDetailPage() {
         return result.item;
     }
 
-    async function openManageAssets() {
+    async function openManageAssets(options = {}) {
         if (addLoading || addSubmitting) return;
+        if (interactiveAnnotationEditor.hasUnfinishedDraft) {
+            setActionError(getOwnerMapCanvasMessages(locale).finishDraft);
+            return;
+        }
+        if (interactiveAnnotationEditorOpen && interactiveAnnotationEditor.closeEditor() === false) return;
+        setAddSection(options.section === 'area' ? 'area' : 'saved');
+        if (!options.area) setAreaSelection(null);
         setPersonalPlacePickerActive(false);
         setAddError('');
         setAddReady(false);
@@ -3254,7 +3307,9 @@ export default function MyMapDetailPage() {
     function handleFindWithinArea(annotation) {
         const area = createSpatialAreaFromAnnotation(annotation);
         if (!area) return;
-        setAreaSelection({ contextKey: currentMapCacheKey, area });
+        setAreaSelection({ contextKey: currentMapCacheKey, area, annotationId: annotation.id,
+            label: String(annotation.text || '').trim() || String(annotation.type || '') });
+        openManageAssets({ section: 'area', area });
     }
 
     function handleEditPersonalPlace(row) {
@@ -3882,9 +3937,23 @@ export default function MyMapDetailPage() {
         {nearbyAddressPoint ? <NearbyAddressPicker key={`nearby:${currentMapCacheKey}`} point={nearbyAddressPoint}
             onClose={() => setNearbyAddressSelection(null)} onChoose={finishPersonalPlaceLocation}
             onMapOnly={() => finishPersonalPlaceLocation()} onManual={() => finishPersonalPlaceLocation(null, null, true)} /> : null}
-        {spatialArea && !isPrintView ? <MapAreaResultsPanel key={`area:${currentMapCacheKey}`} area={spatialArea}
-            onClose={() => setAreaSelection(null)} /> : null}
     </>);
+
+    const spatialAreaChoices = useMemo(() => !addOpen || isPrintView ? [] : printAnnotations.annotations.flatMap((annotation, index) => {
+        const area = createSpatialAreaFromAnnotation(annotation);
+        return area ? [{ id: annotation.id, area,
+            label: String(annotation.text || '').trim() || `${String(annotation.type || '')} ${index + 1}` }] : [];
+    }), [addOpen, isPrintView, printAnnotations.annotations]);
+    const withinAreaContent = !isPrintView ? <MapAreaResourceWorkspace areas={spatialAreaChoices}
+        selection={spatialArea ? areaSelection : null} mapName={directory?.name} existingAssets={directory?.assets || []}
+        scopeKey={currentMapCacheKey} disabled={!addReady || Boolean(savedAssetsLoadError)} busy={addSubmitting}
+        onSelectArea={choice => setAreaSelection(choice ? { contextKey: currentMapCacheKey, area: choice.area, annotationId: choice.id, label: choice.label } : null)}
+        onDrawArea={({ canvas = false } = {}) => {
+            if (addSubmitting) return;
+            setAddOpen(false); setAddReady(false); setAreaSelection(null);
+            if (!canvas && !interactiveAnnotationEditorOpen) toggleInteractiveAnnotationEditor();
+        }}
+        onSaveAndAdd={handleAddAreaResources} onBusyChange={setAddSubmitting} /> : null;
 
     if (loading || (directory && directoryCacheKeyRef.current !== currentMapCacheKey)) {
         return (
@@ -4505,11 +4574,15 @@ export default function MyMapDetailPage() {
                     error={addError || savedAssetsLoadError}
                     allowCatalogSearch
                     onSaveCatalogAsset={handleSaveManageCatalogAsset}
+                    withinAreaContent={withinAreaContent}
+                    initialSection={addSection}
+                    selectionScopeKey={currentMapCacheKey}
                     onClose={() => {
                         if (addLoading || addSubmitting) return;
                         setAddOpen(false);
                         setAddReady(false);
                         setAddError('');
+                        setAreaSelection(null);
                     }}
                     onSubmit={handleManageAssets}
                 />
@@ -4897,11 +4970,15 @@ export default function MyMapDetailPage() {
                 error={addError || savedAssetsLoadError}
                 allowCatalogSearch
                 onSaveCatalogAsset={handleSaveManageCatalogAsset}
+                withinAreaContent={withinAreaContent}
+                initialSection={addSection}
+                selectionScopeKey={currentMapCacheKey}
                 onClose={() => {
                     if (addLoading || addSubmitting) return;
                     setAddOpen(false);
                     setAddReady(false);
                     setAddError('');
+                    setAreaSelection(null);
                 }}
                 onSubmit={handleManageAssets}
             />

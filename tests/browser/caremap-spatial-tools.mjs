@@ -112,6 +112,13 @@ async function startPointPicker(page, phone = false) {
     await page.waitForTimeout(800);
 }
 async function selectCircle(page) { await clickMap(page, center[0] + 0.0044966, center[1]); }
+async function areaDialog(page) {
+    // Draw and Manage now share one workspace; explicitly enter its address tab.
+    const panel = page.getByRole('dialog').filter({ has: page.locator('[data-map-area-results]') });
+    await panel.waitFor();
+    await panel.getByRole('tab', { name: /Addresses.*postal codes/ }).click();
+    return panel;
+}
 try {
     browser = await chromium.launch({ headless: true });
     report.browserVersion = browser.version();
@@ -137,7 +144,7 @@ try {
             const label = page.locator('[data-map-radius-label]').filter({ visible: true }).first(); await label.waitFor();
             const radiusText = (await label.innerText()).trim(); assert.match(radiusText, /radius/i);
             await find.click();
-            const panel = page.getByRole('dialog', { name: 'Find within area', exact: true }); await panel.waitFor();
+            const panel = await areaDialog(page);
             await panel.getByText(productionProvider ? 'Singapore address snapshot' : 'Fictional QA address snapshot', { exact: false }).first().waitFor();
             await capture(page, 'desktop-area-addresses');
             assert.equal(await panel.locator('li input[type=checkbox]').count(), 200, 'Bounded first address page');
@@ -154,8 +161,8 @@ try {
             const allDownload = await allDownloaded, allFile = path.join(out, 'all-addresses.csv'); await allDownload.saveAs(allFile); report.downloads.push(allFile);
             assert.equal((await fs.readFile(allFile, 'utf8')).trim().split(/\r?\n/).length, 226, 'All-results CSV fetches every address page');
             await panel.getByRole('tab', { name: /^CareAround resources(?: \(.*\))?$/ }).click();
-            await panel.getByText('Fictional catalogue centre outside saved map', { exact: true }).waitFor();
-            await panel.getByText('Fictional multi-venue programme', { exact: true }).waitFor();
+            await panel.getByRole('link', { name: 'Fictional catalogue centre outside saved map', exact: true }).waitFor();
+            await panel.getByRole('link', { name: 'Fictional multi-venue programme', exact: true }).waitFor();
             assert.equal(await panel.getByText('Fictional distant centre', { exact: true }).count(), 0, 'Outside area excluded');
             assert.match(await panel.locator('[data-map-area-unlocated]').innerText(), /\b2\b/, 'Unlocated centre and online programme are explicitly unassessed');
             assert.equal(await panel.getByText('Fictional private restricted resource', { exact: true }).count(), 0, 'Unavailable resources absent');
@@ -173,16 +180,19 @@ try {
         const { page, context } = await createPage(); let failure = 'oversized';
         try {
             await page.route(`**${snapshotPrefix}/area`, async route => failure === 'oversized'
-                ? route.fulfill({ status: 422, json: { error: 'Choose a smaller area.', code: 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' } })
+                ? route.fulfill({ status: 422, json: { error: 'Choose a smaller area.', code: 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE', addressLimit: { reason: 'geometryWork', observed: 250100, allowed: 250000 } } })
                 : failure === 'changed' ? route.fulfill({ status: 409, json: { error: 'Changed snapshot.', code: 'ADDRESS_SNAPSHOT_CHANGED' } }) : route.continue());
             await openAnnotation(page); await selectCircle(page); await page.getByRole('button', { name: 'Find within area', exact: true }).click();
-            let panel = page.getByRole('dialog', { name: 'Find within area', exact: true });
-            await panel.getByText('This area is too large or complex to search. Choose a smaller or simpler boundary, then try again.', { exact: true }).waitFor();
+            let panel = await areaDialog(page);
+            await panel.locator('[data-map-area-address-error="ADDRESS_SNAPSHOT_AREA_TOO_LARGE"]').waitFor();
+            await panel.locator('[data-map-area-address-limit="geometryWork"]').waitFor();
             await panel.getByRole('button', { name: 'Choose a smaller or simpler area', exact: true }).click();
             await panel.waitFor({ state: 'detached' });
-            failure = 'changed'; await page.getByRole('button', { name: 'Find within area', exact: true }).click();
-            panel = page.getByRole('dialog', { name: 'Find within area', exact: true });
-            await panel.getByText('The address snapshot changed. Retry to start a fresh search before loading or exporting more addresses.', { exact: true }).waitFor();
+            failure = 'changed'; await page.locator('[data-map-area-choice]').selectOption('preview-circle');
+            panel = await areaDialog(page);
+            const changedAlert = panel.locator('[data-map-area-address-error="ADDRESS_SNAPSHOT_CHANGED"]');
+            await changedAlert.waitFor();
+            assert.match(await changedAlert.innerText(), /snapshot changed.*Restart this search/s);
             failure = null; await panel.getByRole('button', { name: 'Retry', exact: true }).click();
             await panel.locator('li input[type=checkbox]').nth(199).waitFor();
             assert.equal((await audit(page)).unexpectedWrites.length, 0);
@@ -207,7 +217,7 @@ try {
                 };
             });
             await openAnnotation(page); await selectCircle(page); await page.getByRole('button', { name: 'Find within area', exact: true }).click();
-            let panel = page.getByRole('dialog', { name: 'Find within area', exact: true });
+            let panel = await areaDialog(page);
             await panel.getByRole('tab', { name: /CareAround resources/ }).click();
             await panel.getByText('CareAround resource results are unavailable. Retry to check the full accessible catalogue.', { exact: true }).waitFor({ timeout: 22000 });
             assert.deepEqual(await page.evaluate(() => window.__spatialCatalogueCalls.map(value => value.aborted)), [true, true], 'Real page deadline cancels both pending catalogue transports');
@@ -216,6 +226,7 @@ try {
             await panel.locator('a[href^="/resource/"]').first().waitFor();
             await panel.getByRole('button', { name: 'Close', exact: true }).click();
             await page.evaluate(() => { window.__stallSpatialCatalogue = true; });
+            await openAnnotation(page); await selectCircle(page);
             await page.getByRole('button', { name: 'Find within area', exact: true }).click();
             await page.waitForFunction(() => window.__spatialCatalogueCalls.length === 4);
             await page.evaluate(route => { history.pushState({}, '', route); dispatchEvent(new PopStateEvent('popstate')); }, `/my-directory/maps/${mapId + 1}`);
@@ -329,7 +340,7 @@ try {
             const areaReady = page.waitForResponse(response => response.url().includes(`${snapshotPrefix}/area`) && response.status() === 200);
             await page.getByRole('button', { name: 'Find within area', exact: true }).click();
             const areaResponse = await areaReady;
-            const panel = page.getByRole('dialog', { name: 'Find within area', exact: true });
+            const panel = await areaDialog(page);
             await panel.locator('li input[type=checkbox]').first().waitFor();
             assert.ok(await panel.locator('li input[type=checkbox]').count() > 0, 'Actual CSV supplies address rows inside saved circle');
             await capture(page, 'real-csv-desktop-selected-circle-addresses');
@@ -357,12 +368,12 @@ try {
             const before = await audit(page); await openAnnotation(page, true);
             await clickMap(page, center[0] + 0.00318, center[1] + 0.00318);
             await page.getByRole('button', { name: 'Find within area', exact: true }).click();
-            const panel = page.getByRole('dialog', { name: 'Find within area', exact: true });
+            const panel = await areaDialog(page);
             await panel.locator('li input[type=checkbox]').first().waitFor();
             await capture(page, 'phone-area-addresses');
             assert.ok(await panel.getByRole('button', { name: 'Download all CSV', exact: true }).isVisible(), 'Phone CSV actions reachable');
             await panel.getByRole('tab', { name: /^CareAround resources/ }).click();
-            await panel.getByText('Fictional catalogue centre outside saved map', { exact: true }).waitFor();
+            await panel.getByRole('link', { name: 'Fictional catalogue centre outside saved map', exact: true }).waitFor();
             await capture(page, 'phone-area-catalogue');
             assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth <= 1), 'No phone horizontal overflow');
             await panel.getByRole('button', { name: /close/i }).first().click();
@@ -412,7 +423,7 @@ try {
             assert.equal(query.type, 'Polygon');
             if (shape === 'rounded-polygon') assert.ok(query.coordinates[0].length > 5, 'Query follows rendered rounded boundary');
             else { const [a, b] = query.coordinates[0]; assert.ok(a[0] !== b[0] && a[1] !== b[1], 'Query preserves rectangle rotation'); }
-            const panel = page.getByRole('dialog', { name: 'Find within area', exact: true }); await panel.locator('li input[type=checkbox]').first().waitFor();
+            const panel = await areaDialog(page); await panel.locator('li input[type=checkbox]').first().waitFor();
             await capture(page, `desktop-${shape}-area`); await panel.getByRole('button', { name: /close/i }).first().click();
             await page.waitForTimeout(1200); const after = await audit(page); assert.deepEqual(after.annotations, before.annotations); assert.equal(after.unexpectedWrites.length, before.unexpectedWrites.length);
             return { geometryType: query.type, ringPoints: query.coordinates[0].length };
@@ -425,7 +436,7 @@ try {
         try {
             const before = await audit(page); await openAnnotation(page); await selectCircle(page);
             await page.getByRole('button', { name: 'Find within area', exact: true }).click();
-            const panel = page.getByRole('dialog', { name: 'Find within area', exact: true }); await panel.waitFor();
+            const panel = await areaDialog(page); await panel.waitFor();
             await panel.getByRole('button', { name: /close/i }).first().click(); release(); await page.waitForTimeout(1200);
             assert.equal(await page.locator('[data-map-area-results]').filter({ visible: true }).count(), 0, 'Late area response does not reopen results');
             const after = await audit(page); assert.deepEqual(after.annotations, before.annotations); assert.equal(after.revision, before.revision); assert.equal(after.unexpectedWrites.length, before.unexpectedWrites.length);

@@ -6,6 +6,9 @@ import { MapMediaBucket, png } from './helpers/mapAnnotationFixtures.js';
 import { createPersonalPlaceMapNotesRepository } from '../src/utils/personalPlaceMapNotes.js';
 
 import { createMapStudioDocument } from '../../client/src/lib/mapStudioState.js';
+import { buildMyMapAssetSnapshot } from '../src/utils/myMapDirectory.js';
+import * as sharedMapApi from '../src/controllers/sharedMapsController.js';
+import { buildDirectoryPresentation } from '../../client/src/lib/directoryPresentation.js';
 
 import {
     addAssetToMyMap,
@@ -2077,4 +2080,334 @@ test('failed image-copy persistence rolls back the new private map while preserv
         copy: async () => { throw Object.assign(new Error('image copy unavailable'), { status: 503 }); } };
     await assert.rejects(duplicateMyMap(db, DEFAULT_USER, 3, { noteImages }), /image copy unavailable/);
     assert.equal(db.state.maps.length, 1); assert.equal(db.state.maps[0].id, 3);
+});
+
+
+function scopedOfferingFixture(options = {}) {
+    const { linked = true } = options;
+    const scope = Object.hasOwn(options, 'scope') ? options.scope : { version: 1, placeIds: [82102] };
+    const inside = createHardAsset({ id: 82102, name: 'Fictional inside venue', address: 'Fictional inside address', lat: '1.38', lng: '103.75' });
+    const outside = createHardAsset({ id: 82103, name: 'Fictional outside venue', address: 'Fictional outside address', lat: '1.48', lng: '103.85' });
+    const offering = { id: 9001, name: 'Fictional regional programme', assetMode: 'standalone', subCategory: 'Programme',
+        audienceMode: 'public', isMemberOnly: false, isHidden: false, isDeleted: false, partner: null, audienceZones: [],
+        locations: [{ hardAsset: inside }, { hardAsset: outside }] };
+    const fullSnapshot = buildMyMapAssetSnapshot('soft', offering);
+    const snapshot = { ...fullSnapshot, ...(scope === undefined ? {} : { mapLocationScope: scope }) };
+    const db = createFakeDb({ favorites: [createFavorite({ resourceType: 'soft', resourceId: 9001, snapshot: fullSnapshot })],
+        maps: [createMap({ embedEnabled: true, embedAllowedOrigins: ['https://fictional.example'] })],
+        mapAssets: linked ? [createMapAsset({ resourceType: 'soft', resourceId: 9001, snapshot, privateNote: 'Private curation',
+            notes: [] })] : [],
+        mapAssetNotes: linked ? [{ id: 1, mapAssetId: 9, noteText: 'Published curator note', isShared: true, sortOrder: 0 }] : [],
+        hardAsset: inside });
+    db.state.offering = offering;
+    db.query.softAssets.findFirst = async ({ where } = {}) => {
+        const id = getWhereParamValues(where).find(value => Number.isInteger(value));
+        return !id || id === offering.id ? db.state.offering : null;
+    };
+    const ownedFind = db.query.myMaps.findFirst;
+    db.query.myMaps.findFirst = async (query = {}) => {
+        const values = getWhereParamValues(query.where);
+        const token = values.find(value => typeof value === 'string' && db.state.maps.some(map => map.shareToken === value));
+        if (token) {
+            const map = db.state.maps.find(map => map.shareToken === token);
+            return { ...attachAssets(db.state, map), shareSnapshot: db.state.shareSnapshots.find(snapshot => snapshot.mapId === map.id) || null };
+        }
+        return ownedFind(query);
+    };
+    return { db, inside, outside, offering, fullSnapshot };
+}
+
+function assertNoPublicScope(value) {
+    assert.doesNotMatch(JSON.stringify(value), /mapLocationScope|scopedResourceKeys/);
+}
+
+test('new scoped membership selects canonical venues without changing Saved and survives refresh and owner duplication', async () => {
+    const { db, offering, fullSnapshot } = scopedOfferingFixture({ linked: false });
+    const savedBefore = JSON.stringify(db.state.favorites);
+    const added = await addAssetToMyMap(db, DEFAULT_USER, 3, { resourceType: 'soft', resourceId: 9001, selectedPlaceIds: [82102] }, DEFAULT_CONTEXT);
+    assert.deepEqual(added.snapshot.mapLocationScope, { version: 1, placeIds: [82102] });
+    assert.deepEqual(added.snapshot.places.map(place => place.placeId), [82102]);
+    assert.equal(JSON.stringify(db.state.favorites), savedBefore);
+    assert.deepEqual(fullSnapshot.places.map(place => place.placeId), [82102, 82103]);
+    offering.name = 'Updated public programme';
+    offering.locations.push({ hardAsset: createHardAsset({ id: 82104, name: 'New outside venue' }) });
+    const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+    assert.deepEqual(detail.places.map(place => place.placeId), [82102]);
+    assert.deepEqual(detail.pins.map(pin => pin.placeId), [82102]);
+    assert.deepEqual(detail.assets[0].mapLocationScope, { version: 1, placeIds: [82102] });
+    assert.deepEqual(db.state.mapAssets[0].snapshot.mapLocationScope.placeIds, [82102]);
+    assert.equal(db.state.mapAssets[0].snapshot.name, offering.name);
+    assert.deepEqual(db.state.mapAssets[0].snapshot.places.map(place => place.placeId), [82102]);
+    const copied = await duplicateMyMap(db, DEFAULT_USER, 3);
+    assert.deepEqual(db.state.mapAssets.find(asset => asset.mapId === copied.id).snapshot.mapLocationScope.placeIds, [82102]);
+    assert.equal(JSON.stringify(db.state.favorites), savedBefore);
+});
+
+test('invalid new venue scopes fail before any create-map or membership write', async () => {
+    for (const selectedPlaceIds of [[], [82102, 82102], ['82102'], [999999], Array.from({ length: 501 }, (_, i) => i + 1)]) {
+        const { db } = scopedOfferingFixture({ linked: false });
+        const before = JSON.stringify({ maps: db.state.maps, assets: db.state.mapAssets, favorites: db.state.favorites });
+        await assert.rejects(createMyMap(db, DEFAULT_USER, { name: 'No partial map', assets: [
+            { resourceType: 'soft', resourceId: 9001, selectedPlaceIds },
+        ] }, DEFAULT_CONTEXT), error => error.status === 400 && error.code === 'MAP_LOCATION_SCOPE_INVALID');
+        assert.equal(JSON.stringify({ maps: db.state.maps, assets: db.state.mapAssets, favorites: db.state.favorites }), before);
+    }
+    const { db } = scopedOfferingFixture({ linked: false });
+    await assert.rejects(createMyMap(db, DEFAULT_USER, { name: 'Validate later item too', assets: [
+        { resourceType: 'soft', resourceId: 9001, selectedPlaceIds: [82102] },
+        { resourceType: 'soft', resourceId: 9002, selectedPlaceIds: [82103] },
+    ] }, DEFAULT_CONTEXT), error => error.status === 400);
+    assert.equal(db.state.maps.length, 1); assert.equal(db.state.mapAssets.length, 0);
+});
+
+test('already-present scoped map resource remains409 and never changes its selected venues', async () => {
+    const { db } = scopedOfferingFixture();
+    const before = JSON.stringify(db.state.mapAssets);
+    await assert.rejects(addAssetToMyMap(db, DEFAULT_USER, 3, { resourceType: 'soft', resourceId: 9001, selectedPlaceIds: [82103] }, DEFAULT_CONTEXT), { status: 409 });
+    assert.equal(JSON.stringify(db.state.mapAssets), before);
+});
+
+test('null legacy scopes keep all venues while malformed non-null scopes and withdrawn venues fail closed with owner notes', async () => {
+    for (const scope of [null, undefined]) {
+        const { db } = scopedOfferingFixture({ scope });
+        const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+        assert.deepEqual(detail.places.map(place => place.placeId), [82102, 82103]);
+        assert.equal(Object.hasOwn(detail.assets[0], 'mapLocationScope'), false);
+    }
+    for (const scope of [{ version: 2, placeIds: [82102] }, { version: 1, placeIds: [] }, { version: 1, placeIds: '82102' }]) {
+        const { db } = scopedOfferingFixture({ scope });
+        const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+        assert.equal(detail.pins.length, 0);
+        assert.equal(detail.places.length, 1); assert.equal(detail.places[0].hasCoordinates, false);
+        assert.equal(detail.places[0].rows[0].status, 'unavailable');
+        assert.match(JSON.stringify(detail.assets[0].notes), /Published curator note/);
+        assert.doesNotMatch(JSON.stringify(detail), /Fictional inside address|Fictional outside address/);
+    }
+    for (const change of ['hidden', 'removed', 'coordinates']) {
+        const { db, inside, offering } = scopedOfferingFixture();
+        if (change === 'hidden') inside.isHidden = true;
+        if (change === 'removed') offering.locations = offering.locations.filter(entry => entry.hardAsset.id !== inside.id);
+        if (change === 'coordinates') inside.lat = null;
+        const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+        assert.equal(detail.pins.length, 0); assert.equal(detail.places[0].rows[0].status, 'unavailable');
+        assert.doesNotMatch(JSON.stringify(detail), /Fictional inside address|Fictional outside address/);
+        assert.deepEqual(detail.assets[0].mapLocationScope.placeIds, [82102]);
+    }
+});
+
+test('scoped publication and copy retain frozen permitted venues and hide private flags from every public directory', async () => {
+    const { db, inside } = scopedOfferingFixture();
+    await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+    const token = db.state.maps.find(map => map.id === 3).shareToken;
+    const stored = db.state.shareSnapshots[0].snapshot;
+    assert.equal(stored.mapLocationScopeVersion, 1); assert.deepEqual(stored.scopedResourceKeys, ['soft-9001']);
+    const frozenLat = stored.places[0].lat;
+    db.state.mapAssets[0].snapshot = { ...db.state.mapAssets[0].snapshot, mapLocationScope: { version: 1, placeIds: [82103] } };
+    inside.lat = '1.39';
+    const shared = await sharedMapApi.getSharedMapDirectory(db, token, { id: 8, role: 'standard' });
+    assertNoPublicScope(shared);
+    assert.deepEqual(shared.places.map(place => place.placeId), [82102]); assert.equal(shared.places[0].lat, frozenLat);
+    assertNoPublicScope(await sharedMapApi.getEmbeddedMapDirectory(db, token));
+    assertNoPublicScope(await sharedMapApi.getSharedMapNoteImageDirectory(db, token, { id: 8, role: 'standard' }));
+    const copied = await sharedMapApi.copySharedMapToMyMaps(db, { id: 8, role: 'standard' }, token);
+    const asset = db.state.mapAssets.find(item => item.mapId === copied.id);
+    assert.deepEqual(asset.snapshot.mapLocationScope, { version: 1, placeIds: [82102] });
+    assert.equal(asset.snapshot.places[0].lat, frozenLat);
+    assert.doesNotMatch(JSON.stringify(asset.snapshot), /Fictional outside address/);
+});
+
+test('scoped frozen venue privacy revocation cannot leak cached fields or expand a copied map', async () => {
+    const { db, inside, offering } = scopedOfferingFixture();
+    await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+    const token = db.state.maps.find(map => map.id === 3).shareToken;
+    inside.isHidden = true;
+    const shared = await sharedMapApi.getSharedMapDirectory(db, token, { id: 8, role: 'standard' });
+    assert.equal(shared.places.length, 0); assert.equal(shared.assets.length, 0); assertNoPublicScope(shared);
+    assert.equal(shared.summary.savedResourceCount, 0); assert.equal(shared.pins.length, 0);
+    assert.doesNotMatch(JSON.stringify(shared), /82102|Fictional inside|Fictional outside/);
+    const copied = await sharedMapApi.copySharedMapToMyMaps(db, { id: 8, role: 'standard' }, token);
+    const asset = db.state.mapAssets.find(item => item.mapId === copied.id);
+    assert.deepEqual(asset.snapshot.mapLocationScope, { version: 1, placeIds: [] });
+    assert.deepEqual(asset.snapshot.places, []); assert.doesNotMatch(JSON.stringify(asset.snapshot), /Fictional inside|Fictional outside/);
+    assert.equal(db.state.mapAssetNotes.filter(note => note.mapAssetId === asset.id).length, 1);
+    const detail = await getMyMapDetail(db, { id: 8, role: 'standard' }, copied.id, DEFAULT_CONTEXT);
+    assert.equal(detail.pins.length, 0); assert.equal(detail.places[0].hasCoordinates, false);
+    offering.isHidden = true;
+    const omittedCopy = await sharedMapApi.copySharedMapToMyMaps(db, { id: 9, role: 'standard' }, token);
+    assert.equal(db.state.mapAssets.filter(item => item.mapId === omittedCopy.id).length, 0,
+        'existing public-resource omission also omits its notes');
+});
+
+test('incomplete private scope markers fail closed using frozen rows, never unpublished owner scope', async () => {
+    for (const corrupt of ['missing-flags', 'missing-marker', 'bad-marker', 'bad-flags']) {
+        const { db } = scopedOfferingFixture();
+        await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+        const token = db.state.maps.find(map => map.id === 3).shareToken;
+        const stored = db.state.shareSnapshots[0].snapshot;
+        if (corrupt === 'missing-flags') delete stored.scopedResourceKeys;
+        if (corrupt === 'missing-marker') delete stored.mapLocationScopeVersion;
+        if (corrupt === 'bad-marker') stored.mapLocationScopeVersion = 2;
+        if (corrupt === 'bad-flags') stored.scopedResourceKeys = { bad: true };
+        db.state.mapAssets[0].snapshot = { ...db.state.mapAssets[0].snapshot, mapLocationScope: { version: 1, placeIds: [82103] } };
+        const shared = await sharedMapApi.getSharedMapDirectory(db, token, { id: 8, role: 'standard' });
+        assertNoPublicScope(shared); assert.deepEqual(shared.places.map(place => place.placeId), [82102]);
+        const copied = await sharedMapApi.copySharedMapToMyMaps(db, { id: 8, role: 'standard' }, token);
+        assert.deepEqual(db.state.mapAssets.find(asset => asset.mapId === copied.id).snapshot.mapLocationScope.placeIds, [82102]);
+    }
+});
+
+
+test('scoped new requests reject unavailable canonical venues and null scope keeps normal all-venue addition', async () => {
+    for (const change of ['hidden', 'removed', 'coordinates', 'no-id']) {
+        const { db, inside, offering } = scopedOfferingFixture({ linked: false });
+        if (change === 'hidden') inside.isHidden = true;
+        if (change === 'removed') offering.locations = offering.locations.filter(entry => entry.hardAsset.id !== inside.id);
+        if (change === 'coordinates') inside.lat = null;
+        if (change === 'no-id') delete inside.id;
+        const saved = JSON.stringify(db.state.favorites);
+        await assert.rejects(addAssetToMyMap(db, DEFAULT_USER, 3, { resourceType: 'soft', resourceId: 9001, selectedPlaceIds: [82102] }, DEFAULT_CONTEXT),
+            error => error.status === 400 && error.code === 'MAP_LOCATION_SCOPE_INVALID');
+        assert.equal(db.state.mapAssets.length, 0); assert.equal(JSON.stringify(db.state.favorites), saved);
+    }
+    for (const selectedPlaceIds of [undefined, null]) {
+        const { db } = scopedOfferingFixture({ linked: false });
+        const added = await addAssetToMyMap(db, DEFAULT_USER, 3, { resourceType: 'soft', resourceId: 9001, selectedPlaceIds }, DEFAULT_CONTEXT);
+        assert.equal(Object.hasOwn(added.snapshot, 'mapLocationScope'), false);
+        const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+        assert.deepEqual(detail.places.map(place => place.placeId), [82102, 82103]);
+    }
+});
+
+test('valid scoped create-map prevalidates then stores only chosen venue identities', async () => {
+    const { db } = scopedOfferingFixture({ linked: false });
+    const saved = JSON.stringify(db.state.favorites);
+    const created = await createMyMap(db, DEFAULT_USER, { name: 'Scoped new map', assets: [
+        { resourceType: 'soft', resourceId: 9001, selectedPlaceIds: [82102] },
+    ] }, DEFAULT_CONTEXT);
+    const asset = db.state.mapAssets.find(item => item.mapId === created.id);
+    assert.deepEqual(asset.snapshot.mapLocationScope, { version: 1, placeIds: [82102] });
+    assert.deepEqual(asset.snapshot.places.map(place => place.placeId), [82102]);
+    assert.equal(JSON.stringify(db.state.favorites), saved);
+    assert.equal(db.state.mapAssets.filter(item => item.mapId === created.id).length, 1, 'no automatic host membership');
+});
+
+test('scoped500-venue owner projection uses one batched resource hydration and no per-venue database queries', async () => {
+    async function profile(count) {
+        const { db, offering } = scopedOfferingFixture();
+        offering.locations = Array.from({ length: count }, (_, index) => ({ hardAsset: createHardAsset({
+            id: 10000 + index, name: `Fictional venue ${index}`, address: `Fictional address ${index}`,
+        }) }));
+        const placeIds = offering.locations.map(entry => entry.hardAsset.id);
+        db.state.mapAssets[0].snapshot = { ...buildMyMapAssetSnapshot('soft', offering), mapLocationScope: { version: 1, placeIds } };
+        let batchReads = 0, singleReads = 0, selects = 0;
+        db.query.softAssets.findMany = async () => { batchReads += 1; return [offering]; };
+        db.query.softAssets.findFirst = async () => { singleReads += 1; throw new Error('Unexpected single-resource lookup'); };
+        const originalSelect = db.select;
+        if (typeof originalSelect === 'function') {
+            db.select = (...args) => { selects += 1; return originalSelect.apply(db, args); };
+        }
+        const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+        assert.equal(detail.places.length, count); assert.equal(detail.pins.length, count);
+        assert.equal(batchReads, 1); assert.equal(singleReads, 0);
+        return selects;
+    }
+    assert.equal(await profile(500), await profile(1), 'venue count does not multiply eligibility/category queries');
+});
+
+
+test('scoped hard Place accepts only its canonical own venue and leaves its global Saved snapshot intact', async () => {
+    const db = createFakeDb({ maps: [createMap()], favorites: [createFavorite()], hardAsset: createHardAsset() });
+    const before = JSON.stringify(db.state.favorites);
+    const item = await addAssetToMyMap(db, DEFAULT_USER, 3, { resourceType: 'hard', resourceId: 29, selectedPlaceIds: [29] }, DEFAULT_CONTEXT);
+    assert.deepEqual(item.snapshot.mapLocationScope, { version: 1, placeIds: [29] });
+    const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+    assert.deepEqual(detail.places.map(place => place.placeId), [29]);
+    assert.equal(JSON.stringify(db.state.favorites), before);
+});
+
+test('legacy frozen publications with both scope fields absent retain normal unscoped copy behavior', async () => {
+    const { db, offering } = scopedOfferingFixture({ scope: undefined });
+    await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+    const token = db.state.maps.find(map => map.id === 3).shareToken;
+    const stored = db.state.shareSnapshots[0].snapshot;
+    assert.equal(Object.hasOwn(stored, 'mapLocationScopeVersion'), false);
+    assert.equal(Object.hasOwn(stored, 'scopedResourceKeys'), false);
+    offering.locations.push({ hardAsset: createHardAsset({ id: 82104 }) });
+    const shared = await sharedMapApi.getSharedMapDirectory(db, token, { id: 8, role: 'standard' });
+    assert.deepEqual(shared.places.map(place => place.placeId), [82102, 82103], 'old publication remains frozen');
+    const copied = await sharedMapApi.copySharedMapToMyMaps(db, { id: 8, role: 'standard' }, token);
+    const asset = db.state.mapAssets.find(item => item.mapId === copied.id);
+    assert.equal(Object.hasOwn(asset.snapshot, 'mapLocationScope'), false);
+    const detail = await getMyMapDetail(db, { id: 8, role: 'standard' }, copied.id, DEFAULT_CONTEXT);
+    assert.equal(detail.places.length, 3, 'legacy unscoped copied resources keep all live venues');
+});
+
+
+test('scoped publication marker with empty flags cannot bypass current venue privacy', async () => {
+    const { db, inside } = scopedOfferingFixture();
+    await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+    const token = db.state.maps.find(map => map.id === 3).shareToken;
+    const stored = db.state.shareSnapshots[0].snapshot;
+    assert.equal(stored.mapLocationScopeVersion, 1);
+    stored.scopedResourceKeys = [];
+    inside.isHidden = true;
+    const shared = await sharedMapApi.getSharedMapDirectory(db, token, { id: 8, role: 'standard' });
+    assert.equal(shared.places.length, 0);
+    assert.equal(shared.assets.length, 0);
+    assert.doesNotMatch(JSON.stringify(shared), /82102|Fictional inside address|Fictional outside address/);
+});
+
+
+test('scoped membership survives legacy notes and descriptor updates which omit venue scope', async () => {
+    const { db } = scopedOfferingFixture();
+    await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+    const snapshot = JSON.stringify(db.state.mapAssets[0].snapshot);
+    const saved = JSON.stringify(db.state.favorites);
+    await updateMyMapAssetNotes(db, DEFAULT_USER, 3, { resourceType: 'soft', resourceId: 9001,
+        notes: [{ text: 'New private note', isShared: false }] });
+    await updateMyMapAssetShortDescriptor(db, DEFAULT_USER, 3, { resourceType: 'soft', resourceId: 9001,
+        shortDescriptor: 'New map-only description' });
+    assert.equal(JSON.stringify(db.state.mapAssets[0].snapshot), snapshot);
+    const detail = await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+    assert.deepEqual(detail.places.map(place => place.placeId), [82102]);
+    assert.deepEqual(detail.assets[0].mapLocationScope.placeIds, [82102]);
+    assert.equal(JSON.stringify(db.state.favorites), saved);
+});
+
+
+test('serialized scoped server DTOs cannot regain outside or private pins through either client presentation resolver', async () => {
+    const { db, inside } = scopedOfferingFixture();
+    const owner = JSON.parse(JSON.stringify(await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT)));
+    await publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT);
+    const token = db.state.maps.find(map => map.id === 3).shareToken;
+    const shared = JSON.parse(JSON.stringify(await sharedMapApi.getSharedMapDirectory(db, token, { id: 8, role: 'standard' })));
+    inside.isHidden = true;
+    const unavailableOwner = JSON.parse(JSON.stringify(await getMyMapDetail(db, DEFAULT_USER, 3, DEFAULT_CONTEXT)));
+    const withdrawnShared = JSON.parse(JSON.stringify(await sharedMapApi.getSharedMapDirectory(db, token, { id: 8, role: 'standard' })));
+    for (const [name, dto, expectedPins] of [['owner-selected', owner, 1], ['shared-selected', shared, 1],
+        ['owner-unavailable', unavailableOwner, 0], ['shared-withdrawn', withdrawnShared, 0]]) {
+        for (const presentationMode of ['default', 'v2-cards']) {
+            const presentation = buildDirectoryPresentation(dto, { presentationMode });
+            assert.equal(presentation.pins.length, expectedPins, `${name}/${presentationMode}`);
+            if (expectedPins) {
+                assert.equal(presentation.pins[0].lat, 1.38); assert.equal(presentation.pins[0].lng, 103.75);
+            }
+            assert.doesNotMatch(JSON.stringify(presentation), /82103|Fictional outside/);
+            if (!expectedPins) assert.doesNotMatch(JSON.stringify(presentation), /Fictional inside/);
+        }
+        assert.doesNotMatch(JSON.stringify(dto), /82103|Fictional outside/);
+        if (name.startsWith('shared')) assertNoPublicScope(dto);
+    }
+    assert.doesNotMatch(JSON.stringify(withdrawnShared), /82102|Fictional inside/);
+    const capture = process.env.CAREAROUND_SCOPE_DTO_CAPTURE_DIR;
+    if (capture) {
+        const fs = await import('node:fs/promises');
+        const path = await import('node:path');
+        assert.equal(path.isAbsolute(capture), true);
+        await fs.mkdir(capture, { recursive: true });
+        for (const [name, dto] of Object.entries({ 'owner-selected': owner, 'shared-selected': shared,
+            'owner-unavailable': unavailableOwner, 'shared-withdrawn': withdrawnShared })) {
+            await fs.writeFile(path.join(capture, name + '.json'), JSON.stringify(dto, null, 2) + '\n', { flag: 'wx' });
+        }
+    }
 });

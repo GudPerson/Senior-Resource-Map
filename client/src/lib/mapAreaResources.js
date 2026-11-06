@@ -22,7 +22,7 @@ export function classifyMapAreaResources(hardAssets, softAssets, area) {
             const valid = locations.map(location => ({ location, point: coordinates(location) })).filter(entry => entry.point);
             const matches = valid.filter(entry => containsSpatialPoint(area, entry.point)).map(entry => entry.location);
             const row = { id: key, resourceId: id, resourceType: type, name: String(asset.name || ''),
-                detailPath: `/resource/${type}/${id}`, locations: matches,
+                detailPath: `/resource/${type}/${id}`, locations: matches, allLocations: locations,
                 access: asset.access || asset.eligibility || null };
             if (matches.length) inside.push(row);
             if (!valid.length || valid.length < locations.length) unassessed.push(row);

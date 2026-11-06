@@ -16,10 +16,13 @@ import {
 } from '../utils/embeddedMapPresentation.js';
 import {
     buildMyMapDirectory,
+    buildPins,
+    getVisibleMapLocationIds,
     isLiveMyMapAssetVisible,
     loadLiveAssetsByKey,
     normalizeMyMapAssetSnapshot,
 } from '../utils/myMapDirectory.js';
+import { normalizeScopedResourceKeys, stripMapLocationScopeMetadata } from '../utils/mapLocationScope.js';
 import { normalizeRole } from '../utils/roles.js';
 import {
     applyResourcePublicationPolicy,
@@ -39,12 +42,12 @@ function normalizeMapName(value) {
 }
 
 export function sanitizeRestrictedPublicDirectory(value, approvedByResource = new Map()) {
-    return applyResourcePublicationPolicy(value, approvedByResource);
+    return stripMapLocationScopeMetadata(applyResourcePublicationPolicy(value, approvedByResource));
 }
 
 async function applyCurrentPublicContentPolicy(db, directory, publicUse) {
     const approvedByResource = await loadApprovedResourcePublicationFields(db, directory, publicUse);
-    return applyResourcePublicationPolicy(directory, approvedByResource);
+    return stripMapLocationScopeMetadata(applyResourcePublicationPolicy(directory, approvedByResource));
 }
 
 function assertCopyViewer(user) {
@@ -165,10 +168,13 @@ function normalizeSnapshotDirectory(map, viewerUser, {
         embeddedPresentation,
         embeddedResourceKeys,
         embeddedHiddenPinPlaceKeys,
+        mapLocationScopeVersion,
+        scopedResourceKeys,
         printAnnotations,
         ...sharedSnapshot
     } = snapshot;
     void printAnnotations;
+    void mapLocationScopeVersion; void scopedResourceKeys;
     const resourceFilteredSnapshot = includeEmbeddedPresentation
         ? filterEmbeddedMapDirectoryByResourceAllowlist(sharedSnapshot, embeddedResourceKeys)
         : sharedSnapshot;
@@ -193,12 +199,13 @@ function normalizeSnapshotDirectory(map, viewerUser, {
         },
         viewer: createSnapshotViewerSummary(viewerUser, map.userId, map.name),
     };
+    const publicDirectory = stripMapLocationScopeMetadata(directory);
     return includeEmbeddedResourceContacts
-        ? applyEmbeddedResourceContactSnapshot(directory, embeddedResourceContacts)
-        : stripEmbeddedResourceContactsFromDirectory(directory);
+        ? applyEmbeddedResourceContactSnapshot(publicDirectory, embeddedResourceContacts)
+        : stripEmbeddedResourceContactsFromDirectory(publicDirectory);
 }
 
-async function filterSnapshotDirectoryByLiveVisibility(db, directory) {
+async function filterSnapshotDirectoryByLiveVisibility(db, directory, storedSnapshot) {
     if (!directory) return null;
     const hiddenKeys = new Set();
     const snapshotAssets = (directory.assets || [])
@@ -212,6 +219,8 @@ async function filterSnapshotDirectoryByLiveVisibility(db, directory) {
             && asset.resourceId > 0
         ));
     const liveAssetsByKey = await loadLiveAssetsByKey(db, snapshotAssets);
+    const scopedKeys = normalizeScopedResourceKeys(storedSnapshot?.scopedResourceKeys, snapshotAssets, storedSnapshot?.mapLocationScopeVersion);
+    const permittedVenueIds = new Map();
     const guestVisibilityContext = {
         allowedPartnerAudienceIds: new Set(),
         allowedAudienceZoneIds: new Set(),
@@ -222,21 +231,26 @@ async function filterSnapshotDirectoryByLiveVisibility(db, directory) {
         if (!isLiveMyMapAssetVisible(asset.resourceType, liveAsset, { role: 'guest' }, guestVisibilityContext)) {
             hiddenKeys.add(`${asset.resourceType}:${asset.resourceId}`);
         }
+        const key = `${asset.resourceType}-${asset.resourceId}`;
+        if (scopedKeys.has(key)) permittedVenueIds.set(key,
+            getVisibleMapLocationIds(asset.resourceType, liveAsset, { role: 'guest' }, guestVisibilityContext));
     }
 
-    if (hiddenKeys.size === 0) return directory;
-
-    const assets = (directory.assets || [])
-        .filter((asset) => !hiddenKeys.has(`${asset.resourceType}:${asset.resourceId}`));
+    if (hiddenKeys.size === 0 && scopedKeys.size === 0) return directory;
     const places = (directory.places || [])
         .map((place) => ({
             ...place,
             rows: (place.rows || [])
-                .filter((row) => !hiddenKeys.has(`${row.resourceType}:${row.resourceId}`)),
+                .filter((row) => !hiddenKeys.has(`${row.resourceType}:${row.resourceId}`)
+                    && (!scopedKeys.has(`${row.resourceType}-${row.resourceId}`)
+                        || permittedVenueIds.get(`${row.resourceType}-${row.resourceId}`)?.has(place.placeId))),
         }))
         .filter((place) => place.rows.length > 0);
     const visiblePlaceKeys = new Set(places.map((place) => place.placeKey));
-    const pins = (directory.pins || [])
+    const visibleResourceKeys = new Set(places.flatMap(place => place.rows.map(row => `${row.resourceType}-${row.resourceId}`)));
+    const assets = (directory.assets || []).filter(asset => !hiddenKeys.has(`${asset.resourceType}:${asset.resourceId}`)
+        && (!scopedKeys.has(`${asset.resourceType}-${asset.resourceId}`) || visibleResourceKeys.has(`${asset.resourceType}-${asset.resourceId}`)));
+    const pins = scopedKeys.size ? buildPins(places) : (directory.pins || [])
         .filter((pin) => visiblePlaceKeys.has(pin.placeKey));
 
     return {
@@ -246,6 +260,7 @@ async function filterSnapshotDirectoryByLiveVisibility(db, directory) {
         pins,
         summary: {
             ...(directory.summary || {}),
+            ...(scopedKeys.size ? { savedResourceCount: assets.length } : {}),
             resourceCount: assets.length,
             placeCount: places.length,
             mappablePlaceCount: pins.length,
@@ -259,10 +274,26 @@ function getSnapshotRows(directory) {
     ));
 }
 
-function buildCopiedSnapshotFromSharedDirectory(directory, asset) {
+function buildCopiedSnapshotFromSharedDirectory(directory, asset, scoped = false) {
     const matchingRows = getSnapshotRows(directory)
         .filter(({ row }) => row.resourceType === asset.resourceType && row.resourceId === asset.resourceId);
     const first = matchingRows[0];
+    if (scoped) {
+        const placeIds = [...new Set(matchingRows.map(({ place }) => place.placeId)
+            .filter(id => Number.isSafeInteger(id) && id > 0))].sort((a, b) => a - b);
+        const allowed = new Set(placeIds);
+        return normalizeMyMapAssetSnapshot(asset.resourceType, asset.resourceId, {
+            version: 2, name: first?.row.name || 'Selected venue unavailable',
+            subCategory: first?.row.subCategory || null, bucket: first?.row.bucket || null,
+            descriptor: first?.row.descriptor || null, logoUrl: first?.row.logoUrl || null,
+            detailPath: first?.row.detailPath || null,
+            mapLocationScope: { version: 1, placeIds },
+            places: matchingRows.filter(({ place }) => allowed.has(place.placeId)).map(({ place }) => ({
+                placeId: place.placeId, placeKey: place.placeKey, name: place.name, address: place.address,
+                postalCode: place.postalCode || null, lat: place.lat, lng: place.lng,
+            })),
+        });
+    }
     if (!first) return null;
 
     return normalizeMyMapAssetSnapshot(asset.resourceType, asset.resourceId, {
@@ -289,12 +320,12 @@ function buildCopiedSnapshotFromSharedDirectory(directory, asset) {
     });
 }
 
-function getSharedSnapshotAssets(directory) {
+function getSharedSnapshotAssets(directory, scopedKeys = new Set()) {
     return (directory?.assets || [])
         .map((asset) => ({
             resourceType: asset.resourceType,
             resourceId: asset.resourceId,
-            snapshot: buildCopiedSnapshotFromSharedDirectory(directory, asset),
+            snapshot: buildCopiedSnapshotFromSharedDirectory(directory, asset, scopedKeys.has(`${asset.resourceType}-${asset.resourceId}`)),
             notes: Array.isArray(asset?.notes?.items)
                 ? asset.notes.items
                     .map((note, index) => ({
@@ -311,7 +342,7 @@ export async function getSharedMapDirectory(db, token, viewerUser, options = {})
     const map = await requireSharedMap(db, token, true);
     const snapshotDirectory = normalizeSnapshotDirectory(map, viewerUser, options);
     if (snapshotDirectory) {
-        return filterSnapshotDirectoryByLiveVisibility(db, snapshotDirectory);
+        return filterSnapshotDirectoryByLiveVisibility(db, snapshotDirectory, map.shareSnapshot?.snapshot);
     }
 
     const { directory, snapshotUpdates } = await buildMyMapDirectory(db, {
@@ -418,7 +449,24 @@ export async function copySharedMapToMyMaps(db, viewerUser, token) {
 
     const name = await resolveUniqueCopyName(db, viewerUser.id, map.name);
     const snapshotDirectory = await getSharedMapDirectory(db, token, viewerUser);
-    const snapshotAssets = getSharedSnapshotAssets(snapshotDirectory);
+    const storedSnapshot = map.shareSnapshot?.snapshot;
+    const frozenAssets = Array.isArray(storedSnapshot?.assets) ? storedSnapshot.assets : [];
+    const scopedKeys = normalizeScopedResourceKeys(storedSnapshot?.scopedResourceKeys, frozenAssets, storedSnapshot?.mapLocationScopeVersion);
+    const snapshotAssets = getSharedSnapshotAssets(snapshotDirectory, scopedKeys);
+    const copiedKeys = new Set(snapshotAssets.map(asset => `${asset.resourceType}-${asset.resourceId}`));
+    const emptyScopedAssets = frozenAssets.filter(asset => scopedKeys.has(`${asset.resourceType}-${asset.resourceId}`)
+        && !copiedKeys.has(`${asset.resourceType}-${asset.resourceId}`));
+    if (emptyScopedAssets.length) {
+        const liveAssets = await loadLiveAssetsByKey(db, emptyScopedAssets);
+        const guestContext = { allowedPartnerAudienceIds: new Set(), allowedAudienceZoneIds: new Set() };
+        for (const asset of emptyScopedAssets) {
+            const live = liveAssets.get(`${asset.resourceType}-${asset.resourceId}`);
+            // Preserve published notes only while the resource itself remains
+            // public. No cached venue data or outside venue is substituted.
+            if (!isLiveMyMapAssetVisible(asset.resourceType, live, { role: 'guest' }, guestContext)) continue;
+            snapshotAssets.push(...getSharedSnapshotAssets({ assets: [asset], places: [] }, scopedKeys));
+        }
+    }
     const [createdMap] = await db.insert(myMaps).values({
         userId: viewerUser.id,
         name,

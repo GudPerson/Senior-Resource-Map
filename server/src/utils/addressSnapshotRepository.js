@@ -1,14 +1,16 @@
 import { containsSpatialPoint, distanceMeters, isSpatialCoordinate, normalizeSpatialArea, spatialAreaBounds } from '../../../shared/addressSnapshotSpatial.js';
 import { ADDRESS_SNAPSHOT_CONFIG } from './addressSnapshotConfig.js';
+import { normalizeAddressSnapshotLimit } from '../../../shared/addressSnapshotQueryLimits.js';
 
 export class AddressSnapshotRepositoryError extends Error {
-    constructor(message, status = 503, code = 'ADDRESS_SNAPSHOT_UNAVAILABLE') {
+    constructor(message, status = 503, code = 'ADDRESS_SNAPSHOT_UNAVAILABLE', addressLimit) {
         super(message); this.name = 'AddressSnapshotRepositoryError'; this.status = status; this.code = code;
+        if (code === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE') this.addressLimit = normalizeAddressSnapshotLimit(addressLimit);
     }
 }
 const unavailable = () => new AddressSnapshotRepositoryError('Address data is temporarily unavailable. Try again or enter an address manually.');
 const invalid = () => new AddressSnapshotRepositoryError('Check the search location, shape and page, then try again.', 400, 'ADDRESS_SNAPSHOT_INVALID_QUERY');
-const oversized = () => new AddressSnapshotRepositoryError('This area is too large or complex. Choose a smaller area and try again.', 422, 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE');
+const oversized = (reason, observed, allowed) => new AddressSnapshotRepositoryError('This area is too large or complex. Choose a smaller area and try again.', 422, 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE', { reason, observed, allowed });
 const changed = () => new AddressSnapshotRepositoryError('Address data changed. Restart the search before continuing.', 409, 'ADDRESS_SNAPSHOT_CHANGED');
 const hashPattern = /^[a-f0-9]{64}$/;
 const rowIdPattern = /^address_[a-f0-9]{64}_[1-9]\d{0,6}$/;
@@ -128,8 +130,13 @@ export function createAddressSnapshotRepository(bucket, { config = ADDRESS_SNAPS
         const candidates = tiles.reduce((n, tile) => n + tile.count, 0);
         // Reserve ALL intersected packs, not just page one, so every admitted page can complete.
         const reserved = config.manifestBytes + tiles.reduce((n, tile) => n + tile.index.bytes + tile.rows.bytes, 0);
-        if (tiles.length > limits.maxAreaTiles || reserved > limits.maxReservedBytes || candidates > limits.maxCandidateRows
-            || candidates * query.edgeCount > limits.maxGeometryWork || 1 + tiles.length * 2 > limits.maxR2Reads) throw oversized();
+        for (const [reason, observed, allowed] of [
+            ['tiles', tiles.length, limits.maxAreaTiles],
+            ['reservedBytes', reserved, limits.maxReservedBytes],
+            ['candidateRows', candidates, limits.maxCandidateRows],
+            ['geometryWork', candidates * query.edgeCount, limits.maxGeometryWork],
+            ['storageReads', 1 + tiles.length * 2, limits.maxR2Reads],
+        ]) if (observed > allowed) throw oversized(reason, observed, allowed);
         return { bounds, tiles };
     }
     async function concurrent(values, action) {

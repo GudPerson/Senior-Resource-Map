@@ -1,0 +1,150 @@
+{
+  "id": 3,
+  "name": "Community planning",
+  "description": null,
+  "categoryOrder": [],
+  "createdAt": "2026-03-14T10:00:00.000Z",
+  "updatedAt": "2026-03-14T10:00:00.000Z",
+  "summary": {
+    "resourceCount": 1,
+    "savedResourceCount": 1,
+    "personalPlaceCount": 0,
+    "placeCount": 1,
+    "mappablePlaceCount": 1
+  },
+  "share": {
+    "isShared": false,
+    "shareToken": null,
+    "sharePath": null,
+    "shareIncludesHandoffNotes": false,
+    "shareUpdatedAt": null,
+    "embedEnabled": true,
+    "embedAllowedOrigins": [
+      "https://fictional.example"
+    ],
+    "embedPath": null
+  },
+  "assets": [
+    {
+      "assetKey": "soft-9001",
+      "resourceType": "soft",
+      "resourceId": 9001,
+      "status": "available",
+      "mapLocationScope": {
+        "version": 1,
+        "placeIds": [
+          82102
+        ]
+      },
+      "shortDescriptor": null,
+      "shortDescriptorTextColor": null,
+      "shortDescriptorHighlightColor": null,
+      "shortDescriptors": [],
+      "notes": {
+        "items": [
+          {
+            "id": 1,
+            "text": "Published curator note",
+            "isShared": true,
+            "sortOrder": 0,
+            "createdAt": null,
+            "updatedAt": null
+          }
+        ],
+        "notesUpdatedAt": null
+      }
+    }
+  ],
+  "personalPlaces": [],
+  "places": [
+    {
+      "placeKey": "hard-82102",
+      "placeId": 82102,
+      "name": "Fictional inside venue",
+      "address": "Fictional inside address",
+      "postalCode": null,
+      "lat": 1.38,
+      "lng": 103.75,
+      "hasCoordinates": true,
+      "openProgrammeServiceCount": 0,
+      "curatedCount": 1,
+      "rows": [
+        {
+          "rowKey": "9:hard-82102",
+          "resourceType": "soft",
+          "resourceId": 9001,
+          "name": "Fictional regional programme",
+          "bucket": null,
+          "subCategory": "Programme",
+          "iconKey": "programme",
+          "categoryIconUrl": null,
+          "categoryColor": null,
+          "mapSubCategory": "Active Ageing Centre",
+          "mapIconKey": "active ageing centre",
+          "mapCategoryIconUrl": null,
+          "mapCategoryColor": null,
+          "descriptor": null,
+          "mapShortDescriptors": [],
+          "mapShortDescriptor": null,
+          "mapShortDescriptorTextColor": null,
+          "mapShortDescriptorHighlightColor": null,
+          "address": "Fictional inside address",
+          "logoUrl": null,
+          "website": null,
+          "contactPhone": null,
+          "socialLinks": {},
+          "availabilityEnabled": false,
+          "availabilityCount": 0,
+          "availabilityUnit": null,
+          "openProgrammeServiceCount": 0,
+          "detailPath": "/resource/soft/9001",
+          "status": "available",
+          "saveEligible": false,
+          "access": "GRANTED",
+          "missingProfileFields": [],
+          "assetKey": "soft-9001",
+          "addedAt": "2026-03-14T10:05:00.000Z",
+          "notes": {
+            "items": [
+              {
+                "id": 1,
+                "text": "Published curator note",
+                "isShared": true,
+                "sortOrder": 0,
+                "createdAt": null,
+                "updatedAt": null
+              }
+            ],
+            "notesUpdatedAt": null
+          }
+        }
+      ]
+    }
+  ],
+  "pins": [
+    {
+      "pinKey": "hard-82102",
+      "placeKey": "hard-82102",
+      "placeId": 82102,
+      "title": "Fictional inside venue",
+      "address": "Fictional inside address",
+      "postalCode": null,
+      "lat": 1.38,
+      "lng": 103.75,
+      "curatedCount": 1,
+      "categoryIconUrl": null,
+      "categoryColor": null,
+      "previewResourceNames": [
+        "Fictional regional programme"
+      ],
+      "hiddenPreviewCount": 0
+    }
+  ],
+  "viewer": {
+    "isAuthenticated": true,
+    "isOwner": true,
+    "canSaveCopy": false,
+    "canSaveResources": false,
+    "copyDefaultName": null
+  }
+}

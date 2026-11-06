@@ -13,6 +13,9 @@ import { groupPublicGroupMembers } from './softAssetGroups.js';
 import { normalizeEmbeddedResourceContact } from './embeddedResourceContacts.js';
 import { normalizeMyMapCategoryOrder } from './myMapCategoryOrder.js';
 import { isAssetVisible } from './visibility.js';
+import { isSpatialCoordinate } from '../../../shared/addressSnapshotSpatial.js';
+import { applyMapLocationScope, invalidMapLocationScope, projectScopedMapPlaces,
+    snapshotMapLocationScope, validateSelectedPlaceIds } from './mapLocationScope.js';
 
 function normalizeText(value) {
     if (value === undefined || value === null) return null;
@@ -186,6 +189,7 @@ function normalizeLegacySnapshot(resourceType, resourceId, snapshot) {
         availabilityCount: normalizeAvailabilityCount(snapshot?.availabilityCount),
         availabilityUnit: normalizeAvailabilityUnit(snapshot?.availabilityUnit),
         openProgrammeServiceCount: normalizeAvailabilityCount(snapshot?.openProgrammeServiceCount),
+        ...(snapshotMapLocationScope(snapshot) !== null ? { mapLocationScope: snapshotMapLocationScope(snapshot) } : {}),
         places: [createFallbackPlace(resourceType, resourceId, snapshot)],
     };
 }
@@ -217,6 +221,7 @@ export function normalizeMyMapAssetSnapshot(resourceType, resourceId, snapshot) 
             openProgrammeServiceCount: normalizeAvailabilityCount(snapshot?.openProgrammeServiceCount),
             mapFocusPlaceKeys: normalizePlaceKeyList(snapshot?.mapFocusPlaceKeys),
             ...(groupMemberAssetKeys.length ? { groupMemberAssetKeys } : {}),
+            ...(snapshotMapLocationScope(snapshot) !== null ? { mapLocationScope: snapshotMapLocationScope(snapshot) } : {}),
             places: snapshot.places.map((place, index) => normalizePlaceSnapshot(place, index)),
         };
     }
@@ -644,6 +649,28 @@ export async function buildLiveMyMapAssetSnapshotFromDb(db, resourceType, resour
     return liveAsset ? buildMyMapAssetSnapshot(resourceType, liveAsset) : null;
 }
 
+// Only the new scoped-membership path uses this per-venue check. Existing
+// unscoped maps retain their established resource visibility/presentation.
+export function getVisibleMapLocationIds(resourceType, asset, user, context = {}) {
+    if (!isLiveMyMapAssetVisible(resourceType, asset, user, context)) return new Set();
+    const locations = resourceType === 'hard' ? [asset] : getSoftAssetLocations(asset);
+    return new Set(locations.filter(place => Number.isSafeInteger(place?.id) && place.id > 0
+        && isSpatialCoordinate([parseCoordinate(place.lat), parseCoordinate(place.lng)])
+        && isAssetVisible(place, user, { ownerPartner: place.partner,
+            allowedPartnerAudienceIds: context.allowedPartnerAudienceIds || new Set(),
+            allowedAudienceZoneIds: context.allowedAudienceZoneIds || new Set(),
+        })).map(place => place.id));
+}
+
+export async function buildScopedMyMapAssetSnapshotFromDb(db, user, assetRef, selectedPlaceIds, context = {}) {
+    const placeIds = validateSelectedPlaceIds(selectedPlaceIds);
+    if (placeIds === null) return null;
+    const asset = await loadLiveAsset(db, assetRef.resourceType, assetRef.resourceId);
+    const permitted = getVisibleMapLocationIds(assetRef.resourceType, asset, user, context);
+    if (!placeIds.every(id => permitted.has(id))) throw invalidMapLocationScope();
+    return applyMapLocationScope(buildMyMapAssetSnapshot(assetRef.resourceType, asset), { version: 1, placeIds });
+}
+
 function cleanMapAssetNote(value) {
     const text = String(value || '').trim();
     return text || '';
@@ -891,7 +918,7 @@ function sortDirectoryPlaces(placeMap) {
         .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function buildPins(places) {
+export function buildPins(places) {
     function resolveDirectoryPinCategoryMeta(place) {
         const hardPlaceRow = place.rows.find((row) => row.resourceType === 'hard' && (row.categoryIconUrl || row.categoryColor));
         if (hardPlaceRow) {
@@ -1089,8 +1116,9 @@ export async function buildMyMapDirectory(db, {
 
     for (const mapAsset of map?.assets || []) {
         const snapshot = normalizeMyMapAssetSnapshot(mapAsset.resourceType, mapAsset.resourceId, mapAsset.snapshot);
+        const locationScope = snapshotMapLocationScope(snapshot);
         const liveAsset = liveAssetsByKey.get(buildAssetKey(mapAsset.resourceType, mapAsset.resourceId)) || null;
-        const liveSnapshot = liveAsset ? buildMyMapAssetSnapshot(mapAsset.resourceType, liveAsset) : null;
+        const liveSnapshot = liveAsset ? applyMapLocationScope(buildMyMapAssetSnapshot(mapAsset.resourceType, liveAsset), locationScope) : null;
 
         if (liveSnapshot && snapshotNeedsRefresh(mapAsset.snapshot, liveSnapshot)) {
             snapshotUpdates.push({
@@ -1144,9 +1172,16 @@ export async function buildMyMapDirectory(db, {
 
         const detailPath = isLiveVisible ? buildDetailPath(mapAsset.resourceType, mapAsset.resourceId) : null;
         const rowBaseStatus = isLiveVisible ? 'available' : 'unavailable';
-        const normalizedPlaces = Array.isArray(sourceSnapshot.places) && sourceSnapshot.places.length > 0
+        let normalizedPlaces = Array.isArray(sourceSnapshot.places) && sourceSnapshot.places.length > 0
             ? sourceSnapshot.places.map((place, index) => normalizePlaceSnapshot(place, index))
             : [createFallbackPlace(mapAsset.resourceType, mapAsset.resourceId, sourceSnapshot)];
+        const locationScope = snapshotMapLocationScope(snapshot);
+        if (locationScope !== null) {
+            normalizedPlaces = projectScopedMapPlaces(normalizedPlaces, locationScope,
+                getVisibleMapLocationIds(mapAsset.resourceType, liveAsset, effectiveVisibilityUser, effectiveResolutionContext),
+                { owner: mode === 'owner', resourceKey: buildAssetKey(mapAsset.resourceType, mapAsset.resourceId) });
+            if (mode !== 'owner' && normalizedPlaces.length === 0) continue;
+        }
         const hostCategoryMetaByPlace = mapAsset.resourceType === 'soft' && isLiveVisible && liveAsset
             ? buildSoftHostCategoryMetaByPlace(liveAsset)
             : null;
@@ -1161,6 +1196,7 @@ export async function buildMyMapDirectory(db, {
             resourceId: mapAsset.resourceId,
             status: rowBaseStatus,
             ...(mode === 'owner' ? {
+                ...(locationScope !== null ? { mapLocationScope: locationScope } : {}),
                 shortDescriptor: firstShortDescriptor?.text || null,
                 shortDescriptorTextColor: firstShortDescriptor?.textColor || null,
                 shortDescriptorHighlightColor: firstShortDescriptor?.highlightColor || null,
@@ -1170,7 +1206,7 @@ export async function buildMyMapDirectory(db, {
         });
 
         for (const place of normalizedPlaces) {
-            const rowStatus = rowBaseStatus === 'unavailable'
+            const rowStatus = place.mapScopeUnavailable || rowBaseStatus === 'unavailable'
                 ? 'unavailable'
                 : (place.hasCoordinates ? 'available' : 'list_only');
             const rowSnapshot = {
@@ -1240,7 +1276,9 @@ export async function buildMyMapDirectory(db, {
 
     const places = sortDirectoryPlaces(placeMap);
     const pins = buildPins(places);
-    const totalResourceCount = (map.assets || []).length + personalPlaceSummaries.length;
+    const scopedPublic = mode !== 'owner' && (map.assets || []).some(asset => snapshotMapLocationScope(asset.snapshot) !== null);
+    const savedResourceCount = scopedPublic ? assetSummaries.length : (map.assets || []).length;
+    const totalResourceCount = savedResourceCount + personalPlaceSummaries.length;
 
     return {
         directory: {
@@ -1252,7 +1290,7 @@ export async function buildMyMapDirectory(db, {
             updatedAt: map.updatedAt || null,
             summary: {
                 resourceCount: totalResourceCount,
-                savedResourceCount: (map.assets || []).length,
+                savedResourceCount,
                 personalPlaceCount: personalPlaceSummaries.length,
                 placeCount: places.length,
                 mappablePlaceCount: pins.length,
