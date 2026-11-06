@@ -200,9 +200,12 @@ export default function useInteractiveMapAnnotationEditor({
         setMeasuring(nextMeasuring);
     };
     const closeEditor = useCallback(() => {
-        if (toolbarInInspector && hasUnfinishedDraft) return;
+        if (toolbarInInspector && hasUnfinishedDraft) return false;
         saveNow?.();
         onClose?.();
+        // This acknowledges the tool transition, not persistence; the existing
+        // save queue and status continue to report saving or recovery errors.
+        return true;
     }, [hasUnfinishedDraft, onClose, saveNow, toolbarInInspector]);
 
     const mapOverlay = enabled ? (
@@ -310,5 +313,5 @@ export default function useInteractiveMapAnnotationEditor({
     return { mapOverlay, surfaceOverlay: toolbarInInspector ? null : surfaceOverlay,
         inspectorControls: toolbarInInspector ? surfaceOverlay : null, hasUnfinishedDraft,
         hasTemporaryMeasurement: temporaryMeasurement.hasMeasurement, clearTemporaryMeasurement,
-        tool, cancelDraft, selectTool: handleToolChange };
+        tool, cancelDraft, closeEditor, selectTool: handleToolChange };
 }

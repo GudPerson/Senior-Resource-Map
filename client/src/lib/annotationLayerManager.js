@@ -22,6 +22,46 @@ export function annotationVisibilitySummary(matches, hiddenIds) {
         mixed: visible > 0 && visible < matches.length };
 }
 
+export function annotationSelectionSummary(matches, selectedIds) {
+    const selected = new Set(selectedIds);
+    const count = matches.filter(annotation => selected.has(annotation.id)).length;
+    return { selected: count, total: matches.length, checked: matches.length > 0 && count === matches.length,
+        mixed: count > 0 && count < matches.length };
+}
+
+export function setAnnotationMatchesSelected(selectedIds, matches, selected) {
+    const next = new Set(selectedIds);
+    for (const { id } of matches) {
+        if (selected) next.add(id);
+        else next.delete(id);
+    }
+    return [...next];
+}
+
+export function reconcileAnnotationSelection(selectedIds, fullCatalog, ready) {
+    if (!ready) return selectedIds;
+    const active = new Set(fullCatalog.map(annotation => annotation.id));
+    const next = [...new Set(selectedIds)].filter(id => active.has(id));
+    return next.length === selectedIds.length && next.every((id, index) => id === selectedIds[index]) ? selectedIds : next;
+}
+
+export function selectedAnnotationLayers(fullCatalog, selectedIds) {
+    const selected = new Set(selectedIds);
+    return fullCatalog.filter(annotation => selected.has(annotation.id));
+}
+
+export function groupAnnotationLayers(fullCatalog) {
+    const groups = new Map();
+    for (const annotation of fullCatalog) {
+        const name = normalizeAnnotationGroupName(annotation.groupName);
+        const key = name ? `group:${name}` : 'ungrouped';
+        if (!groups.has(key)) groups.set(key, { key, name, items: [] });
+        groups.get(key).items.push(annotation);
+    }
+    return [...groups.values()].sort((left, right) => left.name && !right.name ? -1
+        : !left.name && right.name ? 1 : left.name.localeCompare(right.name));
+}
+
 export function setAnnotationMatchesVisible(hiddenIds, matches, visible) {
     const next = new Set(hiddenIds);
     for (const { id } of matches) {

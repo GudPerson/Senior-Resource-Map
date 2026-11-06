@@ -323,8 +323,9 @@ export default function MapStudioDesignControls({
                     <ChoiceButton selected={value.layers.annotations === PRINT_MAP_ANNOTATION_LAYER_HIDE} label={t('mapStudioAnnotationsHide')} onClick={() => onPatch?.({ layers: { annotations: PRINT_MAP_ANNOTATION_LAYER_HIDE } })} disabled={disabled} />
                 </DesignFieldset>
 
-                {value.layers.annotations === PRINT_MAP_ANNOTATION_LAYER_SHOW && annotationLayerCatalog.length ? (
-                    <details className="group rounded-xl border border-slate-200 bg-white" data-map-studio-annotation-layers="true">
+                {annotationLayerCatalog.length ? (
+                    <details className="group rounded-xl border border-slate-200 bg-white" data-map-studio-annotation-layers="true"
+                        hidden={value.layers.annotations !== PRINT_MAP_ANNOTATION_LAYER_SHOW}>
                         <DisclosureSummary
                             label={t('mapStudioAnnotationItems')}
                             summary={t('mapStudioResourceCategoriesSummary', {

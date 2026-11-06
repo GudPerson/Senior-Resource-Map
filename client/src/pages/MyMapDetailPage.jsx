@@ -4045,6 +4045,7 @@ export default function MyMapDetailPage() {
         hasTemporaryMeasurement: interactiveAnnotationEditor.hasTemporaryMeasurement,
         onClearTemporaryMeasurement: interactiveAnnotationEditor.clearTemporaryMeasurement,
         onCancelAnnotationDraft: interactiveAnnotationEditor.cancelDraft,
+        onCloseAnnotations: interactiveAnnotationEditor.closeEditor,
         onSelectAnnotationTool: interactiveAnnotationEditor.selectTool,
         onOpenStudio: openMapStudioLayoutSettings,
         onSelectView: nextViewId => mapStudioControllerRef.current?.selectView(nextViewId),

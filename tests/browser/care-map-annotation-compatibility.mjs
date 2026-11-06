@@ -61,7 +61,8 @@ async function studio(current) {
     await current.locator('[data-owner-canvas-tool="studio"]').click();
     await current.locator('[data-map-studio-annotation-layers]>summary').click();
     const manager = current.locator('[data-annotation-layer-manager]');
-    await manager.locator('details.annotation-layer-organise>summary').click();
+    await manager.locator('[data-annotation-select-all]').check();
+    await manager.locator('[data-annotation-group-selected]').click();
     return manager;
 }
 async function unmountOwner(current) {
@@ -86,6 +87,7 @@ try {
         const raw = JSON.stringify({ schemaVersion: 1, baseRevision: 1, annotations: local });
         const { page: current, state, storageKey } = await open(annotations, { legacyDraft: raw });
         await load(current);
+        await current.locator('[data-annotation-shape-text]').filter({ hasText: 'Fictional legacy local edit' }).waitFor({ state: 'attached' });
         assert.equal(await current.locator('[data-annotation-shape-text]').filter({ hasText: 'Fictional legacy local edit' }).count(), 1);
         assert.equal(state.allowedWrites.length, 0);
         await current.locator('[data-owner-canvas-enter]').click();
@@ -122,7 +124,7 @@ try {
             await until(() => current.evaluate(count => window.__qaEditorState.annotationCount === count, annotations.length), 'saved annotations did not return on owner remount');
             const manager = await studio(current);
             await manager.getByRole('combobox', { name: 'Group name', exact: true }).fill('Fictional recovered group');
-            await manager.getByRole('button', { name: `Move ${annotations.length} matching items`, exact: true }).click();
+            await manager.locator('[data-annotation-group-apply]').click();
             await until(() => state.allowedWrites.length === 1, 'explicit current-client group save did not persist');
             await manager.getByRole('status').filter({ hasText: 'Group saved.' }).waitFor();
             assert.equal(state.annotations.length, annotations.length);
@@ -155,7 +157,7 @@ try {
         await load(current);
         const manager = await studio(current);
         await manager.getByRole('combobox', { name: 'Group name', exact: true }).fill('Fictional retained group');
-        await manager.getByRole('button', { name: 'Move 2 matching items', exact: true }).click();
+        await manager.locator('[data-annotation-group-apply]').click();
         await manager.getByRole('alert').waitFor();
         assert.equal(writes.length, 1);
         assert.equal(await current.locator('[data-owner-canvas-save]').getAttribute('data-owner-canvas-save'), 'failed');

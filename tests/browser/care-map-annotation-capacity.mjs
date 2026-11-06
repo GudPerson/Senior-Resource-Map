@@ -217,10 +217,10 @@ try {
     await check('a named view can hide and restore all200 objects without deleting annotations', async () => {
         await page.locator('[data-owner-canvas-tool="studio"]').click();
         await page.locator('[data-map-studio-annotation-layers]>summary').click();
-        const manager = page.locator('[data-annotation-layer-manager]'); const all = manager.getByRole('checkbox', { name: 'Show all matching annotations', exact: true });
-        await all.uncheck(); await wait(() => studioWrites.length === 1, 'hide200 did not persist');
+        const manager = page.locator('[data-annotation-layer-manager]'); const all = manager.locator('[data-annotation-group-visibility="ungrouped"]');
+        await all.click(); await wait(() => studioWrites.length === 1, 'hide200 did not persist');
         assert.equal(state.document.views[0].design.layers.hiddenAnnotationIds.length, 200);
-        await all.check(); await wait(() => studioWrites.length === 2, 'show200 did not persist');
+        await all.click(); await wait(() => studioWrites.length === 2, 'show200 did not persist');
         assert.deepEqual(state.document.views[0].design.layers.hiddenAnnotationIds, []); assert.deepEqual(state.annotations, mixed);
         assert.equal(state.allowedWrites.length, 0);
         return { hiddenIds: 200, restoredIds: 200, studioWrites: 2, annotationWrites: 0, otherViewHiddenIds: state.document.views[1].design.layers.hiddenAnnotationIds };
