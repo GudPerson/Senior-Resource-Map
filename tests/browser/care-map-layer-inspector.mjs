@@ -49,7 +49,7 @@ async function scene({width=1600,height=1100,extraAreas=0,image=true,annotations
   const s={page,state,originalStudio:JSON.stringify(state.document),originalAnnotations:JSON.stringify(state.annotations)};
   scenes.push(s);current=s;
   await page.goto(fixture.base+'my-directory/maps/'+fixture.mapId);
-  await page.getByText(state.directory.name,{exact:true}).first().waitFor();
+  await page.getByText(state.directory.name,{exact:true}).first().waitFor({state:'attached'});
   if(diagnosticTransform)assert.ok(report.diagnosticResponse?.executedSha256,'Diagnostic response interception must execute before any test input');
   await page.locator('.leaflet-container').waitFor();
   await until(()=>page.evaluate(owner=>[...window.__qaMaps].some(m=>m.getContainer().isConnected&&m._loaded&&(!owner||m.getZoom()>=15.5)),owner),'Expected fixture map not admitted');

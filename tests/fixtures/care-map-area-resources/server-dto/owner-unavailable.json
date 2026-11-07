@@ -4,7 +4,7 @@
   "description": null,
   "categoryOrder": [],
   "createdAt": "2026-03-14T10:00:00.000Z",
-  "updatedAt": "2026-11-06T09:37:50.405Z",
+  "updatedAt": "2026-11-06T19:28:46.090Z",
   "summary": {
     "resourceCount": 1,
     "savedResourceCount": 1,
@@ -14,15 +14,15 @@
   },
   "share": {
     "isShared": true,
-    "shareToken": "UQgblmJXOUnpo-_SpvYrKTv24fhk0fvt",
-    "sharePath": "/shared/maps/UQgblmJXOUnpo-_SpvYrKTv24fhk0fvt",
+    "shareToken": "sAA1hG-oAPpnf_YmcS_Ku3PRNfAlC78S",
+    "sharePath": "/shared/maps/sAA1hG-oAPpnf_YmcS_Ku3PRNfAlC78S",
     "shareIncludesHandoffNotes": false,
-    "shareUpdatedAt": "2026-11-06T09:37:50.405Z",
+    "shareUpdatedAt": "2026-11-06T19:28:46.090Z",
     "embedEnabled": true,
     "embedAllowedOrigins": [
       "https://fictional.example"
     ],
-    "embedPath": "/embed/maps/UQgblmJXOUnpo-_SpvYrKTv24fhk0fvt"
+    "embedPath": "/embed/maps/sAA1hG-oAPpnf_YmcS_Ku3PRNfAlC78S"
   },
   "assets": [
     {

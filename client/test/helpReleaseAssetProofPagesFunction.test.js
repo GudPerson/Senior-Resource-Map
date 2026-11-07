@@ -87,5 +87,5 @@ test('routing adds only two literal proof paths and keeps all ordinary pages out
     const routes = JSON.parse(readFileSync(new URL('../public/_routes.json', import.meta.url), 'utf8'));
     assert.deepEqual(routes, { version: 1, include: ['/embed/maps/*', '/embed/governed-maps/*', '/__help-release-proof/home', '/__help-release-proof/offline'], exclude: [] });
     const files = readdirSync(new URL('../functions/', import.meta.url), { recursive: true }).filter(file => file.endsWith('.js')).sort();
-    assert.deepEqual(files, ['__help-release-proof/home.js', '__help-release-proof/offline.js', 'embed/governed-maps/[token].js', 'embed/maps/[token].js']);
+    assert.deepEqual(files, ['__help-release-proof/home.js', '__help-release-proof/offline.js', 'embed/governed-maps/[token].js', 'embed/maps/[token].js', 'embed/maps/[token]/regional-discovery.js']);
 });

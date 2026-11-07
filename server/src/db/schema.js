@@ -2134,3 +2134,75 @@ export const supportFixProposals = pgTable('support_fix_proposals', {
   revisionCheck: check('support_fix_proposals_revision_check', sql`${table.sourceRevision} ~ '^[a-f0-9]{40}$'`),
   verificationCheck: check('support_fix_proposals_verification_check', sql`${table.verifiedAt} IS NULL OR (${table.approvedAt} IS NOT NULL AND ${table.releaseEvidence} IS NOT NULL)`),
 }));
+
+// Isolated regional embed intent and contact authority. These records do not
+// expand global publication fields or mutate owner-claim stages.
+export const myMapRegionalDiscoveryDocuments = pgTable('my_map_regional_discovery_documents', {
+  mapId: integer('map_id').primaryKey().references(() => myMaps.id, { onDelete: 'cascade' }),
+  schemaVersion: integer('schema_version').notNull().default(1),
+  config: jsonb('config').notNull(),
+  revision: integer('revision').notNull().default(1),
+  updatedByUserId: integer('updated_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  versionCheck: check('regional_document_version_check', sql`${table.schemaVersion} = 1`),
+  revisionCheck: check('regional_document_revision_check', sql`${table.revision} > 0`),
+  configCheck: check('regional_document_config_check', sql`(jsonb_typeof(${table.config}) = 'object' AND ${table.config} ?& ARRAY['schemaVersion', 'mode', 'includedSubregionIds', 'regionExtent', 'entries'] AND ${table.config}->>'schemaVersion' = '1' AND ${table.config}->>'mode' IN ('compact', 'regional-discovery') AND octet_length(${table.config}::text) <= 65536) IS TRUE`),
+}));
+
+export const subregionEnquiryContactFields = pgTable('subregion_enquiry_contact_fields', {
+  subregionId: integer('subregion_id').notNull().references(() => subregions.id, { onDelete: 'cascade' }),
+  field: varchar('field', { length: 10 }).notNull(),
+  status: varchar('status', { length: 16 }).notNull(),
+  value: text('value'),
+  valueHash: varchar('value_hash', { length: 64 }),
+  provenance: text('provenance').notNull(),
+  revision: integer('revision').notNull().default(1),
+  // Historical actor identity, not a dependency on the live account lifecycle.
+  approvedByUserId: integer('approved_by_user_id'),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  withdrawnByUserId: integer('withdrawn_by_user_id'),
+  withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
+  withdrawalReason: text('withdrawal_reason'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.subregionId, table.field] }),
+  fieldCheck: check('regional_contact_field_check', sql`${table.field} IN ('email', 'phone')`),
+  revisionCheck: check('regional_contact_revision_check', sql`${table.revision} > 0`),
+  provenanceCheck: check('regional_contact_provenance_check', sql`length(trim(${table.provenance})) BETWEEN 1 AND 2000`),
+  stateCheck: check('regional_contact_state_check', sql`(${table.status} = 'approved' AND ${table.value} IS NOT NULL AND length(trim(${table.value})) > 0 AND ${table.valueHash} IS NOT NULL AND ${table.valueHash} ~ '^[0-9a-f]{64}$' AND ${table.approvedByUserId} IS NOT NULL AND ${table.approvedByUserId} > 0 AND ${table.approvedAt} IS NOT NULL AND ${table.withdrawnAt} IS NULL AND ${table.withdrawnByUserId} IS NULL AND ${table.withdrawalReason} IS NULL) OR (${table.status} = 'withdrawn' AND ${table.value} IS NULL AND ${table.valueHash} IS NULL AND ${table.withdrawnByUserId} IS NOT NULL AND ${table.withdrawnByUserId} > 0 AND (${table.approvedByUserId} IS NULL OR ${table.approvedByUserId} > 0) AND ${table.withdrawnAt} IS NOT NULL AND ${table.withdrawalReason} IS NOT NULL AND length(trim(${table.withdrawalReason})) BETWEEN 1 AND 2000)`),
+}));
+
+export const regionalEmbedEmailGrants = pgTable('regional_embed_email_grants', {
+  resourceType: varchar('resource_type', { length: 20 }).notNull(),
+  resourceId: integer('resource_id').notNull(),
+  status: varchar('status', { length: 16 }).notNull(),
+  approvedOriginalEmail: text('approved_original_email'),
+  valueHash: varchar('value_hash', { length: 64 }),
+  provenance: text('provenance').notNull(),
+  revision: integer('revision').notNull().default(1),
+  // Historical actor identity, not a dependency on the live account lifecycle.
+  approvedByUserId: integer('approved_by_user_id'),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  withdrawnByUserId: integer('withdrawn_by_user_id'),
+  withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
+  withdrawalReason: text('withdrawal_reason'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.resourceType, table.resourceId] }),
+  resourceCheck: check('regional_email_grant_resource_check', sql`${table.resourceType} IN ('hard', 'soft') AND ${table.resourceId} > 0`),
+  revisionCheck: check('regional_email_grant_revision_check', sql`${table.revision} > 0`),
+  provenanceCheck: check('regional_email_grant_provenance_check', sql`length(trim(${table.provenance})) BETWEEN 1 AND 2000`),
+  stateCheck: check('regional_email_grant_state_check', sql`(${table.status} = 'approved' AND ${table.approvedOriginalEmail} IS NOT NULL AND length(trim(${table.approvedOriginalEmail})) > 0 AND ${table.valueHash} IS NOT NULL AND ${table.valueHash} ~ '^[0-9a-f]{64}$' AND ${table.approvedByUserId} IS NOT NULL AND ${table.approvedByUserId} > 0 AND ${table.approvedAt} IS NOT NULL AND ${table.withdrawnAt} IS NULL AND ${table.withdrawnByUserId} IS NULL AND ${table.withdrawalReason} IS NULL) OR (${table.status} = 'withdrawn' AND ${table.approvedOriginalEmail} IS NULL AND ${table.valueHash} IS NULL AND ${table.withdrawnByUserId} IS NOT NULL AND ${table.withdrawnByUserId} > 0 AND (${table.approvedByUserId} IS NULL OR ${table.approvedByUserId} > 0) AND ${table.withdrawnAt} IS NOT NULL AND ${table.withdrawalReason} IS NOT NULL AND length(trim(${table.withdrawalReason})) BETWEEN 1 AND 2000)`),
+}));
+
+export const myMapRegionalDiscoveryDocumentsRelations = relations(myMapRegionalDiscoveryDocuments, ({ one }) => ({
+  map: one(myMaps, { fields: [myMapRegionalDiscoveryDocuments.mapId], references: [myMaps.id] }),
+  updatedBy: one(users, { fields: [myMapRegionalDiscoveryDocuments.updatedByUserId], references: [users.id] }),
+}));
+export const subregionEnquiryContactFieldsRelations = relations(subregionEnquiryContactFields, ({ one }) => ({
+  subregion: one(subregions, { fields: [subregionEnquiryContactFields.subregionId], references: [subregions.id] }),
+}));

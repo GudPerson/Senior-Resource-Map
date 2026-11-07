@@ -54,6 +54,7 @@ import {
     filterEmbeddedMapAnnotationsByDesign,
 } from '../utils/embeddedMapPresentation.js';
 import { formatMapStudioDocument } from '../utils/mapStudioDocument.js';
+import { prepareRegionalDiscoveryPublication, regionalDiscoveryPublishIntentSchema } from '../utils/regionalDiscoveryPublication.js';
 import {
     optionalOneLineTextSchema,
     optionalTextSchema,
@@ -131,6 +132,7 @@ const updateMyMapPersonalPlaceShortDescriptorBodySchema = z.object({
 });
 
 const shareMyMapBodySchema = z.object({
+    embeddedView: regionalDiscoveryPublishIntentSchema.optional(),
     includeHandoffNotes: z.boolean().optional(),
     noteImagesRevision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
     studioViewId: z.string()
@@ -815,6 +817,9 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
         embeddedPresentation = buildEmbeddedMapPresentationSnapshot(selectedView.design);
     }
     const finalResolutionContext = resolutionContext || await createSavedAssetResolutionContext(db, user);
+    const regionalSnapshot = await prepareRegionalDiscoveryPublication(db, user, map, {
+        embeddedView: options.embeddedView,
+    });
     const sharedAt = new Date();
     const { snapshotUpdates } = await buildMyMapDirectory(db, {
         map,
@@ -882,6 +887,7 @@ export async function publishMyMap(db, user, mapId, resolutionContext = null, op
         embeddedAnnotations,
         embeddedResourceContacts,
         embeddedPresentation,
+        ...(regionalSnapshot ? { embeddedRegionalDiscovery: { ...regionalSnapshot, shareToken } } : {}),
         ...(embeddedResourceKeys ? { embeddedResourceKeys } : {}),
         ...(embeddedHiddenPinPlaceKeys ? { embeddedHiddenPinPlaceKeys } : {}),
     }, sharedAt);
@@ -1344,6 +1350,7 @@ export const postMyMapShare = async (c) => {
         const map = await publishMyMap(db, user, mapId, null, {
             includeHandoffNotes: Boolean(body.includeHandoffNotes),
             studioViewId: body.studioViewId,
+            embeddedView: body.embeddedView,
             noteImagesRevision: body.noteImagesRevision,
             noteImages: c.env?.HELP_CMS_BUCKET ? createMapNoteImageRepository(c.env.HELP_CMS_BUCKET, user.id) : null,
         });

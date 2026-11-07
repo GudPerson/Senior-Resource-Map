@@ -8,6 +8,7 @@ import {
     applyResourcePublicationPolicy,
     collectResourcePublicationRefs,
     loadApprovedResourcePublicationFields,
+    RESOURCE_PUBLICATION_FIELDS,
 } from '../src/utils/resourcePublicationPolicy.js';
 
 async function migrateThroughPermissionPolicy(pg) {
@@ -141,4 +142,18 @@ test('missing permission schema leaves every resource unverified instead of expo
     } finally {
         await pg.close();
     }
+});
+
+test('regional contact authority does not expand global publication or basic phone policy', () => {
+    assert.deepEqual(RESOURCE_PUBLICATION_FIELDS, [
+        'logoUrl', 'bannerUrl', 'galleryUrls', 'description', 'website', 'socialLinks', 'ctaUrl',
+    ]);
+    const directory = publicDirectoryFixture();
+    const regionalOnly = new Map([['hard:10', new Set(['email', 'phone'])]]);
+    const row = applyResourcePublicationPolicy(directory, regionalOnly).places[0].rows[0];
+    assert.equal(row.contactPhone, '61234567');
+    assert.equal(row.logoUrl, null);
+    assert.equal(row.descriptor, null);
+    assert.equal(row.website, null);
+    assert.equal(row.sourceUrl, null);
 });

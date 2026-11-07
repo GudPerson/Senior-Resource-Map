@@ -181,3 +181,14 @@ test('resource cards localize directions and soft asset bucket labels', () => {
         'Resource detail bucket tabs should translate visible soft asset bucket labels',
     );
 });
+
+test('regional discovery copy has complete distinct translations in all four locales', () => {
+    const keys = Object.keys(enDictionary).filter(key=>key.startsWith('regionalDiscovery'));
+    assert.equal(keys.length,46);
+    const dictionaries=readDictionaries();
+    for (const {code} of LOCALES) for (const key of keys) {
+        assert.equal(typeof dictionaries[code][key],'string',`${code}: ${key}`);
+        assert.ok(dictionaries[code][key].trim());
+        if(code!=='en') assert.notEqual(translateUi(code,key),translateUi('en',key),`${code}: ${key} must be translated`);
+    }
+});
