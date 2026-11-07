@@ -1,6 +1,4 @@
 import { Hono } from 'hono';
-import { readMaintenanceDatabaseIdentity } from '../db/index.js';
-import { currentWorkerRelease } from '../utils/workerRelease.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { HELP_CMS_SEED } from '../generated/helpCmsSeed.js';
 import { HELP_ARTICLES } from '../generated/helpKnowledge.js';
@@ -65,59 +63,8 @@ function imageResponse(object, publicRead = false) {
         'Content-Disposition': 'inline', 'Cache-Control': publicRead ? 'public, max-age=31536000, immutable' : 'private, no-store' } });
 }
 
-// Bind only in an independently reviewed maintenance build. No request or environment override.
-const observationPolicy = Object.freeze({ opensUtc: '2026-11-07T18:00:00.000Z', closesUtc: '2026-11-07T18:15:00.000Z' });
-const observationUrl = 'https://api.carearound.sg/api/help/cms/binding-observation';
-const observationError = (c, code, status) => c.json({ ok: false, code }, status);
-
-export async function maintenanceIdentityRequest(c, next) {
-    c.header('Cache-Control', 'private, no-store');
-    try {
-        const r = c.req.raw;
-        if (r.url !== observationUrl || r.method !== 'POST' || r.body !== null
-            || r.headers.has('transfer-encoding') || ![null, '0'].includes(r.headers.get('content-length'))) {
-            return observationError(c, 'invalid_observation_request', 400);
-        }
-        await next();
-    } finally { c.header('Cache-Control', 'private, no-store'); }
-}
-
-function utcTime(value) {
-    if (typeof value !== 'string') return NaN;
-    const ms = Date.parse(value);
-    return Number.isFinite(ms) && new Date(ms).toISOString() === value ? ms : NaN;
-}
-
-export function createMaintenanceIdentityHandler({ policy = observationPolicy, read = readMaintenanceDatabaseIdentity,
-    observe = currentWorkerRelease, now = Date.now } = {}) {
-    return async c => {
-        const start = utcTime(policy.opensUtc), end = utcTime(policy.closesUtc);
-        const open = time => Number.isFinite(time) && start <= time && time < end && end - start <= 15 * 60 * 1000;
-        const owner = c.get('helpCmsOwnerId');
-        if (!Number.isSafeInteger(owner) || owner <= 0 || !Number.isFinite(start) || !Number.isFinite(end)
-            || !open(now())) return observationError(c, 'observation_closed', 403);
-        try {
-            const release = observe(c.env);
-            if (!release) return observationError(c, 'version_unavailable', 503);
-            const row = await read(c.env);
-            const time = now();
-            if (!open(time)) return observationError(c, 'observation_closed', 403);
-            if (!row?.branch_id) return observationError(c, 'identity_inconclusive', 503);
-            if (row.branch_id !== 'br-green-union-ailxs0g3' || row.database !== 'neondb') {
-                return observationError(c, 'target_mismatch', 409);
-            }
-            const role = value => typeof value === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/.test(value);
-            if (!role(row.effective_role) || !role(row.session_role)) return observationError(c, 'identity_inconclusive', 503);
-            return c.json({ ok: true, branch_id: row.branch_id, database: row.database, effective_role: row.effective_role,
-                session_role: row.session_role, workerVersionId: release.deploymentId, sourceRevision: release.sourceRevision,
-                observedAt: new Date(time).toISOString() });
-        } catch { return observationError(c, 'identity_unavailable', 503); }
-    };
-}
-
 export function createHelpCmsRoutes({ authenticate = authenticateToken, seed = HELP_CMS_SEED,
-    bucketForContext = c => c.env?.HELP_CMS_BUCKET, fetchImpl = fetch, now = () => new Date(),
-    identityHandler = createMaintenanceIdentityHandler() } = {}) {
+    bucketForContext = c => c.env?.HELP_CMS_BUCKET, fetchImpl = fetch, now = () => new Date() } = {}) {
     const router = new Hono(), owners = new Hono(), runner = new Hono();
     router.use('*', async (c, next) => {
         try { await next(); }
@@ -217,7 +164,6 @@ export function createHelpCmsRoutes({ authenticate = authenticateToken, seed = H
             activeReleaseId: await repo.activePublication() };
     };
     owners.get('/', handle(async (c, repo) => c.json(await workspaceResponse(repo, c.env))));
-    owners.post('/binding-observation', identityHandler);
     owners.get('/capability', c => c.json({ canEdit: true }));
     owners.put('/', handle(async (c, repo) => {
         const body = await readJson(c.req.raw), current = await repo.loadWorkspace();
