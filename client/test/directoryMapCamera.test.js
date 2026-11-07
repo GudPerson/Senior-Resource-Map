@@ -104,3 +104,10 @@ test('owner proof recenters only when a settled zoom enters the configured minim
         minZoom: 11,
     }), false);
 });
+
+test('fixed controlled owner camera skips layout refit while ordinary auto/default retains it', () => {
+    const layoutChange = {previousLayoutSignature:'legacy',nextLayoutSignature:'studio:fixed:compact',pointCount:8};
+    assert.equal(shouldRefitDirectoryCameraAfterResize({...layoutChange,preserveFixedViewOnLayoutChange:true}),false);
+    assert.equal(shouldRefitDirectoryCameraAfterResize({...layoutChange,preserveFixedViewOnLayoutChange:false}),true);
+    assert.equal(shouldRefitDirectoryCameraAfterResize(layoutChange),true);
+});

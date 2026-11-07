@@ -173,6 +173,7 @@ export default function MyMapV2PreviewScaffold({
             onMapStyleOverrideChange={mapStudioRuntime?.onMapStyleChange ?? null}
             mapStyleDescription={mapStudioRuntime?.mapStyleDescription}
             mapViewState={directoryMapRuntime?.mapViewState ?? null}
+            preserveFixedViewOnLayoutChange={directoryMapRuntime?.preserveFixedViewOnLayoutChange ?? false}
             onMapViewStateChange={mapStudioRuntime?.onMapViewStateChange ?? null}
             careMapGestures={careMapGestures}
             mapOverlay={mapOverlay}

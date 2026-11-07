@@ -2618,6 +2618,7 @@ function DirectoryMapController({
     activePlaceKeys = [],
     interactive,
     layoutSignature = 'default',
+    preserveFixedViewOnLayoutChange = false,
     fitPaddingTopLeft = DIRECTORY_FIT_PADDING_TOP_LEFT,
     fitPaddingBottomRight = DIRECTORY_FIT_PADDING_BOTTOM_RIGHT,
     onMapSettled,
@@ -2647,6 +2648,7 @@ function DirectoryMapController({
             focusedPlaceKeys,
             activePlaceKey,
             hasActivePlaceKeys,
+            preserveFixedViewOnLayoutChange,
         });
         const resizeMap = () => {
             map.invalidateSize({ animate: false });
@@ -2665,7 +2667,7 @@ function DirectoryMapController({
             window.clearTimeout(immediateResize);
             window.clearTimeout(settledResize);
         };
-    }, [activePlaceKey, anchorPoint, fitPaddingBottomRight, fitPaddingTopLeft, focusedPlaceKey, focusedPlaceKeys, hasActivePlaceKeys, layoutSignature, map, pins, signature]);
+    }, [activePlaceKey, anchorPoint, fitPaddingBottomRight, fitPaddingTopLeft, focusedPlaceKey, focusedPlaceKeys, hasActivePlaceKeys, layoutSignature, map, pins, preserveFixedViewOnLayoutChange, signature]);
 
     useEffect(() => {
         if (!pins.length && !anchorPoint) return;
@@ -2778,6 +2780,7 @@ export default function DirectoryMap({
     showProviderBadgeLogo = true,
     mapHeightClassName = 'h-[340px]',
     layoutSignature = 'default',
+    preserveFixedViewOnLayoutChange = false,
     fitPaddingTopLeft = DIRECTORY_FIT_PADDING_TOP_LEFT,
     fitPaddingBottomRight = DIRECTORY_FIT_PADDING_BOTTOM_RIGHT,
     onMapReadyForCapture,
@@ -3951,6 +3954,7 @@ export default function DirectoryMap({
                     activePlaceKeys={activePlaceKeys}
                     interactive={interactive}
                     layoutSignature={layoutSignature}
+                    preserveFixedViewOnLayoutChange={preserveFixedViewOnLayoutChange}
                     fitPaddingTopLeft={fitPaddingTopLeft}
                     fitPaddingBottomRight={fitPaddingBottomRight}
                     onFocusHandled={onFocusHandled}

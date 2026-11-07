@@ -129,6 +129,7 @@ import {
     PRINT_MAP_ANNOTATION_LAYER_SHOW,
     PRINT_MAP_LAYOUT_FULL,
     createOwnerPrintMapState,
+    normalizePrintMapViewState,
 } from '../lib/printMapState.js';
 import { filterPrintMapAnnotations } from '../lib/printMapLayers.js';
 
@@ -1736,6 +1737,10 @@ export default function MyMapDetailPage() {
         || mapStudioRuntimeSnapshot?.exploration?.cameraView
         || mapStudioInteractiveModel?.directoryMap?.mapViewState
         || null;
+    // Hydrated fixed owner views retain their controlled camera through layout work.
+    const preserveFixedViewOnLayoutChange = directory?.viewer?.isOwner === true
+        && mapStudioRuntimeSnapshot?.design?.camera?.mode === 'fixed'
+        && Boolean(normalizePrintMapViewState(interactiveMapViewState));
     const [printMapState, setPrintMapState] = useState(() => (
         createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS)
     ));
@@ -4136,6 +4141,7 @@ export default function MyMapDetailPage() {
         directoryMap: {
             ...mapStudioInteractiveModel.directoryMap,
             mapViewState: interactiveMapViewState,
+            preserveFixedViewOnLayoutChange,
         },
         layoutSignature: `v2-map:${mapStudioLayoutSignature}`,
         heightResetKey: mapStudioRuntimeSnapshot.activeViewId,
@@ -4159,6 +4165,7 @@ export default function MyMapDetailPage() {
             ? t('mapStudioMapColourScope')
             : undefined,
         mapViewState: interactiveMapViewState,
+        preserveFixedViewOnLayoutChange,
         markerScale: mapStudioInteractiveModel?.directoryMap?.markerScale ?? 1,
         printBadgeScale: mapStudioInteractiveModel?.directoryMap?.markerScale ?? 1,
         pinBadgeMode: mapStudioInteractiveModel?.directoryMap?.pinBadgeMode ?? 'count',
