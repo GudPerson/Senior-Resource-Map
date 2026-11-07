@@ -12,6 +12,10 @@ Current receipt: `/Users/sweetbuns/.codex/worktrees/carearound-regional-discover
 
 Next: one independent scoped re-review of the immutable final fix delta and corrected100-file package. Source acceptance, exact-source CI and the protected schema/backup/restore/interruption/source-pin/Worker→Pages release gates remain separate. No stage, commit, push, schema apply, real-data write, publication or deployment occurred.
 
+## 7 November 2026 — Spatial phone fixture correction — LOCAL, REVIEW PENDING
+
+Official `42333712990` passed quality/presentation/camera4/inspector8 but failed one of16 local spatial cases; its production-provider command never ran and steps12–15 were skipped. The isolated phone diagnostic proves the old coordinate clicked five pixels above the compact map at correct zoom16, leaving no selected area. Only the spatial harness now chooses an exposed stroke of the intended circle using native input, guards its exact receiver/map/center/zoom16/text, and asserts the chooser's circle ID. Runtime and the parked desktop header remain unchanged. Local phone1/1 and spatial local16/16 plus authenticated-API/fictional-R2 fixture16/16 pass; no live-provider, device or production acceptance is claimed. See the regional plan's `release-packet-20261107/ci-42333712990/phone-fix/report.md` for frozen source/diff/evidence. Next: independent review before commit/push and fresh official CI; do not relabel the prior failed run green.
+
 ## 7 November 2026 — Regional Discovery integration onto current main — LOCAL, REVIEW PENDING
 
 The accepted regional candidate is now integrated in `/private/tmp/carearound-regional-integration-20261107`, branch `codex/mini-curated-discovery-integration-20261107`, on `71a9a064f19198e5d6a9030146c5a7d650718c06`. This is uncommitted source; the base identifies upstream ancestry. The original07d feature checkout and its accepted Tasks1–10 evidence remain preserved. The older regional entry below describes that historical candidate, including its then-pending review statements.

@@ -112,6 +112,37 @@ async function startPointPicker(page, phone = false) {
     await page.waitForTimeout(800);
 }
 async function selectCircle(page) { await clickMap(page, center[0] + 0.0044966, center[1]); }
+async function selectVisiblePhoneCircle(page) {
+    const annotation = annotations.find(value => value.id === 'preview-circle');
+    assert.equal(annotation?.type, 'circle', 'Phone selection targets the intended fixture circle');
+    const target = await page.evaluate(id => {
+        const map = [...window.__spatialPreviewMaps].filter(value => value.getContainer().isConnected && value.getContainer().getBoundingClientRect().width > 0).at(-1);
+        if (!map) throw Error('No active phone preview map');
+        const container = map.getContainer(), rect = container.getBoundingClientRect();
+        const shape = container.querySelector(`.leaflet-print-annotation-${id}-pane path.leaflet-interactive`);
+        if (!shape) throw Error(`No rendered path for phone annotation ${id}`);
+        const transform = shape.getScreenCTM(), length = shape.getTotalLength();
+        if (!transform || !length) throw Error(`No measurable phone annotation path ${id}`);
+        for (let index = 0; index < 512; index++) {
+            const point = shape.getPointAtLength(length * index / 512).matrixTransform(transform);
+            const x = Math.round(point.x), y = Math.round(point.y);
+            if (x <= rect.left + 4 || x >= rect.right - 4 || y <= rect.top + 4 || y >= rect.bottom - 4 || x < 0 || x >= innerWidth || y < 0 || y >= innerHeight) continue;
+            if (document.elementFromPoint(x, y) !== shape) continue;
+            return { x, y, annotationId: id, receiverVerified: true, mapId: map._leaflet_id, zoom: map.getZoom(), center: map.getCenter(), rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom } };
+        }
+        throw Error(`No exposed native stroke target inside the visible phone map for ${id}`);
+    }, annotation.id);
+    assert.equal(target.zoom, 16, 'Phone selection preserves the saved fixed zoom 16');
+    await page.mouse.click(target.x, target.y);
+    await page.waitForFunction(text => document.querySelector('[data-print-annotation-toolbar] textarea[placeholder="Optional note"]')?.value === text, annotation.text);
+    const after = await page.evaluate(() => {
+        const map = [...window.__spatialPreviewMaps].filter(value => value.getContainer().isConnected && value.getContainer().getBoundingClientRect().width > 0).at(-1);
+        return { mapId: map._leaflet_id, zoom: map.getZoom(), center: map.getCenter() };
+    });
+    assert.deepEqual(after, { mapId: target.mapId, zoom: target.zoom, center: target.center }, 'Native circle selection keeps the same map and fixed camera');
+    assert.equal(await page.locator('[data-print-annotation-toolbar] textarea[placeholder="Optional note"]').inputValue(), annotation.text, 'The intended circle text is selected');
+    return { ...target, annotationType: annotation.type, selectedText: annotation.text, after };
+}
 async function areaDialog(page) {
     // Draw and Manage now share one workspace; explicitly enter its address tab.
     const panel = page.getByRole('dialog').filter({ has: page.locator('[data-map-area-results]') });
@@ -366,9 +397,10 @@ try {
         const { page, context } = await createPage(true);
         try {
             const before = await audit(page); await openAnnotation(page, true);
-            await clickMap(page, center[0] + 0.00318, center[1] + 0.00318);
+            const selection = await selectVisiblePhoneCircle(page);
             await page.getByRole('button', { name: 'Find within area', exact: true }).click();
             const panel = await areaDialog(page);
+            assert.equal(await panel.locator('[data-map-area-choice]').inputValue(), selection.annotationId, 'Area query uses the intended selected circle');
             await panel.locator('li input[type=checkbox]').first().waitFor();
             await capture(page, 'phone-area-addresses');
             assert.ok(await panel.getByRole('button', { name: 'Download all CSV', exact: true }).isVisible(), 'Phone CSV actions reachable');
@@ -387,6 +419,7 @@ try {
             await capture(page, 'phone-coordinate-only-review');
             await editor.getByRole('button', { name: /cancel/i }).click(); await page.waitForTimeout(1200);
             const after = await audit(page); assert.deepEqual(after.annotations, before.annotations); assert.equal(after.unexpectedWrites.length, before.unexpectedWrites.length);
+            return { selection };
         } finally { await context.close(); }
     });
     await check('circle-live-radius-preview-without-save', async () => {
