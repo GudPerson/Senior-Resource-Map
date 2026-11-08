@@ -91,7 +91,7 @@ test('unconfigured policy closes before the clock; the compiled approved window 
     assert.equal(ready.calls.clock, 2);
     assert.equal(ready.calls.identity, 1);
 
-    const opensUtc = '2026-11-08T01:30:00.000Z', closesUtc = '2026-11-08T01:45:00.000Z';
+    const opensUtc = '2026-11-08T03:15:00.000Z', closesUtc = '2026-11-08T03:30:00.000Z';
     const source = await readFile(new URL('../src/routes/helpCms.js',import.meta.url),'utf8');
     assert.ok(source.includes(`const observationPolicy = Object.freeze({ opensUtc: '${opensUtc}', closesUtc: '${closesUtc}' });`));
     const first = Date.parse(opensUtc), last = Date.parse(closesUtc);
