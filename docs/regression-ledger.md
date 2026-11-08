@@ -1,3 +1,11 @@
+## 8 November 2026 — Owner fixed camera on desktop frame resize (verified locally)
+
+For an owner viewing a saved fixed Studio camera in the V2 desktop map, resizing the map frame must retain the current geographic center, zoom, bearing, and mounted map. The controlled exploration camera must agree, and the saved Studio document must stay unchanged. The frame observer uses Leaflet's center compensation only when the existing owner fixed-view flag is set.
+
+Reproduce with `node tests/browser/owner-fixed-layout-camera.mjs --out=/tmp/owner-camera-evidence`. The two frame-only cases expand the real map, shrink its inner frame from 1598×1098 to 758×526 at a constant 1600×1100 browser viewport, and check four settled samples. One case rotates the map with the native Shift-wheel gesture first. At base `98bd1c7982b93adc48322fe2099477ce7c05d91b`, the four original cases passed and both new cases failed at `fixed center retained`. The fixed source passed all six locally, with the same center before and after at 0° and 10°, zero fixture writes and zero page errors. Known-good Git blobs are `2e037cb7c2722602bc88110a8ffbb6fac3a3826a` for DirectoryMap and `6bc006ed9a498e3235bde3d4fe2de54b0fbcbc39` for the browser test.
+
+Evidence uses the actual local app and Leaflet with fictional transport. The hosted failure on the previous tree (run 42432685364, attempt 1) remains recorded separately. Fresh hosted verification of the fixed revision is required before release.
+
 ## 7 November 2026 — Regional Discovery final-review fixes — LOCAL, SCOPED REVIEW PENDING
 
 The uncommitted candidate remains on `codex/mini-curated-discovery-integration-20261107`, base `71a9a064f19198e5d6a9030146c5a7d650718c06`, in `/private/tmp/carearound-regional-integration-20261107`. Independent whole-branch review identified I1/I2; this single C26 fix wave restores explicit Reset to the current plotted-result extent (max zoom16), with zero-pin regional fallback, and replaces per-owner staff reads with request-local scoped membership batches. Existing permission predicates and shared staff helpers remain unchanged. Save success now survives a failed approval-availability refresh with a separate warning; Escape clears a row's map-only lock while leaving coarse map Done/Escape ownership intact.

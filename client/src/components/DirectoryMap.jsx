@@ -2149,7 +2149,7 @@ function DirectoryMapInstanceSync({ onMapReady }) {
     return null;
 }
 
-function DirectoryMapFrameResizeSync({ enabled = false, frameRef }) {
+function DirectoryMapFrameResizeSync({ enabled = false, frameRef, preserveCenter = false }) {
     const map = useMap();
 
     useEffect(() => {
@@ -2169,7 +2169,8 @@ function DirectoryMapFrameResizeSync({ enabled = false, frameRef }) {
             if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
             resizeFrame = window.requestAnimationFrame(() => {
                 resizeFrame = null;
-                map.invalidateSize({ animate: false, pan: false });
+                // Leaflet compensates for the changed frame origin only when pan is enabled.
+                map.invalidateSize({ animate: false, pan: preserveCenter });
             });
         });
 
@@ -2178,7 +2179,7 @@ function DirectoryMapFrameResizeSync({ enabled = false, frameRef }) {
             observer.disconnect();
             if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame);
         };
-    }, [enabled, frameRef, map]);
+    }, [enabled, frameRef, map, preserveCenter]);
 
     return null;
 }
@@ -3842,6 +3843,7 @@ export default function DirectoryMap({
                 <DirectoryMapFrameResizeSync
                     enabled={observeFrameResize}
                     frameRef={mapFrameRef}
+                    preserveCenter={preserveFixedViewOnLayoutChange}
                 />
                 <DirectoryMapRequestedScaleSync
                     desktopWheelPolicy={careMapGestures?.desktopWheelPolicy}

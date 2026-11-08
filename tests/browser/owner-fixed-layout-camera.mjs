@@ -14,6 +14,69 @@ async function until(fn,message){for(let i=0;i<200;i++){if(await fn())return;awa
 async function camera(page){return page.evaluate(()=>{const m=[...window.__qaMaps].find(m=>m.getContainer().isConnected&&m._loaded);return m?{id:m._leaflet_id,zoom:m.getZoom(),center:[m.getCenter().lat,m.getCenter().lng],controlled:window.__qaControlledInputs.get(m),frame:{width:m.getContainer().clientWidth,height:m.getContainer().clientHeight}}:null;});}
 async function settled(page){await page.waitForTimeout(1200);const samples=[];for(let i=0;i<4;i++){samples.push(await camera(page));await page.waitForTimeout(150);}return samples;}
 function fixed(samples,view,id){for(const value of samples){assert.equal(value.id,id,'same mounted map');assert.equal(value.zoom,view.zoom,'saved fixed zoom must remain after all layout timers settle');assert.ok(Math.abs(value.center[0]-view.center[0])<.0001&&Math.abs(value.center[1]-view.center[1])<.0001,'fixed center retained');assert.equal(value.controlled?.zoom,view.zoom,'controlled exploration agrees with retained camera');}}
+// Resize only the frame so the window handler cannot consume the change first.
+async function verifyFixedFrameResize(rotated) {
+ const name = 'v2 fixed camera on frame-only resize, ' + (rotated ? 'rotated' : 'north up');
+ const entry = { name, passed: false };
+ report.cases.push(entry);
+ const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } });
+ const state = await fixture.install(page, { zoom: 16, annotations: [] });
+ state.document.views[0].design.layout.preset = 'balanced';
+ const saved = structuredClone(state.document);
+ try {
+  await page.goto(fixture.base + 'my-directory/maps/' + fixture.mapId + '?ui=v2');
+  const view = saved.views[0].design.camera.view;
+  await until(async () => (await camera(page))?.controlled?.zoom === view.zoom, 'fixed view hydrated');
+  const hydrated = (await settled(page)).at(-1);
+  fixed([hydrated], view, hydrated.id);
+  await page.locator('[data-owner-canvas-enter]').click();
+  const expanded = (await settled(page)).at(-1);
+  fixed([expanded], view, hydrated.id);
+  assert.deepEqual(expanded.frame, { width: 1598, height: 1098 });
+
+  const mapElement = page.locator('.leaflet-container:visible');
+  const bearing = () => page.evaluate(() => [...window.__qaMaps].find(m => m.getContainer().isConnected).getBearing());
+  if (rotated) {
+   const box = await mapElement.boundingBox();
+   await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.6);
+   await page.keyboard.down('Shift');
+   await page.mouse.wheel(0, 120);
+   await page.keyboard.up('Shift');
+   await until(async () => Math.abs(await bearing()) > 1, 'native wheel rotated the map');
+  }
+  const before = entry.before = (await settled(page)).at(-1);
+  const beforeBearing = entry.beforeBearing = await bearing();
+  await mapElement.evaluate(el => {
+   const frame = el.closest('[data-map-style]');
+   const horizontalBorder = frame.offsetWidth - el.clientWidth;
+   const verticalBorder = frame.offsetHeight - el.clientHeight;
+   frame.style.boxSizing = 'border-box';
+   frame.style.setProperty('width', (758 + horizontalBorder) + 'px', 'important');
+   frame.style.setProperty('height', (526 + verticalBorder) + 'px', 'important');
+  });
+
+  const samples = entry.after = await settled(page);
+  assert.deepEqual(page.viewportSize(), { width: 1600, height: 1100 });
+  assert.equal(await bearing(), beforeBearing, 'frame resize retains bearing');
+  for (const sample of samples) {
+   assert.deepEqual(sample.frame, { width: 758, height: 526 });
+   fixed([sample], before, hydrated.id);
+   assert.ok(sample.controlled.center.every((v, i) => Math.abs(v - before.center[i]) < .0001),
+    'controlled exploration retains its pre-resize center');
+  }
+  assert.deepEqual(state.document, saved);
+  assert.deepEqual(state.allowedWrites, []);
+  assert.deepEqual(state.unexpectedWrites, []);
+  assert.deepEqual(state.errors, []);
+  entry.passed = true;
+ } catch (error) {
+  entry.error = error.stack;
+ } finally {
+  entry.errors = state.errors;
+  entry.writes = [...state.allowedWrites, ...state.unexpectedWrites];
+  await page.close();
+ }
+}
 try{
  browser=await chromium.launch({headless:true});
  for(const ui of ['stable','v2'])for(const viewport of [{width:390,height:500},{width:1600,height:1100}]){
@@ -49,5 +112,6 @@ try{
   }catch(error){entry.error=error.stack;entry.final=await camera(page);await page.screenshot({path:path.join(out,`${ui}-${viewport.width}-failure.png`)});}
   finally{state.releaseStudio();entry.writes=state.unexpectedWrites;entry.errors=state.errors;await page.close();}
  }
+ for (const rotated of [false, true]) await verifyFixedFrameResize(rotated);
 }finally{await browser?.close();await fixture.server.close();await fs.writeFile(path.join(out,'report.json'),JSON.stringify(report,null,2));}
 console.log(JSON.stringify(report.cases.map(({name,passed,error})=>({name,passed,error})),null,2));if(report.cases.some(x=>!x.passed))process.exitCode=1;
