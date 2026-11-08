@@ -78,6 +78,13 @@
       "when": 1789396785385,
       "tag": "0010_permission_first_publishing",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1794066232585,
+      "tag": "0011_boundary_library_guided_zones",
+      "breakpoints": true
     }
   ]
 }

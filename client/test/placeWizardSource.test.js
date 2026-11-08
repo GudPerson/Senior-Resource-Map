@@ -117,7 +117,7 @@ test('Audience zones panel notifies parent resources after zone mutations', () =
     const createSource = sourceBetween(assetAudienceZonesPanelSource, 'async function handleCreate(e)', 'async function handleDelete(zone)');
     const deleteSource = sourceBetween(assetAudienceZonesPanelSource, 'async function handleDelete(zone)', 'const feedbackClass = feedback?.type');
 
-    assert.match(assetAudienceZonesPanelSource, /export default function AssetAudienceZonesPanel\(\{ asset, currentUser, onChanged \}\)/);
+    assert.match(assetAudienceZonesPanelSource, /export default function AssetAudienceZonesPanel\(\{ asset, currentUser, onChanged, onBeforeBoundaryDraw = \(\) => true, onEditLocation \}\)/);
     assert.match(createSource, /await api\.createAudienceZone/);
     assert.match(createSource, /await loadZones\(\);\s*await onChanged\?\.\(\);/);
     assert.match(deleteSource, /await api\.deleteAudienceZone/);

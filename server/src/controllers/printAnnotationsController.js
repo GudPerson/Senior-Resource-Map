@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { ANNOTATION_RESOURCE_GLOW_COLOR_PATTERN } from '../../../shared/annotationAppearance.js';
 import { ANNOTATION_GROUP_MAX_LENGTH, normalizeAnnotationGroupName } from '../../../shared/annotationGroups.js';
 import { PRINT_ANNOTATION_DOCUMENT_MAX_COUNT } from '../../../shared/printAnnotationLimits.js';
-import { requiresCurrentAnnotationWrites, supportsCurrentAnnotationWrites } from '../../../shared/annotationWriteCompatibility.js';
+import { canWriteAnnotationFeatures, PRINT_ANNOTATION_CLIENT_CAPABILITIES } from '../../../shared/annotationWriteCompatibility.js';
 import { KML_MAX_GEOMETRY_POINTS, normalizeKmlBoundaryParts } from '../../../shared/kmlBoundaryGeometry.js';
 
 import { getDb } from '../db/index.js';
@@ -55,6 +55,7 @@ const printAnnotationSchema = z.object({
     type: z.enum(annotationTypes),
     isShared: z.boolean().optional(),
     boundarySource: z.literal('kml').optional(),
+    boundaryGeometryVersion: z.literal(1).optional(),
     points: z.array(coordinateSchema).min(1).max(KML_MAX_GEOMETRY_POINTS),
     controlPoints: z.array(coordinateSchema)
         .min(3)
@@ -63,6 +64,7 @@ const printAnnotationSchema = z.object({
     boundaryParts: z.array(z.array(z.number().int().min(3)).min(1)).min(1).optional(),
     rotationDegrees: z.number().finite().min(-180).max(180).optional(),
     text: z.string().trim().max(PRINT_ANNOTATION_MAX_TEXT_LENGTH).default(''),
+    name: z.string().trim().max(PRINT_ANNOTATION_MAX_TEXT_LENGTH).optional(),
     groupName: z.string().max(ANNOTATION_GROUP_MAX_LENGTH).transform(normalizeAnnotationGroupName).optional(),
     style: annotationStyleSchema,
     resourceLinks: z.array(z.object({ type: z.enum(['hard', 'soft', 'personal_place']), id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) }).strict())
@@ -73,6 +75,9 @@ const printAnnotationSchema = z.object({
     image: z.object({ assetId: z.string().regex(/^[a-f0-9]{64}$/), width: z.number().int().min(1).max(MAP_MEDIA_MAX_SIDE),
         height: z.number().int().min(1).max(MAP_MEDIA_MAX_SIDE), alt: z.string().trim().max(240).default('') }).strict().optional(),
 }).superRefine((annotation, context) => {
+    if (annotation.boundaryGeometryVersion !== undefined && (annotation.type !== 'polygon' || annotation.boundarySource)) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ['boundaryGeometryVersion'], message: 'Exact geometry requires an ordinary polygon' });
+    }
     if (annotation.boundarySource !== undefined) {
         if (annotation.type !== 'polygon' || annotation.isShared === true) context.addIssue({
             code: z.ZodIssueCode.custom, path: ['boundarySource'], message: 'Imported boundaries must be private polygons',
@@ -163,6 +168,7 @@ const replacePrintAnnotationsBodySchema = z.object({
     clientCapabilities: z.object({
         maxCount: z.number().int().min(1).max(10000).optional(),
         groups: z.boolean().optional(),
+        exactBoundaryGeometry: z.boolean().optional(),
     }).optional(),
 }).superRefine((document, context) => {
     const ids = new Set();
@@ -203,8 +209,8 @@ function normalizePrintAnnotationSnapshot(annotations) {
     // Images and resource links are private owner data, even if a caller passes
     // untrusted new metadata into an existing publication or frozen snapshot.
     const publicAnnotations = (Array.isArray(annotations) ? annotations : []).filter((annotation) => annotation && typeof annotation === 'object' && annotation.type !== 'image' && annotation.boundarySource === undefined)
-        .map(({ resourceLinks, resourceBehaviour, resourceGlowColor, imageBorder, image, groupName, ...annotation }) => {
-            void resourceLinks; void resourceBehaviour; void resourceGlowColor; void imageBorder; void image; void groupName;
+        .map(({ resourceLinks, resourceBehaviour, resourceGlowColor, imageBorder, image, groupName, name, ...annotation }) => {
+            void resourceLinks; void resourceBehaviour; void resourceGlowColor; void imageBorder; void image; void groupName; void name;
             return annotation;
         });
     const parsed = replacePrintAnnotationsBodySchema.safeParse({
@@ -267,6 +273,7 @@ async function requireOwnedMap(db, userId, mapId) {
 function formatDocument(mapId, document = null) {
     return {
         mapId,
+        serverCapabilities: PRINT_ANNOTATION_CLIENT_CAPABILITIES,
         schemaVersion: PRINT_ANNOTATION_SCHEMA_VERSION,
         annotations: Array.isArray(document?.annotations) ? document.annotations : [],
         revision: Number.isInteger(Number(document?.revision)) ? Number(document.revision) : 0,
@@ -308,8 +315,8 @@ export async function replacePrintAnnotationDocument(db, user, mapId, body, { me
     if (body.revision !== undefined && body.revision !== currentRevision) {
         throw createHttpError(409, 'Print annotations changed in another session. Reload and try again.');
     }
-    if (!supportsCurrentAnnotationWrites(body.clientCapabilities)
-        && (requiresCurrentAnnotationWrites(current?.annotations) || requiresCurrentAnnotationWrites(body.annotations))) {
+    if (!canWriteAnnotationFeatures(body.clientCapabilities, current?.annotations)
+        || !canWriteAnnotationFeatures(body.clientCapabilities, body.annotations)) {
         const refresh = createHttpError(428, 'Update CareAround and reload this map before saving its annotations.');
         refresh.code = 'ANNOTATION_CLIENT_REFRESH_REQUIRED';
         throw refresh;

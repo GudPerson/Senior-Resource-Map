@@ -5,6 +5,10 @@ import PrintAnnotationToolbar from '../components/PrintAnnotationToolbar.jsx';
 import AnnotationImageUpload from '../components/AnnotationImageUpload.jsx';
 import AnnotationResourcePicker from '../components/AnnotationResourcePicker.jsx';
 import KmlBoundaryImport from '../components/KmlBoundaryImport.jsx';
+import BoundaryLibraryPicker from '../components/boundaries/BoundaryLibraryPicker.jsx';
+import BoundaryLibrarySaveDialog from '../components/boundaries/BoundaryLibrarySaveDialog.jsx';
+import { assertBoundaryDrawingBatchCapacity } from '../../../shared/boundaryDrawing.js';
+import { createBoundaryImportOperation } from '../lib/boundaryLibraryImport.js';
 import TemporaryMapMeasurementLayer from '../components/TemporaryMapMeasurementLayer.jsx';
 import { AnnotationToolModeControls, TemporaryMapMeasurementControls } from '../components/AnnotationToolModeControls.jsx';
 import useTemporaryMapMeasurement from './useTemporaryMapMeasurement.js';
@@ -21,6 +25,7 @@ import {
     PRINT_ANNOTATION_TOOL_SELECT,
     PRINT_ANNOTATION_MAX_COUNT,
     createPrintAnnotation,
+    createPrintAnnotationId,
     canAddPrintAnnotation,
     duplicatePrintAnnotation,
     getPrintAnnotationMinimumPointCount,
@@ -46,7 +51,33 @@ export default function useInteractiveMapAnnotationEditor({
     temporaryMeasurementEnabled = false,
     measurementScopeKey = '',
     onFindWithinArea = null,
+    boundaryLibraryEnabled = false,
+    boundaryWorkflowSession = null,
+    ownerKey = null,
+    savedRevision = null,
+    flushPendingChanges = null,
 } = {}) {
+    const [libraryOpen, setLibraryOpen] = useState(false);
+    const [librarySelectedIds, setLibrarySelectedIds] = useState([]);
+    const [libraryImportError, setLibraryImportError] = useState('');
+    const [libraryImportPending, setLibraryImportPending] = useState(false);
+    const [saveLibraryOpen, setSaveLibraryOpen] = useState(false);
+    const [saveLibraryVersion, setSaveLibraryVersion] = useState(0);
+    const libraryContext = useMemo(() => ({ scope: null, operation: null, saveSessions: new Map(), active: true, annotations: [], generation: 0 }), []);
+    const boundarySessionToken = boundaryWorkflowSession?.capture();
+    const libraryScope = `${ownerKey || ''}:${mapId || ''}:${boundaryWorkflowSession?.generation || 0}`;
+    if (libraryContext.scope !== libraryScope) {
+        libraryContext.scope = libraryScope; libraryContext.generation++; libraryContext.operation = null; libraryContext.saveSessions.clear();
+    }
+    libraryContext.active = enabled && boundaryLibraryEnabled && !boundaryWorkflowSession?.loggingOut;
+    libraryContext.annotations = annotations;
+    const libraryGeneration = libraryContext.generation;
+    const currentLibraryScope = () => libraryContext.scope === libraryScope && libraryContext.generation === libraryGeneration && libraryContext.active && (!boundaryWorkflowSession || boundaryWorkflowSession.isCurrent(boundarySessionToken));
+    useEffect(() => {
+        setLibraryOpen(false); setSaveLibraryOpen(false);setLibrarySelectedIds([]);
+        setLibraryImportPending(false);setLibraryImportError('');
+    }, [libraryScope, enabled]);
+    useEffect(() => { libraryContext.active = enabled && boundaryLibraryEnabled && !boundaryWorkflowSession?.loggingOut; return () => { libraryContext.active = false; }; }, [libraryContext, enabled, boundaryLibraryEnabled]);
     const [tool, setTool] = useState(PRINT_ANNOTATION_TOOL_SELECT);
     const [selectedId, setSelectedId] = useState(null);
     const [draftPoints, setDraftPoints] = useState([]);
@@ -200,13 +231,13 @@ export default function useInteractiveMapAnnotationEditor({
         setMeasuring(nextMeasuring);
     };
     const closeEditor = useCallback(() => {
-        if (toolbarInInspector && hasUnfinishedDraft) return false;
+        if (libraryImportPending || (toolbarInInspector && hasUnfinishedDraft)) return false;
         saveNow?.();
         onClose?.();
         // This acknowledges the tool transition, not persistence; the existing
         // save queue and status continue to report saving or recovery errors.
         return true;
-    }, [hasUnfinishedDraft, onClose, saveNow, toolbarInInspector]);
+    }, [hasUnfinishedDraft, libraryImportPending, onClose, saveNow, toolbarInInspector]);
 
     const mapOverlay = enabled ? (
         <>
@@ -237,10 +268,52 @@ export default function useInteractiveMapAnnotationEditor({
         </>
     ) : null;
 
+    const selectedBoundary = selectedAnnotation && ['circle', 'rectangle', 'polygon'].includes(selectedAnnotation.type);
+    const libraryAvailable = Boolean(boundaryLibraryEnabled && !boundaryWorkflowSession?.loggingOut && ownerKey && mapId && flushPendingChanges);
+    const getSaveSession = (fresh = false) => {
+        if (!selectedAnnotation) return null;
+        if (fresh || !libraryContext.saveSessions.has(selectedAnnotation.id)) libraryContext.saveSessions.set(selectedAnnotation.id,
+            { requestId: createPrintAnnotationId(), operation: null, result: null });
+        return libraryContext.saveSessions.get(selectedAnnotation.id);
+    };
+    const libraryControls = libraryAvailable ? <div className="mt-3 space-y-2">
+        <button type="button" disabled={hasUnfinishedDraft || libraryImportPending || libraryContext.operation?.appended || ['idle', 'loading', 'error'].includes(status)}
+            onClick={() => { setLibrarySelectedIds([]);setLibraryOpen(true); }}
+            className="min-h-11 w-full rounded-lg border border-brand-200 px-3 py-2 text-sm font-semibold text-brand-800 disabled:opacity-40">Boundary Library</button>
+        {selectedBoundary ? <button type="button" disabled={hasUnfinishedDraft || libraryImportPending || ['idle', 'loading'].includes(status)}
+            onClick={() => { getSaveSession(); setSaveLibraryOpen(true); }}
+            className="min-h-11 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold disabled:opacity-40">Save boundary to library</button> : null}
+        {libraryImportError ? <div className="space-y-2 text-sm text-red-700"><p role="alert">{libraryImportError}</p>
+            {libraryContext.operation?.appended ? <button type="button" disabled={libraryImportPending} className="min-h-11 rounded-lg border px-3 font-semibold disabled:opacity-40" onClick={async () => {
+                setLibraryImportPending(true);
+                try { await libraryContext.operation.apply(); if (currentLibraryScope()) { setLibraryImportError(''); libraryContext.operation = null; } }
+                catch (failure) { if (currentLibraryScope()) setLibraryImportError(failure.message); }
+                finally { if (currentLibraryScope()) setLibraryImportPending(false); }
+            }}>Retry saving imported boundaries</button> : null}</div> : null}
+        {libraryOpen ? <BoundaryLibraryPicker selectedIds={librarySelectedIds} onSelectionChange={setLibrarySelectedIds} scopeKey={mapId} workflowSession={boundaryWorkflowSession}
+            maxSelection={Math.max(0, PRINT_ANNOTATION_MAX_COUNT - annotations.length)} confirmLabel="Add boundaries to map"
+            validateBatch={snapshots => assertBoundaryDrawingBatchCapacity(libraryContext.annotations, snapshots.map(item => item.drawing))}
+            onDraw={() => { setLibraryOpen(false); handleToolChange(PRINT_ANNOTATION_TOOL_POLYGON); }} onCancel={() => setLibraryOpen(false)}
+            onConfirm={async snapshots => {
+                if (!currentLibraryScope()) return;
+                // The updater receives the controller's latest full document, including hidden drawings.
+                const operation = createBoundaryImportOperation({ drawings: snapshots.map(item => item.drawing), replaceAnnotations,
+                    flushPendingChanges, isCurrent: currentLibraryScope });
+                libraryContext.operation = operation;
+                setLibraryOpen(false);setLibraryImportPending(true);setLibraryImportError('');
+                try { await operation.apply(); if (currentLibraryScope()) { libraryContext.operation = null;cancelDraft(); } }
+                catch (failure) { if (currentLibraryScope()) setLibraryImportError(failure.message); }
+                finally { if (currentLibraryScope()) setLibraryImportPending(false); }
+            }} /> : null}
+        {saveLibraryOpen && selectedBoundary ? <BoundaryLibrarySaveDialog key={`${selectedAnnotation.id}:${saveLibraryVersion}`} mapId={mapId}
+            annotation={selectedAnnotation} savedRevision={savedRevision} session={getSaveSession()} flushPendingChanges={flushPendingChanges}
+            isCurrent={currentLibraryScope} onCancel={() => setSaveLibraryOpen(false)} onSaveAsNew={reviewedDrawing => { const session = getSaveSession(true); if (reviewedDrawing) session.reviewedDrawing = reviewedDrawing;setSaveLibraryVersion(value => value + 1); }} /> : null}
+    </div> : null;
+
     const surfaceOverlay = enabled ? (
         <PrintAnnotationToolbar
             embedded={toolbarInInspector}
-            closeDisabled={toolbarInInspector && hasUnfinishedDraft}
+            closeDisabled={libraryImportPending || (toolbarInInspector && hasUnfinishedDraft)}
             tool={tool}
             modeControls={temporaryMeasurementEnabled ? <AnnotationToolModeControls measuring={measuring}
                 hasUnfinishedDrawing={hasUnfinishedDraft} onChange={handleMeasurementModeChange} /> : null}
@@ -260,6 +333,7 @@ export default function useInteractiveMapAnnotationEditor({
             canMoveSelectedBackward={selectedIndex > 0}
             canMoveSelectedForward={selectedIndex >= 0 && selectedIndex < annotations.length - 1}
             canDuplicateSelected={Boolean(selectedAnnotation && canAddPrintAnnotation(annotations, selectedAnnotation.type, selectedAnnotation.resourceLinks))}
+            boundaryLibraryControls={libraryControls}
             importControls={mapId ? (
                 <KmlBoundaryImport mapId={mapId} annotations={annotations}
                     disabled={['idle', 'loading', 'error'].includes(status) || annotations.length >= PRINT_ANNOTATION_MAX_COUNT}
@@ -313,5 +387,5 @@ export default function useInteractiveMapAnnotationEditor({
     return { mapOverlay, surfaceOverlay: toolbarInInspector ? null : surfaceOverlay,
         inspectorControls: toolbarInInspector ? surfaceOverlay : null, hasUnfinishedDraft,
         hasTemporaryMeasurement: temporaryMeasurement.hasMeasurement, clearTemporaryMeasurement,
-        tool, cancelDraft, closeEditor, selectTool: handleToolChange };
+        selectedAnnotation, tool, cancelDraft, closeEditor, selectTool: handleToolChange };
 }

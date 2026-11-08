@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { api } from '../lib/api.js';
 import {
-    PRINT_ANNOTATION_CLIENT_CAPABILITIES, acknowledgesAnnotationFeatures,
+    PRINT_ANNOTATION_CLIENT_CAPABILITIES, acknowledgesAnnotationFeatures, requiresExactBoundaryWrites,
 } from '../../../shared/annotationWriteCompatibility.js';
 import {
     annotationDraftNeedsQuarantine, clearAnnotationLocalDraft, quarantineAnnotationLocalDraft,
@@ -44,6 +44,7 @@ export function usePrintAnnotations({
     const [loadVersion, setLoadVersion] = useState(0);
     const annotationsRef = useRef([]);
     const revisionRef = useRef(0);
+    const boundarySupportRef = useRef({ capable: false, protectedDocument: false });
     const dirtyRef = useRef(false);
     const saveTimerRef = useRef(null);
     const localDraftTimerRef = useRef(null);
@@ -80,6 +81,8 @@ export function usePrintAnnotations({
                 if (cancelled || loadingTokenRef.current !== token) return;
                 const revision = Number(loaded?.revision || 0);
                 const serverAnnotations = normalizePrintAnnotations(loaded?.annotations);
+                boundarySupportRef.current = { capable: loaded?.serverCapabilities?.exactBoundaryGeometry === true,
+                    protectedDocument: requiresExactBoundaryWrites(loaded?.annotations) };
                 const localDraft = restoreLocalDraft ? readAnnotationLocalDraft(getDraftStorage(), storageKey) : null;
                 const incompatibleDraft = annotationDraftNeedsQuarantine(localDraft, serverAnnotations);
                 if (incompatibleDraft) {
@@ -130,6 +133,9 @@ export function usePrintAnnotations({
             setStatus('saving');
             setError('');
             try {
+                if (!boundarySupportRef.current.capable && (boundarySupportRef.current.protectedDocument || requiresExactBoundaryWrites(annotationsToSave))) {
+                    throw new Error('Update CareAround and reload this map to save its boundary geometry. Your drawing draft is kept.');
+                }
                 const saved = await api.updateMyMapPrintAnnotations(mapId, {
                     schemaVersion: PRINT_ANNOTATION_SCHEMA_VERSION,
                     revision: revisionToSave,
@@ -137,7 +143,9 @@ export function usePrintAnnotations({
                     clientCapabilities: PRINT_ANNOTATION_CLIENT_CAPABILITIES,
                 });
                 revisionRef.current = Number(saved?.revision || revisionToSave + 1);
-                if (!acknowledgesAnnotationFeatures(annotationsToSave, saved?.annotations)) {
+                const protectedWrite = boundarySupportRef.current.protectedDocument || requiresExactBoundaryWrites(annotationsToSave);
+                if ((protectedWrite && saved?.serverCapabilities?.exactBoundaryGeometry !== true)
+                    || !acknowledgesAnnotationFeatures(annotationsToSave, saved?.annotations, boundarySupportRef.current.protectedDocument)) {
                     // A downlevel Worker may advance its revision while stripping
                     // groups. Retain that revision and the full intended draft so
                     // a later retry can recover without losing data or claiming Saved.
@@ -146,6 +154,8 @@ export function usePrintAnnotations({
                     mismatch.code = 'ANNOTATION_ACK_MISMATCH';
                     throw mismatch;
                 }
+                boundarySupportRef.current = { capable: saved?.serverCapabilities?.exactBoundaryGeometry === true,
+                    protectedDocument: requiresExactBoundaryWrites(saved?.annotations) };
                 const stillCurrent = annotationsRef.current === annotationsToSave;
                 dirtyRef.current = !stillCurrent;
                 setDocument((current) => ({

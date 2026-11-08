@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, varchar, decimal, timestamp, pgEnum, jsonb, boolean, primaryKey, uniqueIndex, index, check } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, text, varchar, decimal, timestamp, pgEnum, jsonb, boolean, primaryKey, foreignKey, uniqueIndex, index, check } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
 export const roleEnum = pgEnum('role', ['super_admin', 'regional_admin', 'partner', 'standard', 'guest']);
@@ -2133,4 +2133,116 @@ export const supportFixProposals = pgTable('support_fix_proposals', {
   targetCheck: check('support_fix_proposals_target_check', sql`${table.target} IN ('client', 'server', 'both')`),
   revisionCheck: check('support_fix_proposals_revision_check', sql`${table.sourceRevision} ~ '^[a-f0-9]{40}$'`),
   verificationCheck: check('support_fix_proposals_verification_check', sql`${table.verifiedAt} IS NULL OR (${table.approvedAt} IS NOT NULL AND ${table.releaseEvidence} IS NOT NULL)`),
+}));
+
+// Personal boundary copies keep source IDs as provenance even after source removal.
+export const boundaryLibraryItems = pgTable('boundary_library_items', {
+  id: serial('id').primaryKey(),
+  ownerId: integer('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  requestId: varchar('request_id', { length: 160 }).notNull(),
+  payloadHash: varchar('payload_hash', { length: 64 }).notNull(),
+  revision: integer('revision').notNull().default(1),
+  name: varchar('name', { length: 240 }).notNull(),
+  groupName: varchar('group_name', { length: 240 }),
+  sourceName: varchar('source_name', { length: 240 }),
+  sourceGroupName: varchar('source_group_name', { length: 240 }),
+  type: varchar('type', { length: 20 }).notNull(),
+  source: jsonb('source').notNull(),
+  drawing: jsonb('drawing').notNull(),
+  area: jsonb('area').notNull(),
+  pointCount: integer('point_count').notNull(),
+  snapshotSha256: varchar('snapshot_sha256', { length: 64 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  retiredAt: timestamp('retired_at', { withTimezone: true }),
+}, table => ({
+  request: uniqueIndex('boundary_library_owner_request').on(table.ownerId, table.requestId),
+  page: index('boundary_library_owner_page').on(table.ownerId, table.id),
+}));
+
+export const boundaryMapRequests = pgTable('boundary_map_requests', {
+  ownerId: integer('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  requestId: varchar('request_id', { length: 160 }).notNull(),
+  payloadHash: varchar('payload_hash', { length: 64 }).notNull(),
+  mapId: integer('map_id').references(() => myMaps.id, { onDelete: 'set null' }),
+  hardAssetId: integer('hard_asset_id').notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  outcomeHash: varchar('outcome_hash', { length: 64 }).notNull(),
+  guidanceCancelledAt: timestamp('guidance_cancelled_at', { withTimezone:true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, table => ({
+  pk: primaryKey({ columns: [table.ownerId, table.requestId] }),
+  map: uniqueIndex('boundary_map_requests_map').on(table.mapId),
+}));
+
+export const boundaryZoneJobs = pgTable('boundary_zone_jobs', {
+  id: serial('id').primaryKey(),
+  ownerId: integer('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  requestId: varchar('request_id', { length: 160 }).notNull(),
+  payloadHash: varchar('payload_hash', { length: 64 }).notNull(),
+  snapshotSha256: varchar('snapshot_sha256', { length: 64 }).notNull(),
+  manifestSha256: varchar('manifest_sha256', { length: 64 }).notNull(),
+  manifestIdentity: jsonb('manifest_identity').notNull(),
+  state: varchar('state', { length: 20 }).notNull().default('preparing'),
+  revision: integer('revision').notNull().default(1),
+  resumeState: varchar('resume_state', { length: 20 }),
+  cursor: jsonb('cursor').notNull().default({}),
+  leaseId: varchar('lease_id', { length: 80 }),
+  leaseUntil: timestamp('lease_until', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, table => ({
+  request: uniqueIndex('boundary_jobs_owner_request').on(table.ownerId, table.requestId),
+  page: uniqueIndex('boundary_jobs_owner_page').on(table.ownerId, table.id),
+}));
+
+export const boundaryZoneJobRows = pgTable('boundary_zone_job_rows', {
+  jobId: integer('job_id').notNull().references(() => boundaryZoneJobs.id, { onDelete: 'cascade' }),
+  rowKey: varchar('row_key', { length: 160 }).notNull(),
+  position: integer('position').notNull(),
+  hardAssetId: integer('hard_asset_id').notNull(),
+  name: varchar('name', { length: 160 }).notNull(),
+  zoneCode: varchar('zone_code', { length: 80 }),
+  source: jsonb('source').notNull(),
+  drawing: jsonb('drawing').notNull(),
+  area: jsonb('area').notNull(),
+  snapshotSha256: varchar('snapshot_sha256', { length: 64 }).notNull(),
+  pointCount: integer('point_count').notNull(),
+  saveToLibrary: boolean('save_to_library').notNull().default(false),
+  libraryName: varchar('library_name', { length: 240 }),
+  libraryGroupName: varchar('library_group_name', { length: 240 }),
+  state: varchar('state', { length: 20 }).notNull().default('preparing'),
+  cursor: jsonb('cursor').notNull().default({}),
+  postalCount: integer('postal_count').notNull().default(0),
+  zoneId: integer('zone_id'),
+  libraryItemId: integer('library_item_id'),
+  errorCode: varchar('error_code', { length: 80 }),
+}, table => ({
+  pk: primaryKey({ columns: [table.jobId, table.rowKey] }),
+  position: uniqueIndex('boundary_job_row_position').on(table.jobId, table.position),
+}));
+
+export const boundaryZoneStagedPostals = pgTable('boundary_zone_staged_postals', {
+  jobId: integer('job_id').notNull(),
+  rowKey: varchar('row_key', { length: 160 }).notNull(),
+  postalCode: varchar('postal_code', { length: 6 }).notNull(),
+}, table => ({
+  pk: primaryKey({ columns: [table.jobId, table.rowKey, table.postalCode] }),
+  postal: check('boundary_staged_postal_format', sql`${table.postalCode} ~ '^[0-9]{6}$'`),
+  row: foreignKey({ name: 'boundary_staged_postals_row_fk', columns: [table.jobId, table.rowKey],
+    foreignColumns: [boundaryZoneJobRows.jobId, boundaryZoneJobRows.rowKey] }).onDelete('cascade'),
+}));
+
+export const boundaryZoneCommitRequests = pgTable('boundary_zone_commit_requests', {
+  ownerId: integer('owner_id').notNull(),
+  requestId: varchar('request_id', { length: 160 }).notNull(),
+  jobId: integer('job_id').notNull(),
+  expectedRevision: integer('expected_revision').notNull(),
+  payloadHash: varchar('payload_hash', { length: 64 }).notNull(),
+  snapshotSha256: varchar('snapshot_sha256', { length: 64 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, table => ({
+  pk: primaryKey({ columns: [table.ownerId, table.requestId] }),
+  job: uniqueIndex('boundary_commit_job').on(table.jobId),
+  ownerJob: foreignKey({ name: 'boundary_commit_owner_job_fk', columns: [table.ownerId, table.jobId],
+    foreignColumns: [boundaryZoneJobs.ownerId, boundaryZoneJobs.id] }).onDelete('cascade'),
 }));

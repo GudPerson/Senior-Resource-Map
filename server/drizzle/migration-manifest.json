@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "authoritativeSchema": "src/db/schema.js",
-  "currentSchemaSha256": "109c907594f511c0f6da50badeea45de45393f29c0bbbfc2a11c716b517648dd",
+  "currentSchemaSha256": "322f92c73d8e51ce46d03c78accab2b92eb1b7d9ef325c7ad584cffb3487cf9d",
   "runtimeCompatibilityBootstrap": "src/utils/boundarySchema.js",
   "runtimeCompatibilityBootstrapSha256": "8a9bdb2545fe0ce03c37aaf11ddee97ae5f04834d586c2381c3e04360f60c63f",
   "migrations": [
@@ -194,6 +194,23 @@
         "A publishing approval requires an active linked organisation, an active unexpired agreement allowing public listing and external sharing, an approved field list, and the requested public use.",
         "Existing imported resources receive no permission row and no source data is deleted or rewritten.",
         "The installed generator omits CHECK constraints; the reviewed SQL restores all seven permission checks and migration tests must verify them."
+      ]
+    },
+    {
+      "id": "0011_boundary_library_guided_zones",
+      "file": "drizzle/0011_boundary_library_guided_zones.sql",
+      "sha256": "9924475d4a9332bf40bea8cb3b7a47143f63340b646a42714ef2b2a71aad6bec",
+      "snapshotFile": "drizzle/meta/0011_snapshot.json",
+      "snapshotSha256": "cd8183fe696160efe7dc129a1812daa6624f3e684fa2076a504e965b107df0e6",
+      "type": "additive-private-boundary-workflows",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "Roll back the Worker and retain the additive tables, immutable copies and accepted request identities.",
+      "environmentStatus": "Local migration candidate for disposable PostgreSQL validation only.",
+      "cautions": [
+        "Apply before enabling boundary routes. No startup bootstrap or backfill.",
+        "Create the owner/job unique index before its composite commit-request foreign key.",
+        "The installed generator omits CHECK constraints. Reviewed SQL enforces six-digit staged postal codes."
       ]
     }
   ]
