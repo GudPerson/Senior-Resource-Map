@@ -66,7 +66,7 @@ function imageResponse(object, publicRead = false) {
 }
 
 // Bind only in an independently reviewed maintenance build. No request or environment override.
-const observationPolicy = Object.freeze({ opensUtc: '2026-11-08T03:15:00.000Z', closesUtc: '2026-11-08T03:30:00.000Z' });
+const observationPolicy = Object.freeze({ opensUtc: '2026-11-08T05:45:00.000Z', closesUtc: '2026-11-08T06:00:00.000Z' });
 const observationUrl = 'https://api.carearound.sg/api/help/cms/binding-observation';
 const observationError = (c, code, status) => c.json({ ok: false, code }, status);
 
