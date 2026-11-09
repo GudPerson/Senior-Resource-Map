@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { createHelpCmsRoutes, createHelpMediaRoutes } from '../src/routes/helpCms.js';
 import { createHelpCmsRepository, cmsSha256 } from '../src/utils/helpCmsRepository.js';
 import { cmsSeedWorkspace } from '../../shared/helpContentCms.js';
+import {makeWorkerReleaseManifest} from '../src/utils/workerRelease.js';
+import {maintenanceIdentityPermitKey} from '../src/utils/maintenanceIdentityPermit.js';
 import { rebaseHelpCmsWorkspace } from '../src/utils/helpCmsRebase.js';
 
 class MemoryBucket {
@@ -11,7 +13,7 @@ class MemoryBucket {
         const stored = this.objects.get(key);
         if (!stored) return null;
         const bytes = stored.bytes.slice();
-        return { etag: stored.etag, body: new Response(bytes).body, httpMetadata: stored.httpMetadata,
+        return { etag: stored.etag, size:bytes.byteLength, body: new Response(bytes).body, httpMetadata: stored.httpMetadata,
             customMetadata: stored.customMetadata, json: async () => JSON.parse(new TextDecoder().decode(bytes)) };
     }
     async put(key, value, options = {}) {
@@ -42,8 +44,8 @@ const envFor = bucket => ({ HELP_CMS_ENABLED: 'true', HELP_CMS_OWNER_ID: '7', HE
     HELP_CMS_PUBLISH_REPOSITORY: 'carearound/private-runner', HELP_CMS_SOURCE_REVISION: sourceRevision,
     HELP_CMS_PUBLIC_API_ORIGIN: 'https://api.example.com', HELP_CMS_PUBLIC_APP_ORIGIN: 'https://app.carearound.sg', NODE_ENV: 'production' });
 const now = () => new Date('2026-10-03T10:00:00.000Z');
-function appFor({ bucket = new MemoryBucket(), actor = { id: 7, role: 'super_admin' }, fetchImpl = async () => { throw new Error('unexpected fetch'); } } = {}) {
-    const app = createHelpCmsRoutes({ seed, now, fetchImpl, authenticate: async (c, next) => { c.set('user', actor); await next(); } });
+function appFor({ bucket = new MemoryBucket(), actor = { id: 7, role: 'super_admin' }, fetchImpl = async () => { throw new Error('unexpected fetch'); }, observeRelease } = {}) {
+    const app = createHelpCmsRoutes({ seed, now, fetchImpl, ...(observeRelease ? {observeRelease} : {}), authenticate: async (c, next) => { c.set('user', actor); await next(); } });
     return { app, bucket, env: envFor(bucket) };
 }
 const jsonRequest = (app, env, path, method, body, headers = {}) => app.request(path, { method,
@@ -153,7 +155,7 @@ test('Publishing refuses a public runner repository and retains a recoverable pr
     assert.equal(releases.releases[0].state, 'dispatch-unconfirmed');
 });
 
-async function publishedFixture({ readiness = true, editWorkspace, fetchImpl: suppliedFetch } = {}) {
+async function publishedFixture({ readiness = true, editWorkspace, fetchImpl: suppliedFetch, observeRelease } = {}) {
     let dispatched;
     const fetchImpl = async (url, options = {}) => {
         if (url === 'https://api.github.com/repos/carearound/private-runner') return Response.json({ private: true, full_name: 'carearound/private-runner' });
@@ -162,7 +164,7 @@ async function publishedFixture({ readiness = true, editWorkspace, fetchImpl: su
         return Response.json({ version: `${now().toISOString().slice(0, 10)}.help-cms.${now().getTime()}`,
             contentDigest: readiness ? compiledDigest : 'c'.repeat(64) });
     };
-    const result = await savedFixture({ fetchImpl });
+    const result = await savedFixture({ fetchImpl,observeRelease });
     if (editWorkspace) {
         const workspace = structuredClone(result.saved.workspace); editWorkspace(workspace);
         const saved = await jsonRequest(result.app, result.env, '/', 'PUT', { workspace, etag: result.saved.etag });
@@ -401,4 +403,31 @@ test('Successful publication keeps private archived articles, edits, attachments
     assert.equal(saved.workspace.articles.find(a=>a.id==='HC-03').status,'retired');
     const restored=structuredClone(saved.workspace);restored.articles.find(a=>a.id==='HC-03').status='draft';
     assert.equal((await jsonRequest(app,env,'/','PUT',{workspace:restored,etag:saved.etag})).status,200);
+});
+
+const permitRuntime=()=>makeWorkerReleaseManifest('d'.repeat(40),{id:'12345678-1234-1234-1234-123456789012',tag:'git-'+ 'd'.repeat(40),timestamp:now().toISOString()});
+test('first verified CMS completion arms only after published pointer, workspace promotion and lock clear',async()=>{
+    const f=await publishedFixture({observeRelease:permitRuntime});
+    const result=await jsonRequest(f.app,f.env,`/release/${f.snapshot.id}/receipt`,'POST',f.receipt,{Authorization:`Bearer ${runnerToken}`});
+    const body=await result.json();assert.equal(body.release.state,'published');assert.equal(body.maintenanceIdentityPermit.state,'armed');
+    const repo=createHelpCmsRepository(f.bucket,{seed,seedWorkspace:cmsSeedWorkspace(seed),now});
+    assert.equal((await repo.latestPublished()).id,f.snapshot.id);assert.equal((await repo.loadWorkspace()).workspace.baseContentVersion,f.snapshot.version);assert.equal(await repo.activePublication(),null);
+    const record=await (await f.bucket.get(maintenanceIdentityPermitKey)).json();assert.equal(record.publishedAt,body.release.publishedAt);assert.equal(record.releaseId,f.snapshot.id);assert.equal(record.jobId,f.snapshot.jobId);assert.equal(record.pagesDeploymentId,f.receipt.pagesDeploymentId);
+    const etag=(await f.bucket.get(maintenanceIdentityPermitKey)).etag;
+    const repeated=await jsonRequest(f.app,f.env,`/release/${f.snapshot.id}/receipt`,'POST',f.receipt,{Authorization:`Bearer ${runnerToken}`});
+    assert.equal((await repeated.json()).release.publishedAt,body.release.publishedAt);assert.equal((await f.bucket.get(maintenanceIdentityPermitKey)).etag,etag);
+});
+test('ambiguous permit arming preserves successful CMS publication and duplicate receipt never retries arming',async()=>{
+    const f=await publishedFixture({observeRelease:permitRuntime});let arms=0;
+    f.bucket.beforePut=async key=>{if(key===maintenanceIdentityPermitKey){arms++;throw Error('PRIVATE_ARM_FAILURE');}};
+    const send=()=>jsonRequest(f.app,f.env,`/release/${f.snapshot.id}/receipt`,'POST',f.receipt,{Authorization:`Bearer ${runnerToken}`});
+    const response=await send(),body=await response.json();assert.equal(response.status,200);assert.equal(body.release.state,'published');assert.deepEqual(body.maintenanceIdentityPermit,{state:'hold'});assert.doesNotMatch(JSON.stringify(body),/PRIVATE_ARM_FAILURE/);
+    const current=await (await f.app.request('/',{},f.env)).json();assert.equal(current.baseDrift,false);assert.equal(current.activeReleaseId,null);assert.equal(current.workspace.baseContentVersion,f.snapshot.version);
+    assert.equal((await send()).status,200);assert.equal(arms,1);assert.equal(await f.bucket.get(maintenanceIdentityPermitKey),null);
+});
+test('partial readiness or failed workspace promotion never arms a permit',async()=>{
+    const partial=await publishedFixture({readiness:false,observeRelease:permitRuntime});
+    const p=await jsonRequest(partial.app,partial.env,`/release/${partial.snapshot.id}/receipt`,'POST',partial.receipt,{Authorization:`Bearer ${runnerToken}`});assert.equal((await p.json()).release.state,'partially-released');assert.equal(await partial.bucket.get(maintenanceIdentityPermitKey),null);
+    const f=await publishedFixture({observeRelease:permitRuntime});f.bucket.beforePut=async key=>{if(key==='workspace/current.json')throw Error('PRIVATE_PROMOTION_FAILURE');};
+    const r=await jsonRequest(f.app,f.env,`/release/${f.snapshot.id}/receipt`,'POST',f.receipt,{Authorization:`Bearer ${runnerToken}`}),body=await r.json();assert.equal(body.release.state,'published');assert.deepEqual(body.maintenanceIdentityPermit,{state:'hold'});assert.equal(await f.bucket.get(maintenanceIdentityPermitKey),null);
 });
