@@ -1,30 +1,6 @@
-import { buildPrintAnnotationPolygonPoints, buildPrintAnnotationRectanglePoints } from './printAnnotations.js';
-import { distanceMeters, isSpatialCoordinate, normalizeSpatialArea } from '../../../shared/addressSnapshotSpatial.js';
 export { SPATIAL_EARTH_RADIUS_METERS, SPATIAL_MAX_AREA_POINTS, distanceMeters, isSpatialCoordinate,
     normalizeSpatialArea, containsSpatialPoint, spatialAreaBounds } from '../../../shared/addressSnapshotSpatial.js';
-
-function closedGeoJsonRing(points) {
-    const ring = points.map(([lat, lng]) => [lng, lat]);
-    if (ring.length && (ring[0][0] !== ring.at(-1)[0] || ring[0][1] !== ring.at(-1)[1])) ring.push([...ring[0]]);
-    return ring;
-}
-
-export function createSpatialAreaFromAnnotation(annotation) {
-    if (!annotation || !Array.isArray(annotation.points) || !annotation.points.every(isSpatialCoordinate)) return null;
-    if (annotation.type === 'circle' && annotation.points.length === 2) {
-        return { type: 'circle', center: [...annotation.points[0]], radiusMeters: Math.max(1, distanceMeters(...annotation.points)) };
-    }
-    if (annotation.type === 'rectangle' && annotation.points.length === 2) {
-        const points = buildPrintAnnotationRectanglePoints(annotation.points, annotation.rotationDegrees);
-        return normalizeSpatialArea({ type: 'Polygon', coordinates: [closedGeoJsonRing(points)] });
-    }
-    if (annotation.type !== 'polygon' || annotation.points.length < 3) return null;
-    if (annotation.controlPoints && (!Array.isArray(annotation.controlPoints) || !annotation.controlPoints.every(isSpatialCoordinate))) return null;
-    const display = buildPrintAnnotationPolygonPoints(annotation);
-    const parts = annotation.boundarySource === 'kml' && annotation.boundaryParts ? display : [[display]];
-    return normalizeSpatialArea({ type: parts.length === 1 ? 'Polygon' : 'MultiPolygon',
-        coordinates: parts.length === 1 ? parts[0].map(closedGeoJsonRing) : parts.map(rings => rings.map(closedGeoJsonRing)) });
-}
+export { createSpatialAreaFromAnnotation } from '../../../shared/boundaryDrawingGeometry.js';
 
 export function formatRadiusDistance(meters) {
     if (!Number.isFinite(meters) || meters < 0) return '';

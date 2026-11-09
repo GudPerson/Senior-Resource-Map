@@ -30,6 +30,12 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
     const configRef = useRef(config);
     configRef.current = config;
     const [panel, setPanel] = useState(null);
+    const guidedEntries = useRef(new Set());
+    useEffect(() => {
+        const key=config.guidedReturn?.entryKey;
+        if (!active || !key || guidedEntries.current.has(key)) return;
+        guidedEntries.current.add(key);setPanel('annotations');
+    }, [active,config.guidedReturn?.entryKey]);
     const [notice, setNotice] = useState('');
     const [showLayers, setShowLayers] = useState(false);
     const [hoverInspection, setHoverInspection] = useState(null);
@@ -229,7 +235,7 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
     return (
         <OwnerMapEditingCanvasContext.Provider value={context}>
             <div ref={rootRef} className="owner-editing-canvas" data-owner-editing-canvas="true"
-                data-owner-canvas-active={active} data-owner-canvas-panel={panel || 'none'}
+                data-owner-canvas-active={active} data-owner-canvas-panel={panel || 'none'} data-boundary-guided={config.guidedReturn ? 'true' : undefined}
                 data-owner-canvas-modal={foregroundOpen}>
                 <div data-owner-canvas-page="true">{children}</div>
                 <div ref={chromeRef} data-owner-canvas-chrome="true" data-care-map-gesture-ui="true">
@@ -255,9 +261,11 @@ export default function OwnerMapEditingCanvas({ active, onActiveChange, configur
                             {config.hasUnfinishedDraft ? <p className="owner-canvas-draft-note" role="status"
                                 id="owner-canvas-draft-guidance">{messages.finishDraft}</p> : null}
                         </div>
-                        <button ref={returnButtonRef} type="button" className="owner-canvas-exit" data-owner-canvas-exit="true" onClick={exit}>
-                            <Minimize2 size={17} aria-hidden="true" /><span>{messages.exit}</span>
+                        <button ref={returnButtonRef} type="button" className={`owner-canvas-exit${config.guidedReturn ? ' boundary-guided-return' : ''}`} aria-label={config.guidedReturn?.label} data-owner-canvas-exit="true" disabled={config.guidedReturn?.disabled} onClick={config.guidedReturn ? config.guidedReturn.onReturn : exit}>
+                            <Minimize2 size={17} aria-hidden="true" /><span className={config.guidedReturn ? 'boundary-guided-return-full' : undefined}>{config.guidedReturn?.label || messages.exit}</span>
+                            {config.guidedReturn ? <span className="boundary-guided-return-short">Edit zone</span> : null}
                         </button>
+                        {config.guidedReturn?.controls ? <div className="boundary-guided-canvas-controls">{config.guidedReturn.controls}</div> : null}
                         <nav className="owner-canvas-rail" aria-label={messages.tools}>
                             {tools.map(([name, label, Icon, disabled]) => {
                                 const selected = name === 'draw' ? panel === 'annotations' : panel === name;

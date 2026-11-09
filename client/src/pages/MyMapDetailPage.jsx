@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { applyMapNoteImagesToDirectory } from '../lib/mapNoteImages.js';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { Drawer } from 'vaul';
 import {
     AlignLeft,
@@ -65,6 +65,9 @@ import { useOwnerMapEditingCanvas } from '../contexts/OwnerMapEditingCanvasConte
 import { useMapStyle } from '../contexts/MapStyleContext.jsx';
 import { useSavedAssets } from '../hooks/useSavedAssets.js';
 import { api } from '../lib/api.js';
+import { useBoundaryZoneWorkflow } from '../components/boundaries/BoundaryZoneWorkflowProvider.jsx';
+import GuidedBoundaryControls from '../components/boundaries/GuidedBoundaryControls.jsx';
+import { isGuidedBoundaryEntry } from '../lib/boundaryZoneWorkflow.js';
 import { searchOneMap } from '../lib/geo.js';
 import {
     getGroupFocusFallbackResourceIds,
@@ -1611,6 +1614,14 @@ function useTownMapOverviewManifestStates({
 
 export default function MyMapDetailPage() {
     const { mapId } = useParams();
+    const boundaryWorkflow = useBoundaryZoneWorkflow();
+    const boundaryLocation = useLocation();
+    const guidedEntries = useRef(new Set());
+    const guidedReturnFlight = useRef(false);
+    const [guidedBusy, setGuidedBusy] = useState(false);
+    const [guidedError, setGuidedError] = useState('');
+    const [guidedNeedsReview,setGuidedNeedsReview]=useState(false);
+    const guidedSelectionRef=useRef(null);
     const [searchParams, setSearchParams] = useSearchParams();
     // A presentation is selected once per page load; changing it never reparents a live save controller.
     const [splitWorkspaceSelected] = useState(() => isOwnerMapWorkspaceEnabled(searchParams, import.meta.env.VITE_OWNER_MAP_WORKSPACE_ENABLED));
@@ -1887,6 +1898,11 @@ export default function MyMapDetailPage() {
         privateImageSources: privateAnnotationImages.sources,
         enabled: interactiveAnnotationEditorOpen && !isPrintView,
         annotations: printAnnotations.annotations,
+        boundaryLibraryEnabled: !isPrintView && !boundaryWorkflow?.loggingOut,
+        boundaryWorkflowSession: boundaryWorkflow?.session,
+        ownerKey: user?.id,
+        savedRevision: printAnnotations.revision,
+        flushPendingChanges: printAnnotations.flushPendingChanges,
         status: printAnnotations.status,
         error: printAnnotations.error,
         replaceAnnotations: printAnnotations.replaceAnnotations,
@@ -3969,6 +3985,46 @@ export default function MyMapDetailPage() {
         }}
         onSaveAndAdd={handleAddAreaResources} onBusyChange={setAddSubmitting} /> : null;
 
+    guidedSelectionRef.current={annotation:interactiveAnnotationEditor.selectedAnnotation,hasUnfinishedDraft:interactiveAnnotationEditor.hasUnfinishedDraft};
+    const guidedDraft = boundaryWorkflow?.draft;
+    const guidedActive = Boolean(guidedDraft && !boundaryWorkflow.loggingOut && !isPrintView
+        && directory?.viewer?.isOwner === true
+        && isGuidedBoundaryEntry({draft:guidedDraft,state:boundaryLocation.state,mapId,ownerId:user?.id}));
+    const guidedEntryKey = guidedActive ? `${guidedDraft.workflowId}:${mapId}:${boundaryLocation.key}` : '';
+    useEffect(() => {
+        if (!guidedActive || !printAnnotationsReady || guidedEntries.current.has(guidedEntryKey)) return;
+        const session=boundaryWorkflow.session,token=session.capture();let active=true;
+        // The established focus helper flushes synchronously for user events.
+        // Guided admission runs after this lifecycle, under the same entry fence.
+        queueMicrotask(() => {
+            if (!active || !session.isCurrent(token) || guidedEntries.current.has(guidedEntryKey)) return;
+            const placeKey=`hard-${guidedDraft.hardAssetId}`;
+            const place=(directory.places || []).find(place=>place.placeKey===placeKey);
+            const pin=(ownerPresentation.pins || []).find(pin=>pin.placeKey===placeKey || pin.memberPlaceKeys?.includes(placeKey));
+            if (!place?.hasCoordinates || !Number.isFinite(Number(place.lat)) || !Number.isFinite(Number(place.lng)) || !pin) return;
+            focusPlaceOnMap(placeKey);
+            guidedEntries.current.add(guidedEntryKey);
+            setInteractiveAnnotationEditorOpen(true);
+            interactiveAnnotationEditor.selectTool('polygon');
+            if (!splitWorkspace) setEditingCanvasOpen(true);
+        });
+        return () => {active=false;};
+    }, [guidedActive,guidedEntryKey,printAnnotationsReady,directory,ownerPresentation.pins]);
+    async function returnGuidedBoundary() {
+        if (!guidedActive || guidedReturnFlight.current) return;
+        const token=boundaryWorkflow.session.capture();
+        guidedReturnFlight.current=true;setGuidedBusy(true);setGuidedError('');setGuidedNeedsReview(false);
+        try {
+            await boundaryWorkflow.acceptSavedBoundary({mapId,selectedAnnotation:interactiveAnnotationEditor.selectedAnnotation,
+                hasUnfinishedDraft:interactiveAnnotationEditor.hasUnfinishedDraft,flushPendingChanges:printAnnotations.flushPendingChanges,
+                readSavedDocument:()=>api.getMyMapPrintAnnotations(mapId),readCurrentSelection:()=>guidedSelectionRef.current});
+        } catch(failure) {if(boundaryWorkflow.session.isCurrent(token)){setGuidedError(failure.message);setGuidedNeedsReview(failure.code==='BOUNDARY_SOURCE_REVIEW_REQUIRED');}}
+        finally {guidedReturnFlight.current=false;if(boundaryWorkflow.session.isCurrent(token))setGuidedBusy(false);}
+    }
+    const guidedControls = guidedActive ? <GuidedBoundaryControls workflow={guidedDraft} busy={guidedBusy} error={guidedError}
+        hasUnfinishedDraft={interactiveAnnotationEditor.hasUnfinishedDraft} returnInCanvas={editingCanvasOpen}
+        onUseBoundary={returnGuidedBoundary} onReviewSaved={guidedNeedsReview ? ()=>{printAnnotations.reload();setGuidedError('');setGuidedNeedsReview(false);} : null} onCancel={async()=>{const pending=boundaryWorkflow.cancel();const token=boundaryWorkflow.session.capture();const message=await pending;if(boundaryWorkflow.session.isCurrent(token))setActionError(message);}} /> : null;
+
     if (loading || (directory && directoryCacheKeyRef.current !== currentMapCacheKey)) {
         return (
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50" data-route-cache-version={MY_MAP_ROUTE_CACHE_VERSION}>
@@ -3988,6 +4044,7 @@ export default function MyMapDetailPage() {
                         <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500">
                             {error || t('mapNotAvailableDescription')}
                         </p>
+                        {boundaryWorkflow?.draft && !boundaryWorkflow.loggingOut ? <Link to="/dashboard/resources" state={boundaryWorkflow.session.pointers()} className="btn-ghost mt-4">Recover boundary workflow</Link> : null}
                         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
                             <button type="button" onClick={loadMap} className="btn-primary inline-flex justify-center">
                                 {t('phoneLoginTryAgainButton')}
@@ -4099,7 +4156,7 @@ export default function MyMapDetailPage() {
         studioPanel: ownerMapStudioPanel,
         studioState: studioSaveState,
         onSelectView: nextViewId => mapStudioControllerRef.current?.selectView(nextViewId),
-        annotationControls: interactiveAnnotationEditor.inspectorControls,
+        annotationControls: <>{guidedControls}{interactiveAnnotationEditor.inspectorControls}</>,
         onOpenStudio: openMapStudioLayoutSettings,
         onExplore: async () => {
             if (await flushMapStudioChanges()) mapStudioControllerRef.current?.setMode('explore');
@@ -4117,6 +4174,9 @@ export default function MyMapDetailPage() {
     const editingCanvasConfiguration = {
         ...ownerToolbarActionProps,
         canvasAvailable: !splitWorkspace,
+        guidedReturn: guidedActive ? {label:'Return to Edit zone',onReturn:returnGuidedBoundary,
+            disabled:guidedBusy || interactiveAnnotationEditor.hasUnfinishedDraft || !interactiveAnnotationEditor.selectedAnnotation,
+            controls:guidedControls,entryKey:guidedEntryKey} : null,
         directory,
         ownerKey: user?.id || '',
         mapId,
@@ -4477,6 +4537,7 @@ export default function MyMapDetailPage() {
         return (
             <OwnerMapEditingCanvas active={editingCanvasOpen} onActiveChange={setEditingCanvasOpen}
                 configuration={editingCanvasConfiguration}>
+                {guidedActive && !editingCanvasOpen && !splitWorkspace ? guidedControls : null}
                 <MyMapV2PreviewScaffold
                     ownerToolMenu={directory?.viewer?.isOwner === true}
                     inspectionOverlay={ownerMapInspectionOverlay}
@@ -4724,6 +4785,7 @@ export default function MyMapDetailPage() {
     return (
         <OwnerMapEditingCanvas active={editingCanvasOpen} onActiveChange={setEditingCanvasOpen}
             configuration={editingCanvasConfiguration}>
+                {guidedActive && !editingCanvasOpen && !splitWorkspace ? guidedControls : null}
             <div className="min-h-[calc(100vh-4rem)] bg-slate-50" data-route-cache-version={MY_MAP_ROUTE_CACHE_VERSION}>
                 {!splitWorkspace && (!useDesktopOwnerLayout || mapFirstOpen) ? (
                         <MyMapMobileControls

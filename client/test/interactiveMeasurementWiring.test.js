@@ -24,6 +24,7 @@ async function runtime() {
                 ? `export const jsx=(type,props)=>({type,props});export const jsxs=jsx;export const Fragment='fragment';`
                 : path === 'react' ? `export * from 'fixture:hooks';` : scheduler }));
             build.onLoad({ filter: /\/components\/(PrintAnnotationLayer|PrintAnnotationToolbar|AnnotationImageUpload|AnnotationResourcePicker|KmlBoundaryImport|TemporaryMapMeasurementLayer)\.jsx$/ }, () => ({ contents: `export default function InertView(){return null;}` }));
+            build.onLoad({ filter: /\/components\/boundaries\/(BoundaryLibraryPicker|BoundaryLibrarySaveDialog)\.jsx$/ }, () => ({ contents: `export default function InertView(){return null;}` }));
             build.onLoad({ filter: /AnnotationToolModeControls\.jsx$/ }, () => ({ contents: `export const AnnotationToolModeControls=()=>null;export const TemporaryMapMeasurementControls=()=>null;` }));
         } }],
     });

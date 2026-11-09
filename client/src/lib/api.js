@@ -309,6 +309,15 @@ async function requestBlob(path, options = {}) {
     throw new Error('Download failed');
 }
 
+function boundaryQuery(params) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
+    }
+    const encoded = query.toString();
+    return encoded ? `?${encoded}` : '';
+}
+
 export const api = {
     // Auth
     login: (body) => request('POST', '/auth/login', body),
@@ -615,6 +624,23 @@ export const api = {
     acknowledgeCalendarSchedule: (softAssetId) => request('POST', '/calendar/schedule-states/acknowledge', { softAssetId }),
 
     // My Maps
+    listBoundaryLibrary: (params = {}) => request('GET', `/boundary-library${boundaryQuery(params)}`),
+    getBoundaryLibrary: (id) => request('GET', `/boundary-library/${encodeURIComponent(id)}`),
+    createBoundaryLibrary: (body) => request('POST', '/boundary-library', body),
+    retireBoundaryLibrary: (id) => request('DELETE', `/boundary-library/${encodeURIComponent(id)}`),
+    startBoundaryZoneMap: (body) => request('POST', '/boundary-zone-workflows/map', body),
+    cancelBoundaryZoneMap: (requestId) => request('POST', `/boundary-zone-workflows/map/${encodeURIComponent(requestId)}/cancel`),
+    getBoundaryZoneMap: (requestId) => request('GET', `/boundary-zone-workflows/map/${encodeURIComponent(requestId)}`),
+    createBoundaryZoneJob: (body) => request('POST', '/boundary-zone-jobs', body),
+    listBoundaryZoneJobs: (params = {}) => request('GET', `/boundary-zone-jobs${boundaryQuery(params)}`),
+    getBoundaryZoneJob: (id) => request('GET', `/boundary-zone-jobs/${encodeURIComponent(id)}`),
+    getBoundaryZoneJobRowSource: (id, rowKey) => request('GET', `/boundary-zone-jobs/${encodeURIComponent(id)}/rows/${encodeURIComponent(rowKey)}/source`),
+    advanceBoundaryZoneJob: (id, body) => request('POST', `/boundary-zone-jobs/${encodeURIComponent(id)}/advance`, body),
+    commitBoundaryZoneJob: (id, body) => request('POST', `/boundary-zone-jobs/${encodeURIComponent(id)}/commit`, body),
+    pauseBoundaryZoneJob: (id, body) => request('POST', `/boundary-zone-jobs/${encodeURIComponent(id)}/pause`, body),
+    resumeBoundaryZoneJob: (id, body) => request('POST', `/boundary-zone-jobs/${encodeURIComponent(id)}/resume`, body),
+    cancelBoundaryZoneJob: (id, body) => request('POST', `/boundary-zone-jobs/${encodeURIComponent(id)}/cancel`, body),
+
     getMyMaps: () => request('GET', '/my-maps'),
     createMyMap: (body) => request('POST', '/my-maps', body),
     getMyMap: (id, options = {}) => request('GET', `/my-maps/${id}`, undefined, options),

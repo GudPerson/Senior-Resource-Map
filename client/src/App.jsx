@@ -2,6 +2,7 @@ import { Component, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext.jsx';
 import Navbar from './components/layout/Navbar.jsx';
+import BoundaryZoneWorkflowProvider, { useBoundaryZoneWorkflow } from './components/boundaries/BoundaryZoneWorkflowProvider.jsx';
 import DiscoverPage from './pages/DiscoverPage.jsx';
 import AuthPage from './pages/AuthPage.jsx';
 
@@ -20,6 +21,7 @@ import {
 import { SUPPORT_UI_ENABLED } from './lib/supportInbox.js';
 import GuideAssistantProvider from './features/support/GuideAssistant.jsx';
 
+const BoundaryZoneBatchWizard = lazy(() => import('./components/boundaries/BoundaryZoneBatchWizard.jsx'));
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage.jsx'));
 const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview.jsx'));
 const CareCalendarPage = lazy(() => import('./pages/dashboard/CareCalendarPage.jsx'));
@@ -82,11 +84,18 @@ export default function App() {
         <LocaleProvider>
             <SavedAssetsProvider>
                 <BrowserRouter>
-                    <GuideAssistantProvider><AppShell /></GuideAssistantProvider>
+                    <BoundaryWorkflowRoot />
                 </BrowserRouter>
             </SavedAssetsProvider>
         </LocaleProvider>
     );
+}
+
+function BoundaryWorkflowRoot() {
+    const { user } = useAuth();
+    return <BoundaryZoneWorkflowProvider ownerId={user && normalizeRole(user.role) !== 'guest' ? user.id : null}>
+        <GuideAssistantProvider><AppShell /></GuideAssistantProvider>
+    </BoundaryZoneWorkflowProvider>;
 }
 
 function RouteLoadingFallback() {
@@ -178,7 +187,19 @@ class RouteErrorBoundary extends Component {
     }
 }
 
+function BoundaryWorkflowDialogs() {
+    const workflow=useBoundaryZoneWorkflow();
+    const {user}=useAuth();
+    const location=useLocation();
+    if(!workflow || workflow.loggingOut || !user || normalizeRole(user.role)==='guest')return null;
+    return <>
+        {location.pathname==='/my-directory' ? <div className="mx-auto max-w-[1680px] px-4 pt-3 sm:px-6"><button type="button" className="btn-ghost text-sm" onClick={()=>{if(!workflow.draft)workflow.session.begin({phase:'recent'});workflow.session.update({wizardOpen:true});}}>Recent boundary batches</button></div> : null}
+        {workflow.draft?.wizardOpen ? <Suspense fallback={<LoadingState label="Opening boundary batch…" />}><BoundaryZoneBatchWizard key={workflow.draft.workflowId} /></Suspense> : null}
+    </>;
+}
+
 function AppShell() {
+    const boundaryWorkflow = useBoundaryZoneWorkflow();
     const location = useLocation();
     const { isLoading } = useAuth();
     const hideNavbar = location.pathname.startsWith('/shared/maps/')
@@ -193,7 +214,8 @@ function AppShell() {
     return (
         <>
             <MobileMyMapEntryScrollReset />
-            {!hideNavbar ? <Navbar /> : null}
+            {!hideNavbar ? <Navbar onLogoutStart={boundaryWorkflow?.session.invalidate} /> : null}
+            <BoundaryWorkflowDialogs />
             <RouteErrorBoundary resetKey={`${location.pathname}${location.search}`}>
                 <Suspense fallback={<RouteLoadingFallback />}>
                     <Routes>

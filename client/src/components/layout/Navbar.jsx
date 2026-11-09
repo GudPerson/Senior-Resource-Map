@@ -14,7 +14,7 @@ function joinClasses(...parts) {
     return parts.filter(Boolean).join(' ');
 }
 
-export default function Navbar() {
+export default function Navbar({ onLogoutStart } = {}) {
     const { user, isAuth, isImpersonating, logout } = useAuth();
     const { highContrast, toggleHighContrast, canIncreaseZoom, increaseZoom, decreaseZoom } = useA11y();
     const { locale, locales, setLocale, t } = useLocale();
@@ -28,6 +28,7 @@ export default function Navbar() {
 
     async function handleLogout() {
         const impersonationExit = isImpersonating;
+        onLogoutStart?.();
         await logout();
         navigate(impersonationExit ? '/dashboard' : '/');
     }

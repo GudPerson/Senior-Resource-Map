@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "authoritativeSchema": "src/db/schema.js",
-  "currentSchemaSha256": "2ad623a5ee4c061e416486754a214ee6daa214b3f6247e0083e090807d5aaf0e",
+  "currentSchemaSha256": "a902b69f0b89073d4e77dd59bd9d21efdb2c89bafda193a0a94fc1b17e35e805",
   "runtimeCompatibilityBootstrap": "src/utils/boundarySchema.js",
   "runtimeCompatibilityBootstrapSha256": "8a9bdb2545fe0ce03c37aaf11ddee97ae5f04834d586c2381c3e04360f60c63f",
   "migrations": [
@@ -213,6 +213,23 @@
         "Eleven declared CHECK constraints omitted by the installed generator are restored in reviewed SQL and tested in disposable PostgreSQL.",
         "No global publication fields, claim transitions, ordinary Discovery, generic boundary bootstrap or existing compact payload is changed.",
         "Decision actor IDs are positive historical provenance without live-user foreign keys. Existing account deletion retains decisions and audit events; current live authentication and Super Admin authority remain required for new decisions."
+      ]
+    },
+    {
+      "id": "0012_boundary_library_guided_zones",
+      "file": "drizzle/0012_boundary_library_guided_zones.sql",
+      "sha256": "9924475d4a9332bf40bea8cb3b7a47143f63340b646a42714ef2b2a71aad6bec",
+      "snapshotFile": "drizzle/meta/0012_snapshot.json",
+      "snapshotSha256": "fde1c658738611fa23bebfbff0168590201a0142240a13b1327b2f2bcb45982a",
+      "type": "additive-private-boundary-workflows",
+      "owner": "CareAround Backend Platform Owner",
+      "forwardOnly": true,
+      "rollbackStrategy": "Roll back the Worker and retain the additive tables, immutable copies and accepted request identities.",
+      "environmentStatus": "Local migration candidate for disposable PostgreSQL validation only.",
+      "cautions": [
+        "Apply before enabling boundary routes. No startup bootstrap or backfill.",
+        "Create the owner/job unique index before its composite commit-request foreign key.",
+        "The installed generator omits CHECK constraints. Reviewed SQL enforces six-digit staged postal codes."
       ]
     }
   ]

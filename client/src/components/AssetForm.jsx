@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Select, { components } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import { AlertTriangle, ArrowRightLeft, Building2, ExternalLink, Loader2, Sparkles, Globe, Mail, MapPin, MessageCircle, Phone, Clock, Package2, ShieldCheck, Users, EyeOff } from 'lucide-react';
@@ -16,6 +16,8 @@ import { createEmptySocialLinks, mergeSocialLinks, normalizeSocialLinks, SOCIAL_
 import { SOFT_ASSET_BUCKETS } from '../lib/softAssetBuckets.js';
 import AssetAccessPanel from './AssetAccessPanel.jsx';
 import AssetAudienceZonesPanel from './AssetAudienceZonesPanel.jsx';
+import { useBoundaryZoneWorkflow } from './boundaries/BoundaryZoneWorkflowProvider.jsx';
+import { boundaryPlaceReadiness } from '../lib/boundaryZoneWorkflow.js';
 import EligibilityRulesEditor from './EligibilityRulesEditor.jsx';
 import ImageUpload from './ImageUpload.jsx';
 import MarkdownDescriptionField from './MarkdownDescriptionField.jsx';
@@ -345,11 +347,17 @@ export default function AssetForm({
     duplicateMatches = [],
     onSelectDuplicateMatch = null,
     onResourceToolsChanged,
+    boundaryWorkflowReturnId = null,
+    boundaryWorkflowInitialStep = 4,
 }) {
+    const boundaryWorkflow = useBoundaryZoneWorkflow();
+    const boundaryLiveForm = useRef(null);
     const isHard = type === 'hard';
     const currentRole = normalizeRole(currentUser?.role);
     const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const [form, setForm] = useState(() => buildInitialForm(type, initialData, currentUser));
+    const [boundaryBaseline] = useState(() => buildInitialForm(type, initialData, currentUser));
+    const [boundaryReadinessError, setBoundaryReadinessError] = useState('');
     const [saving, setSaving] = useState(false);
     const [enriching, setEnriching] = useState(false);
     const [enrichmentNotice, setEnrichmentNotice] = useState('');
@@ -357,8 +365,18 @@ export default function AssetForm({
     const [error, setError] = useState('');
     const [availableTags, setAvailableTags] = useState([]);
     const [availableSubCategories, setAvailableSubCategories] = useState([]);
-    const [activePlaceStep, setActivePlaceStep] = useState(0);
+    const [activePlaceStep, setActivePlaceStep] = useState(() => boundaryWorkflowReturnId && initialData?.id ? (boundaryWorkflowInitialStep === 1 ? 1 : 4) : 0);
     const [activeOfferingStep, setActiveOfferingStep] = useState(0);
+
+    boundaryLiveForm.current = {hardAssetId:initialData?.id,current:form,baseline:boundaryBaseline,saving,enriching};
+    useEffect(() => {
+        if (!isHard || !boundaryWorkflow?.session) return;
+        return boundaryWorkflow.session.registerPlaceGuard(() => {
+            const reason=boundaryPlaceReadiness(boundaryLiveForm.current);
+            if (reason) setBoundaryReadinessError(reason);
+            return reason;
+        });
+    }, [isHard,boundaryWorkflow?.session,currentUser?.id,initialData?.id]);
 
     useEffect(() => {
         api.searchTags('').then((tags) => {
@@ -535,6 +553,7 @@ export default function AssetForm({
     }
 
     async function handleSubmit(e) {
+        const boundaryWorkflowToken=boundaryWorkflow?.session.capture();
         e?.preventDefault?.();
         setSaving(true);
         setError('');
@@ -632,7 +651,7 @@ export default function AssetForm({
                 savedAsset = await api.createSoftAsset(payload);
             }
 
-            onSave(savedAsset);
+            onSave(savedAsset,{boundaryWorkflowToken});
         } catch (err) {
             setError(err.message || 'Failed to save asset');
             setSaving(false);
@@ -1319,7 +1338,13 @@ export default function AssetForm({
         if (!initialData?.id) return renderSavedToolUnlockMessage('Audience zones');
         return (
             <div data-resource-wizard-skip-validity className="rounded-3xl border border-slate-200 bg-white p-5">
-                <AssetAudienceZonesPanel asset={initialData} currentUser={currentUser} onChanged={onResourceToolsChanged} />
+                {boundaryReadinessError ? <div className="mb-4 space-y-2 border-b border-amber-200 pb-4 text-sm text-amber-800"><p role="alert">{boundaryReadinessError}</p>
+                    <div className="flex flex-wrap gap-2"><button type="button" className="btn-primary" disabled={saving || enriching} onClick={() => handleSubmit()}>Save Place edits</button>
+                        <button type="button" className="btn-ghost" disabled={saving || enriching} onClick={() => {setForm(structuredClone(boundaryBaseline));setBoundaryReadinessError('');}}>Discard Place edits</button>
+                        <button type="button" className="btn-ghost" onClick={() => setActivePlaceStep(1)}>Edit Place location</button></div></div> : null}
+                <AssetAudienceZonesPanel asset={initialData} currentUser={currentUser} onChanged={onResourceToolsChanged}
+                    onBeforeBoundaryDraw={() => {const reason = boundaryPlaceReadiness({hardAssetId:initialData.id,current:form,baseline:boundaryBaseline,saving,enriching});setBoundaryReadinessError(reason);return !reason;}}
+                    onEditLocation={() => setActivePlaceStep(1)} />
             </div>
         );
     }

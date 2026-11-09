@@ -1,5 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { useBoundaryZoneWorkflow } from '../../components/boundaries/BoundaryZoneWorkflowProvider.jsx';
+import { canManageBoundaryPlace } from '../../lib/boundaryZoneWorkflow.js';
 import Select from 'react-select';
 import Papa from 'papaparse';
 import {
@@ -639,6 +641,8 @@ function ResourceModal({
 
 export default function ResourcesPage() {
     const { user } = useAuth();
+    const boundaryWorkflow = useBoundaryZoneWorkflow();
+    const boundaryReturnRef = useRef(null);
     const {
         bulkPending: savedAssetsBulkPending,
         bulkRemoveSavedAssets,
@@ -707,6 +711,11 @@ export default function ResourcesPage() {
     const [softAssetsPageSize] = useState(50);
     const loadRequestIdRef = useRef(0);
     const metadataRequestIdRef = useRef(0);
+    const zoneOptionsRequestRef = useRef(0);
+    const observedZoneIdsRef = useRef(new Set());
+    const createdZoneIds = (boundaryWorkflow?.draft?.job?.rows || [])
+        .filter(row => row.status === 'created' && Number.isInteger(row.zoneId))
+        .map(row => row.zoneId).join(',');
     const subregionPostalLoadRef = useRef(null);
     const groupMemberCandidateRequestIdRef = useRef(0);
     const inlineActionDrawerRef = useRef(null);
@@ -1003,6 +1012,7 @@ export default function ResourcesPage() {
         metadataRequestIdRef.current = requestId;
         setMetadataLoading(true);
 
+        const zoneRequestId = ++zoneOptionsRequestRef.current;
         const coreMetadataRequest = Promise.all([
             api.getSubregions({ includePostalCodes: false }).catch(() => []),
             api.getSoftAssetParents().catch(() => []),
@@ -1016,7 +1026,9 @@ export default function ResourcesPage() {
                     : (Array.isArray(fetchedSubregions) ? fetchedSubregions : [])
             ));
             setSoftAssetParents(Array.isArray(fetchedTemplates) ? fetchedTemplates : []);
-            setAudienceZones(Array.isArray(fetchedAudienceZones) ? fetchedAudienceZones : []);
+            if (zoneRequestId === zoneOptionsRequestRef.current) {
+                setAudienceZones(Array.isArray(fetchedAudienceZones) ? fetchedAudienceZones : []);
+            }
             setBoundaryLayers({
                 regions: Array.isArray(fetchedBoundaryLayers?.regions) ? fetchedBoundaryLayers.regions : [],
                 subregions: Array.isArray(fetchedBoundaryLayers?.subregions) ? fetchedBoundaryLayers.subregions : [],
@@ -1108,9 +1120,25 @@ export default function ResourcesPage() {
 
     useEffect(() => {
         if (!canManageResourceTools) return undefined;
+        observedZoneIdsRef.current.clear();
         loadResourceMetadata();
-        return undefined;
+        return () => { zoneOptionsRequestRef.current++; };
     }, [canManageResourceTools, normalizedRole, user?.id]);
+
+    useEffect(() => {
+        if (!canManageResourceTools || !createdZoneIds) return;
+        const ids = createdZoneIds.split(',');
+        if (ids.every(id => observedZoneIdsRef.current.has(id))) return;
+        ids.forEach(id => observedZoneIdsRef.current.add(id));
+        const requestId = ++zoneOptionsRequestRef.current;
+        api.getAudienceZones().then(zones => {
+            if (requestId === zoneOptionsRequestRef.current) setAudienceZones(Array.isArray(zones) ? zones : []);
+        }).catch(() => {
+            if (requestId !== zoneOptionsRequestRef.current) return;
+            ids.forEach(id => observedZoneIdsRef.current.delete(id));
+            setActionNotice({ type:'warning', message:'The zone was created. Reload Resources to refresh the Offering zone choices.' });
+        });
+    }, [createdZoneIds, canManageResourceTools, normalizedRole, user?.id]);
 
     useEffect(() => {
         setHardAssetsPage(1);
@@ -1617,6 +1645,44 @@ export default function ResourcesPage() {
             return;
         }
         setAssetModal({ mode: 'create', assetType, data: null });
+    }
+
+    useEffect(() => {
+        const session = boundaryWorkflow?.session, draft = boundaryWorkflow?.draft;
+        if (!session || draft?.phase !== 'returned' || !draft.hardAssetId || boundaryReturnRef.current === draft.workflowId) return;
+        const token=session.capture();let active=true;
+        (async () => {
+            const asset=await api.getHardAsset(draft.hardAssetId);
+            if (!active || !session.isCurrent(token)) return;
+            if (!canManageBoundaryPlace(user,asset)) throw new Error('This Place is no longer available for zone management. Your saved Care Map is kept.');
+            await ensureDetailedSubregions();
+            if (!active || !session.isCurrent(token)) return;
+            boundaryReturnRef.current=draft.workflowId;
+            setAssetModal({mode:'edit',assetType:'hard',data:asset,boundaryWorkflowReturnId:draft.workflowId});
+            session.update({phase:'zone-edit'});
+        })().catch(failure=>{if(active && session.isCurrent(token))setActionNotice({type:'warning',message:failure.message});});
+        return ()=>{active=false;};
+    }, [boundaryWorkflow?.draft?.workflowId,boundaryWorkflow?.draft?.phase]);
+
+    async function editBoundaryPlaceLocation() {
+        const session=boundaryWorkflow?.session,draft=session?.draft;
+        if(!draft?.hardAssetId)return;
+        const token=session.capture();
+        try {
+            const asset=await api.getHardAsset(draft.hardAssetId);
+            if(!session.isCurrent(token))return;
+            if(!canManageBoundaryPlace(user,asset))throw new Error('This Place is no longer available for zone management.');
+            await ensureDetailedSubregions();if(!session.isCurrent(token))return;
+            setAssetModal({mode:'edit',assetType:'hard',data:asset,boundaryWorkflowReturnId:draft.workflowId,boundaryWorkflowInitialStep:1});
+        } catch(failure){if(session.isCurrent(token))setActionNotice({type:'warning',message:failure.message});}
+    }
+
+    function reopenBoundaryPlaceAfterSave(savedAsset, token) {
+        if(!token || !boundaryWorkflow?.session.isCurrent(token))return;
+        const draft=boundaryWorkflow?.session.draft;
+        if (draft?.phase !== 'place-edits-required' || Number(savedAsset?.id)!==Number(draft.hardAssetId)) return;
+        setAssetModal({mode:'edit',assetType:'hard',data:savedAsset,boundaryWorkflowReturnId:draft.workflowId});
+        boundaryWorkflow.session.update({phase:'editing'});
     }
 
     async function openEdit(asset, assetType) {
@@ -2372,6 +2438,18 @@ export default function ResourcesPage() {
 
     return (
         <div className="mx-auto w-full max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8 2xl:px-10">
+            {boundaryWorkflow && !boundaryWorkflow.loggingOut ? <section className="mb-5 flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4" aria-label="Boundary zone tools">
+                <button type="button" className="btn-ghost" disabled={Boolean(inlineAction || assetModal)} onClick={()=>boundaryWorkflow.session.begin({phase:'select',sourceChoice:'library',wizardOpen:true})}>Boundary Library → zones</button>
+                <button type="button" className="btn-ghost" onClick={()=>{if(!boundaryWorkflow.draft)boundaryWorkflow.session.begin({phase:'recent'});boundaryWorkflow.session.update({wizardOpen:true});}}>Recent / current boundary batch</button>
+                {boundaryWorkflow.draft?.lostText ? <p role="status" className="text-sm text-amber-800">Unsaved text was lost on reload. Recovered maps and jobs keep their saved outcomes.</p> : null}
+                {['recovered-map','draw-ready','starter-unknown','starter-not-found','map-unavailable','save-place-required','location-required','place-edits-required'].includes(boundaryWorkflow.draft?.phase) ? <div className="space-y-2 text-sm"><p>{boundaryWorkflow.draft.error || 'A saved draw request can be recovered.'}</p>
+                    {boundaryWorkflow.draft.phase==='save-place-required' ? <><p>This adds the selected Place to Saved before drawing.</p><button type="button" className="btn-primary" onClick={()=>boundaryWorkflow.startDraw(null,{savePlace:true}).catch(()=>{})}>Save Place and draw</button></> : null}
+                    {boundaryWorkflow.draft.phase==='location-required' ? <button type="button" className="btn-ghost" onClick={editBoundaryPlaceLocation}>Edit Place location</button> : null}
+                    {!['location-required','save-place-required','place-edits-required'].includes(boundaryWorkflow.draft.phase) ? <button type="button" className="btn-ghost" onClick={()=>boundaryWorkflow.startDraw().catch(()=>{})}>Read and resume Care Map</button> : null}
+                    {boundaryWorkflow.draft.phase==='starter-not-found' ? <button type="button" className="btn-ghost" onClick={()=>boundaryWorkflow.session.requestStarterRetry()}>Choose Place and retry same request</button> : null}
+                    {boundaryWorkflow.draft.phase==='map-unavailable' ? <button type="button" className="btn-ghost" onClick={()=>boundaryWorkflow.session.requestStarterRestart()}>Choose Place and restart</button> : null}
+                </div> : null}
+            </section> : null}
             <div className="mb-10 flex flex-wrap items-end justify-between gap-6 border-b border-slate-200 pb-8">
                 <div>
                     <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
@@ -2915,9 +2993,10 @@ export default function ResourcesPage() {
                                                             audienceZones={audienceZones}
                                                             layoutMode="inline-soft"
                                                             onResourceToolsChanged={load}
-                                                            onSave={async () => {
+                                                            onSave={async (savedAsset, boundaryMeta) => {
                                                                 setInlineAction(null);
                                                                 await load();
+                                                                reopenBoundaryPlaceAfterSave(savedAsset,boundaryMeta?.boundaryWorkflowToken);
                                                                 setActionNotice({ type: 'success', message: `Place saved.` });
                                                             }}
                                                             onCancel={() => setInlineAction(null)}
@@ -3640,15 +3719,18 @@ export default function ResourcesPage() {
                         <AssetForm
                             type={assetModal.assetType}
                             initialData={assetModal.data}
+                            boundaryWorkflowReturnId={assetModal.boundaryWorkflowReturnId}
+                            boundaryWorkflowInitialStep={assetModal.boundaryWorkflowInitialStep}
                             partnerHardAssets={hardAssets}
                             currentUser={user}
                             partnerOptions={partnerOptions}
                             subregions={subregions}
                             audienceZones={audienceZones}
                             onResourceToolsChanged={load}
-                            onSave={async () => {
+                            onSave={async (savedAsset, boundaryMeta) => {
                                 setAssetModal(null);
                                 await load();
+                                reopenBoundaryPlaceAfterSave(savedAsset,boundaryMeta?.boundaryWorkflowToken);
                                 setActionNotice({ type: 'success', message: `${assetModal.assetType === 'hard' ? 'Place' : 'Offering'} saved.` });
                             }}
                             onCancel={() => setAssetModal(null)}

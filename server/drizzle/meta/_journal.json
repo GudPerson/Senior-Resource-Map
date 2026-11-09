@@ -85,6 +85,13 @@
       "when": 1793952000000,
       "tag": "0011_regional_discovery",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794066232585,
+      "tag": "0012_boundary_library_guided_zones",
+      "breakpoints": true
     }
   ]
 }

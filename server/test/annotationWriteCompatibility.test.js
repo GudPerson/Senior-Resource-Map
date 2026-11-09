@@ -77,3 +77,32 @@ test('unchanged legacy documents remain writable without capabilities and existi
         input(annotations, { revision: 3 })), error => error.status === 409);
     assert.deepEqual(protectedDb.state.writes, []);
 });
+
+test('a cached count/group client cannot erase the private name or independent polygon lists', async () => {
+    const shape={...circle(1),type:'polygon',name:'Private name',points:[[1,103],[1,104],[2,104],[2,103]],controlPoints:[[1,103],[2,104],[2,103]]};
+    const caps={maxCount:200,groups:true};
+    const downlevel={...shape,points:shape.controlPoints,text:'unrelated edit'};
+    delete downlevel.name;
+    for(const [stored, submitted] of [[[shape],[downlevel]],[[downlevel],[shape]]]){
+        const db=database(stored);
+        await assert.rejects(replacePrintAnnotationDocument(db,user,mapId,input(submitted,{clientCapabilities:caps})),refreshRequired);
+        assert.deepEqual(db.state.writes,[]);
+    }
+    const db=database([downlevel]);
+    assert.equal((await replacePrintAnnotationDocument(db,user,mapId,input([downlevel],{clientCapabilities:caps}))).revision,5);
+});
+
+test('actual owner API preserves protected polygons on an unrelated cached-client PUT',async t=>{
+    const {createBoundaryPostgres}=await import('./helpers/boundaryPostgres.js');
+    const {pg,request}=await createBoundaryPostgres(t);
+    const path='my-maps/41/print-annotations',shape={...circle(1),type:'polygon',name:'Curated private copy',
+        points:[[1,103],[1,104],[2,104],[2,103]],controlPoints:[[1,103],[2,104],[2,103]]};
+    await pg.query('UPDATE my_map_print_annotation_documents SET annotations=$1 WHERE map_id=41',[JSON.stringify([shape,circle(2)])]);
+    const loaded=(await request(path)).json;
+    assert.equal(loaded.serverCapabilities.exactBoundaryGeometry,true);
+    const cached=loaded.annotations.map(a=>({...a}));
+    delete cached[0].name;cached[0].points=cached[0].controlPoints;cached[1].text='Unrelated edit';
+    const rejected=await request(path,{method:'PUT',body:{schemaVersion:1,revision:loaded.revision,annotations:cached,clientCapabilities:{maxCount:200,groups:true}}});
+    assert.equal(rejected.status,428);assert.equal(rejected.json.code,'ANNOTATION_CLIENT_REFRESH_REQUIRED');
+    assert.deepEqual((await request(path)).json,loaded);
+});

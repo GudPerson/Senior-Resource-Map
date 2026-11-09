@@ -19,6 +19,9 @@ import subregionRoutes from './routes/subregions.js';
 import boundaryLayerRoutes from './routes/boundaryLayers.js';
 import partnerRoutes from './routes/partners.js';
 import partnerOrganizationRoutes from './routes/partnerOrganizations.js';
+import boundaryLibraryRoutes from './routes/boundaryLibrary.js';
+import boundaryZoneJobRoutes from './routes/boundaryZoneJobs.js';
+import boundaryWorkflowRoutes from './routes/boundaryWorkflows.js';
 import audienceZoneRoutes from './routes/audienceZones.js';
 import membershipsRoutes from './routes/memberships.js';
 import privateResourceContentRoutes from './routes/privateResourceContent.js';
@@ -84,7 +87,8 @@ app.use('*', (c, next) => {
     // These two authenticated routes enforce their own streamed 1 MiB JSON limit.
     const boundedAddressQuery = c.req.method === 'POST'
         && (c.req.path === '/api/address-snapshot/nearby' || c.req.path === '/api/address-snapshot/area');
-    return boundedAddressQuery ? next() : requestBodyGuard(c, next);
+    const boundedJobAction = c.req.method === 'POST' && /^\/api\/boundary-zone-jobs(?:\/?$|\/[1-9]\d*\/(?:advance|commit|pause|resume|cancel)\/?$)/.test(c.req.path);
+    return (boundedAddressQuery || boundedJobAction) ? next() : requestBodyGuard(c, next);
 });
 
 app.use('/api/auth/login', authRateLimit);
@@ -125,6 +129,9 @@ app.route('/api/subregions', subregionRoutes);
 app.route('/api/boundary-layers', boundaryLayerRoutes);
 app.route('/api/partners', partnerRoutes);
 app.route('/api/partner-organizations', partnerOrganizationRoutes);
+app.route('/api/boundary-library', boundaryLibraryRoutes);
+app.route('/api/boundary-zone-jobs', boundaryZoneJobRoutes);
+app.route('/api/boundary-zone-workflows', boundaryWorkflowRoutes);
 app.route('/api/audience-zones', audienceZoneRoutes);
 app.route('/api/memberships', membershipsRoutes);
 app.route('/api/private-resource-content', privateResourceContentRoutes);
