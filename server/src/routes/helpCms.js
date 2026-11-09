@@ -1,4 +1,7 @@
 import { Hono } from 'hono';
+import { readMaintenanceDatabaseIdentity } from '../db/index.js';
+import { currentWorkerRelease } from '../utils/workerRelease.js';
+import { armMaintenanceIdentityPermit, claimMaintenanceIdentityPermit, readMaintenanceIdentityPermitStatus } from '../utils/maintenanceIdentityPermit.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { HELP_CMS_SEED } from '../generated/helpCmsSeed.js';
 import { HELP_ARTICLES } from '../generated/helpKnowledge.js';
@@ -63,8 +66,60 @@ function imageResponse(object, publicRead = false) {
         'Content-Disposition': 'inline', 'Cache-Control': publicRead ? 'public, max-age=31536000, immutable' : 'private, no-store' } });
 }
 
+// This temporary attempt is granted by verified normal CMS publication, never a calendar override.
+const observationUrl = 'https://api.carearound.sg/api/help/cms/binding-observation';
+const observationError = (c, code, status) => c.json({ ok: false, code }, status);
+
+export async function maintenanceIdentityRequest(c, next) {
+    c.header('Cache-Control', 'private, no-store');
+    try {
+        const r = c.req.raw;
+        if (r.url !== observationUrl || r.headers.get('Origin') !== 'https://app.carearound.sg'
+            || r.method !== 'POST' || r.body !== null
+            || r.headers.has('transfer-encoding') || ![null, '0'].includes(r.headers.get('content-length'))) {
+            return observationError(c, 'invalid_observation_request', 400);
+        }
+        await next();
+    } finally { c.header('Cache-Control', 'private, no-store'); }
+}
+
+function utcTime(value) {
+    if (typeof value !== 'string') return NaN;
+    const ms = Date.parse(value);
+    return Number.isFinite(ms) && new Date(ms).toISOString() === value ? ms : NaN;
+}
+
+export function createMaintenanceIdentityHandler({ read = readMaintenanceDatabaseIdentity,
+    observe = currentWorkerRelease, claim = claimMaintenanceIdentityPermit, now = Date.now } = {}) {
+    return async c => {
+        const owner = c.get('helpCmsOwnerId');
+        if (!Number.isSafeInteger(owner) || owner <= 0) return observationError(c, 'observation_closed', 403);
+        try {
+            const release = observe(c.env);
+            if (!release) return observationError(c, 'version_unavailable', 503);
+            const permit = await claim({ bucket: c.env?.HELP_CMS_BUCKET, env: c.env, ownerId: owner, runtime: release, now });
+            if (!permit.ok) return observationError(c, permit.code, permit.status);
+            const open = time => Number.isFinite(time) && utcTime(permit.publishedAt) <= time && time < utcTime(permit.expiresAt);
+            if (!open(now())) return observationError(c, 'observation_closed', 403);
+            const row = await read(c.env);
+            const time = now();
+            if (!open(time)) return observationError(c, 'observation_closed', 403);
+            if (!row?.branch_id) return observationError(c, 'identity_inconclusive', 503);
+            if (row.branch_id !== 'br-green-union-ailxs0g3' || row.database !== 'neondb') {
+                return observationError(c, 'target_mismatch', 409);
+            }
+            const role = value => typeof value === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/.test(value);
+            if (!role(row.effective_role) || !role(row.session_role)) return observationError(c, 'identity_inconclusive', 503);
+            return c.json({ ok: true, branch_id: row.branch_id, database: row.database, effective_role: row.effective_role,
+                session_role: row.session_role, workerVersionId: release.deploymentId, sourceRevision: release.sourceRevision,
+                observedAt: new Date(time).toISOString() });
+        } catch { return observationError(c, 'identity_unavailable', 503); }
+    };
+}
+
 export function createHelpCmsRoutes({ authenticate = authenticateToken, seed = HELP_CMS_SEED,
-    bucketForContext = c => c.env?.HELP_CMS_BUCKET, fetchImpl = fetch, now = () => new Date() } = {}) {
+    bucketForContext = c => c.env?.HELP_CMS_BUCKET, fetchImpl = fetch, now = () => new Date(),
+    identityHandler = createMaintenanceIdentityHandler(), observeRelease = currentWorkerRelease } = {}) {
     const router = new Hono(), owners = new Hono(), runner = new Hono();
     router.use('*', async (c, next) => {
         try { await next(); }
@@ -127,6 +182,7 @@ export function createHelpCmsRoutes({ authenticate = authenticateToken, seed = H
         const state = receipt.state === 'published' && readiness.ready ? 'published' : 'partially-released';
         const status = await repo.updateRelease(release.id, { ...receipt, state, readiness: readiness.checks,
             ...(state === 'published' ? { publishedAt: now().toISOString() } : { message: 'Both Help and Guide versions have not been verified. Review recovery before retrying.' }) });
+        let maintenanceIdentityPermit;
         if (state === 'published') {
             await repo.markPublished(release);
             const current = await repo.loadWorkspace();
@@ -142,8 +198,21 @@ export function createHelpCmsRoutes({ authenticate = authenticateToken, seed = H
                 }
             }
             await repo.completePublication(release.id);
+            // Run once on the first verified completion only. A repeated receipt cannot
+            // retry an ambiguous arm or extend the server's first publishedAt.
+            if (previous.state !== 'published') {
+                maintenanceIdentityPermit = { state: 'hold' };
+                try {
+                    const promoted = await repo.loadWorkspace();
+                    maintenanceIdentityPermit = await armMaintenanceIdentityPermit({
+                        bucket: bucketForContext(c), env: c.env, release, publishedStatus: status,
+                        runtime: observeRelease(c.env), workspacePromoted: promoted.workspace.baseContentVersion === release.version,
+                        lockCompleted: await repo.activePublication() === null, now: () => now().getTime(),
+                    });
+                } catch { /* A diagnostic HOLD never rolls back verified Help publication. */ }
+            }
         }
-        return c.json({ release: status });
+        return c.json({ release: status, ...(maintenanceIdentityPermit ? { maintenanceIdentityPermit } : {}) });
     }));
     router.route('/release', runner);
     owners.use('*', authenticate);
@@ -163,7 +232,14 @@ export function createHelpCmsRoutes({ authenticate = authenticateToken, seed = H
             baseDrift: Boolean(latest && current.workspace.baseContentVersion !== latest.version),
             activeReleaseId: await repo.activePublication() };
     };
-    owners.get('/', handle(async (c, repo) => c.json(await workspaceResponse(repo, c.env))));
+    owners.get('/', handle(async (c, repo) => c.json({
+        ...await workspaceResponse(repo, c.env),
+        maintenanceIdentityPermit: await readMaintenanceIdentityPermitStatus({
+            bucket: bucketForContext(c), env: c.env, ownerId: c.get('helpCmsOwnerId'),
+            runtime: observeRelease(c.env), now: () => now().getTime(),
+        }),
+    })));
+    owners.post('/binding-observation', identityHandler);
     owners.get('/capability', c => c.json({ canEdit: true }));
     owners.put('/', handle(async (c, repo) => {
         const body = await readJson(c.req.raw), current = await repo.loadWorkspace();

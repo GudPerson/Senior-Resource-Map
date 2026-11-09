@@ -29,7 +29,7 @@ import discoveryRoutes from './routes/discovery.js';
 import calendarRoutes from './routes/calendar.js';
 import supportRoutes from './routes/support.js';
 import guideRoutes from './routes/guide.js';
-import { createHelpCmsRoutes, createHelpMediaRoutes } from './routes/helpCms.js';
+import { createHelpCmsRoutes, createHelpMediaRoutes, maintenanceIdentityRequest } from './routes/helpCms.js';
 import helpArticleRoutes from './routes/helpArticles.js';
 import releaseRoutes from './routes/release.js';
 import platformAccessRoutes from './routes/platformAccess.js';
@@ -74,6 +74,7 @@ app.use('*', requestObservability);
 // Run outside shared headers so private denials also retain credential variation.
 app.use('/api/address-snapshot/*', addressSnapshotResponseHeaders);
 app.use('*', securityHeaders);
+app.use('/api/help/cms/binding-observation', maintenanceIdentityRequest);
 app.use('*', (c, next) => {
     const isHelpCms = c.req.path === '/api/help/cms' || c.req.path.startsWith('/api/help/cms/');
     return (isHelpCms ? helpCmsCors : appCors)(c, next);

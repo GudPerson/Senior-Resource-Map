@@ -1,7 +1,22 @@
 {
   "sourceIdentity": {
     "baseRevision": "71a9a064f19198e5d6a9030146c5a7d650718c06",
-    "state": "uncommitted final-review fix working tree; exact producer sources are bound below, not a claim that the base contains this implementation"
+    "state": "uncommitted final-review fix working tree; exact producer sources are bound below, not a claim that the base contains this implementation",
+    "integrationRebind": {
+      "featureRevision": "af4cd926e29e2fd77b1c9938bcffde22e1a929af",
+      "mergedMainRevision": "fe86c210d4f47c863bfc634213d9f18aaeda8462",
+      "kind": "source-binding-only; original controller capture retained",
+      "reason": "Current main retains its maintenance-only connector export. The unchanged fictional router injects its disposable PGlite database through getDatabase, so this transitively imported connector is not invoked by the producer. All other source bindings and all 12 serialized artifact bytes remain exact; no producer or validator change and no new capture is claimed.",
+      "bindings": [
+        {
+          "path": "server/src/db/index.js",
+          "capturedBytes": 549,
+          "capturedSha256": "6000ab568a54ee902267b910a5006a10ee67bf44124ce9334e77f45c0895ef5e",
+          "integratedBytes": 1606,
+          "integratedSha256": "3044cb71cdc227532e4bf4514468df64ebeed19a629bf38d198fe7a49dd6948d"
+        }
+      ]
+    }
   },
   "fixtureSchemaVersion": 1,
   "status": "controller-serialized-fictional",
@@ -124,8 +139,8 @@
     },
     {
       "path": "server/src/db/index.js",
-      "bytes": 549,
-      "sha256": "6000ab568a54ee902267b910a5006a10ee67bf44124ce9334e77f45c0895ef5e"
+      "bytes": 1606,
+      "sha256": "3044cb71cdc227532e4bf4514468df64ebeed19a629bf38d198fe7a49dd6948d"
     },
     {
       "path": "server/src/db/schema.js",
