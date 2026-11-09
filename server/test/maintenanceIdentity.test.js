@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { sql } from 'drizzle-orm';
 import { neonConfig } from '@neondatabase/serverless';
 import { createHelpCmsRoutes, createMaintenanceIdentityHandler, maintenanceIdentityRequest } from '../src/routes/helpCms.js';
 import { createRequestObservability } from '../src/middleware/requestObservability.js';
 import { getDb, readMaintenanceDatabaseIdentity } from '../src/db/index.js';
 import { makeWorkerReleaseManifest } from '../src/utils/workerRelease.js';
-import {armMaintenanceIdentityPermit, maintenanceIdentityPermitKey} from '../src/utils/maintenanceIdentityPermit.js';
+import {armMaintenanceIdentityPermit, claimMaintenanceIdentityPermit, maintenanceIdentityPermitKey} from '../src/utils/maintenanceIdentityPermit.js';
 
 const path = '/api/help/cms/binding-observation', url = 'https://api.carearound.sg' + path;
 const origin = 'https://app.carearound.sg', start = Date.parse('2000-01-01T00:00:00.000Z');
@@ -36,11 +37,12 @@ function permitFixture(){
 }
 
 function harness(opts = {}) {
-    const calls = {auth:0, identity:0, clock:0};
+    const calls = {auth:0, claim:0, identity:0, clock:0};
     const fixture=permitFixture();let expireInRead=false,requestCount=0;
     const prepared=opts.noPermit?Promise.resolve():armMaintenanceIdentityPermit({bucket:fixture.bucket,env:fixture.env,release:fixture.snapshot,publishedStatus:fixture.status,runtime:release,workspacePromoted:true,lockCompleted:true,now:start+1}).then(()=>{if(opts.corruptPermit)fixture.bucket.data.get(maintenanceIdentityPermitKey).value.publishedAt='invalid';fixture.bucket.lostClaimAck=opts.lostClaimAck;});
     const app = new Hono(), logs = [];
     app.use('*', createRequestObservability({log: event => logs.push(event), random:()=>0, createRequestId:()=>'fixture'}));
+    if (opts.cors) app.use('*', cors({ origin: value => value === origin ? origin : null, credentials: true }));
     app.use(path, maintenanceIdentityRequest);
     const authenticate = async (c,next) => {
         calls.auth++;
@@ -51,26 +53,28 @@ function harness(opts = {}) {
     const handler = createMaintenanceIdentityHandler({
         now: () => { calls.clock++; return expireInRead ? start+900000 : opts.now ? opts.now() : start + 1; },
         observe: () => opts.noVersion ? null : release,
+        claim: args => { calls.claim++; return claimMaintenanceIdentityPermit(args); },
         read: async () => { calls.identity++;assert.equal(fixture.bucket.data.get(maintenanceIdentityPermitKey).value.state,'consumed');if(opts.expireInRead)expireInRead=true; if (opts.error) throw Error('error_CANARY'); return opts.row || row; },
     });
     app.route('/api/help/cms',createHelpCmsRoutes({authenticate,identityHandler:handler}));
     return {calls,bucket:fixture.bucket, request: async (dest = url, init = {}) => {
         await prepared;requestCount++;
         const res = await app.request(dest,{method:'POST',headers:{Origin:origin},...init}, {...fixture.env,...opts.env,REQUEST_LOG_SAMPLE_RATE:'1'});
-        assert.match(res.headers.get('Cache-Control') || '',/no-store/);
-        const data = await res.json();
+        if (res.status !== 204) assert.match(res.headers.get('Cache-Control') || '',/no-store/);
+        const data = res.status === 204 ? null : await res.json();
         assert.doesNotMatch(JSON.stringify(data),/CANARY/);
         assert.equal(logs.length,requestCount);
         assert.doesNotMatch(JSON.stringify(logs),/CANARY|fixture_role|fixture_login|br-green|neondb|postgresql:|sourceRevision/);
-        return {status:res.status,data};
+        return {status:res.status,data,allowOrigin:res.headers.get('Access-Control-Allow-Origin')};
     }};
 }
 
-test('the exact no-store guard precedes early exits; default owner mount is the sole registration', async () => {
+test('the exact no-store guard follows CORS and precedes authentication; owner mount is the sole registration', async () => {
     const app = await readFile(new URL('../src/app.js',import.meta.url),'utf8');
     const route = await readFile(new URL('../src/routes/helpCms.js',import.meta.url),'utf8');
     const guard = app.indexOf("app.use('/api/help/cms/binding-observation', maintenanceIdentityRequest)");
-    assert.ok(guard !== -1 && guard < app.indexOf("app.use('*', (c, next)"));
+    assert.ok(guard > app.indexOf("return (isHelpCms ? helpCmsCors : appCors)(c, next)"));
+    assert.ok(guard < app.indexOf("app.use('*', cookieSessionCsrfGuard)"));
     assert.equal((route.match(/\.post\('\/binding-observation'/g)||[]).length,1);
     assert.match(route,/owners\.post\('\/binding-observation', identityHandler\)/);
     assert.ok(route.indexOf("owners.use('*', authenticate)") < route.indexOf('requireHelpCmsOwner(c.get'));
@@ -93,6 +97,50 @@ for (const [name,opts,dest,init] of [
 ]) test(name+' does not open an identity query',async()=>{
     const h=harness(opts); const res=await h.request(dest,init);
     assert.notEqual(res.status,200); assert.equal(h.calls.identity,0);
+});
+
+for (const kind of ['null-length-zero', 'empty-stream-length-zero', 'empty-stream-no-length']) test(kind+' preserves the one-use owner claim',async()=>{
+    const h=harness(),headers={Origin:origin};
+    if(kind!=='empty-stream-no-length') headers['Content-Length']='0';
+    const init={headers,...(kind==='null-length-zero'?{body:null}:{body:new ReadableStream({start(c){c.close();}}),duplex:'half'})};
+    assert.equal((await h.request(url,init)).status,200);
+    assert.equal(h.calls.auth,1);assert.equal(h.calls.claim,1);assert.equal(h.calls.identity,1);
+    assert.equal(h.bucket.data.get(maintenanceIdentityPermitKey).value.state,'consumed');
+});
+
+for(const kind of ['nonempty-length-zero','zero-prefix-nonempty','malformed-chunk','errored-stream','neverending-zero-stream','stalled-stream']) test(kind+' rejects before authentication, claim or query',{timeout:4000},async()=>{
+    let pulls=0,cancels=0;
+    const body=new ReadableStream({
+        pull(c){
+            pulls++;
+            if(kind==='stalled-stream') return;
+            if(kind==='errored-stream'){c.error(Error('PRIVATE_STREAM_CANARY'));return;}
+            if(kind==='malformed-chunk'){c.enqueue('PRIVATE_STREAM_CANARY');return;}
+            c.enqueue(new Uint8Array(kind==='neverending-zero-stream'||(kind==='zero-prefix-nonempty'&&pulls===1)?0:1));
+        },
+        cancel(){cancels++;return kind==='stalled-stream'?new Promise(()=>{}):undefined;},
+    });
+    const h=harness(),started=performance.now();
+    const response=await h.request(url,{body,duplex:'half',headers:{Origin:origin,...(kind==='nonempty-length-zero'?{'Content-Length':'0'}:{})}});
+    assert.equal(response.status,400);assert.deepEqual(response.data,{ok:false,code:'invalid_observation_request'});
+    assert.equal(h.calls.auth,0);assert.equal(h.calls.claim,0);assert.equal(h.calls.identity,0);
+    assert.equal(h.bucket.data.get(maintenanceIdentityPermitKey).value.state,'armed');
+    if(kind!=='errored-stream') assert.equal(cancels,1);
+    if(kind==='neverending-zero-stream') assert.ok(pulls<=10,'zero-chunk production stays bounded');
+    if(kind==='stalled-stream') assert.ok(performance.now()-started<3000,'a pending cancellation promise cannot hold the response');
+});
+
+for(const headers of [{'Content-Length':'1'},{'Content-Length':'00'},{'Content-Length':''},{'Transfer-Encoding':'chunked'}]) test('noncanonical empty-request framing rejects before auth/claim/query '+JSON.stringify(headers),async()=>{
+    const h=harness();assert.equal((await h.request(url,{headers:{Origin:origin,...headers}})).status,400);
+    assert.equal(h.calls.auth,0);assert.equal(h.calls.claim,0);assert.equal(h.calls.identity,0);
+});
+
+for(const allowed of [true,false]) test('identity preflight '+(allowed?'allows':'denies')+' origin without auth/claim/query',async()=>{
+    const h=harness({cors:true}),requestedOrigin=allowed?origin:'https://untrusted.example.invalid';
+    const response=await h.request(url,{method:'OPTIONS',headers:{Origin:requestedOrigin,'Access-Control-Request-Method':'POST'}});
+    assert.equal(response.status,204);assert.equal(response.allowOrigin,allowed?origin:null);
+    assert.equal(h.calls.auth,0);assert.equal(h.calls.claim,0);assert.equal(h.calls.identity,0);
+    assert.equal(h.bucket.data.get(maintenanceIdentityPermitKey).value.state,'armed');
 });
 
 test('publication-derived permit admits only its first acknowledged claim',async()=>{

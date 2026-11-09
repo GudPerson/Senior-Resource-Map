@@ -70,13 +70,40 @@ function imageResponse(object, publicRead = false) {
 const observationUrl = 'https://api.carearound.sg/api/help/cms/binding-observation';
 const observationError = (c, code, status) => c.json({ ok: false, code }, status);
 
+// Incoming HTTP may expose an empty body as a stream. Admit only a bounded zero-byte EOF.
+async function emptyObservationBody(request) {
+    if (request.body === null) return true;
+    if (request.bodyUsed || request.body.locked) return false;
+    let reader, timer;
+    try {
+        reader = request.body.getReader();
+        const deadline = new Promise(resolve => { timer = setTimeout(() => resolve(false), 1000); });
+        const empty = async () => {
+            for (let chunks = 0; chunks < 8; chunks++) {
+                const { done, value } = await reader.read();
+                if (done) return true;
+                if (!(value instanceof Uint8Array) || value.byteLength !== 0) return false;
+            }
+            return false;
+        };
+        return await Promise.race([empty(), deadline]);
+    } catch { return false; }
+    finally {
+        clearTimeout(timer);
+        // A broken source's cancellation acknowledgement must not hold the rejection open.
+        try { void reader?.cancel().catch(() => {}); } catch { /* fail closed */ }
+        try { reader?.releaseLock(); } catch { /* a pending read is already being cancelled */ }
+    }
+}
+
 export async function maintenanceIdentityRequest(c, next) {
     c.header('Cache-Control', 'private, no-store');
     try {
         const r = c.req.raw;
         if (r.url !== observationUrl || r.headers.get('Origin') !== 'https://app.carearound.sg'
-            || r.method !== 'POST' || r.body !== null
-            || r.headers.has('transfer-encoding') || ![null, '0'].includes(r.headers.get('content-length'))) {
+            || r.method !== 'POST'
+            || r.headers.has('transfer-encoding') || ![null, '0'].includes(r.headers.get('content-length'))
+            || !await emptyObservationBody(r)) {
             return observationError(c, 'invalid_observation_request', 400);
         }
         await next();

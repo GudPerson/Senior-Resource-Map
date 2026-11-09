@@ -109,3 +109,28 @@ test('successful CMS preflight does not grant an anonymous actual request or rem
         assert.deepEqual(await response.json(), { error: 'No token provided' }, method);
     }
 });
+
+
+test('identity preflight uses the existing CMS origin and header policy',async()=>{
+    for(const [origin,allowed] of [[appOrigin,true],['https://untrusted.example.invalid',false]]){
+        let storageCalls=0;
+        const response=await preflight('/api/help/cms/binding-observation',{origin,method:'POST',headers:'',runtimeEnv:{...env,HELP_CMS_ENABLED:'true',HELP_CMS_OWNER_ID:'11',HELP_CMS_BUCKET:{get(){storageCalls++;throw Error('Fictional storage prohibited');},put(){storageCalls++;throw Error('Fictional storage prohibited');}}}});
+        assert.equal(response.status,204);assert.equal(response.headers.get('Access-Control-Allow-Origin'),allowed?appOrigin:null);
+        assert.deepEqual(headerNames(response),cmsHeaders);assert.equal(storageCalls,0);
+    }
+});
+
+test('actual identity transport accepts semantic emptiness and keeps allowed-origin errors readable',async()=>{
+    for(const kind of ['null-body','closed-empty-stream','nonempty-body','query']){
+        let storageCalls=0;
+        const runtimeEnv={...env,HELP_CMS_ENABLED:'true',HELP_CMS_OWNER_ID:'11',HELP_CMS_BUCKET:{get(){storageCalls++;throw Error('Fictional storage prohibited');},put(){storageCalls++;throw Error('Fictional storage prohibited');}}};
+        const response=await app.request('https://api.carearound.sg/api/help/cms/binding-observation'+(kind==='query'?'?unexpected=fictional':''),{
+            method:'POST',headers:{Origin:appOrigin,...(kind==='closed-empty-stream'?{'Content-Length':'0'}:{})},
+            ...(kind==='closed-empty-stream'?{body:new ReadableStream({start(c){c.close();}}),duplex:'half'}:kind==='nonempty-body'?{body:'FICTIONAL'}:{body:null}),
+        },runtimeEnv);
+        assert.equal(response.status,kind==='null-body'||kind==='closed-empty-stream'?401:400,kind);
+        assert.equal(response.headers.get('Access-Control-Allow-Origin'),appOrigin,kind);
+        assert.equal(response.headers.get('Access-Control-Allow-Credentials'),'true',kind);
+        assert.equal(response.headers.get('Cache-Control'),'private, no-store',kind);assert.equal(storageCalls,0,kind);
+    }
+});
