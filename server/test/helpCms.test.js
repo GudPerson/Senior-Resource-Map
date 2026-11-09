@@ -431,3 +431,15 @@ test('partial readiness or failed workspace promotion never arms a permit',async
     const f=await publishedFixture({observeRelease:permitRuntime});f.bucket.beforePut=async key=>{if(key==='workspace/current.json')throw Error('PRIVATE_PROMOTION_FAILURE');};
     const r=await jsonRequest(f.app,f.env,`/release/${f.snapshot.id}/receipt`,'POST',f.receipt,{Authorization:`Bearer ${runnerToken}`}),body=await r.json();assert.equal(body.release.state,'published');assert.deepEqual(body.maintenanceIdentityPermit,{state:'hold'});assert.equal(await f.bucket.get(maintenanceIdentityPermitKey),null);
 });
+
+test('owner workspace GET exposes only read-only permit readiness and preserves owner/User View fences',async()=>{
+    const f=await publishedFixture({observeRelease:permitRuntime});
+    const completion=await jsonRequest(f.app,f.env,`/release/${f.snapshot.id}/receipt`,'POST',f.receipt,{Authorization:`Bearer ${runnerToken}`});assert.equal((await completion.json()).maintenanceIdentityPermit.state,'armed');
+    const count=f.bucket.counter,record=await (await f.bucket.get(maintenanceIdentityPermitKey)).json();
+    const response=await f.app.request('/',{},f.env),body=await response.json();assert.equal(response.status,200);
+    assert.deepEqual(body.maintenanceIdentityPermit,{armed:true,expiresAt:record.expiresAt});assert.deepEqual(Object.keys(body.maintenanceIdentityPermit).sort(),['armed','expiresAt']);assert.equal(f.bucket.counter,count);assert.equal((await (await f.bucket.get(maintenanceIdentityPermitKey)).json()).state,'armed');
+    for(const actor of [{id:8,role:'super_admin'},{id:7,role:'super_admin',isImpersonating:true}]){
+        const denied=appFor({bucket:f.bucket,actor,observeRelease:permitRuntime});const result=await denied.app.request('/',{},denied.env);assert.equal(result.status,403);assert.equal(Object.hasOwn(await result.json(),'maintenanceIdentityPermit'),false);
+    }
+    assert.equal(f.bucket.counter,count);assert.deepEqual((await (await f.app.request('/',{},f.env)).json()).workspace,body.workspace);
+});

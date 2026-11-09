@@ -102,3 +102,14 @@ export async function claimMaintenanceIdentityPermit({ bucket, env, ownerId, run
         return { ok: true, publishedAt: record.publishedAt, expiresAt: record.expiresAt };
     } catch { return unavailable(); }
 }
+
+// Read-only owner UI metadata. Reuse the claim's checks without a conditional write or SQL.
+export async function readMaintenanceIdentityPermitStatus({ bucket, env, ownerId, runtime, now = Date.now }) {
+    const closedStatus = () => ({ armed: false, expiresAt: null });
+    try {
+        const clock = clockFor(now), stored = await readMetadata(bucket, maintenanceIdentityPermitKey), record = stored?.value;
+        if (!validRecord(record) || record.state !== 'armed' || !matchesRuntime(record, env, runtime, ownerId)
+            || !open(record, clock()) || !await matchesPublication(bucket, record) || !open(record, clock())) return closedStatus();
+        return { armed: true, expiresAt: record.expiresAt };
+    } catch { return closedStatus(); }
+}

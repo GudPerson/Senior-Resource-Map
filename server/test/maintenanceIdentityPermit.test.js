@@ -93,3 +93,15 @@ test('ambiguous arming returns HOLD without rollback, deletion or automatic retr
     const f=fixture();f.bucket.afterPut=async()=>{throw Error('PRIVATE_ARM_CANARY');};assert.equal((await arm(f)).state,'hold');
     assert.equal(f.bucket.writes.length,1);assert.equal(f.bucket.data.get(helper.maintenanceIdentityPermitKey).value.state,'armed');
 });
+
+test('permit readiness is read-only, strictly projected and becomes closed after consumption',async()=>{
+    const f=fixture();await arm(f);assert.equal(typeof helper.readMaintenanceIdentityPermitStatus,'function');const before=f.bucket.writes.length;
+    const read=()=>helper.readMaintenanceIdentityPermitStatus({bucket:f.bucket,env:f.env,ownerId:11,runtime:f.runtime,now:f.now});
+    assert.deepEqual(await read(),{armed:true,expiresAt:new Date(start+900000).toISOString()});assert.equal(f.bucket.writes.length,before);assert.equal(f.bucket.data.get(helper.maintenanceIdentityPermitKey).value.state,'armed');
+    assert.equal((await claim(f)).ok,true);const consumed=f.bucket.writes.length;assert.deepEqual(await read(),{armed:false,expiresAt:null});assert.equal(f.bucket.writes.length,consumed);
+});
+for(const mode of ['missing','expired','owner','source','runtime','publication','lock','storage'])test(`read-only status closes for ${mode} without a write or claim`,async()=>{
+    const f=fixture();if(mode!=='missing')await arm(f);const before=f.bucket.writes.length;
+    if(mode==='expired')f.now=start+900000;if(mode==='owner')f.env.HELP_CMS_OWNER_ID='12';if(mode==='source')f.env.HELP_CMS_SOURCE_REVISION='9'.repeat(40);if(mode==='runtime')f.runtime.deploymentId=pages;if(mode==='publication')f.bucket.data.get('published/current.json').value.releaseId='0946684800001-'+job;if(mode==='lock')f.bucket.data.get('publication/active.json').value.releaseId=releaseId;if(mode==='storage')f.bucket.get=async()=>{throw Error('PRIVATE_CANARY');};
+    assert.equal(typeof helper.readMaintenanceIdentityPermitStatus,'function');const result=await helper.readMaintenanceIdentityPermitStatus({bucket:f.bucket,env:f.env,ownerId:11,runtime:f.runtime,now:f.now});assert.deepEqual(result,{armed:false,expiresAt:null});assert.equal(f.bucket.writes.length,before);
+});

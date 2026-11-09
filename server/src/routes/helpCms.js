@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { readMaintenanceDatabaseIdentity } from '../db/index.js';
 import { currentWorkerRelease } from '../utils/workerRelease.js';
-import { armMaintenanceIdentityPermit, claimMaintenanceIdentityPermit } from '../utils/maintenanceIdentityPermit.js';
+import { armMaintenanceIdentityPermit, claimMaintenanceIdentityPermit, readMaintenanceIdentityPermitStatus } from '../utils/maintenanceIdentityPermit.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { HELP_CMS_SEED } from '../generated/helpCmsSeed.js';
 import { HELP_ARTICLES } from '../generated/helpKnowledge.js';
@@ -232,7 +232,13 @@ export function createHelpCmsRoutes({ authenticate = authenticateToken, seed = H
             baseDrift: Boolean(latest && current.workspace.baseContentVersion !== latest.version),
             activeReleaseId: await repo.activePublication() };
     };
-    owners.get('/', handle(async (c, repo) => c.json(await workspaceResponse(repo, c.env))));
+    owners.get('/', handle(async (c, repo) => c.json({
+        ...await workspaceResponse(repo, c.env),
+        maintenanceIdentityPermit: await readMaintenanceIdentityPermitStatus({
+            bucket: bucketForContext(c), env: c.env, ownerId: c.get('helpCmsOwnerId'),
+            runtime: observeRelease(c.env), now: () => now().getTime(),
+        }),
+    })));
     owners.post('/binding-observation', identityHandler);
     owners.get('/capability', c => c.json({ canEdit: true }));
     owners.put('/', handle(async (c, repo) => {
