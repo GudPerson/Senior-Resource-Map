@@ -1,3 +1,13 @@
+## 9 November 2026 — Approved v3 identity check source — LOCAL VALIDATED, BROWSER READY GATE HELD
+
+The user approved the minimal v3 release and one owner-triggered read-only candidate check. The coordinator records v2 as expired and unused, with old v1/v2 ETags unchanged and v3 absent at preflight. Those are historical coordinator observations, not a database-target verification. Earlier v2 entries below remain preserved as historical evidence.
+
+Based on main `f1ab733625c35b804df8a6422517d40a59b413da`, runtime changes only the fixed attempt/key to `maintenance-identity-20261109-v3` / `maintenance/identity-permit-20261109-v3.json`. The existing preservation case now retains both legacy objects/ETags and proves v3 create/claim once with rearm denied. Duration, transport, access/privacy, source/publication checks, ETag-before-SQL, candidate/query, client, publisher and Help content remain unchanged. No direct permit manipulation is included.
+
+Local checks each passed once: focused maintenance/permit/CMS/CORS 124/124; `npm run test:server` 1389/1389; locked `npm run build:client` 17 internal checks and configured build (5.54 s). Exact commands, logs, hashes and preservation receipt are under `/private/tmp/carearound-identity-v3-20261109/`. Root confirmed automatic production deployment paused before authorizing source commit/push; exact-head standard CI remains a separate coordinator gate.
+
+All live source-pin staging/activation and publication wait for fresh owner/browser-ready confirmation. Only the verified content-preserving Worker/Pages publication, workspace promotion and cleared lock may arm the new fifteen-minute permit, followed by one owner-triggered check. Stop on failure; no retry, renewal or retiming. The live database target remains **UNVERIFIED**; the existing handler only confirms the historical branch/database candidate. Both migrations remain separately gated. Regional `fea2db7a…`, Boundary local `7cf0ed8c…`, both protected worktrees and all 183 dependency deltas remain preserved. No production change, live publication/endpoint request or production SQL occurred during this source preparation.
+
 ## 9 November 2026 — Identity transport and approved v2 recovery — LOCAL VALIDATED, PRODUCTION PENDING
 
 The user explicitly approved one recovery release and one owner-triggered read-only candidate check. The isolated source patch follows the existing CORS policy and accepts bounded zero-byte EOF (one second/eight empty chunks); nonempty, malformed, errored, stalled and endless streams fail closed before auth/claim/query. Access/privacy, exact URL/origin/method/framing, client, SQL, candidate target and fifteen-minute duration remain unchanged. Help content and publisher code are unchanged.

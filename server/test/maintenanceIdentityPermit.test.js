@@ -62,24 +62,27 @@ test('duplicate receipts, expiry, consumption and source clones cannot renew or 
     f.env.HELP_CMS_SOURCE_REVISION=f.release.baseSourceRevision=f.publishedStatus.baseSourceRevision='9'.repeat(40);f.publishedStatus.publishedAt=new Date(f.now).toISOString();
     assert.equal((await arm(f)).state,'hold');assert.equal(JSON.stringify(f.bucket.data.get(helper.maintenanceIdentityPermitKey)),consumed);
 });
-test('approved v2 preserves the preexisting expired v1 record and permits only its own create-once claim',async()=>{
-    const f=fixture(),v1Key='maintenance/identity-permit-20261109-v1.json',v2Key='maintenance/identity-permit-20261109-v2.json';
-    f.bucket.set(v1Key,{schema:1,attempt:'maintenance-identity-20261109-v1',state:'armed',ownerId:11,
-        publicSourceRevision:source,buildSourceRevision:build,releaseId,jobId:job,version:f.release.version,
-        snapshotDigest:digest,compiledContentDigest:'c'.repeat(64),workerVersionId:id,pagesDeploymentId:pages,
-        publishedAt:new Date(start-1800000).toISOString(),expiresAt:new Date(start-900000).toISOString(),consumedAt:null});
-    const v1=JSON.stringify(f.bucket.data.get(v1Key));
-    assert.equal(helper.maintenanceIdentityPermitKey,v2Key);
+test('approved v3 retains preexisting v1 and expired unused v2 records and permits only its own create-once claim',async()=>{
+    const f=fixture(),v3Key='maintenance/identity-permit-20261109-v3.json',legacy=new Map();
+    for(const version of ['v1','v2']){
+        const key=`maintenance/identity-permit-20261109-${version}.json`,publishedAt=start-(version==='v1'?2700000:1800000);
+        f.bucket.set(key,{schema:1,attempt:`maintenance-identity-20261109-${version}`,state:'armed',ownerId:11,
+            publicSourceRevision:source,buildSourceRevision:build,releaseId,jobId:job,version:f.release.version,
+            snapshotDigest:digest,compiledContentDigest:'c'.repeat(64),workerVersionId:id,pagesDeploymentId:pages,
+            publishedAt:new Date(publishedAt).toISOString(),expiresAt:new Date(publishedAt+900000).toISOString(),consumedAt:null});
+        legacy.set(key,JSON.stringify(f.bucket.data.get(key)));
+    }
+    assert.equal(helper.maintenanceIdentityPermitKey,v3Key);
     assert.equal((await arm(f)).state,'armed');
-    assert.equal(f.bucket.data.get(v2Key).value.attempt,'maintenance-identity-20261109-v2');
-    assert.equal(JSON.stringify(f.bucket.data.get(v1Key)),v1);
+    assert.equal(f.bucket.data.get(v3Key).value.attempt,'maintenance-identity-20261109-v3');
+    for(const [key,original] of legacy) assert.equal(JSON.stringify(f.bucket.data.get(key)),original);
     assert.equal((await arm(f)).state,'hold');assert.equal((await claim(f)).ok,true);
-    const consumed=JSON.stringify(f.bucket.data.get(v2Key));
-    assert.equal(f.bucket.data.get(v2Key).value.state,'consumed');
+    const consumed=JSON.stringify(f.bucket.data.get(v3Key));
+    assert.equal(f.bucket.data.get(v3Key).value.state,'consumed');
     assert.equal((await claim(f)).ok,false);assert.equal((await arm(f)).state,'hold');
-    assert.equal(JSON.stringify(f.bucket.data.get(v2Key)),consumed);
-    assert.equal(JSON.stringify(f.bucket.data.get(v1Key)),v1);
-    assert.deepEqual(f.bucket.writes.map(write=>write.key),[v2Key,v2Key]);
+    assert.equal(JSON.stringify(f.bucket.data.get(v3Key)),consumed);
+    for(const [key,original] of legacy) assert.equal(JSON.stringify(f.bucket.data.get(key)),original);
+    assert.deepEqual(f.bucket.writes.map(write=>write.key),[v3Key,v3Key]);
 });
 test('exact expiry is exclusive and a current arm can be claimed once immediately before it',async()=>{
     const before=fixture();await arm(before);before.now=start+899999;assert.equal((await claim(before)).ok,true);
