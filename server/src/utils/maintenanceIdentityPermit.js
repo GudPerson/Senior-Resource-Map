@@ -1,7 +1,7 @@
 // Temporary, single maintenance attempt. Retain the private record when removing this helper.
 // It contains deployment metadata only; no credentials, Help prose or database query results.
-export const maintenanceIdentityPermitKey = 'maintenance/identity-permit-20261109-v1.json';
-const attempt = 'maintenance-identity-20261109-v1';
+export const maintenanceIdentityPermitKey = 'maintenance/identity-permit-20261109-v3.json';
+const attempt = 'maintenance-identity-20261109-v3';
 const duration = 15 * 60 * 1000;
 const fields = 'schema attempt state ownerId publicSourceRevision buildSourceRevision releaseId jobId version snapshotDigest compiledContentDigest workerVersionId pagesDeploymentId publishedAt expiresAt consumedAt'.split(' ');
 const sha = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
