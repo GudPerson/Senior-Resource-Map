@@ -49,9 +49,11 @@ async function scene({width=1600,height=1100,extraAreas=0,image=true,annotations
   const s={page,state,originalStudio:JSON.stringify(state.document),originalAnnotations:JSON.stringify(state.annotations)};
   scenes.push(s);current=s;
   await page.goto(fixture.base+'my-directory/maps/'+fixture.mapId);
-  await page.getByText(state.directory.name,{exact:true}).first().waitFor();
+  await page.getByText(state.directory.name,{exact:true}).first().waitFor({state:'attached'});
   if(diagnosticTransform)assert.ok(report.diagnosticResponse?.executedSha256,'Diagnostic response interception must execute before any test input');
   await page.locator('.leaflet-container').waitFor();
+  // Applying the fixture's saved desktop full-map layout replaces its initial map.
+  if(await page.evaluate(()=>matchMedia('(min-width: 1024px)').matches)) await page.locator('[data-map-studio-resource-panel="below-map"] .leaflet-container').waitFor();
   await until(()=>page.evaluate(owner=>[...window.__qaMaps].some(m=>m.getContainer().isConnected&&m._loaded&&(!owner||m.getZoom()>=15.5)),owner),'Expected fixture map not admitted');
   await page.locator('.leaflet-container').scrollIntoViewIfNeeded();
   // The existing fixture may complete its normal initial location focus after

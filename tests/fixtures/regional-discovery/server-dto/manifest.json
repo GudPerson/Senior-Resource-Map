@@ -1,0 +1,580 @@
+{
+  "sourceIdentity": {
+    "baseRevision": "71a9a064f19198e5d6a9030146c5a7d650718c06",
+    "state": "uncommitted final-review fix working tree; exact producer sources are bound below, not a claim that the base contains this implementation",
+    "integrationRebind": {
+      "featureRevision": "af4cd926e29e2fd77b1c9938bcffde22e1a929af",
+      "mergedMainRevision": "fe86c210d4f47c863bfc634213d9f18aaeda8462",
+      "kind": "source-binding-only; original controller capture retained",
+      "reason": "Current main retains its maintenance-only connector export. The unchanged fictional router injects its disposable PGlite database through getDatabase, so this transitively imported connector is not invoked by the producer. All other source bindings and all 12 serialized artifact bytes remain exact; no producer or validator change and no new capture is claimed.",
+      "bindings": [
+        {
+          "path": "server/src/db/index.js",
+          "capturedBytes": 549,
+          "capturedSha256": "6000ab568a54ee902267b910a5006a10ee67bf44124ce9334e77f45c0895ef5e",
+          "integratedBytes": 1606,
+          "integratedSha256": "3044cb71cdc227532e4bf4514468df64ebeed19a629bf38d198fe7a49dd6948d"
+        }
+      ]
+    }
+  },
+  "fixtureSchemaVersion": 1,
+  "status": "controller-serialized-fictional",
+  "controllerSerialized": true,
+  "provenanceKind": "disposable-pglite-controlled-fetch",
+  "realRoutingAuthority": false,
+  "realContactApproval": false,
+  "productionProof": false,
+  "command": "node tests/fixtures/regional-discovery/serialize.mjs --write (unchanged producer executed in isolated final-fix/producer-capture snapshot; genuine bytes copied only after whole-12 comparison)",
+  "sources": [
+    {
+      "path": "client/functions/embed/maps/[token].js",
+      "bytes": 6440,
+      "sha256": "2d3ef4519d351904621a63333a50b4cfebc1a44439c81254845e4c6b08bd6ef7"
+    },
+    {
+      "path": "client/functions/embed/maps/[token]/regional-discovery.js",
+      "bytes": 3061,
+      "sha256": "cc5f6906a7aed790f2d47025631c573503311aaa4bce88330bb76654a358eef8"
+    },
+    {
+      "path": "server/drizzle/0000_carearound_current_schema_baseline.sql",
+      "bytes": 86976,
+      "sha256": "95b2c67b9c59a6a2f6928f7c4445d1402c3e11e882933b01bd1f0c38e84d036a"
+    },
+    {
+      "path": "server/drizzle/0001_normalized_login_indexes.sql",
+      "bytes": 807,
+      "sha256": "cfc31fe6c7402c0311a55b3783b8429461c7f871da26922198b029549f773305"
+    },
+    {
+      "path": "server/drizzle/0002_gudauth_challenge_verifier_columns.sql",
+      "bytes": 239,
+      "sha256": "7822dd19e58aa60546ad94ace4820945431e0b5cc85e0a44701a903be5cd89fd"
+    },
+    {
+      "path": "server/drizzle/0003_support_inbox.sql",
+      "bytes": 5279,
+      "sha256": "8f9d98ce7658ea55676c1135d84c8fb9f5ba4861344f7a6a1bb8dab6a26f37e0"
+    },
+    {
+      "path": "server/drizzle/0004_guide_history.sql",
+      "bytes": 1191,
+      "sha256": "4560f722eca19af9190f01399fee7ad321daa0ff439cc9316ebd6d6f143ab75f"
+    },
+    {
+      "path": "server/drizzle/0005_notification_updates.sql",
+      "bytes": 4198,
+      "sha256": "1aac87349b0cba62b75522164f2205c3974f1e6fd2c95a47cad05012a0170a51"
+    },
+    {
+      "path": "server/drizzle/0006_saved_search_alerts.sql",
+      "bytes": 4190,
+      "sha256": "7a94c7be9da426b29c6dc4e128e96af7dafd247d5a905c431458cc5e36ba6de5"
+    },
+    {
+      "path": "server/drizzle/0007_boundary_layers.sql",
+      "bytes": 2087,
+      "sha256": "f87f4f6d543bf2dd4d19cd2b2a01e38eb0c16f9c49378cf8a70de61cbb9d6a69"
+    },
+    {
+      "path": "server/drizzle/0008_platform_access_settings.sql",
+      "bytes": 1685,
+      "sha256": "8e7662a0b0791f7d9b8c7eb3acab415eb3924f45f70d434d10ca8992176021b1"
+    },
+    {
+      "path": "server/drizzle/0009_governed_care_maps.sql",
+      "bytes": 19536,
+      "sha256": "36742b97b8c40f112067f4b0fd458cd866f6dc23125adc63ccf84d1d5c0c4688"
+    },
+    {
+      "path": "server/drizzle/0010_permission_first_publishing.sql",
+      "bytes": 4374,
+      "sha256": "c985d339506f1b0bd584de3856c754fa1a5d87166d13f30bd4aa5e5688bb4492"
+    },
+    {
+      "path": "server/drizzle/0011_regional_discovery.sql",
+      "bytes": 7998,
+      "sha256": "71955cb0f33e12042f7859dae1ae8676c639b6d8a4dc27f8876bd9b6de008915"
+    },
+    {
+      "path": "server/drizzle/meta/_journal.json",
+      "bytes": 1864,
+      "sha256": "4350cf37f2e4a9f88dbcd21c3bf7416fc03726f1ca02e9b5a2f45238bc925be9"
+    },
+    {
+      "path": "server/src/controllers/mapAnnotationMediaController.js",
+      "bytes": 4116,
+      "sha256": "ad61456368d1d601c64055c84e9167a498f4988a5ed0dec13ea099cc78182c24"
+    },
+    {
+      "path": "server/src/controllers/mapNoteImagesController.js",
+      "bytes": 5257,
+      "sha256": "0de8a8ae99d2456a3c244c737c24fe5a6924b8dc3f9c2c2e0097e1c9dc8bae93"
+    },
+    {
+      "path": "server/src/controllers/myMapsController.js",
+      "bytes": 58740,
+      "sha256": "39d91c998918ec373f503b1b0040360425f1c06aaafb6d59f93bdd4bb3ab0d51"
+    },
+    {
+      "path": "server/src/controllers/personalPlacesController.js",
+      "bytes": 25491,
+      "sha256": "05f0b7e032ed85638723fb2a21d11dd2e57db407a445d0542230d6ed778281e5"
+    },
+    {
+      "path": "server/src/controllers/printAnnotationsController.js",
+      "bytes": 19291,
+      "sha256": "e95be17707c4763008b5c6686578fb1359fe91b3f0ed850ec78731fd1adb23f6"
+    },
+    {
+      "path": "server/src/controllers/regionalDiscoveryController.js",
+      "bytes": 9014,
+      "sha256": "f96d74d68797113c0c041468a2ed95cae2b2aa719d2e4504a9cba8a45a8ef754"
+    },
+    {
+      "path": "server/src/controllers/sharedMapsController.js",
+      "bytes": 25000,
+      "sha256": "1187f3779709a9c1f7a1d6f7f31cc267029d4ff456146aedd480bf85f7be17b1"
+    },
+    {
+      "path": "server/src/db/index.js",
+      "bytes": 1606,
+      "sha256": "3044cb71cdc227532e4bf4514468df64ebeed19a629bf38d198fe7a49dd6948d"
+    },
+    {
+      "path": "server/src/db/schema.js",
+      "bytes": 119871,
+      "sha256": "2ad623a5ee4c061e416486754a214ee6daa214b3f6247e0083e090807d5aaf0e"
+    },
+    {
+      "path": "server/src/middleware/auth.js",
+      "bytes": 7528,
+      "sha256": "d1c1ba865607d435d678d802658ce45456fca2a2e1b1ed4589633e8a1be2d29f"
+    },
+    {
+      "path": "server/src/middleware/requestObservability.js",
+      "bytes": 3631,
+      "sha256": "3eb21c4dd0f7317875f83bef82da4c346f47a19cfd3e3a4ce35cf8c009f06c34"
+    },
+    {
+      "path": "server/src/middleware/security.js",
+      "bytes": 9630,
+      "sha256": "013035221bcc2f2a0aa2d7dd4af6ba3c9908f989f4f2a4cb3ea7b8ddfdd8cb38"
+    },
+    {
+      "path": "server/src/routes/sharedMaps.js",
+      "bytes": 2171,
+      "sha256": "f95dd3cced0b8080a737afa6bf5b14974ca5c1ed7cc06809b9a8ca492ebc62f5"
+    },
+    {
+      "path": "server/src/utils/audienceZones.js",
+      "bytes": 8919,
+      "sha256": "bad00724c2d7b80a1d656a889bd96eced71019f2fb7fdbbb258103dd0f942827"
+    },
+    {
+      "path": "server/src/utils/boundarySchema.js",
+      "bytes": 86551,
+      "sha256": "8a9bdb2545fe0ce03c37aaf11ddee97ae5f04834d586c2381c3e04360f60c63f"
+    },
+    {
+      "path": "server/src/utils/discoveryLocationContext.js",
+      "bytes": 4507,
+      "sha256": "a78751ae90b620c454cc59a554b5709db5a9b4fd42b2e95481b055c6b100bd67"
+    },
+    {
+      "path": "server/src/utils/eligibility.js",
+      "bytes": 12079,
+      "sha256": "a64548f157a22f97a33349428cabbcfb69518d96232ac72c22869be06c51f0cd"
+    },
+    {
+      "path": "server/src/utils/embeddedMapPresentation.js",
+      "bytes": 7195,
+      "sha256": "2eb574a073c17e224f9b52107d8bcaa16b08d344aa6718d89dc18cddf1a7c7c4"
+    },
+    {
+      "path": "server/src/utils/embeddedResourceContacts.js",
+      "bytes": 4549,
+      "sha256": "51fd8d52a3ca676b2783e9f04ccbbaa5177c396f1fc9f9ebb3542c52306443d2"
+    },
+    {
+      "path": "server/src/utils/governance.js",
+      "bytes": 11301,
+      "sha256": "b5b9e900beef57a9f371509d5047c2de0ddc1ab576ebbc5abb307523b1a2dd66"
+    },
+    {
+      "path": "server/src/utils/hardAssetStaff.js",
+      "bytes": 6755,
+      "sha256": "484cf54c354daf0d9123bebc4ebe8a3520d2bc782611681324b92910e605cd8c"
+    },
+    {
+      "path": "server/src/utils/inputValidation.js",
+      "bytes": 8149,
+      "sha256": "2edbe2b96983626d2b0c10edabad70742e8fb3efb934d7c06f9dfc92b988c519"
+    },
+    {
+      "path": "server/src/utils/mapAnnotationResources.js",
+      "bytes": 3197,
+      "sha256": "61d2993fd2d011f5508a618f210736373b1c3b8c65deda2e52a9d48e922f7fba"
+    },
+    {
+      "path": "server/src/utils/mapEmbed.js",
+      "bytes": 2274,
+      "sha256": "cb58789537122b4ee699c6dc31bd5523051f2768b0782b8c86f0e9880599f33a"
+    },
+    {
+      "path": "server/src/utils/mapEmbedSchema.js",
+      "bytes": 1199,
+      "sha256": "1129e2c8b73181550cc98776b2c337fcddee841cb8ebd9d1910897e5a7d412f9"
+    },
+    {
+      "path": "server/src/utils/mapLocationScope.js",
+      "bytes": 3521,
+      "sha256": "e9d3fdca45c8d14ad595502fb6f3d4f229528ca33cce818adc496d8d211b32c8"
+    },
+    {
+      "path": "server/src/utils/mapNoteImages.js",
+      "bytes": 6649,
+      "sha256": "240c96055d68bd431f860bdc968c444319b4d720b467c4de96ae94ca8ccda563"
+    },
+    {
+      "path": "server/src/utils/mapStudioDocument.js",
+      "bytes": 12841,
+      "sha256": "41752d6370e476b9d4a752f1f66100011cc1ca0e8a6f2a16c83a20d7c73cd448"
+    },
+    {
+      "path": "server/src/utils/mapStudioSchema.js",
+      "bytes": 4154,
+      "sha256": "5ee381f19c834778ddb1b3f7b8de02aed61cc65ffe759c99bc971d56699f3c4d"
+    },
+    {
+      "path": "server/src/utils/myMapCategoryOrder.js",
+      "bytes": 758,
+      "sha256": "d797d43cace41670520cfc0fbb66f8f69dc4b325cc1a0beaeba77d331b58a52d"
+    },
+    {
+      "path": "server/src/utils/myMapDirectory.js",
+      "bytes": 50957,
+      "sha256": "0fd0c23abcd10085d21f92fcb131ec1d0f2646dc9e6bdd9b884d6554066fd131"
+    },
+    {
+      "path": "server/src/utils/organizationAccess.js",
+      "bytes": 3209,
+      "sha256": "a77d8faf4893ff8ca8eef5ab1a95d7ad461c7c8230d9ea6dfb66e5a8fc07205a"
+    },
+    {
+      "path": "server/src/utils/ownership.js",
+      "bytes": 6092,
+      "sha256": "1cf6586ddbb97a06ee89f62d01c4a32354a70c40e2f2b12193757b5837f43797"
+    },
+    {
+      "path": "server/src/utils/partnerBoundaries.js",
+      "bytes": 2794,
+      "sha256": "ef5e2b7912d36cb0df42874ebbc05b4dbd4cf7d4df2aeb71d3bc8e97b68c0026"
+    },
+    {
+      "path": "server/src/utils/partnerStaff.js",
+      "bytes": 5784,
+      "sha256": "c78194fd5f1f12f1bdf2cc44b9f58e9a8edb78598488908166bdab8e69ccafe6"
+    },
+    {
+      "path": "server/src/utils/personalPlaceLocation.js",
+      "bytes": 2259,
+      "sha256": "49c89a8fa9db13c061f5aaf8ebf473c51b50167188f0950363d9ac67d3888b62"
+    },
+    {
+      "path": "server/src/utils/personalPlaceMapNotes.js",
+      "bytes": 6359,
+      "sha256": "b4aff1a55b62cce2fd5f077aee4accfb89804e0f62c6158fa4ca3fed95d4b5a4"
+    },
+    {
+      "path": "server/src/utils/postalBoundaries.js",
+      "bytes": 3489,
+      "sha256": "50b075b15e1cbb1d070af3b535f8afc514be1a5bc3caea994cc53ad7d777f988"
+    },
+    {
+      "path": "server/src/utils/privateMapMedia.js",
+      "bytes": 6123,
+      "sha256": "f2a18e58b4669c946f64d761e2b885e98c2c1b0fe3eeda5820b7dae4330e20e5"
+    },
+    {
+      "path": "server/src/utils/profileAttributes.js",
+      "bytes": 3102,
+      "sha256": "5c19fcfc97bc2c5af8a79faac64342a40e2e04f45dbe1b7f92cfae3117d761dc"
+    },
+    {
+      "path": "server/src/utils/regionalDiscoveryConfig.js",
+      "bytes": 10791,
+      "sha256": "fc8f5f891f043945e96f369f08e1b2bf847cd85f237be1f70347fffb5c6169fc"
+    },
+    {
+      "path": "server/src/utils/regionalDiscoveryContacts.js",
+      "bytes": 8075,
+      "sha256": "474c241bfdebc9129c7a066105134e75440ceaed70ef49e6eed6573935a11c11"
+    },
+    {
+      "path": "server/src/utils/regionalDiscoveryCoverage.js",
+      "bytes": 9343,
+      "sha256": "23e8527192a06249baffe05605c16f59b8fd4600e096edb1271006ebb7388154"
+    },
+    {
+      "path": "server/src/utils/regionalDiscoveryEvaluation.js",
+      "bytes": 12413,
+      "sha256": "7d4811d0be0ef8704c6a0f391920324a048bf1f5c366d7fe348030223dddef85"
+    },
+    {
+      "path": "server/src/utils/regionalDiscoveryPostal.js",
+      "bytes": 2844,
+      "sha256": "2c6b7aa3d134959d0884b304dbecf13182bd42780a20fb319283348e9b694cfe"
+    },
+    {
+      "path": "server/src/utils/regionalDiscoveryPublication.js",
+      "bytes": 5736,
+      "sha256": "43ce7529c107ab3cf7dcdedc193cf3ec2f950a6e5cc250612876153bd6347e1d"
+    },
+    {
+      "path": "server/src/utils/requestOrigins.js",
+      "bytes": 1285,
+      "sha256": "fb74ddc53e585c8fdfd55f2589d4f572f61c3a26470f7030f3d836103ac1f96c"
+    },
+    {
+      "path": "server/src/utils/resourcePublicationPolicy.js",
+      "bytes": 7802,
+      "sha256": "5db3a094845ba73ebee8366de3ce48e0014eb88ea7f58f2c655460ef73ca332d"
+    },
+    {
+      "path": "server/src/utils/resourceTranslations.js",
+      "bytes": 21886,
+      "sha256": "868bc9a76a434dbd76c0402f54539a528982a3c96dfe15a8cd8d21cbadaa56be"
+    },
+    {
+      "path": "server/src/utils/roles.js",
+      "bytes": 1493,
+      "sha256": "df64a3d6d382516489f535b88bb2a36d6375a03e162262ccfd92141f7edc1c47"
+    },
+    {
+      "path": "server/src/utils/savedAssets.js",
+      "bytes": 17157,
+      "sha256": "b1aaf359f3939a56f66017a36d58142c9b4634844c921afe00786ccbd30d7b90"
+    },
+    {
+      "path": "server/src/utils/sessionAuth.js",
+      "bytes": 4043,
+      "sha256": "8d70df7ff65efd9f51942b3e9af9d1946b5395d549488468f329ddbcec2678f7"
+    },
+    {
+      "path": "server/src/utils/shareTokens.js",
+      "bytes": 133,
+      "sha256": "6973e7d38916446d63c637c118cb0f001f5db5518e30ec12dc0f93d69be90cd4"
+    },
+    {
+      "path": "server/src/utils/sharedNoteTranslations.js",
+      "bytes": 3179,
+      "sha256": "b3f2490e9afd3b7531efc4599b5b1f9bebbde037d2665f95a348f7ed27617f41"
+    },
+    {
+      "path": "server/src/utils/singaporePostalFallback.js",
+      "bytes": 5245,
+      "sha256": "10a48cc8b718a72508a04a890781c0997be36df9b4ff96ef8256c0c67c5316ac"
+    },
+    {
+      "path": "server/src/utils/socialLinks.js",
+      "bytes": 2755,
+      "sha256": "157b28c5c67485704a92fd383ebf31c6a90c28c9c2b8d7027ad85060c2ae692c"
+    },
+    {
+      "path": "server/src/utils/softAssetAccess.js",
+      "bytes": 6148,
+      "sha256": "4aad1ceccfacd08cd88fb6d596833f9336b17f8a8c9742ff8b5b7d0328e41a19"
+    },
+    {
+      "path": "server/src/utils/softAssetBuckets.js",
+      "bytes": 1986,
+      "sha256": "533eb9fc2abcab97e30276d71c05d7253eed9628303a8d4cf04f2f57f3d1f81e"
+    },
+    {
+      "path": "server/src/utils/softAssetGroups.js",
+      "bytes": 10308,
+      "sha256": "5eb52ebfe2e8df8961271b59217aad30d45e7db1518560f35a24dbc0951604b2"
+    },
+    {
+      "path": "server/src/utils/softAssetHierarchy.js",
+      "bytes": 7920,
+      "sha256": "2a50d5c0b201f545ab7af4e4fd6b4e060a7bc972205b6e127f612ac3088f9ea6"
+    },
+    {
+      "path": "server/src/utils/subregionRouting.js",
+      "bytes": 3948,
+      "sha256": "e1c75392300bb3bbb7759b8989472ab0b83bbd3937a6f65f2982f72cd89944c3"
+    },
+    {
+      "path": "server/src/utils/visibility.js",
+      "bytes": 3473,
+      "sha256": "832692add5afa427b1556ade0bcba74ffe777d7c8feaa9354be791699cac0600"
+    },
+    {
+      "path": "shared/addressSnapshotSpatial.js",
+      "bytes": 5753,
+      "sha256": "70f9ff6b58ba7f1dce4192116221ed3a4e22e30f4f08c4063d4017ce62b6145c"
+    },
+    {
+      "path": "shared/annotationAppearance.js",
+      "bytes": 609,
+      "sha256": "ec6b671129fddaf3c8485a0680183554adc798ecf16ba6fcfb19bcfec9001e94"
+    },
+    {
+      "path": "shared/annotationGroups.js",
+      "bytes": 355,
+      "sha256": "85710753295c6224b01a4244240b7b3e198ae503063922ab6602fe1b7a5f7552"
+    },
+    {
+      "path": "shared/annotationWriteCompatibility.js",
+      "bytes": 1352,
+      "sha256": "fd852d34b7199f4f05bee72ec373e82f7814f12f674479186efc6032a0334338"
+    },
+    {
+      "path": "shared/careMapTerminology.js",
+      "bytes": 1626,
+      "sha256": "bf01c95a38690787eb93d9871c54d86fd710317b0ef91a2c08acd04dfa92b1ce"
+    },
+    {
+      "path": "shared/helpContentCms.js",
+      "bytes": 17763,
+      "sha256": "ee69e428a9a1df1e10653b0ddb459142f7bd0a380ac25d8aab9c6c03c623a6ec"
+    },
+    {
+      "path": "shared/kmlBoundaryGeometry.js",
+      "bytes": 2194,
+      "sha256": "a8f3d49ae0ef1b990f5a99b79009db3e752920533f6d53c866f3e99454051ecd"
+    },
+    {
+      "path": "shared/mapNoteImages.js",
+      "bytes": 1694,
+      "sha256": "cb0ac10e794a93ee64adc79d549c01fc5f82a47a43b6a7d2b68e8c27ad6c6358"
+    },
+    {
+      "path": "shared/printAnnotationLimits.js",
+      "bytes": 214,
+      "sha256": "523d703dc97de7f59d789f03acd4f17d7f3b20291cfdbe07eb6263e8706f2db8"
+    },
+    {
+      "path": "shared/regionalDiscoveryContactValues.js",
+      "bytes": 1151,
+      "sha256": "ea8968c37aa086c19d576578e42a649637a256313893ab2889f048c5bae28d5e"
+    },
+    {
+      "path": "shared/regionalDiscoveryContract.js",
+      "bytes": 9010,
+      "sha256": "4f1a9de05555a8ab7c6cbd7143a3c0fde2234f720e774743aa99d2d7971793d0"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/serialize.mjs",
+      "bytes": 7311,
+      "sha256": "341e740c25a8317a46267233f070897a69cbadc2f101a0fdc8e61e5c27d1da97"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/server-fixture.mjs",
+      "bytes": 7008,
+      "sha256": "315e896d2aff74b32e1e8601c929265e54c3d9a91d021052a5cd508c700e55a9"
+    }
+  ],
+  "serializedArtifacts": [
+    {
+      "path": "tests/fixtures/regional-discovery/server-dto/base.json",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 2604,
+      "sha256": "50ab1794482786bd112d7f8770ed901037fbe500c713a6133e8a4bd1f30dcb04",
+      "producer": "actual Hono guest GET"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/server-dto/inside-s1.json",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 2851,
+      "sha256": "b7dca9f3394097107b5a403c6cd2f5d5b3bbe9fcb343433c9702b2eb9f4ceff0",
+      "producer": "actual Hono guest POST evaluate with controlled fictional fetch"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/server-dto/inside-s2.json",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 2853,
+      "sha256": "415ba9a13e0a32ab7430f0604d5e3233a42f2b8aea9ade6286f2e7baa4e52bc8",
+      "producer": "actual Hono guest POST evaluate with controlled fictional fetch"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/server-dto/outside.json",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 2636,
+      "sha256": "8b2681eb6be0144e358488a1eea438229a5dcf8ecfa29c235663a8a0cc6b18cf",
+      "producer": "actual Hono guest POST evaluate with controlled fictional fetch"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/server-dto/coverage-unconfirmed.json",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 2642,
+      "sha256": "437f174c4ede1f12d83ffcc477ef40c2d8519dd056752bd3a3aba89a436f7ee1",
+      "producer": "actual Hono guest POST evaluate with controlled fictional fetch"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/server-dto/postal-unresolved.json",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 2639,
+      "sha256": "d35a35ff2da4120f143c8a338ac51f1216f07811b7cd6636118319a1294e430e",
+      "producer": "actual Hono guest POST evaluate with controlled fictional fetch"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/server-dto/owner-map.json",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 6457,
+      "sha256": "4f57229da0ae2e59db59d84c992b4c8f53053b5c284a821d30e0da1f317e5aa5",
+      "producer": "getMyMapDetail controller + Response.json bytes"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/server-dto/owner-settings.json",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 1821,
+      "sha256": "e0fd7c35057abaac4c334ff7bc15ebb0f224e4310272a2b891c91aa7ccead43e",
+      "producer": "getRegionalDiscoveryDocument controller + Response.json bytes"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/server-dto/framing-config.json",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 97,
+      "sha256": "1bdae3676d05ade2df2aeb6daf32633fdb16e74c9e2c0d2ed6a69a2ca2ad4d85",
+      "producer": "actual Hono regional config GET"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/server-dto/contact-withdrawn.json",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 2570,
+      "sha256": "deccec1a393e2c89cebb8a2d392a9fc72336360ae07cd435f72fbe7e9a4a87c9",
+      "producer": "actual Hono evaluation after fictional contact withdrawal"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/server-dto/resource-withdrawn.json",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 1803,
+      "sha256": "348ff08cab75d5fb58cd8024057fe008c6aa54e16ceb96a9adee486b1c9b30e3",
+      "producer": "actual Hono GET after fictional live resource withdrawal"
+    },
+    {
+      "path": "tests/fixtures/regional-discovery/server-dto/all-unplotted.json",
+      "status": 200,
+      "contentType": "application/json",
+      "bytes": 2522,
+      "sha256": "53979854617215d020e7de383c7f4233a10c8ee710874eff238681414e7547a2",
+      "producer": "actual Hono GET after explicit wholly-unplotted fictional publication"
+    }
+  ],
+  "limitations": "Wholly fictional SRs, exact postal memberships, service coverage, permissions, historical approval actors and destinations. Actual local controller/Response bytes, not real coverage, contact routing, deploy, physical-device or production acceptance evidence. No external data request."
+}

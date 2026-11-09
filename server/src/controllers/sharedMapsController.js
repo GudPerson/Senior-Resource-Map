@@ -103,7 +103,7 @@ async function requireSharedMap(db, token, includeAssets = false) {
     return map;
 }
 
-async function requireEmbeddedMap(db, token, includeAssets = false) {
+export async function requireEmbeddedMap(db, token, includeAssets = false) {
     const map = await requireSharedMap(db, token, includeAssets);
     let allowedOrigins = [];
     try {
@@ -168,12 +168,14 @@ function normalizeSnapshotDirectory(map, viewerUser, {
         embeddedPresentation,
         embeddedResourceKeys,
         embeddedHiddenPinPlaceKeys,
+        embeddedRegionalDiscovery,
         mapLocationScopeVersion,
         scopedResourceKeys,
         printAnnotations,
         ...sharedSnapshot
     } = snapshot;
     void printAnnotations;
+    void embeddedRegionalDiscovery;
     void mapLocationScopeVersion; void scopedResourceKeys;
     const resourceFilteredSnapshot = includeEmbeddedPresentation
         ? filterEmbeddedMapDirectoryByResourceAllowlist(sharedSnapshot, embeddedResourceKeys)

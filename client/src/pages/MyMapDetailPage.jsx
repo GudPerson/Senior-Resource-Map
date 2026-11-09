@@ -55,6 +55,8 @@ import PersonalPlaceCategoryManagerModal from '../components/personalPlaces/Pers
 import PersonalPlaceEditorModal from '../components/personalPlaces/PersonalPlaceEditorModal.jsx';
 import PersonalPlaceImportModal from '../components/personalPlaces/PersonalPlaceImportModal.jsx';
 import ShareMapModal from '../components/ShareMapModal.jsx';
+import RegionalDiscoverySettings from '../components/RegionalDiscoverySettings.jsx';
+import { normalizeRegionalDiscoveryEmbeddedView } from '../features/regional-discovery/regionalDiscoverySettings.js';
 import SharedMapDirectoryList from '../components/SharedMapDirectoryList.jsx';
 import TownMapModeControl from '../components/TownMapModeControl.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -127,6 +129,7 @@ import {
     PRINT_MAP_ANNOTATION_LAYER_SHOW,
     PRINT_MAP_LAYOUT_FULL,
     createOwnerPrintMapState,
+    normalizePrintMapViewState,
 } from '../lib/printMapState.js';
 import { filterPrintMapAnnotations } from '../lib/printMapLayers.js';
 
@@ -1734,6 +1737,10 @@ export default function MyMapDetailPage() {
         || mapStudioRuntimeSnapshot?.exploration?.cameraView
         || mapStudioInteractiveModel?.directoryMap?.mapViewState
         || null;
+    // Hydrated fixed owner views retain their controlled camera through layout work.
+    const preserveFixedViewOnLayoutChange = directory?.viewer?.isOwner === true
+        && mapStudioRuntimeSnapshot?.design?.camera?.mode === 'fixed'
+        && Boolean(normalizePrintMapViewState(interactiveMapViewState));
     const [printMapState, setPrintMapState] = useState(() => (
         createOwnerPrintMapState(mapStyle, OWNER_PRINT_BASEMAP_OPTIONS)
     ));
@@ -3548,9 +3555,11 @@ export default function MyMapDetailPage() {
                 setShareError(t('failedPublishShare'));
                 return false;
             }
+            const embeddedView = normalizeRegionalDiscoveryEmbeddedView(options.embeddedView);
             await api.publishMyMapShare(directory.id, {
                 ...(shareStudioSnapshot?.documentRevision > 0 ? { studioViewId: shareStudioSnapshot.activeViewId } : {}),
                 ...(options.noteImagesRevision !== undefined ? { noteImagesRevision: options.noteImagesRevision } : {}),
+                ...(embeddedView ? { embeddedView } : {}),
             });
             await loadMap();
             return true;
@@ -4132,6 +4141,7 @@ export default function MyMapDetailPage() {
         directoryMap: {
             ...mapStudioInteractiveModel.directoryMap,
             mapViewState: interactiveMapViewState,
+            preserveFixedViewOnLayoutChange,
         },
         layoutSignature: `v2-map:${mapStudioLayoutSignature}`,
         heightResetKey: mapStudioRuntimeSnapshot.activeViewId,
@@ -4155,6 +4165,7 @@ export default function MyMapDetailPage() {
             ? t('mapStudioMapColourScope')
             : undefined,
         mapViewState: interactiveMapViewState,
+        preserveFixedViewOnLayoutChange,
         markerScale: mapStudioInteractiveModel?.directoryMap?.markerScale ?? 1,
         printBadgeScale: mapStudioInteractiveModel?.directoryMap?.markerScale ?? 1,
         pinBadgeMode: mapStudioInteractiveModel?.directoryMap?.pinBadgeMode ?? 'count',
@@ -4637,6 +4648,7 @@ export default function MyMapDetailPage() {
                         setShareOpen(false);
                         setShareError('');
                     }}
+                    RegionalDiscoverySettingsComponent={RegionalDiscoverySettings}
                     onPublish={handlePublishShare}
                     onUnpublish={handleUnpublishShare}
                     onUpdateEmbed={handleUpdateEmbed}
@@ -5017,6 +5029,7 @@ export default function MyMapDetailPage() {
                     setShareOpen(false);
                     setShareError('');
                 }}
+                RegionalDiscoverySettingsComponent={RegionalDiscoverySettings}
                 onPublish={handlePublishShare}
                 onUnpublish={handleUnpublishShare}
                 onUpdateEmbed={handleUpdateEmbed}

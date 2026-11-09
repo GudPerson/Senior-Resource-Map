@@ -41,7 +41,18 @@ export function isProductionRequest(c) {
     return nodeEnv === 'production' || envName === 'production' || envName === 'main';
 }
 
+// Exact read-only regional POST; never a prefix-wide authentication exception.
+function isRegionalDiscoveryEvaluation(c) {
+    return c.req.method === 'POST'
+        && /^\/api\/shared-maps\/[^/]+\/embed\/regional-discovery\/evaluate$/.test(c.req.path);
+}
+function isRegionalDiscoveryPath(c) {
+    return /^\/api\/shared-maps\/[^/]+\/embed\/(?:regional-discovery(?:\/evaluate)?|regional-discovery-config)$/.test(c.req.path);
+}
+
 export async function securityHeaders(c, next) {
+    // Outside body/CSRF/rate guards, including their early error responses.
+    if (isRegionalDiscoveryPath(c)) c.header('Cache-Control', 'no-store');
     await next();
 
     const csp = [
@@ -144,6 +155,10 @@ function getRequestOrigin(c) {
 }
 
 export async function cookieSessionCsrfGuard(c, next) {
+    if (isRegionalDiscoveryEvaluation(c)) {
+        await next();
+        return;
+    }
     if (!BODY_METHODS.has(c.req.method.toUpperCase())) {
         await next();
         return;

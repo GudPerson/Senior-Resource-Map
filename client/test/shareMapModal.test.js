@@ -33,7 +33,7 @@ test('share map modal exposes an explicit bulk annotation opt-in without bypassi
     assert.match(shareMapModalSource, /shareableAnnotations\.filter\(\(annotation\) => Boolean\(annotation\?\.isShared\)\)\.length/);
     assert.match(shareMapModalSource, /includeAnnotationsRef\.current\.indeterminate = includesSomeAnnotations/);
     assert.match(shareMapModalSource, /setIncludeAnnotationsSelection\(event\.target\.checked\)/);
-    assert.match(shareMapModalSource, /onPublish\?\.\(\{ includeAnnotations: includeAnnotationsSelection,\s*noteImagesRevision: map\?\.noteImagesRevision \}\)/);
+    assert.match(shareMapModalSource, /onPublish\?\.\(\{ includeAnnotations: includeAnnotationsSelection,\s*noteImagesRevision: map\?\.noteImagesRevision,\s*\.\.\.\(embeddedView \? \{ embeddedView \} : \{\}\) \}\)/);
     assert.match(shareMapModalSource, /t\('includeAnnotationsInShare'\)/);
     assert.match(shareMapModalSource, /disabled=\{!annotationCount \|\| !annotationsReady \|\| submitting\}/);
 });
@@ -60,11 +60,11 @@ test('share map modal explains and refreshes the frozen embed preview after publ
     );
     assert.match(
         shareMapModalSource,
-        /const published = await onPublish\?\.\(\{ includeAnnotations: includeAnnotationsSelection,\s*noteImagesRevision: map\?\.noteImagesRevision \}\);/,
+        /const published = await onPublish\?\.\(\{ includeAnnotations: includeAnnotationsSelection,\s*noteImagesRevision: map\?\.noteImagesRevision,\s*\.\.\.\(embeddedView \? \{ embeddedView \} : \{\}\) \}\);/,
     );
     assert.match(
         shareMapModalSource,
-        /if \(!published\) return;/,
+        /if \(!published\) return false;/,
     );
     assert.match(
         shareMapModalSource,
@@ -85,12 +85,17 @@ test('share map modal explains and refreshes the frozen embed preview after publ
 });
 
 let shareRenderer;
-async function renderShare(props) {
+async function renderShareWithActions(props) {
     if (!shareRenderer) {
         const require = createRequire(import.meta.url);
         const { outputFiles } = await build({
-            stdin: { contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import Modal from './ShareMapModal.jsx'; export const render=(props)=>renderToStaticMarkup(<Modal {...props}/>);`, resolveDir: new URL('../src/components', import.meta.url).pathname, loader: 'jsx' },
-            bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', loader: { '.css': 'empty' }, logLevel: 'silent',
+            stdin: { contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import Modal from './ShareMapModal.jsx';
+                let buttons=[]; __shareTestFragment=React.Fragment;
+                __shareTestElement=(type,props,...children)=>{ if(type==='button') buttons.push({...props,children}); return React.createElement(type,props,...children); };
+                export const render=(props)=>{ buttons=[]; const html=renderToStaticMarkup(<Modal {...props}/>); return {html,buttons:[...buttons]}; };`,
+                resolveDir: new URL('../src/components', import.meta.url).pathname, loader: 'jsx' },
+            bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'transform', jsxFactory: '__shareTestElement', jsxFragment: '__shareTestFragment',
+            banner: { js: 'var __shareTestElement, __shareTestFragment;' }, loader: { '.css': 'empty' }, logLevel: 'silent',
         });
         const module = { exports: {} };
         new Function('require', 'module', 'exports', outputFiles[0].text)(require, module, module.exports);
@@ -98,6 +103,8 @@ async function renderShare(props) {
     }
     return shareRenderer({ isOpen: true, map: { id: 7, name: 'Fictional map', share: { isShared: true, sharePath: '/shared/fictional' } }, ...props });
 }
+
+async function renderShare(props) { return (await renderShareWithActions(props)).html; }
 
 test('private images do not inflate the share count or change existing shape opt-in', async () => {
     const annotations = [
@@ -118,4 +125,41 @@ test('an image-only map cannot opt private images into the shared link', async (
     assert.match(html, /<input[^>]*type="checkbox"[^>]*disabled=""/);
     assert.match(html, /Images are private and are not included in shared links/);
     assert.doesNotMatch(html, /1 of 1 saved annotations/);
+});
+
+
+test('legacy callback never promotes an unpublished regional draft and retains image revision', async () => {
+    const calls=[];
+    let injected;
+    const {buttons}=await renderShareWithActions({
+        map:{id:7,name:'Fictional map',noteImagesRevision:9,share:{isShared:false}},
+        RegionalDiscoverySettingsComponent:props=>{injected=props;return null;},
+        onPublish:async options=>{calls.push(options);return true;},
+    });
+    assert.equal(injected.mapId,7);
+    const publish=buttons.find(button=>button.children.join('')==='Publish share link');
+    assert.ok(publish,'actual compact publish button');
+    assert.equal(await publish.onClick(),true);
+    assert.deepEqual(calls,[{includeAnnotations:null,noteImagesRevision:9}]);
+});
+
+test('explicit regional callback validates intent and uses the same share callback result', async () => {
+    const calls=[];
+    let injected;
+    let succeeds=false;
+    await renderShareWithActions({map:{id:7,name:'Fictional map',noteImagesRevision:9,share:{isShared:false}},
+        RegionalDiscoverySettingsComponent:props=>{injected=props;return null;},
+        onPublish:async options=>{calls.push(options);return succeeds;},
+    });
+    assert.equal(await injected.onPublish({mode:'regional-discovery',revision:3}),false);
+    succeeds=true;
+    assert.equal(await injected.onPublish({mode:'regional-discovery',revision:3}),true);
+    assert.equal(await injected.onPublish({mode:'compact'}),true);
+    assert.deepEqual(calls,[
+        {includeAnnotations:null,noteImagesRevision:9,embeddedView:{mode:'regional-discovery',revision:3}},
+        {includeAnnotations:null,noteImagesRevision:9,embeddedView:{mode:'regional-discovery',revision:3}},
+        {includeAnnotations:null,noteImagesRevision:9,embeddedView:{mode:'compact'}},
+    ]);
+    assert.throws(()=>injected.onPublish({mode:'regional-discovery',revision:0}));
+    assert.equal(calls.length,3);
 });

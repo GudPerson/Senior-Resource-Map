@@ -52,6 +52,11 @@ jobs:
           node tests/browser/owner-split-workspace.mjs --out=output/owner-split-workspace-browser/default
           node tests/browser/owner-split-workspace.mjs --workspace-flag=false --case=release-false-default-policy --out=output/owner-split-workspace-browser/false-policy
 
+      - name: Verify owner fixed camera and layer inspector regressions
+        run: |
+          node tests/browser/owner-fixed-layout-camera.mjs --out="${RUNNER_TEMP}/owner-camera-regressions-browser/fixed-layout"
+          node tests/browser/care-map-layer-inspector.mjs --out="${RUNNER_TEMP}/owner-camera-regressions-browser/layer-inspector"
+
       - name: Verify Care Map spatial tools with local and authenticated production providers
         run: |
           node tests/browser/caremap-spatial-tools.mjs --provider=local --out=output/caremap-spatial-tools-browser/local --port=4497
@@ -93,6 +98,16 @@ jobs:
         with:
           name: retained-owner-split-experiment-browser
           path: output/owner-split-workspace-browser
+          if-no-files-found: ignore
+
+      - name: Retain owner camera and layer inspector evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owner-camera-regressions-browser
+          path: |
+            ${{ runner.temp }}/owner-camera-regressions-browser
+            !${{ runner.temp }}/owner-camera-regressions-browser/**/vite-cache/**
           if-no-files-found: ignore
 
       - name: Retain Care Map photo compression evidence

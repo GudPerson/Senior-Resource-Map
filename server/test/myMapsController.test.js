@@ -1692,6 +1692,15 @@ test('publishMyMap enables a reusable share link', async () => {
     assert.equal(db.state.shareSnapshots[0].snapshot.places[0].rows[0].socialLinks, undefined);
 });
 
+test('invalid regional publish intent writes neither refreshed assets nor share state', async () => {
+    const db = createFakeDb({ maps: [createMap()], mapAssets: [createMapAsset()], hardAsset: createHardAsset() });
+    const before = structuredClone(db.state);
+    await assert.rejects(publishMyMap(db, DEFAULT_USER, 3, DEFAULT_CONTEXT, {
+        embeddedView: { mode: 'regional-discovery', revision: -1 },
+    }), { status: 400 });
+    assert.deepEqual(db.state, before);
+});
+
 test('publishMyMap freezes only the selected saved view public presentation', async () => {
     const studioDocument = createMapStudioDocument({
         viewId: 'partner-view',

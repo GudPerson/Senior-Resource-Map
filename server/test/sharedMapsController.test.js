@@ -473,6 +473,20 @@ test('getSharedMapDirectory returns the frozen share snapshot until the owner re
     assert.equal(directory.assets[0].notes.items[0].text, 'Original shared note.');
 });
 
+test('legacy shared and compact responses omit the entire regional namespace without shape changes', async () => {
+    const frozen=createSnapshotDirectory();
+    const db=createFakeDb({maps:[createSharedMap({embedEnabled:true,embedAllowedOrigins:['https://example.invalid']})],
+        shareSnapshots:[{mapId:3,shareToken:'shared-token',snapshot:frozen}],hardAsset:createHardAsset()});
+    const sharedBefore=await getSharedMapDirectory(db,'shared-token',GUEST_USER);
+    const compactBefore=await getEmbeddedMapDirectory(db,'shared-token');
+    frozen.embeddedRegionalDiscovery={version:999,secret:'PRIVATE REGIONAL METADATA',entries:[{contactEmail:'private@example.invalid'}]};
+    const sharedAfter=await getSharedMapDirectory(db,'shared-token',GUEST_USER);
+    const compactAfter=await getEmbeddedMapDirectory(db,'shared-token');
+    assert.deepEqual(sharedAfter,sharedBefore);
+    assert.deepEqual(compactAfter,compactBefore);
+    assert.equal(JSON.stringify(compactAfter).includes('PRIVATE REGIONAL'),false);
+});
+
 test('getSharedMapDirectory removes frozen hard assets that are no longer publicly visible', async () => {
     const db = createFakeDb({
         maps: [createSharedMap()],

@@ -285,3 +285,59 @@ test('phone login polling sends the verifier in a header instead of the URL', as
     assert.equal(requestedUrl, '/api/auth/phone/42');
     assert.equal(requestOptions.headers['X-Phone-Login-Token'], 'secret-verifier');
 });
+
+test('save_and_preview_do_not_publish: owner methods send only saved revision/config and postal context', async () => {
+    const originalFetch=globalThis.fetch;
+    const calls=[];
+    const signal=new AbortController().signal;
+    globalThis.fetch=async (url,options)=>{
+        calls.push({url,options});
+        return new Response(JSON.stringify({revision:3}),{status:200,headers:{'content-type':'application/json'}});
+    };
+    const config={schemaVersion:1,mode:'compact',includedSubregionIds:[],regionExtent:[103.6,1.15,104.1,1.5],entries:[]};
+    try {
+        await api.getRegionalDiscoveryDocument(23,{signal});
+        await api.replaceRegionalDiscoveryDocument(23,{revision:2,config},{signal});
+        await api.previewRegionalDiscovery(23,{revision:3,postalCode:'123456'},{signal});
+        await api.previewRegionalDiscovery(23,{revision:3},{signal});
+    } finally { globalThis.fetch=originalFetch; }
+    assert.deepEqual(calls.map(call=>call.options.method),['GET','PUT','POST','POST']);
+    assert.ok(calls.every(call=>/\/my-maps\/23\/regional-discovery(?:\/preview)?$/.test(call.url)));
+    assert.ok(calls.every(call=>call.options.credentials==='include' && call.options.signal===signal && call.options.cache==='no-store'));
+    assert.equal(calls[0].options.body,undefined);
+    assert.deepEqual(JSON.parse(calls[1].options.body),{revision:2,config});
+    assert.deepEqual(JSON.parse(calls[2].options.body),{revision:3,postalCode:'123456'});
+    assert.deepEqual(JSON.parse(calls[3].options.body),{revision:3});
+});
+
+test('owner regional access and stale-revision conflicts retain HTTP status', async () => {
+    const originalFetch=globalThis.fetch;
+    try {
+        for (const status of [403,404,409]) {
+            globalThis.fetch=async ()=>new Response(JSON.stringify({error:'Regional settings unavailable'}),{status,headers:{'content-type':'application/json'}});
+            await assert.rejects(()=>api.getRegionalDiscoveryDocument(23),error=>error.status===status);
+            await assert.rejects(()=>api.replaceRegionalDiscoveryDocument(23,{revision:2,config:{}}),error=>error.status===status);
+            await assert.rejects(()=>api.previewRegionalDiscovery(23,{revision:2}),error=>error.status===status);
+        }
+    } finally { globalThis.fetch=originalFetch; }
+});
+
+test('share request preserves Studio and image revisions with optional explicit embedded view', async () => {
+    const originalFetch=globalThis.fetch;
+    const calls=[];
+    globalThis.fetch=async (url,options)=>{
+        calls.push({url,body:JSON.parse(options.body)});
+        return new Response('{}',{status:200,headers:{'content-type':'application/json'}});
+    };
+    try {
+        await api.publishMyMapShare(23,{studioViewId:'view-one',noteImagesRevision:9});
+        await api.publishMyMapShare(23,{studioViewId:'view-one',noteImagesRevision:9,embeddedView:{mode:'regional-discovery',revision:3}});
+        await api.publishMyMapShare(23,{embeddedView:{mode:'compact'}});
+    } finally { globalThis.fetch=originalFetch; }
+    assert.ok(calls.every(call=>/\/my-maps\/23\/share$/.test(call.url)));
+    assert.deepEqual(calls.map(call=>call.body),[
+        {studioViewId:'view-one',noteImagesRevision:9},
+        {studioViewId:'view-one',noteImagesRevision:9,embeddedView:{mode:'regional-discovery',revision:3}},
+        {embeddedView:{mode:'compact'}},
+    ]);
+});

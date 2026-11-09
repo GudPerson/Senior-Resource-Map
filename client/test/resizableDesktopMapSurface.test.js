@@ -109,10 +109,12 @@ test('desktop resize handle supports pointer, keyboard, reset, and map callback 
     assert.match(resizableSurfaceSource, /resolveDesktopMapStudioHeightPreset/);
 });
 
-test('DirectoryMap frame resize sync is opt-in and preserves the current camera', () => {
+test('DirectoryMap frame resize is opt-in and only the fixed view requests center preservation', () => {
     assert.match(directoryMapSource, /observeFrameResize = false/);
     assert.match(directoryMapSource, /typeof ResizeObserver === 'undefined'/);
     assert.match(directoryMapSource, /observer\.observe\(frame\)/);
-    assert.match(directoryMapSource, /map\.invalidateSize\(\{ animate: false, pan: false \}\)/);
+    assert.match(directoryMapSource, /function DirectoryMapFrameResizeSync\(\{ enabled = false, frameRef, preserveCenter = false \}\)/);
+    assert.match(directoryMapSource, /map\.invalidateSize\(\{ animate: false, pan: preserveCenter \}\)/);
+    assert.match(directoryMapSource, /preserveCenter=\{preserveFixedViewOnLayoutChange\}/);
     assert.match(directoryMapSource, /enabled=\{observeFrameResize\}/);
 });

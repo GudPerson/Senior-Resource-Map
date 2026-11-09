@@ -7,8 +7,9 @@ export function shouldRefitDirectoryCameraAfterResize({
     activePlaceKey = '',
     activePlaceKeys = [],
     hasActivePlaceKeys = false,
+    preserveFixedViewOnLayoutChange = false,
 } = {}) {
-    if (!previousLayoutSignature || previousLayoutSignature === nextLayoutSignature) {
+    if (preserveFixedViewOnLayoutChange || !previousLayoutSignature || previousLayoutSignature === nextLayoutSignature) {
         return false;
     }
 
