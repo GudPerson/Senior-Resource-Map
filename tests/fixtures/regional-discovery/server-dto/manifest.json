@@ -16,6 +16,43 @@
           "integratedSha256": "3044cb71cdc227532e4bf4514468df64ebeed19a629bf38d198fe7a49dd6948d"
         }
       ]
+    },
+    "boundaryIntegrationRebind": {
+      "featureRevision": "7cf0ed8c9765d9ba218cfb5e07a392a7fb92f108",
+      "mergedMainRevision": "4d4fc9ee4be0e5e091afdf51ae964ad082a47f5f",
+      "kind": "source-binding-only; original controller capture retained",
+      "reason": "Boundary adds six isolated stores and ordinal0012 to schema/journal. Its annotation changes add private name/exact-geometry write compatibility and strip private names from public snapshots. The unchanged Regional producer uses no annotations and invokes no Boundary write handler; its existing controller inputs and all12 serialized DTO bytes are retained. No producer or validator change and no new capture is claimed.",
+      "bindings": [
+        {
+          "path": "server/drizzle/meta/_journal.json",
+          "capturedBytes": 1864,
+          "capturedSha256": "4350cf37f2e4a9f88dbcd21c3bf7416fc03726f1ca02e9b5a2f45238bc925be9",
+          "integratedBytes": 2022,
+          "integratedSha256": "95868f09b9e83613d8eb4f8d359e63a10bfc5f9a9a3b567283815c3863522daa"
+        },
+        {
+          "path": "server/src/controllers/printAnnotationsController.js",
+          "capturedBytes": 19291,
+          "capturedSha256": "e95be17707c4763008b5c6686578fb1359fe91b3f0ed850ec78731fd1adb23f6",
+          "integratedBytes": 19820,
+          "integratedSha256": "b30291c4b8e2645958d6b44f5590f84cb5dc53a0306ac7e8f4bad55ceae76ec0"
+        },
+        {
+          "path": "server/src/db/schema.js",
+          "capturedBytes": 119871,
+          "capturedSha256": "2ad623a5ee4c061e416486754a214ee6daa214b3f6247e0083e090807d5aaf0e",
+          "integratedBytes": 126084,
+          "integratedSha256": "a902b69f0b89073d4e77dd59bd9d21efdb2c89bafda193a0a94fc1b17e35e805"
+        },
+        {
+          "path": "shared/annotationWriteCompatibility.js",
+          "capturedBytes": 1352,
+          "capturedSha256": "fd852d34b7199f4f05bee72ec373e82f7814f12f674479186efc6032a0334338",
+          "integratedBytes": 2846,
+          "integratedSha256": "014f15a284455ed3bf1d9a74a9148dc3cc52b9ee5267cfff1871b2d556a49e2d"
+        }
+      ],
+      "addedMigrationSource": "server/drizzle/0012_boundary_library_guided_zones.sql"
     }
   },
   "fixtureSchemaVersion": 1,
@@ -98,9 +135,14 @@
       "sha256": "71955cb0f33e12042f7859dae1ae8676c639b6d8a4dc27f8876bd9b6de008915"
     },
     {
+      "path": "server/drizzle/0012_boundary_library_guided_zones.sql",
+      "bytes": 6551,
+      "sha256": "9924475d4a9332bf40bea8cb3b7a47143f63340b646a42714ef2b2a71aad6bec"
+    },
+    {
       "path": "server/drizzle/meta/_journal.json",
-      "bytes": 1864,
-      "sha256": "4350cf37f2e4a9f88dbcd21c3bf7416fc03726f1ca02e9b5a2f45238bc925be9"
+      "bytes": 2022,
+      "sha256": "95868f09b9e83613d8eb4f8d359e63a10bfc5f9a9a3b567283815c3863522daa"
     },
     {
       "path": "server/src/controllers/mapAnnotationMediaController.js",
@@ -124,8 +166,8 @@
     },
     {
       "path": "server/src/controllers/printAnnotationsController.js",
-      "bytes": 19291,
-      "sha256": "e95be17707c4763008b5c6686578fb1359fe91b3f0ed850ec78731fd1adb23f6"
+      "bytes": 19820,
+      "sha256": "b30291c4b8e2645958d6b44f5590f84cb5dc53a0306ac7e8f4bad55ceae76ec0"
     },
     {
       "path": "server/src/controllers/regionalDiscoveryController.js",
@@ -144,8 +186,8 @@
     },
     {
       "path": "server/src/db/schema.js",
-      "bytes": 119871,
-      "sha256": "2ad623a5ee4c061e416486754a214ee6daa214b3f6247e0083e090807d5aaf0e"
+      "bytes": 126084,
+      "sha256": "a902b69f0b89073d4e77dd59bd9d21efdb2c89bafda193a0a94fc1b17e35e805"
     },
     {
       "path": "server/src/middleware/auth.js",
@@ -429,8 +471,8 @@
     },
     {
       "path": "shared/annotationWriteCompatibility.js",
-      "bytes": 1352,
-      "sha256": "fd852d34b7199f4f05bee72ec373e82f7814f12f674479186efc6032a0334338"
+      "bytes": 2846,
+      "sha256": "014f15a284455ed3bf1d9a74a9148dc3cc52b9ee5267cfff1871b2d556a49e2d"
     },
     {
       "path": "shared/careMapTerminology.js",

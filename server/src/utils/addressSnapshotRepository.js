@@ -16,7 +16,7 @@ const hashPattern = /^[a-f0-9]{64}$/;
 const rowIdPattern = /^address_[a-f0-9]{64}_[1-9]\d{0,6}$/;
 const plainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const keysAre = (value, keys) => plainObject(value) && Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
-const boundsIntersect = (a, b) => a.south <= b.north && a.north >= b.south && a.west <= b.east && a.east >= b.west;
+export const boundsIntersect = (a, b) => a.south <= b.north && a.north >= b.south && a.west <= b.east && a.east >= b.west;
 const pointInBounds = (lat, lng, bounds) => lat >= bounds.south && lat <= bounds.north && lng >= bounds.west && lng <= bounds.east;
 
 async function sha256(bytes) {
@@ -24,9 +24,9 @@ async function sha256(bytes) {
 }
 
 // Each invocation owns its budget and request data. No cross-request query cache.
-export function createAddressSnapshotRepository(bucket, { config = ADDRESS_SNAPSHOT_CONFIG } = {}) {
+export function createAddressSnapshotReader(bucket, config = ADDRESS_SNAPSHOT_CONFIG) {
     const limits = config.limits;
-    const budgetForRequest = () => ({ reads: 0, bytes: 0 });
+
     async function guarded(action) {
         try { return await action(); }
         catch (error) { throw error instanceof AddressSnapshotRepositoryError ? error : unavailable(); }
@@ -37,6 +37,13 @@ export function createAddressSnapshotRepository(bucket, { config = ADDRESS_SNAPS
             || ++budget.reads > limits.maxR2Reads) throw unavailable();
         const object = await bucket.get(descriptor.key);
         if (!object) throw unavailable();
+        if (descriptor.key === `${config.prefix}/manifest.json`) {
+            budget.etag = object.etag ?? null;
+            if (budget.expectedEtag && budget.etag !== budget.expectedEtag) {
+                await object.body?.cancel?.().catch(() => {});
+                throw changed();
+            }
+        }
         if (object.size !== descriptor.bytes || object.httpMetadata?.contentType !== contentType || !object.body?.getReader) {
             await object.body?.cancel?.().catch(() => {}); throw unavailable();
         }
@@ -99,6 +106,22 @@ export function createAddressSnapshotRepository(bucket, { config = ADDRESS_SNAPS
         return validateManifest(json(await readObject({ key: `${config.prefix}/manifest.json`, bytes: config.manifestBytes,
             sha256: config.manifestSha256 }, 'application/json', budget, limits.maxManifestBytes)));
     }
+    function indexPoint(data, tile, i, previous) {
+        const at = i * limits.indexRecordBytes, lat = data.getFloat64(at,true), lng = data.getFloat64(at+8,true), ordinal = data.getUint32(at+16,true);
+        if (!isSpatialCoordinate([lat,lng]) || !pointInBounds(lat,lng,tile.bounds) || `${Math.floor(lat / .01)}_${Math.floor(lng / .01)}` !== tile.id
+            || ordinal >= config.recordCount || ordinal <= previous) throw unavailable();
+        return {lat,lng,ordinal};
+    }
+    function validateRow(row) {
+        if (!Array.isArray(row) || row.length !== 6 || !row.every(value => typeof value === 'string' && value.length <= 65536)
+            || !rowIdPattern.test(row[0]) || !/^\d{6}$/.test(row[1])) throw unavailable();
+    }
+    return {guarded,readObject,json,manifestForRequest,indexPoint,validateRow};
+}
+
+export function createAddressSnapshotRepository(bucket, { config = ADDRESS_SNAPSHOT_CONFIG } = {}) {
+    const limits = config.limits, budgetForRequest = () => ({reads:0,bytes:0});
+    const {guarded,readObject,json,manifestForRequest,indexPoint,validateRow} = createAddressSnapshotReader(bucket,config);
     function validateInput(input, mode) {
         const allowed = mode === 'area' ? ['area', 'offset', 'limit', 'snapshotSha256'] : ['lat', 'lng', 'radiusMeters', 'limit', 'snapshotSha256'];
         if (!plainObject(input) || Object.keys(input).some(key => !allowed.includes(key))
@@ -162,9 +185,8 @@ export function createAddressSnapshotRepository(bucket, { config = ADDRESS_SNAPS
             const data = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), values = [], found = [];
             let previous = -1;
             for (let i = 0; i < tile.count; i++) {
-                const at = i * limits.indexRecordBytes, lat = data.getFloat64(at, true), lng = data.getFloat64(at + 8, true), ordinal = data.getUint32(at + 16, true);
-                if (!isSpatialCoordinate([lat, lng]) || !pointInBounds(lat, lng, tile.bounds) || `${Math.floor(lat / .01)}_${Math.floor(lng / .01)}` !== tile.id
-                    || ordinal >= config.recordCount || ordinal <= previous || ordinals.has(ordinal)) throw unavailable();
+                const {lat,lng,ordinal} = indexPoint(data,tile,i,previous);
+                if (ordinals.has(ordinal)) throw unavailable();
                 previous = ordinal; ordinals.add(ordinal); values.push({ lat, lng, ordinal });
                 if (pointInBounds(lat, lng, plan.bounds) && containsSpatialPoint(query.area, { lat, lng })) found.push({ tile, local: i, lat, lng, ordinal,
                     ...(mode === 'nearby' ? { distanceMeters: distanceMeters(query.area.center, [lat, lng]) } : {}) });
@@ -179,8 +201,8 @@ export function createAddressSnapshotRepository(bucket, { config = ADDRESS_SNAPS
             const rows = json(await readObject(tile.rows, 'application/json', budget));
             if (!Array.isArray(rows) || rows.length !== tile.count || indicesByTile.get(tile.id)?.length !== rows.length) throw unavailable();
             for (const row of rows) {
-                if (!Array.isArray(row) || row.length !== 6 || !row.every(value => typeof value === 'string' && value.length <= 65536)
-                    || !rowIdPattern.test(row[0]) || !/^\d{6}$/.test(row[1]) || rowIds.has(row[0])) throw unavailable();
+                validateRow(row);
+                if (rowIds.has(row[0])) throw unavailable();
                 rowIds.add(row[0]);
             }
             return [tile.id, rows];

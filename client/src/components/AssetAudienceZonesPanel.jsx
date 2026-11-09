@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MapPin, Plus, RefreshCw, Trash2 } from 'lucide-react';
 
+import { useBoundaryZoneWorkflow } from './boundaries/BoundaryZoneWorkflowProvider.jsx';
 import { api } from '../lib/api.js';
 import { normalizeRole } from '../lib/roles.js';
 import { useConfirmDialog } from './ConfirmDialog.jsx';
@@ -19,18 +20,37 @@ function formatSharingStatus(status) {
     return 'Local';
 }
 
-export default function AssetAudienceZonesPanel({ asset, currentUser, onChanged }) {
+export default function AssetAudienceZonesPanel({ asset, currentUser, onChanged, onBeforeBoundaryDraw = () => true, onEditLocation }) {
+    const workflow = useBoundaryZoneWorkflow();
+    const [saveToLibrary, setSaveToLibrary] = useState(() => Number(workflow?.draft?.hardAssetId) === Number(asset?.id) && workflow.draft.saveToLibrary === true);
     const { confirm: requestConfirmation, confirmDialog } = useConfirmDialog();
     const [zones, setZones] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [feedback, setFeedback] = useState(null);
-    const [draft, setDraft] = useState({
+    const [draft, setDraft] = useState(() => workflow?.draft && Number(workflow.draft.hardAssetId) === Number(asset?.id)
+        ? {...{name:'',zoneCode:'',sharingStatus:'local',postalCodes:''},...workflow.draft.manualDraft,name:workflow.draft.name,zoneCode:workflow.draft.zoneCode} : {
         name: '',
         zoneCode: '',
         sharingStatus: 'local',
         postalCodes: '',
     });
+
+    const boundaryDraft = workflow?.draft && Number(workflow.draft.hardAssetId) === Number(asset?.id) ? workflow.draft : null;
+    async function beginBoundary(sourceChoice) {
+        if (!workflow || workflow.loggingOut) return;
+        const values = {hardAssetId:asset.id,name:draft.name,zoneCode:draft.zoneCode,manualDraft:draft,sourceChoice,saveToLibrary};
+        if (sourceChoice === 'draw' && boundaryDraft && boundaryDraft.phase!=='cancelled' && !boundaryDraft.jobId && !boundaryDraft.source) workflow.session.update(values);
+        else workflow.session.begin(values);
+        if (sourceChoice === 'draw') {
+            if (!onBeforeBoundaryDraw()) {workflow.session.update({phase:'place-edits-required'});return;}
+            try {await workflow.startDraw();} catch { /* Retained actionable state below. */ }
+        } else workflow.session.update({phase:'select',wizardOpen:true,drawBlocked:!onBeforeBoundaryDraw()});
+    }
+
+    useEffect(() => {
+        if (workflow?.draft?.job?.state === 'complete' || workflow?.draft?.job?.state === 'cancelled') loadZones();
+    }, [workflow?.draft?.job?.id,workflow?.draft?.job?.state]);
 
     const currentRole = normalizeRole(currentUser?.role);
     const canApproveSharing = currentRole === 'super_admin' || currentRole === 'regional_admin';
@@ -142,6 +162,23 @@ export default function AssetAudienceZonesPanel({ asset, currentUser, onChanged 
                 </div>
             ) : null}
 
+            {workflow && !workflow.loggingOut ? <section className="space-y-3 border-y border-slate-200 py-4" aria-label="Boundary audience zones">
+                <h4 className="font-bold">Create from a boundary</h4>
+                <p className="text-sm text-slate-600">Draw around this Place or assign saved boundaries to one or several Places. The postal-entry form below stays available.</p>
+                <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={saveToLibrary} onChange={event=>setSaveToLibrary(event.target.checked)} />Save a new drawn boundary to my library when its zone is created</label>
+                <div className="flex flex-wrap gap-2"><button type="button" className="btn-primary" onClick={()=>beginBoundary('draw')}>Draw boundary</button>
+                    <button type="button" className="btn-ghost" onClick={()=>beginBoundary('library')}>Use Boundary Library</button>
+                    <button type="button" className="btn-ghost" onClick={()=>{if(!workflow.draft)workflow.session.begin({hardAssetId:asset.id});workflow.session.update({wizardOpen:true});}}>Recent / current batch</button></div>
+                {['returned','zone-edit'].includes(boundaryDraft?.phase) ? <div className="space-y-2"><p role="status">Saved boundary selected. Your zone draft is ready for Place assignment and postal review.</p><button type="button" className="btn-primary" onClick={()=>workflow.session.update({wizardOpen:true,phase:'assigning',name:draft.name,zoneCode:draft.zoneCode,saveToLibrary,rows:boundaryDraft.rows.map(row=>({...row,name:draft.name,zoneCode:draft.zoneCode,saveToLibrary}))})}>Review selected boundary</button></div> : null}
+                {boundaryDraft?.error ? <p role="alert" className="text-sm text-red-700">{boundaryDraft.error}</p> : null}
+                {boundaryDraft?.phase === 'save-place-required' ? <button type="button" className="btn-primary" onClick={()=>{if(onBeforeBoundaryDraw()) workflow.startDraw(null,{savePlace:true}).catch(()=>{});}}>Save Place and draw</button> : null}
+                {boundaryDraft?.phase === 'location-required' ? <button type="button" className="btn-ghost" onClick={onEditLocation}>Edit Place location</button> : null}
+                {['starter-unknown','starter-not-found','map-unavailable','recovered-map'].includes(boundaryDraft?.phase) ? <div className="flex flex-wrap gap-2">
+                    <button type="button" className="btn-ghost" onClick={()=>{if(onBeforeBoundaryDraw()) workflow.startDraw().catch(()=>{});}}>Read saved Care Map</button>
+                    {boundaryDraft.phase==='starter-not-found' ? <button type="button" className="btn-ghost" onClick={()=>{if(onBeforeBoundaryDraw())workflow.session.requestStarterRetry();}}>Choose Place and retry same request</button> : null}
+                    {boundaryDraft.phase==='map-unavailable' ? <button type="button" className="btn-ghost" onClick={()=>{if(onBeforeBoundaryDraw())workflow.session.restart().catch(()=>{});}}>Start a new Care Map</button> : null}
+                </div> : null}
+            </section> : null}
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.9fr)]">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="flex items-start justify-between gap-3">

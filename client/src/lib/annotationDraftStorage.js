@@ -1,7 +1,6 @@
 import { PRINT_ANNOTATION_SCHEMA_VERSION, normalizePrintAnnotations } from './printAnnotations.js';
 import {
-    PRINT_ANNOTATION_CLIENT_CAPABILITIES, requiresCurrentAnnotationWrites,
-    supportsCurrentAnnotationWrites,
+    PRINT_ANNOTATION_CLIENT_CAPABILITIES, canWriteAnnotationFeatures,
 } from '../../../shared/annotationWriteCompatibility.js';
 
 export function readAnnotationLocalDraft(storage, key) {
@@ -17,8 +16,7 @@ export function readAnnotationLocalDraft(storage, key) {
 }
 
 export function annotationDraftNeedsQuarantine(draft, serverAnnotations) {
-    return Boolean(draft && requiresCurrentAnnotationWrites(serverAnnotations)
-        && !supportsCurrentAnnotationWrites(draft.clientCapabilities));
+    return Boolean(draft && !canWriteAnnotationFeatures(draft.clientCapabilities, serverAnnotations));
 }
 
 // Keep the exact original bytes, including unknown legacy fields. Never replace

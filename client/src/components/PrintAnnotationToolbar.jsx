@@ -168,6 +168,7 @@ export default function PrintAnnotationToolbar({
     canDuplicateSelected = false,
     imageControls = null,
     importControls = null,
+    boundaryLibraryControls = null,
     resourceControls = null,
     onFindWithinArea = null,
     onToolChange,
@@ -313,6 +314,7 @@ export default function PrintAnnotationToolbar({
             <div className={detailsOpen ? '' : 'hidden lg:block'}>
                 {imageControls}
                 {importControls}
+                {boundaryLibraryControls}
             </div>
 
             {onFindWithinArea && createSpatialAreaFromAnnotation(selectedAnnotation) ? (

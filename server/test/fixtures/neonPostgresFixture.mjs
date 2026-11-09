@@ -6,8 +6,7 @@ import { createProductionSchemaRehearsal } from './productionSchemaRehearsal.mjs
 
 // Test-process-only transport: real controllers -> real Drizzle SQL -> local
 // PostgreSQL. No application injection flag, real credentials or network I/O.
-export async function createNeonPostgresFixture(t) {
-    const shape = process.env.CAREAROUND_TEST_DATABASE_SHAPE || 'fresh';
+export async function createNeonPostgresFixture(t, { shape = process.env.CAREAROUND_TEST_DATABASE_SHAPE || 'fresh' } = {}) {
     assert.ok(['fresh', 'captured-neon-20260907'].includes(shape), 'Unknown test database shape');
     const rehearsal = shape === 'captured-neon-20260907' ? await createProductionSchemaRehearsal(t) : null;
     const pg = rehearsal?.pg || new PGlite();
