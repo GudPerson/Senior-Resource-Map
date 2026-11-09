@@ -1,3 +1,11 @@
+## 9 November 2026 — Approved v3 preparation — LOCAL CHECKS PASS, WAIT FOR BROWSER READY
+
+The approved source branch `codex/maintenance-identity-v3-20261109` starts at exact main `f1ab733625c35b804df8a6422517d40a59b413da`, whose tree matched the completed v2 source. Only two runtime constants advance to attempt `maintenance-identity-20261109-v3` and key `maintenance/identity-permit-20261109-v3.json`. The existing test now proves v1 and expired unused v2 objects/ETags remain untouched while v3 creates/claims once and cannot rearm. All other runtime/client/publisher/content/query/guard logic is unchanged. The earlier v2 sections below are historical; coordinator metadata records v2 expired and unused.
+
+Focused checks pass 124/124, full `npm run test:server` 1389/1389, and locked `npm run build:client` 17 internal checks plus configured build (5.54 s), each once. Evidence: `/private/tmp/carearound-identity-v3-20261109/`. Automatic production deployment was confirmed paused by root before source commit/push authorization; root owns PR, exact-head CI and merge. Both protected worktree fingerprints and all 183 dependency deltas remain preserved.
+
+Next live gate: wait for fresh owner/browser-ready confirmation before ANY source-pin staging/activation or publication. Root alone coordinates the existing publisher carrying Help unchanged, verifies the final Worker/Pages pair, promotion/cleared lock and fresh armed v3, then allows the one owner-triggered candidate check. No retries, renewal or retiming. This source preparation performs no live publication/permit/identity/production-SQL operation. The database target remains **UNVERIFIED** and both migrations need separate exact-target approval; Regional deploys/verifies before Boundary updates. Preserve Regional `fea2db7a…` and Boundary `7cf0ed8c…` throughout.
+
 ## 9 November 2026 — Approved identity recovery source — LOCAL VALIDATED, LIVE RELEASE PENDING
 
 The user approved one recovery release/check: publish the validated transport correction with the v2 permit revision, preserve existing Help, then one owner-triggered read-only candidate check. The isolated branch is `codex/maintenance-identity-transport-20261109`, based on main `fe86c210…`. Its exact-source commit/CI and live IDs are recorded separately by the coordinator. No production action is performed by this source implementation.
