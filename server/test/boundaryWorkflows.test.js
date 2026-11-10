@@ -90,3 +90,43 @@ test('durable cancellation is owner scoped, survives Place access revocation and
     assert.deepEqual((await request(path,{method:'POST',body})).json,expected);
     assert.deepEqual((await pg.query('SELECT resource_id FROM my_map_assets WHERE map_id=$1',[accepted.mapId])).rows,[{resource_id:21}]);
 });
+
+test('cancelling after the guided map was deleted in another tab is owner-scoped, idempotent, reconcilable, and permits a new drawing', async t => {
+    const { pg, request } = await createBoundaryPostgres(t);
+    await pg.exec("INSERT INTO user_favorites(user_id,resource_type,resource_id) VALUES(11,'hard',21)");
+    const path = 'boundary-zone-workflows/map', body = { requestId: 'cancel-deleted-map', hardAssetId: 21 };
+    const accepted = (await request(path, { method: 'POST', body })).json;
+    assert.equal(accepted.state, 'ready');
+
+    // Simulate the owner deleting the guided Care Map in another tab (ON DELETE SET NULL).
+    await pg.query('DELETE FROM my_maps WHERE id = $1', [accepted.mapId]);
+    assert.equal((await request(path + '/' + body.requestId)).json.code, 'BOUNDARY_ZONE_MAP_UNAVAILABLE');
+    assert.equal((await request(path, { method: 'POST', body })).json.code, 'BOUNDARY_ZONE_MAP_UNAVAILABLE');
+
+    // Access protections remain enforced on the deleted-map tombstone.
+    const cancel = user => request(path + '/' + body.requestId + '/cancel', { method: 'POST', user });
+    assert.equal((await cancel(null)).status, 401);
+    assert.equal((await cancel(12)).status, 404);
+    assert.equal((await request(path + '/' + body.requestId)).json.code, 'BOUNDARY_ZONE_MAP_UNAVAILABLE');
+
+    // Cancelling after map deletion succeeds, is idempotent on repeat calls, and reconciles on GET/replay.
+    const expected = { ...accepted, mapId: null, guidanceCancelled: true };
+    const firstCancel = await cancel(11);
+    assert.equal(firstCancel.status, 200);
+    assert.deepEqual(firstCancel.json, expected);
+    const secondCancel = await cancel(11);
+    assert.equal(secondCancel.status, 200);
+    assert.deepEqual(secondCancel.json, expected);
+    const reconciledGet = await request(path + '/' + body.requestId);
+    assert.equal(reconciledGet.status, 200);
+    assert.deepEqual(reconciledGet.json, expected);
+    assert.equal((await request(path + '/' + body.requestId, { user: 12 })).status, 404);
+    assert.deepEqual((await request(path, { method: 'POST', body })).json, expected);
+
+    // Starting a new drawing afterward with a fresh request ID succeeds and creates a new map.
+    const next = await request(path, { method: 'POST', body: { requestId: 'draw-after-deleted-cancel', hardAssetId: 21 } });
+    assert.equal(next.status, 200);
+    assert.equal(next.json.state, 'ready');
+    assert.notEqual(next.json.mapId, accepted.mapId);
+    assert.equal(next.json.guidanceCancelled, undefined);
+});

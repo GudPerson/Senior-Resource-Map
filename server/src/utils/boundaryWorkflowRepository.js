@@ -9,7 +9,7 @@ function unavailable() {
 }
 
 function outcome(row) {
-    if (!row.map_id) throw unavailable();
+    if (!row.map_id && !row.guidance_cancelled_at) throw unavailable();
     return { requestId: row.request_id, mapId: row.map_id, hardAssetId: row.hard_asset_id,
         name: row.name, state: 'ready', outcomeHash: row.outcome_hash, ...(row.guidance_cancelled_at ? { guidanceCancelled:true } : {}) };
 }

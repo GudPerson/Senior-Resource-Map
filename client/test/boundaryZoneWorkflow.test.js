@@ -249,3 +249,71 @@ test('unconfirmed cancellation preserves the pointer and reports uncertainty unt
     await assert.rejects(session.startDraw({hardAssetId:21}),/cancellation/);
     api.getBoundaryZoneMap=async()=>({requestId,guidanceCancelled:true});await session.cancel();assert.deepEqual(pointer.at(-1),{});
 });
+
+test('cancelling after the guided map was deleted in another tab recovers from uncertain responses, is repeatable, and permits a new drawing',async()=>{
+    const accepted=new Map(),posts=[],pointer=[],navigations=[];
+    let cancelCalls=0;
+    const api={
+        startBoundaryZoneMap:async payload=>{
+            posts.push(payload.requestId);
+            const result={...payload,mapId:10+posts.length,name:'Place',state:'ready'};
+            accepted.set(payload.requestId,result);
+            return result;
+        },
+        cancelBoundaryZoneMap:async id=>{
+            cancelCalls++;
+            const row=accepted.get(id);
+            if(cancelCalls===1)throw new Error('network drop before server');
+            row.guidanceCancelled=true;
+            if(cancelCalls===2)throw new Error('lost cancellation ACK after server write');
+            return {...row};
+        },
+        getBoundaryZoneMap:async id=>{
+            const row=accepted.get(id);
+            if(!row.mapId && !row.guidanceCancelled){
+                throw Object.assign(new Error('The original map is unavailable.'),{status:404,code:'BOUNDARY_ZONE_MAP_UNAVAILABLE'});
+            }
+            return {...row};
+        },
+    };
+    const session=workflow.createBoundaryWorkflowSession({
+        ownerId:'A',
+        id:sequence(),
+        api,
+        onPointers:s=>pointer.push(s),
+        onNavigate:(url,state)=>navigations.push([url,state]),
+    });
+    const first=await session.startDraw({hardAssetId:21});
+    const firstRequestId=session.draft.requestId;
+    assert.equal(first.mapId,11);
+
+    // Guided map is deleted in another tab (`map_id` becomes null on the server record).
+    accepted.get(firstRequestId).mapId=null;
+
+    // 1. Uncertain response before server write: cancel remains pending and blocks new drawings.
+    await assert.rejects(session.cancel(),/unconfirmed/);
+    assert.equal(session.draft.cancelPending,true);
+    assert.equal(pointer.at(-1).boundaryRequestId,firstRequestId);
+    await assert.rejects(session.startDraw({hardAssetId:21}),/Confirm cancellation/);
+
+    // 2. Uncertain response after server write: automatic GET reconciliation confirms cancellation with mapId: null.
+    await session.cancel();
+    assert.equal(session.draft.phase,'cancelled');
+    assert.equal(session.draft.cancelPending,false);
+    assert.deepEqual(pointer.at(-1),{});
+
+    // 3. Cancelling more than once succeeds idempotently.
+    await session.cancel();
+    assert.equal(session.draft.phase,'cancelled');
+    assert.equal(session.draft.cancelPending,false);
+    assert.deepEqual(pointer.at(-1),{});
+
+    // 4. Starting a new drawing afterward mints a fresh request ID and opens a new Care Map.
+    const second=await session.startDraw({hardAssetId:21});
+    assert.equal(second.mapId,12);
+    assert.equal(posts.length,2);
+    assert.notEqual(posts[0],posts[1]);
+    assert.equal(session.draft.phase,'drawing');
+    assert.equal(session.draft.cancelPending,undefined);
+    assert.equal(navigations.at(-1)[0],'/my-directory/maps/12?workspace=current');
+});
