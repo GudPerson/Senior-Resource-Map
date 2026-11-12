@@ -38,6 +38,7 @@ export default function useInteractiveMapAnnotationEditor({
     privateImageSources = {},
     enabled = false,
     annotations = [],
+    visibleAnnotationIds = null,
     status = 'idle',
     error = '',
     replaceAnnotations = null,
@@ -88,10 +89,35 @@ export default function useInteractiveMapAnnotationEditor({
     const measurementActive = enabled && temporaryMeasurementEnabled && measuring;
     const temporaryMeasurement = useTemporaryMapMeasurement({ enabled: measurementActive, mapId, scopeKey: measurementScopeKey });
     const clearTemporaryMeasurement = temporaryMeasurement.clear;
-    const selectedIndex = annotations.findIndex((annotation) => annotation.id === selectedId);
+    // Keep the full document for persistence, history and capacity. Only the
+    // rendered/selectable projection follows the active view. Newly created or
+    // imported items stay usable until this editing session/view ends, even if
+    // the saved annotation layer is globally hidden.
+    const visibilitySession = useMemo(() => ({ createdIds: new Set() }), [enabled, mapId, ownerKey, measurementScopeKey]);
+    const editorAnnotations = useMemo(() => {
+        if (visibleAnnotationIds === null) return annotations;
+        const visibleIds = new Set(visibleAnnotationIds);
+        return annotations.filter(annotation => visibleIds.has(annotation.id) || visibilitySession.createdIds.has(annotation.id));
+    }, [annotations, visibilitySession, visibleAnnotationIds]);
+    const editableIds = useMemo(() => new Set(editorAnnotations.map(annotation => annotation.id)), [editorAnnotations]);
+    const replaceEditorAnnotations = useCallback((nextValue) => {
+        replaceAnnotations?.((current) => {
+            const next = typeof nextValue === 'function' ? nextValue(current) : nextValue;
+            const currentIds = new Set(current.map(annotation => annotation.id));
+            next.forEach(annotation => {
+                if (!currentIds.has(annotation.id)) visibilitySession.createdIds.add(annotation.id);
+            });
+            return next;
+        });
+    }, [replaceAnnotations, visibilitySession]);
     const selectedAnnotation = useMemo(() => (
-        annotations.find((annotation) => annotation.id === selectedId) || null
-    ), [annotations, selectedId]);
+        editorAnnotations.find((annotation) => annotation.id === selectedId) || null
+    ), [editorAnnotations, selectedId]);
+    const selectedIndex = selectedAnnotation ? annotations.findIndex((annotation) => annotation.id === selectedId) : -1;
+
+    useEffect(() => {
+        if (selectedId && !editableIds.has(selectedId)) setSelectedId(null);
+    }, [editableIds, selectedId]);
 
     useEffect(() => {
         if (enabled) return;
@@ -143,17 +169,18 @@ export default function useInteractiveMapAnnotationEditor({
             ...(type === 'image' && draftImage ? { image: draftImage } : {}),
         });
         if (!annotation) return;
-        replaceAnnotations?.((current) => (
+        replaceEditorAnnotations((current) => (
             canAddPrintAnnotation(current, type) ? [...current, annotation] : current
         ));
         setSelectedId(annotation.id);
         setTool(PRINT_ANNOTATION_TOOL_SELECT);
         setDraftPoints([]);
         if (type === 'image') setDraftImage(null);
-    }, [annotations, draftImage, draftStyle, draftText, replaceAnnotations]);
+    }, [annotations, draftImage, draftStyle, draftText, replaceEditorAnnotations]);
 
     const handleUpdate = useCallback((annotationId, patch) => {
-        replaceAnnotations?.((current) => current.map((annotation) => (
+        if (!editableIds.has(annotationId)) return;
+        replaceEditorAnnotations((current) => current.map((annotation) => (
             annotation.id === annotationId
                 ? {
                     ...annotation,
@@ -167,10 +194,10 @@ export default function useInteractiveMapAnnotationEditor({
                 }
                 : annotation
         )));
-    }, [replaceAnnotations]);
+    }, [editableIds, replaceEditorAnnotations]);
 
     const handleSelectedChange = useCallback((patch) => {
-        if (!selectedId) return;
+        if (!selectedAnnotation) return;
         if (
             selectedAnnotation?.type === PRINT_ANNOTATION_TOOL_PIN
             && Object.hasOwn(patch, 'text')
@@ -180,18 +207,18 @@ export default function useInteractiveMapAnnotationEditor({
     }, [handleUpdate, selectedAnnotation, selectedId]);
 
     const handleDelete = useCallback(() => {
-        if (!selectedId) return;
-        replaceAnnotations?.((current) => current.filter(
+        if (!selectedAnnotation) return;
+        replaceEditorAnnotations((current) => current.filter(
             (annotation) => annotation.id !== selectedId,
         ));
         setSelectedId(null);
-    }, [replaceAnnotations, selectedId]);
+    }, [replaceEditorAnnotations, selectedAnnotation, selectedId]);
 
     const handleDuplicate = useCallback(() => {
         if (!selectedAnnotation || !canAddPrintAnnotation(annotations, selectedAnnotation.type, selectedAnnotation.resourceLinks)) return;
         const duplicate = duplicatePrintAnnotation(selectedAnnotation);
         if (!duplicate) return;
-        replaceAnnotations?.((current) => {
+        replaceEditorAnnotations((current) => {
             if (!canAddPrintAnnotation(current, selectedAnnotation.type, selectedAnnotation.resourceLinks)) return current;
             const sourceIndex = current.findIndex((annotation) => annotation.id === selectedAnnotation.id);
             if (sourceIndex < 0) return current;
@@ -200,7 +227,7 @@ export default function useInteractiveMapAnnotationEditor({
             return next;
         });
         setSelectedId(duplicate.id);
-    }, [annotations, replaceAnnotations, selectedAnnotation]);
+    }, [annotations, replaceEditorAnnotations, selectedAnnotation]);
 
     const handleFinish = useCallback(() => {
         const minimumPointCount = getPrintAnnotationMinimumPointCount(tool);
@@ -209,8 +236,8 @@ export default function useInteractiveMapAnnotationEditor({
     }, [draftPoints, handleCreate, tool]);
 
     const handleMove = useCallback((direction) => {
-        if (!selectedId) return;
-        replaceAnnotations?.((current) => {
+        if (!selectedAnnotation) return;
+        replaceEditorAnnotations((current) => {
             const currentIndex = current.findIndex((annotation) => annotation.id === selectedId);
             if (currentIndex < 0) return current;
             const nextIndex = direction === 'forward'
@@ -222,7 +249,7 @@ export default function useInteractiveMapAnnotationEditor({
             next.splice(nextIndex, 0, moved);
             return next;
         });
-    }, [replaceAnnotations, selectedId]);
+    }, [replaceEditorAnnotations, selectedAnnotation, selectedId]);
 
     const hasUnfinishedDraft = draftPoints.length > 0 || Boolean(draftImage);
     const handleMeasurementModeChange = (nextMeasuring) => {
@@ -242,16 +269,17 @@ export default function useInteractiveMapAnnotationEditor({
     const mapOverlay = enabled ? (
         <>
         <PrintAnnotationLayer
-            annotations={annotations}
+            annotations={editorAnnotations}
             editable={!measurementActive}
             tool={tool}
-            selectedId={selectedId}
+            selectedId={selectedAnnotation?.id || null}
             draftPoints={draftPoints}
             draftText={draftText}
             draftStyle={draftStyle}
             draftImage={draftImage}
             privateImageSources={privateImageSources}
             onSelect={(annotationId) => {
+                if (annotationId && !editableIds.has(annotationId)) return;
                 setSelectedId(annotationId);
                 if (!PRINT_ANNOTATION_TRANSFORM_TOOLS.has(tool)) {
                     setTool(PRINT_ANNOTATION_TOOL_SELECT);
@@ -297,7 +325,7 @@ export default function useInteractiveMapAnnotationEditor({
             onConfirm={async snapshots => {
                 if (!currentLibraryScope()) return;
                 // The updater receives the controller's latest full document, including hidden drawings.
-                const operation = createBoundaryImportOperation({ drawings: snapshots.map(item => item.drawing), replaceAnnotations,
+                const operation = createBoundaryImportOperation({ drawings: snapshots.map(item => item.drawing), replaceAnnotations: replaceEditorAnnotations,
                     flushPendingChanges, isCurrent: currentLibraryScope });
                 libraryContext.operation = operation;
                 setLibraryOpen(false);setLibraryImportPending(true);setLibraryImportError('');
@@ -339,7 +367,7 @@ export default function useInteractiveMapAnnotationEditor({
                     disabled={['idle', 'loading', 'error'].includes(status) || annotations.length >= PRINT_ANNOTATION_MAX_COUNT}
                     onImport={(boundaries) => {
                         let importedId = null;
-                        replaceAnnotations?.((current) => {
+                        replaceEditorAnnotations((current) => {
                             const next = appendKmlBoundaries(current, boundaries);
                             importedId = next[current.length]?.id;
                             return next;
