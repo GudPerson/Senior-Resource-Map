@@ -1898,6 +1898,7 @@ export default function MyMapDetailPage() {
         privateImageSources: privateAnnotationImages.sources,
         enabled: interactiveAnnotationEditorOpen && !isPrintView,
         annotations: printAnnotations.annotations,
+        visibleAnnotationIds: visibleOwnerAnnotations.map(annotation => annotation.id),
         boundaryLibraryEnabled: !isPrintView && !boundaryWorkflow?.loggingOut,
         boundaryWorkflowSession: boundaryWorkflow?.session,
         ownerKey: user?.id,

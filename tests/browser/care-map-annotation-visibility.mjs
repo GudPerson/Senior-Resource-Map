@@ -33,27 +33,28 @@ try{
  observations.directStudio=await read(ids);observations.directStudioSummary=await page.locator('[data-map-studio-annotation-layers]>summary').innerText();
  await check('direct Studio respects all100 hidden IDs for actual saved SVG, text and image layers',async()=>{assert.equal(observations.directStudio.renderedIds.length,0);assert.equal(observations.directStudio.labels,0);assert.equal(observations.directStudio.images,0);return observations.directStudio;});
  await page.locator('[data-owner-canvas-tool="draw"]').click();
- await until(async()=>{const r=await read(ids);return r.renderedIds.length===100&&r.images===1&&r.imageReady;},'Draw did not render all100 saved annotations including resolved image');observations.draw=await read(ids);
+ await until(()=>page.evaluate(()=>window.__qaEditorState.enabled),'Draw did not open');await page.waitForTimeout(250);observations.draw=await read(ids);
+ await check('Draw respects all100 per-view hidden IDs while retaining the full editable document',async()=>{assert.equal(observations.draw.renderedIds.length,0);assert.equal(observations.draw.labels,0);assert.equal(observations.draw.images,0);assert.equal(observations.draw.editor.annotationCount,100);assert.equal(observations.draw.editor.selectedId,null);return observations.draw;});
  await page.locator('[data-owner-canvas-tool="studio"]').click();await page.waitForTimeout(250);observations.afterDrawStudio=await read(ids);
  await check('Draw to Studio restores per-view visibility and removes every hidden saved layer',async()=>{assert.equal(observations.afterDrawStudio.renderedIds.length,0);assert.equal(observations.afterDrawStudio.labels,0);assert.equal(observations.afterDrawStudio.images,0);return observations.afterDrawStudio;});
  await page.getByRole('group',{name:'Annotations',exact:true}).getByRole('button',{name:'Hide',exact:true}).click();await until(()=>studioWrites.length===1,'globalHide did not persist once');await page.waitForTimeout(250);observations.globalHide=await read(ids);
  await check('global Annotations Hide removes saved shape, label and image layers after Draw to Studio',async()=>{assert.equal(state.document.views[0].design.layers.annotations,'hide');assert.equal(observations.globalHide.renderedIds.length,0);assert.equal(observations.globalHide.labels,0);assert.equal(observations.globalHide.images,0);return observations.globalHide;});
  await page.screenshot({path:out+'/after-global-hide.png'});
  const savedDocument=structuredClone(state.document),savedAnnotations=structuredClone(state.annotations);
- await check('reopened Draw exposes hidden saved images for editing; Return/reenter/Studio closes actual editor ownership',async()=>{
+ await check('reopened Draw respects global hide and hidden objects cannot be selected',async()=>{
   await page.locator('[data-owner-canvas-tool="draw"]').click();
-  await until(async()=>{const r=await read(ids);return r.editor.enabled&&r.renderedIds.length===100&&r.imageReady;},'reopened Draw did not expose all hidden objects');
-  const image=page.locator('img[data-private-annotation-image="visibility_image"]');
-  const hit=await image.evaluate(node=>{const b=node.getBoundingClientRect(),x=b.x+b.width/2,y=b.y+b.height/2;return{x,y,exposed:document.elementFromPoint(x,y)===node};});
-  assert.equal(hit.exposed,true);await page.mouse.click(hit.x,hit.y);await until(()=>page.evaluate(()=>window.__qaEditorState.selectedId==='visibility_image'),'hidden saved image was not editable in Draw');
+  await until(()=>page.evaluate(()=>window.__qaEditorState.enabled),'Draw not enabled');await page.waitForTimeout(250);
   observations.reopenedDraw=await read(ids);
+  assert.equal(observations.reopenedDraw.renderedIds.length,0);assert.equal(observations.reopenedDraw.editor.annotationCount,100);
+  const hit=await page.evaluate(()=>{const map=[...window.__qaMaps].find(m=>m.getContainer().isConnected&&m.getContainer().getBoundingClientRect().width>0),b=map.getContainer().getBoundingClientRect(),p=map.latLngToContainerPoint([1.390,103.782]);return{x:b.x+p.x,y:b.y+p.y};});
+  await page.mouse.click(hit.x,hit.y);assert.equal((await read(ids)).editor.selectedId,null);
   await page.locator('[data-owner-canvas-exit]').click();observations.returnWithEditor=await read(ids);assert.equal(observations.returnWithEditor.editor.enabled,true,'Return retains original page editor behavior');
   await page.locator('[data-owner-canvas-enter]').click();await page.locator('[data-owner-canvas-tool="studio"]').click();
   await until(async()=>(await read(ids)).renderedIds.length===0,'Return/reenter/Studio left stale editor layers');observations.roundtripStudio=await read(ids);
   assert.equal(observations.roundtripStudio.editor.enabled,false);assert.equal(observations.roundtripStudio.labels,0);assert.equal(observations.roundtripStudio.images,0);
   assert.equal(observations.roundtripStudio.mapIndex,observations.directStudio.mapIndex);assert.equal(observations.roundtripStudio.readout,observations.directStudio.readout);
   assert.deepEqual(state.document,savedDocument);assert.deepEqual(state.annotations,savedAnnotations);assert.equal(studioWrites.length,1);assert.equal(state.allowedWrites.length,0);
-  return{drawExposesHiddenSavedIds:100,actualImageSelected:true,returnPreservesEditor:true,reenterStudioRestoresHiddenState:true,sameMapAndCamera:true,extraWrites:0};
+  return{hiddenSavedIds:100,hiddenImageUnselectable:true,returnPreservesEditor:true,reenterStudioRestoresHiddenState:true,sameMapAndCamera:true,extraWrites:0};
  });
  await check('unfinished drawing blocks Studio; first Escape cancels its draft and second closes the editor',async()=>{
   await page.locator('[data-owner-canvas-tool="draw"]').click();await page.getByRole('button',{name:'Draw circle',exact:true}).click();
@@ -73,6 +74,7 @@ try{
   for(const point of points)await page.mouse.click(point.x,point.y);
   await until(()=>failedAttempts>0,'deliberate failed geometry save not attempted');await until(()=>page.evaluate(()=>window.__qaEditorState.annotationCount===101),'completed local circle not retained');
   await until(async()=>await page.locator('[data-owner-canvas-save]').getAttribute('data-owner-canvas-save')==='failed','failed save indicator missing');
+  const current=await read(ids);assert.equal(current.renderedIds.length,0);assert.ok(current.editor.selectedId);const created=await read([current.editor.selectedId]);assert.equal(created.renderedIds.length,1,'new circle must stay usable while globally hidden');
   const key=getAnnotationLocalDraftKey(owner.id,fixture.mapId);const before=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),key);assert.equal(before.annotations.length,101);
   await page.locator('[data-owner-canvas-tool="studio"]').click();await until(()=>page.evaluate(()=>window.__qaEditorState.enabled===false),'accepted clean transition did not close editor');
   await until(async()=>await page.locator('[data-owner-canvas-save]').getAttribute('data-owner-canvas-save')==='failed','accepted-close must not become Saved');
@@ -81,7 +83,7 @@ try{
   return{acceptedCloseIsNotSaveAck:true,failedAttempts,localAnnotationsRetained:101,savedRemoteAnnotations:100,failedStatusRetained:true,successfulAnnotationWrites:0};
  });
  observations.afterReturn=await read(ids);
- report.observations=observations;report.intentionalStudioWrites=studioWrites.length;report.annotationWrites=state.allowedWrites.length;report.expectedVisibilityRed=observations.directStudio.renderedIds.length===0&&observations.afterDrawStudio.renderedIds.length===100&&observations.globalHide.renderedIds.length===100;
+ report.observations=observations;report.intentionalStudioWrites=studioWrites.length;report.annotationWrites=state.allowedWrites.length;report.expectedVisibilityRed=observations.directStudio.renderedIds.length===0&&observations.draw.renderedIds.length===100&&observations.reopenedDraw.renderedIds.length===100;
  assert.equal(state.allowedWrites.length,0);assert.deepEqual(state.errors,[]);assert.deepEqual(state.unexpectedWrites,[]);
 }catch(error){report.failure=error.stack;process.exitCode=1;if(page)await fs.writeFile(out+'/failure-dom.txt',await page.locator('body').innerText()).catch(()=>{});}
 finally{report.errors=state?.errors||[];report.unexpectedWrites=state?.unexpectedWrites||[];report.sourceAfter=await fingerprint();report.sourceUnchanged=JSON.stringify(report.sourceBefore)===JSON.stringify(report.sourceAfter);report.summary={passed:report.cases.filter(c=>c.passed).length,failed:report.cases.filter(c=>!c.passed).length};if(report.summary.failed||!report.sourceUnchanged)process.exitCode=1;await fs.writeFile(out+'/report.json',JSON.stringify(report,null,2)+'\n');await browser?.close();await fixture?.server.close();console.log(JSON.stringify({out,summary:report.summary,failure:report.failure,expectedVisibilityRed:report.expectedVisibilityRed,observations:Object.fromEntries(Object.entries(report.observations||{}).map(([k,v])=>[k,typeof v==='object'?{renderedIds:v.renderedIds?.length,paths:v.paths,labels:v.labels,images:v.images,editorEnabled:v.editor?.enabled,mapIndex:v.mapIndex,readout:v.readout}:v])),sourceUnchanged:report.sourceUnchanged}));}
