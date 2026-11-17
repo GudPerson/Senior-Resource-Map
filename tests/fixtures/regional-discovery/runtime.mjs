@@ -40,7 +40,7 @@ export async function sourceBindings() {
 export async function startRegionalFixture(out) {
   const manifest = await validateFrozenRegionalDiscoveryFixtures();
   assert.equal(manifest.serializedArtifacts.length, 12);
-  assert.equal(manifest.sources.length, 90);
+  assert.equal(manifest.sources.length, 91);
   const raw = Object.fromEntries(await Promise.all(manifest.serializedArtifacts.map(async x => [path.basename(x.path, '.json'), await fs.readFile(path.join(repo, x.path))])));
   const server = await createServer({
     configFile: path.join(repo, 'tests/fixtures/care-map-view-controls/vite.config.mjs'),

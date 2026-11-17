@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     buildRegionalDiscoveryPublishIntent, normalizeRegionalDiscoverySettings,
-    getPublishedRegionalDiscoveryUrl, normalizeRegionalDiscoveryEmbeddedView, containHandledRegionalPreviewEscape,
+    getPublishedRegionalDiscoveryUrl, getRegionalDiscoveryPublishedStatus,
+    normalizeRegionalDiscoveryEmbeddedView, containHandledRegionalPreviewEscape,
 } from '../src/features/regional-discovery/regionalDiscoverySettings.js';
 
 const config = () => ({schemaVersion:1, mode:'regional-discovery', includedSubregionIds:[901,902],
@@ -50,6 +51,25 @@ test('regional_copy_is_explicit: only available publication readback provides a 
         assert.equal(getPublishedRegionalDiscoveryUrl({...published,...change}),'');
     }
     assert.equal(getPublishedRegionalDiscoveryUrl({config:config()}),'');
+});
+
+test('published status follows confirmed sharing and publication, never a regional draft or missing URL alone', () => {
+    const compact={mode:'compact',available:false,snapshotRevision:null,publishedConfigRevision:null,regionalUrl:null};
+    const regional={mode:'regional-discovery',available:true,snapshotRevision:'snapshot-1',publishedConfigRevision:4,regionalUrl:'/embed/maps/test-token/regional-discovery'};
+    const status=(publication,extra={})=>getRegionalDiscoveryPublishedStatus({isShared:true,readbackState:'ready',publication,...extra});
+    assert.equal(status(compact),'compact');
+    assert.equal(status(regional),'regional');
+    assert.equal(status({...regional,available:false,regionalUrl:null}),'regional-unavailable');
+    assert.equal(status(regional,{isShared:false}),'unpublished','retained publication cannot override an unshared map');
+    assert.equal(status(compact,{isShared:false}),'unpublished','a private map is not a published compact map');
+    assert.equal(status(compact,{readbackState:'loading'}),'checking','old compact metadata is not current proof');
+    assert.equal(status(regional,{readbackState:'failed'}),'unknown','readback failure is not compact publication');
+    for (const publication of [null,{}, {config:config()}, {...compact,mode:'other'}, {...compact,available:true},
+        {...regional,snapshotRevision:null}, {...regional,publishedConfigRevision:0}, {...regional,regionalUrl:null},
+        {...regional,available:false}]) {
+        assert.equal(status(publication),'unknown');
+    }
+    assert.equal(status(compact,{isShared:undefined}),'unknown');
 });
 
 test('only Escape already handled inside Preview stops before the outer modal', () => {

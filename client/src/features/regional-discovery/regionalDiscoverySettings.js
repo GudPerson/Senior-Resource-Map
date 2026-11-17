@@ -56,6 +56,22 @@ export function getPublishedRegionalDiscoveryUrl(publication) {
         ? publication.regionalUrl : '';
 }
 
+/** Display confirmed publication independently of the editable draft and copy-link availability. */
+export function getRegionalDiscoveryPublishedStatus({ isShared, publication, readbackState = 'loading' }) {
+    if (isShared === false) return 'unpublished';
+    if (isShared !== true) return 'unknown';
+    if (readbackState === 'loading') return 'checking';
+    if (readbackState !== 'ready' || !publication || typeof publication.available !== 'boolean') return 'unknown';
+    if (publication.mode === 'compact') {
+        return publication.available === false && publication.snapshotRevision === null
+            && publication.publishedConfigRevision === null && publication.regionalUrl === null ? 'compact' : 'unknown';
+    }
+    if (publication.mode !== 'regional-discovery' || typeof publication.snapshotRevision !== 'string'
+        || !publication.snapshotRevision.trim() || !revisionIsValid(publication.publishedConfigRevision)) return 'unknown';
+    if (!publication.available) return publication.regionalUrl === null ? 'regional-unavailable' : 'unknown';
+    return getPublishedRegionalDiscoveryUrl(publication) ? 'regional' : 'unknown';
+}
+
 export function containHandledRegionalPreviewEscape(event) {
     if (event.key === 'Escape' && event.defaultPrevented) event.stopPropagation();
 }
