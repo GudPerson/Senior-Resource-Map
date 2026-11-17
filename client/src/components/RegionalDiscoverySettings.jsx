@@ -6,12 +6,16 @@ import useRegionalDiscovery from '../features/regional-discovery/useRegionalDisc
 import { normalizeRegionalDiscoveryPayload } from '../features/regional-discovery/regionalDiscoveryContract.js';
 import { getRegionalDiscoveryCopy } from '../pages/RegionalDiscoveryPage.jsx';
 import {
-    buildRegionalDiscoveryPublishIntent, getPublishedRegionalDiscoveryUrl,
+    buildRegionalDiscoveryPublishIntent, getPublishedRegionalDiscoveryUrl, getRegionalDiscoveryPublishedStatus,
     normalizeRegionalDiscoverySettings, containHandledRegionalPreviewEscape,
 } from '../features/regional-discovery/regionalDiscoverySettings.js';
 
 const controlClass = 'min-h-[44px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm disabled:opacity-50';
 const entryKey = entry => `${entry.resourceType}:${entry.resourceId}`;
+const publishedStatusLabels = {
+    unpublished: 'Nothing yet', checking: 'Checking…', unknown: 'Unable to confirm',
+    compact: 'Compact map', regional: 'Regional directory', 'regional-unavailable': 'Regional directory',
+};
 
 function savedDocument(value) {
     if (!Number.isSafeInteger(value?.revision) || value.revision < 0 || value.revision > 2147483647) {
@@ -31,7 +35,7 @@ function OwnerPreview({ mapId, revision, initialPayload }) {
     const error = state.error ? t(state.error === 'invalid-postal' ? 'regionalDiscoveryInvalidPostal'
         : state.error === 'unavailable' ? 'regionalDiscoveryUnavailable' : 'regionalDiscoveryRequestFailed') : '';
     return <section aria-label="Saved regional preview" className="space-y-2">
-        <p className="text-sm text-slate-600">Preview of saved settings. This does not publish your directory.</p>
+        <p className="text-sm text-slate-600">Preview of your saved draft. This does not change the published view.</p>
         {(state.error || ['coverage-unconfirmed', 'postal-unresolved'].includes(state.payload?.evaluation.status)) &&
             <button type="button" className={controlClass} disabled={state.loading || state.evaluating} onClick={() => void retry()}>{t('regionalDiscoveryRetry')}</button>}
         <div className="h-[720px] overflow-hidden rounded-xl border" onKeyDown={containHandledRegionalPreviewEscape}>
@@ -47,12 +51,13 @@ function escapeAttribute(value) {
 }
 
 /** Optional owner-only editor. Loading, saving and previewing never invoke onPublish. */
-export default function RegionalDiscoverySettings({ mapId, mapName, onPublish, disabled = false, publicationRefreshKey = '' }) {
+export default function RegionalDiscoverySettings({ mapId, mapName, isShared, onPublish, disabled = false, publicationRefreshKey = '' }) {
     const [saved, setSaved] = useState(null);
     const [draft, setDraft] = useState(null);
     const [options, setOptions] = useState(null);
     const [publication, setPublication] = useState(null);
     const [readbackKey, setReadbackKey] = useState(null);
+    const [publicationCheck, setPublicationCheck] = useState({ key: null, state: 'loading' });
     const [preview, setPreview] = useState(null);
     const [busy, setBusy] = useState('load');
     const [error, setError] = useState('');
@@ -65,6 +70,8 @@ export default function RegionalDiscoverySettings({ mapId, mapName, onPublish, d
     const hasUnsavedChanges = saved && draft && JSON.stringify(saved.config) !== JSON.stringify(draft);
     const locked = disabled || Boolean(busy);
     const regionalPath = readbackKey === publicationRefreshKey ? getPublishedRegionalDiscoveryUrl(publication) : '';
+    const publishedStatus = getRegionalDiscoveryPublishedStatus({ isShared, publication,
+        readbackState: publicationCheck.key === publicationRefreshKey ? publicationCheck.state : 'loading' });
     const regionalUrl = regionalPath && typeof window !== 'undefined' ? new URL(regionalPath, window.location.origin).toString() : regionalPath;
     const regionalCode = regionalUrl ? `<iframe src="${escapeAttribute(regionalUrl)}" title="${escapeAttribute(`${mapName || 'CareAround SG'} regional directory`)}" width="100%" height="720" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" style="border:0"></iframe>` : '';
     const services = useMemo(() => (options?.serviceOptions || []).filter(service => ['hard', 'soft'].includes(service.resourceType)), [options]);
@@ -91,9 +98,13 @@ export default function RegionalDiscoverySettings({ mapId, mapName, onPublish, d
         const controller = new AbortController();
         let current = true;
         setPublication(null); setReadbackKey(null);
+        setPublicationCheck({ key: publicationRefreshKey, state: 'loading' });
         api.getRegionalDiscoveryDocument(mapId, { signal: controller.signal }).then(value => {
-            if (current) { setPublication(value.publication); setReadbackKey(publicationRefreshKey); }
-        }).catch(() => { /* No publication proof means no regional URL. Draft/compact controls remain independent. */ });
+            if (current) { setPublication(value.publication); setReadbackKey(publicationRefreshKey); setPublicationCheck({ key: publicationRefreshKey, state: 'ready' }); }
+        }).catch(() => {
+            if (current) setPublicationCheck({ key: publicationRefreshKey, state: 'failed' });
+            /* No publication proof means no regional URL. Draft/compact controls remain independent. */
+        });
         return () => { current = false; controller.abort(); };
     }, [mapId, publicationRefreshKey, reload]);
 
@@ -110,7 +121,7 @@ export default function RegionalDiscoverySettings({ mapId, mapName, onPublish, d
         }] : current.entries.filter(entry => entryKey(entry) !== entryKey(service)) }));
     }
     function reportFailure(err) {
-        if (err?.status === 409) { setConflict(true); setError('These settings changed in another session. Reload saved settings before trying again. Your draft has been kept.'); }
+        if (err?.status === 409) { setConflict(true); setError('These settings changed in another session. Discard unsaved changes to reload the saved draft before trying again. Your draft has been kept.'); }
         else setError('Regional settings could not be completed. Check your choices and try again.');
     }
     async function perform(action) {
@@ -126,14 +137,14 @@ export default function RegionalDiscoverySettings({ mapId, mapName, onPublish, d
                 if (epoch !== requestEpoch.current) return;
                 const document = savedDocument(value);
                 setSaved(document); setDraft(document.config); setPreview(null);
-                setFeedback('Settings saved. The published directory has not changed.');
+                setFeedback('Draft saved. The published view has not changed.');
                 // Refresh approval availability for newly included home areas; never read recipient values.
                 setOptions(current => ({ ...current, contactAvailability: null }));
                 try {
                     const refreshed = await api.getRegionalDiscoveryDocument(mapId, { signal: controller.signal });
                     if (epoch === requestEpoch.current) setOptions(refreshed.options);
                 } catch {
-                    if (epoch === requestEpoch.current) setAvailabilityWarning('Approval availability could not refresh. Reload saved settings to check it again.');
+                    if (epoch === requestEpoch.current) setAvailabilityWarning('Approval availability could not refresh. Reload the saved draft to check it again.');
                 }
             } else {
                 const intent = buildRegionalDiscoveryPublishIntent({ savedRevision: saved.revision, hasUnsavedChanges, config: draft });
@@ -158,19 +169,25 @@ export default function RegionalDiscoverySettings({ mapId, mapName, onPublish, d
     return <details className="rounded-2xl border border-slate-200 p-4" data-regional-discovery-settings="true">
         <summary className="cursor-pointer py-2 font-semibold text-slate-900">Regional directory (optional)</summary>
         <div className="mt-3 space-y-4">
-            <p className="text-sm text-slate-600">Choose a curated regional directory for embedding. Save and Preview do not publish. Use the explicit publication button below to change the embedded view.</p>
+            <p className="text-sm text-slate-600">Save draft → Preview draft → Publish. Saving or previewing does not change the published view.</p>
+            <div role="status" data-regional-publication-status={publishedStatus} className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+                <p><span className="font-semibold">Currently published:</span> {publishedStatusLabels[publishedStatus]}</p>
+                {publishedStatus === 'regional-unavailable' && <p className="mt-1">Website embedding is currently unavailable.</p>}
+                {publishedStatus === 'unknown' && <p className="mt-1">Reload the saved draft to check the published view again.</p>}
+            </div>
             {busy === 'load' && <p role="status">Loading regional settings…</p>}
             {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
             {availabilityWarning && <p role="status" className="text-sm text-amber-800">{availabilityWarning}</p>}
             {feedback && <p role="status" className="text-sm text-teal-800">{feedback}</p>}
-            {(!saved || conflict) && !busy && <button type="button" className={controlClass} disabled={disabled} onClick={() => setReload(value => value + 1)}>Reload saved settings{draft ? ' (discard draft)' : ''}</button>}
+            {(!saved || conflict) && !busy && <button type="button" className={controlClass} disabled={disabled} onClick={() => setReload(value => value + 1)}>{draft ? 'Discard unsaved changes' : 'Reload saved draft'}</button>}
             {draft && <>
                 <fieldset disabled={locked || conflict} className="space-y-4">
-                    <label className="flex flex-wrap items-center gap-3">Embedded view
+                    <label className="flex flex-wrap items-center gap-3">Draft view
                         <select className={controlClass} value={draft.mode} onChange={event => edit(current => ({ ...current, mode: event.target.value }))}>
                             <option value="compact">Compact map</option><option value="regional-discovery">Regional directory</option>
                         </select>
                     </label>
+                    <p className="text-sm text-slate-600">Choose the view to publish. Changing this choice only edits your draft.</p>
                     {draft.mode === 'regional-discovery' && <>
                         <fieldset className="space-y-2"><legend className="font-medium">Included local areas</legend>
                             {(options?.subregions || []).map(area => <label key={area.id} className="flex min-h-[44px] items-center gap-2">
@@ -223,15 +240,16 @@ export default function RegionalDiscoverySettings({ mapId, mapName, onPublish, d
                         </div>
                     </>}
                 </fieldset>
-                {hasUnsavedChanges && <p role="status" className="text-sm text-amber-800">Unsaved regional settings. Save before Preview or explicit publication. Ordinary Share does not promote this draft.</p>}
+                {hasUnsavedChanges && <p role="status" className="text-sm text-amber-800">You have unsaved changes. Save draft before previewing or publishing. Update shared link does not publish this draft.</p>}
                 <div className="flex flex-wrap gap-2">
-                    <button type="button" className={controlClass} disabled={locked || conflict || !hasUnsavedChanges} onClick={() => void perform('save')}>Save regional settings</button>
-                    {!conflict && <button type="button" className={controlClass} disabled={locked} onClick={() => setReload(value => value + 1)}>Reload saved settings{hasUnsavedChanges ? ' (discard draft)' : ''}</button>}
-                    <button type="button" className={controlClass} disabled={locked || conflict || hasUnsavedChanges || !saved.revision || draft.mode !== 'regional-discovery'} onClick={() => void perform('preview')}>Preview saved regional directory</button>
+                    <button type="button" className={controlClass} disabled={locked || conflict || !hasUnsavedChanges} onClick={() => void perform('save')}>Save draft</button>
+                    {!conflict && <button type="button" className={controlClass} disabled={locked} onClick={() => setReload(value => value + 1)}>Discard unsaved changes</button>}
+                    <button type="button" className={controlClass} disabled={locked || conflict || hasUnsavedChanges || !saved.revision || draft.mode !== 'regional-discovery'} onClick={() => void perform('preview')}>Preview draft</button>
                     <button type="button" className={controlClass} disabled={locked || conflict || hasUnsavedChanges || (draft.mode === 'regional-discovery' && !saved.revision)} onClick={() => void perform('publish')}>
-                        {draft.mode === 'regional-discovery' ? 'Publish saved regional directory' : 'Publish compact view'}
+                        {draft.mode === 'regional-discovery' ? 'Publish regional directory' : 'Publish compact map'}
                     </button>
                 </div>
+                <p className="text-sm text-slate-600">Discard unsaved changes reloads your saved draft. Only Publish regional directory or Publish compact map changes the published view.</p>
                 {preview && <OwnerPreview key={`owner:${mapId}:${preview.revision}`} mapId={mapId} revision={preview.revision} initialPayload={preview.payload} />}
             </>}
             {regionalUrl && <div className="space-y-2 border-t pt-3">

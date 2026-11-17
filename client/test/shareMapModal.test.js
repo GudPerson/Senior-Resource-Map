@@ -163,3 +163,13 @@ test('explicit regional callback validates intent and uses the same share callba
     assert.throws(()=>injected.onPublish({mode:'regional-discovery',revision:0}));
     assert.equal(calls.length,3);
 });
+
+test('regional published status receives the current parent sharing state, independently of draft intent', async () => {
+    for (const isShared of [false, true]) {
+        let injected;
+        await renderShareWithActions({map:{id:7,name:'Fictional map',share:{isShared}},
+            RegionalDiscoverySettingsComponent:props=>{injected=props;return null;},
+        });
+        assert.equal(injected.isShared,isShared);
+    }
+});

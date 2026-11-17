@@ -508,6 +508,7 @@ export default function ShareMapModal({
                         key={map.id}
                         mapId={map.id}
                         mapName={map.name}
+                        isShared={isShared}
                         disabled={submitting}
                         onPublish={handleRegionalPublish}
                         publicationRefreshKey={JSON.stringify([map.share, map.sharePath, map.embedPath, persistedEmbedEnabled, persistedEmbedOrigins, regionalPublicationRevision])}

@@ -909,12 +909,13 @@ try {
     }).click();
     const settings = page.locator('[data-regional-discovery-settings]');
     await settings.locator('summary').click();
+    await settings.locator('[data-regional-publication-status="regional"]').waitFor();
     const preview = settings.getByRole('button', {
-        name: 'Preview saved regional directory',
+        name: 'Preview draft',
         exact: true
       }),
       publish = settings.getByRole('button', {
-        name: 'Publish saved regional directory',
+        name: 'Publish regional directory',
         exact: true
       });
     await settings.getByLabel('West', {
@@ -923,10 +924,10 @@ try {
     assert.ok(await preview.isDisabled());
     assert.ok(await publish.isDisabled());
     await settings.getByRole('button', {
-      name: 'Save regional settings',
+      name: 'Save draft',
       exact: true
     }).click();
-    await settings.getByText('Settings saved. The published directory has not changed.', {
+    await settings.getByText('Draft saved. The published view has not changed.', {
       exact: true
     }).waitFor();
     await preview.click();
@@ -979,7 +980,7 @@ try {
     assert.equal(await root(page).count(), 0, 'edit retires saved preview');
     await state.concurrentSave();
     await settings.getByRole('button', {
-      name: 'Save regional settings',
+      name: 'Save draft',
       exact: true
     }).click();
     await settings.getByText(/changed in another session/).waitFor();
@@ -988,7 +989,7 @@ try {
     }).inputValue(), '103.62');
     assert.ok(await preview.isDisabled());
     await settings.getByRole('button', {
-      name: 'Reload saved settings (discard draft)',
+      name: 'Discard unsaved changes',
       exact: true
     }).click();
     await until(() => settings.getByLabel('West', {
@@ -1033,6 +1034,7 @@ try {
     await until(() => settings.getByLabel('Published regional URL', {
       exact: true
     }).count().then(n => n === 0), 'disabled URL retires');
+    await settings.locator('[data-regional-publication-status="regional-unavailable"]').waitFor();
     await page.getByRole('checkbox', {
       name: /Enable website embed/
     }).check();
@@ -1050,11 +1052,52 @@ try {
     await until(() => settings.getByLabel('Published regional URL', {
       exact: true
     }).count().then(n => n === 0), 'unpublished URL retires');
+    await settings.locator('[data-regional-publication-status="unpublished"]').waitFor();
     row.controllerState = 'Disposable PGlite owner controller operations; ordinary map auxiliary DTOs are explicit local stubs.';
   }, {
     owner: true,
     v2
   });
+  await run('owner_draft_view_does_not_change_published_status', async (page, state, row) => {
+    await page.getByRole('button', {name:'Share',exact:true}).click();
+    const settings=page.locator('[data-regional-discovery-settings]');
+    await settings.locator('summary').click();
+    await settings.locator('[data-regional-publication-status="regional"]').waitFor();
+    await settings.getByRole('combobox',{name:/Draft view/}).selectOption('compact');
+    assert.equal(await settings.locator('[data-regional-publication-status="regional"]').count(),1);
+    assert.equal(state.requests.filter(x=>x.path.endsWith('/share')&&x.method==='POST').length,0);
+    await settings.getByRole('button',{name:'Save draft',exact:true}).click();
+    await settings.getByText('Draft saved. The published view has not changed.',{exact:true}).waitFor();
+    assert.equal(await settings.locator('[data-regional-publication-status="regional"]').count(),1);
+    await settings.getByRole('button',{name:'Publish compact map',exact:true}).click();
+    await settings.locator('[data-regional-publication-status="compact"]').waitFor();
+    row.compactScreenshot=path.join(out,'owner-controls-compact.png');
+    await settings.screenshot({path:row.compactScreenshot});
+    await settings.getByRole('combobox',{name:/Draft view/}).selectOption('regional-discovery');
+    assert.equal(await settings.locator('[data-regional-publication-status="compact"]').count(),1);
+    assert.ok(await settings.getByRole('button',{name:'Publish regional directory',exact:true}).isDisabled());
+    assert.equal(state.requests.filter(x=>x.path.endsWith('/share')&&x.method==='POST').length,1);
+    row.regionalDraftScreenshot=path.join(out,'owner-controls-regional-draft.png');
+    await settings.screenshot({path:row.regionalDraftScreenshot});
+    row.boundary='Actual owner UI and disposable controllers: selecting and saving a draft do not change the confirmed published mode; explicit compact publication does.';
+  }, {owner:true});
+  await run('owner_publication_readback_failure_is_unknown_until_reload', async (page, state, row) => {
+    state.settingsError=true;
+    state.faults.push({label:'Controlled503 on initial owner settings and publication readback; existing reload then succeeds'});
+    await page.getByRole('button',{name:'Share',exact:true}).click();
+    const settings=page.locator('[data-regional-discovery-settings]');
+    await settings.locator('summary').click();
+    await settings.locator('[data-regional-publication-status="unknown"]').waitFor();
+    await settings.getByText('Currently published: Unable to confirm',{exact:true}).waitFor();
+    assert.equal(await settings.locator('[data-regional-publication-status="compact"]').count(),0);
+    assert.equal(await settings.getByLabel('Published regional URL',{exact:true}).count(),0);
+    state.settingsError=false;
+    await settings.getByRole('button',{name:'Reload saved draft',exact:true}).click();
+    await settings.locator('[data-regional-publication-status="regional"]').waitFor();
+    await settings.getByLabel('Published regional URL',{exact:true}).waitFor();
+    assert.equal(state.requests.filter(x=>x.method==='PUT'||x.path.endsWith('/share')&&x.method==='POST').length,0);
+    row.boundary='Controlled readback failure reports unknown rather than compact; existing reload confirms the publication without writes.';
+  }, {owner:true});
   for (const failure of ['studio', 'annotation']) await run('owner_' + failure + (failure === 'studio' ? '_load_failure_blocks_publication' : '_flush_failure_blocks_publication'), async (page, state, row) => {
     await page.getByText('Fictional regional directory', {
       exact: true
@@ -1118,7 +1161,7 @@ try {
     const settings = page.locator('[data-regional-discovery-settings]');
     await settings.locator('summary').click();
     await settings.getByRole('button', {
-      name: 'Publish saved regional directory',
+      name: 'Publish regional directory',
       exact: true
     }).click();
     await until(() => page.evaluate(() => window.__qa.publishOptions.length === 1), 'explicit publish attempted while Studio save is pending');
@@ -1173,7 +1216,7 @@ try {
       label: 'Deferred owner preview transport cancelled by outer Close'
     });
     await settings.getByRole('button', {
-      name: 'Preview saved regional directory',
+      name: 'Preview draft',
       exact: true
     }).click();
     await until(() => state.pending.length === 1, 'held owner preview');
@@ -1216,14 +1259,14 @@ try {
     await settings.getByLabel('West',{exact:true}).fill('103.61');
     state.settingsError=true;
     state.faults.push({label:'PUT succeeds through actual controller; subsequent availability GET returns controlled 503'});
-    await settings.getByRole('button',{name:'Save regional settings',exact:true}).click();
-    await settings.getByText('Settings saved. The published directory has not changed.',{exact:true}).waitFor();
-    await until(()=>settings.getByRole('button',{name:'Preview saved regional directory',exact:true}).isEnabled(),'save completed despite refresh failure');
+    await settings.getByRole('button',{name:'Save draft',exact:true}).click();
+    await settings.getByText('Draft saved. The published view has not changed.',{exact:true}).waitFor();
+    await until(()=>settings.getByRole('button',{name:'Preview draft',exact:true}).isEnabled(),'save completed despite refresh failure');
     assert.equal(await settings.getByText('Regional settings could not be completed. Check your choices and try again.',{exact:true}).count(),0);
-    await settings.getByText('Approval availability could not refresh. Reload saved settings to check it again.',{exact:true}).waitFor();
+    await settings.getByText('Approval availability could not refresh. Reload the saved draft to check it again.',{exact:true}).waitFor();
     assert.equal(await settings.getByText(/Original email: approved availability confirmed/).count(),0);
     assert.equal(await settings.getByLabel('Published regional URL',{exact:true}).inputValue(),published);
-    await settings.getByRole('button',{name:'Preview saved regional directory',exact:true}).click();
+    await settings.getByRole('button',{name:'Preview draft',exact:true}).click();
     await ready(page);
     assert.deepEqual(state.requests.filter(x=>x.path.endsWith('/preview')).map(x=>x.body),[{revision:2}]);
     assert.equal(state.requests.filter(x=>x.path.endsWith('/share')&&x.method==='POST').length,0);
@@ -1244,7 +1287,7 @@ try {
     const settings = page.locator('[data-regional-discovery-settings]');
     await settings.locator('summary').click();
     await settings.getByRole('button', {
-      name: 'Publish saved regional directory',
+      name: 'Publish regional directory',
       exact: true
     }).click();
     await settings.getByText(/Publication updated/).waitFor();
