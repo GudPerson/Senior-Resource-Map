@@ -250,7 +250,7 @@ try {
             await openAnnotation(page); await selectCircle(page); await page.getByRole('button', { name: 'Find within area', exact: true }).click();
             let panel = await areaDialog(page);
             await panel.getByRole('tab', { name: /CareAround resources/ }).click();
-            await panel.getByText('CareAround resource results are unavailable. Retry to check the full accessible catalogue.', { exact: true }).waitFor({ timeout: 22000 });
+            await panel.getByText('CareAround resource results are unavailable. Retry to check the full accessible catalogue.', { exact: true }).waitFor({ timeout: 52000 });
             assert.deepEqual(await page.evaluate(() => window.__spatialCatalogueCalls.map(value => value.aborted)), [true, true], 'Real page deadline cancels both pending catalogue transports');
             await page.evaluate(() => { window.__stallSpatialCatalogue = false; });
             await panel.getByRole('button', { name: 'Retry', exact: true }).click();

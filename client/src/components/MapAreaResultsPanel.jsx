@@ -69,7 +69,7 @@ export default function MapAreaResultsPanel({ area, onClose, embedded = false, i
         const controller = new AbortController();
         setResources(null); setResourceStatus('loading');
         // Use the same authenticated visible catalogue endpoints as Discover.
-        const options = { maxAttempts: 1, pageTimeoutMs: 15000 };
+        const options = { maxAttempts: 1 };
         Promise.all([
             fetchAllPaginatedResults((params, pageOptions) => api.getHardAssets(params, { ...pageOptions, signal: controller.signal }), { scope: 'visible' }, options),
             fetchAllPaginatedResults((params, pageOptions) => api.getSoftAssets(params, { ...pageOptions, signal: controller.signal }), { scope: 'visible', assetMode: 'offering' }, options),
