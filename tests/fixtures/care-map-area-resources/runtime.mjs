@@ -35,11 +35,15 @@ function projectDirectory(state){
 
 export async function startAreaFixture(out){
  const fixture=await startFixture(out);
- async function install(page,{addressFailure=null,addressRowCount=0,failNextAdd=[],unknownNextAdd=[],holdNextAdd=[],failNextEnsure=[],conflictNextAdd=[],allowLegacyRemove=[],allShapes=false}={}){
+ async function install(page,{addressFailure=null,addressRowCount=0,failNextAdd=[],unknownNextAdd=[],holdNextAdd=[],failNextEnsure=[],conflictNextAdd=[],allowLegacyRemove=[],allShapes=false,holdCataloguePages=[],failCataloguePages=[]}={}){
   const core=await fixture.install(page,{annotations:allShapes?annotations:[annotations[0]]});
   const state={core,baseDirectory:clone(core.directory),personalPlaces:clone(core.directory.personalPlaces),assets:clone(existingAssets),saved:clone([...existingAssets,hard[1]]),requests:[],writes:[],readQueries:[],pendingAdds:[],addressFailure,allowLegacyRemove:new Set(allowLegacyRemove),failNextAdd:new Set(failNextAdd),unknownNextAdd:new Set(unknownNextAdd),holdNextAdd:new Set(holdNextAdd),failNextEnsure:new Set(failNextEnsure),conflictNextAdd:new Set(conflictNextAdd)};
   state.directory=()=>projectDirectory(state);
   state.failMapReads=0;state.mapReadFailures=0;
+  state.holdCataloguePages=new Set(holdCataloguePages);state.failCataloguePages=new Set(failCataloguePages);
+  state.catalogueReads=[];state.catalogueAborts=[];state.pendingCatalogue=[];
+  state.releaseCatalogue=(matches=()=>true)=>{const ready=state.pendingCatalogue.filter(matches);state.pendingCatalogue=state.pendingCatalogue.filter(item=>!matches(item));for(const item of ready)item.release();};
+  page.on('requestfailed',request=>{const url=new URL(request.url());if(url.searchParams.get('scope')==='visible'&&['/api/hard-assets','/api/soft-assets'].includes(url.pathname))state.catalogueAborts.push({key:`${url.pathname.includes('hard-')?'hard':'soft'}:${url.searchParams.get('page')||1}`,failure:request.failure()?.errorText});});
   state.releaseAdds=()=>{for(const release of state.pendingAdds.splice(0))release();};
   const find=ref=>[...hard,...soft].find(asset=>keyFor(asset)===keyFor(ref));
   const paged=(rows,url)=>{const p=Math.max(1,Number(url.searchParams.get('page')||1)),pageSize=2;return{data:rows.slice((p-1)*pageSize,p*pageSize),pagination:{page:p,pageSize,totalCount:rows.length,totalPages:Math.ceil(rows.length/pageSize)}};};
@@ -48,8 +52,12 @@ export async function startAreaFixture(out){
    state.requests.push({method,path:pathname,search:url.search});
    if(method==='GET'&&pathname==='/api/my-maps')return route.fulfill({json:[{...clone(state.baseDirectory),resourceCount:state.assets.length+state.personalPlaces.length,updatedAt:'2026-11-06T00:00:00.000Z',createdAt:'2026-11-06T00:00:00.000Z'}]});
    if(method==='GET'&&pathname===`/api/my-maps/${fixture.mapId}`){if(state.failMapReads>0){state.failMapReads--;state.mapReadFailures++;return route.fulfill({status:503,json:{error:'Fictional map refresh failure. Retry this map.'}});}return route.fulfill({json:state.directory()});}
-   if(method==='GET'&&pathname==='/api/hard-assets')return route.fulfill({json:paged(hard,url)});
-   if(method==='GET'&&pathname==='/api/soft-assets')return route.fulfill({json:paged(soft,url)});
+   if(method==='GET'&&['/api/hard-assets','/api/soft-assets'].includes(pathname)){
+    const controlled=url.searchParams.get('scope')==='visible',key=`${pathname.includes('hard-')?'hard':'soft'}:${url.searchParams.get('page')||1}`;
+    if(controlled){state.catalogueReads.push({key,search:url.search});if(state.holdCataloguePages.has(key))await new Promise(release=>state.pendingCatalogue.push({key,release}));
+     if(state.failCataloguePages.delete(key))return route.fulfill({status:503,json:{error:'Controlled fictional catalogue page failure'}});}
+    return route.fulfill({json:paged(pathname.includes('hard-')?hard:soft,url)}).catch(error=>{if(!controlled||!request.failure())throw error;});
+   }
    if(method==='GET'&&pathname==='/api/favorites')return route.fulfill({json:clone(state.saved)});
    if(method==='GET'&&pathname==='/api/address-snapshot/metadata')return route.fulfill({json:{ready:true,snapshot}});
    if(method==='POST'&&pathname==='/api/address-snapshot/area'){
