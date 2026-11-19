@@ -69,3 +69,45 @@ test('abort during metadata or query stays an abort and never starts the next re
     await assert.rejects(client.findNearbySnapshotAddresses({ lat: 1.3, lng: 103.8, signal: controller.signal }), actual => actual === error);
     assert.equal(calls, 1);
 });
+
+test('scan transport posts the explicit pin and cursor and accepts a batch without an exact total', async () => {
+    const calls = [], controller = new AbortController();
+    const scan = { areaSha256: 'b'.repeat(64), manifestSha256: 'c'.repeat(64), manifestEtag: '"verified"', tilesTotal: 0, batchCandidateLimit: 512 };
+    const batch = {
+        schemaVersion: 1,
+        snapshot: {
+            ...snapshot, source: 'Fixture', preparationEvidence: 'Fixture evidence', preparedAt: '2026-01-01T00:00:00.000Z',
+            recordCount: 1, postalCodeCount: 1,
+        },
+        scan, rows: [], nextCursor: null, done: true,
+        progress: { tilesCompleted: 0, tilesTotal: 0 },
+        diagnostics: { reads: 1, bytes: 100, consumedCandidates: 0, candidates: 0, geometryWork: 0 },
+    };
+    const client = createAddressSnapshotClient({ apiRequest: async (method, path, body, options) => {
+        calls.push({ method, path, body, options });
+        return batch;
+    } });
+    const request = { area, snapshotSha256: sha, signal: controller.signal };
+    assert.deepEqual(await client.scanAddressAreaBatch(request), batch);
+    assert.deepEqual(calls, [{
+        method: 'POST', path: '/address-snapshot/area/scan', body: { area, snapshotSha256: sha, cursor: null },
+        options: { signal: controller.signal, cache: 'no-store', networkAttemptsPerBase: 1 },
+    }]);
+});
+
+test('scan transport requires an explicit valid pin and canonical cursor before requesting a step', async () => {
+    const calls = [];
+    const client = createAddressSnapshotClient({ apiRequest: async (...args) => { calls.push(args); } });
+    const invalid = error => error.code === 'ADDRESS_SNAPSHOT_INVALID_QUERY' && error.status === 400;
+    await assert.rejects(client.scanAddressAreaBatch({ area }), invalid);
+    await assert.rejects(client.scanAddressAreaBatch({ area, snapshotSha256: sha, cursor: { tile: 1, row: 0 } }), invalid);
+    assert.deepEqual(calls, []);
+});
+
+test('scan transport rejects malformed responses and preserves typed snapshot change errors', async () => {
+    const client = createAddressSnapshotClient({ apiRequest: async () => result() });
+    await assert.rejects(client.scanAddressAreaBatch({ area, snapshotSha256: sha }), error => error.code === 'ADDRESS_SNAPSHOT_UNAVAILABLE');
+
+    const changed = createAddressSnapshotClient({ fetchImpl: async () => json({ code: 'ADDRESS_SNAPSHOT_CHANGED' }, 409), provider: 'local' });
+    await assert.rejects(changed.scanAddressAreaBatch({ area, snapshotSha256: sha }), error => error.code === 'ADDRESS_SNAPSHOT_CHANGED' && error.status === 409);
+});

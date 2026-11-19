@@ -1,5 +1,6 @@
 import { requestWithBaseCandidates } from './api.js';
 import { normalizeAddressSnapshotLimit } from '../../../shared/addressSnapshotQueryLimits.js';
+import { isAddressSnapshotScanRequest, isAddressSnapshotScanResponse } from '../../../shared/addressSnapshotScanContract.js';
 
 const SHA256 = /^[a-f0-9]{64}$/;
 const ERROR_MESSAGES = {
@@ -72,11 +73,18 @@ export function createAddressSnapshotClient({ provider = 'production', apiReques
         if (offset > 0 && !SHA256.test(snapshotSha256 || '')) return Promise.reject(new AddressSnapshotError(undefined, 'ADDRESS_SNAPSHOT_INVALID_QUERY', 400));
         return query('/area', { area, offset, limit }, snapshotSha256, signal);
     }
-    return { getAddressSnapshotMetadata, findNearbySnapshotAddresses, findSnapshotAddressesWithinArea };
+    async function scanAddressAreaBatch({ area, snapshotSha256, cursor = null, signal } = {}) {
+        const body = { area, snapshotSha256, cursor };
+        if (!isAddressSnapshotScanRequest(body)) throw new AddressSnapshotError(undefined, 'ADDRESS_SNAPSHOT_INVALID_QUERY', 400);
+        const result = await requestSnapshot('/area/scan', body, signal);
+        if (!isAddressSnapshotScanResponse(result, { snapshotSha256, cursor })) throw new AddressSnapshotError();
+        return result;
+    }
+    return { getAddressSnapshotMetadata, findNearbySnapshotAddresses, findSnapshotAddressesWithinArea, scanAddressAreaBatch };
 }
 
 const client = createAddressSnapshotClient({
     provider: import.meta.env?.DEV && import.meta.env?.VITE_ADDRESS_SNAPSHOT_PROVIDER === 'local' ? 'local' : 'production',
 });
-export const { getAddressSnapshotMetadata, findNearbySnapshotAddresses, findSnapshotAddressesWithinArea } = client;
+export const { getAddressSnapshotMetadata, findNearbySnapshotAddresses, findSnapshotAddressesWithinArea, scanAddressAreaBatch } = client;
 export { serializeAddressSnapshotCsv } from './mapSpatialGeometry.js';

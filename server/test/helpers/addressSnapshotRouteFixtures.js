@@ -42,7 +42,7 @@ export class AddressSnapshotTestBucket {
     async list() { throw Error('Query attempted an unbounded list'); }
 }
 
-export function routeFixture({ repository, bucket = new AddressSnapshotTestBucket(), fullApp = false } = {}) {
+export function routeFixture({ repository, scanRepository, bucket = new AddressSnapshotTestBucket(), fullApp = false } = {}) {
     const liveUsers = new Map(), calls = { repositories: 0, metadata: 0, nearby: [], area: [] };
     const snapshot = { label: 'Fictional route test snapshot', sha256: TEST_SNAPSHOT_SHA, recordCount: 0, postalCodeCount: 0 };
     const defaultRepository = {
@@ -60,19 +60,22 @@ export function routeFixture({ repository, bucket = new AddressSnapshotTestBucke
         app.use('*', addressSnapshotResponseHeaders);
         app.use('*', securityHeaders);
         app.use('*', cookieSessionCsrfGuard);
-        app.route('/api/address-snapshot', createAddressSnapshotRoutes({ repositoryForContext: () => { calls.repositories++; return repository || defaultRepository; } }));
+        app.route('/api/address-snapshot', createAddressSnapshotRoutes({
+            repositoryForContext: () => { calls.repositories++; return repository || defaultRepository; },
+            ...(scanRepository ? { scanRepositoryForContext: () => scanRepository } : {}),
+        }));
     }
     const tokenFor = async (actor = { id: 91103, role: 'standard' }, options = {}) => {
         liveUsers.set(actor.id, actor);
         return createSessionToken(actor, { env }, options);
     };
-    async function request(path, { method = path.endsWith('/metadata') ? 'GET' : 'POST', body, rawBody, actor, token, cookie = false, headers = {}, cloneSpy } = {}) {
+    async function request(path, { method = path.endsWith('/metadata') ? 'GET' : 'POST', body, rawBody, actor, token, cookie = false, headers = {}, cloneSpy, signal } = {}) {
         if (actor) token = await tokenFor(actor);
         const values = { Origin: 'https://app.carearound.sg', ...headers };
         if (token) values[cookie ? 'Cookie' : SESSION_HEADER_NAME] = cookie ? `${SESSION_COOKIE_NAME}=${token}` : token;
         const payload = rawBody !== undefined ? rawBody : body !== undefined ? JSON.stringify(body) : undefined;
         if (payload !== undefined && !Object.keys(values).some(key => key.toLowerCase() === 'content-type')) values['Content-Type'] = 'application/json';
-        const req = new Request(`https://api.carearound.sg${path}`, { method, headers: values,
+        const req = new Request(`https://api.carearound.sg${path}`, { method, headers: values, signal,
             ...(payload !== undefined ? { body: payload } : {}), ...(payload instanceof ReadableStream ? { duplex: 'half' } : {}) });
         if (cloneSpy) { const clone = req.clone.bind(req); req.clone = () => { cloneSpy(); return clone(); }; }
         return app.fetch(req, env);

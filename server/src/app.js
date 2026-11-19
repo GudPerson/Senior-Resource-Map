@@ -84,9 +84,10 @@ app.use('*', (c, next) => {
 app.use('/api/help/cms/binding-observation', maintenanceIdentityRequest);
 app.use('*', cookieSessionCsrfGuard);
 app.use('*', (c, next) => {
-    // These two authenticated routes enforce their own streamed 1 MiB JSON limit.
+    // These authenticated routes enforce their own streamed 1 MiB JSON limit.
     const boundedAddressQuery = c.req.method === 'POST'
-        && (c.req.path === '/api/address-snapshot/nearby' || c.req.path === '/api/address-snapshot/area');
+        && (c.req.path === '/api/address-snapshot/nearby' || c.req.path === '/api/address-snapshot/area'
+            || c.req.path === '/api/address-snapshot/area/scan');
     const boundedJobAction = c.req.method === 'POST' && /^\/api\/boundary-zone-jobs(?:\/?$|\/[1-9]\d*\/(?:advance|commit|pause|resume|cancel)\/?$)/.test(c.req.path);
     return (boundedAddressQuery || boundedJobAction) ? next() : requestBodyGuard(c, next);
 });

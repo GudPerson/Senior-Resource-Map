@@ -28,6 +28,7 @@ export function createAddressSnapshotRoutes(options = {}) {
     router.get('/metadata', handlers.metadata);
     router.post('/nearby', handlers.nearby);
     router.post('/area', handlers.area);
+    router.post('/area/scan', handlers.scan);
     return router;
 }
 

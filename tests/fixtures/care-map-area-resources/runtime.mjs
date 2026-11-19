@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import {startFixture, fingerprint} from '../care-map-floating-canvas/runtime.mjs';
 import {catalogueHard, catalogueSoft, annotations} from '../caremap-spatial-tools/fictional-api.mjs';
+import {owner} from '../care-map-floating-canvas/data.mjs';
+import {createWholeAreaFixture,wholeAreaAnnotation} from './whole-area-addresses.mjs';
 
 export {fingerprint};
 export const clone=value=>structuredClone(value);
@@ -35,9 +37,35 @@ function projectDirectory(state){
 
 export async function startAreaFixture(out){
  const fixture=await startFixture(out);
- async function install(page,{addressFailure=null,addressRowCount=0,failNextAdd=[],unknownNextAdd=[],holdNextAdd=[],failNextEnsure=[],conflictNextAdd=[],allowLegacyRemove=[],allShapes=false,holdCataloguePages=[],failCataloguePages=[]}={}){
-  const core=await fixture.install(page,{annotations:allShapes?annotations:[annotations[0]]});
+ async function install(page,{addressFailure=null,addressRowCount=0,failNextAdd=[],unknownNextAdd=[],holdNextAdd=[],failNextEnsure=[],conflictNextAdd=[],allowLegacyRemove=[],allShapes=false,holdCataloguePages=[],failCataloguePages=[],wholeAddressFixture=false,holdAddressPaths=[],ignoreAddressAbort=false}={}){
+  const addressProvider=wholeAddressFixture?await createWholeAreaFixture():null;
+  const core=await fixture.install(page,{annotations:addressProvider?[...annotations,wholeAreaAnnotation]:allShapes?annotations:[annotations[0]]});
   const state={core,baseDirectory:clone(core.directory),personalPlaces:clone(core.directory.personalPlaces),assets:clone(existingAssets),saved:clone([...existingAssets,hard[1]]),requests:[],writes:[],readQueries:[],pendingAdds:[],addressFailure,allowLegacyRemove:new Set(allowLegacyRemove),failNextAdd:new Set(failNextAdd),unknownNextAdd:new Set(unknownNextAdd),holdNextAdd:new Set(holdNextAdd),failNextEnsure:new Set(failNextEnsure),conflictNextAdd:new Set(conflictNextAdd)};
+  if(addressProvider){
+   state.addressProvider=addressProvider;
+   state.addressVersion=0;state.addressRequests=[];state.pendingAddresses=[];
+   state.holdAddressPaths=new Set(holdAddressPaths);state.failNextAddressPath=null;
+   state.sessionUser=owner;state.sessionReads=0;
+   state.releaseAddress=(request=state.pendingAddresses[0])=>{
+    state.pendingAddresses=state.pendingAddresses.filter(item=>item!==request);
+    request?.release();
+   };
+   await page.addInitScript(({ignoreAddressAbort})=>{
+    const fetch=window.fetch;
+    window.__qaAddressTransport=[];
+    window.fetch=async(input,options)=>{
+     const path=new URL(typeof input==='string'?input:input.url,location.href).pathname;
+     if(!path.startsWith('/api/address-snapshot/'))return fetch.call(window,input,options);
+     const observation={path,aborted:false,delivered:false};
+     window.__qaAddressTransport.push(observation);
+     options?.signal?.addEventListener('abort',()=>{observation.aborted=true;},{once:true});
+     const response=await fetch.call(window,input,ignoreAddressAbort?{...options,signal:undefined}:options);
+     const readJson=response.json.bind(response);
+     response.json=async()=>{const value=await readJson();observation.delivered=true;return value;};
+     return response;
+    };
+   },{ignoreAddressAbort});
+  }
   state.directory=()=>projectDirectory(state);
   state.failMapReads=0;state.mapReadFailures=0;
   state.holdCataloguePages=new Set(holdCataloguePages);state.failCataloguePages=new Set(failCataloguePages);
@@ -59,6 +87,23 @@ export async function startAreaFixture(out){
     return route.fulfill({json:paged(pathname.includes('hard-')?hard:soft,url)}).catch(error=>{if(!controlled||!request.failure())throw error;});
    }
    if(method==='GET'&&pathname==='/api/favorites')return route.fulfill({json:clone(state.saved)});
+   if(addressProvider&&method==='GET'&&pathname==='/api/auth/me'){
+    state.sessionReads++;
+    return route.fulfill({json:{user:state.sessionUser}});
+   }
+   if(addressProvider&&pathname.startsWith('/api/address-snapshot/')){
+    const body=method==='POST'?request.postDataJSON():undefined;
+    const entry={path:pathname,body};
+    state.addressRequests.push(entry);
+    if(state.holdAddressPaths.has(pathname))await new Promise(release=>state.pendingAddresses.push({entry,release}));
+    if(state.failNextAddressPath===pathname){state.failNextAddressPath=null;return route.abort('failed');}
+    const response=await addressProvider.request(state.addressVersion,method,pathname,body);
+    const contentType=response.headers.get('content-type')||undefined;
+    const payload=await response.text();
+    const json=contentType?.startsWith('application/json')?JSON.parse(payload):{};
+    entry.response={status:response.status,rows:json.rows?.length,progress:json.progress,code:json.code,limit:json.addressLimit};
+    return route.fulfill({status:response.status,contentType,body:payload}).catch(error=>{if(!request.failure())throw error;});
+   }
    if(method==='GET'&&pathname==='/api/address-snapshot/metadata')return route.fulfill({json:{ready:true,snapshot}});
    if(method==='POST'&&pathname==='/api/address-snapshot/area'){
     const body=request.postDataJSON();state.readQueries.push({path:pathname,body});
