@@ -37,13 +37,13 @@ export default function RenameMapModal({
     }
 
     return (
-        <div role="presentation" className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+        <div role="presentation" className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/40 p-[16px] backdrop-blur-sm">
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
                 onKeyDown={handleDialogKeyDown}
-                className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white shadow-2xl"
+                className="app-dialog-panel app-dialog-short w-full overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-2xl"
             >
                 <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>

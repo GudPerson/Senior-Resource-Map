@@ -777,6 +777,8 @@ export const taDictionary = {
     failedSaveResourceFromMap: 'இந்த வளத்தை சேமித்து சேர்க்க முடியவில்லை.',
     noResourceCatalogResultsTitle: 'இந்த தேடலுக்கு பொருந்தும் வளங்கள் இல்லை',
     tryAgain: 'மீண்டும் முயற்சி',
+    selectAllMatchingSaved: 'பொருந்தும் சேமித்த வளங்கள் அனைத்தையும் தேர்ந்தெடுக்கவும்',
+    savedOutsideFilter: 'வடிகட்டிக்கு வெளியே {{count}} தேர்ந்தெடுக்கப்பட்டுள்ளன',
     keepPlaceSelected: 'இந்த இடத்தில் உள்ள நிகழ்ச்சிகள் அல்லது சேவைகள் இன்னும் தேர்ந்தெடுக்கப்பட்டுள்ளதால் {{name}} ஐ தேர்வில் வைத்திருங்கள்.',
     noSavedResourcesForMapCreate: 'முதலில் Discover இல் சில வளங்களைச் சேமித்து, பின்னர் அவற்றிலிருந்து வரைபடம் உருவாக்கவும்.',
     noSavedResourcesForMapManage: 'முதலில் Discover இல் சில வளங்களைச் சேமிக்கவும்.',

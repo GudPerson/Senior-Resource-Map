@@ -30,10 +30,10 @@ export default function MapSpatialDialog({ title, closeLabel = 'Close', onClose,
             if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true });
         };
     }, []);
-    return <div className="fixed inset-0 z-[1450] flex items-end bg-slate-950/45 sm:items-center sm:justify-center sm:p-4"
+    return <div className="fixed inset-0 z-[1450] flex items-end bg-slate-950/45 sm:items-center sm:justify-center sm:p-[16px]"
         onPointerDown={event => { if (event.target === event.currentTarget) onClose?.(); }}>
         <section ref={dialog} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} {...attributes}
-            className={`flex max-h-[92dvh] w-full min-w-0 flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl ${wide ? 'sm:max-w-3xl' : 'sm:max-w-xl'}`}
+            className={`app-dialog-panel flex w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl [--app-dialog-block-inset:16px] sm:rounded-3xl sm:[--app-dialog-block-inset:32px] ${wide ? 'app-dialog-workspace' : 'app-dialog-form'}`}
             onPointerDown={event => event.stopPropagation()}>
             <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
                 <h2 className="text-base font-black text-slate-900">{title}</h2>

@@ -3361,8 +3361,8 @@ export default function AdminPage() {
                     </div>
 
                     {pendingSubregionDelete && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-                            <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-[16px]">
+                            <div className="app-dialog-panel app-dialog-compact w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
                                 <h3 className="text-lg font-bold text-slate-900">Confirm Deletion</h3>
                                 <p className="mt-2 text-sm text-slate-600">
                                     {pendingSubregionDelete.mode === 'single'
@@ -4338,8 +4338,8 @@ export default function AdminPage() {
             }
 
             {supportContextUser && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-                    <div className="w-full max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-[16px]">
+                    <div className="app-dialog-panel app-dialog-workspace w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
                         <div className="flex items-start justify-between gap-4">
                             <div>
                                 <h3 className="text-lg font-bold text-slate-900">Support Context</h3>
@@ -4417,8 +4417,8 @@ export default function AdminPage() {
             )}
 
             {regionScopeModalUser && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-                    <div className="w-full max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-[16px]">
+                    <div className="app-dialog-panel app-dialog-workspace w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
                         <div className="flex items-start justify-between gap-4">
                             <div>
                                 <h3 className="text-lg font-bold text-slate-900">Manage Region Scope</h3>
@@ -4531,8 +4531,8 @@ export default function AdminPage() {
             )}
 
             {partnerBoundaryModalUser && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-                    <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-[16px]">
+                    <div className="app-dialog-panel app-dialog-form w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
                         <div className="flex items-start justify-between gap-4">
                             <div>
                                 <h3 className="text-lg font-bold text-slate-900">Legacy Boundary</h3>
@@ -4596,8 +4596,8 @@ export default function AdminPage() {
             {confirmDialog}
 
             {pendingBulkDelete && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-                    <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-[16px]">
+                    <div className="app-dialog-panel app-dialog-compact w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
                         <h3 className="text-lg font-bold text-slate-900">Confirm Deletion</h3>
                         <p className="mt-2 text-sm text-slate-600">
                             {pendingBulkDelete.type === 'resources'

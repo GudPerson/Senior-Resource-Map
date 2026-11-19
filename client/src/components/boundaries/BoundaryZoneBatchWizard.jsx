@@ -80,7 +80,7 @@ export default function BoundaryZoneBatchWizard({ initialRows = [], placeOptions
     return <>
         {!pickerOpen ? <Dialog.Root open onOpenChange={open => {if(!open) close();}}><Dialog.Portal>
             <Dialog.Overlay className="fixed inset-0 z-[2050] bg-slate-900/40" />
-            <Dialog.Content className="fixed left-1/2 top-1/2 z-[2051] flex max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl bg-white shadow-xl" onPointerDown={event=>event.stopPropagation()} onInteractOutside={event=>event.preventDefault()}>
+            <Dialog.Content className="fixed left-1/2 top-1/2 z-[2051] app-dialog-panel app-dialog-dense flex w-[calc(100%-24px)] sm:w-[calc(100%-32px)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl bg-white shadow-xl" onPointerDown={event=>event.stopPropagation()} onInteractOutside={event=>event.preventDefault()}>
                 <header className="border-b p-4"><Dialog.Title className="text-xl font-bold">{job ? 'Audience zone batch' : 'Create zones from boundaries'}</Dialog.Title>
                     <Dialog.Description className="mt-1 text-sm text-slate-600">Assign a Place and zone name to every boundary. Review postal counts before creating zones.</Dialog.Description></header>
                 <div className="min-h-0 space-y-4 overflow-y-auto p-4">

@@ -121,12 +121,12 @@ export default function MyMapCategoryOrderModal({
     }
 
     return (
-        <div className="fixed inset-0 z-[1450] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[1450] flex items-center justify-center bg-black/40 p-[16px] backdrop-blur-sm">
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="my-map-category-order-title"
-                className="flex max-h-[min(90vh,860px)] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl"
+                className="app-dialog-panel app-dialog-workspace flex w-full flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl"
             >
                 <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>

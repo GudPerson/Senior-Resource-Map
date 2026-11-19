@@ -121,8 +121,8 @@ export default function ResourceWizardShell({
             </div>
 
             {showPreview && renderPreview ? (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={previewTitle}>
-                    <div className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-[16px] backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={previewTitle}>
+                    <div className="app-dialog-panel app-dialog-dense flex w-full flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
                         <div className="mb-4 flex items-center justify-between gap-3">
                             <div>
                                 <h3 className="text-lg font-black text-slate-950">{previewTitle}</h3>

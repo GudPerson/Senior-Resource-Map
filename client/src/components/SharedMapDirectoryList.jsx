@@ -970,12 +970,12 @@ function MapNotesOverlay({
 
     return (
         <div
-            className="fixed inset-0 z-[1400] flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-6"
+            className="fixed inset-0 z-[1400] flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-[24px]"
             onClick={() => void handleClose()}
             role="presentation"
         >
             <section
-                className="flex h-[92dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:h-auto sm:max-h-[86vh] sm:max-w-3xl sm:rounded-[28px]"
+                className="app-dialog-panel app-dialog-workspace flex h-[92vh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl [--app-dialog-block-inset:16px] supports-[height:100dvh]:h-[92dvh] sm:h-auto sm:rounded-[28px] sm:[--app-dialog-block-inset:48px] sm:supports-[height:100dvh]:h-auto"
                 role="dialog"
                 aria-modal="true"
                 aria-label={selectedRow ? t('viewResourceNotesFor', { name: selectedRow.name }) : t('openMapNotes')}

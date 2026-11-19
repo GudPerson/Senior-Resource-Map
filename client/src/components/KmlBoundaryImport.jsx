@@ -66,7 +66,7 @@ export default function KmlBoundaryImport({ mapId, annotations, disabled = false
             </Dialog.Trigger>
             <Dialog.Portal>
                 <Dialog.Overlay className="fixed inset-0 z-[2000] bg-slate-900/50" />
-                <Dialog.Content className="fixed left-1/2 top-1/2 z-[2001] flex max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-white shadow-xl"
+                <Dialog.Content className="fixed left-1/2 top-1/2 z-[2001] app-dialog-panel app-dialog-workspace flex w-[calc(100%-24px)] sm:w-[calc(100%-32px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-white shadow-xl"
                     onPointerDown={event => event.stopPropagation()}>
                     <div className="flex shrink-0 items-start justify-between gap-3 border-b p-4">
                         <div><Dialog.Title className="text-lg font-bold text-slate-900">{m.title}</Dialog.Title>

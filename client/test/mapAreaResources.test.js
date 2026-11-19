@@ -42,8 +42,9 @@ test('area resources respect polygon holes through the shared geometry contract'
 });
 
 test('new spatial controls have complete labels and safety copy in every supported locale', () => {
+    assert.deepEqual(getMapSpatialMessages('zh-CN'), getMapSpatialMessages('zh'));
     const keys = Object.keys(getMapSpatialMessages('en')).sort();
-    for (const locale of ['en', 'zh', 'ms', 'ta']) {
+    for (const locale of ['en', 'zh', 'zh-CN', 'ms', 'ta']) {
         const messages = getMapSpatialMessages(locale);
         assert.deepEqual(Object.keys(messages).sort(), keys);
         assert.ok(keys.every(key => typeof messages[key] === 'string' && messages[key].length > 0));

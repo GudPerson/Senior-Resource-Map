@@ -55,18 +55,18 @@ export default function ConfirmDialog({
         : [details].filter(Boolean);
 
     return (
-        <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-slate-950/45 p-[16px] backdrop-blur-sm">
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="carearound-confirm-title"
-                className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-2xl"
+                className="app-dialog-panel app-dialog-compact w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-2xl"
             >
                 <Icon size={36} className={`mx-auto mb-3 ${meta.iconClassName}`} />
                 <h2 id="carearound-confirm-title" className="mb-2 text-xl font-bold text-slate-900">
                     {title}
                 </h2>
-                <p className="mx-auto max-w-xs text-sm leading-6 text-slate-500">
+                <p className="mx-auto text-sm leading-6 text-slate-500">
                     {renderMessage(message)}
                 </p>
                 {detailItems.length ? (
@@ -76,7 +76,7 @@ export default function ConfirmDialog({
                         ))}
                     </div>
                 ) : null}
-                <div className="mt-6 flex gap-3">
+                <div className="mt-6 flex flex-wrap gap-3">
                     <button
                         type="button"
                         onClick={onCancel}

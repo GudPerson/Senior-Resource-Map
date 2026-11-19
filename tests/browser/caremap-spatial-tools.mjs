@@ -165,6 +165,47 @@ try {
             return { width: phone ? 390 : 1728 };
         } finally { await context.close(); }
     });
+    await check('ordinary-address-filter-completes-pinned-source-once', async () => {
+        const { page, context } = await createPage();
+        try {
+            const reads = [];
+            page.on('request', request => {
+                const pathname = new URL(request.url()).pathname;
+                if (pathname.startsWith(snapshotPrefix)) reads.push({ pathname, body: request.postDataJSON() });
+            });
+            const before = await audit(page);
+            await openAnnotation(page);
+            await selectCircle(page);
+            await page.getByRole('button', { name: 'Find within area', exact: true }).click();
+            const panel = await areaDialog(page);
+            const checks = panel.locator('li input[type=checkbox]');
+            await checks.nth(199).waitFor({ state: 'attached' });
+            assert.equal(await checks.count(), 200);
+            const search = panel.getByRole('searchbox', { name: 'Search addresses or postal codes' });
+            await search.fill('100224');
+            await panel.getByText('Showing 1 of 1 matches').waitFor();
+            assert.match(await checks.first().getAttribute('aria-label'), /^100224 /);
+            const pages = reads.filter(read => read.pathname === snapshotPrefix + '/area').map(read => read.body);
+            assert.deepEqual(pages.map(({offset, limit}) => [offset,limit]), [[0,200],[200,1000]]);
+            assert.equal(pages[1].snapshotSha256, pages[0].snapshotSha256);
+            assert.deepEqual(pages[1].area, pages[0].area);
+            const boundary = reads.length;
+            await search.fill('012345');
+            await panel.getByText('Showing 2 of 2 matches').waitFor();
+            await capture(page, 'desktop-within-area-address-filter');
+            await panel.getByRole('button', {name:'Clear search'}).click();
+            assert.equal(await search.evaluate(node => node === document.activeElement), true);
+            assert.equal(await checks.count(),200);
+            await search.fill('100224');
+            await panel.getByText('Showing 1 of 1 matches').waitFor();
+            assert.equal(reads.length,boundary);
+            assert.deepEqual(reads.map(row => row.pathname), ['/metadata','/area','/area'].map(part => snapshotPrefix + part));
+            const after = await audit(page);
+            assert.deepEqual(after.explicitWrites,before.explicitWrites);
+            assert.deepEqual(after.unexpectedWrites,before.unexpectedWrites);
+            return { pages, zeroWrites:true };
+        } finally { await context.close(); }
+    });
     await check('circle-label-selected-area-catalogue-and-addresses', async () => {
         const { page, context } = await createPage();
         try {

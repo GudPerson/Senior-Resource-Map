@@ -49,7 +49,7 @@ export default function BoundaryLibrarySaveDialog({ mapId, annotation, savedRevi
     const button = 'min-h-11 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold disabled:opacity-40';
     return <Dialog.Root open onOpenChange={open => { if (!open && !busy) onCancel?.(); }}><Dialog.Portal>
             <Dialog.Overlay className="fixed inset-0 z-[1999] bg-slate-900/40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[2101] max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[2101] app-dialog-panel app-dialog-short w-[calc(100%-24px)] sm:w-[calc(100%-32px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
             onPointerDown={event => event.stopPropagation()} onInteractOutside={event => event.preventDefault()} onEscapeKeyDown={event => { if (busy) event.preventDefault(); }}>
             <Dialog.Title className="text-lg font-bold">Save a library boundary</Dialog.Title>
             <Dialog.Description className="mt-1 text-sm text-slate-600">Save a private snapshot for reuse. Each save creates an independent library entry.</Dialog.Description>

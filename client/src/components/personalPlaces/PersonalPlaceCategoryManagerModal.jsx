@@ -271,8 +271,8 @@ export default function PersonalPlaceCategoryManagerModal({
     }
 
     return (
-        <div className="fixed inset-0 z-[1500] flex items-end bg-slate-950/45 sm:items-center sm:justify-center sm:p-6" role="presentation">
-            <section className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-w-2xl sm:rounded-[28px]" role="dialog" aria-modal="true" aria-label="Manage personal place categories">
+        <div className="fixed inset-0 z-[1500] flex items-end bg-slate-950/45 sm:items-center sm:justify-center sm:p-[24px]" role="presentation">
+            <section className="app-dialog-panel app-dialog-form flex w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl [--app-dialog-block-inset:16px] sm:[--app-dialog-block-inset:48px] sm:rounded-[28px]" role="dialog" aria-modal="true" aria-label="Manage personal place categories">
                 <header className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
                     <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-700">
                         <Plus size={18} />

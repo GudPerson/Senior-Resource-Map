@@ -38,7 +38,7 @@ function projectDirectory(state){
 export async function startAreaFixture(out){
  const fixture=await startFixture(out);
  async function install(page,{addressFailure=null,addressRowCount=0,failNextAdd=[],unknownNextAdd=[],holdNextAdd=[],failNextEnsure=[],conflictNextAdd=[],allowLegacyRemove=[],allShapes=false,holdCataloguePages=[],failCataloguePages=[],wholeAddressFixture=false,holdAddressPaths=[],ignoreAddressAbort=false}={}){
-  const addressProvider=wholeAddressFixture?await createWholeAreaFixture():null;
+  const addressProvider=wholeAddressFixture?await createWholeAreaFixture(wholeAddressFixture === 'large'):null;
   const core=await fixture.install(page,{annotations:addressProvider?[...annotations,wholeAreaAnnotation]:allShapes?annotations:[annotations[0]]});
   const state={core,baseDirectory:clone(core.directory),personalPlaces:clone(core.directory.personalPlaces),assets:clone(existingAssets),saved:clone([...existingAssets,hard[1]]),requests:[],writes:[],readQueries:[],pendingAdds:[],addressFailure,allowLegacyRemove:new Set(allowLegacyRemove),failNextAdd:new Set(failNextAdd),unknownNextAdd:new Set(unknownNextAdd),holdNextAdd:new Set(holdNextAdd),failNextEnsure:new Set(failNextEnsure),conflictNextAdd:new Set(conflictNextAdd)};
   if(addressProvider){
@@ -66,6 +66,7 @@ export async function startAreaFixture(out){
     };
    },{ignoreAddressAbort});
   }
+  state.ordinarySnapshot={...snapshot,recordCount:addressRowCount};
   state.directory=()=>projectDirectory(state);
   state.failMapReads=0;state.mapReadFailures=0;
   state.holdCataloguePages=new Set(holdCataloguePages);state.failCataloguePages=new Set(failCataloguePages);
@@ -84,7 +85,7 @@ export async function startAreaFixture(out){
     const controlled=url.searchParams.get('scope')==='visible',key=`${pathname.includes('hard-')?'hard':'soft'}:${url.searchParams.get('page')||1}`;
     if(controlled){state.catalogueReads.push({key,search:url.search});if(state.holdCataloguePages.has(key))await new Promise(release=>state.pendingCatalogue.push({key,release}));
      if(state.failCataloguePages.delete(key))return route.fulfill({status:503,json:{error:'Controlled fictional catalogue page failure'}});}
-    return route.fulfill({json:paged(pathname.includes('hard-')?hard:soft,url)}).catch(error=>{if(!controlled||!request.failure())throw error;});
+    return route.fulfill({json:paged(pathname.includes('hard-')?[...hard,...(state.extraCatalogue||[])]:soft,url)}).catch(error=>{if(!controlled||!request.failure())throw error;});
    }
    if(method==='GET'&&pathname==='/api/favorites')return route.fulfill({json:clone(state.saved)});
    if(addressProvider&&method==='GET'&&pathname==='/api/auth/me'){
@@ -104,12 +105,12 @@ export async function startAreaFixture(out){
     entry.response={status:response.status,rows:json.rows?.length,progress:json.progress,code:json.code,limit:json.addressLimit};
     return route.fulfill({status:response.status,contentType,body:payload}).catch(error=>{if(!request.failure())throw error;});
    }
-   if(method==='GET'&&pathname==='/api/address-snapshot/metadata')return route.fulfill({json:{ready:true,snapshot}});
+   if(method==='GET'&&pathname==='/api/address-snapshot/metadata')return route.fulfill({json:{ready:true,snapshot:state.ordinarySnapshot}});
    if(method==='POST'&&pathname==='/api/address-snapshot/area'){
     const body=request.postDataJSON();state.readQueries.push({path:pathname,body});
     if(state.addressFailure)return route.fulfill({status:state.addressFailure.status||422,json:state.addressFailure.body});
     const rows=Array.from({length:addressRowCount},(_,index)=>({id:`fictional-address-${index}`,postalCode:index<2?'012345':String(100000+index),block:String(index+1),roadName:'Fictional Preview Road',building:`Fictional building ${index+1}`,address:`${index+1} Fictional Preview Road`,lat:1.38,lng:103.75}));
-    return route.fulfill({json:{snapshot,rows:rows.slice(body.offset||0,(body.offset||0)+(body.limit||200)),total:rows.length,offset:body.offset||0,limit:body.limit||200}});
+    return route.fulfill({json:{snapshot:state.ordinarySnapshot,rows:rows.slice(body.offset||0,(body.offset||0)+(body.limit||200)),total:rows.length,offset:body.offset||0,limit:body.limit||200}});
    }
    if(method==='POST'&&pathname==='/api/favorites/save'){
     const body=request.postDataJSON(),key=keyFor(body),asset=find(body);state.writes.push({method,path:pathname,body:clone(body)});

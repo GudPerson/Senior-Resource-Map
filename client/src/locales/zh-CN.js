@@ -777,6 +777,8 @@ export const zhCnDictionary = {
     failedSaveResourceFromMap: '无法保存并添加此资源。',
     noResourceCatalogResultsTitle: '没有符合此搜索的资源',
     tryAgain: '重试',
+    selectAllMatchingSaved: '选择所有符合条件的已收藏资源',
+    savedOutsideFilter: '已选的 {{count}} 项不在当前筛选结果中',
     keepPlaceSelected: '当此地点的活动或服务仍被选中时，请保留 {{name}}。',
     noSavedResourcesForMapCreate: '请先浏览“探索”并保存一些资源，再用它们创建地图。',
     noSavedResourcesForMapManage: '请先浏览“探索”并保存一些资源。',

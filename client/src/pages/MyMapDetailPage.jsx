@@ -84,6 +84,7 @@ import { fetchMyMapWithResilience } from '../lib/myMapsLoading.js';
 import { collectMyMapCategoryOptions } from '../lib/myMapCategoryOrder.js';
 import {
     buildMyMapAssetMutationPlan,
+    mergeRetainedMyMapAssets,
     isMyMapAssetSelectionReconciled,
 } from '../lib/myMapResourceSelection.js';
 import {
@@ -3125,7 +3126,7 @@ export default function MyMapDetailPage() {
         }
     }
 
-    async function handleManageAssets({ assets }) {
+    async function handleManageAssets({ assets, retainedExistingKeys = [] }) {
         if (!directory || mapAssetMutationInFlightRef.current) return;
         mapAssetMutationInFlightRef.current = true;
         setAddSubmitting(true);
@@ -3133,7 +3134,7 @@ export default function MyMapDetailPage() {
         try {
             const { targetKeys, toAdd, toRemove } = buildMyMapAssetMutationPlan(
                 directory.assets,
-                assets,
+                mergeRetainedMyMapAssets(directory.assets, assets, new Set(retainedExistingKeys)),
             );
             if (toRemove.length && !await printAnnotations.flushPendingChanges()) {
                 setAddError(t('failedUpdateMapResources'));

@@ -2,6 +2,8 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Heart, LoaderCircle, Map, RefreshCw, Search, X } from 'lucide-react';
 
 import { api } from '../lib/api.js';
+import { getMatchingSelectionState } from '../lib/matchingSelection.js';
+import { updateMatchingSavedSelection } from '../lib/manageMapSavedSelection.js';
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
 import { handleModalKeyboardEvent } from '../lib/modalKeyboard.js';
 import {
@@ -164,71 +166,14 @@ export default function CreateMapModal({
         && !interactionDisabled
         && (isCreateMode ? (Boolean(name.trim()) && selectedAssets.length > 0) : true);
 
-    function addAssetAndHostsToSelection(currentKeys, asset, availableAssets) {
-        const next = new Set(currentKeys);
-        const key = buildSavedAssetKey(asset.resourceType, asset.resourceId);
-        next.add(key);
+    const matching = getMatchingSelectionState(selectedKeys,
+        filteredAssets.map(asset => buildSavedAssetKey(asset.resourceType, asset.resourceId)));
+    const hiddenSavedCount = selectedAssets.length - matching.selectedMatchingCount;
 
-        if (asset.resourceType !== 'soft') return next;
-
-        let hostIds = asset.hostHardAssetIds || (asset.hostHardAssetId ? [asset.hostHardAssetId] : []);
-        if (hostIds.length === 0 && asset.address) {
-            hostIds = availableAssets
-                .filter((candidate) => (
-                    candidate.resourceType === 'hard'
-                    && candidate.address
-                    && candidate.address.trim() === asset.address.trim()
-                ))
-                .map((candidate) => candidate.resourceId);
-        }
-
-        hostIds.forEach((hostId) => {
-            const hostKey = buildSavedAssetKey('hard', hostId);
-            if (availableAssets.some((candidate) => (
-                buildSavedAssetKey(candidate.resourceType, candidate.resourceId) === hostKey
-            ))) {
-                next.add(hostKey);
-            }
-        });
-
-        return next;
-    }
-
-    function toggleAsset(asset) {
-        setValidationError('');
-        const key = buildSavedAssetKey(asset.resourceType, asset.resourceId);
-
-        if (selectedKeys.has(key) && asset.resourceType === 'hard') {
-            const hasCheckedOfferings = savedAssets.some(
-                a => {
-                    if (a.resourceType !== 'soft' || !selectedKeys.has(buildSavedAssetKey(a.resourceType, a.resourceId))) return false;
-                    
-                    // Fallback to address-matching if the backend data is stale or cached
-                    let hostIds = a.hostHardAssetIds || (a.hostHardAssetId ? [a.hostHardAssetId] : []);
-                    if (hostIds.length === 0 && a.address && asset.address) {
-                        if (a.address.trim() === asset.address.trim()) {
-                            hostIds = [asset.resourceId];
-                        }
-                    }
-                    return hostIds.includes(asset.resourceId);
-                }
-            );
-            
-            if (hasCheckedOfferings) {
-                setValidationError(t('keepPlaceSelected', { name: asset.name }));
-                return;
-            }
-        }
-
-        setSelectedKeys((current) => {
-            const next = new Set(current);
-            if (next.has(key)) {
-                next.delete(key);
-            } else {
-                return addAssetAndHostsToSelection(next, asset, savedAssets);
-            }
-            return next;
-        });
+    function changeSelection(assets, checked) {
+        const result = updateMatchingSavedSelection(selectedKeys, assets, savedAssets, checked);
+        setSelectedKeys(result.selectedKeys);
+        setValidationError(result.retainedHostNames.map(name => t('keepPlaceSelected', { name })).join(' '));
     }
 
     async function handleSaveAndAddCatalogAsset(asset) {
@@ -240,11 +185,9 @@ export default function CreateMapModal({
         try {
             const savedAsset = await onSaveCatalogAsset(asset);
             if (!savedAsset) throw new Error(t('failedSaveResourceFromMap'));
-            setSelectedKeys((current) => addAssetAndHostsToSelection(
-                current,
-                savedAsset,
-                [...savedAssets, savedAsset],
-            ));
+            setSelectedKeys((current) => updateMatchingSavedSelection(
+                current, [savedAsset], [...savedAssets, savedAsset], true,
+            ).selectedKeys);
         } catch (saveError) {
             console.error(saveError);
             setCatalogActionError(t('failedSaveResourceFromMap'));
@@ -269,6 +212,7 @@ export default function CreateMapModal({
 
         await onSubmit?.({
             name: name.trim(),
+            ...(!isCreateMode && { retainedExistingKeys: [...selectedKeys].filter(key => !savedAssetKeys.has(key)) }),
             assets: selectedAssets.map((asset) => ({
                 resourceType: asset.resourceType,
                 resourceId: asset.resourceId,
@@ -283,15 +227,15 @@ export default function CreateMapModal({
     }
 
     return (
-        <div role="presentation" className="fixed inset-0 z-[1400] flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+        <div role="presentation" className="fixed inset-0 z-[1400] flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-[16px]">
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
                 onKeyDown={handleDialogKeyDown}
-                className="flex max-h-[calc(100svh-0.75rem)] w-full max-w-3xl flex-col overflow-hidden rounded-t-[28px] border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100svh-2rem)] sm:rounded-[28px]"
+                className="app-dialog-panel app-dialog-workspace app-dialog-fill flex w-full flex-col overflow-hidden rounded-t-[28px] border border-slate-200 bg-white shadow-2xl [--app-dialog-block-inset:12px] sm:rounded-[28px] sm:[--app-dialog-block-inset:32px]"
             >
-                <div className="flex shrink-0 items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
+                <div className="flex shrink-0 items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6 [@media(max-height:400px)]:py-3">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">
                             {isCreateMode ? t('createMap') : t('chooseMapResources')}
@@ -329,7 +273,7 @@ export default function CreateMapModal({
                     {withinAreaContent}</div> : <form
                     id={`${titleId}-saved`}
                     onSubmit={handleSubmit}
-                    className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5 sm:px-6 sm:pb-5"
+                    className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-5 sm:px-6 sm:pb-5 [@media(max-height:560px)]:overflow-y-auto"
                     aria-busy={dialogBusy}
                 >
                     {busy ? (
@@ -380,14 +324,14 @@ export default function CreateMapModal({
                                     className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                                 />
                             </div>
-                            <div className="flex h-11 items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-1">
+                            <div className="flex h-11 items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-1 sm:shrink-0">
                                 {['all', 'hard', 'soft'].map((f) => (
                                     <button
                                         key={f}
                                         type="button"
                                         onClick={() => setFilter(f)}
                                         disabled={dialogBusy || interactionDisabled}
-                                        className={`flex-1 rounded-lg px-4 py-1.5 text-xs font-semibold capitalize transition ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        className={`flex-1 rounded-lg px-4 py-1.5 text-xs font-semibold capitalize transition sm:flex-none sm:whitespace-nowrap ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
                                         {f === 'hard' ? t('placeType') : f === 'soft' ? t('offeringType') : t('all')}
                                     </button>
@@ -409,7 +353,15 @@ export default function CreateMapModal({
                             </p>
                         </div>
                     ) : (
-                        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 sm:max-h-[360px]">
+                        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 [@media(max-height:560px)]:flex-none [@media(max-height:560px)]:overflow-visible">
+                            <label className="flex min-h-11 items-center gap-3 text-sm font-semibold text-slate-700">
+                                <input type="checkbox" checked={matching.checked}
+                                    ref={node => { if (node) node.indeterminate = matching.mixed; }}
+                                    disabled={dialogBusy || interactionDisabled || !matching.matchingCount}
+                                    onChange={event => changeSelection(filteredAssets, event.target.checked)}
+                                    className="h-5 w-5 accent-brand-600" />{t('selectAllMatchingSaved')}
+                            </label>
+                            {hiddenSavedCount > 0 ? <p className="text-xs text-slate-600">{t('savedOutsideFilter', { count: hiddenSavedCount })}</p> : null}
                             {filteredAssets.map((asset) => {
                                 const key = buildSavedAssetKey(asset.resourceType, asset.resourceId);
                                 const checked = selectedKeys.has(key);
@@ -423,7 +375,7 @@ export default function CreateMapModal({
                                         <input
                                             type="checkbox"
                                             checked={checked}
-                                            onChange={() => toggleAsset(asset)}
+                                            onChange={event => changeSelection([asset], event.target.checked)}
                                             disabled={dialogBusy || interactionDisabled}
                                             className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                                             data-testid={`create-map-asset-${key}`}

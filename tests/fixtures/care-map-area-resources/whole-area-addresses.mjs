@@ -19,9 +19,9 @@ export const wholeAreaAnnotation = {
     controlPoints: [...outer, ...hole, ...island],
 };
 
-function createVersion(version) {
-    const source = Array.from({ length: 900 }, (_, ordinal) => {
-        const tile = 299 - Math.floor(ordinal / 3);
+function createVersion(version, large) {
+    const source = Array.from({ length: large ? 52911 : 900 }, (_, ordinal) => {
+        const tile = large ? 299 - ordinal % 100 : 299 - Math.floor(ordinal / 3);
         const row = Math.floor(tile / 20), column = tile % 20;
         const lat = 1.205123456789 + row * .01, lng = 103.605123456789 + column * .01;
         const postalCode = ordinal < 2 ? '012345' : String(100000 + ordinal);
@@ -39,8 +39,8 @@ function createVersion(version) {
     return { artifacts, oracle };
 }
 
-export async function createWholeAreaFixture() {
-    const versions = ['original', 'revised'].map(createVersion);
+export async function createWholeAreaFixture(large = false) {
+    const versions = (large ? ['original'] : ['original', 'revised']).map(version => createVersion(version, large));
     const writes = [];
     const env = { NODE_ENV: 'production', JWT_SECRET: 'fictional-whole-area-browser-only',
         AUTH_TEST_LIVE_SESSION_USER_RESOLVER: async claims => ({ id: claims.id, role: 'standard' }) };
