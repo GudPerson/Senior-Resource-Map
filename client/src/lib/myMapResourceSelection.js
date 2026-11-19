@@ -20,3 +20,16 @@ export function isMyMapAssetSelectionReconciled(currentAssets = [], targetKeys =
     if (currentKeys.size !== targetKeys.size) return false;
     return [...targetKeys].every((key) => currentKeys.has(key));
 }
+
+export function mergeRetainedMyMapAssets(currentAssets, selectedSavedAssets, retainedExistingKeys) {
+    const selectedKeys = new Set(selectedSavedAssets.map(getMyMapAssetKey));
+    const target = [...selectedSavedAssets];
+    for (const asset of currentAssets) {
+        const key = getMyMapAssetKey(asset);
+        if (retainedExistingKeys.has(key) && !selectedKeys.has(key)) {
+            selectedKeys.add(key);
+            target.push(asset);
+        }
+    }
+    return target;
+}

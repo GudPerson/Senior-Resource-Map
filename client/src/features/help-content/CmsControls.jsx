@@ -22,7 +22,7 @@ export function CmsDialog({ definition, onComplete }) {
         return () => { if (dialog.open) dialog.close(); if (previous?.isConnected) previous.focus(); };
     }, [definition]);
     if (!definition) return null;
-    return <dialog ref={ref} className="cms-dialog" aria-labelledby={titleId} aria-describedby={descriptionId} onCancel={(event) => { event.preventDefault(); onComplete(null); }}>
+    return <dialog ref={ref} className="cms-dialog app-dialog-panel app-dialog-short" aria-labelledby={titleId} aria-describedby={descriptionId} onCancel={(event) => { event.preventDefault(); onComplete(null); }}>
         <form onSubmit={(event) => { event.preventDefault(); onComplete(Object.fromEntries(new FormData(event.currentTarget))); }}>
             <h2 id={titleId}>{definition.title}</h2><p id={descriptionId} className="cms-muted" style={{ marginTop: 10 }}>{definition.description}</p>
             {definition.details?.length > 0 && <ul style={{ margin: '12px 0', paddingLeft: 18, fontSize: 13 }}>{definition.details.map((value, index) => <li key={index}>{value}</li>)}</ul>}

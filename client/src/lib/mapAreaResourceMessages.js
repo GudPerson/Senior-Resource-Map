@@ -65,5 +65,5 @@ const ta = {
     tooLarge: 'முகவரித் தேடல் தற்போதைய வரம்பை மீறுகிறது. சிறிய அல்லது எளிய பகுதியைத் தேர்ந்தெடுக்கவும்.', changed: 'முகவரித் தொகுப்பு மாறிவிட்டது. தேடலை மீண்டும் தொடங்கவும்.', invalid: 'முகவரித் தேடல் செல்லாது. வேறு பகுதியைத் தேர்ந்தெடுக்கவும் அல்லது எல்லையை எளிதாக்கவும்.',
     limit_tiles: 'மிக அதிகமான தேடல் பிரிவுகள் உள்ளன.', limit_reservedBytes: 'ஒரே தேடலுக்கு முகவரித் தரவு அதிகமாக உள்ளது.', limit_candidateRows: 'சரிபார்க்க வேண்டிய முகவரிகள் அதிகம்.', limit_geometryWork: 'இந்த முகவரிகளுக்கு எல்லை மிகவும் சிக்கலானது.', limit_storageReads: 'மிக அதிகமான முகவரிப் பிரிவுகள் தேவை.', limitNumbers: 'தேவையான அளவு {observed}; தற்போதைய வரம்பு {allowed}.',
 };
-export function getMapAreaResourceMessages(locale = 'en') { return { ...en, ...({ zh, ms, ta }[locale] || {}) }; }
+export function getMapAreaResourceMessages(locale = 'en') { return { ...en, ...({ zh, 'zh-CN': zh, ms, ta }[locale] || {}) }; }
 export function formatAreaMessage(message, values = {}) { return String(message || '').replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? '')); }

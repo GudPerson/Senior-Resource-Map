@@ -263,7 +263,7 @@ test('EligibilityRulesEditor preserves raw age values for parent wizard validati
     assert.doesNotMatch(buildRulesPayloadSource, /normalizeEligibilityRules/);
 });
 
-test('resource editor wizard modals use the wide static-shell layout', () => {
+test('resource editor modals let their wizards own scrolling', () => {
     const groupModalSource = sourceBetween(resourcesPageSource, '{groupModal ? (', '{assetModal ? (');
     const assetModalSource = sourceBetween(resourcesPageSource, '{assetModal ? (', '{templateModal ? (');
     const templateModalSource = sourceBetween(resourcesPageSource, '{templateModal ? (', '{generateModal ? (');
@@ -273,7 +273,7 @@ test('resource editor wizard modals use the wide static-shell layout', () => {
         ['Asset modal', assetModalSource],
         ['Template modal', templateModalSource],
     ]) {
-        assert.match(modalSource, /maxWidth="max-w-\[min\(96vw,1180px\)\]"/, `${label} should use the wide wizard modal`);
+        assert.match(modalSource, /dialogSize="dense"/, `${label} should use the dense dialog preset`);
         assert.match(modalSource, /bodyClassName="overflow-hidden"/, `${label} should let the wizard own scrolling`);
     }
     assert.match(assetModalSource, /<AssetForm/);

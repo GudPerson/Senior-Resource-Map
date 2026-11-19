@@ -616,13 +616,13 @@ function ResourceModal({
     description,
     onClose,
     children,
-    maxWidth = 'max-w-2xl',
+    dialogSize,
     bodyClassName = 'max-h-[70vh] overflow-y-auto pr-1',
 }) {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm sm:p-6">
-            <div className={`card relative my-auto w-full bg-white shadow-2xl ${maxWidth}`}>
-                <div className="mb-5 flex items-start justify-between border-b border-slate-100 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-[16px] backdrop-blur-sm sm:p-[24px]">
+            <div className={`app-dialog-panel app-dialog-${dialogSize} card relative my-auto flex w-full flex-col bg-white shadow-2xl sm:[--app-dialog-block-inset:48px]`}>
+                <div className="mb-5 flex shrink-0 items-start justify-between border-b border-slate-100 pb-4">
                     <div>
                         <h2 className="text-xl font-bold text-slate-900">{title}</h2>
                         {description ? <p className="mt-0.5 text-sm text-slate-500">{description}</p> : null}
@@ -632,7 +632,7 @@ function ResourceModal({
                     </button>
                 </div>
 
-                <div className={bodyClassName}>{children}</div>
+                <div className={`flex min-h-0 flex-col ${bodyClassName}`}>{children}</div>
             </div>
         </div>
     );
@@ -3605,7 +3605,7 @@ export default function ResourcesPage() {
                     title="Create Place"
                     description="Choose how you want to start the new hard asset."
                     onClose={() => setPlaceCreateChooserOpen(false)}
-                    maxWidth="max-w-xl"
+                    dialogSize="form"
                 >
                     <div className="grid gap-4 md:grid-cols-2">
                         <button
@@ -3643,7 +3643,7 @@ export default function ResourcesPage() {
                     title="Import Place with Google"
                     description="Resolve one Google place from a postal code search, review the suggested fields, then save it as a normal CareAround SG place."
                     onClose={() => closePlaceImportWizard()}
-                    maxWidth="max-w-4xl"
+                    dialogSize="workspace"
                     bodyClassName="max-h-[82vh] overflow-y-auto pr-1"
                 >
                     {subregionPostalLoading ? (
@@ -3674,7 +3674,7 @@ export default function ResourcesPage() {
                     title={`${groupModal.mode === 'create' ? 'Create' : 'Edit'} Group`}
                     description="Curate a public collection from existing places and offerings."
                     onClose={() => setGroupModal(null)}
-                    maxWidth="max-w-[min(96vw,1180px)]"
+                    dialogSize="dense"
                     bodyClassName="overflow-hidden"
                 >
                     {groupModal.loading ? (
@@ -3708,7 +3708,7 @@ export default function ResourcesPage() {
                     title={`${assetModal.mode === 'create' ? 'Create' : 'Edit'} ${assetModal.assetType === 'hard' ? 'Place' : 'Offering'}`}
                     description={assetModal.assetType === 'hard' ? 'Add a physical address and contact info.' : 'Add schedule, description, and link to a location.'}
                     onClose={() => setAssetModal(null)}
-                    maxWidth="max-w-[min(96vw,1180px)]"
+                    dialogSize="dense"
                     bodyClassName="overflow-hidden"
                 >
                     {assetModal.loading ? (
@@ -3744,7 +3744,7 @@ export default function ResourcesPage() {
                     title={`${templateModal.mode === 'create' ? 'Create' : 'Edit'} Template`}
                     description="Save shared content once, then generate hidden place-specific versions."
                     onClose={() => setTemplateModal(null)}
-                    maxWidth="max-w-[min(96vw,1180px)]"
+                    dialogSize="dense"
                     bodyClassName="overflow-hidden"
                 >
                     <SoftAssetTemplateForm
@@ -3772,7 +3772,7 @@ export default function ResourcesPage() {
                     title="Generate place versions"
                     description="Select the host places that should receive a hidden place-specific version from this template."
                     onClose={() => setGenerateModal(null)}
-                    maxWidth="max-w-[min(96vw,1100px)]"
+                    dialogSize="workspace"
                     bodyClassName="max-h-[82vh] overflow-y-auto pr-1"
                 >
                     <div className="space-y-5">
@@ -3874,7 +3874,7 @@ export default function ResourcesPage() {
                     title="Edit place version"
                     description="Adjust only the host-local fields for this generated offering."
                     onClose={() => setChildModal(null)}
-                    maxWidth="max-w-3xl"
+                    dialogSize="form"
                 >
                     {childModal.loading || !childModal.data ? (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
@@ -3892,12 +3892,12 @@ export default function ResourcesPage() {
             ) : null}
 
             {bulkActionDialog ? (
-                <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-slate-950/45 p-[16px] backdrop-blur-sm">
                     <div
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="managed-bulk-action-title"
-                        className="card w-full max-w-md text-center shadow-2xl"
+                        className="app-dialog-panel app-dialog-compact card w-full overflow-y-auto text-center shadow-2xl"
                     >
                         {bulkActionDialog.action === 'hide' ? (
                             <EyeOff size={36} className="mx-auto mb-3 text-red-500" />
@@ -3970,8 +3970,8 @@ export default function ResourcesPage() {
             ) : null}
 
             {deleteTarget ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-                    <div className="card w-full max-w-sm text-center shadow-2xl">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-[16px] backdrop-blur-sm">
+                    <div className="app-dialog-panel app-dialog-compact card w-full overflow-y-auto text-center shadow-2xl">
                         <Trash2 size={36} className="mx-auto mb-3 text-red-500" />
                         <h2 className="mb-2 text-xl font-bold text-slate-900">Delete {deleteTarget.label}?</h2>
                         <p className="mb-6 text-sm text-slate-500">

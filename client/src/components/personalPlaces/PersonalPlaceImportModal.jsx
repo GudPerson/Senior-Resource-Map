@@ -252,11 +252,11 @@ export default function PersonalPlaceImportModal({ open, mapId, identityKey, cat
 
     if (!open) return null;
     return (
-        <div className="fixed inset-0 z-[1400] flex items-end bg-slate-950/45 sm:items-center sm:justify-center sm:p-6" onClick={() => { if (!locked) onClose?.(); }} role="presentation">
+        <div className="fixed inset-0 z-[1400] flex items-end bg-slate-950/45 sm:items-center sm:justify-center sm:p-[24px]" onClick={() => { if (!locked) onClose?.(); }} role="presentation">
             <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Import personal places" aria-busy={locked || parseBusy} onClick={(event) => event.stopPropagation()} onKeyDown={(event) => {
                 if (event.key === 'Escape') event.stopPropagation();
                 handleModalKeyboardEvent(event, { onEscape: locked ? null : onClose });
-            }} className="flex max-h-[90dvh] w-full min-w-0 flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl outline-none sm:max-w-3xl sm:rounded-[28px]">
+            }} className="app-dialog-panel app-dialog-workspace flex w-full min-w-0 flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl [--app-dialog-block-inset:16px] sm:[--app-dialog-block-inset:48px] outline-none sm:rounded-[28px]">
                 <header className="flex flex-shrink-0 items-center gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
                     <FileSpreadsheet size={23} className="flex-shrink-0 text-brand-700" aria-hidden="true" />
                     <div className="min-w-0 flex-1"><h2 className="text-base font-black text-slate-900">Import personal places</h2><p className="mt-0.5 text-xs text-slate-500">Private places for My Places and this map.</p></div>

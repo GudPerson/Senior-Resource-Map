@@ -3,6 +3,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Geometry only. Each dialog keeps its own presentation and scroll ownership. */
+.app-dialog-panel {
+    --app-dialog-block-space: calc(100vh - var(--app-dialog-block-inset, 32px));
+    min-width: 0;
+    max-width: var(--app-dialog-width);
+    max-height: var(--app-dialog-block-space);
+    overflow-wrap: anywhere;
+}
+
+.app-dialog-compact { --app-dialog-width: 480px; }
+.app-dialog-short { --app-dialog-width: 640px; }
+.app-dialog-form { --app-dialog-width: 800px; }
+.app-dialog-workspace { --app-dialog-width: 1120px; }
+.app-dialog-dense { --app-dialog-width: 1280px; }
+
+@supports (height: 100dvh) {
+    .app-dialog-panel {
+        --app-dialog-block-space: calc(100dvh - var(--app-dialog-block-inset, 32px));
+    }
+}
+
+@media (min-width: 640px) {
+    .app-dialog-fill {
+        height: var(--app-dialog-block-space);
+    }
+}
+
+.app-mobile-sheet {
+    max-height: min(86vh, calc(100vh - env(safe-area-inset-top)));
+}
+
+@supports (height: 100dvh) {
+    .app-mobile-sheet {
+        max-height: min(86dvh, calc(100dvh - env(safe-area-inset-top)));
+    }
+}
+
 .embedded-map-height-warning {
     display: none;
 }

@@ -136,14 +136,14 @@ export default function MapAssetShortDescriptionModal({
 
     return (
         <div
-            className="fixed inset-0 z-[1500] flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-6"
+            className="fixed inset-0 z-[1500] flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-[24px]"
             role="presentation"
             onClick={() => {
                 if (!submitting) onClose?.();
             }}
         >
             <section
-                className="flex max-h-[calc(100svh-1rem)] w-full flex-col rounded-t-[24px] bg-white shadow-2xl sm:max-h-[calc(100svh-3rem)] sm:max-w-lg sm:rounded-[24px]"
+                className="app-dialog-panel app-dialog-form flex w-full flex-col rounded-t-[24px] bg-white shadow-2xl [--app-dialog-block-inset:16px] sm:[--app-dialog-block-inset:48px] sm:rounded-[24px]"
                 role="dialog"
                 aria-modal="true"
                 aria-label={`${t('editShortDescription')}: ${row.name}`}

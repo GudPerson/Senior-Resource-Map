@@ -10,7 +10,7 @@ const en = {
     addressesError: 'Address results are unavailable. Retry to check this area; this does not mean it contains no addresses.',
     resourcesError: 'CareAround resource results are unavailable. Retry to check the full accessible catalogue.',
     noAddresses: 'No addresses in this snapshot fall inside the selected area.', noResources: 'No located CareAround resources fall inside this area.',
-    loadMore: 'Load more addresses', selectAll: 'Select loaded addresses', copy: 'Copy selected postal codes',
+    loadMore: 'Load more addresses', selectAll: 'Select all', copy: 'Copy selected postal codes',
     downloadSelected: 'Download selected CSV', downloadAll: 'Download all CSV', copied: 'Postal codes copied.',
     copyFailed: 'Could not copy postal codes. Download the selected CSV instead.', exportFailed: 'Could not finish the CSV. No partial file was downloaded. Retry.',
     exporting: 'Preparing CSV...', snapshot: 'Address snapshot', prepared: 'Prepared', coverage: 'Snapshot results may omit newer or changed addresses.',
@@ -47,7 +47,7 @@ const translations = {
     "noAddresses": "\u6b64\u5feb\u7167\u4e2d\u6ca1\u6709\u4f4d\u4e8e\u6240\u9009\u533a\u57df\u5185\u7684\u5730\u5740\u3002",
     "noResources": "\u6b64\u533a\u57df\u5185\u672a\u627e\u5230\u6709\u5df2\u77e5\u4f4d\u7f6e\u7684CareAround\u8d44\u6e90\u3002",
     "loadMore": "\u52a0\u8f7d\u66f4\u591a\u5730\u5740",
-    "selectAll": "\u9009\u62e9\u5df2\u52a0\u8f7d\u7684\u5730\u5740",
+    "selectAll": "全选",
     "copy": "\u590d\u5236\u6240\u9009\u90ae\u653f\u7f16\u7801",
     "downloadSelected": "\u4e0b\u8f7d\u6240\u9009CSV",
     "downloadAll": "\u4e0b\u8f7d\u5168\u90e8CSV",
@@ -94,7 +94,7 @@ const translations = {
     "noAddresses": "Tiada alamat dalam petikan ini berada dalam kawasan dipilih.",
     "noResources": "Tiada sumber CareAround dengan lokasi diketahui dalam kawasan ini.",
     "loadMore": "Muatkan lagi alamat",
-    "selectAll": "Pilih alamat yang dimuatkan",
+    "selectAll": "Pilih semua",
     "copy": "Salin poskod dipilih",
     "downloadSelected": "Muat turun CSV dipilih",
     "downloadAll": "Muat turun semua CSV",
@@ -141,7 +141,7 @@ const translations = {
     "noAddresses": "\u0b87\u0ba8\u0bcd\u0ba4\u0baa\u0bcd \u0baa\u0ba4\u0bbf\u0bb5\u0bbf\u0bb2\u0bcd \u0ba4\u0bc7\u0bb0\u0bcd\u0ba8\u0bcd\u0ba4\u0bc6\u0b9f\u0bc1\u0ba4\u0bcd\u0ba4 \u0baa\u0b95\u0bc1\u0ba4\u0bbf\u0b95\u0bcd\u0b95\u0bc1\u0bb3\u0bcd \u0bae\u0bc1\u0b95\u0bb5\u0bb0\u0bbf\u0b95\u0bb3\u0bcd \u0b87\u0bb2\u0bcd\u0bb2\u0bc8.",
     "noResources": "\u0b87\u0ba8\u0bcd\u0ba4\u0baa\u0bcd \u0baa\u0b95\u0bc1\u0ba4\u0bbf\u0baf\u0bbf\u0bb2\u0bcd \u0b85\u0bb1\u0bbf\u0baf\u0baa\u0bcd\u0baa\u0b9f\u0bcd\u0b9f \u0b87\u0bb0\u0bc1\u0baa\u0bcd\u0baa\u0bbf\u0b9f\u0bae\u0bc1\u0bb3\u0bcd\u0bb3 CareAround \u0bb5\u0bb3\u0b99\u0bcd\u0b95\u0bb3\u0bcd \u0b87\u0bb2\u0bcd\u0bb2\u0bc8.",
     "loadMore": "\u0bae\u0bc7\u0bb2\u0bc1\u0bae\u0bcd \u0bae\u0bc1\u0b95\u0bb5\u0bb0\u0bbf\u0b95\u0bb3\u0bc8 \u0b8f\u0bb1\u0bcd\u0bb1\u0bb5\u0bc1\u0bae\u0bcd",
-    "selectAll": "\u0b8f\u0bb1\u0bcd\u0bb1\u0baa\u0bcd\u0baa\u0b9f\u0bcd\u0b9f \u0bae\u0bc1\u0b95\u0bb5\u0bb0\u0bbf\u0b95\u0bb3\u0bc8\u0ba4\u0bcd \u0ba4\u0bc7\u0bb0\u0bcd\u0ba8\u0bcd\u0ba4\u0bc6\u0b9f\u0bc1\u0b95\u0bcd\u0b95\u0bb5\u0bc1\u0bae\u0bcd",
+    "selectAll": "அனைத்தையும் தேர்ந்தெடுக்கவும்",
     "copy": "\u0ba4\u0bc7\u0bb0\u0bcd\u0ba8\u0bcd\u0ba4\u0bc6\u0b9f\u0bc1\u0ba4\u0bcd\u0ba4 \u0b85\u0b9e\u0bcd\u0b9a\u0bb2\u0bcd \u0b95\u0bc1\u0bb1\u0bbf\u0baf\u0bc0\u0b9f\u0bc1\u0b95\u0bb3\u0bc8 \u0ba8\u0b95\u0bb2\u0bc6\u0b9f\u0bc1\u0b95\u0bcd\u0b95\u0bb5\u0bc1\u0bae\u0bcd",
     "downloadSelected": "\u0ba4\u0bc7\u0bb0\u0bcd\u0ba8\u0bcd\u0ba4\u0bc6\u0b9f\u0bc1\u0ba4\u0bcd\u0ba4 CSV \u0baa\u0ba4\u0bbf\u0bb5\u0bbf\u0bb1\u0b95\u0bcd\u0b95\u0bae\u0bcd",
     "downloadAll": "\u0b85\u0ba9\u0bc8\u0ba4\u0bcd\u0ba4\u0bc1 CSV \u0baa\u0ba4\u0bbf\u0bb5\u0bbf\u0bb1\u0b95\u0bcd\u0b95\u0bae\u0bcd",
@@ -211,4 +211,48 @@ const positionMessages = {
 };
 const locationMessages = {"en": {"unlocatedHeading": "Missing or unmapped locations"}, "zh": {"unlocatedHeading": "\u7f3a\u5c11\u6216\u672a\u6620\u5c04\u7684\u4f4d\u7f6e"}, "ms": {"unlocatedHeading": "Lokasi hilang atau tidak dipetakan"}, "ta": {"unlocatedHeading": "\u0ba4\u0bc6\u0bb0\u0bbf\u0baf\u0bbe\u0ba4 \u0b85\u0bb2\u0bcd\u0bb2\u0ba4\u0bc1 \u0bb5\u0bb0\u0bc8\u0baa\u0b9f\u0bae\u0bbf\u0b9f\u0baa\u0bcd\u0baa\u0b9f\u0bbe\u0ba4 \u0b87\u0bb0\u0bc1\u0baa\u0bcd\u0baa\u0bbf\u0b9f\u0b99\u0bcd\u0b95\u0bb3\u0bcd"}};
 const queryMessages = {"en": {"areaTooLarge": "This area is too large or complex to search. Choose a smaller or simpler boundary, then try again.", "shrinkArea": "Choose a smaller or simpler area", "snapshotChanged": "The address snapshot changed. Retry to start a fresh search before loading or exporting more addresses."}, "zh": {"areaTooLarge": "\u6b64\u533a\u57df\u592a\u5927\u6216\u8fb9\u754c\u592a\u590d\u6742\u3002\u8bf7\u9009\u62e9\u8f83\u5c0f\u6216\u8f83\u7b80\u5355\u7684\u8fb9\u754c\u540e\u91cd\u8bd5\u3002", "shrinkArea": "\u9009\u62e9\u8f83\u5c0f\u6216\u8f83\u7b80\u5355\u7684\u533a\u57df", "snapshotChanged": "\u5730\u5740\u5feb\u7167\u5df2\u66f4\u6539\u3002\u8bf7\u91cd\u8bd5\u4ee5\u91cd\u65b0\u641c\u7d22\uff0c\u518d\u52a0\u8f7d\u6216\u5bfc\u51fa\u66f4\u591a\u5730\u5740\u3002"}, "ms": {"areaTooLarge": "Kawasan ini terlalu besar atau rumit. Pilih sempadan lebih kecil atau ringkas, kemudian cuba lagi.", "shrinkArea": "Pilih kawasan lebih kecil atau ringkas", "snapshotChanged": "Petikan alamat telah berubah. Cuba semula carian sebelum memuatkan atau mengeksport alamat lagi."}, "ta": {"areaTooLarge": "\u0b87\u0ba8\u0bcd\u0ba4\u0baa\u0bcd \u0baa\u0b95\u0bc1\u0ba4\u0bbf \u0bae\u0bbf\u0b95\u0bb5\u0bc1\u0bae\u0bcd \u0baa\u0bc6\u0bb0\u0bbf\u0baf\u0ba4\u0bc1 \u0b85\u0bb2\u0bcd\u0bb2\u0ba4\u0bc1 \u0b9a\u0bbf\u0b95\u0bcd\u0b95\u0bb2\u0bbe\u0ba9\u0ba4\u0bc1. \u0b9a\u0bbf\u0bb1\u0bbf\u0baf \u0b85\u0bb2\u0bcd\u0bb2\u0ba4\u0bc1 \u0b8e\u0bb3\u0bbf\u0baf \u0b8e\u0bb2\u0bcd\u0bb2\u0bc8\u0baf\u0bc8\u0ba4\u0bcd \u0ba4\u0bc7\u0bb0\u0bcd\u0ba8\u0bcd\u0ba4\u0bc6\u0b9f\u0bc1\u0ba4\u0bcd\u0ba4\u0bc1 \u0bae\u0bc0\u0ba3\u0bcd\u0b9f\u0bc1\u0bae\u0bcd \u0bae\u0bc1\u0baf\u0bb2\u0bb5\u0bc1\u0bae\u0bcd.", "shrinkArea": "\u0b9a\u0bbf\u0bb1\u0bbf\u0baf \u0b85\u0bb2\u0bcd\u0bb2\u0ba4\u0bc1 \u0b8e\u0bb3\u0bbf\u0baf \u0baa\u0b95\u0bc1\u0ba4\u0bbf\u0baf\u0bc8\u0ba4\u0bcd \u0ba4\u0bc7\u0bb0\u0bcd\u0ba8\u0bcd\u0ba4\u0bc6\u0b9f\u0bc1\u0b95\u0bcd\u0b95\u0bb5\u0bc1\u0bae\u0bcd", "snapshotChanged": "\u0bae\u0bc1\u0b95\u0bb5\u0bb0\u0bbf\u0ba4\u0bcd \u0ba4\u0bb0\u0bb5\u0bc1\u0ba4\u0bcd \u0ba4\u0bca\u0b95\u0bc1\u0baa\u0bcd\u0baa\u0bc1 \u0bae\u0bbe\u0bb1\u0bbf\u0baf\u0bc1\u0bb3\u0bcd\u0bb3\u0ba4\u0bc1. \u0bae\u0bc7\u0bb2\u0bc1\u0bae\u0bcd \u0bae\u0bc1\u0b95\u0bb5\u0bb0\u0bbf\u0b95\u0bb3\u0bc8 \u0b8f\u0bb1\u0bcd\u0bb1 \u0b85\u0bb2\u0bcd\u0bb2\u0ba4\u0bc1 \u0b8f\u0bb1\u0bcd\u0bb1\u0bc1\u0bae\u0ba4\u0bbf \u0b9a\u0bc6\u0baf\u0bcd\u0baf\u0bc1\u0bae\u0bcd \u0bae\u0bc1\u0ba9\u0bcd \u0bae\u0bc0\u0ba3\u0bcd\u0b9f\u0bc1\u0bae\u0bcd \u0ba4\u0bc7\u0b9f\u0bb5\u0bc1\u0bae\u0bcd."}};
-export function getMapSpatialMessages(locale = 'en') { return { ...en, ...positionMessages.en, ...locationMessages.en, ...queryMessages.en, ...(translations[locale] || {}), ...(positionMessages[locale] || {}), ...(locationMessages[locale] || {}), ...(queryMessages[locale] || {}) }; }
+const addressSearchMessages = {
+    "en": {
+        "searchAddresses": "Search addresses or postal codes",
+        "clearSearch": "Clear search",
+        "preparingAddresses": "Preparing all addresses for search…",
+        "showingMatches": "Showing {shown} of {matches} matches",
+        "outsideFilter": "{count} selected outside the filter",
+        "noMatchingAddresses": "No matching addresses",
+        "downloadFiltered": "Download filtered CSV"
+    },
+    "zh": {
+        "searchAddresses": "搜索地址或邮政编码",
+        "clearSearch": "清除搜索",
+        "preparingAddresses": "正在准备所有地址以供搜索…",
+        "showingMatches": "显示 {matches} 个匹配结果中的 {shown} 个",
+        "outsideFilter": "已选的 {count} 项不在当前筛选结果中",
+        "noMatchingAddresses": "没有匹配的地址",
+        "downloadFiltered": "下载筛选结果 CSV"
+    },
+    "ms": {
+        "searchAddresses": "Cari alamat atau poskod",
+        "clearSearch": "Kosongkan carian",
+        "preparingAddresses": "Menyediakan semua alamat untuk carian…",
+        "showingMatches": "Memaparkan {shown} daripada {matches} padanan",
+        "outsideFilter": "{count} pilihan di luar penapis",
+        "noMatchingAddresses": "Tiada alamat yang sepadan",
+        "downloadFiltered": "Muat turun CSV ditapis"
+    },
+    "ta": {
+        "searchAddresses": "முகவரிகள் அல்லது அஞ்சல் குறியீடுகளைத் தேடவும்",
+        "clearSearch": "தேடலை அழிக்கவும்",
+        "preparingAddresses": "தேடலுக்காக அனைத்து முகவரிகளும் தயாராகின்றன…",
+        "showingMatches": "{matches} பொருத்தங்களில் {shown} காட்டப்படுகின்றன",
+        "outsideFilter": "வடிகட்டிக்கு வெளியே {count} தேர்ந்தெடுக்கப்பட்டுள்ளன",
+        "noMatchingAddresses": "பொருந்தும் முகவரிகள் இல்லை",
+        "downloadFiltered": "வடிகட்டிய CSV பதிவிறக்கவும்"
+    }
+};
+
+export function getMapSpatialMessages(locale = 'en') {
+    const language = locale === 'zh-CN' ? 'zh' : locale;
+    return { ...en, ...positionMessages.en, ...locationMessages.en, ...queryMessages.en,
+        ...translations[language], ...positionMessages[language], ...locationMessages[language],
+        ...queryMessages[language], ...(addressSearchMessages[language] || addressSearchMessages.en) };
+}

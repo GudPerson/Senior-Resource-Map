@@ -204,14 +204,14 @@ export default function PersonalPlaceEditorModal({
 
     return (
         <div
-            className="fixed inset-0 z-[1400] flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-6"
+            className="fixed inset-0 z-[1400] flex items-end bg-slate-950/45 p-0 backdrop-blur-[2px] sm:items-center sm:justify-center sm:p-[24px]"
             role="presentation"
             onClick={() => {
                 if (!submitting) onClose?.();
             }}
         >
             <section
-                className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:max-w-2xl sm:rounded-[28px]"
+                className="app-dialog-panel app-dialog-form flex w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl [--app-dialog-block-inset:16px] sm:[--app-dialog-block-inset:48px] sm:rounded-[28px]"
                 role="dialog"
                 aria-modal="true"
                 aria-label={isEditing ? t('editPersonalPlace') : t('addPersonalPlace')}

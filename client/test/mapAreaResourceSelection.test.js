@@ -138,7 +138,9 @@ test('verified Saved snapshots cannot overwrite a newly signed-in or signed-out 
 
 test('area resource controls and diagnostics have complete localized messages', () => {
     const keys = Object.keys(getMapAreaResourceMessages('en')).sort();
-    for (const locale of ['zh', 'ms', 'ta']) {
+    assert.deepEqual(getMapAreaResourceMessages('zh-CN'), getMapAreaResourceMessages('zh'));
+    assert.deepEqual(getMapAreaResourceMessages('unknown'), getMapAreaResourceMessages('en'));
+    for (const locale of ['zh', 'zh-CN', 'ms', 'ta']) {
         const messages = getMapAreaResourceMessages(locale);
         assert.deepEqual(Object.keys(messages).sort(), keys);
         assert.ok(keys.every(key => typeof messages[key] === 'string' && messages[key].trim()));

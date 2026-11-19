@@ -792,6 +792,8 @@ export const enDictionary = {
     failedSaveResourceFromMap: 'Unable to save and add this resource.',
     noResourceCatalogResultsTitle: 'No resources match this search',
     tryAgain: 'Try again',
+    selectAllMatchingSaved: 'Select all matching Saved resources',
+    savedOutsideFilter: '{{count}} selected outside the filter',
     keepPlaceSelected: 'Keep {{name}} selected while programmes or services at this place are still selected.',
     noSavedResourcesForMapCreate: 'Browse Discover and save a few resources first, then create a map from them.',
     noSavedResourcesForMapManage: 'Browse Discover and save a few resources first.',

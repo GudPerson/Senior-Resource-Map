@@ -154,7 +154,7 @@ test('map resource management can search all resources, save through shared favo
     assert.match(createMapModalSource, /filterManageMapResourceCatalog\(\{/);
     assert.match(createMapModalSource, /data-testid=\{`manage-map-save-add-\$\{key\}`\}/);
     assert.match(createMapModalSource, /const savedAsset = await onSaveCatalogAsset\(asset\)/);
-    assert.match(createMapModalSource, /addAssetAndHostsToSelection\(/);
+    assert.match(createMapModalSource, /updateMatchingSavedSelection\(\s*current, \[savedAsset\], \[\.\.\.savedAssets, savedAsset\], true/);
 });
 
 test('new map creation can search all resources, save through shared favourites, and select the result', () => {
@@ -170,7 +170,6 @@ test('new map creation can search all resources, save through shared favourites,
 });
 
 test('map resource management keeps mobile actions above the device safe area', () => {
-    assert.match(createMapModalSource, /max-h-\[calc\(100svh-0\.75rem\)\]/);
     assert.match(createMapModalSource, /pb-\[calc\(env\(safe-area-inset-bottom\)\+16px\)\]/);
     assert.match(createMapModalSource, /min-h-0 flex-1 space-y-3 overflow-y-auto/);
     assert.match(createMapModalSource, /mt-5 flex shrink-0 flex-col gap-3 border-t/);

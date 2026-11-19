@@ -34,8 +34,8 @@ export default function EditMapDetailsModal({
     }
 
     return (
-        <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-2xl rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+        <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/40 p-[16px] backdrop-blur-sm">
+            <div className="app-dialog-panel app-dialog-form w-full overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-2xl">
                 <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">{t('mapDetails')}</p>

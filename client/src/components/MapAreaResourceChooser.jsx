@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { getMatchingSelectionState, updateMatchingSelection } from '../lib/matchingSelection.js';
 import { buildSavedAssetKey } from '../lib/savedAssets.js';
 import { AREA_RESOURCE_MAX_VENUES, filterAreaResources, getAreaResourcePlaceIds } from '../lib/mapAreaResourceSelection.js';
 import { formatAreaMessage as f, getMapAreaResourceMessages } from '../lib/mapAreaResourceMessages.js';
@@ -31,8 +32,8 @@ export default function MapAreaResourceChooser({ rows = [], existingAssets = [],
     const selectable = row => !existing.has(keyFor(row)) && supported(row);
     const selectedRows = rows.filter(row => selected.has(keyFor(row)) && !existing.has(keyFor(row)));
     const outsideCount = selectedRows.filter(row => !shown.some(match => keyFor(match) === keyFor(row))).length;
-    const matching = shown.filter(selectable);
-    const everyShownSelected = matching.length > 0 && matching.every(row => selected.has(keyFor(row)));
+    const matching = shown.filter(selectable).map(keyFor);
+    const selection = getMatchingSelectionState(selected, matching);
     const added = results.filter(row => ['added', 'already_on_map'].includes(row.status)).length;
     function toggleResource(row) {
         const key = keyFor(row);
@@ -79,10 +80,12 @@ export default function MapAreaResourceChooser({ rows = [], existingAssets = [],
                 <button type="button" className="btn-ghost min-h-11 text-sm" disabled={busy || !selected.size} onClick={() => setSelected(new Set())}>{m.clear}</button>
             </div>
             {outsideCount > 0 ? <p className="text-xs text-slate-500">{f(m.outsideResults, { count: outsideCount })}</p> : null}
-            <label className="flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={everyShownSelected}
-                disabled={busy || disabled || !matching.length} onChange={event => setSelected(current => {
-                    const next = new Set(current); matching.forEach(row => event.target.checked ? next.add(keyFor(row)) : next.delete(keyFor(row))); return next;
-                })} />{m.selectResults}</label>
+            <label className="flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={selection.checked}
+                ref={node => { if (node) node.indeterminate = selection.mixed; }}
+                disabled={busy || disabled || !matching.length} onChange={event => {
+                    const checked = event.target.checked;
+                    setSelected(current => updateMatchingSelection(current, matching, checked));
+                }} />{m.selectResults}</label>
         </div>
         <ul className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
             {shown.map(row => {

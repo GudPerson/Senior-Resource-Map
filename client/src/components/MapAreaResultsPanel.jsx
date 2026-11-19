@@ -11,14 +11,14 @@ import { AddressSnapshotError, findSnapshotAddressesWithinArea } from '../lib/ad
 import { useWholeAreaAddressScan } from '../hooks/useWholeAreaAddressScan.js';
 import { serializeAddressSnapshotCsv } from '../lib/mapSpatialGeometry.js';
 import { formatAreaMessage, getMapAreaResourceMessages } from '../lib/mapAreaResourceMessages.js';
+import { ADDRESS_PAGE_SIZE, useAreaAddressFilter } from '../hooks/useAreaAddressFilter.js';
+import { validatePinnedAreaAddressPage } from '../lib/pinnedAreaAddressCompletion.js';
 
-const ADDRESS_PAGE_SIZE = 200;
-
-function downloadCsv(rows) {
+function downloadCsv(rows, filename = 'carearound-area-addresses.csv') {
     const blob = new Blob([serializeAddressSnapshotCsv(rows)], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = url; link.download = 'carearound-area-addresses.csv';
+    link.href = url; link.download = filename;
     document.body.append(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -34,53 +34,57 @@ export default function MapAreaResultsPanel({ area, onClose, embedded = false, i
     const [result, setResult] = useState(null), [addressStatus, setAddressStatus] = useState('loading');
     const [addressError, setAddressError] = useState(false), [loadingPage, setLoadingPage] = useState(false);
     const [resources, setResources] = useState(null), [resourceStatus, setResourceStatus] = useState('loading');
-    const [selected, setSelected] = useState(new Set()), [notice, setNotice] = useState('');
+    const [notice, setNotice] = useState('');
     const [exporting, setExporting] = useState(false);
-    const [scanRowLimit, setScanRowLimit] = useState(ADDRESS_PAGE_SIZE);
-    const addressController = useRef(null), exportController = useRef(null), pageBusy = useRef(false), exportBusy = useRef(false);
+    const searchInput = useRef(null);
+    const addressController = useRef(null), exportController = useRef(null), ordinaryOperation = useRef(null);
     const fallbackRequest = useRef(null);
     const scan = useWholeAreaAddressScan({ area, scopeKey });
     const { status: scanStatus, start: startScan, reset: resetScan } = scan;
     const wholeArea = addressStatus === 'whole-area';
 
+    const filter = useAreaAddressFilter({ area, scopeKey, tab, result, wholeArea, scanRows: scan.completedRows,
+        ordinaryBusy: loadingPage || exporting });
+    const { complete, rows, selectedRows, selected, selection, preparation, filtering } = filter;
+    const completionBusy = preparation.status === 'preparing';
+
     async function loadPage(offset, controller, reset = false) {
-        if (pageBusy.current && !reset) return;
+        if (!reset && (ordinaryOperation.current || completionBusy)) return;
         const isCurrent = () => addressController.current === controller && !controller.signal.aborted;
-        pageBusy.current = true;
+        ordinaryOperation.current = 'page';
         setLoadingPage(true); setAddressError(false);
         try {
             const value = await findSnapshotAddressesWithinArea({ area, offset, limit: ADDRESS_PAGE_SIZE, snapshotSha256: reset ? undefined : result?.snapshot?.sha256, signal: controller.signal });
             if (!isCurrent()) return;
-            if (!reset && result?.snapshot?.sha256 && value.snapshot?.sha256 !== result.snapshot.sha256) throw new Error('Snapshot changed');
-            setResult(current => {
-                if (reset || !current) return value;
-                const seen = new Set(current.rows.map(row => row.id));
-                return { ...value, rows: [...current.rows, ...value.rows.filter(row => !seen.has(row.id))] };
-            });
+            const prefix = reset ? [] : result.rows;
+            const snapshot = reset ? value.snapshot : result.snapshot;
+            const total = reset ? value.total : result.total;
+            validatePinnedAreaAddressPage(value, { snapshotSha256: snapshot.sha256, total, offset,
+                limit: ADDRESS_PAGE_SIZE, acceptedIds: new Set(prefix.map(row => row.id)) });
+            if (value.snapshot.recordCount !== snapshot.recordCount) throw new Error('Snapshot metadata changed');
+            setResult({ ...value, snapshot, rows: reset ? value.rows : [...prefix, ...value.rows] });
             setAddressStatus('ready');
         } catch (error) {
             if (!isCurrent()) return;
             if (error instanceof AddressSnapshotError && error.status === 422
                 && error.code === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' && error.addressLimit) {
                 fallbackRequest.current = controller;
-                setResult(null); setSelected(new Set()); setNotice('');
+                setResult(null); filter.resetSource(); setNotice('');
                 setAddressStatus('whole-area');
                 return;
             }
             setAddressError({ code: error?.code || 'ADDRESS_SNAPSHOT_UNAVAILABLE', limit: error?.addressLimit });
             if (reset) setAddressStatus('error');
         } finally {
-            if (isCurrent()) { pageBusy.current = false; setLoadingPage(false); }
+            if (isCurrent()) { ordinaryOperation.current = null; setLoadingPage(false); }
         }
     }
 
     useLayoutEffect(() => {
         const controller = new AbortController();
         addressController.current = controller;
-        setResult(null); setSelected(new Set()); setNotice(''); setAddressStatus('loading'); setExporting(false); exportBusy.current = false;
+        setResult(null); filter.resetSource(); setNotice(''); setAddressStatus('loading'); setExporting(false); ordinaryOperation.current = null;
         fallbackRequest.current = null;
-        setScanRowLimit(ADDRESS_PAGE_SIZE);
-        pageBusy.current = false;
         void loadPage(0, controller, true);
         return () => { controller.abort(); exportController.current?.abort(); };
     }, [area, scopeKey, addressRetry]);
@@ -121,19 +125,13 @@ export default function MapAreaResultsPanel({ area, onClose, embedded = false, i
 
     const total = wholeArea ? scan.total : result?.total;
     const ready = wholeArea ? scanStatus === 'ready' : addressStatus === 'ready';
-    const completeRows = scan.completedRows;
-    const rows = wholeArea
-        ? (completeRows && scanRowLimit < completeRows.length ? completeRows.slice(0, scanRowLimit) : completeRows || [])
-        : result?.rows || [];
-    const selectedRows = selected.size ? rows.filter(row => selected.has(row.id)) : [];
-    const allLoadedSelected = rows.length > 0 && selectedRows.length === rows.length;
     function loadMore() {
-        if (wholeArea) setScanRowLimit(value => value + ADDRESS_PAGE_SIZE);
+        if (complete) filter.showMore();
         else void loadPage(rows.length, addressController.current);
     }
-    function toggleRow(id) {
+    function editQuery(value) {
         setNotice('');
-        setSelected(current => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+        filter.editQuery(value);
     }
     async function copyPostalCodes() {
         const controller = addressController.current;
@@ -143,25 +141,26 @@ export default function MapAreaResultsPanel({ area, onClose, embedded = false, i
         } catch { if (!controller.signal.aborted) setNotice(m.copyFailed); }
     }
     async function exportAll() {
-        if (wholeArea) {
-            if (!completeRows?.length) return;
+        if (complete) {
+            if (!complete.length) return;
             setNotice('');
-            try { downloadCsv(completeRows); }
+            try { downloadCsv(complete); }
             catch { setNotice(m.exportFailed); }
             return;
         }
-        if (exportBusy.current || !result) return;
+        if (ordinaryOperation.current || completionBusy || !result) return;
         const controller = new AbortController();
-        exportController.current = controller; exportBusy.current = true;
+        exportController.current = controller; ordinaryOperation.current = 'export';
         setExporting(true); setNotice('');
         try {
             const all = [], ids = new Set(); let offset = 0;
             while (offset < result.total) {
                 const value = await findSnapshotAddressesWithinArea({ area, offset, limit: ADDRESS_PAGE_SIZE, snapshotSha256: result.snapshot.sha256, signal: controller.signal });
                 if (controller.signal.aborted) return;
-                if (value.snapshot?.sha256 !== result.snapshot?.sha256 || value.total !== result.total || !value.rows.length) throw new Error('Snapshot changed');
+                validatePinnedAreaAddressPage(value, { snapshotSha256: result.snapshot.sha256, total: result.total,
+                    offset, limit: ADDRESS_PAGE_SIZE, acceptedIds: ids });
+                if (value.snapshot.recordCount !== result.snapshot.recordCount) throw new Error('Snapshot metadata changed');
                 for (const row of value.rows) {
-                    if (ids.has(row.id)) throw new Error('Repeated export page');
                     ids.add(row.id); all.push(row);
                 }
                 offset += value.rows.length;
@@ -169,19 +168,20 @@ export default function MapAreaResultsPanel({ area, onClose, embedded = false, i
             if (all.length !== result.total) throw new Error('Incomplete export');
             if (!controller.signal.aborted) downloadCsv(all);
         } catch (error) { if (!controller.signal.aborted) setNotice(error?.code === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' ? m.areaTooLarge : error?.code === 'ADDRESS_SNAPSHOT_CHANGED' ? m.snapshotChanged : m.exportFailed); }
-        finally { if (!controller.signal.aborted) { setExporting(false); exportBusy.current = false; } }
+        finally { if (!controller.signal.aborted) { setExporting(false); ordinaryOperation.current = null; } }
     }
     const scanLimit = scan.error?.code === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE' && scan.error.status === 422
         ? scan.error.addressLimit : undefined;
     const displayedError = wholeArea
         ? scan.error && { code: scan.error.code || 'ADDRESS_SNAPSHOT_UNAVAILABLE', limit: scanLimit }
-        : addressError;
+        : preparation.error || (complete ? null : addressError);
     const shrink = wholeArea ? Boolean(scanLimit) : addressError?.code === 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE';
-    const changed = scanStatus === 'changed';
+    const changed = scanStatus === 'changed' || preparation.status === 'changed';
     function retryAddresses() {
         if (shrink) onClose();
-        else if (changed) void startScan();
+        else if (wholeArea && changed) void startScan();
         else if (wholeArea) void scan.resume();
+        else if (preparation.status === 'error') void filter.resume();
         else setAddressRetry(value => value + 1);
     }
     const content = <>
@@ -195,7 +195,18 @@ export default function MapAreaResultsPanel({ area, onClose, embedded = false, i
         {tab === 'addresses' ? <div role="tabpanel" id="map-area-panel-addresses" aria-labelledby="map-area-tab-addresses" className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 border-b border-slate-100 px-4 py-3 sm:px-5">
                 <AddressSnapshotNotice snapshot={wholeArea ? scan.snapshot : result?.snapshot} messages={m} />
-                {total != null ? <p className="mt-1 text-xs font-semibold text-slate-700">{rows.length} {m.loaded} / {total} {m.total} . {selectedRows.length} {m.selected}</p> : null}
+                {ready ? <div className="mt-2 flex items-center gap-2">
+                    <input ref={searchInput} type="search" value={filter.query} aria-label={m.searchAddresses} placeholder={m.searchAddresses}
+                        onChange={event => editQuery(event.target.value)} className="input-field min-w-0 flex-1" />
+                    {filter.query ? <button type="button" className="btn-ghost min-h-11" onClick={() => { editQuery(''); searchInput.current?.focus(); }}>{m.clearSearch}</button> : null}
+                </div> : null}
+                {total != null ? <p className="mt-1 text-xs font-semibold text-slate-700">
+                    {filtering ? complete && formatAreaMessage(m.showingMatches, { shown: rows.length, matches: filter.matches.length })
+                        : `${rows.length} ${m.loaded} / ${total} ${m.total}`} · {selectedRows.length} {m.selected}
+                </p> : null}
+                {filtering && complete && selectedRows.length > selection.selectedMatchingCount ? <p className="text-xs text-slate-600">
+                    {formatAreaMessage(m.outsideFilter, { count: selectedRows.length - selection.selectedMatchingCount })}
+                </p> : null}
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-5">
                 {addressStatus === 'loading' ? <p role="status" className="py-5 text-sm text-slate-600">{m.loadingAddresses}</p> : null}
@@ -205,24 +216,31 @@ export default function MapAreaResultsPanel({ area, onClose, embedded = false, i
                 {displayedError ? <div role="alert" data-map-area-address-error={displayedError.code} className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                     <p>{shrink ? rm.tooLarge : displayedError.code === 'ADDRESS_SNAPSHOT_CHANGED' ? rm.changed : wholeArea ? m.scanIncomplete : displayedError.code === 'ADDRESS_SNAPSHOT_INVALID_QUERY' ? rm.invalid : m.addressesError}</p>
                     {displayedError.limit && rm[`limit_${displayedError.limit.reason}`] ? <p className="mt-2 text-xs leading-5" data-map-area-address-limit={displayedError.limit.reason}>{rm[`limit_${displayedError.limit.reason}`]} {formatAreaMessage(rm.limitNumbers, displayedError.limit)}</p> : null}
-                    <button type="button" className="btn-ghost mt-2 min-h-11" onClick={retryAddresses}>
+                    <button type="button" className="btn-ghost mt-2 min-h-11" disabled={loadingPage || exporting} onClick={retryAddresses}>
                         {shrink ? m.shrinkArea : changed ? m.restartSearch : m.retry}
                     </button></div> : null}
-                {ready && !rows.length ? <p role="status" className="py-4 text-sm text-slate-600">{m.noAddresses}</p> : null}
-                {rows.length ? <label className="mb-2 flex min-h-11 cursor-pointer items-center gap-3 text-sm font-bold text-slate-700"><input type="checkbox" checked={allLoadedSelected} onChange={() => setSelected(allLoadedSelected ? new Set() : new Set(rows.map(row => row.id)))} className="h-5 w-5 accent-brand-600" />{m.selectAll}</label> : null}
+                {filter.preparing ? <p role="status" className="py-3 text-sm text-slate-600">{m.preparingAddresses}</p> : null}
+                {ready && !rows.length && (!filtering || complete) ? <p role="status" className="py-4 text-sm text-slate-600">{filtering ? m.noMatchingAddresses : m.noAddresses}</p> : null}
+                {ready && (total > 0 || filtering) ? <label className="mb-2 flex min-h-11 cursor-pointer items-center gap-3 text-sm font-bold text-slate-700">
+                    <input type="checkbox" checked={Boolean(complete && selection.checked)}
+                        ref={node => { if (node) node.indeterminate = selection.mixed || (!complete && selection.selectedMatchingCount > 0); }}
+                        disabled={filter.preparing || Boolean(preparation.error) || (filtering && !complete) || !total || (complete && !filter.matches.length)}
+                        onChange={filter.toggleAll} className="h-5 w-5 accent-brand-600" />{m.selectAll}</label> : null}
                 <ul className="space-y-2">
                     {rows.map(row => <li key={row.id}><label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 hover:border-brand-300">
-                        <input type="checkbox" checked={selected.has(row.id)} onChange={() => toggleRow(row.id)} aria-label={`${row.postalCode} ${row.address}`} className="mt-1 h-5 w-5 shrink-0 accent-brand-600" />
+                        <input type="checkbox" checked={selected.has(row.id)} onChange={() => { setNotice(''); filter.toggleRow(row.id); }} aria-label={`${row.postalCode} ${row.address}`} className="mt-1 h-5 w-5 shrink-0 accent-brand-600" />
                         <span className="min-w-0"><span className="block text-sm font-bold text-slate-900">{row.building && row.building !== 'NIL' ? row.building : row.address}</span><span className="mt-1 block break-words text-sm leading-5 text-slate-600">{row.address}</span><span className="mt-1 block text-xs font-bold text-brand-700">{row.postalCode}</span></span>
                     </label></li>)}
                 </ul>
-                {rows.length < total ? <button type="button" disabled={loadingPage || exporting} onClick={loadMore} className="btn-ghost mt-3 min-h-11 w-full justify-center border border-slate-200">{loadingPage ? m.loadingAddresses : m.loadMore}</button> : null}
+                {rows.length < (filtering ? filter.matches.length : total) ? <button type="button" disabled={loadingPage || exporting || completionBusy || Boolean(preparation.error)} onClick={loadMore} className="btn-ghost mt-3 min-h-11 w-full justify-center border border-slate-200">{loadingPage ? m.loadingAddresses : m.loadMore}</button> : null}
             </div>
             {!wholeArea || ready ? <footer className="shrink-0 border-t border-slate-100 p-3 pb-[max(.75rem,env(safe-area-inset-bottom))]">
-                <div className="grid gap-2 sm:grid-cols-3">
+                <div className={`grid gap-2 ${filtering ? 'grid-cols-2 sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
                     <button type="button" className="btn-ghost min-h-11 flex-1 justify-center border border-slate-200 text-xs disabled:opacity-40" disabled={!selectedRows.length || exporting} onClick={copyPostalCodes}>{m.copy}</button>
                     <button type="button" className="btn-ghost min-h-11 flex-1 justify-center border border-slate-200 text-xs disabled:opacity-40" disabled={!selectedRows.length || exporting} onClick={() => downloadCsv(selectedRows)}>{m.downloadSelected}</button>
-                    <button type="button" className="btn-primary min-h-11 flex-1 justify-center text-xs disabled:opacity-40" disabled={!total || exporting || !ready} onClick={exportAll}>{exporting ? m.exporting : m.downloadAll}</button>
+                    {filtering ? <button type="button" className="btn-ghost min-h-11 justify-center border border-slate-200 text-xs disabled:opacity-40"
+                        disabled={!complete || !filter.matches.length || exporting} onClick={() => downloadCsv(filter.matches, 'carearound-area-addresses-filtered.csv')}>{m.downloadFiltered}</button> : null}
+                    <button type="button" className="btn-primary min-h-11 flex-1 justify-center text-xs disabled:opacity-40" disabled={!total || loadingPage || exporting || completionBusy || !ready} onClick={exportAll}>{exporting ? m.exporting : m.downloadAll}</button>
                 </div>
                 {notice ? <p role="status" className="mt-2 text-xs leading-5 text-slate-600">{notice}</p> : null}
             </footer> : null}

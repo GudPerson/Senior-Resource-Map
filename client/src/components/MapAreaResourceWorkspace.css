@@ -24,3 +24,17 @@
         background: white;
     }
 }
+
+/* A keyboard-height address panel needs the full dialog as its scrollport
+   so its sticky CSV actions leave room for the search and result controls. */
+@media (max-height: 560px) {
+    .app-dialog-workspace:has([data-map-area-workspace] #map-area-panel-addresses) {
+        display: block;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    [data-map-area-workspace]:has(#map-area-panel-addresses) {
+        overflow: visible;
+    }
+}

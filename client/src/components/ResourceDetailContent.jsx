@@ -432,12 +432,12 @@ export default function ResourceDetailContent({
         <div className={`${rootSpacingClass} ${className}`}>
             {grabGuideOpen ? (
                 <div
-                    className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/45 px-4 py-4 sm:items-center"
+                    className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/45 p-[16px] sm:items-center"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="grab-guide-title"
                 >
-                    <div className="w-full max-w-md rounded-[24px] border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
+                    <div className="app-dialog-panel app-dialog-short w-full overflow-y-auto rounded-[24px] border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
                         <div className="flex items-start justify-between gap-4">
                             <div>
                                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-700">Grab</p>

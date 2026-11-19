@@ -777,6 +777,8 @@ export const msDictionary = {
     failedSaveResourceFromMap: 'Tidak dapat menyimpan dan menambah sumber ini.',
     noResourceCatalogResultsTitle: 'Tiada sumber sepadan dengan carian ini',
     tryAgain: 'Cuba lagi',
+    selectAllMatchingSaved: 'Pilih semua sumber disimpan yang sepadan',
+    savedOutsideFilter: '{{count}} pilihan di luar penapis',
     keepPlaceSelected: 'Biarkan {{name}} dipilih sementara program atau khidmat di tempat ini masih dipilih.',
     noSavedResourcesForMapCreate: 'Semak Discover dan simpan beberapa sumber dahulu, kemudian cipta peta daripadanya.',
     noSavedResourcesForMapManage: 'Semak Discover dan simpan beberapa sumber dahulu.',
