@@ -1,4 +1,6 @@
 import { createAddressSnapshotRepository } from '../utils/addressSnapshotRepository.js';
+import { createAddressSnapshotScanRepository } from '../utils/addressSnapshotScanRepository.js';
+import { ADDRESS_SNAPSHOT_SCAN_CAPS, isAddressSnapshotScanRequest } from '../../../shared/addressSnapshotScanContract.js';
 import { ADDRESS_SNAPSHOT_CONFIG } from '../utils/addressSnapshotConfig.js';
 import { isSpatialCoordinate, normalizeSpatialArea } from '../../../shared/addressSnapshotSpatial.js';
 import { normalizeAddressSnapshotLimit } from '../../../shared/addressSnapshotQueryLimits.js';
@@ -83,6 +85,7 @@ function errorResponse(c, error) {
 
 export function createAddressSnapshotHandlers({
     repositoryForContext = c => createAddressSnapshotRepository(c.env?.HELP_CMS_BUCKET),
+    scanRepositoryForContext = c => createAddressSnapshotScanRepository(c.env?.HELP_CMS_BUCKET),
 } = {}) {
     const query = kind => async c => {
         try {
@@ -97,5 +100,21 @@ export function createAddressSnapshotHandlers({
         },
         nearby: query('nearby'),
         area: query('area'),
+        scan: async c => {
+            try {
+                const signal = c.req.raw.signal;
+                signal.throwIfAborted();
+                const body = await readBoundedJson(c.req.raw);
+                if (!isAddressSnapshotScanRequest(body)) throw invalid();
+                signal.throwIfAborted();
+                const batch = await scanRepositoryForContext(c).scan(body, { signal });
+                signal.throwIfAborted();
+                const serialized = JSON.stringify(batch);
+                if (!serialized || new TextEncoder().encode(serialized).byteLength > ADDRESS_SNAPSHOT_SCAN_CAPS.maxResponseBytes) {
+                    throw new AddressSnapshotRequestError('ADDRESS_SNAPSHOT_UNAVAILABLE');
+                }
+                return c.body(serialized, 200, { 'Content-Type': 'application/json; charset=UTF-8' });
+            } catch (error) { return errorResponse(c, error); }
+        },
     };
 }

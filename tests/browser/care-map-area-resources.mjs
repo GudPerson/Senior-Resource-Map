@@ -8,16 +8,23 @@ import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {chromium} from 'playwright';
 import {startAreaFixture,fingerprint,existingAssets,keyFor,clone} from '../fixtures/care-map-area-resources/runtime.mjs';
+import {wholeArea,wholeAreaAnnotation} from '../fixtures/care-map-area-resources/whole-area-addresses.mjs';
 
 const out=process.argv.find(value=>value.startsWith('--out='))?.slice(6)||await fs.mkdtemp(path.join(os.tmpdir(),'care-map-area-resources-'));
 const caseFilter=process.argv.find(value=>value.startsWith('--case='))?.slice(7);
 const probeAddressFooter=process.argv.includes('--probe-address-footer');
 await fs.mkdir(out,{recursive:true});
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
-const harnessPaths=[fileURLToPath(import.meta.url),fileURLToPath(new URL('../fixtures/care-map-area-resources/runtime.mjs',import.meta.url)),fileURLToPath(new URL('../fixtures/care-map-floating-canvas/runtime.mjs',import.meta.url))];
+const harnessPaths=[fileURLToPath(import.meta.url),...[
+ '../fixtures/care-map-area-resources/runtime.mjs','../fixtures/care-map-area-resources/whole-area-addresses.mjs','../fixtures/care-map-floating-canvas/runtime.mjs',
+ '../fixtures/care-map-floating-canvas/data.mjs','../fixtures/caremap-spatial-tools/fictional-api.mjs','../fixtures/care-map-view-controls/vite.config.mjs',
+ '../../scripts/build-address-snapshot.mjs','../../server/src/routes/addressSnapshot.js','../../server/src/controllers/addressSnapshotController.js',
+ '../../server/src/utils/addressSnapshotRepository.js','../../server/src/utils/addressSnapshotScanRepository.js','../../server/src/utils/addressSnapshotConfig.js',
+ '../../server/src/middleware/auth.js','../../server/src/utils/sessionAuth.js','../../package-lock.json',
+].map(filename=>fileURLToPath(new URL(filename,import.meta.url)))];
 async function harnessFingerprint(){return Object.fromEntries(await Promise.all(harnessPaths.map(async filename=>[filename,createHash('sha256').update(await fs.readFile(filename)).digest('hex')])));}
 async function runtimeFingerprint(){const sharedRoot=fileURLToPath(new URL('../../shared/',import.meta.url)),paths=(await fs.readdir(sharedRoot,{recursive:true})).filter(filename=>/\.(?:m?js|json)$/.test(filename)).sort();return{...await fingerprint(),shared:Object.fromEntries(await Promise.all(paths.map(async filename=>[filename,createHash('sha256').update(await fs.readFile(path.join(sharedRoot,filename))).digest('hex')])))};}
-const report={boundary:'Local actual-App client-flow proof. Fictional intercepted API state simulates the documented additive endpoint and canonical venue scope; genuine controller tests separately prove database/privacy/copy/share behavior. Client changed/untracked runtime, shared modules and harness files are hashed before/after; backend edits are outside this intercepted-API cohort. No production sessions, data, geometry edits, or external calls.',sourceBefore:await runtimeFingerprint(),harnessBefore:await harnessFingerprint(),cases:[],pageErrors:[],unexpectedWrites:[]};
+const report={boundary:'Local actual-App client-flow proof. Fictional intercepted resource state simulates the additive endpoint and canonical venue scope. Whole-area cases use genuine address routes and verified readers over synthetic in-memory objects. Client, shared modules, provider and harness sources are hashed before/after. No production sessions, data, geometry edits, or external calls.',sourceBefore:await runtimeFingerprint(),harnessBefore:await harnessFingerprint(),cases:[],pageErrors:[],unexpectedWrites:[]};
 await fs.mkdir(path.join(out,'harness-source'),{recursive:true});
 report.harnessCopies=await Promise.all(Object.entries(report.harnessBefore).map(async([filename,sha256])=>{const destination=path.join(out,'harness-source',`${sha256}-${path.basename(filename)}`);await fs.copyFile(filename,destination);return{path:destination,sha256};}));
 let fixture,browser,activeCase='entry';
@@ -28,17 +35,70 @@ async function exposeAreaControl(page,control){let value,nativeWheels=0;for(let 
  value=await control.evaluate(node=>{const b=node.getBoundingClientRect(),workspace=node.closest('[data-map-area-workspace]'),resourceList=workspace.querySelector('[data-map-area-resource-chooser]>ul'),owner=getComputedStyle(workspace).overflowY==='auto'?workspace:resourceList||workspace,l=owner.getBoundingClientRect(),footer=workspace.querySelector('[data-map-area-resource-chooser]>footer,#map-area-panel-addresses>footer'),f=footer?.getBoundingClientRect(),viewBottom=f&&getComputedStyle(footer).position==='sticky'&&f.top>l.top&&f.top<l.bottom?f.top:l.bottom,x=b.x+b.width/2,y=b.y+b.height/2,hit=document.elementFromPoint(x,y);return{top:b.top,bottom:b.bottom,x,y,owner:{x:l.x+l.width/2,y:l.top+(viewBottom-l.top)/2,top:l.top,bottom:l.bottom,visibleBottom:viewBottom,height:l.height,scrollTop:owner.scrollTop,scrollHeight:owner.scrollHeight},exposed:node.contains(hit)&&b.top>=l.top&&b.bottom<=viewBottom};});
  if(value.exposed)return{...value,nativeWheels};assert.ok(value.owner.height>0,'area controls need a nonempty scroll viewport');await page.mouse.move(value.owner.x,Math.max(1,Math.min(await page.evaluate(()=>innerHeight-1),value.owner.y)));await page.mouse.wheel(0,Math.max(-350,Math.min(350,value.y-value.owner.y)));nativeWheels++;await page.waitForTimeout(80);
  }assert.equal(value.exposed,true,'native wheel must expose the requested area control');return{...value,nativeWheels};}
-async function openArea(page,{narrow=false,waitForResources=true}={}){
+async function openArea(page,{narrow=false,waitForResources=true,annotationId='preview-circle'}={}){
  if(narrow){await page.locator('[data-owner-canvas-enter]').click();await page.locator('[data-owner-canvas-tool="content"]').click();await page.getByRole('button',{name:'Manage resources',exact:true}).click();}
  else await page.getByRole('button',{name:'Manage resources',exact:true}).click();
  await page.locator('[data-map-resources-tab="area"]').click();
- await page.locator('[data-map-area-choice]').selectOption('preview-circle');
+ await page.locator('[data-map-area-choice]').selectOption(annotationId);
  if(waitForResources)await page.locator('[data-map-area-resource="soft-82201"]').waitFor();
  assert.equal(await page.getByRole('dialog').count(),1,'one shared resource chooser');
 }
 function savedDocuments(state){return{originalAssets:state.assets.filter(asset=>existingAssets.some(old=>keyFor(old)===keyFor(asset))),personalPlaces:state.personalPlaces,studio:state.core.document,annotations:state.core.annotations,annotationRevision:state.core.annotationRevision};}
 function assertCleanBoundary(state){assert.deepEqual(state.core.unexpectedWrites,[]);assert.deepEqual(state.core.errors,[]);assert.ok(state.writes.every(write=>write.method==='POST'&&(write.path==='/api/favorites/save'||write.path===`/api/my-maps/${fixture.mapId}/assets`)||write.method==='DELETE'&&state.allowLegacyRemove.has(write.explicitLegacyRemoval)));assert.equal(state.core.allowedWrites.length,0);}
-async function finishPage(context,page,state){report.pageErrors.push(...state.core.errors);report.unexpectedWrites.push(...state.core.unexpectedWrites);await fs.writeFile(path.join(out,activeCase+'-dom.txt'),await page.locator('body').innerText()).catch(()=>{});await page.screenshot({path:path.join(out,activeCase+'.png')}).catch(()=>{});state.holdCataloguePages?.clear();state.releaseCatalogue?.();await context.close();}
+async function finishPage(context,page,state){report.pageErrors.push(...state.core.errors);report.unexpectedWrites.push(...state.core.unexpectedWrites);await fs.writeFile(path.join(out,activeCase+'-dom.txt'),await page.locator('body').innerText()).catch(()=>{});await page.screenshot({path:path.join(out,activeCase+'.png')}).catch(()=>{});state.holdCataloguePages?.clear();state.releaseCatalogue?.();for(const pending of state.pendingAddresses||[])state.releaseAddress(pending);await context.close();}
+
+const legacyAddressPath='/api/address-snapshot/area';
+const addressScanPath=legacyAddressPath+'/scan';
+const addressMetadataPath='/api/address-snapshot/metadata';
+const addressTab=page=>page.getByRole('tab',{name:/^Addresses \/ postal codes/});
+const addressChecks=panel=>panel.locator('li input[type="checkbox"]');
+async function openWholeArea(page){
+ await openArea(page,{waitForResources:false,annotationId:wholeAreaAnnotation.id});
+ await addressTab(page).click();
+ return page.locator('#map-area-panel-addresses');
+}
+async function nextHeldAddress(state,pathname){
+ await until(()=>state.pendingAddresses.some(({entry})=>entry.path===pathname),`Expected held ${pathname} request`);
+ return state.pendingAddresses.find(({entry})=>entry.path===pathname);
+}
+function readOnlyAddressProof(state,before){
+ assert.deepEqual(savedDocuments(state),before);
+ assert.equal(state.writes.length,0);
+ assert.deepEqual(state.addressProvider?.writes||[],[]);
+ assertCleanBoundary(state);
+}
+async function assertUnfinishedAddresses(page,panel){
+ assert.equal(await addressTab(page).innerText(),'Addresses / postal codes');
+ assert.equal(await addressChecks(panel).count(),0);
+ assert.equal(await panel.getByRole('checkbox').count(),0);
+ assert.equal(await panel.getByRole('button',{name:/Download .* CSV|Copy selected postal/}).count(),0);
+ assert.equal(await panel.getByText(/No addresses in this snapshot/).count(),0);
+}
+async function expectAddressRows(panel,expected){
+ const checks=addressChecks(panel);
+ await checks.nth(expected.length-1).waitFor({state:'attached'});
+ assert.deepEqual(await checks.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label'))),
+  expected.map(row=>`${row.postalCode} ${row.address}`));
+}
+function expectedAddressCsv(rows){
+ const quote=value=>'"'+String(value).replaceAll('"','""')+'"';
+ const header='"postalCode","block","roadName","building","address","lat","lng"';
+ return Buffer.from('\ufeff'+[header,...rows.map(row=>[
+  "'"+row.postalCode,row.block,row.roadName,row.building,row.address,row.lat,row.lng,
+ ].map(quote).join(','))].join('\r\n')+'\r\n');
+}
+async function readAddressCsv(page,button,filename,expected){
+ const pending=page.waitForEvent('download');
+ await button.click();
+ const download=await pending;
+ const location=path.join(out,filename);
+ await download.saveAs(location);
+ const actual=await fs.readFile(location);
+ const csvHash=createHash('sha256').update(actual).digest('hex');
+ assert.equal(actual.toString().split('\r\n').length-2,expected.length);
+ assert.equal(csvHash,createHash('sha256').update(expectedAddressCsv(expected)).digest('hex'));
+ return {rows:expected.length,sha256:csvHash};
+}
 
 try{
  fixture=await startAreaFixture(out);browser=await chromium.launch({headless:true});
@@ -183,9 +243,190 @@ try{
    const afterMap=await page.evaluate(()=>{const m=[...window.__qaMaps].find(m=>m.getContainer().isConnected&&m.getContainer().getBoundingClientRect().width>0);return{index:[...window.__qaMaps].indexOf(m),zoom:m.getZoom()};});assert.deepEqual(afterMap,{index:beforeMap.index,zoom:beforeMap.zoom});assert.deepEqual(savedDocuments(state),before);assert.equal(state.writes.length,0);assertCleanBoundary(state);return{sameChooser:true,sameLeafletAndZoom:true,zeroWrites:true};
   }finally{await finishPage(context,page,state);}
  });
- await check('typed address admission diagnostics reach the shared chooser without changing query limits',async()=>{
-  const{context,page,state}=await createPage({addressFailure:{body:{error:'Choose a smaller or simpler area.',code:'ADDRESS_SNAPSHOT_AREA_TOO_LARGE',addressLimit:{reason:'geometryWork',observed:250100,allowed:250000}}}});try{
-   await openArea(page);await page.getByRole('tab',{name:/addresses.*postal/i}).click();await page.getByText(/250[,.]?100/).first().waitFor();assert.match(await page.getByRole('dialog').innerText(),/250[,.]?000/);assert.equal(state.readQueries.at(-1).body.limit,200);assert.equal(state.writes.length,0);assertCleanBoundary(state);return{typedReason:'geometryWork',observed:250100,allowed:250000,queryLimit:200};
+ await check('whole-area automatically scans 300 tiles using exact multipart geometry and downloads source-ordered rows',async()=>{
+  const{context,page,state}=await createPage({wholeAddressFixture:true,holdAddressPaths:[addressScanPath]});
+  try{
+   await context.grantPermissions(['clipboard-read','clipboard-write']);
+   const before=savedDocuments(state);
+   await openArea(page,{waitForResources:false,annotationId:wholeAreaAnnotation.id});
+   await until(()=>state.addressRequests.some(request=>request.path===legacyAddressPath&&request.response),'Legacy admission must finish');
+   const admission=state.addressRequests.find(request=>request.path===legacyAddressPath);
+   assert.deepEqual(admission.body.area,wholeArea);
+   assert.equal(admission.body.limit,200);
+   assert.deepEqual(admission.response.limit,{reason:'tiles',observed:300,allowed:16});
+   assert.equal(admission.response.status,422);
+   assert.equal(admission.response.code,'ADDRESS_SNAPSHOT_AREA_TOO_LARGE');
+   assert.equal(state.addressRequests.filter(request=>request.path===addressScanPath).length,0,'Resources tab does not start background address scans');
+   await addressTab(page).click();
+   const panel=page.locator('#map-area-panel-addresses');
+   let pending=await nextHeldAddress(state,addressScanPath);
+   assert.equal(pending.entry.body.cursor,null);
+   await panel.getByRole('status').getByText('Searching the whole area…').waitFor();
+   await assertUnfinishedAddresses(page,panel);
+   do{
+    const prior=pending;
+    state.releaseAddress(prior);
+    pending=await nextHeldAddress(state,addressScanPath);
+    await panel.getByRole('status').getByText(`${prior.entry.response.progress.tilesCompleted} of 300 sections checked`).waitFor();
+    await assertUnfinishedAddresses(page,panel);
+    if(prior.entry.response.rows===0)break;
+   }while(pending.entry.body.cursor.tile<300);
+   assert.ok(state.addressRequests.some(request=>request.response?.rows===0&&request.response.progress?.tilesCompleted>0),
+    'A real empty intermediate batch must advance visible progress');
+   state.holdAddressPaths.clear();
+   state.releaseAddress(pending);
+   const {oracle,snapshot}=state.addressProvider.versions[0];
+   await expectAddressRows(panel,oracle.slice(0,200));
+   assert.equal(await addressTab(page).innerText(),`Addresses / postal codes (${oracle.length})`);
+   assert.match(await panel.locator('[data-address-snapshot-notice]').innerText(),/Singapore address snapshot .*Prepared 3 Nov 2026.*may omit newer or changed addresses/);
+   const batchReads=state.addressRequests.filter(request=>request.path===addressScanPath);
+   assert.ok(batchReads.every(request=>JSON.stringify(request.body.area)===JSON.stringify(admission.body.area)));
+   assert.ok(batchReads.every(request=>request.body.snapshotSha256===snapshot.sha256));
+   assert.equal(batchReads.at(-1).response.progress.tilesCompleted,300);
+   assert.equal(state.addressRequests.filter(request=>request.path===addressMetadataPath).length,2,'One legacy and one scan metadata pin');
+   const requests=state.addressRequests.length;
+   const checks=addressChecks(panel);
+   await checks.nth(0).check();await checks.nth(1).check();
+   await panel.getByRole('button',{name:'Load more addresses',exact:true}).click();
+   await expectAddressRows(panel,oracle.slice(0,400));
+   assert.equal(await checks.nth(0).isChecked(),true);
+   await checks.nth(200).check();
+   const selected=[oracle[0],oracle[1],oracle[200]];
+   await panel.getByRole('button',{name:'Copy selected postal codes',exact:true}).click();
+   await panel.getByText('Postal codes copied.',{exact:true}).waitFor();
+   assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),`012345\n${oracle[200].postalCode}`);
+   const selectedCsv=await readAddressCsv(page,panel.getByRole('button',{name:'Download selected CSV',exact:true}),
+    'whole-area-selected.csv',selected);
+   const allCsv=await readAddressCsv(page,panel.getByRole('button',{name:'Download all CSV',exact:true}),'whole-area-all.csv',oracle);
+   assert.equal(state.addressRequests.length,requests,'Local paging, Copy and CSV must use completed rows without extra requests');
+   readOnlyAddressProof(state,before);
+   return{candidateTiles:300,scanSteps:batchReads.length,emptySteps:batchReads.filter(r=>r.response.rows===0).length,selectedCsv,allCsv,zeroWrites:true};
+  }finally{await finishPage(context,page,state);}
+ });
+ await check('whole-area fallback ignores arbitrary errors and rejects invalid admission diagnostics',async()=>{
+  const failures=[
+   {status:422,body:{error:'Unrelated 422.',code:'ADDRESS_SNAPSHOT_INVALID_QUERY'}},
+   {status:422,body:{error:'Invalid limit.',code:'ADDRESS_SNAPSHOT_AREA_TOO_LARGE',addressLimit:{reason:'tiles',observed:15,allowed:16}}},
+   {status:413,body:{error:'Payload too large.',code:'ADDRESS_SNAPSHOT_AREA_TOO_LARGE',addressLimit:{reason:'tiles',observed:300,allowed:16}}},
+   {status:503,body:{error:'Unavailable.',code:'ADDRESS_SNAPSHOT_UNAVAILABLE'}},
+  ];
+  for(const addressFailure of failures){
+   const{context,page,state}=await createPage({addressFailure});
+   try{
+    const before=savedDocuments(state);
+    await openArea(page);await addressTab(page).click();
+    await page.locator('#map-area-panel-addresses').getByRole('alert').waitFor();
+    assert.equal(state.readQueries[0].body.limit,200);
+    assert.equal(state.requests.filter(request=>request.path===addressScanPath).length,0);
+    assert.equal(state.requests.filter(request=>request.path===addressMetadataPath).length,1);
+    readOnlyAddressProof(state,before);
+   }finally{await finishPage(context,page,state);}
+  }
+  return{statuses:failures.map(failure=>failure.status),legacyPageSize:200,scanRequests:0};
+ });
+ await check('whole-area Retry preserves the pinned cursor and snapshot change requires a fresh Restart',async()=>{
+  const{context,page,state}=await createPage({wholeAddressFixture:true,holdAddressPaths:[addressScanPath]});
+  try{
+   const before=savedDocuments(state);
+   const panel=await openWholeArea(page);
+   state.releaseAddress(await nextHeldAddress(state,addressScanPath));
+   const failed=await nextHeldAddress(state,addressScanPath);
+   assert.ok(failed.entry.body.cursor.tile>0);
+   state.failNextAddressPath=addressScanPath;
+   state.releaseAddress(failed);
+   await panel.getByRole('alert').getByText(/search could not finish/).waitFor();
+   await assertUnfinishedAddresses(page,panel);
+   const count=state.addressRequests.length;
+   await panel.getByRole('button',{name:'Retry',exact:true}).click();
+   const retried=await nextHeldAddress(state,addressScanPath);
+   assert.deepEqual(retried.entry.body,failed.entry.body);
+   assert.equal(state.addressRequests.length,count+1,'Retry makes one request from the accepted pin and cursor');
+   state.releaseAddress(retried);
+   const changed=await nextHeldAddress(state,addressScanPath);
+   assert.ok(changed.entry.body.cursor.tile>retried.entry.body.cursor.tile);
+   state.addressVersion=1;
+   state.releaseAddress(changed);
+   const restart=panel.getByRole('button',{name:'Restart search',exact:true});
+   await restart.waitFor();
+   assert.equal(changed.entry.response.status,409);
+   assert.equal(changed.entry.response.code,'ADDRESS_SNAPSHOT_CHANGED');
+   await assertUnfinishedAddresses(page,panel);
+   assert.equal(await panel.getByRole('button',{name:'Retry',exact:true}).count(),0);
+   assert.equal(state.addressRequests.filter(request=>request.path===addressMetadataPath).length,2);
+   await restart.click();
+   const restarted=await nextHeldAddress(state,addressScanPath);
+   assert.equal(restarted.entry.body.cursor,null);
+   assert.equal(restarted.entry.body.snapshotSha256,state.addressProvider.versions[1].snapshot.sha256);
+   assert.deepEqual(restarted.entry.body.area,wholeArea);
+   state.holdAddressPaths.clear();
+   state.releaseAddress(restarted);
+   await expectAddressRows(panel,state.addressProvider.versions[1].oracle.slice(0,200));
+   assert.equal(state.addressRequests.filter(request=>request.path===addressMetadataPath).length,3);
+   readOnlyAddressProof(state,before);
+   return{retryFromTile:retried.entry.body.cursor.tile,changedStatus:409,explicitFreshPin:true,zeroWrites:true};
+  }finally{await finishPage(context,page,state);}
+ });
+ for(const lifecycle of ['close','area','user','tab'])await check(`whole-area ${lifecycle} cancels a pending step and ignores late delivery`,async()=>{
+  const{context,page,state}=await createPage({wholeAddressFixture:true,holdAddressPaths:[addressScanPath],ignoreAddressAbort:true});
+  try{
+   const before=savedDocuments(state);
+   const panel=await openWholeArea(page);
+   state.releaseAddress(await nextHeldAddress(state,addressScanPath));
+   const pending=await nextHeldAddress(state,addressScanPath);
+   const sessionReads=state.sessionReads;
+   if(lifecycle==='close'){
+    await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
+    await panel.waitFor({state:'detached'});
+   }else if(lifecycle==='area'){
+    await page.locator('[data-map-area-choice]').selectOption('preview-circle');
+    await page.locator('[data-map-area-resource="soft-82201"]').waitFor();
+   }else if(lifecycle==='user'){
+    state.sessionUser={...state.sessionUser,id:state.sessionUser.id+1,name:'Second fictional owner'};
+    await page.waitForTimeout(800); // existing AuthProvider session-check cooldown
+    await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+    await until(()=>state.sessionReads>sessionReads,'Expected the real App to recheck session identity');
+    await panel.waitFor({state:'detached'});
+   }else{
+    await page.getByRole('tab',{name:/CareAround resources/}).click();
+    await panel.waitFor({state:'detached'});
+   }
+   const late=flags=>page.evaluate(({path,flags})=>window.__qaAddressTransport.filter(item=>item.path===path)
+    .some(item=>item.aborted&&item.delivered===flags),{path:addressScanPath,flags});
+   await until(()=>late(false),'Expected the panel to abort the held scan signal');
+   const steps=state.addressRequests.filter(request=>request.path===addressScanPath).length;
+   state.releaseAddress(pending);
+   await until(()=>late(true),'Fixture must deliver the retired step even after abort');
+   await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,0)));
+   assert.equal(state.addressRequests.filter(request=>request.path===addressScanPath).length,steps);
+   assert.equal(await panel.count(),0,'Retired addresses must remain hidden');
+   if(lifecycle==='tab'){
+    await addressTab(page).click();
+    const fresh=await nextHeldAddress(state,addressScanPath);
+    assert.equal(fresh.entry.body.cursor,null);
+    state.holdAddressPaths.clear();state.releaseAddress(fresh);
+    await expectAddressRows(panel,state.addressProvider.versions[0].oracle.slice(0,200));
+   }
+   readOnlyAddressProof(state,before);
+   return{lifecycle,aborted:true,lateDeliveryIgnored:true,zeroWrites:true};
+  }finally{await finishPage(context,page,state);}
+ });
+ await check('whole-area does not start after a late legacy workload failure from a closed panel',async()=>{
+  const{context,page,state}=await createPage({wholeAddressFixture:true,holdAddressPaths:[legacyAddressPath],ignoreAddressAbort:true});
+  try{
+   const before=savedDocuments(state);
+   const panel=await openWholeArea(page);
+   const pending=await nextHeldAddress(state,legacyAddressPath);
+   await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
+   await panel.waitFor({state:'detached'});
+   state.releaseAddress(pending);
+   await until(()=>page.evaluate(path=>window.__qaAddressTransport.some(item=>item.path===path&&item.aborted&&item.delivered),legacyAddressPath),
+    'Fixture must deliver the actual 422 after the panel has retired its legacy request');
+   assert.equal(pending.entry.response.status,422);
+   await page.evaluate(()=>new Promise(resolve=>setTimeout(resolve,0)));
+   assert.equal(state.addressRequests.filter(request=>request.path===addressScanPath).length,0);
+   assert.equal(state.addressRequests.filter(request=>request.path===addressMetadataPath).length,1);
+   readOnlyAddressProof(state,before);
+   return{lateTyped422:true,scanRequests:0,zeroWrites:true};
   }finally{await finishPage(context,page,state);}
  });
  await check('desktop1470x801 native pointer reaches resource rows and actions without scrolling away the modal header',async()=>{

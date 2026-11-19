@@ -207,16 +207,26 @@ try {
             return { radiusText, addressRows: 225, selectedCsvRows: 2 };
         } finally { await context.close(); }
     });
-    await check('area-too-large-shrink-and-changed-snapshot-retry', async () => {
+    await check('area-workload-fallback-can-still-offer-shrink-and-legacy-snapshot-retry', async () => {
         const { page, context } = await createPage(); let failure = 'oversized';
         try {
+            let scanRequests = 0;
+            const area = createSpatialAreaFromAnnotation(annotations.find(value => value.id === 'preview-circle'));
+            await page.route(`**${snapshotPrefix}/area/scan`, async route => {
+                scanRequests++;
+                assert.deepEqual(route.request().postDataJSON().area, area);
+                assert.equal(route.request().postDataJSON().cursor, null);
+                return route.fulfill({ status: 422, json: { error: 'Choose a smaller area.', code: 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE',
+                    addressLimit: { reason: 'geometryWork', observed: 250100, allowed: 250000 } } });
+            });
             await page.route(`**${snapshotPrefix}/area`, async route => failure === 'oversized'
-                ? route.fulfill({ status: 422, json: { error: 'Choose a smaller area.', code: 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE', addressLimit: { reason: 'geometryWork', observed: 250100, allowed: 250000 } } })
+                ? route.fulfill({ status: 422, json: { error: 'Area needs continuation.', code: 'ADDRESS_SNAPSHOT_AREA_TOO_LARGE', addressLimit: { reason: 'tiles', observed: 298, allowed: 16 } } })
                 : failure === 'changed' ? route.fulfill({ status: 409, json: { error: 'Changed snapshot.', code: 'ADDRESS_SNAPSHOT_CHANGED' } }) : route.continue());
             await openAnnotation(page); await selectCircle(page); await page.getByRole('button', { name: 'Find within area', exact: true }).click();
             let panel = await areaDialog(page);
             await panel.locator('[data-map-area-address-error="ADDRESS_SNAPSHOT_AREA_TOO_LARGE"]').waitFor();
             await panel.locator('[data-map-area-address-limit="geometryWork"]').waitFor();
+            assert.equal(scanRequests, 1, 'A valid workload response automatically tries the bounded scan');
             await panel.getByRole('button', { name: 'Choose a smaller or simpler area', exact: true }).click();
             await panel.waitFor({ state: 'detached' });
             failure = 'changed'; await page.locator('[data-map-area-choice]').selectOption('preview-circle');
