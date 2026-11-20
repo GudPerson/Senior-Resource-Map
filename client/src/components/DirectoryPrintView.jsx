@@ -229,7 +229,7 @@ function PrintDirectoryBoardHeader({
         <div className={`border-b border-slate-100 ${compact ? 'pb-3' : 'pb-5'}`}>
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-8">
                 <div className="min-w-0 flex-1">
-                    <BrandLockup compact />
+                    <BrandLockup compact fullResolution />
                     {(() => {
                         const name = directory?.name || t('untitledMap');
                         return (
@@ -263,7 +263,7 @@ function PrintResourcePageHeader({ directory, generatedAt, resourceCount }) {
             data-print-resource-page-header="true"
         >
             <div className="min-w-0">
-                <BrandLockup compact />
+                <BrandLockup compact fullResolution />
                 <h2 className="mt-4 break-words text-[1.35rem] font-black leading-[1.08] text-slate-900" title={name}>
                     {name}
                 </h2>

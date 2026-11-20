@@ -19,3 +19,16 @@ test('checking and clearing return independent sets with outside keys preserved'
     assert.notEqual(updateMatchingSelection(selected, [], true), selected);
     assert.deepEqual(selected, new Set(['a', 'hidden']));
 });
+
+test('sparse selection checks only selected keys in a prepared result set', () => {
+    let probes = 0;
+    class CountedSet extends Set {
+        has(key) { probes++; return super.has(key); }
+    }
+    const matches = new CountedSet(Array.from({ length: 1000 }, (_, i) => i));
+    const selected = new CountedSet([42, 'off-filter']);
+    assert.deepEqual(getMatchingSelectionState(selected, matches), {
+        matchingCount: 1000, selectedMatchingCount: 1, checked: false, mixed: true,
+    });
+    assert.equal(probes, selected.size);
+});

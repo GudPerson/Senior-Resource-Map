@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import { careMapDisplayText } from '../../shared/careMapTerminology.js';
 import { cmsSeedWorkspace, validateCmsWorkspace } from '../../shared/helpContentCms.js';
 import { HELP_CMS_SEED } from '../../server/src/generated/helpCmsSeed.js';
 
@@ -136,7 +137,7 @@ try {
         assert.equal(await guest.page.getByRole('button', { name: 'Edit this article', exact: true }).count(), 0);
         assert.equal(guest.state.calls.length, 0, 'Guest reading must not request the private CMS.');
         const instructions = await guest.page.locator('main article ol > li').allTextContents();
-        assert.deepEqual(instructions, specimen.sections[0].steps);
+        assert.deepEqual(instructions, specimen.sections[0].steps.map(careMapDisplayText));
         return { publicSteps: instructions.length, ...(await noOverflow(guest.page)) };
     });
     await check('super admin without configured owner capability cannot edit', async () => {
@@ -159,7 +160,8 @@ try {
     const desktop = await fixture();
     const editedTitle = 'Fictional review: add a Personal place';
     const editedSummary = 'Fictional second article summary retained in the same library draft.';
-    const originalTopic = seedWorkspace.manifest.categories.find((topic) => topic.id === specimen.category).title;
+    const originalTopic = careMapDisplayText(seedWorkspace.manifest.categories.find((topic) => topic.id === specimen.category).title);
+    const companionTitle = careMapDisplayText(companion.title);
     const editedTopic = 'Fictional map topic';
     await check('same-page editing keeps block changes explicit and private until Done and Save', async () => {
         await enterArticle(desktop);
@@ -185,8 +187,8 @@ try {
         await desktop.page.getByRole('button', { name: 'Edit topic title', exact: true }).click();
         await desktop.page.getByRole('textbox', { name: 'Topic title', exact: true }).fill(editedTopic);
         await desktop.page.getByRole('button', { name: 'Done', exact: true }).click();
-        await desktop.page.getByRole('button').filter({ hasText: companion.title }).first().click();
-        await desktop.page.getByRole('heading', { name: companion.title, exact: true, level: 1 }).waitFor();
+        await desktop.page.getByRole('button').filter({ hasText: companionTitle }).first().click();
+        await desktop.page.getByRole('heading', { name: companionTitle, exact: true, level: 1 }).waitFor();
         await changeBlock(desktop.page, 'Edit article summary', 'Article summary', editedSummary);
         await desktop.page.goBack();
         await desktop.page.getByRole('heading', { name: editedTopic, exact: true, level: 1 }).waitFor();
@@ -195,7 +197,7 @@ try {
         await desktop.page.getByRole('button', { name: 'Preview draft', exact: true }).click();
         await desktop.page.getByRole('heading', { name: editedTitle, exact: true, level: 1 }).waitFor();
         await desktop.page.getByRole('button', { name: 'Guide text', exact: true }).click();
-        assert.ok((await desktop.page.locator('main').innerText()).includes(specimen.sections[0].steps[0]));
+        assert.ok((await desktop.page.locator('main').innerText()).includes(careMapDisplayText(specimen.sections[0].steps[0])));
         await desktop.page.getByRole('button', { name: 'Continue editing', exact: true }).click();
         await desktop.page.getByRole('button', { name: 'Exit editing', exact: true }).click();
         await desktop.page.getByRole('button', { name: 'Edit this article', exact: true }).waitFor();
@@ -421,7 +423,7 @@ try {
         assert.equal(await catalogue.page.getByRole('button', { name: 'Save draft', exact: true }).isEnabled(), false);
         assert.equal(await catalogue.page.getByRole('searchbox', { name: 'Find an article', exact: true }).isEnabled(), false);
         await firstArticle.press('Space');
-        const topicHandle = catalogue.page.getByRole('button', { name: `Reorder topic ${visibleTopic.title.toLowerCase()}`, exact: true });
+        const topicHandle = catalogue.page.getByRole('button', { name: `Reorder topic ${careMapDisplayText(visibleTopic.title).toLowerCase()}`, exact: true });
         await topicHandle.click(); await catalogue.page.getByRole('button', { name: 'Move later', exact: true }).click();
         assert.equal(catalogue.state.saves.length, 0);
         await catalogue.page.getByRole('button', { name: 'Save draft', exact: true }).click();
@@ -452,7 +454,7 @@ try {
         const pending = await fixture(390);
         await enterArticle(pending);
         await pending.page.getByRole('navigation', { name: 'Help content breadcrumbs' }).getByRole('button', { name: originalTopic, exact: true }).click();
-        await pending.page.getByRole('button').filter({ hasText: companion.title }).first().click();
+        await pending.page.getByRole('button').filter({ hasText: companionTitle }).first().click();
         await pending.page.getByRole('button', { name: 'Edit article title', exact: true }).click();
         await pending.page.getByRole('textbox', { name: 'Article title', exact: true }).fill('Fictional pending title kept across Back');
         await pending.page.goBack();

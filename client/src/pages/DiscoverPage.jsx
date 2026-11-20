@@ -641,8 +641,14 @@ export default function DiscoverPage() {
         items.push(...visibleHardAssets.map((asset) => ({ ...asset, _type: 'hard' })));
         items.push(...visibleSoftAssets.map((asset) => ({ ...asset, _type: 'soft' })));
 
-        return items.sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt));
+        return items
+            .map(item => ({ item, updatedAt: new Date(item.updatedAt).getTime() }))
+            .sort((left, right) => right.updatedAt - left.updatedAt)
+            .map(entry => entry.item);
     }, [visibleHardAssets, visibleSoftAssets]);
+
+    // Reuse catalogue text while typing or changing location and favourites.
+    const searchTextByIndex = useMemo(() => allDiscoveryItems.map(buildDiscoverySearchHaystack), [allDiscoveryItems]);
 
     const filteredUniverseBeforeCategories = useMemo(() => {
         let items = allDiscoveryItems.map((resource, index) => {
@@ -652,7 +658,6 @@ export default function DiscoverPage() {
             const distance = effectiveUserLocation && Number.isFinite(lat) && Number.isFinite(lng)
                 ? getDistance(effectiveUserLocation.lat, effectiveUserLocation.lng, lat, lng)
                 : null;
-            const searchHaystack = buildDiscoverySearchHaystack(resource);
             const nameHaystack = normalizeSearchText(resource.name);
 
             return {
@@ -664,7 +669,7 @@ export default function DiscoverPage() {
                 _locationCount: resource._type === 'soft' ? getAssetLocations(resource).length : 1,
                 _baseIndex: index,
                 _nameHaystack: nameHaystack,
-                _searchHaystack: searchHaystack,
+                _searchHaystack: searchTextByIndex[index],
             };
         });
 
@@ -740,6 +745,7 @@ export default function DiscoverPage() {
     }, [
         activeDiscoverySubregion,
         allDiscoveryItems,
+        searchTextByIndex,
         effectiveUserLocation,
         hasScopedDiscoverySubregion,
         savedAssetKeys,

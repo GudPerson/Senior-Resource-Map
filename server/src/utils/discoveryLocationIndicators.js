@@ -34,12 +34,6 @@ function uniqueSortedIntegers(values = []) {
     )].sort((left, right) => left - right);
 }
 
-function hasIntersection(left = [], right = []) {
-    const rightSet = new Set(uniqueSortedIntegers(right));
-    if (rightSet.size === 0) return false;
-    return uniqueSortedIntegers(left).some((value) => rightSet.has(value));
-}
-
 function excludeRegionIds(regionIds = [], ignoredRegionIds = []) {
     const ignoredRegionIdSet = new Set(uniqueSortedIntegers(ignoredRegionIds));
     if (ignoredRegionIdSet.size === 0) return uniqueSortedIntegers(regionIds);
@@ -95,9 +89,9 @@ export function normalizeDiscoveryIndicatorResources(resources = []) {
 }
 
 export function buildDiscoveryLocationIndicators(resources = [], context = {}) {
-    const audienceZoneIds = uniqueSortedIntegers(context.audienceZoneIds || []);
-    const contextRegionIds = uniqueSortedIntegers(context.contextRegionIds || []);
-    const homeRegionIds = uniqueSortedIntegers(context.homeRegionIds || []);
+    const audienceZoneIds = new Set(uniqueSortedIntegers(context.audienceZoneIds || []));
+    const contextRegionIds = new Set(uniqueSortedIntegers(context.contextRegionIds || []));
+    const homeRegionIds = new Set(uniqueSortedIntegers(context.homeRegionIds || []));
     const indicators = {};
 
     for (const resource of resources || []) {
@@ -112,10 +106,10 @@ export function buildDiscoveryLocationIndicators(resources = [], context = {}) {
         indicators[buildResourceKey(type, id)] = {
             withinAudienceZone: Boolean(
                 isAudienceZoneResource
-                && hasIntersection(assignedAudienceZoneIds, audienceZoneIds)
+                && assignedAudienceZoneIds.some(zoneId => audienceZoneIds.has(zoneId))
             ),
-            withinHomeRegion: hasIntersection(matchingRegionIds, homeRegionIds),
-            withinContextRegion: hasIntersection(matchingRegionIds, contextRegionIds),
+            withinHomeRegion: matchingRegionIds.some(regionId => homeRegionIds.has(regionId)),
+            withinContextRegion: matchingRegionIds.some(regionId => contextRegionIds.has(regionId)),
         };
     }
 

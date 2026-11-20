@@ -1,5 +1,7 @@
 const SINGAPORE_OFFSET = '+08:00';
 export const SINGAPORE_TIMEZONE = 'Asia/Singapore';
+let singaporeDayFormatter;
+let singaporeHourFormatter;
 
 function parseDayKey(value) {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
@@ -20,13 +22,13 @@ function formatUtcDayKey(date) {
 }
 
 export function getSingaporeDayKey(value = new Date()) {
-    const formatter = new Intl.DateTimeFormat('en-CA', {
+    singaporeDayFormatter ??= new Intl.DateTimeFormat('en-CA', {
         timeZone: SINGAPORE_TIMEZONE,
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
     });
-    return formatter.format(new Date(value));
+    return singaporeDayFormatter.format(new Date(value));
 }
 
 export function getSingaporeDayDate(dayKey, hour = 12) {
@@ -56,11 +58,12 @@ export function getSingaporeDayRange(dayKey) {
 }
 
 export function getSingaporeHour(value) {
-    const parts = new Intl.DateTimeFormat('en-SG', {
+    singaporeHourFormatter ??= new Intl.DateTimeFormat('en-SG', {
         timeZone: SINGAPORE_TIMEZONE,
         hour: '2-digit',
         hourCycle: 'h23',
-    }).formatToParts(new Date(value));
+    });
+    const parts = singaporeHourFormatter.formatToParts(new Date(value));
     return Number(parts.find((part) => part.type === 'hour')?.value || 0);
 }
 

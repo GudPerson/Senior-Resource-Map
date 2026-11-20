@@ -196,22 +196,27 @@ export function serializeOfferingSchedulePlan(asset = {}) {
     return legacyPlanFromAsset(asset);
 }
 
+let dateFormatter;
+let timeFormatter;
+
 function formatDate(value) {
-    return new Intl.DateTimeFormat('en-SG', {
+    dateFormatter ??= new Intl.DateTimeFormat('en-SG', {
         timeZone: CALENDAR_TIMEZONE,
         day: 'numeric',
         month: 'short',
         year: 'numeric',
-    }).format(new Date(value));
+    });
+    return dateFormatter.format(new Date(value));
 }
 
 function formatTime(value) {
-    return new Intl.DateTimeFormat('en-SG', {
+    timeFormatter ??= new Intl.DateTimeFormat('en-SG', {
         timeZone: CALENDAR_TIMEZONE,
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
-    }).format(new Date(value)).replace(/\s+/g, ' ').toLowerCase();
+    });
+    return timeFormatter.format(new Date(value)).replace(/\s+/g, ' ').toLowerCase();
 }
 
 function formatEntrySummary(entry) {

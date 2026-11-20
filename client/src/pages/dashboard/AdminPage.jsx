@@ -4,7 +4,6 @@ import { CategoryBadge } from '../../lib/categories.jsx';
 import { stripMarkdownLite } from '../../lib/markdownLite.js';
 import { Shield, Users, BookOpen, Trash2, MapPin, ChevronDown, Database, Upload, Download, LogIn, Search, Pencil, Building2, ScrollText, Info, LockKeyhole } from 'lucide-react';
 import Papa from 'papaparse';
-import * as XLSX from '@e965/xlsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AdminUserForm from '../../components/AdminUserForm.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
@@ -221,7 +220,11 @@ async function parseTabularUploadRows(file) {
         return parseCsvUploadRows(file);
     }
 
-    const workbook = XLSX.read(await file.arrayBuffer(), {
+    const reader = import('@e965/xlsx').catch(() => {
+        throw new Error('The Excel reader could not load. Check your connection, refresh this page, then choose the workbook again');
+    });
+    const [XLSX, buffer] = await Promise.all([reader, file.arrayBuffer()]);
+    const workbook = XLSX.read(buffer, {
         type: 'array',
         cellDates: false,
     });

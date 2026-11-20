@@ -1,19 +1,25 @@
 const SINGAPORE_TIMEZONE = 'Asia/Singapore';
+let dateTimeInputFormatter;
+let occurrenceDateFormatter;
+let occurrenceTimeFormatter;
+let previewDateTimeFormatter;
+let previewDateFormatter;
 
 export function formatSingaporeDateTimeLocal(value) {
     if (!value) return '';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '';
+    dateTimeInputFormatter ??= new Intl.DateTimeFormat('en-CA', {
+        timeZone: SINGAPORE_TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+    });
     const parts = Object.fromEntries(
-        new Intl.DateTimeFormat('en-CA', {
-            timeZone: SINGAPORE_TIMEZONE,
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hourCycle: 'h23',
-        }).formatToParts(date)
+        dateTimeInputFormatter.formatToParts(date)
             .filter((part) => part.type !== 'literal')
             .map((part) => [part.type, part.value]),
     );
@@ -179,22 +185,23 @@ function formatOccurrence(startValue, endValue, status) {
     const start = new Date(startValue);
     const end = endValue ? new Date(endValue) : null;
     if (Number.isNaN(start.getTime())) return '';
-    const dateText = new Intl.DateTimeFormat('en-SG', {
+    occurrenceDateFormatter ??= new Intl.DateTimeFormat('en-SG', {
         timeZone: SINGAPORE_TIMEZONE,
         weekday: 'short',
         day: 'numeric',
         month: 'short',
         year: 'numeric',
-    }).format(start);
-    const timeFormatter = new Intl.DateTimeFormat('en-SG', {
+    });
+    const dateText = occurrenceDateFormatter.format(start);
+    occurrenceTimeFormatter ??= new Intl.DateTimeFormat('en-SG', {
         timeZone: SINGAPORE_TIMEZONE,
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
     });
     const timeText = end && !Number.isNaN(end.getTime())
-        ? `${timeFormatter.format(start)}–${timeFormatter.format(end)}`
-        : timeFormatter.format(start);
+        ? `${occurrenceTimeFormatter.format(start)}–${occurrenceTimeFormatter.format(end)}`
+        : occurrenceTimeFormatter.format(start);
     return `${dateText}, ${timeText}${status === 'cancelled' ? ' (Cancelled)' : ''}`;
 }
 
@@ -256,20 +263,22 @@ function formatLocalDateTime(value) {
     if (!value) return '';
     const date = new Date(`${value}:00+08:00`);
     if (Number.isNaN(date.getTime())) return '';
-    return new Intl.DateTimeFormat('en-SG', {
+    previewDateTimeFormatter ??= new Intl.DateTimeFormat('en-SG', {
         timeZone: SINGAPORE_TIMEZONE,
         dateStyle: 'medium',
         timeStyle: 'short',
-    }).format(date);
+    });
+    return previewDateTimeFormatter.format(date);
 }
 
 function formatLocalDate(value) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return '';
     const date = new Date(`${value}T00:00:00.000Z`);
-    return new Intl.DateTimeFormat('en-SG', {
+    previewDateFormatter ??= new Intl.DateTimeFormat('en-SG', {
         timeZone: 'UTC',
         dateStyle: 'medium',
-    }).format(date);
+    });
+    return previewDateFormatter.format(date);
 }
 
 export function buildSchedulePlanPreviewText(plan = {}) {

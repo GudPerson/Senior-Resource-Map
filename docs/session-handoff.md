@@ -2123,3 +2123,7 @@ Final whole-change review and the combined fix re-review pass. Final wave: area5
 Preserve this managed worktree, all uncommitted work and ignored SDD evidence. Prior live document bytes are exact prefixes; all148 existing output files match. No commit history contains this task's evidence, so do not delete its workspace as cleanup. Any later release needs the release checklist, explicit authorization, required CI and fresh Help-content-preserving publication checks. Prior single-use database identity permissions are not reusable.
 
 Limits remain: earlier virtual-clock Leaflet exceptions have undetermined cause despite archive and final active passes; no causal fix is claimed. Baseline Boundary pointer, narrow Resource header/navbar and640px navbar observations are documented, with usable footer actions verified. Physical devices/keyboards, real private maps/sessions and full language/device acceptance are open. No cloud, production content/data, roles, dependencies or credentials changed.
+
+## Whole-app performance candidate, 20 November 2026
+
+The isolated `codex/app-performance-20261120` worktree holds the local candidate and test updates based on `0edfd09fddc7eb736672d3b1c4067e706ce1f0a1`. The primary checkout retains its existing work. The changes reduce initial downloads and repeated catalogue, selection and scheduling calculations. The production-configured build and repository tests passed locally. Release and production measurement are pending. [Performance report and reproduction notes](performance-2026-11-20.md)

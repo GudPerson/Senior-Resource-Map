@@ -28,7 +28,7 @@ export function useAreaAddressFilter({ area, scopeKey, tab, result, wholeArea, s
     const matches = useMemo(() => filtering
         ? (complete ? filterAreaAddressSearchIndex(getIndex(), normalized.split(' ')) : EMPTY)
         : source, [normalized, filtering, complete, getIndex, source]);
-    const keys = useMemo(() => matches.map(row => row.id), [matches]);
+    const keys = useMemo(() => new Set(matches.map(row => row.id)), [matches]);
     const selection = useMemo(() => getMatchingSelectionState(selected, keys), [selected, keys]);
     const selectedRows = useMemo(() => selected.size ? source.filter(row => selected.has(row.id)) : EMPTY, [source, selected]);
     const limit = filtering ? filteredLimit : Math.max(unfilteredLimit, result?.rows.length || 0);
