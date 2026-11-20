@@ -1,9 +1,11 @@
 import careAroundMark from '../../assets/carearound-mark.png';
+import smallCareAroundMark from '../../assets/carearound-mark-small.png';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 
 export default function BrandLockup({
     className = '',
     compact = false,
+    fullResolution = false,
     showTagline = false,
     textClassName = '',
 }) {
@@ -12,11 +14,16 @@ export default function BrandLockup({
 
     return (
         <div className={`brand-lockup flex items-center gap-3 ${className}`}>
-            <img
-                src={careAroundMark}
-                alt="CareAround SG"
-                className={`brand-lockup-mark ${iconSize} w-auto object-contain shrink-0`}
-            />
+            <picture className="flex shrink-0">
+                {!fullResolution && <source media="print" srcSet={careAroundMark} />}
+                <img
+                    src={careAroundMark}
+                    srcSet={fullResolution ? undefined : `${smallCareAroundMark} 192w, ${careAroundMark} 640w`}
+                    sizes={fullResolution ? undefined : '3.6rem'}
+                    alt="CareAround SG"
+                    className={`brand-lockup-mark ${iconSize} w-auto object-contain shrink-0`}
+                />
+            </picture>
             <div className={`min-w-0 ${textClassName}`}>
                 <div className="brand-lockup-title-row flex items-center gap-2">
                     <div

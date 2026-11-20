@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { lazy, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, BookOpen, ChevronRight, Search, Sparkles, X } from 'lucide-react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
@@ -9,8 +9,9 @@ import publicLibrary from '../../generated/helpArticles.json';
 import HelpArticle from './HelpArticle.jsx';
 import { createHelpArticlesApi } from './helpApi.js';
 import { canReadAccountHelp, helpArticleRoute, helpIdentityKey, mergeHelpArticles, mergeHelpCategories, normalizeHelpQuery, searchHelpArticles } from './helpLibrary.js';
-import HelpContentPage from '../help-content/HelpContentPage.jsx';
 import { createHelpContentApi } from '../help-content/helpContentApi.js';
+
+const HelpContentPage = lazy(() => import('../help-content/HelpContentPage.jsx'));
 
 // Restricted responses live only in this mounted identity. Clear them before
 // rechecking on navigation/focus; an aborted response can never restore them.

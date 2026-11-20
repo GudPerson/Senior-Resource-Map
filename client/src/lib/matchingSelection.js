@@ -2,7 +2,8 @@ export function getMatchingSelectionState(selectedKeys, matchingKeys) {
     const matches = matchingKeys instanceof Set ? matchingKeys : new Set(matchingKeys);
     const matchingCount = matches.size;
     let selectedMatchingCount = 0;
-    for (const key of matches) if (selectedKeys.has(key)) selectedMatchingCount++;
+    const [smaller, larger] = selectedKeys.size < matchingCount ? [selectedKeys, matches] : [matches, selectedKeys];
+    for (const key of smaller) if (larger.has(key)) selectedMatchingCount++;
     return {
         matchingCount, selectedMatchingCount,
         checked: matchingCount > 0 && selectedMatchingCount === matchingCount,

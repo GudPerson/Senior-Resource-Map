@@ -31,7 +31,8 @@ export default function MapAreaResourceChooser({ rows = [], existingAssets = [],
     const supported = row => { const c = choiceFor(row); return c.all || (c.ids.length > 0 && c.ids.length <= AREA_RESOURCE_MAX_VENUES); };
     const selectable = row => !existing.has(keyFor(row)) && supported(row);
     const selectedRows = rows.filter(row => selected.has(keyFor(row)) && !existing.has(keyFor(row)));
-    const outsideCount = selectedRows.filter(row => !shown.some(match => keyFor(match) === keyFor(row))).length;
+    const shownKeys = useMemo(() => new Set(shown.map(keyFor)), [shown]);
+    const outsideCount = selectedRows.filter(row => !shownKeys.has(keyFor(row))).length;
     const matching = shown.filter(selectable).map(keyFor);
     const selection = getMatchingSelectionState(selected, matching);
     const added = results.filter(row => ['added', 'already_on_map'].includes(row.status)).length;
