@@ -58,14 +58,17 @@ export function normalizeSpatialArea(area) {
 
 function ringLocation(ring, x, y) {
     let inside = false;
+    const tolerance = 1e-12;
     for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-        const [ax, ay] = ring[j], [bx, by] = ring[i];
+        const a = ring[j], b = ring[i], ay = a[1], by = b[1];
+        // Neither a boundary hit nor a horizontal ray crossing can occur outside this band.
+        if (y < Math.min(ay, by) - tolerance || y > Math.max(ay, by) + tolerance) continue;
+        const ax = a[0], bx = b[0];
         const dx = bx - ax, dy = by - ay;
         if (dx === 0 && dy === 0) continue;
         const cross = (x - ax) * dy - (y - ay) * dx;
-        if (Math.abs(cross) <= 1e-12 * Math.max(Math.abs(dx), Math.abs(dy))
-            && x >= Math.min(ax, bx) - 1e-12 && x <= Math.max(ax, bx) + 1e-12
-            && y >= Math.min(ay, by) - 1e-12 && y <= Math.max(ay, by) + 1e-12) return 0;
+        if (Math.abs(cross) <= tolerance * Math.max(Math.abs(dx), Math.abs(dy))
+            && x >= Math.min(ax, bx) - tolerance && x <= Math.max(ax, bx) + tolerance) return 0;
         if ((ay > y) !== (by > y) && x < ((bx - ax) * (y - ay) / (by - ay) + ax)) inside = !inside;
     }
     return inside ? 1 : -1;

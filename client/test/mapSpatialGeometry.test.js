@@ -40,6 +40,19 @@ test('KML multipart areas preserve all rings, exclude hole interiors, and includ
     assert.equal(containsSpatialPoint(overlapping, [1.305, 103.805]), true);
 });
 
+test('outer edges and hole edges keep their latitude tolerance on both sides', () => {
+    const box = (low, high) => [[low, low], [high, low], [high, high], [low, high], [low, low]];
+    const area = { type: 'Polygon', coordinates: [box(1, 4), box(2, 3)] };
+    for (const side of [-1, 1]) {
+        const outer = side < 0 ? 1 : 4;
+        const hole = side < 0 ? 2 : 3;
+        assert.equal(containsSpatialPoint(area, [outer + side * 0.5e-12, 2.5]), true);
+        assert.equal(containsSpatialPoint(area, [outer + side * 2e-12, 2.5]), false);
+        assert.equal(containsSpatialPoint(area, [hole - side * 0.5e-12, 2.5]), true);
+        assert.equal(containsSpatialPoint(area, [hole - side * 2e-12, 2.5]), false);
+    }
+});
+
 test('circles use geographic metres, include their edge, and keep the visible minimum radius', () => {
     const center = [1.3, 103.8], edge = [1.301, 103.8];
     const area = createSpatialAreaFromAnnotation({ type: 'circle', points: [center, edge] });
