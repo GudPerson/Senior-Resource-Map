@@ -53,6 +53,20 @@
         }
       ],
       "addedMigrationSource": "server/drizzle/0012_boundary_library_guided_zones.sql"
+    },
+    "withinAreaGeometryRebind": {
+      "baseRevision": "bfe0a1dda4b0816b10b4a7235825637241010cc3",
+      "kind": "source-binding-only; original controller capture retained",
+      "reason": "The shared polygon test skips edges outside the same latitude tolerance. The original 12 serialized Regional Discovery responses retain their captured hashes.",
+      "bindings": [
+        {
+          "path": "shared/addressSnapshotSpatial.js",
+          "capturedBytes": 5753,
+          "capturedSha256": "70f9ff6b58ba7f1dce4192116221ed3a4e22e30f4f08c4063d4017ce62b6145c",
+          "integratedBytes": 5945,
+          "integratedSha256": "565d6802cde01f285b8ed1258d27f5997c56ecfd4cb8a3959f3dfd96409d97bd"
+        }
+      ]
     }
   },
   "fixtureSchemaVersion": 1,
@@ -456,8 +470,8 @@
     },
     {
       "path": "shared/addressSnapshotSpatial.js",
-      "bytes": 5753,
-      "sha256": "70f9ff6b58ba7f1dce4192116221ed3a4e22e30f4f08c4063d4017ce62b6145c"
+      "bytes": 5945,
+      "sha256": "565d6802cde01f285b8ed1258d27f5997c56ecfd4cb8a3959f3dfd96409d97bd"
     },
     {
       "path": "shared/annotationAppearance.js",
